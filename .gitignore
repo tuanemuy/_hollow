@@ -1,0 +1,27 @@
+.DS_Store
+/node_modules/
+
+# TanStack Start / Vite
+/.tanstack/
+/.output/
+/.nitro/
+/dist/
+/app/routeTree.gen.ts
+
+# Cloudflare Wrangler
+/.wrangler/
+/worker-configuration.d.ts
+/.dev.vars
+
+# Node runtime
+/data/
+.env
+.env.local
+.env.*.local
+
+.envrc
+.direnv
+
+*.db
+*.db-shm
+*.db-wal
