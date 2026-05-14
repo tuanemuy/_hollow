@@ -1,6 +1,6 @@
 # tanstack-start-template
 
-A reference template for building applications with **TanStack Start + React 19 (RSC)** on a **DDD / Hexagonal architecture** foundation.
+A reference template for building applications with **TanStack Start + React 19 (RSC)** on a **DDD / Hexagonal architecture** foundation, targeting **Cloudflare Workers + D1 + Queues**.
 
 The goal is to give you a worked example of:
 
@@ -13,7 +13,7 @@ The goal is to give you a worked example of:
 
 - **TanStack Start + React 19 / RSC** — File-based routing (TanStack Router), server components as the default for data fetching, mutations driven through server functions, React 19 primitives on the client.
 - **Hexagonal architecture + DDD** — Enforces a one-way dependency flow `domain → application → adapters → presentation`. Side effects are confined to the boundary via port / adapter separation.
-- **Drizzle ORM + SQLite dialect** — Schema, migrations, and repositories share a single Drizzle definition. Adapter classes translate driver-specific errors into the shared error contracts.
+- **Drizzle ORM + D1 (SQLite dialect)** — Schema, migrations, and repositories share a single Drizzle definition. Adapter classes translate driver-specific errors into the shared error contracts.
 - **Outbox pattern** — Domain events are persisted in the same transaction as aggregate writes, then a relay publishes them to consumers. At-least-once delivery, no ordering guarantees, idempotency is the subscriber's responsibility.
 - **TypeScript / Biome / Vitest / fast-check** — Type checking with `tsgo`, lint and format via Biome, two-tier Vitest setup (unit / integration).
 - **Structured error serialization** — Each layer carries its own `kind`-tagged serialized form; presentation composes the union structurally. HTTP status mapping lives only in presentation.
@@ -32,67 +32,48 @@ app/
 ├─ styles/
 ├─ lib/               # structural primitives shared by every layer (e.g. CodedError)
 ├─ worker/            # background-worker entries (relay / consumer / pruner / dlq)
-└─ server.*.ts        # server fetch entries
-scripts/              # migration and production launcher scripts
-docs/                 # implementation pattern examples + runtime guides
+└─ server.cloudflare.ts  # server fetch entry
+docs/                 # implementation pattern examples + runtime guide
 spec/                 # entry point for the /spec workflow
 ```
 
 For the deeper rationale, see [`CLAUDE.md`](CLAUDE.md), [`docs/backend_implementation_example.md`](docs/backend_implementation_example.md), and [`docs/frontend_implementation_example.md`](docs/frontend_implementation_example.md).
 
-## Reference runtimes
+## Runtime
 
-The template ships **two reference runtime wirings** as worked examples of how the adapter and entry-point layers can be swapped while the inward layers stay intact:
-
-- **Node.js + libSQL** — single-process, no Docker, no Cloudflare account required. The data file lives at `./data/app.db`. This is the default for `pnpm dev` / `pnpm build` / `pnpm start`.
-- **Cloudflare Workers + D1 + Queues** — multi-worker, edge-distributed, managed queues. Reached via the `:cf` script suffix.
-
-**Pick one and delete the other** when you start a real project. Or, if you genuinely need both targets, keep both. The template does not assume you maintain a dual deployment.
+Cloudflare Workers + D1 + Queues. Operational guidance lives in [`docs/runtime_cloudflare.md`](docs/runtime_cloudflare.md).
 
 To target a different runtime (AWS Lambda, Cloud Run, Bun, etc.), add a new adapter group under `app/core/adapters/{provider}/` and a paired entry point — the inward layers stay put.
-
-Per-runtime operational guidance: [`docs/runtime_node.md`](docs/runtime_node.md) / [`docs/runtime_cloudflare.md`](docs/runtime_cloudflare.md).
 
 ## Requirements
 
 - Node.js (the `flake.nix` / `.envrc` direnv environment is recommended)
 - pnpm
-- A Cloudflare account + authenticated `wrangler` (only if you keep the Cloudflare runtime)
+- A Cloudflare account + authenticated `wrangler`
 
 ## Quick Start
 
-The default scripts target the Node runtime.
-
 ```bash
 pnpm install
-cp .env.example .env       # edit DATABASE_URL / APP_URL / PORT if needed
-pnpm db:migrate            # creates ./data/app.db and applies SQL migrations
-pnpm dev                   # vite dev server on http://localhost:3000
+cp .dev.vars.example .dev.vars     # add any secrets your app needs
+pnpm db:migrate                    # apply SQL migrations to local D1
+pnpm dev                           # vite dev (workerd) on http://localhost:3000
 ```
 
 For a production build:
 
 ```bash
 pnpm build
-pnpm start
+pnpm start                         # wrangler dev against the built worker
 ```
-
-If you want to try the Cloudflare wiring instead, see [`docs/runtime_cloudflare.md`](docs/runtime_cloudflare.md).
 
 ## Development commands
 
 ```bash
-pnpm dev                         # alias of pnpm dev:node
-pnpm dev:node                    # vite dev (Node)
-pnpm dev:cf                      # vite dev (Cloudflare / workerd)
-
-pnpm build                       # alias of pnpm build:node
-pnpm build:node
-pnpm build:cf
-
-pnpm start                       # alias of pnpm start:node
-pnpm start:node                  # @hono/node-server
-pnpm start:cf                    # wrangler dev (top-level Worker)
+pnpm dev                         # vite dev (workerd via @cloudflare/vite-plugin)
+pnpm build                       # vite build
+pnpm start                       # wrangler dev
+pnpm preview                     # vite preview
 
 pnpm typecheck                   # tsgo (@typescript/native-preview)
 pnpm lint                        # Biome lint
@@ -102,7 +83,7 @@ pnpm format:check
 
 pnpm test                        # unit + integration
 pnpm test:unit                   # Vitest (unit)
-pnpm test:integration            # integration suites
+pnpm test:integration            # integration suites (Miniflare)
 ```
 
 Recommended routine after changes:
@@ -113,12 +94,11 @@ pnpm typecheck && pnpm lint:fix && pnpm format
 
 ## Database migrations
 
-Migration SQL is the canonical artefact and is shared across the reference runtimes.
-
 ```bash
-pnpm db:generate                       # generate SQL from the Drizzle schema
-pnpm db:migrate                        # apply to local libSQL via Drizzle's programmatic migrator
-pnpm db:migrate:cf                     # wrangler d1 migrations apply (local D1)
+pnpm db:generate                 # generate SQL from the Drizzle schema
+pnpm db:migrate                  # wrangler d1 migrations apply (local D1)
+pnpm db:apply:staging            # apply to staging D1
+pnpm db:apply:production         # apply to production D1
 ```
 
 For per-stage D1 migration management, see [`docs/runtime_cloudflare.md`](docs/runtime_cloudflare.md).

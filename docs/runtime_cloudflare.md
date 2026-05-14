@@ -2,8 +2,6 @@
 
 Multi-Worker, edge-distributed runtime. The main app runs in the `app` Worker; outbox publish, queue consumption, daily pruning, and DLQ surfacing each ship as a sibling Worker driven by Service Bindings, Queues, and Cron Triggers.
 
-See [`runtime_node.md`](./runtime_node.md) for the standalone runtime that runs the same code on a single Node process.
-
 ## Table of contents
 
 - [Quick start](#quick-start)
@@ -16,18 +14,18 @@ See [`runtime_node.md`](./runtime_node.md) for the standalone runtime that runs 
 - [Queues](#queues)
 - [Cron triggers](#cron-triggers)
 - [Retry budget](#retry-budget)
-- [D1-specific behaviour and the libSQL diff](#d1-specific-behaviour-and-the-libsql-diff)
+- [D1 transactional model](#d1-transactional-model)
 
 ## Quick start
 
 ```bash
 pnpm install
 cp .dev.vars.example .dev.vars         # wrangler-loaded secrets for local dev (gitignored)
-pnpm db:migrate:cf                     # apply migrations to the local D1
-pnpm dev:cf                            # vite dev backed by workerd (@cloudflare/vite-plugin)
+pnpm db:migrate                        # apply migrations to the local D1
+pnpm dev                               # vite dev backed by workerd (@cloudflare/vite-plugin)
 ```
 
-`.dev.vars` is auto-loaded by `wrangler dev` (and the workerd-backed `pnpm dev:cf`) and mirrors `wrangler secret put` for production. Non-secret config such as `APP_URL` belongs in the matching `wrangler*.toml` `[vars]`, not in `.dev.vars`.
+`.dev.vars` is auto-loaded by `wrangler dev` (and the workerd-backed `pnpm dev`) and mirrors `wrangler secret put` for production. Non-secret config such as `APP_URL` belongs in the matching `wrangler*.toml` `[vars]`, not in `.dev.vars`.
 
 ## Worker matrix
 
@@ -47,13 +45,13 @@ Trigger model: the request path kicks the relay through the `RELAY` Service Bind
 
 | File                       | Purpose                                                                                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `wrangler.toml`            | **Local dev only** — `pnpm dev:cf` / `pnpm build:cf` discover it via `@cloudflare/vite-plugin` (configured in `vite.config.cloudflare.ts`). Do not deploy from this file. |
+| `wrangler.toml`            | **Local dev only** — `pnpm dev` / `pnpm build` discover it via `@cloudflare/vite-plugin` (configured in `vite.config.cloudflare.ts`). Do not deploy from this file. |
 | `wrangler.staging.toml`    | Staging deploys (`pnpm deploy:staging*`).                                                                                                  |
 | `wrangler.production.toml` | Production deploys (`pnpm deploy:production*`).                                                                                            |
 
 Each stage file is a self-contained mirror of `wrangler.toml` with `-staging` / `-production` suffixed on every Cloudflare resource name (Worker name, D1 `database_name`, queue names) so the two stages never collide inside one Cloudflare account.
 
-**Wrangler env caveat**: top-level `d1_databases` / `vars` are **not** inherited into named environments. Each `[env.*]` block re-declares them — keep `database_id`, queue names, and `APP_URL` in sync across every block of every stage config. `pnpm cf:types` (re)generates `worker-configuration.d.ts` from `wrangler.toml` only; this also runs automatically on `postinstall` and `predev:cf`.
+**Wrangler env caveat**: top-level `d1_databases` / `vars` are **not** inherited into named environments. Each `[env.*]` block re-declares them — keep `database_id`, queue names, and `APP_URL` in sync across every block of every stage config. `pnpm cf:types` (re)generates `worker-configuration.d.ts` from `wrangler.toml` only; this also runs automatically on `postinstall` and `predev`.
 
 ## One-time Cloudflare resource creation
 
@@ -85,7 +83,7 @@ wrangler secret put MY_SECRET --config wrangler.production.toml
 
 For local dev, drop them into `.dev.vars` (copied from `.dev.vars.example`).
 
-The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are documented in `.env.example` — the schema is shared with the Node runtime via `app/core/application/di/env.ts`.
+The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`.
 
 ## Deployment
 
@@ -111,9 +109,10 @@ pnpm deploy:production:all:dry       # dry run
 
 ## D1 migrations
 
-The canonical SQL lives under `app/core/adapters/d1/migrations/`. Generate it with `pnpm db:generate:cf` (alias `pnpm db:generate`) from `app/core/adapters/d1/schema.ts`.
+The canonical SQL lives under `app/core/adapters/d1/migrations/`. Generate it with `pnpm db:generate` from `app/core/adapters/d1/schema.ts`.
 
 ```bash
+pnpm db:migrate                        # alias of db:apply:local
 pnpm db:apply:local                    # apply to the local D1
 pnpm db:apply:staging                  # apply to the staging D1
 pnpm db:apply:production               # apply to the production D1
@@ -121,8 +120,6 @@ pnpm db:execute:local --file=...       # run an arbitrary SQL file locally
 pnpm db:execute:staging --file=...     # run an arbitrary SQL file against staging
 pnpm db:execute:production --file=...  # run an arbitrary SQL file against production
 ```
-
-`pnpm db:migrate:cf` is an alias of `db:apply:local` for parity with the Node runtime's `pnpm db:migrate`.
 
 ## Queues
 
@@ -153,18 +150,6 @@ A message reaches the DLQ only after **both** retry budgets are exhausted:
 
 The user-visible attempt count is the **product** of those numbers (max 8 by default), so adjust them together when tuning. Once the relay budget is exhausted on a row, `processOutboxEvents` stamps `failed_at`, and the row stays out of the queue until manually re-driven.
 
-## D1-specific behaviour and the libSQL diff
+## D1 transactional model
 
-The SQLite schema and SQL are shared verbatim across runtimes — both adapters consume `app/core/adapters/d1/schema.ts` (libSQL re-exports it). What differs:
-
-| Concern                     | D1                                                      | libSQL                                                          |
-| --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------- |
-| Transactional UoW           | `db.batch(stmts)` — pre-collected `PendingBatch`        | `client.transaction("write", fn)` — interactive transaction     |
-| Error mapping               | Driver errors are parsed from message strings           | `LibsqlError.code` is a structured enum — more robust matching  |
-| Relay trigger               | `ServiceBindingRelayTrigger` (cross-Worker `fetch`)     | `InProcessRelayTrigger` (`setImmediate` in the same process)    |
-| Queue                       | Cloudflare Queues, durable, cross-region                | `InMemoryQueueDispatcher`, in-process only                      |
-| Cron                        | Cloudflare Cron Triggers                                | `setInterval` inside the runner                                 |
-| OCC `CHECK` constraints     | Shared — works identically                              | Shared — works identically                                      |
-| `RETURNING` clauses         | Supported                                               | Supported (fuller coverage than D1, but kept to the shared subset) |
-
-D1 cannot run an interactive transaction inside a Worker invocation: the only atomic primitive is `db.batch`, which is why the UoW pre-collects statements into a `PendingBatch`. libSQL exposes an interactive `transaction("write", fn)` API, so its UoW executes the same statements eagerly. Both produce the same observable semantics — including OCC failures, FK enforcement, and the at-least-once outbox dispatch — at the application layer.
+D1 cannot run an interactive transaction inside a Worker invocation: the only atomic primitive is `db.batch`. The UoW pre-collects statements into a `PendingBatch` and flushes them in one batch on commit. Driver errors are parsed from message strings into the shared error contracts (OCC violations, FK failures, etc.) at the adapter boundary. The observable semantics — OCC failures, FK enforcement, and the at-least-once outbox dispatch — are produced at the application layer regardless of the driver underneath.

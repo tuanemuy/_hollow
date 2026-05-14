@@ -1,6 +1,3 @@
-// Deliberately separate from `./serverNode.ts` so the Node entry never
-// pulls Workers-only imports and vice versa. Both factories return the
-// same `RequestContainer` / `WorkerContainer` shapes.
 import type { D1Database, Fetcher } from "@cloudflare/workers-types";
 import { content } from "@/config";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
@@ -55,9 +52,8 @@ export type RequestServerConfig = AppConfig &
   }>;
 
 /**
- * Cloudflare bindings shape. The `OUTBOX_*` vars are runtime-agnostic
- * (see {@link TuningEnv}); the D1/Fetcher bindings are CF-only. The
- * Node entry has its own env shape in `./serverNode`.
+ * Cloudflare bindings shape. The `OUTBOX_*` vars come from wrangler
+ * `[vars]` (see {@link TuningEnv}); the D1/Fetcher bindings are CF-only.
  */
 export type ServerEnv = Readonly<{
   DB: D1Database;
