@@ -1,0 +1,147 @@
+# AdminSettings ユースケース
+
+すべて `role === 'admin'` を要求する（usecase 入口で確認）。
+
+## GetInstanceSettings
+
+### 入力DTO
+- `actorUserId: UserId`
+
+### 出力DTO
+- `settings: InstanceSettingsDTO`（apiKeyCiphertext は返さず、`apiKeyMasked: string` のみ）
+
+### 処理フロー
+1. actor の role 確認
+2. InstanceSettingsRepository.get
+3. apiKey 部分はマスクして DTO 化
+
+### エラーケース
+- `AuthorizationError`
+
+---
+
+## UpdateLLMConfig
+
+### 入力DTO
+- `actorUserId`, `model: string`, `apiKeyPlain: string | null`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+1. admin チェック
+2. 既存設定取得
+3. `apiKeyPlain !== null` のとき `SecretBox.encrypt`、`apiKeySource = 'db'`
+4. env 経由のキーがある場合、`AdminSettingsService.assertEnvOverride` を呼ぶと `apiKeySource = 'env'` に強制
+5. `settings.updateLLM(cfg, now)` → save
+
+### エラーケース
+- `ValidationError`
+- `SecretBoxError`
+
+---
+
+## TestLLMConnection
+
+### 入力DTO
+- `actorUserId`, `useDraft: boolean`, `draftConfig?: LLMConfigDTO`
+
+### 出力DTO
+- `ok: boolean`, `latencyMs: number`, `error: string | null`
+
+### 処理フロー
+1. admin チェック
+2. cfg を解決（保存済み or draft）、apiKey を解決（env > db）
+3. `LLMConnectionTester.ping`
+
+### エラーケース
+- `LLMUnavailableError`
+
+---
+
+## UpdatePromptTemplate（admin）
+
+### 入力DTO
+- `actorUserId`, `purpose: PromptPurpose`, `template: { text; expectedVariables }`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+- admin チェック → InstanceSettingsRepository.get → `updatePrompt` → save
+
+### エラーケース
+- `ValidationError('prompt_variable_missing' | 'prompt_too_large')`
+
+---
+
+## UpdateUserPromptOverride（user）
+
+### 入力DTO
+- `actorUserId`, `purpose`, `template | null`
+
+### 処理フロー
+- UserPromptOverrideRepository.findByOwner（無ければ新規）
+- `setPrompt` or `clearPrompt`
+- save
+
+### エラーケース
+- `ValidationError`
+
+---
+
+## UpdateDesignTokens / ResetDesignTokens
+
+### 入力DTO
+- `actorUserId`, （Update: `tokens: Record<string,string>`）
+
+### 処理フロー
+- admin チェック
+- DesignTokens 構築（バリデーション含む）
+- `settings.updateDesignTokens(tokens, now)` → save
+- Reset は既定値を適用
+
+### エラーケース
+- `ValidationError`
+
+---
+
+## ToggleRegistrationPolicy
+
+### 入力DTO
+- `actorUserId`, `open: boolean`, `closedReason: string | null`
+
+### 処理フロー
+- admin チェック → `settings.setRegistrationOpen(open, closedReason, now)` → save
+
+---
+
+## UpdateInstanceLimits
+
+### 入力DTO
+- `actorUserId`, `limits: InstanceLimitsDTO`
+
+### 処理フロー
+- admin チェック → `settings.updateLimits(limits, now)` → save
+
+### エラーケース
+- `ValidationError`
+
+---
+
+## GetUsageMetrics
+
+### 入力DTO
+- `actorUserId`
+
+### 出力DTO
+- `userCount: number`, `storageDurableObjectBytes: number`, `storageR2Bytes: number`, `uploadsToday: number`, `llmCallsToday: number`, `alerts: AlertDTO[]`
+
+### 処理フロー
+1. admin チェック
+2. UserRepository.countAdmins / listAll で集計（or 専用 メトリクスポート経由）
+3. NoteRepository / MediaAssetRepository から消費量集計
+4. IngestionJob / LLM 呼び出しのログから当日値（メトリクス用ポートを別途用意）
+
+### エラーケース
+- 集計失敗時は `null` を返し UI 側で「取得失敗」表示

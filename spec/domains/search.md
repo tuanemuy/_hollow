@@ -1,0 +1,104 @@
+# Search
+
+ノートの全文検索インデックスと検索クエリ実行を担う。Note を ID で参照し、ドメインイベント経由でインデックスを更新する。
+
+## ユビキタス言語
+
+| English | 日本語 | 定義 |
+|---|---|---|
+| SearchDocument | 検索ドキュメント | 1 ノートを表す検索インデックスエントリ |
+| Visibility | 公開可視性 | `private` / `unlisted` / `public` |
+| SearchQuery | 検索クエリ | キーワード + ファセットを含む検索条件 |
+| SearchHit | 検索結果 | 1 件のヒット（ノート ID と要約） |
+| IndexJob | インデックスジョブ | 非同期インデックス更新ジョブ |
+
+## エンティティ
+
+### SearchDocument（集約ルート）
+
+- フィールド:
+  - `noteId: NoteId` — 集約 ID
+  - `ownerId: UserId`
+  - `visibility: Visibility`
+  - `title: string`
+  - `body: string` — HTML をプレーン化したテキスト
+  - `tagNames: string[]` — タグ名のスナップショット
+  - `directoryPath: string`
+  - `dateForCalendar: Instant` — FrontMatter `date` > `updatedAt`
+  - `updatedAt: Instant`
+  - `indexedAt: Instant`
+- 振る舞い:
+  - `fromSnapshot(snapshot: NoteSnapshot, now: Instant): SearchDocument` — 静的ファクトリ。NoteSnapshot を SearchDocument に変換
+  - `markRemoved(now: Instant): { tombstone: true; noteId: NoteId }` — 削除指示（実体はリポジトリでマーカー処理）
+
+### 補助型
+
+```ts
+type NoteSnapshot = {
+  noteId: NoteId;
+  ownerId: UserId;
+  visibility: Visibility;
+  title: string;
+  plainBody: string;        // HTML から抽出済みのプレーンテキスト
+  tagNames: string[];
+  directoryPath: string;
+  frontMatterDate: Instant | null;
+  updatedAt: Instant;
+};
+```
+
+NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が Outbox イベントとして発火し、Search ドメインのワーカーが受け取って `SearchDocument.fromSnapshot` を呼ぶ。Search ドメインから Note の他リポジトリを参照しない。
+
+### IndexJob
+
+- フィールド:
+  - `id: IndexJobId`
+  - `noteId: NoteId`
+  - `op: 'upsert' | 'delete'`
+  - `attempts: number`
+  - `lastError: string | null`
+  - `enqueuedAt: Instant`
+- 振る舞い:
+  - `recordAttempt(error: string | null, now: Instant): IndexJob`
+
+## 値オブジェクト
+
+### SearchQuery
+- フィールド: `keyword: string`, `ownerIdFilter: UserId | null`, `visibilityFilter: Visibility[]`, `tagNames: string[]`, `dateRange: DateRange | null`, `limit: number`, `cursor: string | null`
+- バリデーション: `keyword` 長さ 1..200、`limit` 1..50
+
+### SearchHit
+- フィールド: `noteId: NoteId`, `ownerId: UserId`, `username: Username`, `title: string`, `snippet: string`, `tagNames: string[]`, `score: number`
+
+## ドメインサービス
+
+### SearchService
+- 責務: インデックス更新と検索のオーケストレーション（Search ドメイン内で完結）
+- メソッド:
+  - `applyUpsert(snapshot: NoteSnapshot, index: SearchIndex, now: Instant): Promise<void>` — SearchDocument を生成して `index.upsert`
+  - `applyDelete(noteId: NoteId, index: SearchIndex): Promise<void>`
+  - `runQuery(query: SearchQuery, index: SearchIndex): Promise<{ hits: SearchHit[]; nextCursor: string | null }>`
+
+## ポート
+
+### SearchIndex（ポート）
+- メソッド:
+  - `upsert(doc: SearchDocument): Promise<void>`
+  - `delete(noteId: NoteId): Promise<void>`
+  - `query(q: SearchQuery): Promise<{ hits: SearchHit[]; nextCursor: string | null }>`
+  - `bulkRebuildFromSnapshots(snapshots: AsyncIterable<SearchDocument>): Promise<void>`
+- エラーケース: `SearchIndexUnavailableError` / `SearchTimeoutError`
+
+### IndexJobRepository
+- `enqueue(job: IndexJob): Promise<void>`
+- `nextBatch(limit: number, now: Instant): Promise<IndexJob[]>`
+- `complete(id: IndexJobId): Promise<void>`
+- `fail(id: IndexJobId, error: string, now: Instant): Promise<void>`
+
+## ユースケース（概要）
+
+- HandleNoteSavedEvent（NoteSnapshot を受け IndexJob を enqueue）
+- HandleNoteTrashedEvent（IndexJob を delete で enqueue）
+- HandlePublicationChangedEvent（再インデックス用 IndexJob）
+- ConsumeIndexJob（worker。SearchService.applyUpsert / applyDelete を呼ぶ）
+- SearchOwnNotes / SearchPublicNotes / SearchUserPublicNotes
