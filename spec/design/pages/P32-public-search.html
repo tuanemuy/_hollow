@@ -7,11 +7,11 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --color-accent: #0071e3;
-    --color-accent-hover: #0077ed;
-    --color-accent-pressed: #006edb;
-    --color-accent-surface: #e8f1fd;
-    --color-accent-ink: #0058b4;
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
 
     --color-bg: #ffffff;
     --color-surface: #f5f5f7;
@@ -41,7 +41,7 @@
     --code-function: #5b3da1;
     --code-number: #1d6fd6;
 
-    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
     --text-xs: clamp(11px, 0.7vw + 9px, 12px);
@@ -84,7 +84,8 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.12);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
     --duration-fast: 120ms;
@@ -109,7 +110,6 @@
     letter-spacing: var(--tracking-normal);
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-
 
   /* === global mobile fixes (review 001) === */
   button, .btn, .pill-btn, .icon-btn {
@@ -136,7 +136,7 @@
   ul, ol { list-style: none; }
   :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
 
-  /* ===== Public Header (no inline search; hero search is primary) ===== */
+  /* ===== Public Header ===== */
   .header {
     position: sticky;
     top: 0;
@@ -210,7 +210,7 @@
 
   /* ===== Hero search ===== */
   .hero {
-    padding: 64px 0 28px;
+    padding: 64px 0 24px;
     max-width: 720px;
     margin: 0 auto;
     text-align: center;
@@ -275,73 +275,28 @@
     font-family: var(--font-mono);
   }
 
-  /* ===== Results layout ===== */
-  .results-layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 32px;
-    padding: 24px 0 64px;
-  }
-
-  /* ===== Facets sidebar ===== */
-  .facets {
-    padding: 8px 0;
-  }
-  .facet-section { margin-bottom: 28px; }
-  .facet-title {
-    font-size: var(--text-xs);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 10px;
-    padding: 0 4px;
-  }
-  .facet-list { display: flex; flex-direction: column; }
-  .facet-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 8px;
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--color-ink);
-    cursor: pointer;
-    transition: var(--transition-bg);
-  }
-  .facet-item:hover { background: var(--color-surface); }
-  .facet-item input[type="checkbox"] {
-    width: 14px; height: 14px;
-    margin: 0;
-    accent-color: var(--color-accent);
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .facet-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .facet-count {
-    font-size: 12px;
-    color: var(--color-ink-tertiary);
-  }
-  .facet-user .avatar-tiny {
-    width: 18px; height: 18px;
-    border-radius: var(--radius-full);
-    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
-    color: #fff;
-    font-size: 9px;
-    font-weight: var(--weight-medium);
-    display: inline-flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* ===== Results panel ===== */
-  .results-panel { min-width: 0; }
-  .results-header {
+  /* ===== Filter toolbar ===== */
+  .filter-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 12px;
+    padding: 8px 0 4px;
+    margin-bottom: 8px;
+  }
+  .filter-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .filter-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   .results-count {
     font-size: 14px;
@@ -351,16 +306,112 @@
     color: var(--color-ink);
     font-weight: var(--weight-semibold);
   }
+  .filter-btn {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+    position: relative;
+  }
+  .filter-btn:hover { background: var(--color-surface-hover); }
+  .filter-btn.has-active { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .filter-btn .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: var(--weight-semibold);
+    margin-left: 2px;
+  }
   .sort-btn {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
     font-size: 13px;
     color: var(--color-ink-secondary);
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 6px 8px;
-    border-radius: var(--radius-md);
+    transition: var(--transition-bg);
   }
   .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
+
+  /* ===== Active filter chips ===== */
+  .active-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--color-hairline);
+    margin-bottom: 4px;
+  }
+  .active-chips:empty {
+    display: none;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 6px 0 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent-surface);
+    color: var(--color-accent-ink);
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .chip:hover { background: color-mix(in oklch, var(--color-accent) 10%, var(--color-accent-surface)); }
+  .chip .avatar-tiny {
+    width: 16px; height: 16px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 8px;
+    font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .chip-remove {
+    width: 18px; height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    color: var(--color-accent-ink);
+    opacity: 0.6;
+    transition: opacity var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+  }
+  .chip-remove:hover { opacity: 1; background: rgba(0,0,0,0.06); }
+  .clear-all {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    padding: 0 8px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+    transition: var(--transition-bg);
+  }
+  .clear-all:hover { background: var(--color-surface); color: var(--color-ink); }
+
+  /* ===== Results layout (full width, no aside) ===== */
+  .results-layout {
+    padding: 16px 0 64px;
+  }
+  .results-panel { min-width: 0; }
 
   .result-list {
     display: flex;
@@ -375,6 +426,7 @@
     flex-direction: column;
     gap: 8px;
   }
+  .result-card:first-child { border-top: none; }
   .result-card:hover { background: var(--color-surface); }
   .result-author {
     display: inline-flex;
@@ -404,7 +456,7 @@
     line-height: var(--leading-snug);
   }
   .result-title mark, .result-snippet mark {
-    background: rgba(0,113,227,0.18);
+    background: color-mix(in oklch, var(--color-accent) 18%, transparent);
     color: var(--color-accent-ink);
     border-radius: 2px;
     padding: 0 2px;
@@ -429,6 +481,11 @@
   .result-meta .tag { color: var(--color-accent); }
   .result-meta .dot { color: var(--color-hairline-strong); }
 
+  /* Wider reading column on desktop */
+  @media (min-width: 1024px) {
+    .results-panel { max-width: 820px; margin: 0 auto; }
+  }
+
   /* ===== Footer ===== */
   .footer {
     border-top: 1px solid var(--color-hairline);
@@ -449,67 +506,299 @@
   .footer-links a { transition: color 0.15s; }
   .footer-links a:hover { color: var(--color-ink); }
 
-  /* ===== Facets drawer (mobile) ===== */
-  .facets-toggle {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--color-ink);
-    padding: 6px 12px;
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    transition: var(--transition-bg);
-  }
-  .facets-toggle:hover { background: var(--color-surface-hover); }
-
-  .facets-backdrop {
-    display: none;
+  /* ===== Filter Drawer (right side, all viewports) ===== */
+  .drawer-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.2);
+    background: rgba(0,0,0,0.32);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-base) var(--ease-standard);
     z-index: 90;
   }
-  .facets-backdrop.open { display: block; }
+  .drawer-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100vw);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform var(--duration-base) var(--ease-standard);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-hairline);
+    flex-shrink: 0;
+  }
+  .drawer-title {
+    font-size: 16px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+  .drawer-close {
+    width: 36px; height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+  }
+  .drawer-close:hover { background: var(--color-surface); color: var(--color-ink); }
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0 16px;
+  }
+  .drawer-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--color-hairline);
+    flex-shrink: 0;
+    background: var(--color-bg);
+  }
+  .drawer-footer .reset-link {
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+    padding: 8px 4px;
+    transition: color var(--duration-fast) var(--ease-standard);
+  }
+  .drawer-footer .reset-link:hover { color: var(--color-ink); }
+  .apply-btn {
+    height: 40px;
+    padding: 0 20px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: var(--weight-medium);
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+  .apply-btn:hover { background: var(--color-accent-hover); }
+
+  /* ===== Facet sections inside drawer ===== */
+  .facet-section {
+    padding: 16px 20px 8px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .facet-section:last-child { border-bottom: none; }
+  .facet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .facet-title {
+    font-size: 13px;
+    font-weight: var(--weight-semibold);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+  }
+  .facet-selected-count {
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+  }
+
+  /* ===== Token input (tag-style combobox) ===== */
+  .token-input {
+    position: relative;
+    min-height: 40px;
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    padding: 5px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    transition: border-color var(--duration-fast) var(--ease-standard);
+    cursor: text;
+  }
+  .token-input:focus-within {
+    border-color: var(--color-hairline-strong);
+    box-shadow: var(--shadow-focus);
+  }
+  .token {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 4px 0 8px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent-surface);
+    color: var(--color-accent-ink);
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    max-width: 100%;
+  }
+  .token .token-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .token .avatar-tiny {
+    width: 16px; height: 16px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 8px;
+    font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .token-remove {
+    width: 18px; height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    color: var(--color-accent-ink);
+    opacity: 0.6;
+    transition: opacity var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+    flex-shrink: 0;
+  }
+  .token-remove:hover { opacity: 1; background: rgba(0,0,0,0.06); }
+  .token-input input.token-field {
+    flex: 1;
+    min-width: 100px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    padding: 0 4px;
+  }
+  .token-input input.token-field::placeholder { color: var(--color-ink-tertiary); }
+
+  /* Suggestions dropdown */
+  .suggestions {
+    margin-top: 6px;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-sm);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .suggestions[hidden] { display: none; }
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover,
+  .suggestion-item.active { background: var(--color-surface); }
+  .suggestion-item .suggestion-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .suggestion-item .avatar-tiny {
+    width: 20px; height: 20px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 9px;
+    font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .suggestion-item .suggestion-count {
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .suggestion-empty {
+    padding: 14px 12px;
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    text-align: center;
+  }
+  .facet-hint {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+  }
+
+  /* Period (radio list, finite) */
+  .facet-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0 -8px;
+  }
+  .facet-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .facet-item:hover { background: var(--color-surface); }
+  .facet-item input[type="radio"] {
+    width: 15px; height: 15px;
+    margin: 0;
+    accent-color: var(--color-accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .facet-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   /* ===== Responsive ===== */
   @media (max-width: 640px) {
     .header { padding: 12px 16px; gap: 10px; }
     .text-link.signup { display: none; }
     .menu-btn { display: inline-flex; }
-    .hero { padding: 36px 0 20px; }
+    .hero { padding: 36px 0 16px; }
     .hero-title { font-size: 22px; }
     .hero-search input { height: 48px; padding-left: 46px; }
     .hero-search .hero-icon { left: 18px; }
     .hero-search .kbd { display: none; }
-    .facets-toggle { display: inline-flex; }
-    .facets {
-      position: fixed;
-      top: 0; bottom: 0; left: 0;
-      width: 280px;
-      background: #fff;
-      z-index: 100;
-      transform: translateX(-100%);
-      transition: transform 0.28s var(--ease-standard);
-      box-shadow: var(--shadow-md);
-      padding: 24px 16px 32px;
-      overflow-y: auto;
-    }
-    .facets.open { transform: translateX(0); }
-  }
-
-  @media (min-width: 1024px) {
-    .results-layout {
-      grid-template-columns: 240px 1fr;
-      gap: 48px;
-    }
-    .facets {
-      position: sticky;
-      top: calc(var(--header-height) + 40px);
-      align-self: start;
-      max-height: calc(100vh - var(--header-height) - 80px);
-      overflow-y: auto;
-    }
+    .filter-btn { height: 44px; }
+    .sort-btn { height: 44px; }
   }
 </style>
 </head>
@@ -548,120 +837,49 @@
 
   <section class="results-layout">
 
-    <aside class="facets" id="facets">
-      <div class="facet-section">
-        <div class="facet-title">ユーザー</div>
-        <div class="facet-list">
-          <label class="facet-item facet-user">
-            <input type="checkbox" checked>
-            <span class="avatar-tiny" aria-hidden="true">TY</span>
-            <span class="facet-label">@tuanemuy</span>
-            <span class="facet-count">12</span>
-          </label>
-          <label class="facet-item facet-user">
-            <input type="checkbox">
-            <span class="avatar-tiny" aria-hidden="true">KW</span>
-            <span class="facet-label">@kwakita</span>
-            <span class="facet-count">8</span>
-          </label>
-          <label class="facet-item facet-user">
-            <input type="checkbox">
-            <span class="avatar-tiny" aria-hidden="true">NM</span>
-            <span class="facet-label">@nmiura</span>
-            <span class="facet-count">5</span>
-          </label>
-          <label class="facet-item facet-user">
-            <input type="checkbox">
-            <span class="avatar-tiny" aria-hidden="true">SS</span>
-            <span class="facet-label">@sasaki_dev</span>
-            <span class="facet-count">3</span>
-          </label>
-          <label class="facet-item facet-user">
-            <input type="checkbox">
-            <span class="avatar-tiny" aria-hidden="true">YN</span>
-            <span class="facet-label">@yoshinaga</span>
-            <span class="facet-count">2</span>
-          </label>
+    <div class="filter-bar">
+      <div class="filter-bar-left">
+        <div class="results-count">
+          <strong>14 件</strong>のノート
         </div>
       </div>
-
-      <div class="facet-section">
-        <div class="facet-title">タグ</div>
-        <div class="facet-list">
-          <label class="facet-item">
-            <input type="checkbox" checked>
-            <span class="facet-label">#cloudflare</span>
-            <span class="facet-count">18</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">#ddd</span>
-            <span class="facet-count">11</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">#architecture</span>
-            <span class="facet-count">9</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">#queues</span>
-            <span class="facet-count">6</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">#performance</span>
-            <span class="facet-count">4</span>
-          </label>
-        </div>
+      <div class="filter-bar-right">
+        <button class="filter-btn has-active" id="filterBtn" aria-haspopup="dialog" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
+          フィルター
+          <span class="badge">3</span>
+        </button>
+        <button class="sort-btn">
+          関連度順
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </div>
+    </div>
 
-      <div class="facet-section">
-        <div class="facet-title">期間</div>
-        <div class="facet-list">
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">過去 7 日</span>
-            <span class="facet-count">3</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox" checked>
-            <span class="facet-label">過去 30 日</span>
-            <span class="facet-count">12</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">過去 1 年</span>
-            <span class="facet-count">28</span>
-          </label>
-          <label class="facet-item">
-            <input type="checkbox">
-            <span class="facet-label">すべて</span>
-            <span class="facet-count">31</span>
-          </label>
-        </div>
-      </div>
-    </aside>
-
-    <div class="facets-backdrop" id="facetsBackdrop"></div>
+    <div class="active-chips" id="activeChips">
+      <span class="chip">
+        <span class="avatar-tiny" aria-hidden="true">TY</span>
+        @tuanemuy
+        <button class="chip-remove" aria-label="@tuanemuy を解除">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </span>
+      <span class="chip">
+        #cloudflare
+        <button class="chip-remove" aria-label="#cloudflare を解除">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </span>
+      <span class="chip">
+        過去 30 日
+        <button class="chip-remove" aria-label="過去 30 日 を解除">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </span>
+      <button class="clear-all">すべて解除</button>
+    </div>
 
     <div class="results-panel">
-      <div class="results-header">
-        <div class="results-count">
-          <strong>14 件</strong>のノートが見つかりました
-        </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <button class="facets-toggle" id="facetsToggle">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
-            フィルター
-          </button>
-          <button class="sort-btn">
-            関連度順
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        </div>
-      </div>
-
       <div class="result-list">
 
         <a href="/tuanemuy/outbox-pattern" class="result-card">
@@ -768,6 +986,109 @@
 
 </div>
 
+<!-- ===== Filter Drawer ===== -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawerTitle">フィルター</div>
+    <button class="drawer-close" id="drawerClose" aria-label="閉じる">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+
+    <div class="facet-section">
+      <div class="facet-header">
+        <div class="facet-title">ユーザー</div>
+        <div class="facet-selected-count">1 件選択中</div>
+      </div>
+      <div class="token-input" data-token-input="user">
+        <span class="token">
+          <span class="token-label">
+            <span class="avatar-tiny" aria-hidden="true">TY</span>
+            @tuanemuy
+          </span>
+          <button class="token-remove" aria-label="@tuanemuy を解除">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </span>
+        <input
+          type="text"
+          class="token-field"
+          placeholder="ユーザー名を入力…"
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="userSuggestions"
+        >
+      </div>
+      <div class="suggestions" id="userSuggestions" role="listbox" hidden></div>
+      <div class="facet-hint">ユーザー名の一部を入力すると候補が表示されます</div>
+    </div>
+
+    <div class="facet-section">
+      <div class="facet-header">
+        <div class="facet-title">タグ</div>
+        <div class="facet-selected-count">1 件選択中</div>
+      </div>
+      <div class="token-input" data-token-input="tag">
+        <span class="token">
+          <span class="token-label">#cloudflare</span>
+          <button class="token-remove" aria-label="#cloudflare を解除">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </span>
+        <input
+          type="text"
+          class="token-field"
+          placeholder="タグ名を入力…"
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="tagSuggestions"
+        >
+      </div>
+      <div class="suggestions" id="tagSuggestions" role="listbox" hidden></div>
+      <div class="facet-hint">タグ名の一部を入力すると候補が表示されます</div>
+    </div>
+
+    <div class="facet-section">
+      <div class="facet-header">
+        <div class="facet-title">期間</div>
+      </div>
+      <div class="facet-list">
+        <label class="facet-item">
+          <input type="radio" name="period">
+          <span class="facet-label">過去 7 日</span>
+          <span class="facet-count">3</span>
+        </label>
+        <label class="facet-item">
+          <input type="radio" name="period" checked>
+          <span class="facet-label">過去 30 日</span>
+          <span class="facet-count">12</span>
+        </label>
+        <label class="facet-item">
+          <input type="radio" name="period">
+          <span class="facet-label">過去 1 年</span>
+          <span class="facet-count">28</span>
+        </label>
+        <label class="facet-item">
+          <input type="radio" name="period">
+          <span class="facet-label">すべて</span>
+          <span class="facet-count">31</span>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="drawer-footer">
+    <button class="reset-link">すべてリセット</button>
+    <button class="apply-btn">14 件を表示</button>
+  </div>
+</aside>
+
 <footer class="footer">
   <div class="footer-inner">
     <div>Hollow · hollow.example.com</div>
@@ -780,19 +1101,117 @@
 </footer>
 
 <script>
-  const toggle = document.getElementById('facetsToggle');
-  const facets = document.getElementById('facets');
-  const backdrop = document.getElementById('facetsBackdrop');
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      facets.classList.add('open');
-      backdrop.classList.add('open');
+  const filterBtn = document.getElementById('filterBtn');
+  const drawer = document.getElementById('drawer');
+  const drawerClose = document.getElementById('drawerClose');
+  const backdrop = document.getElementById('drawerBackdrop');
+
+  function openDrawer() {
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    filterBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    backdrop.classList.remove('open');
+    filterBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  filterBtn.addEventListener('click', openDrawer);
+  drawerClose.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+  });
+
+  // Active chip removal
+  document.querySelectorAll('.chip-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      btn.closest('.chip').remove();
     });
-    backdrop.addEventListener('click', () => {
-      facets.classList.remove('open');
-      backdrop.classList.remove('open');
+  });
+
+  // Token removal (inside drawer)
+  document.querySelectorAll('.token-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.closest('.token').remove();
+    });
+  });
+
+  // Click-to-focus on token-input wrapper
+  document.querySelectorAll('.token-input').forEach(wrap => {
+    wrap.addEventListener('click', (e) => {
+      if (e.target === wrap) {
+        wrap.querySelector('.token-field')?.focus();
+      }
+    });
+  });
+
+  // Combobox demo: show/hide suggestions based on input value.
+  // Real implementation would query the server for live suggestions.
+  function bindCombobox(fieldSelector, suggestionsId, dataset) {
+    const field = document.querySelector(fieldSelector);
+    const panel = document.getElementById(suggestionsId);
+    if (!field || !panel) return;
+
+    const render = (query) => {
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        panel.hidden = true;
+        field.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      const matches = dataset.filter(d => d.label.toLowerCase().includes(q));
+      panel.innerHTML = '';
+      if (matches.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'suggestion-empty';
+        empty.textContent = `「${query}」に一致する候補はありません`;
+        panel.appendChild(empty);
+      } else {
+        matches.forEach(m => {
+          const row = document.createElement('div');
+          row.className = 'suggestion-item';
+          row.setAttribute('role', 'option');
+          row.innerHTML = `
+            <span class="suggestion-label">
+              ${m.avatar ? `<span class="avatar-tiny" aria-hidden="true">${m.avatar}</span>` : ''}
+              ${m.label}
+            </span>
+            <span class="suggestion-count">${m.count} 件</span>
+          `;
+          panel.appendChild(row);
+        });
+      }
+      panel.hidden = false;
+      field.setAttribute('aria-expanded', 'true');
+    };
+
+    field.addEventListener('input', (e) => render(e.target.value));
+    field.addEventListener('focus', (e) => {
+      if (e.target.value.trim()) render(e.target.value);
+    });
+    field.addEventListener('blur', () => {
+      setTimeout(() => {
+        panel.hidden = true;
+        field.setAttribute('aria-expanded', 'false');
+      }, 150);
     });
   }
+
+  bindCombobox(
+    '[data-token-input="user"] .token-field',
+    'userSuggestions',
+    [] // server-fed in real implementation
+  );
+  bindCombobox(
+    '[data-token-input="tag"] .token-field',
+    'tagSuggestions',
+    [] // server-fed in real implementation
+  );
 </script>
 
 </body>
