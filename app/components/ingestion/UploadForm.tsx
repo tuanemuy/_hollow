@@ -1,0 +1,90 @@
+"use client";
+
+import { useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useId, useRef, useState, useTransition } from "react";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { uploadFileFn } from "./actions";
+
+export function UploadForm() {
+  const router = useRouter();
+  const upload = useServerFn(uploadFileFn);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<SerializedError | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const inputId = useId();
+
+  const submitFiles = (files: FileList | null) => {
+    if (files === null || files.length === 0) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files.item(i);
+          if (file === null) continue;
+          const formData = new FormData();
+          formData.append("file", file);
+          await upload({ data: formData });
+        }
+        await router.invalidate();
+        if (fileInputRef.current !== null) {
+          fileInputRef.current.value = "";
+        }
+      } catch (e) {
+        setError(extractSerializedError(e));
+      }
+    });
+  };
+
+  return (
+    <>
+      <label
+        htmlFor={inputId}
+        className={`dropzone${isDragOver ? " dragover" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          submitFiles(e.dataTransfer.files);
+        }}
+      >
+        <p>
+          <strong>ファイルをドラッグ&ドロップ</strong> またはクリックして選択
+        </p>
+        <p
+          style={{
+            fontSize: 13,
+            marginTop: "var(--space-2)",
+            color: "var(--color-ink-tertiary)",
+          }}
+        >
+          {isPending ? "アップロード中..." : "複数選択にも対応"}
+        </p>
+        <input
+          ref={fileInputRef}
+          id={inputId}
+          type="file"
+          multiple
+          onChange={(e) => submitFiles(e.target.files)}
+          disabled={isPending}
+        />
+      </label>
+      {error !== null ? (
+        <p className="form-error" role="alert">
+          {displayError(error)}
+        </p>
+      ) : null}
+    </>
+  );
+}

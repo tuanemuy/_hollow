@@ -57,13 +57,13 @@
 - [x] adminSettings
 
 ## Phase 6: フロントエンド
-- [ ] P01-P07 (auth / onboarding)
-- [ ] P10-P19 (ノート編集・一覧)
-- [ ] P20-P24 (公開・エクスポート)
-- [ ] P30-P34 (公開ビュー)
-- [ ] P40-P46 (管理)
+- [x] P01-P07 (auth / onboarding)
+- [x] P10-P19 (ノート編集・一覧)
+- [x] P20-P24 (公開・エクスポート・設定)
+- [x] P30-P34 (公開ビュー)
+- [x] P40-P46 (管理)
 
 ## Phase 7-9: 品質保証
-- [ ] 統合品質ゲート (typecheck/lint/test)
-- [ ] ブラウザ検証（条件付き）
+- [x] 統合品質ゲート (typecheck/lint/test) — 1162 tests PASS
+- [ ] ブラウザ検証（spec/manual-tests/ 未存在のためスキップ）
 - [ ] implement-audit

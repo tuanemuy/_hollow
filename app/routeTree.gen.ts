@@ -9,13 +9,108 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SetupRouteImport } from './routes/setup'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ErrorRouteImport } from './routes/error'
+import { Route as ViewsRouteRouteImport } from './routes/views/route'
+import { Route as URouteRouteImport } from './routes/u/route'
 import { Route as TodoRouteRouteImport } from './routes/todo/route'
+import { Route as SettingsRouteRouteImport } from './routes/settings/route'
+import { Route as ExportsRouteRouteImport } from './routes/exports/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ViewsIndexRouteImport } from './routes/views/index'
+import { Route as UploadIndexRouteImport } from './routes/upload/index'
+import { Route as TrashIndexRouteImport } from './routes/trash/index'
 import { Route as TodoIndexRouteImport } from './routes/todo/index'
+import { Route as TagsIndexRouteImport } from './routes/tags/index'
+import { Route as PasswordResetIndexRouteImport } from './routes/password-reset/index'
+import { Route as ExportsIndexRouteImport } from './routes/exports/index'
+import { Route as ExportIndexRouteImport } from './routes/export/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ShareTokenRouteImport } from './routes/share/$token'
+import { Route as SettingsSecurityRouteImport } from './routes/settings/security'
+import { Route as SettingsPromptsRouteImport } from './routes/settings/prompts'
+import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
+import { Route as SettingsAccountDeleteRouteImport } from './routes/settings/account-delete'
+import { Route as PasswordResetConfirmRouteImport } from './routes/password-reset/confirm'
+import { Route as NotesNewRouteImport } from './routes/notes/new'
+import { Route as EmailChangeConfirmRouteImport } from './routes/email-change/confirm'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminRegistrationRouteImport } from './routes/admin/registration'
+import { Route as AdminPromptsRouteImport } from './routes/admin/prompts'
+import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
+import { Route as AdminLlmRouteImport } from './routes/admin/llm'
+import { Route as AdminDesignRouteImport } from './routes/admin/design'
+import { Route as UUsernameIndexRouteImport } from './routes/u/$username/index'
+import { Route as NotesNoteIdIndexRouteImport } from './routes/notes/$noteId/index'
+import { Route as UUsernameNoteSlugRouteImport } from './routes/u/$username/$noteSlug'
+import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$noteId'
+import { Route as NotesNoteIdPublishRouteImport } from './routes/notes/$noteId/publish'
+import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
+import { Route as NotesNoteIdEditRouteImport } from './routes/notes/$noteId/edit'
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErrorRoute = ErrorRouteImport.update({
+  id: '/error',
+  path: '/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ViewsRouteRoute = ViewsRouteRouteImport.update({
+  id: '/views',
+  path: '/views',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const URouteRoute = URouteRouteImport.update({
+  id: '/u',
+  path: '/u',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodoRouteRoute = TodoRouteRouteImport.update({
   id: '/todo',
   path: '/todo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRouteRoute = SettingsRouteRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsRouteRoute = ExportsRouteRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -23,47 +118,537 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ViewsIndexRoute = ViewsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ViewsRouteRoute,
+} as any)
+const UploadIndexRoute = UploadIndexRouteImport.update({
+  id: '/upload/',
+  path: '/upload/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrashIndexRoute = TrashIndexRouteImport.update({
+  id: '/trash/',
+  path: '/trash/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodoIndexRoute = TodoIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => TodoRouteRoute,
 } as any)
+const TagsIndexRoute = TagsIndexRouteImport.update({
+  id: '/tags/',
+  path: '/tags/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PasswordResetIndexRoute = PasswordResetIndexRouteImport.update({
+  id: '/password-reset/',
+  path: '/password-reset/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsIndexRoute = ExportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExportsRouteRoute,
+} as any)
+const ExportIndexRoute = ExportIndexRouteImport.update({
+  id: '/export/',
+  path: '/export/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const ShareTokenRoute = ShareTokenRouteImport.update({
+  id: '/share/$token',
+  path: '/share/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsPromptsRoute = SettingsPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const SettingsAccountDeleteRoute = SettingsAccountDeleteRouteImport.update({
+  id: '/account-delete',
+  path: '/account-delete',
+  getParentRoute: () => SettingsRouteRoute,
+} as any)
+const PasswordResetConfirmRoute = PasswordResetConfirmRouteImport.update({
+  id: '/password-reset/confirm',
+  path: '/password-reset/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesNewRoute = NotesNewRouteImport.update({
+  id: '/notes/new',
+  path: '/notes/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmailChangeConfirmRoute = EmailChangeConfirmRouteImport.update({
+  id: '/email-change/confirm',
+  path: '/email-change/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminRegistrationRoute = AdminRegistrationRouteImport.update({
+  id: '/registration',
+  path: '/registration',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPromptsRoute = AdminPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminMetricsRoute = AdminMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminLlmRoute = AdminLlmRouteImport.update({
+  id: '/llm',
+  path: '/llm',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminDesignRoute = AdminDesignRouteImport.update({
+  id: '/design',
+  path: '/design',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const UUsernameIndexRoute = UUsernameIndexRouteImport.update({
+  id: '/$username/',
+  path: '/$username/',
+  getParentRoute: () => URouteRoute,
+} as any)
+const NotesNoteIdIndexRoute = NotesNoteIdIndexRouteImport.update({
+  id: '/notes/$noteId/',
+  path: '/notes/$noteId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UUsernameNoteSlugRoute = UUsernameNoteSlugRouteImport.update({
+  id: '/$username/$noteSlug',
+  path: '/$username/$noteSlug',
+  getParentRoute: () => URouteRoute,
+} as any)
+const NotesPublicNoteIdRoute = NotesPublicNoteIdRouteImport.update({
+  id: '/notes/public/$noteId',
+  path: '/notes/public/$noteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesNoteIdPublishRoute = NotesNoteIdPublishRouteImport.update({
+  id: '/notes/$noteId/publish',
+  path: '/notes/$noteId/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesNoteIdExportRoute = NotesNoteIdExportRouteImport.update({
+  id: '/notes/$noteId/export',
+  path: '/notes/$noteId/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesNoteIdEditRoute = NotesNoteIdEditRouteImport.update({
+  id: '/notes/$noteId/edit',
+  path: '/notes/$noteId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/exports': typeof ExportsRouteRouteWithChildren
+  '/settings': typeof SettingsRouteRouteWithChildren
   '/todo': typeof TodoRouteRouteWithChildren
+  '/u': typeof URouteRouteWithChildren
+  '/views': typeof ViewsRouteRouteWithChildren
+  '/error': typeof ErrorRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/llm': typeof AdminLlmRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
+  '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/notes/new': typeof NotesNewRoute
+  '/password-reset/confirm': typeof PasswordResetConfirmRoute
+  '/settings/account-delete': typeof SettingsAccountDeleteRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/prompts': typeof SettingsPromptsRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/admin/': typeof AdminIndexRoute
+  '/export/': typeof ExportIndexRoute
+  '/exports/': typeof ExportsIndexRoute
+  '/password-reset/': typeof PasswordResetIndexRoute
+  '/tags/': typeof TagsIndexRoute
   '/todo/': typeof TodoIndexRoute
+  '/trash/': typeof TrashIndexRoute
+  '/upload/': typeof UploadIndexRoute
+  '/views/': typeof ViewsIndexRoute
+  '/notes/$noteId/edit': typeof NotesNoteIdEditRoute
+  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
+  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
+  '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
+  '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/notes/$noteId/': typeof NotesNoteIdIndexRoute
+  '/u/$username/': typeof UUsernameIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/settings': typeof SettingsRouteRouteWithChildren
+  '/u': typeof URouteRouteWithChildren
+  '/error': typeof ErrorRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/llm': typeof AdminLlmRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
+  '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/notes/new': typeof NotesNewRoute
+  '/password-reset/confirm': typeof PasswordResetConfirmRoute
+  '/settings/account-delete': typeof SettingsAccountDeleteRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/prompts': typeof SettingsPromptsRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/admin': typeof AdminIndexRoute
+  '/export': typeof ExportIndexRoute
+  '/exports': typeof ExportsIndexRoute
+  '/password-reset': typeof PasswordResetIndexRoute
+  '/tags': typeof TagsIndexRoute
   '/todo': typeof TodoIndexRoute
+  '/trash': typeof TrashIndexRoute
+  '/upload': typeof UploadIndexRoute
+  '/views': typeof ViewsIndexRoute
+  '/notes/$noteId/edit': typeof NotesNoteIdEditRoute
+  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
+  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
+  '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
+  '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/notes/$noteId': typeof NotesNoteIdIndexRoute
+  '/u/$username': typeof UUsernameIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/exports': typeof ExportsRouteRouteWithChildren
+  '/settings': typeof SettingsRouteRouteWithChildren
   '/todo': typeof TodoRouteRouteWithChildren
+  '/u': typeof URouteRouteWithChildren
+  '/views': typeof ViewsRouteRouteWithChildren
+  '/error': typeof ErrorRoute
+  '/login': typeof LoginRoute
+  '/search': typeof SearchRoute
+  '/setup': typeof SetupRoute
+  '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/llm': typeof AdminLlmRoute
+  '/admin/metrics': typeof AdminMetricsRoute
+  '/admin/prompts': typeof AdminPromptsRoute
+  '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/notes/new': typeof NotesNewRoute
+  '/password-reset/confirm': typeof PasswordResetConfirmRoute
+  '/settings/account-delete': typeof SettingsAccountDeleteRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/prompts': typeof SettingsPromptsRoute
+  '/settings/security': typeof SettingsSecurityRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/admin/': typeof AdminIndexRoute
+  '/export/': typeof ExportIndexRoute
+  '/exports/': typeof ExportsIndexRoute
+  '/password-reset/': typeof PasswordResetIndexRoute
+  '/tags/': typeof TagsIndexRoute
   '/todo/': typeof TodoIndexRoute
+  '/trash/': typeof TrashIndexRoute
+  '/upload/': typeof UploadIndexRoute
+  '/views/': typeof ViewsIndexRoute
+  '/notes/$noteId/edit': typeof NotesNoteIdEditRoute
+  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
+  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
+  '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
+  '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/notes/$noteId/': typeof NotesNoteIdIndexRoute
+  '/u/$username/': typeof UUsernameIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/todo' | '/todo/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/exports'
+    | '/settings'
+    | '/todo'
+    | '/u'
+    | '/views'
+    | '/error'
+    | '/login'
+    | '/search'
+    | '/setup'
+    | '/signup'
+    | '/verify-email'
+    | '/admin/design'
+    | '/admin/llm'
+    | '/admin/metrics'
+    | '/admin/prompts'
+    | '/admin/registration'
+    | '/admin/users'
+    | '/email-change/confirm'
+    | '/notes/new'
+    | '/password-reset/confirm'
+    | '/settings/account-delete'
+    | '/settings/profile'
+    | '/settings/prompts'
+    | '/settings/security'
+    | '/share/$token'
+    | '/admin/'
+    | '/export/'
+    | '/exports/'
+    | '/password-reset/'
+    | '/tags/'
+    | '/todo/'
+    | '/trash/'
+    | '/upload/'
+    | '/views/'
+    | '/notes/$noteId/edit'
+    | '/notes/$noteId/export'
+    | '/notes/$noteId/publish'
+    | '/notes/public/$noteId'
+    | '/u/$username/$noteSlug'
+    | '/notes/$noteId/'
+    | '/u/$username/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/todo'
-  id: '__root__' | '/' | '/todo' | '/todo/'
+  to:
+    | '/'
+    | '/settings'
+    | '/u'
+    | '/error'
+    | '/login'
+    | '/search'
+    | '/setup'
+    | '/signup'
+    | '/verify-email'
+    | '/admin/design'
+    | '/admin/llm'
+    | '/admin/metrics'
+    | '/admin/prompts'
+    | '/admin/registration'
+    | '/admin/users'
+    | '/email-change/confirm'
+    | '/notes/new'
+    | '/password-reset/confirm'
+    | '/settings/account-delete'
+    | '/settings/profile'
+    | '/settings/prompts'
+    | '/settings/security'
+    | '/share/$token'
+    | '/admin'
+    | '/export'
+    | '/exports'
+    | '/password-reset'
+    | '/tags'
+    | '/todo'
+    | '/trash'
+    | '/upload'
+    | '/views'
+    | '/notes/$noteId/edit'
+    | '/notes/$noteId/export'
+    | '/notes/$noteId/publish'
+    | '/notes/public/$noteId'
+    | '/u/$username/$noteSlug'
+    | '/notes/$noteId'
+    | '/u/$username'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/exports'
+    | '/settings'
+    | '/todo'
+    | '/u'
+    | '/views'
+    | '/error'
+    | '/login'
+    | '/search'
+    | '/setup'
+    | '/signup'
+    | '/verify-email'
+    | '/admin/design'
+    | '/admin/llm'
+    | '/admin/metrics'
+    | '/admin/prompts'
+    | '/admin/registration'
+    | '/admin/users'
+    | '/email-change/confirm'
+    | '/notes/new'
+    | '/password-reset/confirm'
+    | '/settings/account-delete'
+    | '/settings/profile'
+    | '/settings/prompts'
+    | '/settings/security'
+    | '/share/$token'
+    | '/admin/'
+    | '/export/'
+    | '/exports/'
+    | '/password-reset/'
+    | '/tags/'
+    | '/todo/'
+    | '/trash/'
+    | '/upload/'
+    | '/views/'
+    | '/notes/$noteId/edit'
+    | '/notes/$noteId/export'
+    | '/notes/$noteId/publish'
+    | '/notes/public/$noteId'
+    | '/u/$username/$noteSlug'
+    | '/notes/$noteId/'
+    | '/u/$username/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  ExportsRouteRoute: typeof ExportsRouteRouteWithChildren
+  SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   TodoRouteRoute: typeof TodoRouteRouteWithChildren
+  URouteRoute: typeof URouteRouteWithChildren
+  ViewsRouteRoute: typeof ViewsRouteRouteWithChildren
+  ErrorRoute: typeof ErrorRoute
+  LoginRoute: typeof LoginRoute
+  SearchRoute: typeof SearchRoute
+  SetupRoute: typeof SetupRoute
+  SignupRoute: typeof SignupRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
+  EmailChangeConfirmRoute: typeof EmailChangeConfirmRoute
+  NotesNewRoute: typeof NotesNewRoute
+  PasswordResetConfirmRoute: typeof PasswordResetConfirmRoute
+  ShareTokenRoute: typeof ShareTokenRoute
+  ExportIndexRoute: typeof ExportIndexRoute
+  PasswordResetIndexRoute: typeof PasswordResetIndexRoute
+  TagsIndexRoute: typeof TagsIndexRoute
+  TrashIndexRoute: typeof TrashIndexRoute
+  UploadIndexRoute: typeof UploadIndexRoute
+  NotesNoteIdEditRoute: typeof NotesNoteIdEditRoute
+  NotesNoteIdExportRoute: typeof NotesNoteIdExportRoute
+  NotesNoteIdPublishRoute: typeof NotesNoteIdPublishRoute
+  NotesPublicNoteIdRoute: typeof NotesPublicNoteIdRoute
+  NotesNoteIdIndexRoute: typeof NotesNoteIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error': {
+      id: '/error'
+      path: '/error'
+      fullPath: '/error'
+      preLoaderRoute: typeof ErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/views': {
+      id: '/views'
+      path: '/views'
+      fullPath: '/views'
+      preLoaderRoute: typeof ViewsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u': {
+      id: '/u'
+      path: '/u'
+      fullPath: '/u'
+      preLoaderRoute: typeof URouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/todo': {
       id: '/todo'
       path: '/todo'
       fullPath: '/todo'
       preLoaderRoute: typeof TodoRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports': {
+      id: '/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof ExportsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -73,6 +658,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/views/': {
+      id: '/views/'
+      path: '/'
+      fullPath: '/views/'
+      preLoaderRoute: typeof ViewsIndexRouteImport
+      parentRoute: typeof ViewsRouteRoute
+    }
+    '/upload/': {
+      id: '/upload/'
+      path: '/upload'
+      fullPath: '/upload/'
+      preLoaderRoute: typeof UploadIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trash/': {
+      id: '/trash/'
+      path: '/trash'
+      fullPath: '/trash/'
+      preLoaderRoute: typeof TrashIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/todo/': {
       id: '/todo/'
       path: '/'
@@ -80,8 +686,244 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TodoIndexRouteImport
       parentRoute: typeof TodoRouteRoute
     }
+    '/tags/': {
+      id: '/tags/'
+      path: '/tags'
+      fullPath: '/tags/'
+      preLoaderRoute: typeof TagsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/password-reset/': {
+      id: '/password-reset/'
+      path: '/password-reset'
+      fullPath: '/password-reset/'
+      preLoaderRoute: typeof PasswordResetIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports/': {
+      id: '/exports/'
+      path: '/'
+      fullPath: '/exports/'
+      preLoaderRoute: typeof ExportsIndexRouteImport
+      parentRoute: typeof ExportsRouteRoute
+    }
+    '/export/': {
+      id: '/export/'
+      path: '/export'
+      fullPath: '/export/'
+      preLoaderRoute: typeof ExportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/share/$token': {
+      id: '/share/$token'
+      path: '/share/$token'
+      fullPath: '/share/$token'
+      preLoaderRoute: typeof ShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/security': {
+      id: '/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof SettingsSecurityRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/prompts': {
+      id: '/settings/prompts'
+      path: '/prompts'
+      fullPath: '/settings/prompts'
+      preLoaderRoute: typeof SettingsPromptsRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/settings/account-delete': {
+      id: '/settings/account-delete'
+      path: '/account-delete'
+      fullPath: '/settings/account-delete'
+      preLoaderRoute: typeof SettingsAccountDeleteRouteImport
+      parentRoute: typeof SettingsRouteRoute
+    }
+    '/password-reset/confirm': {
+      id: '/password-reset/confirm'
+      path: '/password-reset/confirm'
+      fullPath: '/password-reset/confirm'
+      preLoaderRoute: typeof PasswordResetConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes/new': {
+      id: '/notes/new'
+      path: '/notes/new'
+      fullPath: '/notes/new'
+      preLoaderRoute: typeof NotesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/email-change/confirm': {
+      id: '/email-change/confirm'
+      path: '/email-change/confirm'
+      fullPath: '/email-change/confirm'
+      preLoaderRoute: typeof EmailChangeConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/registration': {
+      id: '/admin/registration'
+      path: '/registration'
+      fullPath: '/admin/registration'
+      preLoaderRoute: typeof AdminRegistrationRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/prompts': {
+      id: '/admin/prompts'
+      path: '/prompts'
+      fullPath: '/admin/prompts'
+      preLoaderRoute: typeof AdminPromptsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/metrics': {
+      id: '/admin/metrics'
+      path: '/metrics'
+      fullPath: '/admin/metrics'
+      preLoaderRoute: typeof AdminMetricsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/llm': {
+      id: '/admin/llm'
+      path: '/llm'
+      fullPath: '/admin/llm'
+      preLoaderRoute: typeof AdminLlmRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/design': {
+      id: '/admin/design'
+      path: '/design'
+      fullPath: '/admin/design'
+      preLoaderRoute: typeof AdminDesignRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/u/$username/': {
+      id: '/u/$username/'
+      path: '/$username'
+      fullPath: '/u/$username/'
+      preLoaderRoute: typeof UUsernameIndexRouteImport
+      parentRoute: typeof URouteRoute
+    }
+    '/notes/$noteId/': {
+      id: '/notes/$noteId/'
+      path: '/notes/$noteId'
+      fullPath: '/notes/$noteId/'
+      preLoaderRoute: typeof NotesNoteIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u/$username/$noteSlug': {
+      id: '/u/$username/$noteSlug'
+      path: '/$username/$noteSlug'
+      fullPath: '/u/$username/$noteSlug'
+      preLoaderRoute: typeof UUsernameNoteSlugRouteImport
+      parentRoute: typeof URouteRoute
+    }
+    '/notes/public/$noteId': {
+      id: '/notes/public/$noteId'
+      path: '/notes/public/$noteId'
+      fullPath: '/notes/public/$noteId'
+      preLoaderRoute: typeof NotesPublicNoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes/$noteId/publish': {
+      id: '/notes/$noteId/publish'
+      path: '/notes/$noteId/publish'
+      fullPath: '/notes/$noteId/publish'
+      preLoaderRoute: typeof NotesNoteIdPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes/$noteId/export': {
+      id: '/notes/$noteId/export'
+      path: '/notes/$noteId/export'
+      fullPath: '/notes/$noteId/export'
+      preLoaderRoute: typeof NotesNoteIdExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes/$noteId/edit': {
+      id: '/notes/$noteId/edit'
+      path: '/notes/$noteId/edit'
+      fullPath: '/notes/$noteId/edit'
+      preLoaderRoute: typeof NotesNoteIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface AdminRouteRouteChildren {
+  AdminDesignRoute: typeof AdminDesignRoute
+  AdminLlmRoute: typeof AdminLlmRoute
+  AdminMetricsRoute: typeof AdminMetricsRoute
+  AdminPromptsRoute: typeof AdminPromptsRoute
+  AdminRegistrationRoute: typeof AdminRegistrationRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminDesignRoute: AdminDesignRoute,
+  AdminLlmRoute: AdminLlmRoute,
+  AdminMetricsRoute: AdminMetricsRoute,
+  AdminPromptsRoute: AdminPromptsRoute,
+  AdminRegistrationRoute: AdminRegistrationRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+interface ExportsRouteRouteChildren {
+  ExportsIndexRoute: typeof ExportsIndexRoute
+}
+
+const ExportsRouteRouteChildren: ExportsRouteRouteChildren = {
+  ExportsIndexRoute: ExportsIndexRoute,
+}
+
+const ExportsRouteRouteWithChildren = ExportsRouteRoute._addFileChildren(
+  ExportsRouteRouteChildren,
+)
+
+interface SettingsRouteRouteChildren {
+  SettingsAccountDeleteRoute: typeof SettingsAccountDeleteRoute
+  SettingsProfileRoute: typeof SettingsProfileRoute
+  SettingsPromptsRoute: typeof SettingsPromptsRoute
+  SettingsSecurityRoute: typeof SettingsSecurityRoute
+}
+
+const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
+  SettingsAccountDeleteRoute: SettingsAccountDeleteRoute,
+  SettingsProfileRoute: SettingsProfileRoute,
+  SettingsPromptsRoute: SettingsPromptsRoute,
+  SettingsSecurityRoute: SettingsSecurityRoute,
+}
+
+const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
+  SettingsRouteRouteChildren,
+)
 
 interface TodoRouteRouteChildren {
   TodoIndexRoute: typeof TodoIndexRoute
@@ -95,9 +937,59 @@ const TodoRouteRouteWithChildren = TodoRouteRoute._addFileChildren(
   TodoRouteRouteChildren,
 )
 
+interface URouteRouteChildren {
+  UUsernameNoteSlugRoute: typeof UUsernameNoteSlugRoute
+  UUsernameIndexRoute: typeof UUsernameIndexRoute
+}
+
+const URouteRouteChildren: URouteRouteChildren = {
+  UUsernameNoteSlugRoute: UUsernameNoteSlugRoute,
+  UUsernameIndexRoute: UUsernameIndexRoute,
+}
+
+const URouteRouteWithChildren =
+  URouteRoute._addFileChildren(URouteRouteChildren)
+
+interface ViewsRouteRouteChildren {
+  ViewsIndexRoute: typeof ViewsIndexRoute
+}
+
+const ViewsRouteRouteChildren: ViewsRouteRouteChildren = {
+  ViewsIndexRoute: ViewsIndexRoute,
+}
+
+const ViewsRouteRouteWithChildren = ViewsRouteRoute._addFileChildren(
+  ViewsRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  ExportsRouteRoute: ExportsRouteRouteWithChildren,
+  SettingsRouteRoute: SettingsRouteRouteWithChildren,
   TodoRouteRoute: TodoRouteRouteWithChildren,
+  URouteRoute: URouteRouteWithChildren,
+  ViewsRouteRoute: ViewsRouteRouteWithChildren,
+  ErrorRoute: ErrorRoute,
+  LoginRoute: LoginRoute,
+  SearchRoute: SearchRoute,
+  SetupRoute: SetupRoute,
+  SignupRoute: SignupRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
+  EmailChangeConfirmRoute: EmailChangeConfirmRoute,
+  NotesNewRoute: NotesNewRoute,
+  PasswordResetConfirmRoute: PasswordResetConfirmRoute,
+  ShareTokenRoute: ShareTokenRoute,
+  ExportIndexRoute: ExportIndexRoute,
+  PasswordResetIndexRoute: PasswordResetIndexRoute,
+  TagsIndexRoute: TagsIndexRoute,
+  TrashIndexRoute: TrashIndexRoute,
+  UploadIndexRoute: UploadIndexRoute,
+  NotesNoteIdEditRoute: NotesNoteIdEditRoute,
+  NotesNoteIdExportRoute: NotesNoteIdExportRoute,
+  NotesNoteIdPublishRoute: NotesNoteIdPublishRoute,
+  NotesPublicNoteIdRoute: NotesPublicNoteIdRoute,
+  NotesNoteIdIndexRoute: NotesNoteIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

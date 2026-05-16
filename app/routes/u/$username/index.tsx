@@ -1,0 +1,62 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { renderServerComponent } from "@tanstack/react-start/rsc";
+import { z } from "zod";
+import { ErrorPage } from "@/components/public/ErrorPage";
+import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
+import { validateInput } from "@/core/presentation/validator";
+
+const searchSchema = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).catch(1),
+  limit: z.coerce.number().int().min(1).max(100).catch(20),
+});
+
+const renderInputSchema = z.object({
+  username: z.string().min(1).max(64),
+  page: z.number().int().min(1).max(10_000),
+  limit: z.number().int().min(1).max(100),
+});
+
+const renderUserPublicTop = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(renderInputSchema))
+  .handler(async ({ data }) => {
+    const { UserPublicTop } = await import("@/components/public/UserPublicTop");
+    return renderServerComponent(
+      <UserPublicTop
+        username={data.username}
+        page={data.page}
+        limit={data.limit}
+      />,
+    );
+  });
+
+export const Route = createFileRoute("/u/$username/")({
+  staleTime: 0,
+  validateSearch: (search) => searchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: ({ params, deps }) =>
+    renderUserPublicTop({
+      data: { username: params.username, page: deps.page, limit: deps.limit },
+    }),
+  head: ({ match, params }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `@${params.username} — ${config.siteName}`,
+      path: `/u/${params.username}`,
+    });
+  },
+  component: UserPublicTopPage,
+  notFoundComponent: () => <ErrorPage kind="notFound" />,
+  errorComponent: ({ error }) => (
+    <ErrorPage kind="system" message={sanitizeRouteError(error)} />
+  ),
+});
+
+function UserPublicTopPage() {
+  const Rendered = Route.useLoaderData();
+  return <>{Rendered}</>;
+}

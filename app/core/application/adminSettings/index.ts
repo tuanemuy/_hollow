@@ -1,4 +1,8 @@
 export {
+  type GetInstancePromptDefaultsOutput,
+  getInstancePromptDefaults,
+} from "./getInstancePromptDefaults";
+export {
   type GetInstanceSettingsInput,
   type GetInstanceSettingsOutput,
   getInstanceSettings,
@@ -8,6 +12,11 @@ export {
   type GetUsageMetricsOutput,
   getUsageMetrics,
 } from "./getUsageMetrics";
+export {
+  type GetUserPromptOverrideInput,
+  type GetUserPromptOverrideOutput,
+  getUserPromptOverride,
+} from "./getUserPromptOverride";
 export {
   type ResetDesignTokensInput,
   type ResetDesignTokensOutput,
