@@ -15,7 +15,7 @@ const renderNoteDetail = createServerFn({ method: "GET" })
     if (user === null) {
       throw redirect({ to: "/" });
     }
-    const { NoteDetail } = await import("@/components/note/NoteDetail");
+    const { NoteDetail } = await import("@/components/note/detail/NoteDetail");
     const { AppShell } = await import("@/components/layout/AppShell");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);

@@ -18,6 +18,7 @@ function DirectoryNode({
     <li>
       <Link
         to="/"
+        search={{ directoryId: node.id as unknown as string }}
         className="nav-item"
         style={{ paddingLeft: `${12 + depth * 12}px` }}
       >

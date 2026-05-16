@@ -38,6 +38,7 @@ import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as SettingsAccountDeleteRouteImport } from './routes/settings/account-delete'
 import { Route as PasswordResetConfirmRouteImport } from './routes/password-reset/confirm'
 import { Route as NotesNewRouteImport } from './routes/notes/new'
+import { Route as MediaMediaIdRouteImport } from './routes/media/$mediaId'
 import { Route as EmailChangeConfirmRouteImport } from './routes/email-change/confirm'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRegistrationRouteImport } from './routes/admin/registration'
@@ -198,6 +199,11 @@ const NotesNewRoute = NotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MediaMediaIdRoute = MediaMediaIdRouteImport.update({
+  id: '/media/$mediaId',
+  path: '/media/$mediaId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmailChangeConfirmRoute = EmailChangeConfirmRouteImport.update({
   id: '/email-change/confirm',
   path: '/email-change/confirm',
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/settings/account-delete': typeof SettingsAccountDeleteRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/settings/account-delete': typeof SettingsAccountDeleteRoute
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/settings/account-delete': typeof SettingsAccountDeleteRoute
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
     | '/settings/account-delete'
@@ -465,6 +475,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
     | '/settings/account-delete'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
     | '/settings/account-delete'
@@ -550,6 +562,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   EmailChangeConfirmRoute: typeof EmailChangeConfirmRoute
+  MediaMediaIdRoute: typeof MediaMediaIdRoute
   NotesNewRoute: typeof NotesNewRoute
   PasswordResetConfirmRoute: typeof PasswordResetConfirmRoute
   ShareTokenRoute: typeof ShareTokenRoute
@@ -770,6 +783,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/media/$mediaId': {
+      id: '/media/$mediaId'
+      path: '/media/$mediaId'
+      fullPath: '/media/$mediaId'
+      preLoaderRoute: typeof MediaMediaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email-change/confirm': {
       id: '/email-change/confirm'
       path: '/email-change/confirm'
@@ -977,6 +997,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   EmailChangeConfirmRoute: EmailChangeConfirmRoute,
+  MediaMediaIdRoute: MediaMediaIdRoute,
   NotesNewRoute: NotesNewRoute,
   PasswordResetConfirmRoute: PasswordResetConfirmRoute,
   ShareTokenRoute: ShareTokenRoute,

@@ -14,33 +14,38 @@ const renderNoteEditor = createServerFn({ method: "GET" })
     const user = await getCurrentUser();
     if (user === null) throw redirect({ to: "/" });
     const { AppShell } = await import("@/components/layout/AppShell");
-    const { NoteEditor } = await import("@/components/note/NoteEditor");
-    const { loadNoteDetail } = await import("@/components/note/loaders");
+    const { NoteEditor } = await import("@/components/note/editor/NoteEditor");
+    const { loadAllTags, loadDirectoryTreeFlat, loadNoteDetail } = await import(
+      "@/components/note/loaders"
+    );
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
 
-    const { note } = await loadNoteDetail({
-      actorUserId: userDto.id,
-      noteId: data.noteId as unknown as Parameters<
-        typeof loadNoteDetail
-      >[0]["noteId"],
-    });
+    const [detail, tree, tags] = await Promise.all([
+      loadNoteDetail({
+        actorUserId: userDto.id,
+        noteId: data.noteId as unknown as Parameters<
+          typeof loadNoteDetail
+        >[0]["noteId"],
+      }),
+      loadDirectoryTreeFlat({ actorUserId: userDto.id }),
+      loadAllTags({ actorUserId: userDto.id }),
+    ]);
 
-    const { listTags } = await import("@/core/application/tag/listTags");
-    const { getContainer } = await import(
-      "@/core/application/di/containerStore"
-    );
-    const container = await getContainer();
-    const { tags } = await listTags({
-      container,
-      input: { actorUserId: userDto.id, limit: 200 },
-    });
-    const tagMap = new Map(
-      tags.map((tag) => [tag.id as unknown as string, tag.name]),
-    );
+    const { note } = detail;
+
     const initialTagNames = note.tagIds
-      .map((id) => tagMap.get(id as unknown as string))
+      .map((id) => tags.byId.get(id as unknown as string))
       .filter((name): name is string => name !== undefined);
+
+    const initialEditLock =
+      note.editLock === null
+        ? undefined
+        : ({
+            state: "acquired",
+            lockId: null,
+            expiresAt: new Date(note.editLock.expiresAt).getTime(),
+          } as const);
 
     return renderServerComponent(
       <AppShell user={userDto}>
@@ -49,7 +54,11 @@ const renderNoteEditor = createServerFn({ method: "GET" })
           noteId={note.id as unknown as string}
           initialTitle={note.title}
           initialContentHtml={note.contentHtml}
+          initialFrontMatter={{ ...note.frontMatter }}
           initialTagNames={initialTagNames}
+          initialDirectoryId={note.directoryId as unknown as string}
+          {...(initialEditLock !== undefined ? { initialEditLock } : {})}
+          tree={tree.flat}
         />
       </AppShell>,
     );

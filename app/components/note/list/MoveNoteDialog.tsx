@@ -1,0 +1,135 @@
+"use client";
+
+import { useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useId, useState, useTransition } from "react";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { bulkMoveNotesFn, moveNoteFn } from "../actions";
+import type { FlatDirectory } from "../loaders";
+import { useSelection } from "./SelectionContext";
+
+type Props = {
+  /** When supplied, the dialog operates in single-note move mode. */
+  noteId?: string;
+  open: boolean;
+  onClose: () => void;
+  tree: readonly FlatDirectory[];
+};
+
+export function MoveNoteDialog({ noteId, open, onClose, tree }: Props) {
+  const router = useRouter();
+  const moveOne = useServerFn(moveNoteFn);
+  const moveMany = useServerFn(bulkMoveNotesFn);
+  const { state, dispatch } = useSelection();
+  const [target, setTarget] = useState("");
+  const [error, setError] = useState<SerializedError | null>(null);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const targetId = useId();
+
+  if (!open) return null;
+
+  const ids = noteId !== undefined ? [noteId] : [...state.ids];
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (target === "" || ids.length === 0) return;
+    setError(null);
+    setBatchError(null);
+    startTransition(async () => {
+      try {
+        const first = ids[0];
+        if (ids.length === 1 && first !== undefined) {
+          await moveOne({
+            data: { noteId: first, newDirectoryId: target },
+          });
+        } else {
+          const result = await moveMany({
+            data: { noteIds: ids, newDirectoryId: target },
+          });
+          if (result.failures.length > 0) {
+            setBatchError(
+              `${result.successCount} 件成功、${result.failures.length} 件失敗`,
+            );
+          }
+        }
+        dispatch({ type: "clear" });
+        await router.invalidate();
+        onClose();
+      } catch (e) {
+        const err = extractSerializedError(e);
+        if (
+          err.kind === "validation" &&
+          err.fieldErrors?.noteIds !== undefined
+        ) {
+          setBatchError("一度に移動できるのは 100 件までです");
+        } else {
+          setError(err);
+        }
+      }
+    });
+  };
+
+  return (
+    <div
+      className="dialog-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="ノートを移動"
+    >
+      <form className="dialog" onSubmit={submit}>
+        <h2 className="dialog-title">
+          {ids.length === 1 ? "ノートを移動" : `${ids.length} 件のノートを移動`}
+        </h2>
+        <div className="field">
+          <label htmlFor={targetId}>移動先ディレクトリ</label>
+          <select
+            id={targetId}
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            required
+          >
+            <option value="">— 選択してください —</option>
+            {tree.map((dir) => (
+              <option key={dir.id} value={dir.id}>
+                {"  ".repeat(dir.depth)}
+                {dir.path}
+              </option>
+            ))}
+          </select>
+        </div>
+        {error !== null ? (
+          <p className="form-error" role="alert">
+            {displayError(error)}
+          </p>
+        ) : null}
+        {batchError !== null ? (
+          <p className="form-error" role="alert">
+            {batchError}
+          </p>
+        ) : null}
+        <div className="dialog-actions">
+          <button
+            type="button"
+            className="pill-btn"
+            onClick={onClose}
+            disabled={isPending}
+          >
+            キャンセル
+          </button>
+          <button
+            type="submit"
+            className="pill-btn primary"
+            disabled={isPending || target === ""}
+          >
+            {isPending ? "移動中..." : "移動"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

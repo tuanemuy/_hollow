@@ -11,11 +11,24 @@ const renderNewNote = createServerFn({ method: "GET" })
     const user = await getCurrentUser();
     if (user === null) throw redirect({ to: "/" });
     const { AppShell } = await import("@/components/layout/AppShell");
-    const { NoteEditor } = await import("@/components/note/NoteEditor");
+    const { NoteEditor } = await import("@/components/note/editor/NoteEditor");
+    const { loadDirectoryTreeFlat, loadAllTags } = await import(
+      "@/components/note/loaders"
+    );
     const { toUserDTO } = await import("@/core/application/dto/identity");
+    const userDto = toUserDTO(user);
+
+    const [tree] = await Promise.all([
+      loadDirectoryTreeFlat({ actorUserId: userDto.id }),
+      // Tag list is preloaded so the autocomplete cache is warm when the
+      // editor renders; the component itself reads tags through the
+      // free-form text input today, but the cache primes future autocomplete.
+      loadAllTags({ actorUserId: userDto.id }),
+    ]);
+
     return renderServerComponent(
-      <AppShell user={toUserDTO(user)}>
-        <NoteEditor mode="new" />
+      <AppShell user={userDto}>
+        <NoteEditor mode="new" tree={tree.flat} />
       </AppShell>,
     );
   });

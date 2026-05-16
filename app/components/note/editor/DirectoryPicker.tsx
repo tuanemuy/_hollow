@@ -1,0 +1,75 @@
+"use client";
+
+import { useId } from "react";
+import type { FlatDirectory } from "../loaders";
+
+/**
+ * Directory selector for the editor.
+ *
+ * Two-mode UI: pick an existing directory from a depth-indented
+ * `<select>`, or type a brand-new directory name. The new name is held
+ * by the orchestrator as `pendingDirectoryName` until save, at which
+ * point it is created via `createDirectoryFn` and the resolved id is
+ * passed to `createNoteFn` / `saveNoteFn`.
+ */
+export type DirectoryPickerProps = Readonly<{
+  tree: readonly FlatDirectory[];
+  directoryId: string | null;
+  pendingDirectoryName: string | null;
+  onSelectExisting: (id: string | null) => void;
+  onSetPendingName: (name: string | null) => void;
+  disabled?: boolean;
+}>;
+
+export function DirectoryPicker({
+  tree,
+  directoryId,
+  pendingDirectoryName,
+  onSelectExisting,
+  onSetPendingName,
+  disabled,
+}: DirectoryPickerProps) {
+  const selectId = useId();
+  const newId = useId();
+  const usingNew = pendingDirectoryName !== null;
+
+  return (
+    <fieldset className="directory-picker">
+      <legend>ディレクトリ</legend>
+      <div className="field">
+        <label htmlFor={selectId}>既存ディレクトリ</label>
+        <select
+          id={selectId}
+          value={directoryId ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            onSelectExisting(v.length === 0 ? null : v);
+          }}
+          disabled={disabled === true || usingNew}
+        >
+          <option value="">未選択</option>
+          {tree.map((node) => (
+            <option key={node.id} value={node.id}>
+              {"  ".repeat(node.depth)}
+              {node.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={newId}>または新規ディレクトリ名</label>
+        <input
+          id={newId}
+          type="text"
+          value={pendingDirectoryName ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            onSetPendingName(v.length === 0 ? null : v);
+          }}
+          placeholder="新しいディレクトリ名を入力すると保存時に自動作成"
+          disabled={disabled}
+        />
+      </div>
+    </fieldset>
+  );
+}

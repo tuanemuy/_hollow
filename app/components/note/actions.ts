@@ -1,16 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
+import { BusinessRuleError } from "@/core/domain/error";
+import type {
+  NoteId as DomainNoteId,
+  FrontMatterRecord,
+} from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
 import { requireCurrentUser } from "@/lib/server/currentUser";
+import { EDIT_LOCK_TTL_SEC } from "./constants";
 import {
+  acquireLockSchema,
+  bulkExportSchema,
+  bulkMoveSchema,
+  bulkTrashSchema,
   createNoteSchema,
   deleteNoteSchema,
   duplicateNoteSchema,
+  extendLockSchema,
   moveNoteSchema,
   purgeNoteSchema,
+  releaseLockSchema,
   renameNoteSchema,
   restoreNoteSchema,
+  saveDraftSchema,
   saveNoteSchema,
 } from "./schema";
 
@@ -19,7 +33,41 @@ import {
 // `frontMatter: Record<string, unknown>` which TanStack Start's
 // transport-serialisation refuses to type-check (unknown index sigs).
 // The client refetches via `router.invalidate()` rather than threading
-// the full aggregate across the boundary.
+// the full aggregate across the boundary. FrontMatter inputs travel as
+// `frontMatterJson` (a JSON string) for the same reason; see ADR-008.
+
+/**
+ * Parse a `frontMatterJson` payload from the wire boundary into the
+ * domain-shaped record. Returns `undefined` when no JSON was supplied
+ * so the caller can leave the existing FrontMatter untouched on save.
+ *
+ * Throws `BusinessRuleError` on malformed JSON / non-object payloads so
+ * the error response middleware serialises it as a structured business
+ * failure rather than leaking a `SyntaxError` to the client.
+ */
+function parseFrontMatterJson(
+  raw: string | undefined,
+): FrontMatterRecord | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new BusinessRuleError(
+      "FRONT_MATTER_JSON_INVALID",
+      "FrontMatter JSON is not parseable",
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new BusinessRuleError(
+      "FRONT_MATTER_JSON_INVALID",
+      "FrontMatter must be a JSON object",
+    );
+  }
+  return parsed as FrontMatterRecord;
+}
 
 export const createNoteFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
@@ -29,6 +77,7 @@ export const createNoteFn = createServerFn({ method: "POST" })
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/note/createNote"),
     );
+    const frontMatter = parseFrontMatterJson(data.frontMatterJson) ?? {};
     const result = await module.createNote({
       container,
       input: {
@@ -38,10 +87,8 @@ export const createNoteFn = createServerFn({ method: "POST" })
         directoryId:
           data.directoryId === null
             ? null
-            : (data.directoryId as unknown as Parameters<
-                typeof module.createNote
-              >[0]["input"]["directoryId"]),
-        frontMatter: {},
+            : (data.directoryId as unknown as DirectoryId),
+        frontMatter,
         tagNames: data.tagNames,
         internalLinkRefs: [],
       },
@@ -57,18 +104,18 @@ export const saveNoteFn = createServerFn({ method: "POST" })
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/note/saveNote"),
     );
+    const frontMatter = parseFrontMatterJson(data.frontMatterJson);
     const result = await module.saveNote({
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.saveNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
         ...(data.title === undefined ? {} : { title: data.title }),
         ...(data.contentHtml === undefined
           ? {}
           : { contentHtml: data.contentHtml }),
         ...(data.tagNames === undefined ? {} : { tagNames: data.tagNames }),
+        ...(frontMatter === undefined ? {} : { frontMatter }),
         requireLock: false,
       },
     });
@@ -87,9 +134,7 @@ export const renameNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.renameNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
         newTitle: data.newTitle,
         regenerateSlug: data.regenerateSlug,
       },
@@ -109,12 +154,8 @@ export const moveNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.moveNote
-        >[0]["input"]["noteId"],
-        newDirectoryId: data.newDirectoryId as unknown as Parameters<
-          typeof module.moveNote
-        >[0]["input"]["newDirectoryId"],
+        noteId: data.noteId as unknown as DomainNoteId,
+        newDirectoryId: data.newDirectoryId as unknown as DirectoryId,
       },
     });
     return { noteId: result.note.id as unknown as string };
@@ -132,9 +173,7 @@ export const deleteNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.deleteNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
       },
     });
     return { ok: true as const };
@@ -152,17 +191,11 @@ export const restoreNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.restoreNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
         restoreDirectoryId:
           data.restoreDirectoryId === null
             ? null
-            : (data.restoreDirectoryId as unknown as NonNullable<
-                Parameters<
-                  typeof module.restoreNote
-                >[0]["input"]["restoreDirectoryId"]
-              >),
+            : (data.restoreDirectoryId as unknown as DirectoryId),
       },
     });
     return { noteId: result.note.id as unknown as string };
@@ -180,9 +213,7 @@ export const purgeNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.purgeNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
       },
     });
     return { ok: true as const };
@@ -200,10 +231,173 @@ export const duplicateNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof module.duplicateNote
-        >[0]["input"]["noteId"],
+        noteId: data.noteId as unknown as DomainNoteId,
       },
     });
     return { noteId: result.note.id as unknown as string };
+  });
+
+export const bulkMoveNotesFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(bulkMoveSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/bulkMoveNotes"),
+    );
+    const result = await module.bulkMoveNotes({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteIds: data.noteIds.map((id) => id as unknown as DomainNoteId),
+        newDirectoryId: data.newDirectoryId as unknown as DirectoryId,
+      },
+    });
+    return {
+      successCount: result.successCount,
+      failures: result.failures.map((f) => ({
+        noteId: f.noteId as unknown as string,
+        code: f.code,
+        message: f.message,
+      })),
+    };
+  });
+
+export const bulkTrashNotesFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(bulkTrashSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/bulkTrashNotes"),
+    );
+    const result = await module.bulkTrashNotes({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteIds: data.noteIds.map((id) => id as unknown as DomainNoteId),
+      },
+    });
+    return {
+      successCount: result.successCount,
+      failures: result.failures.map((f) => ({
+        noteId: f.noteId as unknown as string,
+        code: f.code,
+        message: f.message,
+      })),
+    };
+  });
+
+/**
+ * Bulk / view-scope export request. Delegates to `enqueueExportJob`
+ * with `scope: "multiple"`; the export consumer worker runs the
+ * artifact build out-of-band, and the client polls the resulting job
+ * via the export-jobs route.
+ */
+export const bulkExportNotesFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(bulkExportSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/export/enqueueExportJob"),
+    );
+    const { job } = await module.enqueueExportJob({
+      container,
+      input: {
+        actorUserId: user.id,
+        format: data.format,
+        scope: "multiple",
+        noteIds: data.noteIds.map((id) => id as unknown as DomainNoteId),
+        options: data.options,
+      },
+    });
+    return { jobId: job.id as unknown as string };
+  });
+
+export const saveNoteDraftFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(saveDraftSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/saveNoteDraft"),
+    );
+    const frontMatter = parseFrontMatterJson(data.frontMatterJson);
+    const result = await module.saveNoteDraft({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteId: data.noteId as unknown as DomainNoteId,
+        ...(data.title === undefined ? {} : { title: data.title }),
+        ...(data.contentHtml === undefined
+          ? {}
+          : { contentHtml: data.contentHtml }),
+        ...(frontMatter === undefined ? {} : { frontMatter }),
+      },
+    });
+    void data.tagNames; // tag re-extraction runs in the explicit save path
+    return { noteId: result.note.id as unknown as string };
+  });
+
+export const acquireEditLockFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(acquireLockSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/acquireEditLock"),
+    );
+    const result = await module.acquireEditLock({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteId: data.noteId as unknown as DomainNoteId,
+        ttlSec: EDIT_LOCK_TTL_SEC,
+      },
+    });
+    return {
+      noteId: result.note.id as unknown as string,
+      expiresAt: result.note.editLock?.expiresAt ?? null,
+    };
+  });
+
+export const extendEditLockFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(extendLockSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/extendEditLock"),
+    );
+    const result = await module.extendEditLock({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteId: data.noteId as unknown as DomainNoteId,
+        ttlSec: EDIT_LOCK_TTL_SEC,
+      },
+    });
+    return {
+      noteId: result.note.id as unknown as string,
+      expiresAt: result.note.editLock?.expiresAt ?? null,
+    };
+  });
+
+export const releaseEditLockFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(releaseLockSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/releaseEditLock"),
+    );
+    await module.releaseEditLock({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteId: data.noteId as unknown as DomainNoteId,
+      },
+    });
+    return { ok: true as const };
   });
