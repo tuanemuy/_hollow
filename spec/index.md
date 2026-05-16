@@ -13,6 +13,11 @@
   - [x] DB 設計
   - [x] テストケース定義
   - [x] クロスフェーズ検証
+- [x] Phase 4: UI デザイン（design-flow）
+  - [x] ドラフト 5 案 → 方向性「Apple Calm」決定
+  - [x] デザイントークン定義
+  - [x] 全 34 画面 HTML
+  - [x] レビュー（視覚 / critique / polish / audit）
 
 ## 成果物
 
@@ -48,9 +53,18 @@
 ### クロスフェーズ検証（Phase 3.5）
 - [001](./review/cross-phase/001.md) / [002](./review/cross-phase/002.md)
 
+### UI デザイン（Phase 4）
+- [デザイン方針](./design/index.md)
+- [デザイントークン](./design/tokens.md)
+- ドラフト: [drafts/](./design/drafts/) — 5 方向性 × 2 画面（採用: draft-4 Apple Calm）
+- 画面デザイン: [pages/](./design/pages/) — 全 34 画面（P01 / P01b / P02-P07 / P10-P24 / P30-P34 / P40-P46）
+- レビュー: [001](./design/review/001.md) / [002](./design/review/002.md)
+
 ### ADR
 - [001 マルチユーザー・オープン登録](./adr/001-multi-user-open-registration.md)
 - [002 公開機能は同一インスタンス内](./adr/002-publishing-within-same-instance.md)
 - [003 メタデータは FrontMatter / タグ / 内部リンク併用](./adr/003-metadata-formats.md)
 - [004 LLM プロバイダは単一固定](./adr/004-llm-provider-single-fixed.md)
 - [005 ドメイン境界の切り方](./adr/005-domain-boundaries.md)
+- [006 better-auth スキーマ拡張](./adr/006-better-auth-schema-extension.md)
+- [007 管理者登録は Setup Token で行う](./adr/007-admin-setup-token.md)

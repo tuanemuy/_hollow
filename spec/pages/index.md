@@ -43,6 +43,19 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
   - インスタンスが登録停止中の場合は停止状態を表示
 - 関連シナリオ: A1
 
+### P01b 初期管理者セットアップ画面 (public)
+- 目的: Setup Token を提示して admin ユーザーを登録する（[ADR 007](../adr/007-admin-setup-token.md)）
+- アクセス制御:
+  - 環境変数 `ADMIN_SETUP_TOKEN` が未設定の場合は 404 を返す（presentation 層で `SetupTokenVerifier.isEnabled()` を確認）
+  - 未ログイン / ログイン中いずれもアクセス可（ログイン中でも別アカウントとして admin を作れる）
+- 機能:
+  - ユーザー名 / メール / パスワード / 表示名（任意）/ Setup Token 入力
+  - 利用規約への同意チェック
+  - 登録実行 → 確認メール送信案内（通常 SignUp と同じ）
+  - Setup Token 不一致 / env 未設定時は「Setup Token が正しくありません」をフォーム下に表示
+- 関連シナリオ: I0
+- 注: `registration.open === false` でもこのページは機能する（運用者特権）
+
 ### P02 メール確認画面 (public)
 - 目的: サインアップ確認リンクの着地点
 - 機能:

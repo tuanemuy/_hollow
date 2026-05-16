@@ -1,5 +1,30 @@
 # I. 管理者設定
 
+## I0: 初期管理者の登録（Setup Token）
+
+参照: [ADR 007](../adr/007-admin-setup-token.md)
+
+### 正常系
+1. 運用者がデプロイ時に `wrangler secret put ADMIN_SETUP_TOKEN` で十分なエントロピー（32 字以上）のトークンを設定する
+2. 運用者（初期 admin になる本人）が `/setup` を開く
+3. ユーザー名 / メール / パスワード / 表示名（任意）/ Setup Token を入力する
+4. 登録が完了し、確認メールが送られる
+5. メール内の確認リンクを開くと `VerifyEmail` ユースケースが実行されアカウントが有効化され、通常 SignUp と同じく自動ログインが試みられる（成功するとホームへ遷移）。本ステップの挙動は通常 SignUp と共通で、admin 固有の差異は作成時の `role=admin` のみ
+6. 初期 admin の登録が済んだら、運用者は `wrangler secret delete ADMIN_SETUP_TOKEN` で env をクリアして Setup Token を無効化することが推奨される（追加 admin を作る必要がない場合）
+
+### 異常系
+- `ADMIN_SETUP_TOKEN` が未設定: `/setup` ページは 404 を返し、API 側も `AuthenticationError('setup_token_disabled')` を返す
+- Setup Token 不一致: 「Setup Token が正しくありません」を表示（列挙対策で「未設定」と「不一致」は UI 文言を区別しない方針も検討余地あり）
+- ユーザー名 / メール衝突 / パスワード強度不足: 通常 SignUp と同じエラー UI
+- `registration.open === false` の状態: それでも実行可能（Setup Token 検証が通れば、登録停止中でも admin を作れる）
+- 確認メールのリンク期限切れ: 通常 SignUp と同じく再送導線を表示
+- 自動ログイン失敗（`VerifyEmail` 内で `SessionService.issue` が失敗、`ExternalServiceError(service: 'session')`）: アカウントは既に `active` 化済み。「メール確認は完了しました。ログイン画面からサインインしてください」を表示し、手動 LogIn で復帰可能（通常 SignUp と共通の挙動）
+
+### 補足
+- 2 人目以降の admin を増やすには (a) Setup Token を共有して `/setup` から登録する、(b) 既存 admin が `PromoteUserToAdmin` で member を昇格させる、の 2 方式がある
+- Setup Token は env が設定されている限り何度でも使える。漏洩リスクを下げるため、不要になったら速やかに env を削除する
+- 運用者本人にも利用規約への同意 (`acceptTerms`) を求める。これは通常 SignUp と同じ DTO 形状を踏襲することで「セルフホストの運用者であってもこのインスタンスを使うエンドユーザーである」という建前を崩さないため。利用規約自体は運用者がインスタンス設定で差し替え可能（規約の妥当性は運用者責任）
+
 ## I1: LLM API キーの設定・差し替え
 
 ### 正常系

@@ -27,8 +27,14 @@ type NoteId = string & { readonly __brand: 'NoteId' };
 type DirectoryId = string & { readonly __brand: 'DirectoryId' };
 type TagId = string & { readonly __brand: 'TagId' };
 type MediaAssetId = string & { readonly __brand: 'MediaAssetId' };
-type SessionId = string & { readonly __brand: 'SessionId' };
 type ShareLinkId = string & { readonly __brand: 'ShareLinkId' };
+
+// SessionToken は brand しない不透明文字列 (アダプタ実装次第で平文 / JWT 等を許容するため)。
+// 実体は `string` と等価で型レベルの強制力は持たないが、DTO や usecase 戻り値で「これは
+// セッショントークンを指す string」という意図を読解しやすくするための marker として残す。
+// 将来 brand する場合は SessionService の実装側でも brand 生成を行う必要があり、現状は
+// 「アダプタ実装が外部システムから返す文字列をそのまま透過させる」運用優先で非 brand。
+type SessionToken = string;
 type ExportJobId = string & { readonly __brand: 'ExportJobId' };
 type IngestionJobId = string & { readonly __brand: 'IngestionJobId' };
 type SavedViewId = string & { readonly __brand: 'SavedViewId' };
@@ -220,7 +226,7 @@ type UserDTO = {
   id: UserId;
   username: string;
   email: string;
-  displayName: string | null;
+  displayName: string;       // 必須。SignUp で未指定なら username で初期化される（ドメイン側で 1..50 検証）
   bio: string | null;
   avatarMediaId: MediaAssetId | null;
   role: 'member' | 'admin';
