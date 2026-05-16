@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hollow — NOTE-0142</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-soft: #fafafa;
+        --bg-code: #f4f4f5;
+        --fg: #0e0e10;
+        --fg-muted: #6b6b73;
+        --fg-faint: #9a9aa3;
+        --border: #e6e6e7;
+        --border-strong: #d4d4d7;
+        --accent: #5e6ad2;
+        --accent-soft: #eef0fb;
+        --danger: #d4423e;
+        --ok: #2f9461;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+        --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans);
+        font-size: 13px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+      button { font-family: inherit; }
+
+      /* ---------- HEADER ---------- */
+      .header {
+        position: sticky; top: 0; z-index: 30;
+        height: 52px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center;
+        padding: 0 14px; gap: 14px;
+      }
+      .header::after {
+        content: "";
+        position: absolute; left: 0; right: 0; bottom: -1px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(94,106,210,0.55) 30%, rgba(94,106,210,0.15) 70%, transparent 100%);
+        pointer-events: none;
+      }
+      .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: -0.015em; font-size: 14px; }
+      .brand-mark {
+        width: 18px; height: 18px; border-radius: 3px;
+        background: linear-gradient(135deg, #5e6ad2 0%, #3d47a8 100%);
+        position: relative;
+      }
+      .brand-mark::after { content: ""; position: absolute; inset: 4px; border: 1.5px solid rgba(255,255,255,0.85); border-radius: 1px; }
+      .menu-btn {
+        display: none;
+        width: 28px; height: 28px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        border-radius: 4px;
+        align-items: center; justify-content: center;
+        cursor: pointer; padding: 0;
+      }
+      .menu-btn svg { width: 14px; height: 14px; }
+      .search {
+        flex: 1; max-width: 420px; height: 30px;
+        border: 1px solid var(--border); border-radius: 4px;
+        display: flex; align-items: center;
+        padding: 0 8px 0 10px; background: var(--bg);
+      }
+      .search svg { width: 13px; height: 13px; color: var(--fg-faint); }
+      .search input {
+        border: 0; outline: 0; background: transparent;
+        flex: 1; height: 100%; padding: 0 8px;
+        font: inherit; font-family: var(--font-mono); font-size: 12px;
+      }
+      .search input::placeholder { color: var(--fg-faint); font-family: var(--font-mono); }
+      .kbd {
+        display: inline-flex; align-items: center;
+        height: 18px; padding: 0 5px;
+        border: 1px solid var(--border); border-radius: 3px;
+        background: var(--bg-soft); color: var(--fg-muted);
+        font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; line-height: 1;
+      }
+      .header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+      .icon-btn {
+        height: 28px; min-width: 28px;
+        border: 1px solid var(--border);
+        background: var(--bg); border-radius: 4px;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 0 8px; color: var(--fg); font-size: 12px;
+        cursor: pointer; transition: background 100ms, border-color 100ms;
+      }
+      .icon-btn:hover { background: var(--bg-soft); border-color: var(--border-strong); }
+      .icon-btn svg { width: 13px; height: 13px; }
+      .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .icon-btn.primary:hover { background: #4d59c4; }
+      .icon-only { width: 28px; padding: 0; justify-content: center; }
+      .avatar {
+        width: 26px; height: 26px; border-radius: 4px;
+        background: linear-gradient(135deg, #d4423e 0%, #8a2c2a 100%);
+        color: #fff; display: inline-flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 600;
+      }
+
+      /* ---------- LAYOUT ---------- */
+      .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 52px); }
+      .sidebar {
+        border-right: 1px solid var(--border);
+        background: var(--bg);
+        padding: 12px 0 28px;
+        height: calc(100vh - 52px);
+        overflow-y: auto;
+        position: sticky; top: 52px;
+      }
+      .sb-section { padding: 14px 14px 6px; }
+      .sb-label {
+        font-size: 10.5px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--fg-faint);
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .sb-label .count { font-family: var(--font-mono); font-weight: 500; }
+      .sb-list { list-style: none; margin: 4px 0 0; padding: 0; }
+      .sb-item {
+        display: flex; align-items: center; gap: 8px;
+        height: 26px; padding: 0 14px;
+        font-size: 12.5px; color: var(--fg);
+        cursor: pointer; position: relative;
+        border-left: 2px solid transparent;
+      }
+      .sb-item:hover { background: var(--bg-soft); border-left-color: var(--accent); }
+      .sb-item.active { background: var(--accent-soft); border-left-color: var(--accent); color: var(--accent); font-weight: 500; }
+      .sb-item svg { width: 13px; height: 13px; color: var(--fg-muted); }
+      .sb-item.active svg { color: var(--accent); }
+      .sb-item .num { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--fg-faint); }
+      .sb-tree-indent { padding-left: 28px; }
+      .sb-tag-dot { width: 7px; height: 7px; border-radius: 2px; }
+
+      .main { min-width: 0; display: flex; flex-direction: column; }
+
+      /* ---------- DETAIL ---------- */
+      .breadcrumb {
+        height: 40px;
+        border-bottom: 1px solid var(--border);
+        padding: 0 22px;
+        display: flex; align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--fg-muted);
+      }
+      .breadcrumb a { color: var(--fg-muted); }
+      .breadcrumb .dot { color: var(--fg-faint); }
+      .note-id {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid rgba(94,106,210,0.25);
+        padding: 2px 6px;
+        border-radius: 3px;
+        letter-spacing: 0.02em;
+      }
+
+      .titlebar {
+        padding: 22px 22px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .titlebar-top {
+        display: flex; align-items: flex-start; gap: 14px;
+        margin-bottom: 14px;
+      }
+      .title {
+        flex: 1;
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: -0.018em;
+        line-height: 1.25;
+        color: var(--fg);
+        margin: 0;
+      }
+      .actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+
+      .metastrip {
+        display: flex; flex-wrap: wrap;
+        align-items: center;
+        gap: 0;
+        font-size: 11.5px;
+        color: var(--fg-muted);
+      }
+      .ms-item {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 0 12px;
+        border-right: 1px solid var(--border);
+        height: 18px;
+      }
+      .ms-item:first-child { padding-left: 0; }
+      .ms-item:last-child { border-right: 0; }
+      .ms-key {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--fg-faint);
+      }
+      .ms-val { color: var(--fg); font-family: var(--font-mono); font-size: 11.5px; }
+      .ms-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        height: 18px; padding: 0 6px;
+        border-radius: 3px;
+        background: rgba(47,148,97,0.1);
+        color: var(--ok);
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 500;
+      }
+      .ms-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+      .body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 28px;
+        padding: 28px 22px 40px;
+      }
+      .content {
+        max-width: 760px;
+        min-width: 0;
+      }
+
+      /* ---------- GH-MD STYLES ---------- */
+      .content h1, .content h2, .content h3, .content h4 {
+        color: var(--fg);
+        font-weight: 650;
+        line-height: 1.3;
+        margin: 28px 0 12px;
+      }
+      .content h1 { font-size: 26px; letter-spacing: -0.022em; margin-top: 0; }
+      .content h2 {
+        font-size: 19px;
+        letter-spacing: -0.012em;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        margin-top: 32px;
+      }
+      .content h3 { font-size: 15px; letter-spacing: -0.005em; }
+      .content h4 { font-size: 13.5px; }
+
+      .content p { margin: 0 0 14px; line-height: 1.55; font-size: 14px; }
+      .content ul, .content ol { margin: 0 0 14px; padding-left: 20px; line-height: 1.55; font-size: 14px; }
+      .content li { margin-bottom: 4px; }
+      .content li > ul, .content li > ol { margin-bottom: 0; margin-top: 4px; }
+
+      .content code {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        background: var(--bg-code);
+        color: var(--accent);
+        padding: 1.5px 5px;
+        border-radius: 3px;
+      }
+      .content pre {
+        background: var(--bg-soft);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        margin: 0 0 16px;
+        line-height: 1.5;
+      }
+      .content pre code {
+        background: transparent;
+        color: var(--fg);
+        padding: 0;
+        font-size: 12px;
+        border-radius: 0;
+      }
+      .tok-k { color: #8a4dbc; }
+      .tok-s { color: #2f9461; }
+      .tok-c { color: var(--fg-faint); font-style: italic; }
+      .tok-t { color: var(--accent); }
+      .tok-n { color: #c98a1d; }
+
+      .content blockquote {
+        margin: 0 0 16px;
+        padding: 4px 14px;
+        border-left: 3px solid var(--accent);
+        color: var(--fg-muted);
+        font-size: 14px;
+      }
+      .content blockquote p:last-child { margin-bottom: 0; }
+
+      .content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0 0 16px;
+        font-size: 12.5px;
+      }
+      .content th, .content td {
+        border: 1px solid var(--border);
+        padding: 7px 10px;
+        text-align: left;
+      }
+      .content th {
+        background: var(--bg-soft);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--fg-muted);
+      }
+      .content td.num { font-family: var(--font-mono); text-align: right; }
+
+      .task-list { list-style: none; padding-left: 0; }
+      .task-list li { display: flex; align-items: flex-start; gap: 8px; }
+      .task-list input[type="checkbox"] {
+        appearance: none;
+        width: 14px; height: 14px;
+        border: 1.5px solid var(--border-strong);
+        border-radius: 2px;
+        margin-top: 3px;
+        cursor: pointer;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .task-list input[type="checkbox"]:checked {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .task-list input[type="checkbox"]:checked::after {
+        content: "";
+        position: absolute;
+        left: 3px; top: 0px;
+        width: 4px; height: 8px;
+        border: solid #fff;
+        border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+
+      .ilink {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 19px;
+        padding: 0 6px;
+        border: 1px solid rgba(94,106,210,0.3);
+        border-radius: 3px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        line-height: 1;
+        vertical-align: 1px;
+        text-decoration: none;
+      }
+      .ilink::before { content: "[["; opacity: 0.55; }
+      .ilink::after { content: "]]"; opacity: 0.55; }
+      .ilink:hover { background: rgba(94,106,210,0.18); text-decoration: none; }
+
+      .htag {
+        display: inline-block;
+        height: 19px;
+        line-height: 17px;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-muted);
+        background: var(--bg);
+        vertical-align: 1px;
+        text-decoration: none;
+      }
+      .htag::before { content: "#"; color: var(--fg-faint); }
+      .htag:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+      .img-placeholder {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background:
+          linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-code) 100%);
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fg-faint);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        margin: 0 0 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .img-placeholder::before {
+        content: "";
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(94,106,210,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(94,106,210,0.04) 1px, transparent 1px);
+        background-size: 16px 16px;
+      }
+      .img-placeholder span { position: relative; z-index: 1; }
+
+      /* ---------- META RAIL ---------- */
+      .rail { min-width: 0; }
+      .rail-card {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg);
+        overflow: hidden;
+        margin-bottom: 14px;
+      }
+      .rail-head {
+        height: 30px;
+        background: var(--bg-soft);
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center;
+        padding: 0 12px;
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--fg-muted);
+        justify-content: space-between;
+      }
+      .rail-head .count { font-family: var(--font-mono); color: var(--fg-faint); }
+
+      .prop {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 8px;
+        padding: 7px 12px;
+        font-size: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .prop:last-child { border-bottom: 0; }
+      .prop-k {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--fg-faint);
+        padding-top: 2px;
+      }
+      .prop-v { color: var(--fg); font-family: var(--font-mono); font-size: 11.5px; word-break: break-all; }
+      .prop-v.sans { font-family: var(--font-sans); font-size: 12px; }
+
+      .backlink {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .backlink:last-child { border-bottom: 0; }
+      .backlink:hover { background: var(--bg-soft); }
+      .backlink .bl-id {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--fg-faint);
+        flex-shrink: 0;
+      }
+      .backlink .bl-title {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--fg);
+      }
+      .backlink .bl-time {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--fg-faint);
+      }
+
+      /* ---------- RESPONSIVE ---------- */
+      .scrim {
+        display: none;
+        position: fixed; inset: 52px 0 0 0;
+        background: rgba(14,14,16,0.35);
+        z-index: 20;
+      }
+      @media (max-width: 1024px) {
+        .body { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 768px) {
+        .menu-btn { display: inline-flex; }
+        .layout { grid-template-columns: 1fr; }
+        .sidebar {
+          position: fixed; top: 52px; bottom: 0; left: 0;
+          width: 260px; z-index: 21;
+          transform: translateX(-100%);
+          transition: transform 180ms ease;
+          height: auto;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .scrim.open { display: block; }
+        .title { font-size: 19px; }
+        .actions .label-hide { display: none; }
+        .breadcrumb { padding: 0 14px; }
+        .titlebar { padding: 16px 14px 12px; }
+        .body { padding: 22px 14px 32px; }
+        .ms-item { padding: 0 8px; }
+        .ms-item:first-child { padding-left: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open');document.querySelector('.scrim').classList.toggle('open');">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+      </button>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <span>Hollow</span>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <input placeholder="search notes, tags, paths..." />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn icon-only" title="Notifications">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 12V7.5a4.5 4.5 0 119 0V12l1 1.5h-11L3.5 12z"/><path d="M6.5 14a1.5 1.5 0 003 0"/></svg>
+        </button>
+        <button class="icon-btn primary">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+          <span class="label-hide">New</span>
+          <span class="kbd">⌘N</span>
+        </button>
+        <div class="avatar">YH</div>
+      </div>
+    </header>
+
+    <div class="scrim" onclick="document.querySelector('.sidebar').classList.remove('open');this.classList.remove('open');"></div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sb-section">
+          <div class="sb-label">Views</div>
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+              All notes <span class="num">127</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6"/></svg>
+              Recent <span class="num">12</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.8 4 4.2.6-3 3 .7 4.4L8 12 4.3 14l.7-4.4-3-3 4.2-.6z"/></svg>
+              Starred <span class="num">8</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8H2z"/><path d="M5 4V2.5h6V4"/></svg>
+              Drafts <span class="num">19</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-label">
+            <span>Directories</span>
+            <span class="count">14</span>
+          </div>
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Reading <span class="num">42</span>
+            </li>
+            <li class="sb-item sb-tree-indent">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              論文 <span class="num">23</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Journal <span class="num">31</span>
+            </li>
+            <li class="sb-item active">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Projects <span class="num">28</span>
+            </li>
+            <li class="sb-item sb-tree-indent active">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Hollow <span class="num">14</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Inbox <span class="num">7</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-label">
+            <span>Tags</span>
+            <span class="count">22</span>
+          </div>
+          <ul class="sb-list">
+            <li class="sb-item"><span class="sb-tag-dot" style="background:#5e6ad2"></span>architecture <span class="num">18</span></li>
+            <li class="sb-item"><span class="sb-tag-dot" style="background:#d4423e"></span>読書メモ <span class="num">14</span></li>
+            <li class="sb-item"><span class="sb-tag-dot" style="background:#2f9461"></span>typescript <span class="num">22</span></li>
+            <li class="sb-item"><span class="sb-tag-dot" style="background:#c98a1d"></span>research <span class="num">9</span></li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9"/></svg>
+              Trash <span class="num">3</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="breadcrumb">
+          <a href="#">All notes</a>
+          <span class="dot">/</span>
+          <a href="#">Projects</a>
+          <span class="dot">/</span>
+          <a href="#">Hollow</a>
+          <span class="dot">/</span>
+          <span class="note-id">NOTE-0142</span>
+        </div>
+
+        <div class="titlebar">
+          <div class="titlebar-top">
+            <h1 class="title">Hexagonal Architecture を Cloudflare Workers で実装する</h1>
+            <div class="actions">
+              <button class="icon-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 11.5L9 5l3 3-6.5 6.5H2.5z"/></svg>
+                <span class="label-hide">Edit</span>
+                <span class="kbd">E</span>
+              </button>
+              <button class="icon-btn primary">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13h10M8 2v8M5 5l3-3 3 3"/></svg>
+                <span class="label-hide">Publish</span>
+              </button>
+              <button class="icon-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="12" cy="12" r="1.5"/><path d="M5.3 7.3L10.7 4.7M5.3 8.7l5.4 2.6"/></svg>
+                <span class="label-hide">Share</span>
+              </button>
+              <button class="icon-btn icon-only" title="More">
+                <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="metastrip">
+            <div class="ms-item"><span class="ms-key">Created</span><span class="ms-val">2026-04-22</span></div>
+            <div class="ms-item"><span class="ms-key">Updated</span><span class="ms-val">2026-05-16 14:02</span></div>
+            <div class="ms-item"><span class="ms-key">Dir</span><span class="ms-val">Projects/Hollow</span></div>
+            <div class="ms-item"><span class="ms-key">Tags</span>
+              <a class="htag">architecture</a>
+              <a class="htag">cf</a>
+            </div>
+            <div class="ms-item"><span class="ms-key">Publish</span><span class="ms-pill">Published</span></div>
+          </div>
+        </div>
+
+        <div class="body">
+          <article class="content">
+            <p>このノートは <strong>Hollow</strong> のバックエンドで採用しているヘキサゴナルアーキテクチャを、 Cloudflare Workers + D1 + Queues の制約のもとでどう実装したかをまとめる。 関連: <a class="ilink" href="#">Outbox パターン</a> <a class="ilink" href="#">Unit of Work</a></p>
+
+            <h2>1. 依存方向の規律</h2>
+            <p>レイヤーは内向きに依存する。 presentation → application → domain。 アダプターはそれぞれが依存するポート (=インターフェース) よりも一段内側に定義された型に従う。 つまり <code>app/core/adapters/d1/</code> は <code>app/core/domain/</code> および <code>app/core/application/</code> の型に依存するが、 その逆は起きない。</p>
+
+            <blockquote>
+              <p>Make illegal states unrepresentable. ランタイムチェックに頼る前に、まず型で表現できないかを考える。</p>
+            </blockquote>
+
+            <h3>1.1 ポートとアダプター</h3>
+            <p>ドメインは <code>NoteRepository</code> のような純粋なインターフェースを定義する。 アダプター層 (<code>D1NoteRepository</code>) はそれを実装するが、ドメインからは見えない。 DI は <a class="ilink" href="#">serverCloudflare.ts</a> でのみ行う。</p>
+
+            <pre><code><span class="tok-c">// app/core/domain/note/repository.ts</span>
+<span class="tok-k">export type</span> <span class="tok-t">NoteRepository</span> = {
+  <span class="tok-n">findById</span>(id: <span class="tok-t">NoteId</span>): <span class="tok-t">Promise</span>&lt;<span class="tok-t">Note</span> | <span class="tok-k">null</span>&gt;;
+  <span class="tok-n">save</span>(note: <span class="tok-t">Note</span>): <span class="tok-t">Promise</span>&lt;<span class="tok-k">void</span>&gt;;
+};</code></pre>
+
+            <h2>2. Unit of Work と Outbox</h2>
+            <p>状態変更を伴うユースケースは必ず <code>UnitOfWorkProvider.run(fn)</code> の中で実行する。 ドメインイベントは UoW の中で <code>ctx.events.publish(event)</code> を介して収集され、 トランザクション内で <span class="htag">outbox</span> テーブルに永続化される。</p>
+
+            <ul>
+              <li>UoW は <em>必要なリポジトリだけ</em> を <code>ctx.repos</code> 経由で公開する</li>
+              <li>ドメインイベントは UoW の外では <strong>発火不可能</strong> (静的に)</li>
+              <li>Relay worker は lease 付きで行を claim する</li>
+              <li>クラッシュした worker の claim は lease lapse 後に再取得可能</li>
+            </ul>
+
+            <h3>2.1 配信保証</h3>
+            <p>配信は <em>at-least-once</em>、順序保証なし。consumer は冪等でなければならない。 これは <a class="ilink" href="#">NOTE-0098</a> の運用ルールに従う。</p>
+
+            <h2>3. テーブル設計</h2>
+            <table>
+              <thead>
+                <tr><th>Table</th><th>Purpose</th><th>Rows (prod)</th><th>Size</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>notes</code></td><td>ノート本体 (HTML 変換後)</td><td class="num">127</td><td class="num">2.4 MB</td></tr>
+                <tr><td><code>directories</code></td><td>ディレクトリツリー (closure table)</td><td class="num">14</td><td class="num">0.04 MB</td></tr>
+                <tr><td><code>tags</code></td><td>タグ定義</td><td class="num">22</td><td class="num">0.01 MB</td></tr>
+                <tr><td><code>note_links</code></td><td>ノート間リンク (双方向)</td><td class="num">84</td><td class="num">0.08 MB</td></tr>
+                <tr><td><code>outbox</code></td><td>ドメインイベント outbox</td><td class="num">3</td><td class="num">0.01 MB</td></tr>
+              </tbody>
+            </table>
+
+            <h2>4. 移行とリリース手順</h2>
+            <ul class="task-list">
+              <li><input type="checkbox" checked /> ドメインモデルを純粋関数として再実装</li>
+              <li><input type="checkbox" checked /> D1 アダプターを <code>drizzle-orm</code> で実装</li>
+              <li><input type="checkbox" checked /> Outbox relay worker をデプロイ (cron 30s)</li>
+              <li><input type="checkbox" /> DLQ consumer の再試行戦略を確定</li>
+              <li><input type="checkbox" /> 統合テストを <code>miniflare</code> で完備する</li>
+            </ul>
+
+            <h3>4.1 参考スクリーンショット</h3>
+            <div class="img-placeholder"><span>img · architecture-diagram.png · 1280×720</span></div>
+
+            <h2>5. 参考</h2>
+            <p>関連ノート: <a class="ilink" href="#">Domain Modeling Made Functional 第3章</a> <a class="ilink" href="#">TanStack Start の境界</a> <a class="ilink" href="#">Drizzle の運用</a></p>
+            <p>外部リンク: <a href="#">Cloudflare D1 docs</a>, <a href="#">Hex arch 原論文 (Cockburn, 2005)</a></p>
+          </article>
+
+          <aside class="rail">
+            <div class="rail-card">
+              <div class="rail-head"><span>Properties</span><span class="count">9</span></div>
+              <div class="prop"><span class="prop-k">ID</span><span class="prop-v">NOTE-0142</span></div>
+              <div class="prop"><span class="prop-k">Status</span><span class="prop-v"><span class="ms-pill">Published</span></span></div>
+              <div class="prop"><span class="prop-k">Created</span><span class="prop-v">2026-04-22 09:14</span></div>
+              <div class="prop"><span class="prop-k">Updated</span><span class="prop-v">2026-05-16 14:02</span></div>
+              <div class="prop"><span class="prop-k">Author</span><span class="prop-v sans">山田 ひかる</span></div>
+              <div class="prop"><span class="prop-k">Dir</span><span class="prop-v">Projects/Hollow</span></div>
+              <div class="prop"><span class="prop-k">Source</span><span class="prop-v">hex-arch-cf.md</span></div>
+              <div class="prop"><span class="prop-k">Words</span><span class="prop-v">2,418</span></div>
+              <div class="prop"><span class="prop-k">Read time</span><span class="prop-v">~9 min</span></div>
+            </div>
+
+            <div class="rail-card">
+              <div class="rail-head"><span>Tags</span><span class="count">2</span></div>
+              <div style="padding:10px 12px; display:flex; gap:4px; flex-wrap:wrap;">
+                <a class="htag">architecture</a>
+                <a class="htag">cf</a>
+              </div>
+            </div>
+
+            <div class="rail-card">
+              <div class="rail-head"><span>Backlinks</span><span class="count">4</span></div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0098</span>
+                <span class="bl-title">Outbox パターンと冪等性</span>
+                <span class="bl-time">05-12</span>
+              </div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0121</span>
+                <span class="bl-title">TanStack Start の境界</span>
+                <span class="bl-time">05-12</span>
+              </div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0133</span>
+                <span class="bl-title">Drizzle ORM のマイグレーション運用</span>
+                <span class="bl-time">05-09</span>
+              </div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0140</span>
+                <span class="bl-title">Weekly Review 2026-05-15</span>
+                <span class="bl-time">05-15</span>
+              </div>
+            </div>
+
+            <div class="rail-card">
+              <div class="rail-head"><span>Outgoing links</span><span class="count">3</span></div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0098</span>
+                <span class="bl-title">Outbox パターン</span>
+                <span class="bl-time">→</span>
+              </div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0121</span>
+                <span class="bl-title">TanStack 境界</span>
+                <span class="bl-time">→</span>
+              </div>
+              <div class="backlink">
+                <span class="bl-id">NOTE-0089</span>
+                <span class="bl-title">DMMF 第3章メモ</span>
+                <span class="bl-time">→</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

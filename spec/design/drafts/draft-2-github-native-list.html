@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hollow · All notes</title>
+    <style>
+      :root {
+        --fg-default: #1f2328;
+        --fg-muted: #59636e;
+        --fg-subtle: #818b98;
+        --canvas: #ffffff;
+        --canvas-subtle: #f6f8fa;
+        --canvas-inset: #eff2f5;
+        --border-default: #d1d9e0;
+        --border-muted: #d1d9e0b3;
+        --accent-fg: #0969da;
+        --accent-emphasis: #0969da;
+        --success-fg: #1a7f37;
+        --success-emphasis: #1f883d;
+        --success-emphasis-hover: #1c8139;
+        --danger-fg: #d1242f;
+        --attention-fg: #9a6700;
+        --done-fg: #8250df;
+        --shadow-small: 0 1px 0 rgba(31, 35, 40, 0.04);
+        --shadow-medium: 0 3px 6px rgba(140, 149, 159, 0.15);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--fg-default);
+        background: var(--canvas);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: var(--accent-fg);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ---------- Header ---------- */
+      .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: var(--canvas);
+        border-bottom: 1px solid var(--border-default);
+      }
+      .app-header__inner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        height: 56px;
+      }
+      .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--fg-default);
+        cursor: pointer;
+      }
+      .menu-btn:hover {
+        background: var(--canvas-subtle);
+        border-color: var(--border-default);
+      }
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--fg-default);
+      }
+      .logo__mark {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid var(--fg-default);
+        position: relative;
+      }
+      .logo__mark::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: 50%;
+        background: var(--canvas);
+      }
+      .search {
+        flex: 1;
+        max-width: 480px;
+        position: relative;
+      }
+      .search input {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px 0 32px;
+        font-size: 13px;
+        background: var(--canvas-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        color: var(--fg-default);
+        font-family: inherit;
+      }
+      .search input::placeholder {
+        color: var(--fg-subtle);
+      }
+      .search input:focus {
+        outline: none;
+        background: var(--canvas);
+        border-color: var(--accent-emphasis);
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+      }
+      .search__icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fg-muted);
+      }
+      .search__kbd {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font: 11px ui-monospace, SFMono-Regular, "SF Mono", monospace;
+        color: var(--fg-muted);
+        border: 1px solid var(--border-default);
+        border-radius: 3px;
+        padding: 1px 5px;
+        background: var(--canvas);
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(31, 35, 40, 0.15);
+        background: var(--canvas-subtle);
+        color: var(--fg-default);
+        font: 500 13px/1 inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        background: #eff2f5;
+        border-color: rgba(31, 35, 40, 0.2);
+      }
+      .btn--primary {
+        background: var(--success-emphasis);
+        color: #fff;
+        border-color: rgba(31, 35, 40, 0.15);
+        box-shadow:
+          0 1px 0 rgba(31, 35, 40, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+      .btn--primary:hover {
+        background: var(--success-emphasis-hover);
+      }
+      .btn--icon {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      .btn--sm {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+      .btn--invisible {
+        background: transparent;
+        border-color: transparent;
+      }
+      .btn--invisible:hover {
+        background: var(--canvas-subtle);
+        border-color: var(--border-default);
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f6c177, #d1242f 70%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid rgba(31, 35, 40, 0.15);
+      }
+
+      /* ---------- Page layout ---------- */
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      @media (min-width: 1024px) {
+        .layout {
+          grid-template-columns: 240px 1fr;
+          gap: 24px;
+          padding: 24px 16px;
+        }
+      }
+
+      /* ---------- Sidebar ---------- */
+      .sidebar {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        left: 0;
+        width: 280px;
+        max-width: 85vw;
+        background: var(--canvas);
+        border-right: 1px solid var(--border-default);
+        padding: 16px;
+        overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform 0.18s ease;
+        z-index: 30;
+      }
+      .sidebar.is-open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-medium);
+      }
+      @media (min-width: 1024px) {
+        .sidebar {
+          position: sticky;
+          top: 80px;
+          align-self: start;
+          width: 240px;
+          max-height: calc(100vh - 96px);
+          transform: none;
+          border: 1px solid var(--border-default);
+          border-radius: 6px;
+          padding: 12px;
+          box-shadow: var(--shadow-small);
+        }
+      }
+      .sidebar__section {
+        padding: 8px 0;
+      }
+      .sidebar__section + .sidebar__section {
+        border-top: 1px solid var(--border-muted);
+      }
+      .sidebar__heading {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--fg-muted);
+        padding: 6px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .sidebar__heading button {
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        color: var(--fg-muted);
+        padding: 2px;
+        border-radius: 4px;
+      }
+      .sidebar__heading button:hover {
+        background: var(--canvas-subtle);
+      }
+      .tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+      }
+      .tree li > a,
+      .tree li > .tree__node {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        color: var(--fg-default);
+        cursor: pointer;
+      }
+      .tree li > a:hover,
+      .tree li > .tree__node:hover {
+        background: var(--canvas-subtle);
+        text-decoration: none;
+      }
+      .tree li > a.is-active {
+        background: #ddf4ff;
+        color: var(--accent-fg);
+        font-weight: 500;
+      }
+      .tree__chev {
+        width: 12px;
+        color: var(--fg-muted);
+        flex-shrink: 0;
+      }
+      .tree__chev--placeholder {
+        visibility: hidden;
+      }
+      .tree__icon {
+        color: #54aeff;
+        flex-shrink: 0;
+      }
+      .tree__label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tree__count {
+        font-size: 11px;
+        color: var(--fg-muted);
+      }
+      .tree ul {
+        list-style: none;
+        margin: 0;
+        padding-left: 16px;
+      }
+      .tree--flat li > a {
+        padding-left: 8px;
+      }
+      .tag-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ---------- Main ---------- */
+      .main {
+        padding: 16px;
+      }
+      @media (min-width: 1024px) {
+        .main {
+          padding: 0;
+        }
+      }
+
+      .page-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .page-heading h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+        color: var(--fg-default);
+      }
+      .page-heading .count {
+        color: var(--fg-muted);
+        font-size: 14px;
+        font-weight: 400;
+        margin-left: 6px;
+      }
+
+      /* ---------- Tab strip ---------- */
+      .tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid var(--border-default);
+        margin-bottom: 16px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--fg-default);
+        white-space: nowrap;
+        border: 1px solid transparent;
+        border-bottom: 0;
+        border-radius: 6px 6px 0 0;
+        margin-bottom: -1px;
+        cursor: pointer;
+        background: transparent;
+      }
+      .tab:hover {
+        background: var(--canvas-subtle);
+      }
+      .tab.is-active {
+        background: var(--canvas);
+        border-color: var(--border-default);
+        font-weight: 600;
+      }
+      .tab .counter {
+        background: var(--canvas-inset);
+        color: var(--fg-default);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 0 6px;
+        border-radius: 20px;
+        line-height: 18px;
+      }
+      .tab.is-active .counter {
+        background: rgba(208, 215, 222, 0.32);
+      }
+
+      /* ---------- Filter bar ---------- */
+      .filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--canvas-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: 6px 6px 0 0;
+        border-bottom: 0;
+      }
+      .filter-bar__search {
+        flex: 1;
+        min-width: 220px;
+        position: relative;
+      }
+      .filter-bar__search input {
+        width: 100%;
+        height: 28px;
+        padding: 0 10px 0 28px;
+        font-size: 12px;
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        background: var(--canvas);
+        font-family: inherit;
+      }
+      .filter-bar__search input:focus {
+        outline: none;
+        border-color: var(--accent-emphasis);
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+      }
+      .filter-bar__search svg {
+        position: absolute;
+        left: 9px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fg-muted);
+      }
+      .dropdown {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 10px;
+        height: 28px;
+        font-size: 12px;
+        background: transparent;
+        border: 0;
+        color: var(--fg-default);
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .dropdown:hover {
+        background: var(--canvas-inset);
+      }
+      .dropdown svg {
+        color: var(--fg-muted);
+      }
+
+      /* ---------- List box ---------- */
+      .list-box {
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        background: var(--canvas);
+        overflow: hidden;
+      }
+      .list-box .filter-bar + .list {
+      }
+      .list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .list-item {
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: 8px;
+        padding: 10px 16px;
+        border-top: 1px solid var(--border-default);
+        background: var(--canvas);
+      }
+      .list-item:first-child {
+        border-top: 0;
+      }
+      .list-item:hover {
+        background: var(--canvas-subtle);
+      }
+      .list-item__icon {
+        color: var(--success-fg);
+        padding-top: 1px;
+      }
+      .list-item__icon.draft {
+        color: var(--fg-muted);
+      }
+      .list-item__icon.published {
+        color: var(--success-fg);
+      }
+      .list-item__title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+      }
+      .list-item__title {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--fg-default);
+      }
+      .list-item__title:hover {
+        color: var(--accent-fg);
+        text-decoration: underline;
+      }
+      .label {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 8px;
+        font-size: 11px;
+        font-weight: 500;
+        border-radius: 2em;
+        border: 1px solid transparent;
+        line-height: 1;
+      }
+      .label--blue {
+        background: #ddf4ff;
+        color: #0550ae;
+        border-color: rgba(84, 174, 255, 0.4);
+      }
+      .label--green {
+        background: #dafbe1;
+        color: var(--success-fg);
+        border-color: rgba(74, 194, 107, 0.4);
+      }
+      .label--purple {
+        background: #fbefff;
+        color: var(--done-fg);
+        border-color: rgba(194, 151, 255, 0.4);
+      }
+      .label--yellow {
+        background: #fff8c5;
+        color: var(--attention-fg);
+        border-color: rgba(212, 167, 44, 0.4);
+      }
+      .label--pink {
+        background: #ffeff7;
+        color: #bf3989;
+        border-color: rgba(255, 128, 200, 0.4);
+      }
+      .label--gray {
+        background: var(--canvas-inset);
+        color: var(--fg-muted);
+        border-color: var(--border-default);
+      }
+      .list-item__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--fg-muted);
+      }
+      .list-item__meta a {
+        color: var(--fg-muted);
+      }
+      .list-item__meta a:hover {
+        color: var(--accent-fg);
+      }
+      .list-item__meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .path-crumb {
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          monospace;
+        font-size: 11px;
+        color: var(--fg-muted);
+        background: var(--canvas-subtle);
+        padding: 1px 6px;
+        border-radius: 3px;
+      }
+
+      /* ---------- Pagination ---------- */
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 24px 0;
+      }
+      .pagination a,
+      .pagination span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        color: var(--accent-fg);
+      }
+      .pagination a:hover {
+        background: var(--canvas-subtle);
+        text-decoration: none;
+      }
+      .pagination .is-current {
+        background: var(--accent-emphasis);
+        color: #fff;
+      }
+      .pagination .is-disabled {
+        color: var(--fg-subtle);
+        cursor: not-allowed;
+      }
+      .pagination .ellipsis {
+        color: var(--fg-muted);
+      }
+
+      /* ---------- Overlay ---------- */
+      .overlay {
+        display: none;
+        position: fixed;
+        inset: 56px 0 0 0;
+        background: rgba(31, 35, 40, 0.36);
+        z-index: 25;
+      }
+      .overlay.is-open {
+        display: block;
+      }
+      @media (min-width: 1024px) {
+        .overlay {
+          display: none !important;
+        }
+        .menu-btn {
+          display: none;
+        }
+      }
+
+      /* ---------- Desktop tweaks ---------- */
+      @media (max-width: 767px) {
+        .search {
+          display: none;
+        }
+        .hide-mobile {
+          display: none !important;
+        }
+        .list-item__title {
+          font-size: 14px;
+        }
+      }
+      @media (min-width: 768px) {
+        .show-mobile {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-header__inner">
+        <button
+          class="menu-btn show-mobile"
+          aria-label="Open menu"
+          onclick="document.getElementById('sb').classList.toggle('is-open');document.getElementById('ov').classList.toggle('is-open');"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12h12.5a.75.75 0 0 1 0 1.5H1.75a.75.75 0 0 1 0-1.5Z"
+            />
+          </svg>
+        </button>
+
+        <a href="#" class="logo">
+          <span class="logo__mark" aria-hidden="true"></span>
+          Hollow
+        </a>
+
+        <div class="search">
+          <svg
+            class="search__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 1 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+            />
+          </svg>
+          <input
+            type="search"
+            placeholder="ノート、タグ、ディレクトリを検索…"
+            aria-label="Search"
+          />
+          <span class="search__kbd">/</span>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn--sm btn--primary">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"
+              />
+            </svg>
+            <span class="hide-mobile">New note</span>
+          </button>
+          <button class="btn btn--sm hide-mobile">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8.75 2.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5a.75.75 0 0 1 1.5 0Z"
+              />
+            </svg>
+            Upload
+          </button>
+          <button class="btn btn--icon btn--invisible" aria-label="Notifications">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947Z"
+              />
+            </svg>
+          </button>
+          <span class="avatar" title="@tuanemuy">T</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Overlay (mobile) -->
+    <div
+      id="ov"
+      class="overlay"
+      onclick="document.getElementById('sb').classList.remove('is-open');this.classList.remove('is-open');"
+    ></div>
+
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside id="sb" class="sidebar" aria-label="Navigation">
+        <div class="sidebar__section">
+          <div class="sidebar__heading">
+            <span>Directories</span>
+            <button aria-label="New folder">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"
+                />
+              </svg>
+            </button>
+          </div>
+          <ul class="tree">
+            <li>
+              <div class="tree__node">
+                <svg
+                  class="tree__chev"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                  />
+                </svg>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Projects</span>
+              </div>
+              <ul>
+                <li>
+                  <a href="#" class="is-active">
+                    <span class="tree__chev tree__chev--placeholder"></span>
+                    <svg
+                      class="tree__icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span class="tree__label">Q2 計画</span>
+                    <span class="tree__count">24</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#">
+                    <span class="tree__chev tree__chev--placeholder"></span>
+                    <svg
+                      class="tree__icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span class="tree__label">Research</span>
+                    <span class="tree__count">12</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="#">
+                    <span class="tree__chev tree__chev--placeholder"></span>
+                    <svg
+                      class="tree__icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span class="tree__label">設計レビュー</span>
+                    <span class="tree__count">8</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <div class="tree__node">
+                <svg
+                  class="tree__chev"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  style="transform: rotate(-90deg)"
+                >
+                  <path
+                    d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                  />
+                </svg>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Journal</span>
+                <span class="tree__count">156</span>
+              </div>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">読書メモ</span>
+                <span class="tree__count">42</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Inbox</span>
+                <span class="tree__count">9</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar__section">
+          <div class="sidebar__heading">
+            <span>Saved views</span>
+          </div>
+          <ul class="tree tree--flat">
+            <li>
+              <a href="#">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="#bf8700">
+                  <path
+                    d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"
+                  />
+                </svg>
+                <span class="tree__label">スター付き</span>
+                <span class="tree__count">7</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M5.75 0a.75.75 0 0 1 .75.75V3h3V.75a.75.75 0 0 1 1.5 0V3h1.75A1.75 1.75 0 0 1 14.5 4.75v8a1.75 1.75 0 0 1-1.75 1.75H3.25a1.75 1.75 0 0 1-1.75-1.75v-8C1.5 3.784 2.284 3 3.25 3H5V.75A.75.75 0 0 1 5.75 0Z"
+                  />
+                </svg>
+                <span class="tree__label">今週更新</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M9.005 16.545a2.997 2.997 0 0 1 5.99 0H17v1.5h-2.005a2.997 2.997 0 0 1-5.99 0H1v-1.5h8.005ZM1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75.75.75 0 0 1 1.75 2Z"
+                  />
+                </svg>
+                <span class="tree__label">下書きのみ</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar__section">
+          <div class="sidebar__heading">
+            <span>Tags</span>
+          </div>
+          <ul class="tree tree--flat">
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #54aeff"></span>
+                <span class="tree__label">design</span>
+                <span class="tree__count">31</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #a371f7"></span>
+                <span class="tree__label">spec</span>
+                <span class="tree__count">28</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #4ac26b"></span>
+                <span class="tree__label">draft</span>
+                <span class="tree__count">17</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #ff8c00"></span>
+                <span class="tree__label">読書</span>
+                <span class="tree__count">14</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #f85149"></span>
+                <span class="tree__label">緊急</span>
+                <span class="tree__count">3</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar__section">
+          <ul class="tree tree--flat">
+            <li>
+              <a href="#">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15Z"
+                  />
+                </svg>
+                <span class="tree__label">Trash</span>
+                <span class="tree__count">3</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"
+                  />
+                </svg>
+                <span class="tree__label">Exports</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main">
+        <div class="page-heading">
+          <h1>All notes <span class="count">282</span></h1>
+          <button class="btn btn--sm hide-mobile">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M2 4a1 1 0 0 1 1-1h10a1 1 0 0 1 0 2H3a1 1 0 0 1-1-1Zm2 4a1 1 0 0 1 1-1h6a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1Zm3 4a1 1 0 0 1 1-1h2a1 1 0 1 1 0 2H8a1 1 0 0 1-1-1Z"
+              />
+            </svg>
+            Sort
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <nav class="tabs" aria-label="Note views">
+          <button class="tab is-active">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm6.5.75v11h7.75a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25Zm-5 0a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25H5v-11Zm2 1.75a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Zm0 2.5a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z"
+              />
+            </svg>
+            All notes <span class="counter">282</span>
+          </button>
+          <button class="tab">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7-3.25v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5a.75.75 0 0 1 1.5 0Z"
+              />
+            </svg>
+            Recent <span class="counter">42</span>
+          </button>
+          <button class="tab">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"
+              />
+            </svg>
+            Starred <span class="counter">7</span>
+          </button>
+          <button class="tab">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M9.25 0a.75.75 0 0 0-.75.75v4.5c0 .414.336.75.75.75h2.69l-5.22 5.22a.749.749 0 1 0 1.06 1.06l5.22-5.22v2.69c0 .414.336.75.75.75h.06A.75.75 0 0 0 14 9.75v-9A.75.75 0 0 0 13.25 0Z"
+              />
+            </svg>
+            Shared <span class="counter">18</span>
+          </button>
+        </nav>
+
+        <!-- List with filter bar -->
+        <div class="list-box">
+          <div class="filter-bar">
+            <div class="filter-bar__search">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 1 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                />
+              </svg>
+              <input placeholder="is:note status:published author:@me" />
+            </div>
+            <button class="dropdown">
+              Status
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                />
+              </svg>
+            </button>
+            <button class="dropdown">
+              Tag
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                />
+              </svg>
+            </button>
+            <button class="dropdown">
+              Directory
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                />
+              </svg>
+            </button>
+            <button class="dropdown hide-mobile">
+              Sort: Recently updated
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                <path
+                  d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <ul class="list">
+            <li class="list-item">
+              <div class="list-item__icon published" title="Published">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  ></path>
+                  <path
+                    d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Q2 戦略メモ — リサーチサマリと意思決定ログ</a
+                  >
+                  <span class="label label--blue">design</span>
+                  <span class="label label--purple">spec</span>
+                  <span class="label label--green">published</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <a href="#" class="path-crumb">Projects / Q2 計画</a>
+                  </span>
+                  <span>Updated 3 hours ago by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M7.75 0a.75.75 0 0 1 .75.75V3h3.634c.414 0 .814.147 1.13.414l2.07 1.75a1.75 1.75 0 0 1 0 2.672l-2.07 1.75a1.75 1.75 0 0 1-1.13.414H8.5v5.25a.75.75 0 0 1-1.5 0V10H2.75A1.75 1.75 0 0 1 1 8.25v-3.5C1 3.784 1.784 3 2.75 3H7V.75A.75.75 0 0 1 7.75 0Z"
+                      />
+                    </svg>
+                    8 backlinks
+                  </span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon draft" title="Draft">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25Zm7 2.25v2h2a.75.75 0 0 1 0 1.5h-2v2a.75.75 0 0 1-1.5 0V7.25h-2a.75.75 0 0 1 0-1.5h2v-2a.75.75 0 0 1 1.5 0Z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >『パターン・ランゲージ』読書ノート 第3章</a
+                  >
+                  <span class="label label--yellow">読書</span>
+                  <span class="label label--gray">draft</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <a href="#" class="path-crumb">読書メモ</a>
+                  </span>
+                  <span>Updated yesterday by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a1.5 1.5 0 0 1 2.06-.06Z"
+                      />
+                    </svg>
+                    PDF imported
+                  </span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon published">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  ></path>
+                  <path
+                    d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Hollow MVP — Hexagonal Architecture Decision Record</a
+                  >
+                  <span class="label label--purple">spec</span>
+                  <span class="label label--blue">design</span>
+                  <span class="label label--green">published</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Projects / 設計レビュー</a>
+                  </span>
+                  <span>Updated 2 days ago by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">12 backlinks</span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon draft">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >2026-05-15 デイリージャーナル</a
+                  >
+                  <span class="label label--gray">draft</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Journal</a>
+                  </span>
+                  <span>Updated 2 days ago by <a href="#">@tuanemuy</a></span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon published">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  ></path>
+                  <path
+                    d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Cloudflare D1 + Queues での Outbox 設計</a
+                  >
+                  <span class="label label--purple">spec</span>
+                  <span class="label label--green">published</span>
+                  <span class="label label--pink">緊急</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Projects / 設計レビュー</a>
+                  </span>
+                  <span>Updated 4 days ago by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">23 backlinks</span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon draft">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >会議メモ: 2026-05-12 weekly sync</a
+                  >
+                  <span class="label label--gray">draft</span>
+                  <span class="label label--yellow">action-needed</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Projects / Q2 計画</a>
+                  </span>
+                  <span>Updated 5 days ago by <a href="#">@tuanemuy</a></span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon published">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  ></path>
+                  <path
+                    d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Note rendering — github-markdown.css と Shiki の統合</a
+                  >
+                  <span class="label label--blue">design</span>
+                  <span class="label label--green">published</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Projects / 設計レビュー</a>
+                  </span>
+                  <span>Updated last week by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">5 backlinks</span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon draft">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Voice memo — 朝散歩のアイデア (transcript)</a
+                  >
+                  <span class="label label--yellow">読書</span>
+                  <span class="label label--gray">draft</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Inbox</a>
+                  </span>
+                  <span>Updated last week by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">audio · 4:21</span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon published">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  ></path>
+                  <path
+                    d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >TanStack Start サーバー関数のエラーハンドリング指針</a
+                  >
+                  <span class="label label--purple">spec</span>
+                  <span class="label label--green">published</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Projects / 設計レビュー</a>
+                  </span>
+                  <span>Updated 2 weeks ago by <a href="#">@tuanemuy</a></span>
+                  <span class="hide-mobile">3 backlinks</span>
+                </div>
+              </div>
+            </li>
+
+            <li class="list-item">
+              <div class="list-item__icon draft">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="list-item__title-row">
+                  <a href="#" class="list-item__title"
+                    >Untitled — scanned PDF "請求書_202604.pdf"</a
+                  >
+                  <span class="label label--gray">draft</span>
+                </div>
+                <div class="list-item__meta">
+                  <span>
+                    <a href="#" class="path-crumb">Inbox</a>
+                  </span>
+                  <span>Updated 3 weeks ago by <a href="#">@tuanemuy</a></span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Pagination -->
+        <nav class="pagination" aria-label="Pagination">
+          <span class="is-disabled">‹ Previous</span>
+          <a href="#" class="is-current">1</a>
+          <a href="#">2</a>
+          <a href="#">3</a>
+          <span class="ellipsis">…</span>
+          <a href="#">28</a>
+          <a href="#">Next ›</a>
+        </nav>
+      </main>
+    </div>
+  </body>
+</html>

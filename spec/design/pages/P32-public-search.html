@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公開ノートを検索 — Hollow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300; --weight-regular: 400;
+    --weight-medium: 500; --weight-semibold: 600;
+
+    --leading-tight: 1.2; --leading-snug: 1.35;
+    --leading-normal: 1.5; --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px;
+    --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
+    --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px;
+    --radius-lg: 12px; --radius-xl: 16px;
+    --radius-pill: 980px; --radius-full: 9999px;
+
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px;
+    --bp-xl: 1280px; --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* ===== Public Header (no inline search; hero search is primary) ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 14px 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .text-link {
+    font-size: 14px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    padding: 0 10px;
+    height: 36px;
+    display: inline-flex; align-items: center;
+    border-radius: var(--radius-md);
+    transition: var(--transition-bg);
+  }
+  .text-link:hover { background: var(--color-surface); }
+  .pill-btn {
+    height: 36px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px; font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .menu-btn {
+    width: 36px; height: 36px; display: none;
+    align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+
+  /* ===== Rate limit banner ===== */
+  .rate-banner {
+    background: var(--color-accent-surface);
+    color: var(--color-accent-ink);
+    font-size: 13px;
+    padding: 10px var(--container-padding);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .rate-banner svg { flex-shrink: 0; }
+
+  /* ===== Wrap ===== */
+  .main-wrap {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+  }
+
+  /* ===== Hero search ===== */
+  .hero {
+    padding: 64px 0 28px;
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .hero-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+    margin-bottom: 6px;
+  }
+  .hero-sub {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: 24px;
+  }
+  .hero-search {
+    position: relative;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .hero-search input {
+    width: 100%;
+    height: 56px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 24px 0 54px;
+    font-size: var(--text-md);
+    font-family: inherit;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .hero-search input::placeholder {
+    color: var(--color-ink-tertiary);
+    font-size: var(--text-md);
+  }
+  .hero-search input:focus {
+    background: var(--color-surface-hover);
+    box-shadow: var(--shadow-focus);
+  }
+  .hero-search .hero-icon {
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .hero-search .kbd {
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    background: #fff;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-hairline);
+    font-family: var(--font-mono);
+  }
+
+  /* ===== Results layout ===== */
+  .results-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 24px 0 64px;
+  }
+
+  /* ===== Facets sidebar ===== */
+  .facets {
+    padding: 8px 0;
+  }
+  .facet-section { margin-bottom: 28px; }
+  .facet-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+  .facet-list { display: flex; flex-direction: column; }
+  .facet-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .facet-item:hover { background: var(--color-surface); }
+  .facet-item input[type="checkbox"] {
+    width: 14px; height: 14px;
+    margin: 0;
+    accent-color: var(--color-accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .facet-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .facet-count {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+  }
+  .facet-user .avatar-tiny {
+    width: 18px; height: 18px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 9px;
+    font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ===== Results panel ===== */
+  .results-panel { min-width: 0; }
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .results-count {
+    font-size: 14px;
+    color: var(--color-ink-secondary);
+  }
+  .results-count strong {
+    color: var(--color-ink);
+    font-weight: var(--weight-semibold);
+  }
+  .sort-btn {
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+  }
+  .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
+
+  .result-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .result-card {
+    padding: 22px 16px;
+    border-top: 1px solid var(--color-hairline);
+    transition: var(--transition-bg);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .result-card:hover { background: var(--color-surface); }
+  .result-author {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+  }
+  .result-author .author-avatar-mini {
+    width: 18px; height: 18px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 9px;
+    font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .result-author strong {
+    color: var(--color-ink-secondary);
+    font-weight: var(--weight-medium);
+  }
+  .result-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-snug);
+  }
+  .result-title mark, .result-snippet mark {
+    background: rgba(0,113,227,0.18);
+    color: var(--color-accent-ink);
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+  .result-snippet {
+    font-size: 14px;
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .result-meta {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-meta .tag { color: var(--color-accent); }
+  .result-meta .dot { color: var(--color-hairline-strong); }
+
+  /* ===== Footer ===== */
+  .footer {
+    border-top: 1px solid var(--color-hairline);
+    padding: 28px 0 40px;
+  }
+  .footer-inner {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+  }
+  .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .footer-links a { transition: color 0.15s; }
+  .footer-links a:hover { color: var(--color-ink); }
+
+  /* ===== Facets drawer (mobile) ===== */
+  .facets-toggle {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-ink);
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    transition: var(--transition-bg);
+  }
+  .facets-toggle:hover { background: var(--color-surface-hover); }
+
+  .facets-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+  }
+  .facets-backdrop.open { display: block; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; gap: 10px; }
+    .text-link.signup { display: none; }
+    .menu-btn { display: inline-flex; }
+    .hero { padding: 36px 0 20px; }
+    .hero-title { font-size: 22px; }
+    .hero-search input { height: 48px; padding-left: 46px; }
+    .hero-search .hero-icon { left: 18px; }
+    .hero-search .kbd { display: none; }
+    .facets-toggle { display: inline-flex; }
+    .facets {
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      width: 280px;
+      background: #fff;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.28s var(--ease-standard);
+      box-shadow: var(--shadow-md);
+      padding: 24px 16px 32px;
+      overflow-y: auto;
+    }
+    .facets.open { transform: translateX(0); }
+  }
+
+  @media (min-width: 1024px) {
+    .results-layout {
+      grid-template-columns: 240px 1fr;
+      gap: 48px;
+    }
+    .facets {
+      position: sticky;
+      top: calc(var(--header-height) + 40px);
+      align-self: start;
+      max-height: calc(100vh - var(--header-height) - 80px);
+      overflow-y: auto;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <a href="/" class="logo">Hollow</a>
+  </div>
+  <div></div>
+  <div class="header-right">
+    <a href="/signup" class="text-link signup">サインアップ</a>
+    <a href="/login" class="pill-btn">ログイン</a>
+  </div>
+</header>
+
+<div class="rate-banner">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+  <span>レート制限: 5 分間に 30 リクエストまで。残り 24 回。</span>
+</div>
+
+<div class="main-wrap">
+
+  <section class="hero">
+    <h1 class="hero-title">公開ノートを検索</h1>
+    <p class="hero-sub">このインスタンス全体の公開ノートから横断検索できます</p>
+    <div class="hero-search">
+      <svg class="hero-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="公開ノートを検索…" value="outbox pattern" autofocus>
+      <span class="kbd">⌘ K</span>
+    </div>
+  </section>
+
+  <section class="results-layout">
+
+    <aside class="facets" id="facets">
+      <div class="facet-section">
+        <div class="facet-title">ユーザー</div>
+        <div class="facet-list">
+          <label class="facet-item facet-user">
+            <input type="checkbox" checked>
+            <span class="avatar-tiny" aria-hidden="true">TY</span>
+            <span class="facet-label">@tuanemuy</span>
+            <span class="facet-count">12</span>
+          </label>
+          <label class="facet-item facet-user">
+            <input type="checkbox">
+            <span class="avatar-tiny" aria-hidden="true">KW</span>
+            <span class="facet-label">@kwakita</span>
+            <span class="facet-count">8</span>
+          </label>
+          <label class="facet-item facet-user">
+            <input type="checkbox">
+            <span class="avatar-tiny" aria-hidden="true">NM</span>
+            <span class="facet-label">@nmiura</span>
+            <span class="facet-count">5</span>
+          </label>
+          <label class="facet-item facet-user">
+            <input type="checkbox">
+            <span class="avatar-tiny" aria-hidden="true">SS</span>
+            <span class="facet-label">@sasaki_dev</span>
+            <span class="facet-count">3</span>
+          </label>
+          <label class="facet-item facet-user">
+            <input type="checkbox">
+            <span class="avatar-tiny" aria-hidden="true">YN</span>
+            <span class="facet-label">@yoshinaga</span>
+            <span class="facet-count">2</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="facet-section">
+        <div class="facet-title">タグ</div>
+        <div class="facet-list">
+          <label class="facet-item">
+            <input type="checkbox" checked>
+            <span class="facet-label">#cloudflare</span>
+            <span class="facet-count">18</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">#ddd</span>
+            <span class="facet-count">11</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">#architecture</span>
+            <span class="facet-count">9</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">#queues</span>
+            <span class="facet-count">6</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">#performance</span>
+            <span class="facet-count">4</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="facet-section">
+        <div class="facet-title">期間</div>
+        <div class="facet-list">
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">過去 7 日</span>
+            <span class="facet-count">3</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox" checked>
+            <span class="facet-label">過去 30 日</span>
+            <span class="facet-count">12</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">過去 1 年</span>
+            <span class="facet-count">28</span>
+          </label>
+          <label class="facet-item">
+            <input type="checkbox">
+            <span class="facet-label">すべて</span>
+            <span class="facet-count">31</span>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <div class="facets-backdrop" id="facetsBackdrop"></div>
+
+    <div class="results-panel">
+      <div class="results-header">
+        <div class="results-count">
+          <strong>14 件</strong>のノートが見つかりました
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="facets-toggle" id="facetsToggle">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
+            フィルター
+          </button>
+          <button class="sort-btn">
+            関連度順
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="result-list">
+
+        <a href="/tuanemuy/outbox-pattern" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">TY</span>
+            <strong>@tuanemuy</strong>
+          </div>
+          <div class="result-title"><mark>Outbox</mark> <mark>パターン</mark>を Cloudflare Queues で実装する</div>
+          <div class="result-snippet">D1 上にイベントを書き込み、リレーワーカーが Queues に詰める。少なくとも一回 (at-least-once) 配信で、コンシューマは冪等性を確保する必要がある。<mark>Outbox</mark> <mark>pattern</mark> の Cloudflare 流の実装を整理した。</div>
+          <div class="result-meta">
+            <span class="tag">#cloudflare #ddd #architecture</span>
+            <span class="dot">·</span>
+            <span>2026年5月3日 公開</span>
+          </div>
+        </a>
+
+        <a href="/kwakita/event-sourcing-basics" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">KW</span>
+            <strong>@kwakita</strong>
+          </div>
+          <div class="result-title">Event Sourcing と <mark>Outbox</mark> <mark>Pattern</mark> の比較ノート</div>
+          <div class="result-snippet">どちらも「永続化された真実の系列」を扱う点で似ているが、目的が違う。Event Sourcing は集約の状態復元、<mark>Outbox</mark> は配信保証のためのバッファである。</div>
+          <div class="result-meta">
+            <span class="tag">#ddd #event-sourcing #architecture</span>
+            <span class="dot">·</span>
+            <span>2026年4月22日 公開</span>
+          </div>
+        </a>
+
+        <a href="/nmiura/dual-write-problem" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">NM</span>
+            <strong>@nmiura</strong>
+          </div>
+          <div class="result-title">「Dual write 問題」と <mark>Outbox</mark> の関係を整理する</div>
+          <div class="result-snippet">DB とメッセージブローカーを同時に更新したい場合、原子性は保証されない。これを解決する代表的手法のひとつが <mark>Outbox</mark> <mark>pattern</mark> である。</div>
+          <div class="result-meta">
+            <span class="tag">#architecture #distributed</span>
+            <span class="dot">·</span>
+            <span>2026年4月18日 公開</span>
+          </div>
+        </a>
+
+        <a href="/sasaki_dev/transactional-outbox-postgres" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">SS</span>
+            <strong>@sasaki_dev</strong>
+          </div>
+          <div class="result-title">Postgres + LISTEN/NOTIFY で軽量な <mark>outbox</mark> を作る</div>
+          <div class="result-snippet">小規模システムでは Kafka を持ち込まずとも、Postgres の LISTEN/NOTIFY と <mark>outbox</mark> テーブルだけで at-least-once 配信を実現できる。実装の落とし穴を順に。</div>
+          <div class="result-meta">
+            <span class="tag">#postgres #ddd</span>
+            <span class="dot">·</span>
+            <span>2026年4月10日 公開</span>
+          </div>
+        </a>
+
+        <a href="/tuanemuy/cloudflare-d1-perf" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">TY</span>
+            <strong>@tuanemuy</strong>
+          </div>
+          <div class="result-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
+          <div class="result-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。<mark>Outbox</mark> リレーのインターバル設計にも参考になる数値。</div>
+          <div class="result-meta">
+            <span class="tag">#cloudflare #performance</span>
+            <span class="dot">·</span>
+            <span>2026年5月8日 公開</span>
+          </div>
+        </a>
+
+        <a href="/yoshinaga/microservice-pitfalls" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">YN</span>
+            <strong>@yoshinaga</strong>
+          </div>
+          <div class="result-title">マイクロサービス導入で踏んだ罠と <mark>outbox</mark> の必要性</div>
+          <div class="result-snippet">最初は dual write でなんとかなっていたが、トラフィックが増えるにつれて欠損イベントが目立ってきた。最終的に <mark>outbox</mark> <mark>pattern</mark> に落ち着いた経緯を共有する。</div>
+          <div class="result-meta">
+            <span class="tag">#microservices #architecture</span>
+            <span class="dot">·</span>
+            <span>2026年3月28日 公開</span>
+          </div>
+        </a>
+
+        <a href="/kwakita/dlq-design" class="result-card">
+          <div class="result-author">
+            <span class="author-avatar-mini">KW</span>
+            <strong>@kwakita</strong>
+          </div>
+          <div class="result-title">DLQ をどう設計するか — <mark>outbox</mark> 連携で気をつけたこと</div>
+          <div class="result-snippet"><mark>Outbox</mark> リレーで配信失敗した行は最終的に DLQ に逃がす設計が現実的。再生 UI を用意しないと運用が地獄になる、という痛い学び。</div>
+          <div class="result-meta">
+            <span class="tag">#queues #ops</span>
+            <span class="dot">·</span>
+            <span>2026年3月15日 公開</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>Hollow · hollow.example.com</div>
+    <div class="footer-links">
+      <a href="/terms">利用規約</a>
+      <a href="/privacy">プライバシー</a>
+      <a href="/about">このインスタンスについて</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const toggle = document.getElementById('facetsToggle');
+  const facets = document.getElementById('facets');
+  const backdrop = document.getElementById('facetsBackdrop');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      facets.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      facets.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+</script>
+
+</body>
+</html>

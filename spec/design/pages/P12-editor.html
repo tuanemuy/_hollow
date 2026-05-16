@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — エディタ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Color: brand */
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input, textarea { font-family: inherit; }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    border-bottom: 1px solid var(--color-hairline);
+    padding: 14px var(--space-6);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    height: var(--header-height);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: 14px;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 36px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px; font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn:active { transform: scale(0.985); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.ghost { background: transparent; color: var(--color-ink-secondary); }
+  .pill-btn.ghost:hover { background: var(--color-surface); color: var(--color-ink); }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 12px; font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar { padding: var(--space-3) var(--space-4) var(--space-8); overflow-y: auto; }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 var(--space-3); margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary); }
+  .tree-child { padding-left: 22px; }
+  .tree-toggle {
+    width: 14px; height: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink-tertiary);
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+  .tree-toggle.open { transform: rotate(90deg); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+    opacity: 0; transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  /* ===== Editor main ===== */
+  .editor-wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    width: 100%;
+    padding: var(--space-6) var(--space-5) var(--space-20);
+  }
+
+  /* Edit lock banner — mobile-first: stack vertically */
+  .lock-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: 10px var(--space-4);
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    margin-bottom: var(--space-5);
+  }
+  .lock-banner svg { flex-shrink: 0; }
+  .lock-banner strong { font-weight: var(--weight-semibold); }
+  .lock-banner .spacer { display: none; }
+  .lock-banner button {
+    font-size: 12.5px;
+    font-weight: var(--weight-medium);
+    color: var(--color-warning);
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(168,88,11,0.10);
+    transition: var(--transition-bg);
+    white-space: nowrap;
+    align-self: flex-start;
+  }
+  .lock-banner button:hover { background: rgba(168,88,11,0.18); }
+  @media (min-width: 640px) {
+    .lock-banner {
+      flex-direction: row;
+      align-items: center;
+    }
+    .lock-banner .spacer { display: block; flex: 1; }
+  }
+
+  /* Top row: mode toggle + status */
+  .editor-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .segmented {
+    background: var(--color-surface);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+  }
+  .segmented button {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    background: transparent;
+    transition: all var(--duration-base) var(--ease-standard);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+  .save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+  }
+  .save-status .saved-dot {
+    width: 7px; height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--color-success);
+    display: inline-block;
+  }
+  .editor-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Title input */
+  .title-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-heading);
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: 1.12;
+    color: var(--color-ink);
+    padding: 4px 0;
+    margin-bottom: var(--space-5);
+    transition: var(--transition-bg);
+  }
+  .title-input::placeholder {
+    color: var(--color-ink-tertiary);
+    font-weight: var(--weight-regular);
+  }
+
+  /* Directory selector */
+  .dir-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    position: relative;
+  }
+  .dir-label {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: var(--space-2);
+  }
+  .dir-pill {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 13px;
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .dir-pill:hover { background: var(--color-surface-hover); }
+  .dir-pill svg.folder { color: var(--color-ink-secondary); }
+  .dir-pill svg.caret { color: var(--color-ink-tertiary); }
+
+  /* Directory tree dropdown */
+  .dir-dropdown {
+    position: absolute;
+    top: 38px;
+    left: 76px;
+    z-index: 30;
+    width: 280px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-2);
+  }
+  .dir-dropdown-search {
+    width: 100%;
+    height: 30px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    padding: 0 10px;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    margin-bottom: 6px;
+  }
+  .dir-dropdown-search::placeholder { color: var(--color-ink-tertiary); }
+  .dir-tree-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .dir-tree-item:hover { background: var(--color-surface); }
+  .dir-tree-item.selected { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .dir-tree-item svg { color: var(--color-ink-tertiary); flex-shrink: 0; }
+  .dir-tree-item.selected svg { color: var(--color-accent-ink); }
+  .dir-tree-child { padding-left: 18px; }
+
+  /* Tags row */
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--space-5);
+  }
+  .tag-chip {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 12.5px;
+    color: var(--color-accent-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition-bg);
+  }
+  .tag-chip:hover { background: var(--color-surface-hover); }
+  .tag-chip .x {
+    color: var(--color-ink-tertiary);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .tag-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--color-ink);
+    min-width: 140px;
+    padding: 4px 6px;
+  }
+  .tag-input::placeholder { color: var(--color-ink-tertiary); }
+
+  /* Toolbar */
+  .toolbar {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-2));
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--space-4);
+    box-shadow: var(--shadow-xs);
+  }
+  .tb-btn {
+    width: 30px; height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    color: var(--color-ink);
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .tb-btn:hover { background: var(--color-surface); }
+  .tb-btn.active { background: var(--color-surface); color: var(--color-ink); }
+  .tb-sep {
+    width: 1px; height: 18px;
+    background: var(--color-hairline);
+    margin: 0 4px;
+  }
+  .tb-heading {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: var(--transition-bg);
+  }
+  .tb-heading:hover { background: var(--color-surface); }
+  .tb-heading svg { color: var(--color-ink-tertiary); }
+
+  /* Meta panel (collapsible) */
+  .meta-panel {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-5);
+    background: var(--color-surface-elevated);
+    overflow: hidden;
+  }
+  .meta-panel-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 10px var(--space-4);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-bg);
+  }
+  .meta-panel-header:hover { background: var(--color-surface); }
+  .meta-panel-header .chev {
+    width: 14px; height: 14px;
+    color: var(--color-ink-tertiary);
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+  .meta-panel.open .chev { transform: rotate(90deg); }
+  .meta-panel-title {
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+  }
+  .meta-panel-count {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    margin-left: var(--space-2);
+  }
+  .meta-panel-body {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    border-top: 1px solid var(--color-hairline);
+    display: none;
+  }
+  .meta-panel.open .meta-panel-body { display: block; }
+  .fm-row {
+    display: grid;
+    grid-template-columns: 160px 1fr auto;
+    gap: var(--space-2);
+    padding: 6px 0;
+    align-items: center;
+  }
+  .fm-row + .fm-row { border-top: 1px solid var(--color-hairline); }
+  .fm-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--color-ink);
+    padding: 4px 6px;
+    border-radius: var(--radius-xs);
+    transition: var(--transition-bg);
+  }
+  .fm-input:focus { background: var(--color-bg); }
+  .fm-key { color: var(--color-ink-secondary); }
+  .fm-remove {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    color: var(--color-ink-tertiary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-bg);
+  }
+  .fm-remove:hover { background: var(--color-surface); color: var(--color-error); }
+  .fm-add {
+    margin-top: var(--space-2);
+    font-size: 12.5px;
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .fm-add:hover { text-decoration: underline; }
+
+  /* Internal-link suggestion popover */
+  .link-suggest {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .link-suggest-label {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-2);
+  }
+  .link-suggest-input-wrap { position: relative; margin-bottom: var(--space-2); }
+  .link-suggest-input {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .link-suggest-input:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .link-suggest-popover {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 4px;
+  }
+  .link-suggest-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .link-suggest-item:hover,
+  .link-suggest-item.active { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .link-suggest-item .meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+  }
+  .link-suggest-item.active .meta { color: var(--color-accent-ink); opacity: 0.7; }
+
+  /* Editor content area (WYSIWYG) */
+  .editor {
+    min-height: 480px;
+    outline: none;
+    color: var(--color-ink);
+  }
+  .editor > * + * { margin-top: 1.1em; }
+  .editor p {
+    font-size: 16px;
+    line-height: var(--leading-relaxed);
+    color: var(--color-ink);
+  }
+  .editor h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-top: 1.6em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid var(--color-hairline);
+    line-height: var(--leading-snug);
+  }
+  .editor h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-ink);
+    margin-top: 1.4em;
+    line-height: 1.3;
+  }
+  .editor code {
+    font-family: var(--font-mono);
+    background: var(--color-surface);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 0.88em;
+  }
+  .editor ul, .editor ol {
+    padding-left: 1.8em;
+    line-height: var(--leading-relaxed);
+    font-size: 16px;
+  }
+  .editor ul { list-style: disc; }
+  .editor ol { list-style: decimal; }
+  .editor li { margin-top: 0.4em; }
+  .editor li::marker { color: var(--color-ink-tertiary); }
+
+  /* Caret indicator (visual, end of last paragraph) */
+  .caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.05em;
+    background: var(--color-accent);
+    vertical-align: -2px;
+    margin-left: 1px;
+    animation: blink 1s steps(2, start) infinite;
+  }
+  @keyframes blink { to { visibility: hidden; } }
+
+  /* Bottom save row */
+  .save-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-10);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .save-row .save-status { font-size: 13px; }
+  .save-row .actions { margin-left: auto; display: inline-flex; gap: var(--space-2); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      width: 280px;
+      background: var(--color-bg);
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      padding-top: var(--space-5);
+    }
+    .sidebar.open { transform: translateX(0); }
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      grid-template-columns: var(--sidebar-width) 1fr;
+    }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--color-hairline);
+      padding-top: var(--space-5);
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+    }
+    .editor-wrap { padding: var(--space-10) var(--space-8) 120px; }
+  }
+  @media (min-width: 1280px) {
+    .editor-wrap { padding: var(--space-12) var(--space-12) 120px; }
+  }
+  @media (max-width: 640px) {
+    .header { padding: 12px var(--space-4); gap: 10px; }
+    .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
+    .editor-wrap { padding: var(--space-5) var(--space-4) var(--space-20); }
+    .title-input { font-size: 28px; }
+    .editor-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
+    .fm-row { grid-template-columns: 1fr; }
+    .dir-dropdown { left: 0; right: 0; width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索" aria-label="検索">
+  </div>
+
+  <div class="header-right">
+    <button class="pill-btn primary" aria-label="新規ノート">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規</span>
+    </button>
+    <button class="icon-btn" aria-label="アップロード">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+    <div class="avatar" aria-label="ユーザーメニュー">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+        お気に入り
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <span class="tree-toggle open"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Projects
+      </div>
+      <div class="tree-child">
+        <div class="nav-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+          Q2 計画
+        </div>
+        <div class="nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+          Hollow
+        </div>
+      </div>
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        雑記
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">保存したビュー</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        未公開の下書き
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        タグ
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="editor-wrap">
+
+      <!-- Edit lock banner -->
+      <div class="lock-banner" role="status">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div>
+          <strong>編集ロック中：</strong>
+          別のセッション（Safari · macOS）で編集が始まっています。保存すると競合する可能性があります。
+        </div>
+        <div class="spacer"></div>
+        <button>確認して続行</button>
+      </div>
+
+      <div class="editor-topbar">
+        <div class="segmented" role="tablist" aria-label="エディタモード">
+          <button class="active" role="tab" aria-selected="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            WYSIWYG
+          </button>
+          <button role="tab" aria-selected="false">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            HTML
+          </button>
+        </div>
+
+        <div class="save-status" aria-live="polite">
+          <span class="saved-dot"></span>
+          保存しました · 2 分前
+        </div>
+
+        <div class="editor-actions">
+          <button class="pill-btn ghost">キャンセル</button>
+          <button class="pill-btn primary">保存</button>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <input class="title-input" type="text" placeholder="無題のノート" value="Q2 計画 — プロダクトレビューに向けて" aria-label="ノートタイトル">
+
+      <!-- Directory selector -->
+      <div class="dir-row">
+        <span class="dir-label">場所</span>
+        <button class="dir-pill" aria-expanded="true" aria-controls="dirDropdown">
+          <svg class="folder" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+          Projects / Q2 計画
+          <svg class="caret" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <!-- Open dropdown (statically shown) -->
+        <div class="dir-dropdown" id="dirDropdown" role="listbox" aria-label="ディレクトリを選択">
+          <input class="dir-dropdown-search" placeholder="ディレクトリ名で検索…" aria-label="ディレクトリ検索">
+          <div class="dir-tree-item" role="option">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            Research
+          </div>
+          <div class="dir-tree-item" role="option">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            日記
+          </div>
+          <div class="dir-tree-item" role="option">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(90deg);"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            Projects
+          </div>
+          <div class="dir-tree-child">
+            <div class="dir-tree-item selected" role="option" aria-selected="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+              Q2 計画
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="dir-tree-item" role="option">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+              Hollow
+            </div>
+          </div>
+          <div class="dir-tree-item" role="option">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            雑記
+          </div>
+          <div style="height:1px; background: var(--color-hairline); margin: 4px 0;"></div>
+          <div class="dir-tree-item" role="option" style="color: var(--color-accent);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新規ディレクトリを作成…
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags row -->
+      <div class="tags-row" role="list" aria-label="タグ">
+        <span class="tag-chip" role="listitem">#planning <button class="x" aria-label="planning を削除">×</button></span>
+        <span class="tag-chip" role="listitem">#q2 <button class="x" aria-label="q2 を削除">×</button></span>
+        <span class="tag-chip" role="listitem">#work <button class="x" aria-label="work を削除">×</button></span>
+        <input class="tag-input" type="text" placeholder="タグを追加…" aria-label="新規タグ">
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar" role="toolbar" aria-label="書式設定">
+        <button class="tb-btn" aria-label="太字" style="font-weight:700;">B</button>
+        <button class="tb-btn" aria-label="斜体" style="font-style:italic;">I</button>
+        <button class="tb-btn" aria-label="下線" style="text-decoration:underline;">U</button>
+        <div class="tb-sep"></div>
+        <button class="tb-heading" aria-label="見出し">
+          見出し
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="tb-sep"></div>
+        <button class="tb-btn" aria-label="コード">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </button>
+        <button class="tb-btn" aria-label="リンク">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        </button>
+        <button class="tb-btn" aria-label="画像">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+      </div>
+
+      <!-- Meta panel (collapsible, open) -->
+      <div class="meta-panel open">
+        <div class="meta-panel-header" role="button" aria-expanded="true" tabindex="0">
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="meta-panel-title">プロパティ (FrontMatter)</span>
+          <span class="meta-panel-count">4 件</span>
+        </div>
+        <div class="meta-panel-body">
+          <div class="fm-row">
+            <input class="fm-input fm-key" value="author" aria-label="キー">
+            <input class="fm-input" value="Yuki Kameda" aria-label="値">
+            <button class="fm-remove" aria-label="削除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="fm-row">
+            <input class="fm-input fm-key" value="status" aria-label="キー">
+            <input class="fm-input" value="draft" aria-label="値">
+            <button class="fm-remove" aria-label="削除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="fm-row">
+            <input class="fm-input fm-key" value="reviewer" aria-label="キー">
+            <input class="fm-input" value="@team-product" aria-label="値">
+            <button class="fm-remove" aria-label="削除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="fm-row">
+            <input class="fm-input fm-key" value="deadline" aria-label="キー">
+            <input class="fm-input" value="2026-05-31" aria-label="値">
+            <button class="fm-remove" aria-label="削除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <button class="fm-add">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            キーを追加
+          </button>
+
+          <!-- Internal-link suggestion popover -->
+          <div class="link-suggest">
+            <div class="link-suggest-label">内部リンク補完</div>
+            <div class="link-suggest-input-wrap">
+              <input class="link-suggest-input" type="text" value="[[静かなインタ" placeholder="[[ で内部リンクを挿入…" aria-label="内部リンク補完">
+              <div class="link-suggest-popover" role="listbox">
+                <div class="link-suggest-item active" role="option" aria-selected="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  静かなインターフェースについての覚書
+                  <span class="meta">Research / 論文メモ</span>
+                </div>
+                <div class="link-suggest-item" role="option">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  静けさを設計する
+                  <span class="meta">雑記</span>
+                </div>
+                <div class="link-suggest-item" role="option">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  静的サイト生成の選択肢
+                  <span class="meta">Research</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WYSIWYG content area -->
+      <div class="editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="ノート本文">
+        <h2>背景</h2>
+        <p>Q1 の振り返りで明らかになった重点領域を、Q2 に向けて具体的な計画へ落とし込む。今期は<em>絞り込み</em>と<strong>速度</strong>を両立する方針で進めたい。</p>
+
+        <h2>主要な目標</h2>
+        <ol>
+          <li>個人ノート機能の安定化（公開導線まで）</li>
+          <li>取り込みフローの拡張：PDF / 音声の自動要約に対応</li>
+          <li>パフォーマンス：P95 を <code>200ms</code> 以下に維持</li>
+        </ol>
+
+        <h2>スコープ外</h2>
+        <ul>
+          <li>ダークモード</li>
+          <li>チーム機能（複数ユーザー共有）</li>
+        </ul>
+
+        <h3>確認ポイント</h3>
+        <p>計画書の公開先は <code>Projects / Q2 計画</code> に固定する予定。レビュー後に <strong>限定公開リンク</strong> を発行して関係者に共有する<span class="caret" aria-hidden="true"></span></p>
+      </div>
+
+      <!-- Bottom save row -->
+      <div class="save-row">
+        <div class="save-status" aria-live="polite">
+          <span class="saved-dot"></span>
+          保存しました · 2 分前
+        </div>
+        <div class="actions">
+          <button class="pill-btn ghost">キャンセル</button>
+          <button class="pill-btn primary">保存</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+</script>
+
+</body>
+</html>

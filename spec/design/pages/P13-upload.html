@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — アップロード</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 14px var(--space-6);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .search {
+    max-width: 460px;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+  }
+  .search input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon {
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.ghost {
+    background: transparent;
+  }
+  .pill-btn.ghost:hover { background: var(--color-surface); }
+  .pill-btn.danger {
+    background: transparent;
+    color: var(--color-error);
+  }
+  .pill-btn.danger:hover { background: var(--color-error-surface); }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    padding: 12px var(--space-4) var(--space-8);
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active {
+    background: var(--color-surface);
+    font-weight: var(--weight-medium);
+  }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+
+  /* Sidebar drawer mobile */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0;
+      left: 0;
+      width: 280px;
+      background: #fff;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform var(--duration-slow) cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      padding-top: 20px;
+    }
+    .sidebar.open { transform: translateX(0); }
+  }
+  @media (min-width: 1024px) {
+    .layout {
+      grid-template-columns: var(--sidebar-width) 1fr;
+    }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--color-hairline);
+      padding-top: 20px;
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+    }
+  }
+
+  /* ===== Main ===== */
+  .main {
+    padding: var(--space-8) var(--space-6) var(--space-20);
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .main { padding: 56px 48px 100px; }
+  }
+  @media (min-width: 1280px) {
+    .main { padding: 64px 64px 120px; }
+  }
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; gap: 10px; }
+    .logo { display: none; }
+    .main { padding: 24px 16px 80px; }
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-8);
+  }
+
+  /* ===== Dropzone ===== */
+  .dropzone {
+    border: 2px dashed var(--color-hairline-strong);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    padding: 56px 24px;
+    text-align: center;
+    transition: var(--transition-default);
+    cursor: pointer;
+    margin-bottom: var(--space-6);
+  }
+  .dropzone:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .dropzone.dragging {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .dropzone-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-xs);
+  }
+  .dropzone-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    margin-bottom: 6px;
+  }
+  .dropzone-sub {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: 16px;
+  }
+  .dropzone .pill-btn.primary { display: inline-flex; }
+
+  /* ===== Format chips ===== */
+  .format-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: var(--space-8);
+    align-items: center;
+  }
+  .format-chips .label {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+  }
+  .chip-small {
+    height: 26px;
+    padding: 0 11px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* ===== Error banner ===== */
+  .banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+  }
+  .banner.error {
+    background: var(--color-error-surface);
+    color: var(--color-error);
+  }
+  .banner.warning {
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+  }
+  .banner svg { flex-shrink: 0; margin-top: 1px; }
+  .banner .title { font-weight: var(--weight-medium); margin-bottom: 2px; }
+  .banner .body { color: inherit; opacity: 0.85; }
+
+  /* ===== Action bar ===== */
+  .action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: var(--space-4);
+    padding: 12px 14px;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    flex-wrap: wrap;
+  }
+  .action-bar-left {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+  }
+  .action-bar-left strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .action-bar-right { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ===== Queue ===== */
+  .queue {
+    background: #fff;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .queue-head, .queue-row {
+    display: grid;
+    grid-template-columns: 28px minmax(160px, 1.4fr) 90px 1fr minmax(180px, 1.2fr) minmax(140px, 1fr) 100px;
+    gap: 12px;
+    padding: 12px 16px;
+    align-items: center;
+  }
+  .queue-head {
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: var(--weight-medium);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .queue-row {
+    border-top: 1px solid var(--color-hairline);
+    font-size: var(--text-sm);
+    transition: var(--transition-bg);
+  }
+  .queue-row:first-of-type { border-top: none; }
+  .queue-row:hover { background: var(--color-surface-elevated); }
+  .queue-checkbox {
+    width: 20px; height: 20px;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--color-hairline-strong);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+    color: transparent;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard),
+                background-color var(--duration-fast) var(--ease-standard),
+                border-color var(--duration-fast) var(--ease-standard);
+  }
+  .queue-row:hover .queue-checkbox { opacity: 1; }
+  .queue-head .queue-checkbox { opacity: 1; }
+  .queue-checkbox:hover { border-color: var(--color-ink-secondary); }
+  .queue-checkbox.checked {
+    opacity: 1;
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+  }
+
+  .file-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .file-icon {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+  }
+  .file-icon.pdf { color: #c43e3e; background: #fbebeb; }
+  .file-icon.md  { color: var(--color-accent-ink); background: var(--color-accent-surface); }
+  .file-icon.docx { color: #2a5fb4; background: #e6effa; }
+  .file-icon.xlsx { color: #1f8f3a; background: var(--color-success-surface); }
+  .file-icon.img  { color: #6e3da1; background: #efe9f7; }
+  .file-icon.audio { color: #a8580b; background: var(--color-warning-surface); }
+  .file-icon.txt  { color: var(--color-ink-secondary); }
+  .file-name {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-size {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+
+  .format-cell {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    font-family: var(--font-mono);
+  }
+
+  /* Status */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+  }
+  .status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-ink-tertiary);
+  }
+  .status.queued .dot { background: var(--color-ink-tertiary); }
+  .status.queued { color: var(--color-ink-secondary); }
+  .status.processing .dot { background: var(--color-accent); animation: pulse 1.4s ease-in-out infinite; }
+  .status.processing { color: var(--color-accent-ink); }
+  .status.done .dot { background: var(--color-success); }
+  .status.done { color: var(--color-success); }
+  .status.failed .dot { background: var(--color-error); }
+  .status.failed { color: var(--color-error); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.15); }
+  }
+
+  .progress {
+    height: 4px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-top: 5px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width var(--duration-slow) var(--ease-standard);
+  }
+
+  /* LLM suggestion fields */
+  .llm-field {
+    background: var(--color-accent-surface);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 6px 9px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    width: 100%;
+    transition: var(--transition-default);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .llm-field:hover {
+    border-color: var(--color-accent);
+  }
+  .llm-field input,
+  .llm-field select {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: inherit;
+    color: var(--color-accent-ink);
+    font-weight: var(--weight-medium);
+  }
+  .llm-field input::placeholder { color: var(--color-ink-tertiary); }
+  .llm-tag {
+    font-size: 9px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.08em;
+    color: var(--color-accent-ink);
+    background: #fff;
+    padding: 2px 5px;
+    border-radius: var(--radius-xs);
+    flex-shrink: 0;
+  }
+  .llm-field.disabled {
+    background: var(--color-surface);
+    color: var(--color-ink-tertiary);
+  }
+  .llm-field.disabled input,
+  .llm-field.disabled select { color: var(--color-ink-tertiary); }
+  .llm-field.disabled .llm-tag { display: none; }
+
+  /* Actions in row */
+  .row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .icon-mini {
+    width: 28px; height: 28px;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+  }
+  .icon-mini:hover { background: var(--color-surface); color: var(--color-ink); }
+  .icon-mini.danger:hover { background: var(--color-error-surface); color: var(--color-error); }
+
+  /* Failed row detail */
+  .row-error {
+    grid-column: 1 / -1;
+    background: var(--color-error-surface);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-size: var(--text-xs);
+    color: var(--color-error);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Preview expansion */
+  .row-preview {
+    grid-column: 1 / -1;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-hairline);
+    background: var(--color-surface);
+  }
+  .preview-header .ttl {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: var(--weight-medium);
+  }
+  .preview-body {
+    padding: 16px 20px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .preview-body h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-bottom: 8px;
+  }
+  .preview-body p {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: 8px;
+  }
+  .preview-body ul {
+    list-style: disc;
+    padding-left: 22px;
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+  }
+  .preview-body .meta-row {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px dashed var(--color-hairline);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .meta-tag {
+    background: var(--color-surface);
+    color: var(--color-ink-secondary);
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+  }
+
+  /* Responsive table -> stack */
+  @media (max-width: 1023px) {
+    .queue-head { display: none; }
+    .queue-row {
+      grid-template-columns: 28px 1fr;
+      grid-template-areas:
+        "check file"
+        ". format"
+        ". status"
+        ". title"
+        ". dir"
+        ". actions";
+      row-gap: 8px;
+    }
+    .queue-row > :nth-child(1) { grid-area: check; }
+    .queue-row > :nth-child(2) { grid-area: file; }
+    .queue-row > :nth-child(3) { grid-area: format; }
+    .queue-row > :nth-child(4) { grid-area: status; }
+    .queue-row > :nth-child(5) { grid-area: title; }
+    .queue-row > :nth-child(6) { grid-area: dir; }
+    .queue-row > :nth-child(7) { grid-area: actions; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索">
+  </div>
+  <div class="header-right">
+    <button class="pill-btn primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規</span>
+    </button>
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+        お気に入り
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        雑記
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        アップロード
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <h1 class="page-title">アップロード</h1>
+    <p class="page-subtitle">ファイルから新しいノートを作成します。LLM がタイトルと保存先を提案します。</p>
+
+    <!-- Dropzone -->
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="dropzone-title">ファイルをドラッグ&ドロップ</div>
+      <div class="dropzone-sub">または クリックしてファイルを選択（複数選択可・1 ファイルあたり最大 50 MB）</div>
+      <button class="pill-btn primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        ファイルを選択
+      </button>
+    </div>
+
+    <!-- Format chips -->
+    <div class="format-chips">
+      <span class="label">対応形式</span>
+      <span class="chip-small">HTML</span>
+      <span class="chip-small">Markdown</span>
+      <span class="chip-small">Word (.docx)</span>
+      <span class="chip-small">Excel (.xlsx)</span>
+      <span class="chip-small">PowerPoint (.pptx)</span>
+      <span class="chip-small">PDF</span>
+      <span class="chip-small">画像 (PNG / JPG)</span>
+      <span class="chip-small">音声 (MP3 / WAV / M4A)</span>
+      <span class="chip-small">プレーンテキスト</span>
+    </div>
+
+    <!-- Error banners -->
+    <div class="banner error">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <div class="title">対応外の形式が含まれています</div>
+        <div class="body"><code style="font-family: var(--font-mono); font-size: 12px;">archive.zip</code> はアップロードできません。対応形式 (HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト) のみ取り込めます。</div>
+      </div>
+    </div>
+    <div class="banner warning">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>
+        <div class="title">サイズ超過のファイル</div>
+        <div class="body"><code style="font-family: var(--font-mono); font-size: 12px;">large-dataset.xlsx (72.4 MB)</code> は上限 50 MB を超えています。分割するか、ZIP を解凍せず個別にアップロードしてください。</div>
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <div class="action-bar-left">
+        取り込みキュー <strong>5 件</strong> · 完了 <strong>2</strong> · 処理中 <strong>2</strong> · 待機 <strong>1</strong>
+      </div>
+      <div class="action-bar-right">
+        <button class="pill-btn ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          すべて再生成
+        </button>
+        <button class="pill-btn danger">破棄</button>
+        <button class="pill-btn">個別保存</button>
+        <button class="pill-btn primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          完了分をまとめて保存 (2)
+        </button>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div class="queue">
+      <div class="queue-head">
+        <div></div>
+        <div>ファイル名</div>
+        <div>形式</div>
+        <div>状態</div>
+        <div>抽出タイトル</div>
+        <div>保存先</div>
+        <div style="text-align: right;">アクション</div>
+      </div>
+
+      <!-- Row 1: queued -->
+      <div class="queue-row">
+        <div class="queue-checkbox" aria-label="select"></div>
+        <div class="file-cell">
+          <div class="file-icon docx">DOCX</div>
+          <div style="min-width:0;">
+            <div class="file-name">research-notes-quiet-design.docx</div>
+            <div class="file-size">2.1 MB</div>
+          </div>
+        </div>
+        <div class="format-cell">.docx</div>
+        <div><span class="status queued"><span class="dot"></span>待機中</span></div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">処理待機 — まもなく開始</div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
+        <div class="row-actions">
+          <button class="icon-mini" title="再生成" disabled style="opacity:0.4;" aria-label="再生成">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          </button>
+          <button class="icon-mini danger" title="削除" aria-label="削除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: processing -->
+      <div class="queue-row">
+        <div class="queue-checkbox" aria-label="select"></div>
+        <div class="file-cell">
+          <div class="file-icon pdf">PDF</div>
+          <div style="min-width:0;">
+            <div class="file-name">A-Pattern-Language-ch12.pdf</div>
+            <div class="file-size">8.7 MB · 24 ページ</div>
+          </div>
+        </div>
+        <div class="format-cell">.pdf</div>
+        <div>
+          <span class="status processing"><span class="dot"></span>OCR 中… 68%</span>
+          <div class="progress"><div class="progress-bar" style="width: 68%;"></div></div>
+        </div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs); font-style: italic;">解析中…</div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
+        <div class="row-actions">
+          <button class="icon-mini" title="キャンセル" aria-label="キャンセル">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 3: processing audio -->
+      <div class="queue-row">
+        <div class="queue-checkbox" aria-label="select"></div>
+        <div class="file-cell">
+          <div class="file-icon audio">AUD</div>
+          <div style="min-width:0;">
+            <div class="file-name">interview-2026-05-15.m4a</div>
+            <div class="file-size">15.2 MB · 32:14</div>
+          </div>
+        </div>
+        <div class="format-cell">.m4a</div>
+        <div>
+          <span class="status processing"><span class="dot"></span>音声認識中… 34%</span>
+          <div class="progress"><div class="progress-bar" style="width: 34%;"></div></div>
+        </div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs); font-style: italic;">文字起こし中…</div>
+        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
+        <div class="row-actions">
+          <button class="icon-mini" title="キャンセル" aria-label="キャンセル">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 4: done (with preview expanded) -->
+      <div class="queue-row" style="background: var(--color-surface-elevated);">
+        <div class="queue-checkbox checked" aria-label="select">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="file-cell">
+          <div class="file-icon md">MD</div>
+          <div style="min-width:0;">
+            <div class="file-name">静かなインターフェース論.md</div>
+            <div class="file-size">42 KB</div>
+          </div>
+        </div>
+        <div class="format-cell">.md</div>
+        <div><span class="status done"><span class="dot"></span>完了</span></div>
+        <div class="llm-field">
+          <span class="llm-tag">AI</span>
+          <input type="text" value="静かなインターフェースについての覚書">
+        </div>
+        <div class="llm-field">
+          <span class="llm-tag">AI</span>
+          <select>
+            <option>Research / 論文メモ</option>
+            <option>Research / 書籍要約</option>
+            <option>雑記</option>
+            <option>+ 新規ディレクトリ</option>
+          </select>
+        </div>
+        <div class="row-actions">
+          <button class="icon-mini" title="プレビュー" id="previewBtn" style="background: var(--color-accent-surface); color: var(--color-accent-ink);" aria-label="プレビュー">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="icon-mini" title="再生成" aria-label="再生成">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          </button>
+          <button class="icon-mini danger" title="削除" aria-label="削除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Expanded preview -->
+        <div class="row-preview">
+          <div class="preview-header">
+            <div class="ttl">抽出プレビュー</div>
+            <button class="pill-btn ghost" style="height: 28px; padding: 0 12px; font-size: var(--text-xs);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+              閉じる
+            </button>
+          </div>
+          <div class="preview-body">
+            <h2>静かなインターフェースについての覚書</h2>
+            <p>余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。重要なのは、各要素が「主張する量」を意図的に抑えることだ。</p>
+            <ul>
+              <li>ヘアラインで境界を作り、ボックスで囲わない</li>
+              <li>シャドウは最小限。代わりに余白でレイヤーを表現する</li>
+              <li>アクセント色は一色だけ。ステータスにのみ補助色を許す</li>
+            </ul>
+            <div class="meta-row">
+              <span class="meta-tag">#design</span>
+              <span class="meta-tag">#essay</span>
+              <span class="meta-tag">#apple</span>
+              <span style="margin-left: auto;">FrontMatter: title, date, tags, status を検出</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 5: done -->
+      <div class="queue-row">
+        <div class="queue-checkbox checked" aria-label="select">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="file-cell">
+          <div class="file-icon img">IMG</div>
+          <div style="min-width:0;">
+            <div class="file-name">whiteboard-roadmap-q2.png</div>
+            <div class="file-size">3.4 MB · 1920×1080</div>
+          </div>
+        </div>
+        <div class="format-cell">.png</div>
+        <div><span class="status done"><span class="dot"></span>完了</span></div>
+        <div class="llm-field">
+          <span class="llm-tag">AI</span>
+          <input type="text" value="Q2 ロードマップ ホワイトボード メモ">
+        </div>
+        <div class="llm-field">
+          <span class="llm-tag">AI</span>
+          <select>
+            <option>プロジェクト / Hollow</option>
+            <option>プロジェクト</option>
+            <option>雑記</option>
+          </select>
+        </div>
+        <div class="row-actions">
+          <button class="icon-mini" title="プレビュー" aria-label="プレビュー">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="icon-mini" title="再生成" aria-label="再生成">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          </button>
+          <button class="icon-mini danger" title="削除" aria-label="削除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 6: failed -->
+      <div class="queue-row">
+        <div class="queue-checkbox" aria-label="select"></div>
+        <div class="file-cell">
+          <div class="file-icon xlsx">XLSX</div>
+          <div style="min-width:0;">
+            <div class="file-name">budget-2026-encrypted.xlsx</div>
+            <div class="file-size">1.2 MB</div>
+          </div>
+        </div>
+        <div class="format-cell">.xlsx</div>
+        <div><span class="status failed"><span class="dot"></span>失敗</span></div>
+        <div class="llm-field disabled">
+          <input type="text" placeholder="抽出できませんでした" disabled>
+        </div>
+        <div class="llm-field disabled">
+          <select disabled><option>—</option></select>
+        </div>
+        <div class="row-actions">
+          <button class="icon-mini" title="再生成" aria-label="再生成">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          </button>
+          <button class="icon-mini danger" title="削除" aria-label="削除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="row-error">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <strong>ファイルが暗号化されています。</strong>
+            パスワード保護された Excel は取り込めません。保護を解除して再度アップロードしてください。
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+  const dz = document.getElementById('dropzone');
+  if (dz) {
+    ['dragenter','dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragging'); }));
+    ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragging'); }));
+  }
+</script>
+</body>
+</html>

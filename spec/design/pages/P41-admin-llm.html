@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Admin — LLM 設定</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+    --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px;
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+    --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px; --radius-pill: 980px; --radius-full: 9999px;
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+    --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px; --bp-xl: 1280px; --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input, textarea, select { font-family: inherit; color: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur);
+    padding: 14px 24px;
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: var(--space-5);
+  }
+  @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .logo { font-size: 21px; font-weight: var(--weight-light); letter-spacing: var(--tracking-tightest); }
+  .admin-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: var(--radius-pill);
+    background: var(--color-accent-surface); color: var(--color-accent-ink);
+    font-size: var(--text-xs); font-weight: var(--weight-medium);
+  }
+  .admin-pill::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--color-accent); }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input {
+    width: 100%; height: 36px; border: none;
+    background: var(--color-surface); border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px; font-size: var(--text-sm); outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .icon-btn { width: 36px; height: 36px; border-radius: var(--radius-full); background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; transition: var(--transition-bg); }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar { width: 32px; height: 32px; border-radius: var(--radius-full); background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%); color: #fff; font-size: 12px; font-weight: var(--weight-medium); display: inline-flex; align-items: center; justify-content: center; }
+  .menu-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); }
+  .menu-btn:hover { background: var(--color-surface); }
+
+  .admin-nav {
+    position: sticky; top: var(--header-height); z-index: 40;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur);
+    border-bottom: 1px solid var(--color-hairline);
+    height: 44px; overflow-x: auto; scrollbar-width: none;
+  }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .admin-nav-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--container-padding); height: 100%; display: flex; gap: var(--space-1); align-items: center; white-space: nowrap; }
+  .admin-nav a { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-ink-secondary); transition: var(--transition-bg), var(--transition-color); }
+  .admin-nav a:hover { background: var(--color-surface); color: var(--color-ink); }
+  .admin-nav a.active { color: var(--color-ink); font-weight: var(--weight-medium); background: var(--color-surface); }
+
+  .main { max-width: 880px; margin: 0 auto; padding: var(--space-10) var(--container-padding) var(--space-20); }
+  .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); line-height: var(--leading-tight); margin-bottom: var(--space-2); }
+  .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: var(--space-10); }
+
+  .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-bg); }
+  .btn:hover { background: var(--color-surface-hover); }
+  .btn.primary { background: var(--color-accent); color: #fff; }
+  .btn.primary:hover { background: var(--color-accent-hover); }
+  .btn.primary:active { background: var(--color-accent-pressed); }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: var(--color-surface); }
+
+  /* ===== Form sections ===== */
+  .form-section {
+    margin-bottom: var(--space-12);
+    padding-bottom: var(--space-10);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .form-section:last-child { border-bottom: none; padding-bottom: 0; }
+  .form-section-title { font-size: var(--text-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  .form-section-desc { font-size: var(--text-sm); color: var(--color-ink-secondary); margin-bottom: var(--space-6); max-width: 60ch; }
+
+  .field { margin-bottom: var(--space-5); }
+  .field-label { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); margin-bottom: var(--space-2); }
+  .field-hint { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: var(--space-2); }
+  .input, .select {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    transition: var(--transition-default);
+  }
+  .input:hover, .select:hover { border-color: var(--color-hairline-strong); }
+  .input:focus, .select:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .input.mono { font-family: var(--font-mono); font-size: var(--text-mono); }
+
+  .row { display: flex; gap: var(--space-3); align-items: stretch; flex-wrap: wrap; }
+  .row > .input { flex: 1; min-width: 200px; }
+
+  /* Note card */
+  .note-card {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    background: var(--color-surface-elevated);
+    display: flex; gap: var(--space-3); align-items: flex-start;
+    margin-bottom: var(--space-5);
+  }
+  .note-card .icon { color: var(--color-ink-secondary); flex-shrink: 0; margin-top: 2px; }
+  .note-card-title { font-size: var(--text-sm); font-weight: var(--weight-medium); margin-bottom: 4px; }
+  .note-card-body { font-size: var(--text-sm); color: var(--color-ink-secondary); }
+  .note-card-body code { font-family: var(--font-mono); font-size: var(--text-xs); padding: 1px 5px; background: var(--color-surface); border-radius: var(--radius-xs); }
+
+  /* Locked state */
+  .locked-display {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-elevated);
+  }
+  .locked-display .name { font-size: var(--text-md); font-weight: var(--weight-medium); }
+  .locked-display .sub { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 2px; }
+  .locked-display .lock {
+    margin-left: auto;
+    font-size: var(--text-xs); color: var(--color-ink-secondary);
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: var(--radius-pill); background: var(--color-surface);
+  }
+
+  /* Test result */
+  .test-result {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    display: flex; gap: var(--space-2); align-items: center;
+  }
+  .test-result.success { background: var(--color-success-surface); color: var(--color-success); }
+  .test-result.error { background: var(--color-error-surface); color: var(--color-error); }
+
+  /* Cost table */
+  .cost-table {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-top: var(--space-4);
+  }
+  .cost-table table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .cost-table th, .cost-table td { padding: var(--space-3) var(--space-4); text-align: left; }
+  .cost-table thead th { background: var(--color-surface-elevated); border-bottom: 1px solid var(--color-hairline); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; font-weight: var(--weight-medium); color: var(--color-ink-secondary); }
+  .cost-table tbody tr + tr { border-top: 1px solid var(--color-hairline); }
+  .cost-table .mono { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--color-ink-secondary); }
+
+  .quota-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+  @media (min-width: 640px) { .quota-grid { grid-template-columns: 1fr 1fr; } }
+
+  .form-footer {
+    display: flex; gap: var(--space-3); justify-content: flex-end;
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-hairline);
+    margin-top: var(--space-10);
+  }
+
+  @media (max-width: 640px) { .header { padding: 12px 16px; gap: 10px; } .logo { display: none; } }
+  @media (min-width: 1024px) { .menu-btn { display: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    <div class="logo">Hollow</div>
+    <span class="admin-pill">管理者モード</span>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="設定項目を検索">
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" aria-label="Notifications"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+    <div class="avatar" aria-hidden="true">AD</div>
+  </div>
+</header>
+
+<nav class="admin-nav" aria-label="管理ナビゲーション">
+  <div class="admin-nav-inner">
+    <a href="P40-admin-dashboard.html">ダッシュボード</a>
+    <a href="P41-admin-llm.html" class="active">LLM 設定</a>
+    <a href="P42-admin-prompts.html">プロンプト</a>
+    <a href="P43-admin-tokens.html">デザイントークン</a>
+    <a href="P44-admin-registration.html">登録制御</a>
+    <a href="P45-admin-users.html">ユーザー</a>
+    <a href="P46-admin-jobs.html">ジョブ監視</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1 class="page-title">LLM 設定</h1>
+  <p class="page-subtitle">API キー・モデル・クォータの設定。設定の変更は即時に反映されます。</p>
+
+  <section class="form-section">
+    <h2 class="form-section-title">プロバイダ</h2>
+    <p class="form-section-desc">Hollow は MVP では Anthropic Claude のみをサポートします。プロバイダ変更は ADR-004 により固定されています。</p>
+    <div class="locked-display">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8 M12 8v8"/></svg>
+      <div>
+        <div class="name">Anthropic Claude</div>
+        <div class="sub">api.anthropic.com · v1</div>
+      </div>
+      <span class="lock">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        固定 (ADR-004)
+      </span>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2 class="form-section-title">API キー</h2>
+    <p class="form-section-desc">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ANTHROPIC_API_KEY</code> が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。</p>
+
+    <div class="note-card">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <div class="note-card-title">現在の状態</div>
+        <div class="note-card-body">環境変数から読み込み中 (<code>ANTHROPIC_API_KEY</code> 設定済み)。DB 値はフォールバックとして保持されています。</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="api-key">テスト用 API キー</label>
+      <div class="row">
+        <input class="input mono" id="api-key" type="password" value="sk-ant-api03-•••••••••••••••••••••••••••••••••••••••••••••" placeholder="sk-ant-...">
+        <button class="btn">接続テスト</button>
+      </div>
+      <p class="field-hint">この入力欄は保存されません。接続テストのみに使用されます。</p>
+      <div class="test-result success" role="status">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        接続成功 · モデル 3 件取得 · 応答 682ms
+      </div>
+      <div class="test-result error" role="status" style="margin-top: var(--space-2)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        認証失敗 (401) — API キーを確認してください
+      </div>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2 class="form-section-title">モデル</h2>
+    <p class="form-section-desc">取り込み・タイトル生成・ディレクトリ提案で使用するモデル。コスト目安は 1M tokens あたり。</p>
+    <div class="field">
+      <label class="field-label" for="model">既定モデル</label>
+      <select class="select" id="model">
+        <option>claude-sonnet-4-6 (推奨)</option>
+        <option>claude-haiku-4-5</option>
+        <option>claude-opus-4-7</option>
+      </select>
+      <p class="field-hint">用途別の上書き設定は今後追加予定です。</p>
+    </div>
+    <div class="cost-table">
+      <table>
+        <thead>
+          <tr>
+            <th>モデル</th>
+            <th>Input</th>
+            <th>Output</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">claude-haiku-4-5</td><td>$0.80</td><td>$4.00</td><td>低コスト · 取り込み軽量タスク向き</td></tr>
+          <tr><td class="mono">claude-sonnet-4-6</td><td>$3.00</td><td>$15.00</td><td>標準 · 多くのユースケースに最適</td></tr>
+          <tr><td class="mono">claude-opus-4-7</td><td>$15.00</td><td>$75.00</td><td>高精度 · 長文要約や複雑な構造化に</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2 class="form-section-title">クォータ</h2>
+    <p class="form-section-desc">想定外のコスト増を防ぐためのしきい値です。超過時はジョブが拒否され、ダッシュボードに通知が表示されます。</p>
+    <div class="quota-grid">
+      <div class="field">
+        <label class="field-label" for="user-quota">1 ユーザーあたり (24h)</label>
+        <input class="input" id="user-quota" type="number" value="200" min="0">
+        <p class="field-hint">呼び出し回数 / 24 時間</p>
+      </div>
+      <div class="field">
+        <label class="field-label" for="instance-quota">インスタンス全体 (24h)</label>
+        <input class="input" id="instance-quota" type="number" value="50000" min="0">
+        <p class="field-hint">呼び出し回数 / 24 時間</p>
+      </div>
+      <div class="field">
+        <label class="field-label" for="alert-threshold">アラート閾値</label>
+        <input class="input" id="alert-threshold" type="number" value="80" min="0" max="100">
+        <p class="field-hint">クォータ消費率がこの % を超えたら通知 (0–100)</p>
+      </div>
+      <div class="field">
+        <label class="field-label" for="rate-limit">レート制限 (req/分)</label>
+        <input class="input" id="rate-limit" type="number" value="60" min="1">
+        <p class="field-hint">プロバイダ側の RPM を考慮した上限</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-footer">
+    <button class="btn ghost">キャンセル</button>
+    <button class="btn primary">変更を保存</button>
+  </div>
+</main>
+
+</body>
+</html>

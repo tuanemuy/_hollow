@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — エクスポートジョブ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* Header */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 14px var(--space-6);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+  }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon {
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.ghost { background: transparent; }
+  .pill-btn.ghost:hover { background: var(--color-surface); }
+  .pill-btn.danger { background: transparent; color: var(--color-error); }
+  .pill-btn.danger:hover { background: var(--color-error-surface); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .sidebar { padding: 12px var(--space-4) var(--space-8); overflow-y: auto; }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: var(--text-xs); color: var(--color-ink-tertiary); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+  }
+  .sidebar-backdrop.open { display: block; }
+
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0;
+      left: 0;
+      width: 280px;
+      background: #fff;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform var(--duration-slow) cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      padding-top: 20px;
+    }
+    .sidebar.open { transform: translateX(0); }
+  }
+  @media (min-width: 1024px) {
+    .layout { grid-template-columns: var(--sidebar-width) 1fr; }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--color-hairline);
+      padding-top: 20px;
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+    }
+  }
+
+  /* Main */
+  .main {
+    padding: var(--space-8) var(--space-6) var(--space-20);
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  @media (min-width: 1024px) {
+    .main { padding: 56px 48px 100px; }
+  }
+  @media (min-width: 1280px) {
+    .main { padding: 64px 64px 120px; }
+  }
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; gap: 10px; }
+    .logo { display: none; }
+    .main { padding: 24px 16px 80px; }
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-8);
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: var(--space-6);
+    flex-wrap: wrap;
+  }
+  .filter-label {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+  }
+  .segmented {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    display: inline-flex;
+  }
+  .segmented button {
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    background: transparent;
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+  .small-select {
+    height: 30px;
+    padding: 0 26px 0 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2.4' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>") right 10px center no-repeat;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    border: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+  .small-select:hover { background-color: var(--color-surface-hover); }
+  .filter-spacer { flex: 1; }
+
+  /* Jobs table */
+  .jobs {
+    background: #fff;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .jobs-head, .job-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) 110px 80px 150px 130px 130px 160px;
+    gap: 14px;
+    padding: 14px 18px;
+    align-items: start;
+  }
+  .jobs-head { align-items: center; }
+  .job-row > :not(.job-name) { margin-top: 2px; }
+  .job-row > .actions { margin-top: 0; }
+  .jobs-head {
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: var(--weight-medium);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .jobs-head .right { text-align: right; }
+  .job-row {
+    font-size: var(--text-sm);
+    border-top: 1px solid var(--color-hairline);
+    transition: var(--transition-bg);
+  }
+  .job-row:first-of-type { border-top: none; }
+  .job-row:hover { background: var(--color-surface-elevated); }
+
+  .job-name {
+    min-width: 0;
+  }
+  .job-name .ttl {
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 2px;
+  }
+  .job-name .id {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+
+  .format-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    font-family: var(--font-mono);
+    width: fit-content;
+  }
+
+  .count-cell {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+  }
+  .status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-ink-tertiary);
+  }
+  .status.running .dot { background: var(--color-accent); animation: pulse 1.4s ease-in-out infinite; }
+  .status.running { color: var(--color-accent-ink); }
+  .status.done .dot { background: var(--color-success); }
+  .status.done { color: var(--color-success); }
+  .status.failed .dot { background: var(--color-error); }
+  .status.failed { color: var(--color-error); }
+  .status.queued .dot { background: var(--color-ink-tertiary); }
+  .status.queued { color: var(--color-ink-secondary); }
+  .status.cancelled .dot { background: var(--color-ink-tertiary); }
+  .status.cancelled { color: var(--color-ink-tertiary); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.15); }
+  }
+
+  .progress {
+    height: 4px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-top: 5px;
+    width: 100%;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width var(--duration-slow) var(--ease-standard);
+  }
+
+  .meta-cell {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+  }
+  .meta-cell .strong { color: var(--color-ink); font-weight: var(--weight-medium); display: block; }
+  .meta-cell .sub { color: var(--color-ink-tertiary); }
+
+  .expiry {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+  }
+  .expiry.warn { color: var(--color-warning); font-weight: var(--weight-medium); }
+  .expiry.expired { color: var(--color-ink-tertiary); text-decoration: line-through; }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .small-btn {
+    height: 30px;
+    padding: 0 11px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: var(--transition-default);
+    border: 1px solid transparent;
+  }
+  .small-btn:hover { background: var(--color-surface-hover); }
+  .small-btn.primary {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .small-btn.primary:hover { background: var(--color-accent-hover); }
+  .small-btn.danger { color: var(--color-error); background: transparent; }
+  .small-btn.danger:hover { background: var(--color-error-surface); }
+
+  /* Failed detail expanded */
+  .failed-detail {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: var(--color-error-surface);
+    border-radius: var(--radius-md);
+    color: var(--color-error);
+    font-size: var(--text-sm);
+  }
+  .failed-detail .ttl {
+    font-weight: var(--weight-medium);
+    margin-bottom: 6px;
+  }
+  .failed-detail .body {
+    line-height: var(--leading-snug);
+    color: var(--color-error);
+    opacity: 0.85;
+  }
+  .failed-detail pre {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    overflow-x: auto;
+  }
+  .failed-detail .footer {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .expand-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-xs);
+    color: var(--color-error);
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .expand-toggle:hover { text-decoration: underline; }
+
+  /* Empty state spacer + section */
+  .empty-state {
+    margin-top: var(--space-12);
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--color-ink-tertiary);
+    font-size: var(--text-sm);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-lg);
+    border: 1px dashed var(--color-hairline-strong);
+    display: none; /* hidden when there are jobs */
+  }
+
+  /* Responsive table */
+  @media (max-width: 1023px) {
+    .jobs-head { display: none; }
+    .job-row {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "name name"
+        "format count"
+        "status status"
+        "created expiry"
+        "actions actions";
+      row-gap: 10px;
+    }
+    .job-row > :nth-child(1) { grid-area: name; }
+    .job-row > :nth-child(2) { grid-area: format; }
+    .job-row > :nth-child(3) { grid-area: count; }
+    .job-row > :nth-child(4) { grid-area: status; }
+    .job-row > :nth-child(5) { grid-area: created; }
+    .job-row > :nth-child(6) { grid-area: expiry; }
+    .job-row > :nth-child(7) { grid-area: actions; }
+    .actions { justify-content: flex-start; flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索">
+  </div>
+  <div class="header-right">
+    <button class="pill-btn primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規</span>
+    </button>
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        アップロード
+      </div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <h1 class="page-title">エクスポートジョブ</h1>
+    <p class="page-subtitle">過去のエクスポート履歴と進行中のジョブを確認できます。ダウンロードリンクは 7 日間有効です。</p>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <span class="filter-label">状態</span>
+      <div class="segmented">
+        <button class="active">すべて</button>
+        <button>進行中</button>
+        <button>完了</button>
+        <button>失敗</button>
+      </div>
+      <span class="filter-label" style="margin-left: 12px;">期間</span>
+      <select class="small-select" aria-label="期間フィルター">
+        <option>過去 7 日間</option>
+        <option>過去 30 日間</option>
+        <option>過去 90 日間</option>
+        <option>すべて</option>
+      </select>
+      <div class="filter-spacer"></div>
+      <button class="pill-btn ghost">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+        更新
+      </button>
+      <button class="pill-btn primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新規エクスポート
+      </button>
+    </div>
+
+    <!-- Jobs table -->
+    <div class="jobs">
+      <div class="jobs-head">
+        <div>ジョブ名</div>
+        <div>形式</div>
+        <div>件数</div>
+        <div>状態</div>
+        <div>作成日時</div>
+        <div>有効期限</div>
+        <div class="right">アクション</div>
+      </div>
+
+      <!-- Row 1: running -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">プロジェクト / Hollow 全件</div>
+          <div class="id">job_01HFKZ8R3MXV7QCB2NPJTYWA9D</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · HTML</span>
+        </div>
+        <div class="count-cell">48</div>
+        <div>
+          <span class="status running"><span class="dot"></span>処理中 62%</span>
+          <div class="progress"><div class="progress-bar" style="width: 62%;"></div></div>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">今日 15:04</span>
+          <span class="sub">残り 約 2 分</span>
+        </div>
+        <div class="expiry">—</div>
+        <div class="actions">
+          <button class="small-btn danger">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- Row 2: running PDF (heavy) -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">公開済みノート PDF アーカイブ</div>
+          <div class="id">job_01HFKZ7K9PV3CWQ5R8MNTBYAJ2</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · PDF</span>
+        </div>
+        <div class="count-cell">23</div>
+        <div>
+          <span class="status running"><span class="dot"></span>レンダリング中 14%</span>
+          <div class="progress"><div class="progress-bar" style="width: 14%;"></div></div>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">今日 14:58</span>
+          <span class="sub">残り 約 8 分</span>
+        </div>
+        <div class="expiry">—</div>
+        <div class="actions">
+          <button class="small-btn danger">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- Row 3: queued -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">日記 / 2026 月次バックアップ</div>
+          <div class="id">job_01HFKZ6QXNJB4G7RW2VCAHTYP8</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · MD</span>
+        </div>
+        <div class="count-cell">31</div>
+        <div>
+          <span class="status queued"><span class="dot"></span>キュー待ち</span>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">今日 14:52</span>
+          <span class="sub">同時実行 2/2 中</span>
+        </div>
+        <div class="expiry">—</div>
+        <div class="actions">
+          <button class="small-btn danger">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- Row 4: done (fresh) -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">Research ディレクトリ全件</div>
+          <div class="id">job_01HFKZ4D2TB8X6KQGCHJWPSVN7</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · HTML</span>
+        </div>
+        <div class="count-cell">87</div>
+        <div>
+          <span class="status done"><span class="dot"></span>完了</span>
+          <div class="meta-cell" style="margin-top: 4px;"><span class="sub">142 MB</span></div>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">今日 11:23</span>
+          <span class="sub">所要 3 分 12 秒</span>
+        </div>
+        <div class="expiry">5 月 23 日まで</div>
+        <div class="actions">
+          <button class="small-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            DL
+          </button>
+          <button class="small-btn">詳細</button>
+        </div>
+      </div>
+
+      <!-- Row 5: failed -->
+      <div class="job-row" id="failedRow">
+        <div class="job-name">
+          <div class="ttl">全ノート PDF エクスポート</div>
+          <div class="id">job_01HFKZ2BCV5Y9NMPK8RTAWGQH3</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · PDF</span>
+        </div>
+        <div class="count-cell">312</div>
+        <div>
+          <span class="status failed"><span class="dot"></span>失敗</span>
+          <button class="expand-toggle" id="expandFailed">
+            失敗の詳細
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">昨日 23:48</span>
+          <span class="sub">所要 12 分 04 秒</span>
+        </div>
+        <div class="expiry">—</div>
+        <div class="actions">
+          <button class="small-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再試行
+          </button>
+          <button class="small-btn danger">削除</button>
+        </div>
+
+        <div class="failed-detail" id="failedDetail">
+          <div class="ttl">PDF レンダリングがタイムアウトしました</div>
+          <div class="body">
+            312 件中 248 件まで生成しましたが、巨大なメディアを含む 3 件で 10 分のタイムアウトに到達しました。フィルタで対象を絞り込むか、形式を HTML に切り替えるとサイズと所要時間を抑えられます。
+          </div>
+          <pre>worker error: render_timeout (note_id=nt_8K2P, size=42.1MB)
+worker error: render_timeout (note_id=nt_3J9X, size=38.7MB)
+worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
+          <div class="footer">
+            <button class="small-btn">フィルタを編集</button>
+            <button class="small-btn primary">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+              再試行
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 6: done (near expiry) -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">選択中 12 件のエクスポート</div>
+          <div class="id">job_01HFKYS3W9HX4Q6BPMGCAVKTJD</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · MD</span>
+        </div>
+        <div class="count-cell">12</div>
+        <div>
+          <span class="status done"><span class="dot"></span>完了</span>
+          <div class="meta-cell" style="margin-top: 4px;"><span class="sub">8.4 MB</span></div>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">5 月 10 日</span>
+          <span class="sub">所要 14 秒</span>
+        </div>
+        <div class="expiry warn">明日まで</div>
+        <div class="actions">
+          <button class="small-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            DL
+          </button>
+          <button class="small-btn">詳細</button>
+        </div>
+      </div>
+
+      <!-- Row 7: done (expired) -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">雑記アーカイブ Q1</div>
+          <div class="id">job_01HFK8R2J9QXVPN5MCBKAWGTHD</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · HTML</span>
+        </div>
+        <div class="count-cell">54</div>
+        <div>
+          <span class="status done"><span class="dot"></span>完了</span>
+          <div class="meta-cell" style="margin-top: 4px;"><span class="sub">62 MB</span></div>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">4 月 2 日</span>
+          <span class="sub">所要 1 分 48 秒</span>
+        </div>
+        <div class="expiry expired">4 月 9 日</div>
+        <div class="actions">
+          <button class="small-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再実行
+          </button>
+          <button class="small-btn danger">削除</button>
+        </div>
+      </div>
+
+      <!-- Row 8: cancelled -->
+      <div class="job-row">
+        <div class="job-name">
+          <div class="ttl">タグ #travel フィルタ</div>
+          <div class="id">job_01HFK7G2B9JXVMPN8CKBKAWTHQ</div>
+        </div>
+        <div>
+          <span class="format-pill">ZIP · PDF</span>
+        </div>
+        <div class="count-cell">9</div>
+        <div>
+          <span class="status cancelled"><span class="dot"></span>キャンセル済み</span>
+        </div>
+        <div class="meta-cell">
+          <span class="strong">4 月 1 日</span>
+          <span class="sub">ユーザーが中止</span>
+        </div>
+        <div class="expiry">—</div>
+        <div class="actions">
+          <button class="small-btn primary">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再実行
+          </button>
+          <button class="small-btn danger">削除</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="empty-state">
+      まだエクスポートジョブはありません。<br>
+      ノート詳細または一覧画面の「エクスポート」から開始できます。
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+
+  const failedDetail = document.getElementById('failedDetail');
+  const expandBtn = document.getElementById('expandFailed');
+  if (failedDetail && expandBtn) {
+    failedDetail.style.display = 'block';
+    expandBtn.addEventListener('click', () => {
+      const shown = failedDetail.style.display !== 'none';
+      failedDetail.style.display = shown ? 'none' : 'block';
+    });
+  }
+
+  document.querySelectorAll('.segmented').forEach(seg => {
+    const btns = seg.querySelectorAll('button');
+    btns.forEach(b => b.addEventListener('click', () => {
+      btns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    }));
+  });
+</script>
+</body>
+</html>

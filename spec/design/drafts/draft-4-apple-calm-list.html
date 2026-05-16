@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — All notes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --ink: #1d1d1f;
+    --ink-secondary: #6e6e73;
+    --ink-tertiary: #86868b;
+    --hairline: rgba(60,60,67,0.12);
+    --hairline-strong: rgba(60,60,67,0.18);
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+  }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.003em;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    padding: 14px 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 20px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    color: var(--ink);
+  }
+  .menu-btn:hover { background: var(--surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: 300;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+  }
+  .search {
+    max-width: 460px;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+  }
+  .search input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--surface);
+    border-radius: 980px;
+    padding: 0 16px 0 38px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--ink);
+    outline: none;
+    transition: background 0.2s ease;
+  }
+  .search input::placeholder { color: var(--ink-tertiary); }
+  .search input:focus { background: #ececef; }
+  .search-icon {
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .pill-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 980px;
+    background: var(--surface);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s ease;
+  }
+  .pill-btn:hover { background: #ececef; }
+  .pill-btn.primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .pill-btn.primary:hover { background: var(--accent-hover); }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    transition: background 0.15s ease;
+  }
+  .icon-btn:hover { background: #ececef; }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0;
+  }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    padding: 12px 16px 32px;
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.12s ease;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--surface); }
+  .nav-item.active {
+    background: var(--surface);
+    font-weight: 500;
+  }
+  .nav-item svg { color: var(--ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--ink); }
+  .nav-item .count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--ink-tertiary);
+  }
+  .tree-child { padding-left: 22px; }
+  .tree-child .nav-item { padding-left: 12px; }
+  .tree-toggle {
+    width: 14px; height: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink-tertiary);
+    transition: transform 0.2s ease;
+  }
+  .tree-toggle.open { transform: rotate(90deg); }
+
+  /* ===== Main ===== */
+  .main {
+    padding: 32px 24px 80px;
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .page-title {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .page-subtitle {
+    font-size: 15px;
+    color: var(--ink-secondary);
+    margin-bottom: 28px;
+  }
+
+  /* Filter chips */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    height: 30px;
+    padding: 0 13px;
+    border-radius: 980px;
+    background: var(--surface);
+    font-size: 13px;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s ease;
+  }
+  .chip:hover { background: #ececef; }
+  .chip.active {
+    background: var(--ink);
+    color: #fff;
+  }
+  .chip .remove { font-size: 14px; color: var(--ink-tertiary); margin-left: 2px; }
+  .chip.active .remove { color: rgba(255,255,255,0.7); }
+
+  /* Segmented control */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .segmented {
+    background: var(--surface);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+    position: relative;
+  }
+  .segmented button {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    background: transparent;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+  .sort-btn {
+    font-size: 13px;
+    color: var(--ink-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+  .sort-btn:hover { background: var(--surface); color: var(--ink); }
+
+  /* Note list */
+  .note-list { margin-top: 8px; }
+  .note-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    padding: 20px 12px;
+    border-top: 1px solid var(--hairline);
+    cursor: pointer;
+    transition: background 0.12s ease;
+    border-radius: 0;
+    align-items: center;
+  }
+  .note-row:hover { background: var(--surface); }
+  .note-row:first-child { border-top: 1px solid var(--hairline); }
+  .note-main { min-width: 0; }
+  .note-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .note-snippet {
+    font-size: 14px;
+    color: var(--ink-secondary);
+    line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    margin-bottom: 6px;
+  }
+  .note-meta {
+    font-size: 13px;
+    color: var(--ink-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .note-tags {
+    color: var(--accent);
+    font-size: 13px;
+  }
+  .note-meta .dot { color: var(--hairline-strong); }
+  .note-date {
+    font-size: 13px;
+    color: var(--ink-tertiary);
+    white-space: nowrap;
+    align-self: center;
+  }
+  .pub-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #34c759;
+    margin-right: 4px;
+    vertical-align: 1px;
+  }
+
+  /* Sidebar drawer mobile */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0;
+      left: 0;
+      width: 280px;
+      background: #fff;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      padding-top: 20px;
+    }
+    .sidebar.open { transform: translateX(0); }
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      grid-template-columns: 260px 1fr;
+    }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--hairline);
+      padding-top: 20px;
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+    }
+    .main { padding: 56px 48px 100px; }
+  }
+  @media (min-width: 1280px) {
+    .main { padding: 64px 64px 120px; }
+  }
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; gap: 10px; }
+    .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
+    .main { padding: 24px 16px 80px; }
+    .note-row { padding: 16px 8px; gap: 12px; }
+    .note-date { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索">
+  </div>
+
+  <div class="header-right">
+    <button class="pill-btn primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規</span>
+    </button>
+    <button class="icon-btn" aria-label="Upload">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+    <div class="avatar">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+        お気に入り
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+
+      <div class="nav-item">
+        <span class="tree-toggle open"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="tree-child">
+        <div class="nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          論文メモ
+        </div>
+        <div class="nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          書籍要約
+        </div>
+      </div>
+
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        雑記
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">保存したビュー</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        未公開の下書き
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        今週のレビュー
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        タグ
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <h1 class="page-title">All notes</h1>
+    <div class="page-subtitle">127 notes · Updated just now</div>
+
+    <div class="filter-row">
+      <button class="chip active">すべて</button>
+      <button class="chip">公開済み<span class="remove">·</span></button>
+      <button class="chip">#research <span class="remove">×</span></button>
+      <button class="chip">#日記 <span class="remove">×</span></button>
+      <button class="chip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        フィルター追加
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="segmented">
+        <button class="active">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          リスト
+        </button>
+        <button>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          カード
+        </button>
+        <button>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="3" cy="12" r="1.5"/><circle cx="21" cy="12" r="1.5"/><line x1="5" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="19" y2="12"/></svg>
+          グラフ
+        </button>
+      </div>
+
+      <button class="sort-btn">
+        更新順
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+
+    <div class="note-list">
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">静かなインターフェースについての覚書</div>
+          <div class="note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。最近Appleのデザインを観察しながら考えたことを残しておく。</div>
+          <div class="note-meta">
+            <span class="note-tags">#design  #essay</span>
+            <span class="dot">·</span>
+            <span>Research / 論文メモ</span>
+            <span class="dot">·</span>
+            <span><span class="pub-dot"></span>公開中</span>
+          </div>
+        </div>
+        <div class="note-date">今日 14:32</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">2026年5月の読書記録</div>
+          <div class="note-snippet">『ノルウェイの森』を再読。15年ぶりに開いたら、印象がまるで違っていた。当時メモした感想と並べて読むと面白い。</div>
+          <div class="note-meta">
+            <span class="note-tags">#読書  #日記</span>
+            <span class="dot">·</span>
+            <span>日記 / 2026</span>
+          </div>
+        </div>
+        <div class="note-date">今日 09:15</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
+          <div class="note-snippet">Hono経由でD1にクエリを投げる構成で、Cold start とP99レイテンシを測ってみた結果。東京リージョンからは…</div>
+          <div class="note-meta">
+            <span class="note-tags">#cloudflare  #performance</span>
+            <span class="dot">·</span>
+            <span>プロジェクト / Hollow</span>
+            <span class="dot">·</span>
+            <span><span class="pub-dot"></span>公開中</span>
+          </div>
+        </div>
+        <div class="note-date">昨日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">Meeting notes — 5/14 プロダクトレビュー</div>
+          <div class="note-snippet">Q2のロードマップ調整について。優先度を絞る方向で合意。詳細は議事録参照。</div>
+          <div class="note-meta">
+            <span class="note-tags">#meeting  #work</span>
+            <span class="dot">·</span>
+            <span>プロジェクト / Hollow</span>
+          </div>
+        </div>
+        <div class="note-date">5月14日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">京都 三泊四日の旅程メモ</div>
+          <div class="note-snippet">朝の哲学の道。誰もいない時間に歩くと別の景色に見える。一日目は南禅寺周辺、二日目は宇治へ。</div>
+          <div class="note-meta">
+            <span class="note-tags">#travel  #日記</span>
+            <span class="dot">·</span>
+            <span>雑記</span>
+          </div>
+        </div>
+        <div class="note-date">5月12日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">A Pattern Language を読みながら</div>
+          <div class="note-snippet">パタン・ランゲージの考え方は、ソフトウェア設計だけでなく、生活そのものに応用できる。アレグザンダーの…</div>
+          <div class="note-meta">
+            <span class="note-tags">#建築  #読書</span>
+            <span class="dot">·</span>
+            <span>Research / 書籍要約</span>
+            <span class="dot">·</span>
+            <span><span class="pub-dot"></span>公開中</span>
+          </div>
+        </div>
+        <div class="note-date">5月10日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">Headless CMS 候補比較（2026年版）</div>
+          <div class="note-snippet">Sanity / Contentful / Payload / 自前実装。コストと開発体験のトレードオフを表にまとめた。</div>
+          <div class="note-meta">
+            <span class="note-tags">#cms  #research</span>
+            <span class="dot">·</span>
+            <span>Research</span>
+          </div>
+        </div>
+        <div class="note-date">5月8日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">朝の散歩で考えたこと</div>
+          <div class="note-snippet">外を歩いている時にしか出てこない種類の思考がある。デスクの前ではどうしても辿り着けない場所。</div>
+          <div class="note-meta">
+            <span class="note-tags">#essay  #日記</span>
+            <span class="dot">·</span>
+            <span>日記 / 2026</span>
+          </div>
+        </div>
+        <div class="note-date">5月7日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">TanStack Start に乗り換えた理由</div>
+          <div class="note-snippet">Next.js から TanStack Start へ。React Server Components のメンタルモデルがすっきりした。</div>
+          <div class="note-meta">
+            <span class="note-tags">#react  #tanstack</span>
+            <span class="dot">·</span>
+            <span>プロジェクト</span>
+            <span class="dot">·</span>
+            <span><span class="pub-dot"></span>公開中</span>
+          </div>
+        </div>
+        <div class="note-date">5月5日</div>
+      </div>
+
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">引用集 — 静けさについて</div>
+          <div class="note-snippet">"In the midst of movement and chaos, keep stillness inside of you." — Deepak Chopra</div>
+          <div class="note-meta">
+            <span class="note-tags">#quote</span>
+            <span class="dot">·</span>
+            <span>雑記</span>
+          </div>
+        </div>
+        <div class="note-date">5月2日</div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+</script>
+
+</body>
+</html>

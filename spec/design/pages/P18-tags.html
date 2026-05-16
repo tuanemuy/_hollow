@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — タグ管理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* ===== Header (same as P17) ===== */
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    height: var(--header-height);
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    border-bottom: 1px solid var(--color-hairline);
+    padding: 0 var(--space-6);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+  }
+  @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md); color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px; font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest); color: var(--color-ink);
+  }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input {
+    width: 100%; height: 36px; border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 var(--space-4) 0 38px;
+    font-size: var(--text-sm); color: var(--color-ink);
+    outline: none; transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:hover { background: var(--color-surface-hover); }
+  .search input:focus { background: var(--color-surface-hover); box-shadow: var(--shadow-focus); }
+  .search-icon {
+    position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%); color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 36px; padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn:active { background: var(--color-hairline); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff; font-size: 12px; font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== Layout / sidebar (same shell) ===== */
+  .layout {
+    display: grid; grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .sidebar { padding: var(--space-3) var(--space-4) var(--space-8); overflow-y: auto; }
+  .sidebar-section { margin-bottom: var(--space-6); }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 var(--space-3); margin-bottom: var(--space-1);
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px var(--space-3); border-radius: var(--radius-md);
+    font-size: var(--text-sm); color: var(--color-ink);
+    cursor: pointer; transition: var(--transition-bg); user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: var(--text-xs); color: var(--color-ink-tertiary); }
+
+  /* ===== Main ===== */
+  .main {
+    padding: var(--space-8) var(--space-6) var(--space-20);
+    max-width: 1100px; margin: 0 auto; width: 100%;
+  }
+  .page-header {
+    margin-bottom: var(--space-6);
+  }
+  .page-title {
+    font-size: var(--text-3xl); font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight); color: var(--color-ink);
+    margin-bottom: var(--space-2);
+  }
+  .stats {
+    font-size: var(--text-md); color: var(--color-ink-secondary);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .stats > span {
+    white-space: nowrap;
+  }
+  .stats .stat-num {
+    font-weight: var(--weight-medium); color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .stats .stat-dot { color: var(--color-ink-tertiary); }
+
+  /* Process banner (mobile-first: stack vertically) */
+  .process-banner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-accent-surface);
+    color: var(--color-accent-ink);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-5);
+  }
+  .process-banner-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .process-banner-main {
+    display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0;
+  }
+  .process-banner-icon {
+    color: var(--color-accent); flex-shrink: 0;
+    margin-top: 2px;
+    animation: spin 1.4s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .process-banner-text {
+    flex: 1; min-width: 0;
+    color: var(--color-accent-ink);
+    line-height: var(--leading-snug);
+    word-break: break-word;
+  }
+  .process-banner-text strong { font-weight: var(--weight-medium); }
+  .process-banner-text .tag-mono {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-medium);
+    color: var(--color-accent-ink);
+    font-size: 0.95em;
+    white-space: nowrap;
+  }
+  .process-banner-aside {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3);
+    padding-left: 24px; /* align with text after icon */
+  }
+  .process-banner-meta {
+    font-size: var(--text-xs);
+    color: var(--color-accent-ink);
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+  .process-banner-cancel {
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-accent-ink);
+    padding: 6px 14px; border-radius: var(--radius-pill);
+    background: rgba(255,255,255,0.55);
+    transition: var(--transition-bg);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .process-banner-cancel:hover { background: rgba(255,255,255,0.85); }
+  .process-banner-bar {
+    height: 4px;
+    background: rgba(0,113,227,0.18);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+  }
+  .process-banner-bar > span {
+    display: block;
+    height: 100%;
+    width: 35.2%;
+    background: var(--color-accent);
+    border-radius: var(--radius-pill);
+    transition: width var(--duration-slow) var(--ease-decel);
+  }
+  @media (min-width: 768px) {
+    .process-banner-row {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--space-4);
+    }
+    .process-banner-main { flex: 1; align-items: center; }
+    .process-banner-icon { margin-top: 0; }
+    .process-banner-aside {
+      padding-left: 0;
+      flex-shrink: 0;
+    }
+  }
+
+  /* Toolbar (search + sort) */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3); margin-bottom: var(--space-5); flex-wrap: wrap;
+  }
+  .field-search {
+    position: relative; flex: 1; min-width: 220px; max-width: 360px;
+  }
+  .field-search input {
+    width: 100%; height: 36px; border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 var(--space-3) 0 34px;
+    font-size: var(--text-sm); color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .field-search input:hover { background: var(--color-surface-hover); }
+  .field-search input:focus { background: var(--color-surface-hover); outline: none; box-shadow: var(--shadow-focus); }
+  .field-search > svg {
+    position: absolute; left: 11px; top: 50%;
+    transform: translateY(-50%); color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .segmented {
+    background: var(--color-surface); border-radius: var(--radius-md);
+    padding: 2px; display: inline-flex;
+  }
+  .segmented button {
+    padding: 6px 14px; border-radius: 7px;
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    transition: var(--transition-default);
+  }
+  .segmented button.active {
+    background: var(--color-bg); color: var(--color-ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+  .segmented button:hover:not(.active) { color: var(--color-ink); }
+
+  /* Tag list */
+  .tag-list {
+    border-top: 1px solid var(--color-hairline);
+  }
+  .tag-row {
+    display: grid;
+    grid-template-columns: 1fr 100px 160px auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4) var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+    transition: var(--transition-bg);
+  }
+  .tag-row:hover { background: var(--color-surface); }
+  .tag-name {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tag-name .hash {
+    color: var(--color-ink-tertiary);
+    font-weight: var(--weight-regular);
+  }
+  .tag-count {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .tag-count .num { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .tag-last {
+    font-size: var(--text-sm);
+    color: var(--color-ink-tertiary);
+  }
+  .row-actions {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+  .tag-row:hover .row-actions { opacity: 1; }
+  .row-actions .text-action {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    transition: var(--transition-default);
+  }
+  .row-actions .text-action:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+  .row-actions .text-action.destructive:hover { color: var(--color-error); background: var(--color-error-surface); }
+
+  /* Kebab menu trigger — only used on mobile */
+  .row-kebab {
+    display: none;
+    width: 36px; height: 36px;
+    align-items: center; justify-content: center;
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+  }
+  .row-kebab:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+
+  /* Editing block — left accent bar marks state; no border, no shadow, no nested card */
+  .tag-editing-block {
+    position: relative;
+    background: var(--color-accent-surface);
+    border-bottom: 1px solid var(--color-hairline);
+    padding-left: 3px; /* room for the accent bar */
+  }
+  .tag-editing-block::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--color-accent);
+  }
+  .tag-editing-block .tag-row {
+    background: transparent;
+    border-bottom: 1px solid rgba(0,113,227,0.14);
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+  .tag-editing-block .tag-row:hover { background: transparent; }
+  .editing-close {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-pill);
+    color: var(--color-accent-ink);
+    transition: var(--transition-bg);
+  }
+  .editing-close:hover { background: rgba(255,255,255,0.6); }
+
+  /* Mode switcher (rename vs merge) */
+  .editing-body {
+    padding: var(--space-2) var(--space-3) var(--space-5);
+    display: flex; flex-direction: column; gap: var(--space-4);
+  }
+  .mode-switch {
+    background: rgba(255,255,255,0.6);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    display: inline-flex;
+    align-self: flex-start;
+  }
+  .mode-switch button {
+    min-width: 64px;
+    padding: 6px 14px; border-radius: 7px;
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-accent-ink);
+    transition: var(--transition-default);
+  }
+  .mode-switch button.active {
+    background: var(--color-bg);
+    color: var(--color-ink);
+  }
+  .mode-switch button:hover:not(.active) { color: var(--color-ink); }
+
+  /* Form sits directly on accent-surface; inputs become white with hairline */
+  .inline-form {
+    display: flex; flex-direction: column; gap: var(--space-2);
+  }
+  .inline-form .text-input {
+    background: var(--color-bg);
+    border-color: var(--color-hairline);
+  }
+  .inline-form .text-input:hover { background: var(--color-bg); border-color: var(--color-hairline-strong); }
+  .inline-form .text-input:focus { background: var(--color-bg); border-color: var(--color-accent); }
+  .form-group label {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .text-input {
+    width: 100%; height: 36px;
+    padding: 0 var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    transition: var(--transition-default);
+  }
+  .text-input:hover { background: var(--color-surface-hover); }
+  .text-input:focus {
+    background: var(--color-bg);
+    border-color: var(--color-accent);
+    outline: none;
+  }
+  .form-hint {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    margin-top: var(--space-2);
+    line-height: var(--leading-snug);
+  }
+  .form-actions {
+    display: flex; justify-content: flex-end; gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  .btn-sm {
+    height: 32px; padding: 0 var(--space-4);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-default);
+  }
+  .btn-sm:hover { background: var(--color-surface-hover); }
+  .btn-sm.primary { background: var(--color-accent); color: #fff; }
+  .btn-sm.primary:hover { background: var(--color-accent-hover); }
+
+  /* Section divider for blacklist */
+  .section-block { margin-top: var(--space-12); }
+  .section-block .section-head {
+    display: flex; flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .section-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-ink);
+  }
+  .section-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    max-width: 60ch;
+    line-height: var(--leading-snug);
+  }
+  .blacklist-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4) var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+    transition: var(--transition-bg);
+  }
+  .blacklist-row:first-of-type { border-top: 1px solid var(--color-hairline); }
+  .blacklist-row:hover { background: var(--color-surface); }
+  .blacklist-tag {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .blacklist-tag .hash { color: var(--color-ink-tertiary); font-weight: var(--weight-regular); }
+  .blacklist-meta { font-size: var(--text-sm); color: var(--color-ink-tertiary); }
+
+  /* Sidebar drawer mobile */
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.2); z-index: 90;
+    opacity: 0; transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed; top: 0; bottom: 0; left: 0;
+      width: 280px; background: var(--color-bg); z-index: 100;
+      transform: translateX(-100%);
+      transition: transform var(--duration-slow) cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: var(--shadow-md);
+      padding-top: var(--space-5);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .tag-row {
+      grid-template-columns: 1fr auto;
+      gap: var(--space-3);
+    }
+    .tag-count, .tag-last { display: none; }
+    .row-actions { display: none; }
+    .row-kebab { display: inline-flex; }
+    /* editing block keeps its close button visible (no kebab here) */
+    .tag-editing-block .row-actions { display: inline-flex; }
+    .blacklist-row { grid-template-columns: 1fr auto; }
+    .blacklist-meta { display: none; }
+  }
+  @media (min-width: 1024px) {
+    .layout { grid-template-columns: var(--sidebar-width) 1fr; }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--color-hairline);
+      padding-top: var(--space-5);
+      position: sticky; top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+    }
+    .main { padding: var(--space-12) var(--space-10) var(--space-20); }
+  }
+  @media (min-width: 1280px) {
+    .main { padding: var(--space-16) var(--space-16) var(--space-20); }
+  }
+  @media (max-width: 640px) {
+    .header { padding: 0 var(--space-4); gap: var(--space-2); }
+    .logo { display: none; }
+    .main { padding: var(--space-6) var(--space-4) var(--space-16); }
+    .stats .stat-dot { display: none; }
+    .stats { gap: var(--space-3); }
+  }
+  @media (min-width: 768px) {
+    .row-actions {
+      flex-wrap: nowrap;
+      overflow-x: visible;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索">
+  </div>
+
+  <div class="header-right">
+    <button class="pill-btn primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規</span>
+    </button>
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+        お気に入り
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        雑記
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">管理</div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        タグ
+        <span class="count">47</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="9 12 12 9 15 12"/><line x1="12" y1="9" x2="12" y2="16"/></svg>
+        ビュー
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <h1 class="page-title">タグ管理</h1>
+      <div class="stats">
+        <span><span class="stat-num">47</span> タグ</span>
+        <span class="stat-dot">·</span>
+        <span>うち <span class="stat-num">3</span> 件除外中</span>
+        <span class="stat-dot">·</span>
+        <span><span class="stat-num">562</span> 件のタグ付け</span>
+      </div>
+    </div>
+
+    <div class="process-banner" role="status" aria-live="polite">
+      <div class="process-banner-row">
+        <div class="process-banner-main">
+          <svg class="process-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <div class="process-banner-text">
+            <span class="tag-mono">#project</span> を <span class="tag-mono">#Projects</span> に統合中
+          </div>
+        </div>
+        <div class="process-banner-aside">
+          <span class="process-banner-meta">87 / 247 ノート · 残り約 2 分</span>
+          <button class="process-banner-cancel">キャンセル</button>
+        </div>
+      </div>
+      <div class="process-banner-bar"><span></span></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="field-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="タグを検索">
+      </div>
+      <div class="segmented">
+        <button class="active">利用件数</button>
+        <button>名前</button>
+        <button>最終使用</button>
+      </div>
+    </div>
+
+    <div class="tag-list">
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>research</span>
+        <span class="tag-count"><span class="num">42</span> 件</span>
+        <span class="tag-last">最終: 今日 14:32</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-editing-block">
+        <div class="tag-row">
+          <span class="tag-name"><span class="hash">#</span>design</span>
+          <span class="tag-count"><span class="num">38</span> 件</span>
+          <span class="tag-last">最終: 今日 11:08</span>
+          <span class="row-actions" style="opacity: 1;">
+            <button class="editing-close" aria-label="編集を閉じる">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+            </button>
+          </span>
+        </div>
+        <div class="editing-body">
+          <div class="mode-switch" role="tablist" aria-label="操作モード">
+            <button class="active" role="tab" aria-selected="true">編集</button>
+            <button role="tab" aria-selected="false">統合</button>
+          </div>
+          <div class="inline-form">
+            <div class="form-group">
+              <label for="rename-input">タグ名</label>
+              <input id="rename-input" class="text-input" type="text" value="design">
+              <div class="form-hint">38 件のノートのタグが書き換えられます。元には戻せません。</div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-sm primary">保存</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>日記</span>
+        <span class="tag-count"><span class="num">31</span> 件</span>
+        <span class="tag-last">最終: 今日 09:15</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>読書</span>
+        <span class="tag-count"><span class="num">24</span> 件</span>
+        <span class="tag-last">最終: 昨日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>essay</span>
+        <span class="tag-count"><span class="num">19</span> 件</span>
+        <span class="tag-last">最終: 5月14日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>cloudflare</span>
+        <span class="tag-count"><span class="num">14</span> 件</span>
+        <span class="tag-last">最終: 昨日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>tanstack</span>
+        <span class="tag-count"><span class="num">11</span> 件</span>
+        <span class="tag-last">最終: 5月10日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>meeting</span>
+        <span class="tag-count"><span class="num">9</span> 件</span>
+        <span class="tag-last">最終: 5月14日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>travel</span>
+        <span class="tag-count"><span class="num">7</span> 件</span>
+        <span class="tag-last">最終: 5月12日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+
+      <div class="tag-row">
+        <span class="tag-name"><span class="hash">#</span>quote</span>
+        <span class="tag-count"><span class="num">5</span> 件</span>
+        <span class="tag-last">最終: 5月2日</span>
+        <span class="row-actions">
+          <button class="text-action">編集</button>
+          <button class="text-action">統合</button>
+          <button class="text-action destructive">ブラックリスト</button>
+        </span>
+        <button class="row-kebab" aria-label="操作メニュー">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <section class="section-block">
+      <div class="section-head">
+        <h2 class="section-title">除外されたタグ</h2>
+        <p class="section-desc">これらのタグは自動抽出時に再追加されません。手動でノートに付与することは可能です。</p>
+      </div>
+
+      <div class="blacklist-row">
+        <span class="blacklist-tag">
+          <span class="hash">#</span>todo
+        </span>
+        <span class="blacklist-meta">2026/03/12 に除外 · 元 142 件</span>
+        <button class="btn-sm">元に戻す</button>
+      </div>
+
+      <div class="blacklist-row">
+        <span class="blacklist-tag">
+          <span class="hash">#</span>untagged
+        </span>
+        <span class="blacklist-meta">2026/02/28 に除外 · 元 18 件</span>
+        <button class="btn-sm">元に戻す</button>
+      </div>
+
+      <div class="blacklist-row">
+        <span class="blacklist-tag">
+          <span class="hash">#</span>archived
+        </span>
+        <span class="blacklist-meta">2025/12/04 に除外 · 元 73 件</span>
+        <button class="btn-sm">元に戻す</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+</script>
+
+</body>
+</html>

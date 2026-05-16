@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>戦略メモ — Hollow</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --sidebar: #f7f6f3;
+    --hover: rgba(55, 53, 47, 0.08);
+    --hover-strong: rgba(55, 53, 47, 0.12);
+    --text: #37352f;
+    --text-muted: #787774;
+    --text-faint: #9b9a97;
+    --border-soft: #e9e9e7;
+    --chip: #f1f1ef;
+    --accent: #2383e2;
+    --shadow-sm: 0 1px 3px rgba(15, 15, 15, 0.04);
+    --shadow-md: 0 4px 14px rgba(15, 15, 15, 0.06);
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+      "Yu Gothic UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SFMono-Regular", ui-monospace,
+      "Menlo", "Consolas", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  a { color: inherit; }
+
+  /* ===== Layout ===== */
+  .app {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 48px 1fr;
+    min-height: 100vh;
+  }
+  @media (min-width: 1024px) {
+    .app {
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 48px 1fr;
+      grid-template-areas:
+        "sidebar header"
+        "sidebar main";
+    }
+    .header { grid-area: header; }
+    .sidebar { grid-area: sidebar; }
+    .main { grid-area: main; }
+  }
+
+  /* ===== Header (shared) ===== */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--bg);
+    height: 48px;
+  }
+  .menu-btn {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 0;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+  }
+  .menu-btn:hover { background: var(--hover); color: var(--text); }
+  @media (min-width: 1024px) { .menu-btn { display: none; } }
+
+  .search {
+    flex: 1;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--chip);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .search:hover { background: #ecebe9; }
+  .search input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font-family: inherit; font-size: 13px; color: var(--text);
+  }
+  .search kbd {
+    font-family: inherit; font-size: 11px; color: var(--text-faint);
+    background: var(--surface); padding: 1px 6px; border-radius: 3px;
+    box-shadow: inset 0 0 0 1px var(--border-soft);
+  }
+  .header-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px;
+    background: var(--surface);
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px; font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .pill-btn:hover { background: #f4f3f1; }
+  .pill-btn .plus { color: var(--text-faint); }
+  .icon-btn {
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 0;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  .avatar {
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, #ffd9b8 0%, #f5b08a 100%);
+    color: #6b3a1a;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    margin-left: 4px;
+  }
+
+  /* ===== Sidebar (shared) ===== */
+  .sidebar {
+    background: var(--sidebar);
+    padding: 8px 0 24px;
+    overflow-y: auto;
+    transition: transform 220ms ease;
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-md); }
+  @media (min-width: 1024px) {
+    .sidebar { position: static; transform: none; width: 260px; }
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .sidebar-brand .dot {
+    width: 18px; height: 18px;
+    background: linear-gradient(135deg, #37352f 0%, #5a554b 100%);
+    border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fbfbfa; font-size: 11px; font-weight: 700;
+  }
+  .sidebar-section { padding: 4px 6px 10px; }
+  .sidebar-label {
+    font-size: 11px; font-weight: 500;
+    color: var(--text-faint);
+    padding: 8px 10px 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    margin: 0 4px;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--hover); }
+  .nav-item.active { background: var(--hover-strong); font-weight: 500; }
+  .nav-item .chev {
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-faint); font-size: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .nav-item .chev.empty { visibility: hidden; }
+  .nav-item .icon { width: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .nav-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-item .count { font-size: 12px; color: var(--text-faint); padding: 0 4px; }
+  .nav-children { padding-left: 14px; }
+
+  .scrim {
+    position: fixed; inset: 0;
+    background: rgba(15, 15, 15, 0.25);
+    z-index: 40;
+    opacity: 0; pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  @media (min-width: 1024px) { .scrim { display: none; } }
+
+  /* ===== Main detail layout ===== */
+  .main {
+    padding: 12px 20px 80px;
+    overflow-x: hidden;
+  }
+  @media (min-width: 768px) { .main { padding: 24px 40px 80px; } }
+  @media (min-width: 1024px) { .main { padding: 32px 56px 120px; } }
+
+  .detail-grid {
+    display: grid;
+    gap: 32px;
+  }
+  @media (min-width: 1200px) {
+    .detail-grid {
+      grid-template-columns: minmax(0, 1fr) 280px;
+      align-items: start;
+    }
+  }
+
+  .breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+  .breadcrumb .crumb {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .breadcrumb .crumb:hover { background: var(--hover); color: var(--text); }
+  .breadcrumb .sep { color: var(--text-faint); padding: 0 2px; }
+  .breadcrumb .crumb.current { color: var(--text); font-weight: 500; }
+
+  .title-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .doc-emoji { font-size: 44px; line-height: 1; flex-shrink: 0; }
+  .doc-title {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    margin: 0;
+    color: var(--text);
+    line-height: 1.2;
+    flex: 1;
+  }
+  @media (min-width: 768px) {
+    .doc-title { font-size: 44px; }
+    .doc-emoji { font-size: 52px; }
+  }
+
+  .actions {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 14px;
+  }
+  .action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    background: var(--surface);
+    border: 0;
+    border-radius: 999px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .action:hover { background: #f4f3f1; }
+  .action.primary {
+    background: #37352f;
+    color: #fbfbfa;
+    box-shadow: 0 1px 2px rgba(15, 15, 15, 0.12);
+  }
+  .action.primary:hover { background: #4b463e; }
+
+  .meta-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 18px;
+  }
+  .meta-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px;
+    background: var(--chip);
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .meta-chip.pub { background: #e8f4ec; color: #3e7a52; }
+  .meta-chip.priv { background: var(--chip); color: var(--text-muted); }
+  .meta-dot { color: var(--text-faint); }
+
+  /* Collapsible properties panel */
+  details.props {
+    background: var(--sidebar);
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  details.props > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 6px;
+    user-select: none;
+  }
+  details.props > summary::-webkit-details-marker { display: none; }
+  details.props > summary:hover { background: var(--hover); }
+  details.props > summary .caret {
+    width: 16px; height: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: var(--text-faint);
+    transition: transform 120ms ease;
+  }
+  details.props[open] > summary .caret { transform: rotate(90deg); }
+  .props-body {
+    padding: 4px 8px 12px;
+  }
+  .prop-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
+  .prop-row:hover { background: var(--hover); }
+  .prop-key {
+    color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px;
+  }
+  .prop-val { color: var(--text); display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* ===== Markdown content ===== */
+  .doc {
+    max-width: 760px;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .doc h1, .doc h2, .doc h3, .doc h4 {
+    color: var(--text);
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    margin: 1.6em 0 0.5em;
+    line-height: 1.3;
+  }
+  .doc h1 { font-size: 30px; margin-top: 1em; }
+  .doc h2 {
+    font-size: 24px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .doc h3 { font-size: 19px; }
+  .doc h4 { font-size: 16px; color: var(--text-muted); }
+  .doc p { margin: 0.6em 0; }
+  .doc strong { font-weight: 600; }
+  .doc em { font-style: italic; }
+  .doc a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(35, 131, 226, 0.25);
+  }
+  .doc a:hover { border-bottom-color: var(--accent); }
+
+  .doc code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--chip);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #b8456a;
+  }
+  .doc pre {
+    background: var(--sidebar);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 1em 0;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .doc pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .doc pre .kw { color: #6f4ba8; }
+  .doc pre .str { color: #3e7a52; }
+  .doc pre .com { color: var(--text-faint); font-style: italic; }
+  .doc pre .fn { color: #1f6fc6; }
+
+  .doc blockquote {
+    margin: 1em 0;
+    padding: 4px 16px;
+    border-left: 3px solid var(--border-soft);
+    color: var(--text-muted);
+    font-style: italic;
+  }
+  .doc blockquote p { margin: 0.3em 0; }
+
+  .doc ul, .doc ol {
+    margin: 0.5em 0;
+    padding-left: 1.6em;
+  }
+  .doc li { margin: 0.25em 0; }
+  .doc li::marker { color: var(--text-faint); }
+
+  .doc .task-list { list-style: none; padding-left: 0.3em; }
+  .doc .task-list li {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 3px 0;
+  }
+  .doc .task-list .box {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--border-soft);
+    border-radius: 4px;
+    flex-shrink: 0; margin-top: 4px;
+    background: var(--surface);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: transparent;
+  }
+  .doc .task-list .box.done {
+    background: #37352f;
+    border-color: #37352f;
+    color: #fbfbfa;
+  }
+  .doc .task-list li.done > span:last-child {
+    color: var(--text-faint);
+    text-decoration: line-through;
+  }
+
+  .doc table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin: 1em 0;
+    font-size: 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .doc th, .doc td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .doc th {
+    background: var(--sidebar);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .doc tr:last-child td { border-bottom: 0; }
+
+  .doc .wikilink {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--chip);
+    color: var(--text);
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.9em;
+    border-bottom: 0;
+    text-decoration: none;
+  }
+  .doc .wikilink:hover { background: #e8e7e3; }
+  .doc .wikilink::before { content: "📝"; font-size: 0.85em; }
+
+  .doc .tag {
+    display: inline-flex; align-items: center;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .doc .tag.blue { background: #e3eefb; color: #1f6fc6; }
+  .doc .tag.green { background: #e6f3ea; color: #3e7a52; }
+  .doc .tag.pink { background: #fce8ec; color: #b8456a; }
+  .doc .tag.amber { background: #fbf0d9; color: #97651a; }
+
+  .doc .figure {
+    margin: 1.5em 0;
+  }
+  .doc .figure .img {
+    background: linear-gradient(135deg, #f1ede5 0%, #e8e3d8 100%);
+    border-radius: 10px;
+    height: 220px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+  .doc .figure figcaption {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  hr.soft {
+    border: 0;
+    border-top: 1px solid var(--border-soft);
+    margin: 2em 0;
+  }
+
+  /* ===== Right meta panel ===== */
+  .meta-panel {
+    border-radius: var(--radius-md);
+    padding: 4px;
+  }
+  @media (max-width: 1199px) {
+    .meta-panel { background: var(--sidebar); padding: 16px; }
+  }
+  .meta-panel h4 {
+    margin: 4px 8px 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    letter-spacing: 0.02em;
+  }
+  .meta-panel .prop-row { font-size: 13px; }
+
+  .backlinks {
+    margin-top: 18px;
+  }
+  .backlink {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin: 0 2px;
+  }
+  .backlink + .backlink { border-top: 1px solid var(--border-soft); border-radius: 0; }
+  .backlink:hover { background: var(--hover); border-radius: var(--radius-md); border-top-color: transparent; }
+  .backlink-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .backlink-path { font-size: 11px; color: var(--text-faint); }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <label class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" placeholder="Search or ask anything…" />
+      <kbd>⌘ K</kbd>
+    </label>
+    <div class="header-actions">
+      <button class="pill-btn"><span class="plus">＋</span> New page</button>
+      <button class="icon-btn" aria-label="アップロード">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </button>
+      <span class="avatar">H</span>
+    </div>
+  </header>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="dot">H</span> Hollow
+    </div>
+    <div class="sidebar-section">
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">🔍</span><span class="label">Search</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">🏠</span><span class="label">Home</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">📥</span><span class="label">Inbox</span><span class="count">3</span></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Workspace</div>
+      <div class="nav-item">
+        <span class="chev">▾</span><span class="icon">📂</span><span class="label">Projects</span>
+      </div>
+      <div class="nav-children">
+        <div class="nav-item">
+          <span class="chev">▾</span><span class="icon">📂</span><span class="label">Q2 計画</span>
+        </div>
+        <div class="nav-children">
+          <div class="nav-item active">
+            <span class="chev empty">▸</span><span class="icon">📝</span><span class="label">戦略メモ</span>
+          </div>
+          <div class="nav-item">
+            <span class="chev empty">▸</span><span class="icon">📝</span><span class="label">OKR ドラフト</span>
+          </div>
+          <div class="nav-item">
+            <span class="chev empty">▸</span><span class="icon">📄</span><span class="label">budget.pdf</span>
+          </div>
+        </div>
+        <div class="nav-item">
+          <span class="chev">▸</span><span class="icon">📁</span><span class="label">Hollow リリース準備</span>
+        </div>
+        <div class="nav-item">
+          <span class="chev">▸</span><span class="icon">📁</span><span class="label">採用</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <span class="chev">▸</span><span class="icon">📁</span><span class="label">Reading notes</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev">▸</span><span class="icon">📁</span><span class="label">Journal</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev">▸</span><span class="icon">📁</span><span class="label">Recipes 🍳</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">✨ Saved Views</div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">⭐</span><span class="label">Favorites</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">🌐</span><span class="label">Published only</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">🕒</span><span class="label">Recently edited</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">🏷 Tags</div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon" style="color:#1f6fc6;">●</span><span class="label">#work</span><span class="count">28</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon" style="color:#3e7a52;">●</span><span class="label">#idea</span><span class="count">14</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon" style="color:#97651a;">●</span><span class="label">#日記</span><span class="count">42</span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">🗑</span><span class="label">Trash</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">📤</span><span class="label">Exports</span></div>
+      <div class="nav-item"><span class="chev empty">▸</span><span class="icon">⚙️</span><span class="label">Settings</span></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <nav class="breadcrumb" aria-label="breadcrumb">
+      <span class="crumb">📁 Projects</span>
+      <span class="sep">/</span>
+      <span class="crumb">📁 Q2 計画</span>
+      <span class="sep">/</span>
+      <span class="crumb current">📝 戦略メモ</span>
+    </nav>
+
+    <div class="detail-grid">
+
+      <div>
+        <div class="title-row">
+          <span class="doc-emoji">📝</span>
+          <h1 class="doc-title">Q2 戦略メモ — リリース後の優先順位</h1>
+        </div>
+
+        <div class="actions">
+          <button class="action">✏️ Edit</button>
+          <button class="action primary">🌐 Publish</button>
+          <button class="action">🔗 Share</button>
+          <button class="action">⋯</button>
+        </div>
+
+        <div class="meta-row">
+          <span class="meta-chip">🕒 Updated 2 hours ago</span>
+          <span class="meta-chip">🏷 #work +1</span>
+          <span class="meta-chip pub">🌐 Published</span>
+        </div>
+
+        <details class="props" open>
+          <summary><span class="caret">▸</span> Properties · 5</summary>
+          <div class="props-body">
+            <div class="prop-row">
+              <span class="prop-key">📅 Created</span>
+              <span class="prop-val">2026-05-02 09:14</span>
+            </div>
+            <div class="prop-row">
+              <span class="prop-key">🕒 Updated</span>
+              <span class="prop-val">2026-05-16 13:42 (2h ago)</span>
+            </div>
+            <div class="prop-row">
+              <span class="prop-key">📂 Directory</span>
+              <span class="prop-val">/Projects/Q2 計画</span>
+            </div>
+            <div class="prop-row">
+              <span class="prop-key">🏷 Tags</span>
+              <span class="prop-val">
+                <span class="meta-chip" style="background:#e3eefb;color:#1f6fc6;">#work</span>
+                <span class="meta-chip" style="background:#fbf0d9;color:#97651a;">#strategy</span>
+              </span>
+            </div>
+            <div class="prop-row">
+              <span class="prop-key">🌐 Status</span>
+              <span class="prop-val"><span class="meta-chip pub">🌐 Published · /q2-strategy</span></span>
+            </div>
+          </div>
+        </details>
+
+        <!-- Markdown rendered content -->
+        <article class="doc">
+
+          <p>
+            GA リリース後の最初の四半期 (Q2) で、何にフォーカスし、何を意図的に後回しにするかを整理する。
+            この四半期のキーフレーズは <strong>"磨き込みと定着"</strong>。新機能の追加ではなく、
+            ベータからの上位 5 ユースケースが <em>「これがないと戻れない」</em> と感じられる体験になるまで詰めることを優先する。
+          </p>
+
+          <blockquote>
+            <p>速さは正義だが、急ぐと丁寧さを失う。Q2 は意図的にペースを落とし、土台を固める。</p>
+          </blockquote>
+
+          <h2>1. 何にフォーカスするか</h2>
+
+          <p>以下の 3 領域に絞り、それ以外は明示的に "後回し" 棚に置く。</p>
+
+          <ul>
+            <li><strong>変換品質</strong> — PDF / Office / 音声 → HTML の忠実度を底上げ。<a class="wikilink">変換パイプライン v2</a> の優先度を最高に。</li>
+            <li><strong>検索とリンク</strong> — Quick Switcher と <code>[[backlinks]]</code> の表示を、Notion / Obsidian と並べて見劣りしないレベルに。</li>
+            <li><strong>公開体験</strong> — <code>/u/:slug</code> の OGP・読み込み速度・Markdown 描画 (この文書のスタイル自体！) を仕上げる。</li>
+          </ul>
+
+          <h2>2. やらないこと</h2>
+
+          <p>"やらないリスト" を明示することで、議論を短くする。以下は Q3 以降に検討する。</p>
+
+          <ul class="task-list">
+            <li><span class="box done">✓</span><span>モバイルアプリ (ネイティブ) の着手 — PWA で十分</span></li>
+            <li><span class="box done">✓</span><span>チーム / マルチユーザー機能 — まず "ひとり用" を磨き切る</span></li>
+            <li><span class="box"></span><span>AI 要約・QA の追加 (既存の検索が安定してから)</span></li>
+            <li><span class="box"></span><span>サードパーティ統合 (Slack / Notion インポート)</span></li>
+            <li><span class="box"></span><span>料金プランの細分化</span></li>
+          </ul>
+
+          <h2>3. KPI と目標</h2>
+
+          <p>定量的な北極星は <strong>W1 リテンション 35%</strong>。サブ指標は以下。</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>指標</th>
+                <th>現在値</th>
+                <th>Q2 目標</th>
+                <th>備考</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>W1 リテンション</td>
+                <td>22%</td>
+                <td><strong>35%</strong></td>
+                <td>変換品質に直結する見込み</td>
+              </tr>
+              <tr>
+                <td>1 ユーザー / 週 のノート作成数</td>
+                <td>3.1</td>
+                <td>5.0</td>
+                <td>Inbox 機能の磨き込みで</td>
+              </tr>
+              <tr>
+                <td>公開ノート数</td>
+                <td>140</td>
+                <td>500</td>
+                <td>テンプレ整備で立ち上げ補助</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. 技術的な投資</h2>
+
+          <p>
+            アーキテクチャは現状のまま — <code>TanStack Start</code> + <code>Cloudflare D1 / Queues</code>。
+            <a class="wikilink">Cloudflare 移行ノート</a> で書いた通り、Workers 一本化のメリットがコストを上回っている。
+          </p>
+
+          <h3>4.1 リレー / アウトボックス の安定化</h3>
+
+          <p>現状のリレーワーカーで稀に "claim が漏れて lease 期限切れ" が発生するため、メトリクスを足してから対処する。</p>
+
+          <pre><code><span class="com">// app/worker/cloudflare/relay.ts</span>
+<span class="kw">export</span> <span class="kw">async</span> <span class="kw">function</span> <span class="fn">claimBatch</span>(env: Env) {
+  <span class="kw">const</span> claimed = <span class="kw">await</span> env.DB.prepare(
+    <span class="str">"UPDATE outbox SET claimed_at = ?1, lease_id = ?2 ..."</span>
+  ).bind(now, leaseId).run();
+  <span class="com">// TODO: metric — claim_attempts / claim_succeeded</span>
+  <span class="kw">return</span> claimed.results;
+}</code></pre>
+
+          <h3>4.2 変換ジョブのキュー分離</h3>
+
+          <p>軽い変換 (Markdown / HTML) と重い変換 (PDF / 音声) を別キューに分け、後者のスケールアウトを独立させる。</p>
+
+          <h2>5. リスクと前提</h2>
+
+          <ol>
+            <li>変換品質の改善が "感じられる差" を生むかは、ユーザーごとの素材依存。早期に <a class="wikilink">ベータ協力者 5 名</a> と毎週 30 分のセッションを置く。</li>
+            <li>Cloudflare の D1 リードレプリカが Q2 中に必要になる可能性 — 上限に達する前に観測する。</li>
+            <li>"ひとり用" に絞ったポジショニングが、認知獲得の天井を早めに作る懸念。これは Q3 以降の論点として保留。</li>
+          </ol>
+
+          <hr class="soft" />
+
+          <figure class="figure">
+            <div class="img">🖼  Q2 ロードマップ — Gantt ビュー</div>
+            <figcaption>図 1. Q2 の 12 週間を 3 つのウェーブに分けたロードマップ。第 1 ウェーブは変換品質に集中。</figcaption>
+          </figure>
+
+          <h2>6. 関連ノート</h2>
+
+          <p>
+            <a class="wikilink">OKR ドラフト</a>
+            <a class="wikilink">Cloudflare 移行ノート</a>
+            <a class="wikilink">変換パイプライン v2</a>
+            <a class="wikilink">ベータ協力者 5 名</a>
+          </p>
+
+          <p>
+            タグ：
+            <span class="tag blue">#work</span>
+            <span class="tag amber">#strategy</span>
+            <span class="tag green">#roadmap</span>
+          </p>
+
+          <blockquote>
+            <p>"Make the right thing easy, and the wrong thing hard." — この四半期の判断はこれで揃える。</p>
+          </blockquote>
+
+        </article>
+      </div>
+
+      <!-- Right meta panel -->
+      <aside class="meta-panel">
+        <h4>PROPERTIES</h4>
+        <div class="prop-row">
+          <span class="prop-key">📅 Created</span>
+          <span class="prop-val">May 2, 2026</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">🕒 Updated</span>
+          <span class="prop-val">2 hours ago</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">📂 Directory</span>
+          <span class="prop-val">/Projects/Q2 計画</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">🏷 Tags</span>
+          <span class="prop-val">
+            <span class="meta-chip" style="background:#e3eefb;color:#1f6fc6;">#work</span>
+            <span class="meta-chip" style="background:#fbf0d9;color:#97651a;">#strategy</span>
+          </span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">🌐 Status</span>
+          <span class="prop-val"><span class="meta-chip pub">🌐 Published</span></span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-key">🔗 Public URL</span>
+          <span class="prop-val" style="color:var(--accent); font-size:12px;">/u/hikaru/q2-strategy</span>
+        </div>
+
+        <h4 style="margin-top: 20px;">🔗 BACKLINKS · 4</h4>
+        <div class="backlinks">
+          <div class="backlink">
+            <span class="backlink-title">📝 OKR ドラフト</span>
+            <span class="backlink-path">📁 Projects / Q2 計画</span>
+          </div>
+          <div class="backlink">
+            <span class="backlink-title">📝 5 月の振り返り</span>
+            <span class="backlink-path">📁 Journal</span>
+          </div>
+          <div class="backlink">
+            <span class="backlink-title">📝 Cloudflare 移行ノート</span>
+            <span class="backlink-path">📁 Projects / Hollow リリース準備</span>
+          </div>
+          <div class="backlink">
+            <span class="backlink-title">📝 ベータ協力者 5 名</span>
+            <span class="backlink-path">📁 Projects / Hollow リリース準備</span>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById("menuBtn");
+  const sidebar = document.getElementById("sidebar");
+  const scrim = document.getElementById("scrim");
+  menuBtn.addEventListener("click", () => { sidebar.classList.add("open"); scrim.classList.add("show"); });
+  scrim.addEventListener("click", () => { sidebar.classList.remove("open"); scrim.classList.remove("show"); });
+</script>
+</body>
+</html>

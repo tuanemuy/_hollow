@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Admin — ジョブ監視</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: #0071e3; --color-accent-hover: #0077ed; --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd; --color-accent-ink: #0058b4;
+    --color-bg: #ffffff; --color-surface: #f5f5f7; --color-surface-hover: #ececef; --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f; --color-ink-secondary: #6e6e73; --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12); --color-hairline-strong: rgba(60,60,67,0.18);
+    --color-success: #1f8f3a; --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b; --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e; --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+    --color-status-private: #86868b; --color-status-link: #a8580b; --color-status-public: #1f8f3a;
+    --code-keyword: #aa3e3e; --code-string: #2a8c4f; --code-comment: var(--color-ink-tertiary); --code-function: #5b3da1; --code-number: #1d6fd6;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans); --font-body: var(--font-sans);
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px); --text-sm: clamp(12px, 0.8vw + 10px, 13px); --text-base: clamp(14px, 1vw + 11px, 16px); --text-md: clamp(15px, 1vw + 12px, 17px); --text-lg: clamp(17px, 1.2vw + 13px, 19px); --text-xl: clamp(20px, 1.4vw + 14px, 24px); --text-2xl: clamp(24px, 2vw + 16px, 30px); --text-3xl: clamp(22px, 4vw, 40px); --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+    --weight-light: 300; --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+    --leading-tight: 1.2; --leading-snug: 1.35; --leading-normal: 1.5; --leading-relaxed: 1.7;
+    --tracking-tightest: -0.022em; --tracking-tighter: -0.014em; --tracking-tight: -0.008em; --tracking-normal: -0.003em;
+    --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px;
+    --container-max: 1280px; --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px; --meta-rail-width: 260px; --content-max: 760px; --header-height: 64px;
+    --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px; --radius-pill: 980px; --radius-full: 9999px;
+    --shadow-none: none; --shadow-xs: 0 1px 2px rgba(0,0,0,0.04); --shadow-sm: 0 2px 8px rgba(0,0,0,0.06); --shadow-md: 0 8px 24px rgba(0,0,0,0.08); --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); --ease-decel: cubic-bezier(0, 0, 0.2, 1); --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms; --duration-base: 180ms; --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+    --header-bg: rgba(255,255,255,0.85); --header-blur: saturate(180%) blur(20px);
+    --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px; --bp-xl: 1280px; --bp-2xl: 1536px;
+  }
+  html, body { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); font-size: var(--text-md); line-height: var(--leading-normal); letter-spacing: var(--tracking-normal); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input, textarea, select { font-family: inherit; color: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); padding: 14px 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5); }
+  @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .logo { font-size: 21px; font-weight: var(--weight-light); letter-spacing: var(--tracking-tightest); }
+  .admin-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--color-accent-surface); color: var(--color-accent-ink); font-size: var(--text-xs); font-weight: var(--weight-medium); }
+  .admin-pill::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--color-accent); }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input { width: 100%; height: 36px; border: none; background: var(--color-surface); border-radius: var(--radius-pill); padding: 0 16px 0 38px; font-size: var(--text-sm); outline: none; transition: var(--transition-bg); }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .icon-btn { width: 36px; height: 36px; border-radius: var(--radius-full); background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; transition: var(--transition-bg); }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar { width: 32px; height: 32px; border-radius: var(--radius-full); background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%); color: #fff; font-size: 12px; font-weight: var(--weight-medium); display: inline-flex; align-items: center; justify-content: center; }
+  .menu-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md); }
+  .menu-btn:hover { background: var(--color-surface); }
+
+  .admin-nav { position: sticky; top: var(--header-height); z-index: 40; background: rgba(255,255,255,0.9); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); border-bottom: 1px solid var(--color-hairline); height: 44px; overflow-x: auto; scrollbar-width: none; }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .admin-nav-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--container-padding); height: 100%; display: flex; gap: var(--space-1); align-items: center; white-space: nowrap; }
+  .admin-nav a { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-ink-secondary); transition: var(--transition-bg), var(--transition-color); }
+  .admin-nav a:hover { background: var(--color-surface); color: var(--color-ink); }
+  .admin-nav a.active { color: var(--color-ink); font-weight: var(--weight-medium); background: var(--color-surface); }
+
+  .main { max-width: var(--container-max); margin: 0 auto; padding: var(--space-10) var(--container-padding) var(--space-20); }
+  .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); line-height: var(--leading-tight); margin-bottom: var(--space-2); }
+  .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: var(--space-6); }
+
+  .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-bg); }
+  .btn:hover { background: var(--color-surface-hover); }
+  .btn.primary { background: var(--color-accent); color: #fff; }
+  .btn.primary:hover { background: var(--color-accent-hover); }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: var(--color-surface); }
+  .btn.destructive { background: transparent; color: var(--color-ink-secondary); }
+  .btn.destructive:hover { background: var(--color-error-surface); color: var(--color-error); }
+  .btn.sm { height: 30px; padding: 0 12px; font-size: var(--text-xs); }
+
+  /* Top bar: chips + refresh toggle */
+  .topbar {
+    display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;
+    margin-bottom: var(--space-5);
+  }
+  .status-chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .chip-count {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .chip-count .dot { width: 7px; height: 7px; border-radius: var(--radius-full); }
+  .chip-count.running .dot { background: var(--color-accent); }
+  .chip-count.failed .dot { background: var(--color-error); }
+  .chip-count.dlq .dot { background: var(--color-warning); }
+  .chip-count strong { font-weight: var(--weight-semibold); }
+
+  /* Right side: auto-refresh */
+  .refresh-toggle { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-ink-secondary); }
+  .switch-sm {
+    --w: 36px; --h: 22px; --p: 2px;
+    position: relative;
+    width: var(--w); height: var(--h);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    transition: background var(--duration-base) var(--ease-standard);
+    cursor: pointer;
+  }
+  .switch-sm::after {
+    content: ""; position: absolute; top: var(--p); left: calc(var(--w) - var(--h) + var(--p));
+    width: calc(var(--h) - var(--p) * 2); height: calc(var(--h) - var(--p) * 2);
+    border-radius: var(--radius-full); background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: left var(--duration-base) var(--ease-standard);
+  }
+  .switch-sm.off { background: var(--color-ink-tertiary); }
+  .switch-sm.off::after { left: var(--p); }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--color-hairline);
+    margin-bottom: var(--space-5);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: var(--transition-color);
+  }
+  .tab:hover { color: var(--color-ink); }
+  .tab.active { color: var(--color-ink); border-bottom-color: var(--color-accent); font-weight: var(--weight-medium); }
+
+  /* Table */
+  .table-wrap { border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); overflow: hidden; }
+  .table-scroll { overflow-x: auto; }
+  .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); min-width: 920px; }
+  .table th, .table td { padding: var(--space-3) var(--space-4); text-align: left; vertical-align: middle; white-space: nowrap; }
+  .table thead th { font-weight: var(--weight-medium); color: var(--color-ink-secondary); background: var(--color-surface-elevated); border-bottom: 1px solid var(--color-hairline); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+  .table tbody tr.row-main { border-top: 1px solid var(--color-hairline); }
+  .table tbody tr:first-child { border-top: none; }
+  .table tbody tr.row-main:hover { background: var(--color-surface-elevated); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--color-ink-secondary); }
+
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-xs); color: var(--color-ink-secondary); font-weight: var(--weight-medium); }
+  .tag .dot { width: 6px; height: 6px; border-radius: var(--radius-full); background: currentColor; }
+  .tag.running { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .tag.success { background: var(--color-success-surface); color: var(--color-success); }
+  .tag.failed { background: var(--color-error-surface); color: var(--color-error); }
+  .tag.retrying { background: var(--color-warning-surface); color: var(--color-warning); }
+  .tag.dlq { background: var(--color-warning-surface); color: var(--color-warning); }
+
+  .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+  /* Spin animation for running indicators */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+  .running .dot { animation: pulse 1.4s ease-in-out infinite; }
+
+  /* Expanded row for failure */
+  .row-expand { background: var(--color-error-surface); border-top: 1px solid var(--color-hairline); }
+  .row-expand td { padding: var(--space-4) var(--space-6); white-space: normal; }
+  .row-expand .label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-error); font-weight: var(--weight-medium); margin-bottom: var(--space-2); }
+  .row-expand .reason { font-size: var(--text-sm); color: var(--color-ink); line-height: var(--leading-relaxed); }
+  .row-expand pre { font-family: var(--font-mono); font-size: var(--text-mono); background: var(--color-bg); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); margin-top: var(--space-3); overflow-x: auto; color: var(--color-ink-secondary); border: 1px solid var(--color-hairline); }
+
+  @media (max-width: 640px) { .header { padding: 12px 16px; gap: 10px; } .logo { display: none; } }
+  @media (min-width: 1024px) { .menu-btn { display: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } .running .dot { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    <div class="logo">Hollow</div>
+    <span class="admin-pill">管理者モード</span>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ジョブ ID、ユーザーで検索">
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" aria-label="Notifications"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+    <div class="avatar" aria-hidden="true">AD</div>
+  </div>
+</header>
+
+<nav class="admin-nav" aria-label="管理ナビゲーション">
+  <div class="admin-nav-inner">
+    <a href="P40-admin-dashboard.html">ダッシュボード</a>
+    <a href="P41-admin-llm.html">LLM 設定</a>
+    <a href="P42-admin-prompts.html">プロンプト</a>
+    <a href="P43-admin-tokens.html">デザイントークン</a>
+    <a href="P44-admin-registration.html">登録制御</a>
+    <a href="P45-admin-users.html">ユーザー</a>
+    <a href="P46-admin-jobs.html" class="active">ジョブ監視</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1 class="page-title">ジョブ監視</h1>
+  <p class="page-subtitle">取り込み・エクスポート・クリーンアップ等のバックグラウンドジョブ</p>
+
+  <div class="topbar">
+    <div class="status-chips">
+      <span class="chip-count running"><span class="dot" aria-hidden="true"></span>実行中 <strong>12</strong></span>
+      <span class="chip-count failed"><span class="dot" aria-hidden="true"></span>失敗 <strong>3</strong></span>
+      <span class="chip-count dlq"><span class="dot" aria-hidden="true"></span>DLQ <strong>1</strong></span>
+    </div>
+    <div class="refresh-toggle">
+      <span>自動リフレッシュ (5s)</span>
+      <button class="switch-sm" role="switch" aria-checked="true" aria-label="自動リフレッシュ"></button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active">すべて</button>
+    <button class="tab">取り込み</button>
+    <button class="tab">エクスポート</button>
+    <button class="tab">メディアクリーンアップ</button>
+    <button class="tab">ゴミ箱自動パージ</button>
+    <button class="tab">Outbox リレー</button>
+    <button class="tab">DLQ</button>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ジョブ ID</th>
+            <th>タイプ</th>
+            <th>対象ユーザー</th>
+            <th>状態</th>
+            <th>開始時刻</th>
+            <th>経過</th>
+            <th>再試行</th>
+            <th style="text-align: right">アクション</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr class="row-main">
+            <td class="mono">a4f29c</td>
+            <td>取り込み</td>
+            <td>@k_okada</td>
+            <td><span class="tag running"><span class="dot"></span>実行中</span></td>
+            <td>14:31:08</td>
+            <td>00:01:24</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm destructive">キャンセル</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">b7e018</td>
+            <td>エクスポート</td>
+            <td>@yk_morisaki</td>
+            <td><span class="tag running"><span class="dot"></span>実行中</span></td>
+            <td>14:30:42</td>
+            <td>00:01:50</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm destructive">キャンセル</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">d92cc1</td>
+            <td>取り込み</td>
+            <td>@yui.ishikawa</td>
+            <td><span class="tag retrying">リトライ中 (2/3)</span></td>
+            <td>14:28:11</td>
+            <td>00:04:21</td>
+            <td>2</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm destructive">キャンセル</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">f013a8</td>
+            <td>取り込み</td>
+            <td>@haru_okada</td>
+            <td><span class="tag failed">失敗</span></td>
+            <td>13:48:22</td>
+            <td>00:02:08</td>
+            <td>2</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm">再実行</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="row-expand">
+            <td colspan="8">
+              <div class="label">失敗理由</div>
+              <div class="reason">Anthropic API rate limit を超過しました。バックオフ後に再試行されますが、上限超過のため DLQ 行きとなる可能性があります。LLM 設定のレート制限を確認してください。</div>
+              <pre>RateLimitError: 429 Too Many Requests
+  at AnthropicClient.invoke (anthropic.ts:142)
+  at IngestionWorker.processFile (ingestion-worker.ts:88)
+  trace_id: 8f3a-c012-9c4e</pre>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">29a3df</td>
+            <td>メディアクリーンアップ</td>
+            <td><span style="color:var(--color-ink-tertiary)">—</span></td>
+            <td><span class="tag dlq">DLQ</span></td>
+            <td>12:05:00</td>
+            <td>00:00:45</td>
+            <td>3</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm">再実行</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">5c81fe</td>
+            <td>ゴミ箱自動パージ</td>
+            <td>@m_sasaki</td>
+            <td><span class="tag success">完了</span></td>
+            <td>10:30:00</td>
+            <td>00:00:08</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">7e44b2</td>
+            <td>Outbox リレー</td>
+            <td><span style="color:var(--color-ink-tertiary)">—</span></td>
+            <td><span class="tag success">完了</span></td>
+            <td>14:30:00</td>
+            <td>00:00:02</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">11c0a9</td>
+            <td>エクスポート</td>
+            <td>@ryo_tanaka</td>
+            <td><span class="tag success">完了</span></td>
+            <td>09:14:18</td>
+            <td>00:01:32</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-main">
+            <td class="mono">3f0b7d</td>
+            <td>取り込み</td>
+            <td>@haru_morisaki</td>
+            <td><span class="tag failed">失敗</span></td>
+            <td>08:42:55</td>
+            <td>00:00:14</td>
+            <td>0</td>
+            <td>
+              <div class="row-actions">
+                <button class="btn sm">詳細</button>
+                <button class="btn sm">再実行</button>
+              </div>
+            </td>
+          </tr>
+          <tr class="row-expand">
+            <td colspan="8">
+              <div class="label">失敗理由</div>
+              <div class="reason">アップロードされた PDF が破損しているか、パスワード保護されています。ユーザー側での再アップロードが必要です。</div>
+              <pre>InvalidPDFError: Encrypted document is not supported
+  source: r2://hollow-media/u-haru_morisaki/upload-3f0b7d.pdf
+  trace_id: 6c10-aa54-72f9</pre>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.querySelectorAll('.switch-sm').forEach(sw => {
+    sw.addEventListener('click', () => {
+      const on = sw.getAttribute('aria-checked') === 'true';
+      sw.setAttribute('aria-checked', String(!on));
+      sw.classList.toggle('off', on);
+    });
+  });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

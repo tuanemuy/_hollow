@@ -1,0 +1,1640 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>戦略メモ.md · Hollow</title>
+    <style>
+      :root {
+        --fg-default: #1f2328;
+        --fg-muted: #59636e;
+        --fg-subtle: #818b98;
+        --canvas: #ffffff;
+        --canvas-subtle: #f6f8fa;
+        --canvas-inset: #eff2f5;
+        --border-default: #d1d9e0;
+        --border-muted: #d1d9e0b3;
+        --accent-fg: #0969da;
+        --accent-emphasis: #0969da;
+        --success-fg: #1a7f37;
+        --success-emphasis: #1f883d;
+        --success-emphasis-hover: #1c8139;
+        --danger-fg: #d1242f;
+        --attention-fg: #9a6700;
+        --done-fg: #8250df;
+        --shadow-small: 0 1px 0 rgba(31, 35, 40, 0.04);
+        --shadow-medium: 0 3px 6px rgba(140, 149, 159, 0.15);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+          Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--fg-default);
+        background: var(--canvas);
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent-fg);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ---------- Header (identical to list page) ---------- */
+      .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: var(--canvas);
+        border-bottom: 1px solid var(--border-default);
+      }
+      .app-header__inner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        height: 56px;
+      }
+      .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--fg-default);
+        cursor: pointer;
+      }
+      .menu-btn:hover {
+        background: var(--canvas-subtle);
+        border-color: var(--border-default);
+      }
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--fg-default);
+      }
+      .logo__mark {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid var(--fg-default);
+        position: relative;
+      }
+      .logo__mark::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: 50%;
+        background: var(--canvas);
+      }
+      .search {
+        flex: 1;
+        max-width: 480px;
+        position: relative;
+      }
+      .search input {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px 0 32px;
+        font-size: 13px;
+        background: var(--canvas-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        color: var(--fg-default);
+        font-family: inherit;
+      }
+      .search input::placeholder {
+        color: var(--fg-subtle);
+      }
+      .search input:focus {
+        outline: none;
+        background: var(--canvas);
+        border-color: var(--accent-emphasis);
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+      }
+      .search__icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fg-muted);
+      }
+      .search__kbd {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font: 11px ui-monospace, SFMono-Regular, "SF Mono", monospace;
+        color: var(--fg-muted);
+        border: 1px solid var(--border-default);
+        border-radius: 3px;
+        padding: 1px 5px;
+        background: var(--canvas);
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(31, 35, 40, 0.15);
+        background: var(--canvas-subtle);
+        color: var(--fg-default);
+        font: 500 13px/1 inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        background: #eff2f5;
+        border-color: rgba(31, 35, 40, 0.2);
+      }
+      .btn--primary {
+        background: var(--success-emphasis);
+        color: #fff;
+        border-color: rgba(31, 35, 40, 0.15);
+      }
+      .btn--primary:hover {
+        background: var(--success-emphasis-hover);
+      }
+      .btn--icon {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      .btn--sm {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+      .btn--invisible {
+        background: transparent;
+        border-color: transparent;
+      }
+      .btn--invisible:hover {
+        background: var(--canvas-subtle);
+        border-color: var(--border-default);
+      }
+      .btn--group {
+        display: inline-flex;
+      }
+      .btn--group .btn:not(:first-child) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        margin-left: -1px;
+      }
+      .btn--group .btn:not(:last-child) {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f6c177, #d1242f 70%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid rgba(31, 35, 40, 0.15);
+      }
+
+      /* ---------- Page layout ---------- */
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      @media (min-width: 1024px) {
+        .layout {
+          grid-template-columns: 240px 1fr;
+          gap: 24px;
+          padding: 24px 16px;
+        }
+      }
+
+      /* ---------- Sidebar ---------- */
+      .sidebar {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        left: 0;
+        width: 280px;
+        max-width: 85vw;
+        background: var(--canvas);
+        border-right: 1px solid var(--border-default);
+        padding: 16px;
+        overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform 0.18s ease;
+        z-index: 30;
+      }
+      .sidebar.is-open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-medium);
+      }
+      @media (min-width: 1024px) {
+        .sidebar {
+          position: sticky;
+          top: 80px;
+          align-self: start;
+          width: 240px;
+          max-height: calc(100vh - 96px);
+          transform: none;
+          border: 1px solid var(--border-default);
+          border-radius: 6px;
+          padding: 12px;
+          box-shadow: var(--shadow-small);
+        }
+      }
+      .sidebar__section {
+        padding: 8px 0;
+      }
+      .sidebar__section + .sidebar__section {
+        border-top: 1px solid var(--border-muted);
+      }
+      .sidebar__heading {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--fg-muted);
+        padding: 6px 8px;
+      }
+      .tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+      }
+      .tree li > a,
+      .tree li > .tree__node {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        color: var(--fg-default);
+        cursor: pointer;
+      }
+      .tree li > a:hover,
+      .tree li > .tree__node:hover {
+        background: var(--canvas-subtle);
+        text-decoration: none;
+      }
+      .tree li > a.is-active {
+        background: #ddf4ff;
+        color: var(--accent-fg);
+        font-weight: 500;
+      }
+      .tree__chev {
+        width: 12px;
+        color: var(--fg-muted);
+        flex-shrink: 0;
+      }
+      .tree__chev--placeholder {
+        visibility: hidden;
+      }
+      .tree__icon {
+        color: #54aeff;
+        flex-shrink: 0;
+      }
+      .tree__label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tree__count {
+        font-size: 11px;
+        color: var(--fg-muted);
+      }
+      .tree ul {
+        list-style: none;
+        margin: 0;
+        padding-left: 16px;
+      }
+      .tag-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ---------- Main ---------- */
+      .main {
+        padding: 16px;
+      }
+      @media (min-width: 1024px) {
+        .main {
+          padding: 0;
+        }
+      }
+
+      /* ---------- File header ---------- */
+      .file-header {
+        margin-bottom: 16px;
+      }
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        font-size: 16px;
+        font-weight: 400;
+        color: var(--fg-default);
+        margin-bottom: 12px;
+      }
+      .breadcrumb a {
+        color: var(--accent-fg);
+        font-weight: 600;
+      }
+      .breadcrumb .sep {
+        color: var(--fg-muted);
+        padding: 0 2px;
+      }
+      .breadcrumb .current {
+        font-weight: 600;
+        color: var(--fg-default);
+      }
+      .file-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      @media (max-width: 767px) {
+        .file-actions {
+          justify-content: flex-start;
+        }
+      }
+      .file-actions__row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .star-btn {
+        display: inline-flex;
+        align-items: stretch;
+        height: 28px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(31, 35, 40, 0.15);
+      }
+      .star-btn__action,
+      .star-btn__count {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 10px;
+        background: var(--canvas-subtle);
+        color: var(--fg-default);
+      }
+      .star-btn__count {
+        border-left: 1px solid rgba(31, 35, 40, 0.15);
+        background: var(--canvas);
+      }
+      .star-btn__action:hover {
+        background: #eff2f5;
+      }
+
+      /* ---------- Content grid (panel + meta sidebar) ---------- */
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      @media (min-width: 1024px) {
+        .content-grid {
+          grid-template-columns: 1fr 296px;
+        }
+      }
+
+      /* ---------- Content box ---------- */
+      .file-box {
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        background: var(--canvas);
+        overflow: hidden;
+      }
+      .file-box__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 16px;
+        background: var(--canvas-subtle);
+        border-bottom: 1px solid var(--border-default);
+        font-size: 12px;
+        color: var(--fg-muted);
+      }
+      .file-box__head .left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .file-box__head .right {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .view-toggle {
+        display: inline-flex;
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--canvas);
+      }
+      .view-toggle button {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 12px;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        color: var(--fg-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .view-toggle button.is-active {
+        background: var(--canvas-subtle);
+        color: var(--fg-default);
+        font-weight: 500;
+      }
+
+      /* ---------- markdown-body ---------- */
+      .markdown-body {
+        padding: 32px 24px;
+        color: var(--fg-default);
+        line-height: 1.5;
+        font-size: 16px;
+        word-wrap: break-word;
+      }
+      @media (max-width: 767px) {
+        .markdown-body {
+          padding: 16px;
+          font-size: 15px;
+        }
+      }
+      .markdown-body > *:first-child {
+        margin-top: 0 !important;
+      }
+      .markdown-body > *:last-child {
+        margin-bottom: 0 !important;
+      }
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3,
+      .markdown-body h4 {
+        margin-top: 24px;
+        margin-bottom: 16px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      .markdown-body h1 {
+        font-size: 2em;
+        padding-bottom: 0.3em;
+        border-bottom: 1px solid var(--border-default);
+      }
+      .markdown-body h2 {
+        font-size: 1.5em;
+        padding-bottom: 0.3em;
+        border-bottom: 1px solid var(--border-default);
+      }
+      .markdown-body h3 {
+        font-size: 1.25em;
+      }
+      .markdown-body h4 {
+        font-size: 1em;
+      }
+      .markdown-body p,
+      .markdown-body ul,
+      .markdown-body ol,
+      .markdown-body blockquote,
+      .markdown-body table,
+      .markdown-body pre {
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+      .markdown-body a {
+        color: var(--accent-fg);
+      }
+      .markdown-body ul,
+      .markdown-body ol {
+        padding-left: 2em;
+      }
+      .markdown-body li + li {
+        margin-top: 0.25em;
+      }
+      .markdown-body code {
+        padding: 0.2em 0.4em;
+        margin: 0;
+        font-size: 85%;
+        white-space: break-spaces;
+        background-color: rgba(175, 184, 193, 0.2);
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+      }
+      .markdown-body pre {
+        padding: 16px;
+        overflow: auto;
+        font-size: 85%;
+        line-height: 1.45;
+        background-color: var(--canvas-subtle);
+        border-radius: 6px;
+      }
+      .markdown-body pre code {
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        border: 0;
+        font-size: 100%;
+        white-space: pre;
+      }
+      .markdown-body blockquote {
+        padding: 0 1em;
+        color: var(--fg-muted);
+        border-left: 0.25em solid var(--border-default);
+      }
+      .markdown-body blockquote > :last-child {
+        margin-bottom: 0;
+      }
+      .markdown-body table {
+        display: block;
+        width: max-content;
+        max-width: 100%;
+        overflow: auto;
+        border-collapse: collapse;
+      }
+      .markdown-body table th,
+      .markdown-body table td {
+        padding: 6px 13px;
+        border: 1px solid var(--border-default);
+      }
+      .markdown-body table th {
+        background: var(--canvas-subtle);
+        font-weight: 600;
+      }
+      .markdown-body table tr {
+        background: var(--canvas);
+        border-top: 1px solid var(--border-default);
+      }
+      .markdown-body table tr:nth-child(2n) {
+        background: var(--canvas-subtle);
+      }
+      .markdown-body hr {
+        height: 0.25em;
+        padding: 0;
+        margin: 24px 0;
+        background-color: var(--border-default);
+        border: 0;
+      }
+      .markdown-body img {
+        max-width: 100%;
+        background-color: var(--canvas);
+        border-radius: 6px;
+      }
+      .markdown-body .task-list-item {
+        list-style: none;
+      }
+      .markdown-body .task-list-item + .task-list-item {
+        margin-top: 4px;
+      }
+      .markdown-body .task-list-item input {
+        margin: 0 0.2em 0.25em -1.4em;
+        vertical-align: middle;
+      }
+      .markdown-body ul.contains-task-list {
+        padding-left: 1.5em;
+      }
+      .markdown-body .wiki-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 4px;
+        border-radius: 4px;
+        background: rgba(130, 80, 223, 0.08);
+        color: var(--done-fg);
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(130, 80, 223, 0.4);
+      }
+      .markdown-body .wiki-link:hover {
+        background: rgba(130, 80, 223, 0.16);
+        text-decoration: none;
+      }
+      .markdown-body .wiki-link::before {
+        content: "[[";
+        opacity: 0.5;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85em;
+      }
+      .markdown-body .wiki-link::after {
+        content: "]]";
+        opacity: 0.5;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85em;
+      }
+      .markdown-body .hashtag {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 8px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 2em;
+        text-decoration: none;
+      }
+      .markdown-body .hashtag--blue {
+        background: #ddf4ff;
+        color: #0550ae;
+      }
+      .markdown-body .hashtag--purple {
+        background: #fbefff;
+        color: var(--done-fg);
+      }
+      .markdown-body .hashtag--green {
+        background: #dafbe1;
+        color: var(--success-fg);
+      }
+      .markdown-body .image-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        background: var(--canvas-subtle);
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        color: var(--fg-muted);
+        font-size: 13px;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      /* ---------- Meta sidebar (About box) ---------- */
+      .meta-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .about-box {
+        border: 1px solid var(--border-default);
+        border-radius: 6px;
+        background: var(--canvas);
+      }
+      .about-box__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px 8px;
+      }
+      .about-box__title {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .about-box__body {
+        padding: 0 16px 16px;
+        font-size: 14px;
+        color: var(--fg-default);
+      }
+      .about-box__desc {
+        color: var(--fg-muted);
+        margin-bottom: 12px;
+        font-size: 13px;
+      }
+      .meta-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13px;
+      }
+      .meta-list li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        color: var(--fg-muted);
+      }
+      .meta-list li svg {
+        flex-shrink: 0;
+        color: var(--fg-muted);
+      }
+      .meta-list a {
+        color: var(--fg-default);
+      }
+      .meta-list a:hover {
+        color: var(--accent-fg);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 8px;
+        height: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 2em;
+        border: 1px solid transparent;
+      }
+      .pill--published {
+        background: #dafbe1;
+        color: var(--success-fg);
+        border-color: rgba(74, 194, 107, 0.4);
+      }
+      .pill--draft {
+        background: var(--canvas-inset);
+        color: var(--fg-muted);
+        border-color: var(--border-default);
+      }
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin: 8px 0 4px;
+      }
+      .topic {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #0550ae;
+        background: #ddf4ff;
+        border-radius: 2em;
+        cursor: pointer;
+      }
+      .topic:hover {
+        background: #b6e3ff;
+      }
+      .topic--purple {
+        color: var(--done-fg);
+        background: #fbefff;
+      }
+      .topic--purple:hover {
+        background: #ecd8ff;
+      }
+      .topic--yellow {
+        color: var(--attention-fg);
+        background: #fff8c5;
+      }
+      .topic--green {
+        color: var(--success-fg);
+        background: #dafbe1;
+      }
+      .section-divider {
+        margin: 16px 0 8px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--fg-muted);
+      }
+      .backlinks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .backlinks li {
+        padding: 8px 0;
+        border-top: 1px solid var(--border-muted);
+        font-size: 13px;
+      }
+      .backlinks li:first-child {
+        border-top: 0;
+      }
+      .backlinks a {
+        font-weight: 500;
+        color: var(--fg-default);
+      }
+      .backlinks a:hover {
+        color: var(--accent-fg);
+      }
+      .backlinks small {
+        display: block;
+        color: var(--fg-muted);
+        font-size: 11px;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        margin-top: 2px;
+      }
+
+      .overlay {
+        display: none;
+        position: fixed;
+        inset: 56px 0 0 0;
+        background: rgba(31, 35, 40, 0.36);
+        z-index: 25;
+      }
+      .overlay.is-open {
+        display: block;
+      }
+      @media (min-width: 1024px) {
+        .overlay {
+          display: none !important;
+        }
+        .menu-btn {
+          display: none;
+        }
+      }
+
+      @media (max-width: 767px) {
+        .search {
+          display: none;
+        }
+        .hide-mobile {
+          display: none !important;
+        }
+      }
+      @media (min-width: 768px) {
+        .show-mobile {
+          display: none !important;
+        }
+      }
+
+      /* ---------- Syntax-highlight-ish tokens for the code block ---------- */
+      .tok-kw {
+        color: #cf222e;
+      }
+      .tok-fn {
+        color: #8250df;
+      }
+      .tok-str {
+        color: #0a3069;
+      }
+      .tok-com {
+        color: #6e7781;
+        font-style: italic;
+      }
+      .tok-num {
+        color: #0550ae;
+      }
+      .tok-typ {
+        color: #953800;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="app-header__inner">
+        <button
+          class="menu-btn show-mobile"
+          aria-label="Open menu"
+          onclick="document.getElementById('sb').classList.toggle('is-open');document.getElementById('ov').classList.toggle('is-open');"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path
+              d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12h12.5a.75.75 0 0 1 0 1.5H1.75a.75.75 0 0 1 0-1.5Z"
+            />
+          </svg>
+        </button>
+
+        <a href="#" class="logo">
+          <span class="logo__mark" aria-hidden="true"></span>
+          Hollow
+        </a>
+
+        <div class="search">
+          <svg
+            class="search__icon"
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+          >
+            <path
+              d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 1 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+            />
+          </svg>
+          <input
+            type="search"
+            placeholder="ノート、タグ、ディレクトリを検索…"
+          />
+          <span class="search__kbd">/</span>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn--sm btn--primary">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"
+              />
+            </svg>
+            <span class="hide-mobile">New note</span>
+          </button>
+          <button class="btn btn--icon btn--invisible hide-mobile" aria-label="Notifications">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path
+                d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947Z"
+              />
+            </svg>
+          </button>
+          <span class="avatar" title="@tuanemuy">T</span>
+        </div>
+      </div>
+    </header>
+
+    <div
+      id="ov"
+      class="overlay"
+      onclick="document.getElementById('sb').classList.remove('is-open');this.classList.remove('is-open');"
+    ></div>
+
+    <div class="layout">
+      <aside id="sb" class="sidebar" aria-label="Navigation">
+        <div class="sidebar__section">
+          <div class="sidebar__heading">Directories</div>
+          <ul class="tree">
+            <li>
+              <div class="tree__node">
+                <svg
+                  class="tree__chev"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                  />
+                </svg>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Projects</span>
+              </div>
+              <ul>
+                <li>
+                  <div class="tree__node">
+                    <svg
+                      class="tree__chev"
+                      width="10"
+                      height="10"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"
+                      />
+                    </svg>
+                    <svg
+                      class="tree__icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span class="tree__label">Q2 計画</span>
+                  </div>
+                  <ul>
+                    <li>
+                      <a href="#" class="is-active">
+                        <span class="tree__chev tree__chev--placeholder"></span>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          style="color: var(--fg-muted)"
+                        >
+                          <path
+                            d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                          />
+                        </svg>
+                        <span class="tree__label">戦略メモ.md</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#">
+                        <span class="tree__chev tree__chev--placeholder"></span>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          style="color: var(--fg-muted)"
+                        >
+                          <path
+                            d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                          />
+                        </svg>
+                        <span class="tree__label">KPI tracker.md</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#">
+                        <span class="tree__chev tree__chev--placeholder"></span>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          style="color: var(--fg-muted)"
+                        >
+                          <path
+                            d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Z"
+                          />
+                        </svg>
+                        <span class="tree__label">市場リサーチ.md</span>
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <a href="#">
+                    <span class="tree__chev tree__chev--placeholder"></span>
+                    <svg
+                      class="tree__icon"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span class="tree__label">設計レビュー</span>
+                    <span class="tree__count">8</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Journal</span>
+                <span class="tree__count">156</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">読書メモ</span>
+                <span class="tree__count">42</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg
+                  class="tree__icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Inbox</span>
+                <span class="tree__count">9</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar__section">
+          <div class="sidebar__heading">Tags</div>
+          <ul class="tree">
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #54aeff"></span>
+                <span class="tree__label">design</span>
+                <span class="tree__count">31</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #a371f7"></span>
+                <span class="tree__label">spec</span>
+                <span class="tree__count">28</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <span class="tag-dot" style="background: #4ac26b"></span>
+                <span class="tree__label">draft</span>
+                <span class="tree__count">17</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar__section">
+          <ul class="tree">
+            <li>
+              <a href="#">
+                <span class="tree__chev tree__chev--placeholder"></span>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75Z"
+                  />
+                </svg>
+                <span class="tree__label">Trash</span>
+                <span class="tree__count">3</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- File header -->
+        <div class="file-header">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="#">Projects</a>
+            <span class="sep">/</span>
+            <a href="#">Q2 計画</a>
+            <span class="sep">/</span>
+            <span class="current">戦略メモ.md</span>
+          </nav>
+
+          <div class="file-actions__row">
+            <div class="file-actions">
+              <div class="star-btn">
+                <button class="star-btn__action">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="#bf8700"
+                  >
+                    <path
+                      d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"
+                    />
+                  </svg>
+                  Star
+                </button>
+                <span class="star-btn__count">42</span>
+              </div>
+            </div>
+
+            <div class="file-actions">
+              <button class="btn btn--sm">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.082-.286.235-.547.445-.758Z"
+                  />
+                </svg>
+                Edit
+              </button>
+              <button class="btn btn--sm hide-mobile">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Z"
+                  />
+                </svg>
+                Raw
+              </button>
+              <button class="btn btn--sm btn--primary">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M9.25 0a.75.75 0 0 0-.75.75v4.5c0 .414.336.75.75.75h2.69l-5.22 5.22a.749.749 0 1 0 1.06 1.06l5.22-5.22v2.69c0 .414.336.75.75.75h.06A.75.75 0 0 0 14 9.75v-9A.75.75 0 0 0 13.25 0Z"
+                  />
+                </svg>
+                Publish
+              </button>
+              <button class="btn btn--sm btn--icon" aria-label="More">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm13 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <!-- File / README-style box -->
+          <article class="file-box">
+            <div class="file-box__head">
+              <div class="left">
+                <span>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Z"
+                    />
+                  </svg>
+                </span>
+                <span>戦略メモ.md</span>
+                <span>· 4.2 KB · 312 lines</span>
+              </div>
+              <div class="right">
+                <div class="view-toggle">
+                  <button class="is-active">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.679 7.932c.412-.621 1.242-1.75 2.366-2.717C5.175 4.242 6.527 3.5 8 3.5c1.473 0 2.824.742 3.955 1.715 1.124.967 1.954 2.096 2.366 2.717a.119.119 0 0 1 0 .136c-.412.621-1.242 1.75-2.366 2.717C10.825 11.758 9.473 12.5 8 12.5c-1.473 0-2.824-.742-3.955-1.715C2.92 9.818 2.09 8.69 1.679 8.068a.119.119 0 0 1 0-.136Z"
+                      />
+                    </svg>
+                    Preview
+                  </button>
+                  <button>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M4.72 3.22a.75.75 0 0 1 1.06 1.06L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Zm5.56 0a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 1 1-1.06-1.06L13.94 8l-3.66-3.72a.75.75 0 0 1 0-1.06Z"
+                      />
+                    </svg>
+                    Code
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="markdown-body">
+              <h1>Q2 戦略メモ</h1>
+              <p>
+                このノートは <em>Hollow</em> プロジェクトの第2四半期戦略を整理するためのドラフトです。
+                関連する議論は
+                <a href="#" class="wiki-link">前期レビュー</a>
+                や
+                <a href="#" class="wiki-link">市場リサーチ.md</a>
+                を参照してください。
+              </p>
+
+              <p>
+                <a href="#" class="hashtag hashtag--purple">#spec</a>
+                <a href="#" class="hashtag hashtag--blue">#design</a>
+                <a href="#" class="hashtag hashtag--green">#q2-2026</a>
+              </p>
+
+              <h2>背景と前提</h2>
+              <p>
+                前四半期の振り返りに基づき、以下の3点をコア戦略として設定する。
+                これらは <code>strategic-priority</code> として全社共有資料にも展開する。
+              </p>
+              <ol>
+                <li>
+                  既存ユーザーの<strong>定着率</strong>を改善する（KPI: D30 retention &ge; 35%）
+                </li>
+                <li>新しい <em>import 経路</em> を整備し、流入を 2x にする</li>
+                <li>パートナーシップ経由のシード獲得チャネルを評価する</li>
+              </ol>
+
+              <blockquote>
+                <p>
+                  <strong>Note.</strong> 本稿の数値は社内ダッシュボードのスナップショット（2026-05-15）に基づく。
+                  以後の更新はバックリンク経由で同期される。
+                </p>
+              </blockquote>
+
+              <h2>ロードマップ</h2>
+              <div class="image-placeholder">
+                <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M16 13.25A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75ZM1.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h.94l11.5-11Z"
+                    opacity="0.5"
+                  />
+                </svg>
+                <span>roadmap-q2.png — 312 × 180</span>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sprint</th>
+                    <th>テーマ</th>
+                    <th>オーナー</th>
+                    <th>状態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>S1</td>
+                    <td>Outbox relay の安定化</td>
+                    <td>@tuanemuy</td>
+                    <td>完了</td>
+                  </tr>
+                  <tr>
+                    <td>S2</td>
+                    <td>PDF/Office インポート v2</td>
+                    <td>@kato</td>
+                    <td>進行中</td>
+                  </tr>
+                  <tr>
+                    <td>S3</td>
+                    <td>公開ページのテーマ刷新</td>
+                    <td>@nori</td>
+                    <td>未着手</td>
+                  </tr>
+                  <tr>
+                    <td>S4</td>
+                    <td>パートナー API のスパイク</td>
+                    <td>@tuanemuy</td>
+                    <td>未着手</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h2>アクションアイテム</h2>
+              <ul class="contains-task-list">
+                <li class="task-list-item">
+                  <input type="checkbox" disabled checked />
+                  retention のベースライン数値を確定する
+                </li>
+                <li class="task-list-item">
+                  <input type="checkbox" disabled checked />
+                  PDF テキスト抽出のフォールバック設計をレビュー
+                </li>
+                <li class="task-list-item">
+                  <input type="checkbox" disabled />
+                  パートナーシップ候補 5 社の評価フレームを書く
+                </li>
+                <li class="task-list-item">
+                  <input type="checkbox" disabled />
+                  公開ページの A/B テスト計画を <a href="#" class="wiki-link">@nori</a> と合意
+                </li>
+              </ul>
+
+              <h3>技術的な決定</h3>
+              <p>
+                Outbox dispatch の lease 取得は SQL 側で完結させる。
+                以下のクエリで claim を行い、lease 期限を持たせる。
+              </p>
+
+<pre><code><span class="tok-com">-- claim up to N rows that are not yet leased</span>
+<span class="tok-kw">UPDATE</span> outbox_event
+<span class="tok-kw">SET</span>
+  leased_by  = <span class="tok-str">?1</span>,
+  leased_at  = <span class="tok-str">?2</span>,
+  lease_until = <span class="tok-str">?3</span>
+<span class="tok-kw">WHERE</span> id <span class="tok-kw">IN</span> (
+  <span class="tok-kw">SELECT</span> id <span class="tok-kw">FROM</span> outbox_event
+  <span class="tok-kw">WHERE</span> status = <span class="tok-str">'pending'</span>
+    <span class="tok-kw">AND</span> (lease_until <span class="tok-kw">IS</span> <span class="tok-kw">NULL</span> <span class="tok-kw">OR</span> lease_until &lt; <span class="tok-str">?2</span>)
+  <span class="tok-kw">ORDER BY</span> created_at <span class="tok-kw">LIMIT</span> <span class="tok-num">100</span>
+)
+<span class="tok-kw">RETURNING</span> id, payload, kind;</code></pre>
+
+              <p>
+                関連: <a href="#" class="wiki-link">Outbox relay 詳細設計</a>,
+                <a href="#" class="wiki-link">Cloudflare Queues の選定理由</a>.
+              </p>
+
+              <h3>TypeScript 側の使い方</h3>
+<pre><code><span class="tok-kw">import</span> { runUnitOfWork } <span class="tok-kw">from</span> <span class="tok-str">"@/core/application/uow"</span>;
+
+<span class="tok-kw">export async function</span> <span class="tok-fn">publishNote</span>(input: <span class="tok-typ">PublishNoteInput</span>) {
+  <span class="tok-kw">return</span> <span class="tok-fn">runUnitOfWork</span>(<span class="tok-kw">async</span> (ctx) =&gt; {
+    <span class="tok-kw">const</span> note = <span class="tok-kw">await</span> ctx.notes.<span class="tok-fn">requireById</span>(input.id);
+    note.<span class="tok-fn">publish</span>(input.publishedAt);
+    <span class="tok-kw">await</span> ctx.notes.<span class="tok-fn">save</span>(note);
+    ctx.<span class="tok-fn">enqueue</span>(note.<span class="tok-fn">pullEvents</span>());
+    <span class="tok-kw">return</span> note.<span class="tok-fn">toView</span>();
+  });
+}</code></pre>
+
+              <h2>未解決事項</h2>
+              <p>
+                以下の論点は次回のレビューで議論する。
+                <a href="#" class="wiki-link">公開ページの命名規則</a>
+                とも整合させること。
+              </p>
+              <ul>
+                <li>パートナー連携で <code>oauth2</code> を採用するか <code>signed-url</code> で済ませるか</li>
+                <li>D1 のコネクション上限と Queue consumer concurrency の落としどころ</li>
+                <li>マルチ言語ノート（日本語/英語混在）のシンタックス表記揺れ</li>
+              </ul>
+
+              <hr />
+
+              <p>
+                <small>
+                  Last edited by <a href="#">@tuanemuy</a> · 3 hours ago ·
+                  <a href="#">View history</a>
+                </small>
+              </p>
+            </div>
+          </article>
+
+          <!-- Meta sidebar (About box) -->
+          <aside class="meta-sidebar" aria-label="Note metadata">
+            <section class="about-box">
+              <div class="about-box__head">
+                <span class="about-box__title">About</span>
+                <button class="btn btn--sm btn--invisible" aria-label="Settings">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="about-box__body">
+                <p class="about-box__desc">
+                  Q2 戦略の意思決定ログ。前期レビュー、市場リサーチ、技術的決定への参照点として運用する。
+                </p>
+
+                <ul class="meta-list">
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M9.25 0a.75.75 0 0 0-.75.75v4.5c0 .414.336.75.75.75h2.69l-5.22 5.22a.749.749 0 1 0 1.06 1.06l5.22-5.22v2.69c0 .414.336.75.75.75h.06A.75.75 0 0 0 14 9.75v-9A.75.75 0 0 0 13.25 0Z"
+                      />
+                    </svg>
+                    <span><span class="pill pill--published">● Published</span></span>
+                  </li>
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z"
+                      />
+                    </svg>
+                    <span><a href="#">Projects / Q2 計画</a></span>
+                  </li>
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M4.75 0a.75.75 0 0 1 .75.75V2h5V.75a.75.75 0 0 1 1.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 0 1 4.75 0Z"
+                      />
+                    </svg>
+                    <span>Created Apr 14, 2026</span>
+                  </li>
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7-3.25v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5a.75.75 0 0 1 1.5 0Z"
+                      />
+                    </svg>
+                    <span>Updated 3 hours ago</span>
+                  </li>
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M10.5 5a3.5 3.5 0 1 1-6.063 2.383L1.81 10.011a.75.75 0 0 1-1.06-1.06l2.627-2.628A3.5 3.5 0 0 1 10.5 5Z"
+                      />
+                    </svg>
+                    <span><a href="#">hollow.app/n/q2-strategy</a></span>
+                  </li>
+                  <li>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.005 6.005 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"
+                      />
+                    </svg>
+                    <span>Owner: <a href="#">@tuanemuy</a></span>
+                  </li>
+                </ul>
+
+                <div class="section-divider">Tags</div>
+                <div class="tag-row">
+                  <a href="#" class="topic">design</a>
+                  <a href="#" class="topic topic--purple">spec</a>
+                  <a href="#" class="topic topic--green">q2-2026</a>
+                  <a href="#" class="topic topic--yellow">strategy</a>
+                </div>
+              </div>
+            </section>
+
+            <section class="about-box">
+              <div class="about-box__head">
+                <span class="about-box__title">Backlinks <small style="color:var(--fg-muted);font-weight:400">· 8</small></span>
+              </div>
+              <div class="about-box__body">
+                <ul class="backlinks">
+                  <li>
+                    <a href="#">前期レビュー (Q1 振り返り)</a>
+                    <small>Projects / 設計レビュー · 2 days ago</small>
+                  </li>
+                  <li>
+                    <a href="#">市場リサーチ.md</a>
+                    <small>Projects / Q2 計画 · last week</small>
+                  </li>
+                  <li>
+                    <a href="#">Outbox relay 詳細設計</a>
+                    <small>Projects / 設計レビュー · 2 weeks ago</small>
+                  </li>
+                  <li>
+                    <a href="#">公開ページの命名規則</a>
+                    <small>Projects / 設計レビュー · 3 weeks ago</small>
+                  </li>
+                  <li>
+                    <a href="#">2026-05-12 weekly sync</a>
+                    <small>Journal · 5 days ago</small>
+                  </li>
+                </ul>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

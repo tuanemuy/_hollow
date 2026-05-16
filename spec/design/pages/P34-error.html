@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ページが見つかりません — Hollow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: #0071e3;
+    --color-accent-hover: #0077ed;
+    --color-accent-pressed: #006edb;
+    --color-accent-surface: #e8f1fd;
+    --color-accent-ink: #0058b4;
+
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300; --weight-regular: 400;
+    --weight-medium: 500; --weight-semibold: 600;
+
+    --leading-tight: 1.2; --leading-snug: 1.35;
+    --leading-normal: 1.5; --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px;
+    --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
+    --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px;
+    --radius-lg: 12px; --radius-xl: 16px;
+    --radius-pill: 980px; --radius-full: 9999px;
+
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 120ms; --duration-base: 180ms;
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px;
+    --bp-xl: 1280px; --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* ===== Public Header (default contextual) ===== */
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 14px 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .text-link {
+    font-size: 14px; font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    padding: 0 10px; height: 36px;
+    display: inline-flex; align-items: center;
+    border-radius: var(--radius-md);
+    transition: var(--transition-bg);
+  }
+  .text-link:hover { background: var(--color-surface); }
+  .pill-btn {
+    height: 36px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px; font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+
+  /* ===== Error page core ===== */
+  .err-page {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 56px var(--container-padding) 80px;
+  }
+  .err-inner {
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+  }
+  .err-code {
+    font-size: clamp(96px, 18vw, 168px);
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    line-height: 1;
+    color: var(--color-ink);
+    margin-bottom: 8px;
+    background: linear-gradient(180deg, var(--color-ink) 0%, var(--color-ink-secondary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .err-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-bottom: 12px;
+    line-height: var(--leading-snug);
+  }
+  .err-desc {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: 32px;
+    max-width: 440px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .err-search {
+    position: relative;
+    max-width: 440px;
+    margin: 0 auto 24px;
+  }
+  .err-search input {
+    width: 100%;
+    height: 44px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 18px 0 44px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .err-search input::placeholder { color: var(--color-ink-tertiary); }
+  .err-search input:focus { background: var(--color-surface-hover); }
+  .err-search .search-icon {
+    position: absolute; left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+
+  .err-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: var(--color-ink); background: var(--color-surface); }
+
+  .err-meta {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    font-family: var(--font-mono);
+    margin-top: 12px;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    border-top: 1px solid var(--color-hairline);
+    padding: 28px 0 40px;
+  }
+  .footer-inner {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+  }
+  .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .footer-links a { transition: color 0.15s; }
+  .footer-links a:hover { color: var(--color-ink); }
+
+  /* Variants (all hidden by default; show by removing display:none) */
+  .error-403, .error-410, .error-5xx { display: none; }
+
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; gap: 10px; }
+    .text-link.signup { display: none; }
+    .err-page { padding: 32px 16px 56px; }
+    .err-title { font-size: 22px; }
+    .err-desc { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <a href="/" class="logo">Hollow</a>
+  </div>
+  <div></div>
+  <div class="header-right">
+    <a href="/signup" class="text-link signup">サインアップ</a>
+    <a href="/login" class="pill-btn">ログイン</a>
+  </div>
+</header>
+
+<!-- =========================================================
+     MAIN VARIANT: 404
+     ========================================================= -->
+<section class="err-page error-404">
+  <div class="err-inner">
+    <div class="err-code">404</div>
+    <h1 class="err-title">ページが見つかりません</h1>
+    <p class="err-desc">お探しのページは削除されたか、URL が変更された可能性があります。検索からノートを探してみてください。</p>
+
+    <div class="err-search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="公開ノートを検索…">
+    </div>
+
+    <div class="err-actions">
+      <a href="/" class="pill-btn primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10"/></svg>
+        ホームへ戻る
+      </a>
+      <a href="/search" class="pill-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        検索ページを開く
+      </a>
+    </div>
+
+    <a href="javascript:history.back()" class="back-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      一つ前に戻る
+    </a>
+
+    <div class="err-meta">Error code: 404 Not Found</div>
+  </div>
+</section>
+
+<!-- =========================================================
+     VARIANT: 403 Forbidden
+     ========================================================= -->
+<section class="err-page error-403">
+  <div class="err-inner">
+    <div class="err-code">403</div>
+    <h1 class="err-title">このページにアクセスできません</h1>
+    <p class="err-desc">閲覧権限がありません。アカウントにログインしている場合は、別のユーザーで再度試してみてください。</p>
+
+    <div class="err-actions">
+      <a href="/login" class="pill-btn primary">ログイン</a>
+      <a href="/" class="pill-btn">ホームへ戻る</a>
+    </div>
+
+    <a href="javascript:history.back()" class="back-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      一つ前に戻る
+    </a>
+
+    <div class="err-meta">Error code: 403 Forbidden</div>
+  </div>
+</section>
+
+<!-- =========================================================
+     VARIANT: 410 Gone (note deleted / unpublished)
+     ========================================================= -->
+<section class="err-page error-410">
+  <div class="err-inner">
+    <div class="err-code">410</div>
+    <h1 class="err-title">このノートは公開されていません</h1>
+    <p class="err-desc">作者により非公開化または削除されました。同じユーザーの他のノートを覗いてみてください。</p>
+
+    <div class="err-search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="他のノートを検索…">
+    </div>
+
+    <div class="err-actions">
+      <a href="/" class="pill-btn primary">ホームへ戻る</a>
+    </div>
+
+    <a href="javascript:history.back()" class="back-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      一つ前に戻る
+    </a>
+
+    <div class="err-meta">Error code: 410 Gone</div>
+  </div>
+</section>
+
+<!-- =========================================================
+     VARIANT: 5xx Server Error
+     ========================================================= -->
+<section class="err-page error-5xx">
+  <div class="err-inner">
+    <div class="err-code">500</div>
+    <h1 class="err-title">予期しないエラーが発生しました</h1>
+    <p class="err-desc">サーバー側で問題が発生しています。しばらく経ってから再度お試しください。問題が続く場合はインスタンス管理者にお知らせください。</p>
+
+    <div class="err-actions">
+      <a href="javascript:location.reload()" class="pill-btn primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        再読み込み
+      </a>
+      <a href="/" class="pill-btn">ホームへ戻る</a>
+    </div>
+
+    <a href="javascript:history.back()" class="back-link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      一つ前に戻る
+    </a>
+
+    <div class="err-meta">Error code: 500 Internal Server Error · trace: 7f9c3a2b</div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>Hollow · hollow.example.com</div>
+    <div class="footer-links">
+      <a href="/terms">利用規約</a>
+      <a href="/privacy">プライバシー</a>
+      <a href="/about">このインスタンスについて</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>戦略メモ — Hollow</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-subtle: #fafafa;
+        --bg-muted: #f4f4f5;
+        --bg-code: #f6f8fa;
+        --ink: #0a0a0a;
+        --ink-2: #262626;
+        --ink-3: #525252;
+        --ink-4: #737373;
+        --line: #e5e7eb;
+        --line-strong: #d4d4d8;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, "Hiragino Sans",
+          "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--ink-3);
+        background: var(--bg);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      code,
+      pre,
+      kbd {
+        font-family:
+          ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
+      }
+
+      /* ----- Header (same as P10) ----- */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 12px;
+        height: 56px;
+        padding: 0 16px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      }
+      .brand-mark {
+        width: 22px;
+        height: 22px;
+        border: 1.5px solid var(--ink);
+        border-radius: 4px;
+        position: relative;
+      }
+      .brand-mark::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-left: 1.5px solid var(--ink);
+      }
+
+      .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--ink-2);
+      }
+
+      .search {
+        position: relative;
+        max-width: 520px;
+        margin: 0 auto;
+        width: 100%;
+        display: none;
+      }
+      .search input {
+        width: 100%;
+        height: 36px;
+        padding: 0 12px 0 36px;
+        font: inherit;
+        font-size: 13.5px;
+        color: var(--ink-2);
+        background: var(--bg-subtle);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        outline: none;
+      }
+      .search input::placeholder {
+        color: var(--ink-4);
+      }
+      .search svg {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-4);
+      }
+      .search kbd {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        color: var(--ink-4);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        color: var(--ink-2);
+        background: var(--bg);
+      }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 12px;
+        background: var(--ink);
+        color: #fff;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .avatar {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 34px;
+        padding: 0 6px 0 4px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+      }
+      .avatar-dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #c7d2fe, #a78bfa);
+        color: #312e81;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .avatar svg {
+        color: var(--ink-4);
+      }
+
+      /* ----- Layout ----- */
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      /* ----- Sidebar ----- */
+      .sidebar {
+        position: fixed;
+        inset: 56px 0 0 0;
+        z-index: 30;
+        background: var(--bg);
+        border-right: 1px solid var(--line);
+        transform: translateX(-100%);
+        transition: transform 200ms ease;
+        overflow-y: auto;
+        padding: 16px 14px 80px;
+        width: min(280px, 84vw);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .sidebar-section {
+        padding: 6px 0 14px;
+      }
+      .sidebar-section + .sidebar-section {
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+      .sidebar-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 8px;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+      }
+      .sidebar-label button {
+        color: var(--ink-4);
+        font-size: 14px;
+        line-height: 1;
+      }
+      .tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13.5px;
+      }
+      .tree-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        color: var(--ink-2);
+      }
+      .tree-item:hover {
+        background: var(--bg-subtle);
+      }
+      .tree-item.active {
+        background: var(--bg-muted);
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .tree-item .caret {
+        width: 12px;
+        color: var(--ink-4);
+        display: inline-flex;
+        justify-content: center;
+        font-size: 9px;
+      }
+      .tree-item .ico {
+        color: var(--ink-4);
+        display: inline-flex;
+      }
+      .tree-item .count {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--ink-4);
+        font-variant-numeric: tabular-nums;
+      }
+      .tree-nested {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 18px;
+        border-left: 1px solid var(--line);
+        margin-left: 14px;
+      }
+      .nav-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 13.5px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        color: var(--ink-2);
+      }
+      .nav-item:hover {
+        background: var(--bg-subtle);
+      }
+      .nav-item .ico {
+        color: var(--ink-4);
+      }
+      .nav-item .count {
+        margin-left: auto;
+        font-size: 11.5px;
+        color: var(--ink-4);
+      }
+      .scrim {
+        position: fixed;
+        inset: 56px 0 0 0;
+        background: rgba(10, 10, 10, 0.32);
+        z-index: 20;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+      }
+      .sidebar.open ~ .scrim {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* ----- Main ----- */
+      .main {
+        padding: 20px 16px 80px;
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--ink-4);
+        margin-bottom: 14px;
+      }
+      .breadcrumb .sep {
+        opacity: 0.5;
+      }
+      .breadcrumb .current {
+        color: var(--ink-2);
+        font-weight: 500;
+      }
+      .breadcrumb a:hover {
+        color: var(--ink-2);
+      }
+
+      /* ----- Title bar ----- */
+      .titlebar {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding-bottom: 18px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .titlebar h1.note-title {
+        font-size: clamp(22px, 3vw, 30px);
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: -0.022em;
+        line-height: 1.25;
+        margin: 0;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tb-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        font-size: 13px;
+        color: var(--ink-2);
+        background: var(--bg);
+      }
+      .tb-btn:hover {
+        border-color: var(--ink-2);
+      }
+      .tb-btn.primary {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .tb-btn.primary:hover {
+        background: #1a1a1a;
+      }
+      .tb-btn .ico {
+        color: var(--ink-4);
+      }
+      .tb-btn.primary .ico {
+        color: rgba(255, 255, 255, 0.8);
+      }
+      .tb-btn.icon-only {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+
+      /* ----- Content + Meta ----- */
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+
+      /* ===== Article (GitHub-readme style, but Quiet Editorial) ===== */
+      .article {
+        max-width: 760px;
+        color: var(--ink-2);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .article > * + * {
+        margin-top: 16px;
+      }
+      .article h1,
+      .article h2,
+      .article h3,
+      .article h4 {
+        color: var(--ink);
+        font-weight: 600;
+        letter-spacing: -0.018em;
+        line-height: 1.3;
+      }
+      .article h1 {
+        font-size: 28px;
+        margin: 32px 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .article h2 {
+        font-size: 21px;
+        margin: 32px 0 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      .article h3 {
+        font-size: 17px;
+        margin: 24px 0 8px;
+      }
+      .article p {
+        margin: 0;
+      }
+      .article a.external {
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-thickness: 1px;
+      }
+      .article a.internal {
+        color: var(--ink);
+        background: var(--accent-soft);
+        padding: 1px 5px;
+        border-radius: 4px;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-color: rgba(79, 70, 229, 0.4);
+        text-decoration-thickness: 1px;
+      }
+      .article a.internal:hover {
+        text-decoration-color: var(--accent);
+      }
+      .article code {
+        font-size: 0.86em;
+        background: var(--bg-muted);
+        color: var(--ink);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .article pre {
+        background: var(--bg-code);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--ink);
+      }
+      .article pre code {
+        background: transparent;
+        padding: 0;
+        font-size: inherit;
+        color: inherit;
+      }
+      .article blockquote {
+        margin: 0;
+        padding: 4px 16px;
+        color: var(--ink-3);
+        border-left: 4px solid var(--line-strong);
+        font-style: normal;
+      }
+      .article blockquote p + p {
+        margin-top: 8px;
+      }
+      .article ul,
+      .article ol {
+        margin: 0;
+        padding-left: 24px;
+      }
+      .article ul li,
+      .article ol li {
+        margin: 4px 0;
+      }
+      .article ul li::marker {
+        color: var(--ink-4);
+      }
+      .article ol li::marker {
+        color: var(--ink-4);
+        font-variant-numeric: tabular-nums;
+      }
+      .article table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .article table th,
+      .article table td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .article table th {
+        background: var(--bg-subtle);
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 12.5px;
+        letter-spacing: 0.01em;
+      }
+      .article table tbody tr:nth-child(even) td {
+        background: var(--bg-subtle);
+      }
+      .article table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .article .tag {
+        display: inline-flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--accent);
+        background: var(--accent-soft);
+        text-decoration: none;
+      }
+      .article ul.task-list {
+        list-style: none;
+        padding-left: 4px;
+      }
+      .article ul.task-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .article ul.task-list input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        margin-top: 4px;
+        border: 1px solid var(--line-strong);
+        border-radius: 3px;
+        background: var(--bg);
+        display: inline-block;
+        position: relative;
+        flex-shrink: 0;
+        cursor: default;
+      }
+      .article ul.task-list input[type="checkbox"]:checked {
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+      .article ul.task-list input[type="checkbox"]:checked::after {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 0px;
+        width: 4px;
+        height: 8px;
+        border: solid #fff;
+        border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+      .article figure {
+        margin: 24px 0;
+      }
+      .article .img-placeholder {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background:
+          linear-gradient(135deg, #f4f4f5 25%, transparent 25%) -8px 0,
+          linear-gradient(225deg, #f4f4f5 25%, transparent 25%) -8px 0,
+          linear-gradient(315deg, #f4f4f5 25%, transparent 25%),
+          linear-gradient(45deg, #f4f4f5 25%, #fafafa 25%);
+        background-size: 16px 16px;
+        background-color: #fafafa;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-4);
+        font-size: 12px;
+      }
+      .article figcaption {
+        margin-top: 8px;
+        font-size: 12.5px;
+        color: var(--ink-4);
+        text-align: center;
+      }
+
+      /* ----- Meta panel ----- */
+      .meta-panel {
+        font-size: 13px;
+      }
+      .meta-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 16px;
+      }
+      .meta-card + .meta-card {
+        margin-top: 12px;
+      }
+      .meta-card-title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+        margin: 0 0 10px;
+      }
+      .meta-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 0;
+        font-size: 13px;
+      }
+      .meta-row + .meta-row {
+        border-top: 1px dashed var(--line);
+        padding-top: 8px;
+        margin-top: 4px;
+      }
+      .meta-key {
+        color: var(--ink-4);
+      }
+      .meta-val {
+        color: var(--ink-2);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .meta-val.mono {
+        font-family:
+          ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 12px;
+      }
+      .tag-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 22px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: var(--bg-muted);
+        color: var(--ink-2);
+      }
+      .pill.dot::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ink-3);
+      }
+      .pill.public.dot::before {
+        background: var(--accent);
+      }
+      .backlinks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .backlink {
+        display: block;
+        padding: 8px 0;
+        border-top: 1px solid var(--line);
+        color: var(--ink-2);
+      }
+      .backlink:first-child {
+        border-top: none;
+      }
+      .backlink .bl-title {
+        font-size: 13.5px;
+        color: var(--ink);
+        font-weight: 500;
+        letter-spacing: -0.005em;
+      }
+      .backlink .bl-snip {
+        font-size: 12px;
+        color: var(--ink-4);
+        margin-top: 2px;
+        line-height: 1.5;
+      }
+
+      /* Mobile: meta becomes collapsible */
+      details.meta-collapsible {
+        margin-top: 24px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+      details.meta-collapsible > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+      }
+      details.meta-collapsible > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.meta-collapsible[open] > summary {
+        margin-bottom: 14px;
+      }
+
+      /* ----- Responsive ----- */
+      @media (min-width: 640px) {
+        .search {
+          display: block;
+        }
+        .main {
+          padding: 28px 24px 100px;
+        }
+        .titlebar {
+          flex-direction: row;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 24px;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .header {
+          padding: 0 20px;
+          gap: 20px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .menu-btn {
+          display: none;
+        }
+        .layout {
+          grid-template-columns: 260px 1fr;
+        }
+        .sidebar {
+          position: sticky;
+          top: 56px;
+          height: calc(100vh - 56px);
+          inset: auto;
+          transform: none;
+          width: auto;
+        }
+        .scrim {
+          display: none;
+        }
+        .main {
+          padding: 32px 40px 120px;
+        }
+        .content-grid {
+          grid-template-columns: minmax(0, 1fr) 280px;
+          gap: 48px;
+        }
+        details.meta-collapsible {
+          display: none;
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .layout {
+          grid-template-columns: 280px 1fr;
+        }
+        .content-grid {
+          grid-template-columns: minmax(0, 1fr) 300px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a class="brand" href="#">
+          <span class="brand-mark"></span>
+          <span>Hollow</span>
+        </a>
+      </div>
+
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Search your notes…" />
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="header-right">
+        <button class="btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New</span>
+        </button>
+        <button class="icon-btn" aria-label="Upload">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>
+        </button>
+        <button class="avatar" aria-label="Account">
+          <span class="avatar-dot">H</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-label">
+            <span>Directory</span>
+            <button aria-label="New folder">+</button>
+          </div>
+          <ul class="tree">
+            <li>
+              <a class="tree-item" href="#">
+                <span class="caret">▾</span>
+                <span class="ico">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </span>
+                <span>Projects</span>
+                <span class="count">24</span>
+              </a>
+              <ul class="tree-nested">
+                <li>
+                  <a class="tree-item active" href="#">
+                    <span class="caret">▾</span>
+                    <span class="ico">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    </span>
+                    <span>Q2 計画</span>
+                    <span class="count">8</span>
+                  </a>
+                </li>
+                <li>
+                  <a class="tree-item" href="#">
+                    <span class="caret">▸</span>
+                    <span class="ico">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    </span>
+                    <span>Hollow MVP</span>
+                    <span class="count">12</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <a class="tree-item" href="#">
+                <span class="caret">▸</span>
+                <span class="ico">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </span>
+                <span>Reading</span>
+                <span class="count">37</span>
+              </a>
+            </li>
+            <li>
+              <a class="tree-item" href="#">
+                <span class="caret">▸</span>
+                <span class="ico">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </span>
+                <span>Journal</span>
+                <span class="count">142</span>
+              </a>
+            </li>
+            <li>
+              <a class="tree-item" href="#">
+                <span class="caret">▸</span>
+                <span class="ico">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </span>
+                <span>Inbox</span>
+                <span class="count">5</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-label"><span>Saved Views</span></div>
+          <ul class="nav-list">
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Last 7 days</span><span class="count">23</span></a></li>
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span><span>Drafts</span><span class="count">11</span></a></li>
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg></span><span>Tagged: project</span><span class="count">8</span></a></li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <ul class="nav-list">
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg></span><span>Tags</span></a></li>
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/></svg></span><span>Trash</span><span class="count">3</span></a></li>
+            <li><a class="nav-item" href="#"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg></span><span>Exports</span></a></li>
+          </ul>
+        </div>
+      </aside>
+      <div class="scrim" id="scrim"></div>
+
+      <main class="main">
+        <nav class="breadcrumb">
+          <a href="#">Home</a>
+          <span class="sep">/</span>
+          <a href="#">Projects</a>
+          <span class="sep">/</span>
+          <a href="#">Q2 計画</a>
+          <span class="sep">/</span>
+          <span class="current">戦略メモ.md</span>
+        </nav>
+
+        <div class="titlebar">
+          <h1 class="note-title">戦略メモ: Hollow のポジショニング再考</h1>
+          <div class="toolbar">
+            <button class="tb-btn">
+              <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+              Edit
+            </button>
+            <button class="tb-btn primary">
+              <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18"/></svg>
+              Publish
+            </button>
+            <button class="tb-btn">
+              <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+              Share
+            </button>
+            <button class="tb-btn icon-only" aria-label="More">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <article class="article">
+            <p>
+              Hollow は「個人の文章・素材を、整理されたまま静かに保管する場所」をつくる試み。<a class="external" href="#">Notion</a> でも <a class="external" href="#">Obsidian</a> でもなく、<strong>アップロード起点</strong>で素材を集めて、HTML ノートに正規化し、必要なものだけ自分のドメインで公開できる。検索より「整理されている状態」を売る。
+            </p>
+
+            <h2>背景</h2>
+            <p>
+              文章・PDF・スライド・音声メモが、Drive / iCloud / ローカル / ブラウザのブックマークに分散している。<em>あとから読める</em>状態にあるものはほぼない。一方で書き散らした下書きは GitHub Gist や Notion に残るが、検索はできても「眺める」ことができない。
+            </p>
+
+            <blockquote>
+              <p>"The bottleneck is not storage, it is the work of arrangement." — 自分用に書き写したメモから</p>
+              <p>素材は十分にある。整理されていないだけだ。</p>
+            </blockquote>
+
+            <h3>現状の問題</h3>
+            <ol>
+              <li>取り込み口（upload, drag &amp; drop, 音声録音）がツール毎に分断されている。</li>
+              <li>取り込んだ後の <code>正規化</code> ステップがどこにもない。PDF は PDF のまま、画像は画像のまま。</li>
+              <li>公開／非公開の境界がツール側の都合で決まっている。</li>
+            </ol>
+
+            <h2>方針</h2>
+            <p>
+              次の <a class="internal" href="#">[[Q2 ロードマップ]]</a> と <a class="internal" href="#">[[Hollow MVP 範囲]]</a> はこの方針に従う。
+            </p>
+
+            <ul>
+              <li>取り込みは PDF / Office / Markdown / HTML / 画像 / 音声を等価に扱う。</li>
+              <li>取り込み後、サーバー側で HTML ノートに変換し、すべての素材を同じレンダリングで読めるようにする。</li>
+              <li>ノートはディレクトリツリーで整理する。タグはセカンダリ。</li>
+              <li>公開は「非公開 / リンク共有 / 完全公開」の 3 段階。デフォルトは非公開。</li>
+            </ul>
+
+            <h3>MVP に含めるもの</h3>
+            <ul class="task-list">
+              <li><input type="checkbox" checked disabled /> ファイルアップロードと HTML ノート化（PDF / Markdown / 画像）</li>
+              <li><input type="checkbox" checked disabled /> ディレクトリツリーとタグ</li>
+              <li><input type="checkbox" disabled /> ノート間リンク（<code>[[note]]</code> 構文）と簡易バックリンク</li>
+              <li><input type="checkbox" disabled /> リンク共有による限定公開</li>
+              <li><input type="checkbox" disabled /> 独自ドメインへの公開（custom domain）</li>
+            </ul>
+
+            <h2>競合との位置取り</h2>
+            <p>
+              整理コストと公開コストの 2 軸で見ると、Hollow は <em>整理コスト：中</em>・<em>公開コスト：低</em> の象限に置く。Notion の database 機能や Obsidian のグラフは意図的に持たない。
+            </p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>ツール</th>
+                  <th>取り込みの軽さ</th>
+                  <th>整理</th>
+                  <th>公開</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Notion</td><td>中</td><td>強い（DB）</td><td>中（notion.site）</td></tr>
+                <tr><td>Obsidian</td><td>低（手動）</td><td>強い（graph）</td><td>弱い（plugin 依存）</td></tr>
+                <tr><td>Bear / Apple Notes</td><td>高</td><td>弱い</td><td>なし</td></tr>
+                <tr><td>Hollow</td><td>高（upload 起点）</td><td>中（tree + tags）</td><td>強い（独自ドメイン）</td></tr>
+              </tbody>
+            </table>
+
+            <h3>非機能要件のメモ</h3>
+            <p>
+              Cloudflare Workers + D1 + Queues 上で動かす想定。アップロードした素材の HTML 化は <code>Queue</code> 経由でバックグラウンド処理。失敗時のリトライは <a class="external" href="#">Outbox パターン</a>で吸収する。
+            </p>
+
+            <pre><code>// app/worker/cloudflare/relay.ts
+export const relay = async (env: Env) =&gt; {
+  const rows = await claimOutbox(env.DB, { limit: 32, lease: 60_000 });
+  for (const row of rows) {
+    try {
+      await env.QUEUE.send(row.payload);
+      await markDelivered(env.DB, row.id);
+    } catch (err) {
+      await releaseLease(env.DB, row.id);
+      // 連続失敗は DLQ に流す
+    }
+  }
+};</code></pre>
+
+            <h2>残課題</h2>
+            <ul>
+              <li>音声の文字起こしを Workers AI で完結させるか、外部サービスを併用するか。</li>
+              <li>独自ドメイン公開のドメイン検証 UX。</li>
+              <li>取り込み元別のメタデータ正規化（撮影日時、PDF のページ単位など）。</li>
+            </ul>
+
+            <figure>
+              <div class="img-placeholder">
+                <span>図: 取り込み → 正規化 → 公開のフロー（プレースホルダ）</span>
+              </div>
+              <figcaption>取り込みと公開のあいだに「整理されたまま置いておく」状態を挟む。</figcaption>
+            </figure>
+
+            <p>
+              タグは <a class="tag" href="#">#work</a> <a class="tag" href="#">#planning</a> <a class="tag" href="#">#strategy</a> あたりで運用する。関連ノート: <a class="internal" href="#">[[Hollow という名前について]]</a>、<a class="internal" href="#">[[公開機能の最小要件]]</a>。
+            </p>
+
+            <details class="meta-collapsible">
+              <summary>
+                <span>Note details</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </summary>
+              <aside class="meta-panel">
+                <div class="meta-card">
+                  <h3 class="meta-card-title">Details</h3>
+                  <div class="meta-row"><span class="meta-key">Created</span><span class="meta-val">2026-04-21</span></div>
+                  <div class="meta-row"><span class="meta-key">Updated</span><span class="meta-val">2026-05-14 14:32</span></div>
+                  <div class="meta-row"><span class="meta-key">Directory</span><span class="meta-val mono">Projects/Q2 計画</span></div>
+                  <div class="meta-row"><span class="meta-key">Words</span><span class="meta-val">812</span></div>
+                </div>
+                <div class="meta-card">
+                  <h3 class="meta-card-title">Publish</h3>
+                  <span class="pill dot">Private</span>
+                </div>
+                <div class="meta-card">
+                  <h3 class="meta-card-title">Tags</h3>
+                  <div class="tag-chips">
+                    <a class="tag" href="#" style="text-decoration:none;">#work</a>
+                    <a class="tag" href="#" style="text-decoration:none;">#planning</a>
+                    <a class="tag" href="#" style="text-decoration:none;">#strategy</a>
+                  </div>
+                </div>
+                <div class="meta-card">
+                  <h3 class="meta-card-title">Backlinks (2)</h3>
+                  <ul class="backlinks">
+                    <li><a class="backlink" href="#"><div class="bl-title">Q2 ロードマップ</div><div class="bl-snip">…方針は <em>戦略メモ</em> に従って…</div></a></li>
+                    <li><a class="backlink" href="#"><div class="bl-title">Meeting notes — 5/6 Design sync</div><div class="bl-snip">…戦略メモのポジショニング案を確認…</div></a></li>
+                  </ul>
+                </div>
+              </aside>
+            </details>
+          </article>
+
+          <aside class="meta-panel" style="display:none" id="metaPanelDesktop">
+            <!-- placeholder; rendered via .meta-panel-desktop instead -->
+          </aside>
+
+          <aside class="meta-panel meta-panel-desktop">
+            <div class="meta-card">
+              <h3 class="meta-card-title">Details</h3>
+              <div class="meta-row"><span class="meta-key">Created</span><span class="meta-val">2026-04-21</span></div>
+              <div class="meta-row"><span class="meta-key">Updated</span><span class="meta-val">2026-05-14 14:32</span></div>
+              <div class="meta-row"><span class="meta-key">Directory</span><span class="meta-val mono">Projects/Q2 計画</span></div>
+              <div class="meta-row"><span class="meta-key">Words</span><span class="meta-val">812</span></div>
+              <div class="meta-row"><span class="meta-key">Reading time</span><span class="meta-val">~6 min</span></div>
+            </div>
+            <div class="meta-card">
+              <h3 class="meta-card-title">Publish</h3>
+              <span class="pill dot">Private</span>
+              <p style="margin:10px 0 0;font-size:12px;color:var(--ink-4);line-height:1.5;">
+                公開すると <code style="background:var(--bg-muted);padding:1px 4px;border-radius:3px;font-size:11.5px;">notes.hollow.app/&hellip;</code> の URL が発行されます。
+              </p>
+            </div>
+            <div class="meta-card">
+              <h3 class="meta-card-title">Tags</h3>
+              <div class="tag-chips">
+                <a class="tag" href="#" style="text-decoration:none;">#work</a>
+                <a class="tag" href="#" style="text-decoration:none;">#planning</a>
+                <a class="tag" href="#" style="text-decoration:none;">#strategy</a>
+              </div>
+            </div>
+            <div class="meta-card">
+              <h3 class="meta-card-title">Backlinks (2)</h3>
+              <ul class="backlinks">
+                <li><a class="backlink" href="#"><div class="bl-title">Q2 ロードマップ</div><div class="bl-snip">…方針は <em>戦略メモ</em> に従って整理する。MVP の範囲は次の通り…</div></a></li>
+                <li><a class="backlink" href="#"><div class="bl-title">Meeting notes — 5/6 Design sync</div><div class="bl-snip">…戦略メモのポジショニング案を確認、Quiet editorial の方向で合意…</div></a></li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <style>
+      .meta-panel-desktop {
+        display: none;
+      }
+      @media (min-width: 1024px) {
+        .meta-panel-desktop {
+          display: block;
+        }
+      }
+    </style>
+
+    <script>
+      const btn = document.getElementById("menuBtn");
+      const sb = document.getElementById("sidebar");
+      const sc = document.getElementById("scrim");
+      btn?.addEventListener("click", () => sb.classList.toggle("open"));
+      sc?.addEventListener("click", () => sb.classList.remove("open"));
+    </script>
+  </body>
+</html>

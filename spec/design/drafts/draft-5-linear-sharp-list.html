@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hollow — All notes</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-soft: #fafafa;
+        --bg-code: #f4f4f5;
+        --fg: #0e0e10;
+        --fg-muted: #6b6b73;
+        --fg-faint: #9a9aa3;
+        --border: #e6e6e7;
+        --border-strong: #d4d4d7;
+        --accent: #5e6ad2;
+        --accent-soft: #eef0fb;
+        --danger: #d4423e;
+        --ok: #2f9461;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+        --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans);
+        font-size: 13px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      a { color: inherit; text-decoration: none; }
+      button { font-family: inherit; }
+
+      /* ---------- HEADER ---------- */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        height: 52px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 14px;
+      }
+      .header::after {
+        content: "";
+        position: absolute;
+        left: 0; right: 0; bottom: -1px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(94,106,210,0.55) 30%, rgba(94,106,210,0.15) 70%, transparent 100%);
+        pointer-events: none;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        font-size: 14px;
+      }
+      .brand-mark {
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+        background: linear-gradient(135deg, #5e6ad2 0%, #3d47a8 100%);
+        position: relative;
+      }
+      .brand-mark::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border: 1.5px solid rgba(255,255,255,0.85);
+        border-radius: 1px;
+      }
+      .menu-btn {
+        display: none;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        border-radius: 4px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+      }
+      .menu-btn svg { width: 14px; height: 14px; }
+
+      .search {
+        flex: 1;
+        max-width: 420px;
+        height: 30px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px 0 10px;
+        background: var(--bg);
+        transition: border-color 120ms;
+      }
+      .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(94,106,210,0.12); }
+      .search svg { width: 13px; height: 13px; color: var(--fg-faint); flex-shrink: 0; }
+      .search input {
+        border: 0;
+        outline: 0;
+        background: transparent;
+        flex: 1;
+        height: 100%;
+        padding: 0 8px;
+        font: inherit;
+        color: var(--fg);
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .search input::placeholder { color: var(--fg-faint); font-family: var(--font-mono); }
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: 18px;
+        padding: 0 5px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        background: var(--bg-soft);
+        color: var(--fg-muted);
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 500;
+        line-height: 1;
+      }
+
+      .header-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .icon-btn {
+        height: 28px;
+        min-width: 28px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        color: var(--fg);
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 100ms, border-color 100ms;
+      }
+      .icon-btn:hover { background: var(--bg-soft); border-color: var(--border-strong); }
+      .icon-btn svg { width: 13px; height: 13px; }
+      .icon-btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .icon-btn.primary:hover { background: #4d59c4; border-color: #4d59c4; }
+      .icon-btn.primary .kbd {
+        background: rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.25);
+        color: #fff;
+      }
+      .icon-only {
+        width: 28px;
+        padding: 0;
+        justify-content: center;
+      }
+      .avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, #d4423e 0%, #8a2c2a 100%);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      /* ---------- LAYOUT ---------- */
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: calc(100vh - 52px);
+      }
+      .sidebar {
+        border-right: 1px solid var(--border);
+        background: var(--bg);
+        padding: 12px 0 28px;
+        overflow-y: auto;
+        height: calc(100vh - 52px);
+        position: sticky;
+        top: 52px;
+      }
+      .main { min-width: 0; display: flex; flex-direction: column; }
+
+      .sb-section {
+        padding: 14px 14px 6px;
+      }
+      .sb-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--fg-faint);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .sb-label .count { font-family: var(--font-mono); font-weight: 500; color: var(--fg-faint); }
+      .sb-list { list-style: none; margin: 4px 0 0; padding: 0; }
+      .sb-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 26px;
+        padding: 0 14px;
+        font-size: 12.5px;
+        color: var(--fg);
+        cursor: pointer;
+        position: relative;
+        border-left: 2px solid transparent;
+      }
+      .sb-item:hover { background: var(--bg-soft); border-left-color: var(--accent); }
+      .sb-item.active { background: var(--accent-soft); border-left-color: var(--accent); color: var(--accent); font-weight: 500; }
+      .sb-item svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--fg-muted); }
+      .sb-item.active svg { color: var(--accent); }
+      .sb-item .num {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-faint);
+      }
+      .sb-tree-indent { padding-left: 28px; }
+      .sb-tree-indent-2 { padding-left: 42px; }
+      .sb-tag-dot {
+        width: 7px; height: 7px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      /* ---------- MAIN ---------- */
+      .breadcrumb {
+        height: 40px;
+        border-bottom: 1px solid var(--border);
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        color: var(--fg-muted);
+        gap: 6px;
+      }
+      .breadcrumb strong { color: var(--fg); font-weight: 600; }
+      .breadcrumb .count {
+        font-family: var(--font-mono);
+        color: var(--fg-faint);
+      }
+      .breadcrumb .dot { color: var(--fg-faint); }
+
+      .filterbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .chip {
+        height: 26px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: var(--bg);
+        padding: 0 9px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .chip:hover { background: var(--bg-soft); }
+      .chip svg { width: 11px; height: 11px; color: var(--fg-muted); }
+      .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+      .chip-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+      }
+
+      .segmented {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+        height: 26px;
+        margin-left: auto;
+      }
+      .segmented button {
+        border: 0;
+        background: var(--bg);
+        height: 100%;
+        padding: 0 9px;
+        font-size: 11.5px;
+        color: var(--fg-muted);
+        cursor: pointer;
+        border-right: 1px solid var(--border);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .segmented button:last-child { border-right: 0; }
+      .segmented button.on { background: var(--bg-soft); color: var(--fg); font-weight: 500; }
+      .segmented svg { width: 12px; height: 12px; }
+
+      .list {
+        flex: 1;
+      }
+      .list-head, .list-row {
+        display: grid;
+        grid-template-columns: 22px minmax(220px, 1.4fr) minmax(0, 1.6fr) 220px 160px 110px 22px;
+        align-items: center;
+        gap: 10px;
+        padding: 0 18px;
+        height: 44px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12.5px;
+      }
+      .list-head {
+        height: 30px;
+        background: var(--bg-soft);
+        color: var(--fg-faint);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      .list-row { cursor: pointer; transition: background 80ms; }
+      .list-row:hover { background: var(--bg-soft); }
+      .list-row .ico {
+        width: 18px; height: 18px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fg-muted);
+        background: var(--bg);
+      }
+      .list-row .ico svg { width: 11px; height: 11px; }
+      .list-row .title {
+        font-weight: 550;
+        color: var(--fg);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: -0.005em;
+      }
+      .list-row .snippet {
+        color: var(--fg-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+      }
+      .tag-row {
+        display: flex;
+        gap: 4px;
+        overflow: hidden;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 18px;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--fg-muted);
+        background: var(--bg);
+        white-space: nowrap;
+      }
+      .tag::before {
+        content: "#";
+        color: var(--fg-faint);
+      }
+      .path {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .time {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--fg-faint);
+        text-align: right;
+      }
+      .state {
+        display: inline-flex;
+        width: 18px; height: 18px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
+      }
+      .state svg { width: 12px; height: 12px; }
+      .state.published { color: var(--ok); }
+      .state.draft { color: var(--fg-faint); }
+
+      /* ---------- STATUSBAR ---------- */
+      .statusbar {
+        position: sticky;
+        bottom: 0;
+        background: var(--bg);
+        border-top: 1px solid var(--border);
+        height: 28px;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 14px;
+        font-size: 11px;
+        color: var(--fg-muted);
+        font-family: var(--font-mono);
+      }
+      .statusbar .sep { color: var(--border-strong); }
+      .statusbar .right { margin-left: auto; }
+
+      /* ---------- RESPONSIVE ---------- */
+      .scrim {
+        display: none;
+        position: fixed;
+        inset: 52px 0 0 0;
+        background: rgba(14,14,16,0.35);
+        z-index: 20;
+      }
+
+      @media (max-width: 1024px) {
+        .list-head, .list-row {
+          grid-template-columns: 22px minmax(180px, 1.4fr) minmax(0, 1.4fr) 140px 100px 22px;
+        }
+        .col-path { display: none; }
+      }
+      @media (max-width: 768px) {
+        .menu-btn { display: inline-flex; }
+        .layout { grid-template-columns: 1fr; }
+        .sidebar {
+          position: fixed;
+          top: 52px;
+          bottom: 0;
+          left: 0;
+          width: 260px;
+          z-index: 21;
+          transform: translateX(-100%);
+          transition: transform 180ms ease;
+          height: auto;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .scrim.open { display: block; }
+        .header .kbd-search { display: none; }
+        .list-head, .list-row {
+          grid-template-columns: 22px 1fr 90px 22px;
+          height: 56px;
+          padding: 0 14px;
+        }
+        .col-snippet, .col-tags, .col-path { display: none; }
+        .header-actions .label-hide { display: none; }
+        .breadcrumb { padding: 0 14px; }
+        .filterbar { padding: 8px 14px; }
+        .search { max-width: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <button class="menu-btn" aria-label="menu" onclick="document.querySelector('.sidebar').classList.toggle('open');document.querySelector('.scrim').classList.toggle('open');">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+      </button>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <span>Hollow</span>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <input placeholder="search notes, tags, paths..." />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn icon-only" title="Filter">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M4 8h8M6 12h4"/></svg>
+        </button>
+        <button class="icon-btn icon-only" title="Notifications">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 12V7.5a4.5 4.5 0 119 0V12l1 1.5h-11L3.5 12z"/><path d="M6.5 14a1.5 1.5 0 003 0"/></svg>
+        </button>
+        <button class="icon-btn primary">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+          <span class="label-hide">New</span>
+          <span class="kbd">⌘N</span>
+        </button>
+        <div class="avatar">YH</div>
+      </div>
+    </header>
+
+    <div class="scrim" onclick="document.querySelector('.sidebar').classList.remove('open');this.classList.remove('open');"></div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sb-section">
+          <div class="sb-label">Views</div>
+          <ul class="sb-list">
+            <li class="sb-item active">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+              All notes <span class="num">127</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6"/></svg>
+              Recent <span class="num">12</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.8 4 4.2.6-3 3 .7 4.4L8 12 4.3 14l.7-4.4-3-3 4.2-.6z"/></svg>
+              Starred <span class="num">8</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8H2z"/><path d="M5 4V2.5h6V4"/></svg>
+              Drafts <span class="num">19</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-label">
+            <span>Directories</span>
+            <span class="count">14</span>
+          </div>
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Reading
+              <span class="num">42</span>
+            </li>
+            <li class="sb-item sb-tree-indent">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              論文
+              <span class="num">23</span>
+            </li>
+            <li class="sb-item sb-tree-indent-2">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              ML
+              <span class="num">11</span>
+            </li>
+            <li class="sb-item sb-tree-indent">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              書籍
+              <span class="num">19</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Journal
+              <span class="num">31</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Projects
+              <span class="num">28</span>
+            </li>
+            <li class="sb-item sb-tree-indent">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Hollow
+              <span class="num">14</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l1.5-1.5h3L8 4h6v8H2z"/></svg>
+              Inbox
+              <span class="num">7</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-label">
+            <span>Tags</span>
+            <span class="count">22</span>
+          </div>
+          <ul class="sb-list">
+            <li class="sb-item">
+              <span class="sb-tag-dot" style="background:#5e6ad2"></span>
+              architecture <span class="num">18</span>
+            </li>
+            <li class="sb-item">
+              <span class="sb-tag-dot" style="background:#d4423e"></span>
+              読書メモ <span class="num">14</span>
+            </li>
+            <li class="sb-item">
+              <span class="sb-tag-dot" style="background:#2f9461"></span>
+              typescript <span class="num">22</span>
+            </li>
+            <li class="sb-item">
+              <span class="sb-tag-dot" style="background:#c98a1d"></span>
+              research <span class="num">9</span>
+            </li>
+            <li class="sb-item">
+              <span class="sb-tag-dot" style="background:#8a4dbc"></span>
+              日記 <span class="num">31</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-label">Exports</div>
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13h10M8 2v8M5 7l3 3 3-3"/></svg>
+              Published <span class="num">23</span>
+            </li>
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1"/></svg>
+              Scheduled <span class="num">2</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sb-section">
+          <ul class="sb-list">
+            <li class="sb-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9"/></svg>
+              Trash <span class="num">3</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="breadcrumb">
+          <strong>All notes</strong>
+          <span class="dot">·</span>
+          <span class="count">127</span>
+          <span class="dot">·</span>
+          <span>updated 14:32 JST</span>
+        </div>
+
+        <div class="filterbar">
+          <button class="chip active">
+            <span class="chip-dot" style="background:var(--accent)"></span>
+            All types
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+          </button>
+          <button class="chip">
+            Directory: all
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+          </button>
+          <button class="chip">
+            Tags: 3
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+          </button>
+          <button class="chip">
+            Published
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+          </button>
+          <button class="chip">
+            Modified · 30d
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+          </button>
+          <div class="segmented">
+            <button class="on">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+              List
+            </button>
+            <button>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg>
+              Grid
+            </button>
+            <button>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="8" r="1.5"/><path d="M5.5 8h5"/></svg>
+              Graph
+            </button>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="list-head">
+            <div></div>
+            <div>Title</div>
+            <div class="col-snippet">Snippet</div>
+            <div class="col-tags">Tags</div>
+            <div class="col-path">Directory</div>
+            <div>Modified</div>
+            <div></div>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3"/></svg></span>
+            <div class="title">Hexagonal Architecture を Cloudflare Workers で実装する</div>
+            <div class="snippet col-snippet">依存方向を内向きに保ち、ポート / アダプター分離を D1 で…</div>
+            <div class="tag-row col-tags"><span class="tag">architecture</span><span class="tag">cf</span></div>
+            <div class="path col-path">Projects/Hollow</div>
+            <div class="time">2026-05-16 14:02</div>
+            <span class="state published" title="published"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8H2z"/><path d="M2 7h12"/></svg></span>
+            <div class="title">Domain Modeling Made Functional — 第3章 メモ</div>
+            <div class="snippet col-snippet">Make illegal states unrepresentable. 型で表現できないも…</div>
+            <div class="tag-row col-tags"><span class="tag">読書メモ</span><span class="tag">fp</span></div>
+            <div class="path col-path">Reading/書籍</div>
+            <div class="time">2026-05-16 11:48</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 13.5L9 7l3 3-6.5 6.5H2.5z" transform="translate(0 -2)"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10"/><circle cx="6" cy="7" r="1.5"/><path d="M2 11l3-3 3 3 2-2 4 4"/></svg></span>
+            <div class="title">2026-05-15 — Weekly Review</div>
+            <div class="snippet col-snippet">今週は Outbox relay のロック戦略を整理。リース有効期…</div>
+            <div class="tag-row col-tags"><span class="tag">日記</span><span class="tag">retro</span></div>
+            <div class="path col-path">Journal</div>
+            <div class="time">2026-05-15 22:11</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3"/><path d="M5 8h6M5 10.5h4"/></svg></span>
+            <div class="title">TypeScript の satisfies と型安全な DI コンテナ</div>
+            <div class="snippet col-snippet">as による強制ダウンキャストを使わず、 satisfies で型…</div>
+            <div class="tag-row col-tags"><span class="tag">typescript</span><span class="tag">di</span></div>
+            <div class="path col-path">Reading/論文/ML</div>
+            <div class="time">2026-05-14 09:32</div>
+            <span class="state published" title="published"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2v12l4-3 4 3V2z"/></svg></span>
+            <div class="title">『失われた時を求めて』スワン家の方へ — 抜粋</div>
+            <div class="snippet col-snippet">マドレーヌ。記憶。時間は線型ではなく層状。プルースト…</div>
+            <div class="tag-row col-tags"><span class="tag">読書メモ</span><span class="tag">literature</span></div>
+            <div class="path col-path">Reading/書籍</div>
+            <div class="time">2026-05-13 20:55</div>
+            <span class="state published" title="published"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 3v6l-5 3-5-3V5z"/><path d="M3 5l5 3 5-3M8 8v7"/></svg></span>
+            <div class="title">TanStack Start のサーバー関数とトランスポート境界</div>
+            <div class="snippet col-snippet">validateSearch と inputValidator の境界。serverData は…</div>
+            <div class="tag-row col-tags"><span class="tag">architecture</span><span class="tag">react</span></div>
+            <div class="path col-path">Projects/Hollow</div>
+            <div class="time">2026-05-12 17:20</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 11.5L9 5l3 3-6.5 6.5H2.5z"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10"/><path d="M2 6h12M5 3v10"/></svg></span>
+            <div class="title">Outbox パターンと at-least-once 配信の冪等性</div>
+            <div class="snippet col-snippet">consumer は idempotency-key で重複をはじく。ordering は…</div>
+            <div class="tag-row col-tags"><span class="tag">architecture</span><span class="tag">messaging</span></div>
+            <div class="path col-path">Projects/Hollow</div>
+            <div class="time">2026-05-12 09:08</div>
+            <span class="state published" title="published"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3"/></svg></span>
+            <div class="title">Attention Is All You Need — 再読メモ</div>
+            <div class="snippet col-snippet">2017 年の論文を今読み返す。Q/K/V の幾何学的解釈と…</div>
+            <div class="tag-row col-tags"><span class="tag">research</span><span class="tag">読書メモ</span></div>
+            <div class="path col-path">Reading/論文/ML</div>
+            <div class="time">2026-05-11 23:44</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 11.5L9 5l3 3-6.5 6.5H2.5z"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l2.5 1.5"/></svg></span>
+            <div class="title">2026-05-10 — 朝の散歩、紫陽花の青</div>
+            <div class="snippet col-snippet">梅雨入り前のひかり。色は記憶の中で少しずつ翻訳される…</div>
+            <div class="tag-row col-tags"><span class="tag">日記</span></div>
+            <div class="path col-path">Journal</div>
+            <div class="time">2026-05-10 08:02</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8H2z"/><path d="M5 4V2h6v2"/></svg></span>
+            <div class="title">Drizzle ORM のマイグレーション運用 (D1)</div>
+            <div class="snippet col-snippet">wrangler d1 migrations apply の冪等性、 prod / preview の…</div>
+            <div class="tag-row col-tags"><span class="tag">typescript</span><span class="tag">db</span></div>
+            <div class="path col-path">Projects/Hollow</div>
+            <div class="time">2026-05-09 16:13</div>
+            <span class="state published" title="published"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3"/></svg></span>
+            <div class="title">柄谷行人『力と交換様式』読書ノート (1)</div>
+            <div class="snippet col-snippet">交換様式 D の到来。贈与の高次回復としての普遍宗教…</div>
+            <div class="tag-row col-tags"><span class="tag">読書メモ</span></div>
+            <div class="path col-path">Reading/書籍</div>
+            <div class="time">2026-05-08 21:30</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 11.5L9 5l3 3-6.5 6.5H2.5z"/></svg></span>
+          </div>
+
+          <div class="list-row">
+            <span class="ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V4l3 4 3-4 3 4 3-4v8z"/></svg></span>
+            <div class="title">Inbox: 後で整理する断片メモ</div>
+            <div class="snippet col-snippet">- TanStack Form の validation コスト - Cloudflare Queues の…</div>
+            <div class="tag-row col-tags"><span class="tag">inbox</span></div>
+            <div class="path col-path">Inbox</div>
+            <div class="time">2026-05-07 10:00</div>
+            <span class="state draft" title="draft"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/></svg></span>
+          </div>
+        </div>
+
+        <div class="statusbar">
+          <span><span class="kbd">↑↓</span> navigate</span>
+          <span class="sep">·</span>
+          <span><span class="kbd">⏎</span> open</span>
+          <span class="sep">·</span>
+          <span><span class="kbd">⌘K</span> command</span>
+          <span class="sep">·</span>
+          <span><span class="kbd">N</span> new note</span>
+          <span class="right">127 notes · 23 published · sync ok</span>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

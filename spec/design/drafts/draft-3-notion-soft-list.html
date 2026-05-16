@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hollow — All notes</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --sidebar: #f7f6f3;
+    --hover: rgba(55, 53, 47, 0.08);
+    --hover-strong: rgba(55, 53, 47, 0.12);
+    --text: #37352f;
+    --text-muted: #787774;
+    --text-faint: #9b9a97;
+    --border-soft: #e9e9e7;
+    --chip: #f1f1ef;
+    --accent: #2383e2;
+    --shadow-sm: 0 1px 3px rgba(15, 15, 15, 0.04);
+    --shadow-md: 0 4px 14px rgba(15, 15, 15, 0.06);
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+      "Yu Gothic UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ===== Layout ===== */
+  .app {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 48px 1fr;
+    min-height: 100vh;
+  }
+  @media (min-width: 1024px) {
+    .app {
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: 48px 1fr;
+      grid-template-areas:
+        "sidebar header"
+        "sidebar main";
+    }
+    .header { grid-area: header; }
+    .sidebar { grid-area: sidebar; }
+    .main { grid-area: main; }
+  }
+
+  /* ===== Header ===== */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: var(--bg);
+    height: 48px;
+  }
+  .header-logo {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    padding: 0 8px;
+  }
+  .header-logo .dot {
+    width: 8px; height: 8px;
+    background: var(--text);
+    border-radius: 50%;
+    opacity: 0.85;
+  }
+  @media (min-width: 1024px) {
+    .header-logo { display: none; }
+  }
+  .menu-btn {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 0;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+  }
+  .menu-btn:hover { background: var(--hover); color: var(--text); }
+  @media (min-width: 1024px) { .menu-btn { display: none; } }
+
+  .search {
+    flex: 1;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--chip);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: background 120ms ease;
+  }
+  .search:hover { background: #ecebe9; }
+  .search input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font-family: inherit; font-size: 13px; color: var(--text);
+  }
+  .search kbd {
+    font-family: inherit; font-size: 11px; color: var(--text-faint);
+    background: var(--surface); padding: 1px 6px; border-radius: 3px;
+    box-shadow: inset 0 0 0 1px var(--border-soft);
+  }
+
+  .header-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px;
+    background: var(--surface);
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px; font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    transition: background 120ms ease;
+  }
+  .pill-btn:hover { background: #f4f3f1; }
+  .pill-btn .plus { color: var(--text-faint); font-weight: 400; }
+
+  .icon-btn {
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 0;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+
+  .avatar {
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, #ffd9b8 0%, #f5b08a 100%);
+    color: #6b3a1a;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    margin-left: 4px;
+    cursor: pointer;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    background: var(--sidebar);
+    padding: 8px 0 24px;
+    overflow-y: auto;
+    border-right: 0;
+    transition: transform 220ms ease;
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-md); }
+  @media (min-width: 1024px) {
+    .sidebar { position: static; transform: none; width: 260px; }
+  }
+  .sidebar-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .sidebar-brand .dot {
+    width: 18px; height: 18px;
+    background: linear-gradient(135deg, #37352f 0%, #5a554b 100%);
+    border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fbfbfa; font-size: 11px; font-weight: 700;
+  }
+  .sidebar-section {
+    padding: 4px 6px 10px;
+  }
+  .sidebar-label {
+    font-size: 11px; font-weight: 500;
+    color: var(--text-faint);
+    text-transform: none;
+    padding: 8px 10px 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sidebar-label .add {
+    margin-left: auto;
+    opacity: 0;
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-faint);
+    transition: opacity 120ms ease, background 120ms ease;
+  }
+  .sidebar-section:hover .add { opacity: 1; }
+  .sidebar-label .add:hover { background: var(--hover); color: var(--text); }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 8px 3px 8px;
+    margin: 0 4px;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--hover); }
+  .nav-item.active { background: var(--hover-strong); font-weight: 500; }
+  .nav-item .chev {
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-faint);
+    font-size: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .nav-item .chev:hover { background: var(--hover-strong); }
+  .nav-item .chev.empty { visibility: hidden; }
+  .nav-item .icon {
+    width: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .nav-item .label {
+    flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .nav-item .count {
+    font-size: 12px;
+    color: var(--text-faint);
+    padding: 0 4px;
+  }
+  .nav-children { padding-left: 14px; }
+
+  .scrim {
+    position: fixed; inset: 0;
+    background: rgba(15, 15, 15, 0.25);
+    z-index: 40;
+    opacity: 0; pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  @media (min-width: 1024px) { .scrim { display: none; } }
+
+  /* ===== Main ===== */
+  .main {
+    padding: 24px 20px 60px;
+    overflow-x: hidden;
+  }
+  @media (min-width: 768px) {
+    .main { padding: 40px 56px 80px; }
+  }
+  @media (min-width: 1024px) {
+    .main { padding: 56px 80px 100px; }
+  }
+  .page-head {
+    display: flex; align-items: flex-end; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .page-title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    margin: 0;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  @media (min-width: 768px) {
+    .page-title { font-size: 40px; }
+  }
+  .page-emoji { font-size: 32px; margin-right: 4px; }
+  @media (min-width: 768px) { .page-emoji { font-size: 40px; } }
+  .more-btn {
+    margin-left: auto;
+    width: 30px; height: 30px;
+    background: transparent; border: 0;
+    border-radius: var(--radius);
+    color: var(--text-faint);
+  }
+  .more-btn:hover { background: var(--hover); color: var(--text); }
+
+  .page-sub {
+    color: var(--text-muted); font-size: 14px;
+    margin-bottom: 22px;
+  }
+
+  /* Filter chips */
+  .filters {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--chip);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .chip:hover { background: #ecebe9; cursor: pointer; }
+  .chip.active { background: #e3eefb; color: #1f6fc6; }
+  .chip .x { color: var(--text-faint); margin-left: 2px; }
+  .chip-add {
+    background: transparent;
+    color: var(--text-faint);
+    border: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .chip-add:hover { background: var(--hover); color: var(--text); }
+
+  /* View toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .segment {
+    display: inline-flex;
+    background: var(--chip);
+    border-radius: var(--radius);
+    padding: 2px;
+  }
+  .segment button {
+    background: transparent; border: 0;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-radius: 4px;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .segment button.on {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+  .sort-btn {
+    background: transparent; border: 0;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-radius: var(--radius);
+  }
+  .sort-btn:hover { background: var(--hover); color: var(--text); }
+  .toolbar-right { margin-left: auto; display: flex; gap: 4px; }
+
+  /* Note cards */
+  .notes {
+    display: flex; flex-direction: column;
+    margin-top: 8px;
+  }
+  .note {
+    display: flex; flex-direction: column;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 100ms ease;
+    border-bottom: 1px solid transparent;
+  }
+  .note + .note { border-top: 1px solid var(--border-soft); }
+  .note:hover { background: var(--hover); border-bottom-color: transparent; }
+  .note:hover + .note { border-top-color: transparent; }
+  .note-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .note-icon { font-size: 16px; flex-shrink: 0; }
+  .note-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.005em;
+    flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pub-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e8f4ec;
+    color: #3e7a52;
+    flex-shrink: 0;
+  }
+  .pub-pill.private {
+    background: var(--chip);
+    color: var(--text-muted);
+  }
+  .note-snippet {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 2px 0 8px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .note-meta {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .note-meta .path {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-muted);
+  }
+  .tag-pill {
+    display: inline-flex; align-items: center;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--chip);
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .tag-pill.blue { background: #e3eefb; color: #1f6fc6; }
+  .tag-pill.green { background: #e6f3ea; color: #3e7a52; }
+  .tag-pill.pink { background: #fce8ec; color: #b8456a; }
+  .tag-pill.purple { background: #efe6f7; color: #6f4ba8; }
+  .tag-pill.amber { background: #fbf0d9; color: #97651a; }
+  .meta-dot { color: var(--text-faint); margin: 0 2px; }
+
+  .empty-hint {
+    margin-top: 36px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+
+    <label class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" placeholder="Search or ask anything…" />
+      <kbd>⌘ K</kbd>
+    </label>
+
+    <div class="header-actions">
+      <button class="pill-btn">
+        <span class="plus">＋</span> New page
+      </button>
+      <button class="icon-btn" aria-label="アップロード">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="通知">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </button>
+      <span class="avatar" title="ひかる">H</span>
+    </div>
+  </header>
+
+  <!-- Scrim for mobile -->
+  <div class="scrim" id="scrim"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="dot">H</span> Hollow
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">🔍</span>
+        <span class="label">Search</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">🏠</span>
+        <span class="label">Home</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">📥</span>
+        <span class="label">Inbox</span>
+        <span class="count">3</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">
+        Workspace
+        <span class="add" title="新規">＋</span>
+      </div>
+
+      <div class="nav-item">
+        <span class="chev">▾</span>
+        <span class="icon">📂</span>
+        <span class="label">Projects</span>
+      </div>
+      <div class="nav-children">
+        <div class="nav-item">
+          <span class="chev">▾</span>
+          <span class="icon">📂</span>
+          <span class="label">Q2 計画</span>
+        </div>
+        <div class="nav-children">
+          <div class="nav-item active">
+            <span class="chev empty">▸</span>
+            <span class="icon">📝</span>
+            <span class="label">戦略メモ</span>
+          </div>
+          <div class="nav-item">
+            <span class="chev empty">▸</span>
+            <span class="icon">📝</span>
+            <span class="label">OKR ドラフト</span>
+          </div>
+          <div class="nav-item">
+            <span class="chev empty">▸</span>
+            <span class="icon">📄</span>
+            <span class="label">budget.pdf</span>
+          </div>
+        </div>
+        <div class="nav-item">
+          <span class="chev">▸</span>
+          <span class="icon">📁</span>
+          <span class="label">Hollow リリース準備</span>
+        </div>
+        <div class="nav-item">
+          <span class="chev">▸</span>
+          <span class="icon">📁</span>
+          <span class="label">採用</span>
+        </div>
+      </div>
+
+      <div class="nav-item">
+        <span class="chev">▸</span>
+        <span class="icon">📁</span>
+        <span class="label">Reading notes</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev">▾</span>
+        <span class="icon">📂</span>
+        <span class="label">Journal</span>
+      </div>
+      <div class="nav-children">
+        <div class="nav-item">
+          <span class="chev empty">▸</span>
+          <span class="icon">📝</span>
+          <span class="label">2026-05-15</span>
+        </div>
+        <div class="nav-item">
+          <span class="chev empty">▸</span>
+          <span class="icon">📝</span>
+          <span class="label">2026-05-14</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <span class="chev">▸</span>
+        <span class="icon">📁</span>
+        <span class="label">Recipes 🍳</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">✨ Saved Views</div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">⭐</span>
+        <span class="label">Favorites</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">🌐</span>
+        <span class="label">Published only</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">🕒</span>
+        <span class="label">Recently edited</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">🏷 Tags</div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon" style="color:#1f6fc6;">●</span>
+        <span class="label">#work</span>
+        <span class="count">28</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon" style="color:#3e7a52;">●</span>
+        <span class="label">#idea</span>
+        <span class="count">14</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon" style="color:#b8456a;">●</span>
+        <span class="label">#reading</span>
+        <span class="count">9</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon" style="color:#97651a;">●</span>
+        <span class="label">#日記</span>
+        <span class="count">42</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">🗑</span>
+        <span class="label">Trash</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">📤</span>
+        <span class="label">Exports</span>
+      </div>
+      <div class="nav-item">
+        <span class="chev empty">▸</span>
+        <span class="icon">⚙️</span>
+        <span class="label">Settings</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-head">
+      <span class="page-emoji">📚</span>
+      <h1 class="page-title">All notes</h1>
+      <button class="more-btn" aria-label="メニュー">⋯</button>
+    </div>
+    <div class="page-sub">128 ノート · 最終更新 2 分前</div>
+
+    <!-- Filter chips -->
+    <div class="filters">
+      <span class="chip active">📁 Projects <span class="x">×</span></span>
+      <span class="chip">🏷 #work</span>
+      <span class="chip">🌐 Published</span>
+      <span class="chip">🗓 This month</span>
+      <button class="chip-add">＋ Add filter</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="segment" role="tablist">
+        <button class="on" aria-pressed="true">☰ List</button>
+        <button aria-pressed="false">▦ Tile</button>
+        <button aria-pressed="false">🗓 Calendar</button>
+      </div>
+      <div class="toolbar-right">
+        <button class="sort-btn">↕ Modified</button>
+        <button class="sort-btn">⋯</button>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📝</span>
+          <span class="note-title">Q2 戦略メモ — リリース後の優先順位</span>
+          <span class="pub-pill">🌐 Published</span>
+        </div>
+        <p class="note-snippet">
+          GA リリース後の最初の四半期で、何にフォーカスし、何を意図的に後回しにするかを整理する。コア体験の磨き込みと、ベータからの上位 5 ユースケースの定着を最優先に置く。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Projects / Q2 計画</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill blue">#work</span>
+          <span class="tag-pill amber">#strategy</span>
+          <span class="meta-dot">·</span>
+          <span>2 hours ago</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📝</span>
+          <span class="note-title">Reading: 『達人プログラマー』第 1〜3 章</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          石を積むのではなく、大聖堂を建てる。Broken Windows と Stone Soup の喩えが特に響いた。日々のコードベースで割れた窓を見つけたら、その場で直すかチケット化するか、必ず判断する習慣を持ちたい。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Reading notes</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill pink">#reading</span>
+          <span class="tag-pill green">#idea</span>
+          <span class="meta-dot">·</span>
+          <span>Yesterday</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📄</span>
+          <span class="note-title">budget-2026Q2.pdf — 変換結果</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          四半期予算の内訳。エンジニアリング投資が前期比 +18%、マーケティングは据え置き。粗利率の見通しに対するシナリオを 3 種類用意している。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Projects / Q2 計画</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill blue">#work</span>
+          <span class="tag-pill purple">#finance</span>
+          <span class="meta-dot">·</span>
+          <span>2 days ago</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📝</span>
+          <span class="note-title">Hollow ランディングページのコピー案</span>
+          <span class="pub-pill">🌐 Published</span>
+        </div>
+        <p class="note-snippet">
+          「散らかった頭の中に、静かな置き場所を。」 を中心に、3 つの代替案を検討する。ヒーローセクションは "calm storage for a noisy mind" のような英語版も A/B で試したい。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Projects / Hollow リリース準備</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill blue">#work</span>
+          <span class="tag-pill green">#copy</span>
+          <span class="meta-dot">·</span>
+          <span>3 days ago</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">🎙</span>
+          <span class="note-title">音声メモ: 散歩中の思いつき (4 分 12 秒)</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          ノートを "場所" として捉え直すと、検索ではなく "歩いて辿り着く" インタラクションになるのではないか。サイドバーのフォルダ階層は、その意味で地形に近い。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Journal</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill amber">#日記</span>
+          <span class="tag-pill green">#idea</span>
+          <span class="meta-dot">·</span>
+          <span>4 days ago</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📝</span>
+          <span class="note-title">採用: ジュニア〜ミドルエンジニア募集要項 v3</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          技術スタック (TS / TanStack / Cloudflare) と、必須/歓迎スキルの境界を見直し。"DDD への興味" を歓迎条件に。応募導線は GitHub Issues 経由をやめてフォームに統一する。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Projects / 採用</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill blue">#work</span>
+          <span class="tag-pill purple">#hiring</span>
+          <span class="meta-dot">·</span>
+          <span>Last week</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">🖼</span>
+          <span class="note-title">スクリーンショット集: 競合の検索 UX</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          Notion / Linear / Obsidian / Bear の Quick Switcher を並べて観察。共通する "結果に着地する前に context が見える" パターンと、各社の差別点を整理。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Reading notes</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill pink">#reading</span>
+          <span class="tag-pill green">#ux</span>
+          <span class="meta-dot">·</span>
+          <span>Last week</span>
+        </div>
+      </article>
+
+      <article class="note">
+        <div class="note-head">
+          <span class="note-icon">📝</span>
+          <span class="note-title">Sunday journal — 5 月の振り返り</span>
+          <span class="pub-pill private">🔒 Private</span>
+        </div>
+        <p class="note-snippet">
+          5 月にやったこと、やらなかったこと、それぞれの理由。"忙しさ" と "進捗" を意図的に分けて書く練習。
+        </p>
+        <div class="note-meta">
+          <span class="path">📁 Journal</span>
+          <span class="meta-dot">·</span>
+          <span class="tag-pill amber">#日記</span>
+          <span class="meta-dot">·</span>
+          <span>2 weeks ago</span>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="empty-hint">— ここまで · さらに 120 件のノート —</div>
+
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById("menuBtn");
+  const sidebar = document.getElementById("sidebar");
+  const scrim = document.getElementById("scrim");
+  function open() { sidebar.classList.add("open"); scrim.classList.add("show"); }
+  function close() { sidebar.classList.remove("open"); scrim.classList.remove("show"); }
+  menuBtn.addEventListener("click", open);
+  scrim.addEventListener("click", close);
+</script>
+</body>
+</html>
