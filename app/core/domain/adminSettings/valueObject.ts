@@ -1,0 +1,342 @@
+import { BusinessRuleError } from "@/core/domain/error";
+import { AdminSettingsErrorCode } from "./errorCode";
+
+declare const userIdBrand: unique symbol;
+
+/**
+ * Owner id for `UserPromptOverride`. Authoritative `UserId` lives in the
+ * identity domain (not yet implemented in this template). Mirrored here as
+ * an opaque, non-empty string so the adminSettings domain can be built
+ * standalone — once `identity` lands, this brand can be aliased to its
+ * canonical type without touching call sites.
+ */
+export type UserId = string & { readonly [userIdBrand]: true };
+
+export const UserId = {
+  create: (id: string): UserId => {
+    const trimmed = id.trim();
+    if (trimmed.length === 0) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidUserId,
+        "Invalid user id",
+      );
+    }
+    return trimmed as UserId;
+  },
+};
+
+// ---------- PromptPurpose ----------
+
+const PROMPT_PURPOSES = [
+  "structure",
+  "title",
+  "directory",
+  "metadata",
+  "ocr_assist",
+] as const;
+
+export type PromptPurpose = (typeof PROMPT_PURPOSES)[number];
+
+export const PromptPurpose = {
+  values: PROMPT_PURPOSES,
+  create: (raw: string): PromptPurpose => {
+    if (!(PROMPT_PURPOSES as readonly string[]).includes(raw)) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidPromptPurpose,
+        `Invalid prompt purpose: ${raw}`,
+      );
+    }
+    return raw as PromptPurpose;
+  },
+};
+
+// ---------- PromptTemplate ----------
+
+const PROMPT_TEMPLATE_MAX_BYTES = 16 * 1024; // 16 KiB
+const PROMPT_VARIABLE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const PROMPT_PLACEHOLDER_REGEX = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+
+declare const promptTemplateBrand: unique symbol;
+
+export type PromptTemplate = Readonly<{
+  text: string;
+  expectedVariables: readonly string[];
+}> & { readonly [promptTemplateBrand]: true };
+
+function byteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
+function extractPlaceholders(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const match of text.matchAll(PROMPT_PLACEHOLDER_REGEX)) {
+    found.add(match[1]);
+  }
+  return found;
+}
+
+export const PromptTemplate = {
+  create: (params: {
+    text: string;
+    expectedVariables: readonly string[];
+  }): PromptTemplate => {
+    const text = params.text;
+    if (byteLength(text) > PROMPT_TEMPLATE_MAX_BYTES) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.PromptTemplateTooLarge,
+        `Prompt template exceeds maximum size (${PROMPT_TEMPLATE_MAX_BYTES} bytes)`,
+      );
+    }
+    const expected = [...new Set(params.expectedVariables)];
+    for (const name of expected) {
+      if (!PROMPT_VARIABLE_NAME_REGEX.test(name)) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.PromptTemplateInvalidVariableName,
+          `Invalid prompt variable name: ${name}`,
+        );
+      }
+    }
+    const expectedSet = new Set(expected);
+    const placeholders = extractPlaceholders(text);
+    for (const used of placeholders) {
+      if (!expectedSet.has(used)) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.PromptTemplateVariableMismatch,
+          `Prompt template references unknown variable: {{${used}}}`,
+        );
+      }
+    }
+    return {
+      text,
+      expectedVariables: expected,
+    } as unknown as PromptTemplate;
+  },
+};
+
+// ---------- LLMConfig ----------
+
+const LLM_MODEL_MAX_LENGTH = 120;
+const LLM_PROVIDERS = ["anthropic"] as const;
+const LLM_API_KEY_SOURCES = ["env", "db"] as const;
+
+export type LLMProvider = (typeof LLM_PROVIDERS)[number];
+export type LLMApiKeySource = (typeof LLM_API_KEY_SOURCES)[number];
+
+declare const llmConfigBrand: unique symbol;
+
+export type LLMConfig = Readonly<{
+  provider: LLMProvider;
+  model: string;
+  apiKeySource: LLMApiKeySource;
+  apiKeyCiphertext: string | null;
+}> & { readonly [llmConfigBrand]: true };
+
+export const LLMConfig = {
+  providers: LLM_PROVIDERS,
+  apiKeySources: LLM_API_KEY_SOURCES,
+  create: (params: {
+    provider: string;
+    model: string;
+    apiKeySource: string;
+    apiKeyCiphertext: string | null;
+  }): LLMConfig => {
+    if (!(LLM_PROVIDERS as readonly string[]).includes(params.provider)) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidLLMProvider,
+        `Invalid LLM provider: ${params.provider}`,
+      );
+    }
+    const model = params.model.trim();
+    if (model.length === 0) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidLLMModel,
+        "LLM model cannot be empty",
+      );
+    }
+    if (model.length > LLM_MODEL_MAX_LENGTH) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidLLMModelTooLong,
+        `LLM model exceeds maximum length (${LLM_MODEL_MAX_LENGTH})`,
+      );
+    }
+    if (
+      !(LLM_API_KEY_SOURCES as readonly string[]).includes(params.apiKeySource)
+    ) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidLLMApiKeySource,
+        `Invalid api key source: ${params.apiKeySource}`,
+      );
+    }
+    const source = params.apiKeySource as LLMApiKeySource;
+    let ciphertext: string | null;
+    if (source === "db") {
+      if (
+        params.apiKeyCiphertext === null ||
+        params.apiKeyCiphertext.trim().length === 0
+      ) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+          "apiKeyCiphertext is required when apiKeySource is 'db'",
+        );
+      }
+      ciphertext = params.apiKeyCiphertext;
+    } else {
+      if (params.apiKeyCiphertext !== null) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+          "apiKeyCiphertext must be null when apiKeySource is 'env'",
+        );
+      }
+      ciphertext = null;
+    }
+    return {
+      provider: params.provider as LLMProvider,
+      model,
+      apiKeySource: source,
+      apiKeyCiphertext: ciphertext,
+    } as unknown as LLMConfig;
+  },
+};
+
+// ---------- DesignTokens ----------
+
+const DESIGN_TOKEN_KEY_REGEX = /^--[a-z0-9-]+$/;
+const DESIGN_TOKEN_MAX_ENTRIES = 200;
+const DESIGN_TOKEN_VALUE_MAX_LENGTH = 512;
+// Forbid characters that break CSS declarations (newlines, `;`, `{`, `}`).
+// Properly-escaped sequences such as `\3a ` remain valid because backslash
+// itself is not in the deny-list.
+const DESIGN_TOKEN_VALUE_FORBIDDEN = /[\n\r;{}]/;
+
+declare const designTokensBrand: unique symbol;
+
+export type DesignTokens = Readonly<{
+  tokens: Readonly<Record<string, string>>;
+}> & { readonly [designTokensBrand]: true };
+
+export const DesignTokens = {
+  empty: (): DesignTokens =>
+    ({ tokens: Object.freeze({}) }) as unknown as DesignTokens,
+  create: (params: { tokens: Record<string, string> }): DesignTokens => {
+    const entries = Object.entries(params.tokens);
+    if (entries.length > DESIGN_TOKEN_MAX_ENTRIES) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.DesignTokensTooMany,
+        `Design tokens exceed maximum entries (${DESIGN_TOKEN_MAX_ENTRIES})`,
+      );
+    }
+    const out: Record<string, string> = {};
+    for (const [key, value] of entries) {
+      if (!DESIGN_TOKEN_KEY_REGEX.test(key)) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidDesignTokenKey,
+          `Invalid design token key: ${key}`,
+        );
+      }
+      if (
+        typeof value !== "string" ||
+        value.length === 0 ||
+        value.length > DESIGN_TOKEN_VALUE_MAX_LENGTH ||
+        DESIGN_TOKEN_VALUE_FORBIDDEN.test(value)
+      ) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidDesignTokenValue,
+          `Invalid design token value for key ${key}`,
+        );
+      }
+      out[key] = value;
+    }
+    return { tokens: Object.freeze(out) } as unknown as DesignTokens;
+  },
+};
+
+// ---------- RegistrationPolicy ----------
+
+const REGISTRATION_CLOSED_REASON_MAX_LENGTH = 500;
+
+declare const registrationPolicyBrand: unique symbol;
+
+export type RegistrationPolicy = Readonly<{
+  open: boolean;
+  closedReason: string | null;
+}> & { readonly [registrationPolicyBrand]: true };
+
+export const RegistrationPolicy = {
+  create: (params: {
+    open: boolean;
+    closedReason: string | null;
+  }): RegistrationPolicy => {
+    let reason: string | null = null;
+    if (params.closedReason !== null) {
+      const trimmed = params.closedReason.trim();
+      if (trimmed.length === 0) {
+        reason = null;
+      } else {
+        if (trimmed.length > REGISTRATION_CLOSED_REASON_MAX_LENGTH) {
+          throw new BusinessRuleError(
+            AdminSettingsErrorCode.InvalidRegistrationClosedReason,
+            `Registration closedReason exceeds maximum length (${REGISTRATION_CLOSED_REASON_MAX_LENGTH})`,
+          );
+        }
+        reason = trimmed;
+      }
+    }
+    // When registration is open, a `closedReason` is meaningless. Drop it
+    // rather than reject so callers can hand back the previous reason
+    // verbatim when flipping the toggle.
+    if (params.open) {
+      reason = null;
+    }
+    return {
+      open: params.open,
+      closedReason: reason,
+    } as unknown as RegistrationPolicy;
+  },
+};
+
+// ---------- InstanceLimits ----------
+
+declare const instanceLimitsBrand: unique symbol;
+
+export type InstanceLimits = Readonly<{
+  maxUploadBytesPerDay: number;
+  maxIngestionBytes: number;
+  maxNoteBytes: number;
+  maxExportArtifactBytes: number;
+  maxShareLinksPerNote: number;
+  editLockTtlSec: number;
+  trashRetentionDays: number;
+}> & { readonly [instanceLimitsBrand]: true };
+
+function ensurePositiveInteger(field: string, value: number): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new BusinessRuleError(
+      AdminSettingsErrorCode.InvalidInstanceLimit,
+      `Invalid instance limit ${field}: ${value}`,
+    );
+  }
+}
+
+export const InstanceLimits = {
+  create: (params: {
+    maxUploadBytesPerDay: number;
+    maxIngestionBytes: number;
+    maxNoteBytes: number;
+    maxExportArtifactBytes: number;
+    maxShareLinksPerNote: number;
+    editLockTtlSec: number;
+    trashRetentionDays: number;
+  }): InstanceLimits => {
+    ensurePositiveInteger("maxUploadBytesPerDay", params.maxUploadBytesPerDay);
+    ensurePositiveInteger("maxIngestionBytes", params.maxIngestionBytes);
+    ensurePositiveInteger("maxNoteBytes", params.maxNoteBytes);
+    ensurePositiveInteger(
+      "maxExportArtifactBytes",
+      params.maxExportArtifactBytes,
+    );
+    ensurePositiveInteger("maxShareLinksPerNote", params.maxShareLinksPerNote);
+    ensurePositiveInteger("editLockTtlSec", params.editLockTtlSec);
+    ensurePositiveInteger("trashRetentionDays", params.trashRetentionDays);
+    return { ...params } as unknown as InstanceLimits;
+  },
+};

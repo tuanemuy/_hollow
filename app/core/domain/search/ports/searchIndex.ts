@@ -1,0 +1,69 @@
+import type { NoteId } from "@/core/domain/note/valueObject";
+import type { SearchDocument } from "../entity";
+import type { SearchCursor, SearchHit, SearchQuery } from "../valueObject";
+
+/**
+ * Result page returned by `SearchIndex.query`.
+ *
+ * `nextCursor === null` means the caller has reached the end of the
+ * matching set. The cursor encoding is opaque to the domain — the
+ * adapter owns it.
+ */
+export type SearchQueryResult = Readonly<{
+  hits: readonly SearchHit[];
+  nextCursor: SearchCursor | null;
+}>;
+
+/**
+ * Port over the underlying search engine.
+ *
+ * The Search domain treats the index as an external read-modify-write
+ * store; there is no OCC because the index is a derived projection and
+ * the upstream Note domain can always rebuild it. Adapters translate
+ * driver-level failures into the domain-visible errors
+ * `SearchIndexUnavailableError` and `SearchTimeoutError`.
+ *
+ * `bulkRebuildFromSnapshots` is used by the rebuild worker after
+ * schema changes; the adapter implementation streams the iterable so a
+ * full rebuild does not need to materialise the corpus in memory.
+ */
+export interface SearchIndex {
+  upsert(doc: SearchDocument): Promise<void>;
+  delete(noteId: NoteId): Promise<void>;
+  query(q: SearchQuery): Promise<SearchQueryResult>;
+  bulkRebuildFromSnapshots(
+    documents: AsyncIterable<SearchDocument>,
+  ): Promise<void>;
+}
+
+/**
+ * Raised by adapter implementations when the underlying search
+ * engine is unreachable. Distinguished from `SearchTimeoutError` so the
+ * caller can decide whether to fail open or fall back to a degraded
+ * read path.
+ */
+export class SearchIndexUnavailableError extends Error {
+  override readonly name = "SearchIndexUnavailableError";
+  constructor(message: string, cause?: unknown) {
+    super(message, cause !== undefined ? { cause } : undefined);
+  }
+}
+
+export class SearchTimeoutError extends Error {
+  override readonly name = "SearchTimeoutError";
+  constructor(message: string, cause?: unknown) {
+    super(message, cause !== undefined ? { cause } : undefined);
+  }
+}
+
+export function isSearchIndexUnavailableError(
+  error: unknown,
+): error is SearchIndexUnavailableError {
+  return error instanceof SearchIndexUnavailableError;
+}
+
+export function isSearchTimeoutError(
+  error: unknown,
+): error is SearchTimeoutError {
+  return error instanceof SearchTimeoutError;
+}

@@ -1,0 +1,27 @@
+export const NoteErrorCode = {
+  InvalidId: "NOTE_INVALID_ID",
+  SlugEmpty: "NOTE_SLUG_EMPTY",
+  SlugTooLong: "NOTE_SLUG_TOO_LONG",
+  InvalidSlug: "NOTE_INVALID_SLUG",
+  TitleEmpty: "NOTE_TITLE_EMPTY",
+  TitleTooLong: "NOTE_TITLE_TOO_LONG",
+  ContentTooLarge: "NOTE_CONTENT_TOO_LARGE",
+  InvalidStatus: "NOTE_INVALID_STATUS",
+  FrontMatterKeyInvalid: "NOTE_FRONT_MATTER_KEY_INVALID",
+  FrontMatterTooDeep: "NOTE_FRONT_MATTER_TOO_DEEP",
+  FrontMatterTooLarge: "NOTE_FRONT_MATTER_TOO_LARGE",
+  FrontMatterInvalidValue: "NOTE_FRONT_MATTER_INVALID_VALUE",
+  InternalLinkInvalidKind: "NOTE_INTERNAL_LINK_INVALID_KIND",
+  InternalLinkInvalidTarget: "NOTE_INTERNAL_LINK_INVALID_TARGET",
+  EditLockInvalidExpiry: "NOTE_EDIT_LOCK_INVALID_EXPIRY",
+  EditLockTtlTooLong: "NOTE_EDIT_LOCK_TTL_TOO_LONG",
+  EditLockedByOther: "edit_locked_by_other",
+  CannotMoveTrashed: "note_cannot_move_trashed",
+  AlreadyTrashed: "note_already_trashed",
+  NotTrashed: "note_not_trashed",
+  ReleaseNotOwner: "note_release_not_owner",
+  ExtendNotOwner: "note_extend_not_owner",
+  MediaNotOwned: "media_not_owned",
+} as const;
+
+export type NoteErrorCode = (typeof NoteErrorCode)[keyof typeof NoteErrorCode];
