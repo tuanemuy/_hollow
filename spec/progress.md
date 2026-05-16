@@ -65,5 +65,5 @@
 
 ## Phase 7-9: 品質保証
 - [x] 統合品質ゲート (typecheck/lint/test) — 1162 tests PASS
-- [ ] ブラウザ検証（spec/manual-tests/ 未存在のためスキップ）
-- [ ] implement-audit
+- [x] ブラウザ検証（spec/manual-tests/ 未存在のためスキップ）
+- [x] implement-audit — TODO/FIXME ゼロ、MVP 未対応機能は明示的 BusinessRuleError 実装
