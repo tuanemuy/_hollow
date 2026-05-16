@@ -1,0 +1,59 @@
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import type { MediaAssetId } from "@/core/domain/media/valueObject";
+import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { loadServerDeps } from "@/core/presentation/serverAction";
+import { validateInput } from "@/core/presentation/validator";
+
+/**
+ * Resolve `/media/<id>` to a short-lived R2 presigned download URL via
+ * a 302 redirect.
+ *
+ * The `<img src="/media/<id>">` form is what `MEDIA_ID_FROM_URL`
+ * (in `core/domain/note/service.ts`) recognises when computing
+ * `MediaService.reconcileRefs`. Inserting R2 direct URLs into note
+ * bodies would silently break refCount accounting and lead to
+ * `PurgeOrphans` deletions of in-use assets — see ADR-009 for
+ * background.
+ */
+const resolveMediaRedirect = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(z.object({ mediaId: z.string().min(1) })))
+  .handler(async ({ data }) => {
+    const { getCurrentUser } = await import("@/lib/server/currentUser");
+    const viewer = await getCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/media/downloadMedia"),
+    );
+    const result = await module.downloadMedia({
+      container,
+      input: {
+        viewerUserId: viewer === null ? null : viewer.id,
+        mediaId: data.mediaId as MediaAssetId,
+        viaShareLinkId: null,
+        relatedNoteId: null,
+      },
+    });
+    throw redirect({ href: result.redirectUrl.toString(), statusCode: 302 });
+  });
+
+export const Route = createFileRoute("/media/$mediaId")({
+  loader: ({ params }) =>
+    resolveMediaRedirect({ data: { mediaId: params.mediaId } }),
+  component: MediaRedirectPlaceholder,
+  errorComponent: ({ error }) => (
+    <div role="alert">
+      <h1>メディアを取得できません</h1>
+      <pre>{sanitizeRouteError(error)}</pre>
+    </div>
+  ),
+});
+
+// Loader always throws a redirect on success, so this component is only
+// reachable while the redirect is in flight (or when the user navigated
+// here client-side and the loader is being awaited).
+function MediaRedirectPlaceholder() {
+  return null;
+}

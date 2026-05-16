@@ -1,0 +1,95 @@
+import { notFound } from "@tanstack/react-router";
+import type { UserDTO } from "@/core/application/dto/identity";
+import type { NoteId } from "@/core/application/dto/note";
+import { isNotFoundError } from "@/core/application/errors";
+import {
+  loadAllTags,
+  loadDirectoryTreeFlat,
+  loadNoteDetail,
+  loadPublishStateForNote,
+} from "../loaders";
+import { FrontMatterPanel } from "./FrontMatterPanel";
+import { NoteActions } from "./NoteActions";
+import { NoteMetaPanel } from "./NoteMetaPanel";
+
+/**
+ * Server async component for the note detail page (P11).
+ *
+ * Resolves note detail, publication state, the owner directory tree
+ * and the tag dictionary in parallel via `Promise.all`, then assembles
+ * the view-model passed to the pure presentation panels.
+ *
+ * `loadNoteDetail` already returns the directory path; the tree is
+ * loaded separately because `NoteActions`' move dialog needs the full
+ * flattened tree as `<select>` options.
+ */
+export type NoteDetailProps = Readonly<{
+  user: UserDTO;
+  noteId: NoteId;
+}>;
+
+export async function NoteDetail({ user, noteId }: NoteDetailProps) {
+  const noteIdStr = noteId as unknown as string;
+
+  let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
+  let publishState: Awaited<ReturnType<typeof loadPublishStateForNote>>;
+  let tree: Awaited<ReturnType<typeof loadDirectoryTreeFlat>>;
+  let tags: Awaited<ReturnType<typeof loadAllTags>>;
+
+  try {
+    [detail, publishState, tree, tags] = await Promise.all([
+      loadNoteDetail({ actorUserId: user.id, noteId }),
+      loadPublishStateForNote({ actorUserId: user.id, noteId: noteIdStr }),
+      loadDirectoryTreeFlat({ actorUserId: user.id }),
+      loadAllTags({ actorUserId: user.id }),
+    ]);
+  } catch (e) {
+    if (isNotFoundError(e)) throw notFound();
+    throw e;
+  }
+
+  const { note, backlinks, directoryPath } = detail;
+
+  const tagNames = note.tagIds
+    .map((id) => tags.byId.get(id as unknown as string))
+    .filter((name): name is string => name !== undefined);
+
+  const firstActiveLink =
+    publishState.links.find((l) => l.status === "active") ?? null;
+  const publicShareUrl = firstActiveLink === null ? null : firstActiveLink.url;
+
+  return (
+    <article className="note-detail">
+      <header>
+        <h1 className="page-title">{note.title}</h1>
+      </header>
+
+      <NoteMetaPanel
+        createdAt={note.createdAt}
+        updatedAt={note.updatedAt}
+        directoryPath={directoryPath}
+        tagNames={tagNames}
+        visibility={publishState.visibility}
+        publishedAt={publishState.publishedAt}
+        status={note.status}
+        backlinks={backlinks}
+      />
+
+      <NoteActions
+        noteId={note.id}
+        status={note.status}
+        visibility={publishState.visibility}
+        publicShareUrl={publicShareUrl}
+        tree={tree.flat}
+      />
+
+      <div
+        className="note-detail-content"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
+        dangerouslySetInnerHTML={{ __html: note.contentHtml }}
+      />
+
+      <FrontMatterPanel frontMatter={note.frontMatter} />
+    </article>
+  );
+}

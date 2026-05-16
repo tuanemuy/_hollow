@@ -1,0 +1,209 @@
+import type { IdGenerator } from "@/core/application/ports/idGenerator";
+import { BusinessRuleError } from "@/core/domain/error";
+import type { UserId } from "@/core/domain/identity/valueObject";
+import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
+import type { NoteId } from "@/core/domain/note/valueObject";
+import { type ChildDirectory, Directory, type RootDirectory } from "./entity";
+import { DirectoryErrorCode } from "./errorCode";
+import type { DirectoryRepository } from "./ports/directoryRepository";
+import {
+  type DirectoryId,
+  type DirectoryName,
+  DirectoryPath,
+  type DirectorySlug,
+} from "./valueObject";
+
+/**
+ * Domain service for hierarchy-spanning invariants.
+ *
+ * Each method is a static helper rather than a class so the service
+ * stays pure-functional and trivially mockable. Aggregate-level
+ * invariants (depth, ownership of a single node) live on the entity;
+ * cross-aggregate / cross-tree invariants land here.
+ */
+export const DirectoryService = {
+  /**
+   * Reject creating / renaming / moving a directory into a parent that
+   * already holds a sibling with the same case-insensitive name. The
+   * lookup is delegated to the repository because the existing siblings
+   * are not part of any aggregate the caller holds.
+   *
+   * `exceptId` is non-null for rename / move flows so the node being
+   * mutated does not match itself.
+   */
+  async assertSiblingNameUnique(
+    parentId: DirectoryId | null,
+    ownerId: UserId,
+    name: DirectoryName,
+    exceptId: DirectoryId | null,
+    repo: DirectoryRepository,
+  ): Promise<void> {
+    const existing = await repo.findBySiblingName(parentId, ownerId, name);
+    if (existing === null) {
+      return;
+    }
+    if (exceptId !== null && existing.id === exceptId) {
+      return;
+    }
+    throw new BusinessRuleError(
+      DirectoryErrorCode.NameConflict,
+      `Sibling directory named "${name}" already exists`,
+    );
+  },
+
+  /**
+   * Reject moves that would create a cycle — i.e. when `newParent` is
+   * `target` itself or any of its descendants. We walk `newParent`'s
+   * ancestor chain because ancestors are bounded by depth, whereas the
+   * descendant set is unbounded.
+   */
+  async assertNotCyclicMove(
+    target: Directory,
+    newParent: Directory,
+    repo: DirectoryRepository,
+  ): Promise<void> {
+    if (newParent.id === target.id) {
+      throw new BusinessRuleError(
+        DirectoryErrorCode.CyclicMove,
+        "Cannot move a directory under itself",
+      );
+    }
+    const ancestors = await repo.findAncestors(newParent.id);
+    for (const ancestor of ancestors) {
+      if (ancestor.id === target.id) {
+        throw new BusinessRuleError(
+          DirectoryErrorCode.CyclicMove,
+          "Cannot move a directory under one of its descendants",
+        );
+      }
+    }
+  },
+
+  /**
+   * Build the `/`-delimited display path by walking from root to `dir`.
+   * The root directory's slug is empty so the result for a node at
+   * depth 2 looks like `/parent-slug/child-slug`.
+   */
+  async computePath(
+    dir: Directory,
+    repo: DirectoryRepository,
+  ): Promise<DirectoryPath> {
+    if (Directory.isRoot(dir)) {
+      return DirectoryPath.root();
+    }
+    const ancestors = await repo.findAncestors(dir.id);
+    const segments: DirectorySlug[] = [];
+    for (const ancestor of ancestors) {
+      if (Directory.isChild(ancestor)) {
+        segments.push(ancestor.slug);
+      }
+    }
+    segments.push(dir.slug);
+    return DirectoryPath.fromSegments(segments);
+  },
+
+  /**
+   * Idempotently ensure the per-owner root exists. Returns the existing
+   * root or mints a fresh one via `idGen` and persists it. Called from
+   * SignUp / AdminSignUp flows and from CreateDirectory when `parentId`
+   * is omitted.
+   */
+  async ensureRoot(
+    ownerId: UserId,
+    now: Date,
+    idGen: IdGenerator,
+    repo: DirectoryRepository,
+  ): Promise<RootDirectory> {
+    const existing = await repo.findRoot(ownerId);
+    if (existing !== null) {
+      if (!Directory.isRoot(existing)) {
+        throw new BusinessRuleError(
+          DirectoryErrorCode.RootMustHaveNoParent,
+          "Stored root directory has a parent",
+        );
+      }
+      return existing;
+    }
+    const root = Directory.createRoot({ id: idGen.next(), ownerId }, now);
+    await repo.insert(root);
+    return root;
+  },
+
+  /**
+   * Delete `dir` and every descendant directory depth-first, trashing
+   * each directory's active notes along the way. The caller (usecase)
+   * is responsible for emitting `note.deleted` Outbox events using the
+   * returned `trashedNoteIds`.
+   *
+   * Notes are trashed via `noteRepo.trashByDirectory` so that note
+   * state transitions and the matching domain events stay owned by the
+   * note aggregate — directory service only orchestrates the walk and
+   * the per-directory physical delete.
+   */
+  async deleteSubtree(
+    dir: Directory,
+    _now: Date,
+    repos: {
+      dirRepo: DirectoryRepository;
+      noteRepo: NoteRepository;
+    },
+  ): Promise<{
+    trashedNoteIds: readonly NoteId[];
+    deletedDirectoryIds: readonly DirectoryId[];
+  }> {
+    if (Directory.isRoot(dir)) {
+      throw new BusinessRuleError(
+        DirectoryErrorCode.CannotDeleteRoot,
+        "Cannot delete the root directory",
+      );
+    }
+
+    const trashedNoteIds: NoteId[] = [];
+    const deletedDirectoryIds: DirectoryId[] = [];
+
+    // Iterative depth-first walk. Two passes per node — first to enqueue
+    // its children, then a post-order action recorded on `pending`. The
+    // explicit stack mirrors the natural recursion without blowing the
+    // call stack on deep trees.
+    const visit: ChildDirectory[] = [dir];
+    const postOrder: ChildDirectory[] = [];
+    while (visit.length > 0) {
+      const node = visit.pop();
+      if (node === undefined) {
+        break;
+      }
+      postOrder.push(node);
+      const children = await repos.dirRepo.findChildren(node.id);
+      for (const child of children) {
+        if (Directory.isChild(child)) {
+          visit.push(child);
+        }
+      }
+    }
+
+    // Post-order: deepest nodes first so each directory is empty by the
+    // time its physical delete runs.
+    for (let i = postOrder.length - 1; i >= 0; i -= 1) {
+      const node = postOrder[i];
+      if (node === undefined) {
+        continue;
+      }
+      const trashed = await repos.noteRepo.trashByDirectory(node.id);
+      for (const id of trashed) {
+        trashedNoteIds.push(id);
+      }
+      const versioned = await repos.dirRepo.findById(node.id);
+      if (versioned === null) {
+        // Concurrent delete already removed it — treat as already done.
+        continue;
+      }
+      await repos.dirRepo.delete(
+        versioned.entity.id,
+        versioned.expectedVersion,
+      );
+      deletedDirectoryIds.push(node.id);
+    }
+
+    return { trashedNoteIds, deletedDirectoryIds };
+  },
+};

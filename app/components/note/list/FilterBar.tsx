@@ -1,0 +1,180 @@
+"use client";
+
+import { useRouter } from "@tanstack/react-router";
+import { useId, useTransition } from "react";
+import type { NoteListSearch } from "../schema";
+
+type TagOption = Readonly<{ id: string; name: string; noteCount: number }>;
+
+type Props = {
+  tags: readonly TagOption[];
+  selectedTagNames: readonly string[];
+  from: string | undefined;
+  to: string | undefined;
+  visibility: NoteListSearch["visibility"];
+  /**
+   * Whether the current request is being served by `searchOwnNotes`.
+   * Visibility filter is only honored on that path (see ADR-001).
+   */
+  searchActive: boolean;
+};
+
+export function FilterBar({
+  tags,
+  selectedTagNames,
+  from,
+  to,
+  visibility,
+  searchActive,
+}: Props) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const fromId = useId();
+  const toId = useId();
+
+  const selected = new Set(selectedTagNames);
+
+  const toggleTag = (name: string) => {
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    const arr = [...next];
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev: NoteListSearch) => ({
+          ...prev,
+          tagNames: arr.length === 0 ? undefined : arr,
+        }),
+      });
+    });
+  };
+
+  const updateDate = (key: "from" | "to", value: string) => {
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev: NoteListSearch) => ({
+          ...prev,
+          [key]: value === "" ? undefined : value,
+        }),
+      });
+    });
+  };
+
+  const updateVisibility = (value: string) => {
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev: NoteListSearch) => ({
+          ...prev,
+          visibility:
+            value === "" ? undefined : (value as NoteListSearch["visibility"]),
+        }),
+      });
+    });
+  };
+
+  const clearAll = () => {
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev: NoteListSearch) => ({
+          display: prev.display,
+          page: prev.page,
+          limit: prev.limit,
+          ...(prev.q !== undefined ? { q: prev.q } : {}),
+        }),
+      });
+    });
+  };
+
+  const hasAnyFilter =
+    selectedTagNames.length > 0 ||
+    from !== undefined ||
+    to !== undefined ||
+    visibility !== undefined;
+
+  return (
+    <div className="filter-bar" aria-busy={isPending}>
+      {tags.length > 0 ? (
+        <div className="filter-bar-row">
+          <span className="filter-bar-label">タグ</span>
+          <div className="filter-bar-chips">
+            {tags.map((tag) => {
+              const active = selected.has(tag.name);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  className={`chip${active ? " chip-active" : ""}`}
+                  aria-pressed={active}
+                  onClick={() => toggleTag(tag.name)}
+                  disabled={isPending}
+                >
+                  #{tag.name}
+                  <span className="chip-count">{tag.noteCount}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="filter-bar-row">
+        <span className="filter-bar-label">期間</span>
+        <div className="filter-bar-dates">
+          <label htmlFor={fromId} className="sr-only">
+            開始日
+          </label>
+          <input
+            id={fromId}
+            type="date"
+            value={from ?? ""}
+            onChange={(e) => updateDate("from", e.target.value)}
+            disabled={isPending}
+          />
+          <span aria-hidden="true">–</span>
+          <label htmlFor={toId} className="sr-only">
+            終了日
+          </label>
+          <input
+            id={toId}
+            type="date"
+            value={to ?? ""}
+            onChange={(e) => updateDate("to", e.target.value)}
+            disabled={isPending}
+          />
+        </div>
+      </div>
+
+      {searchActive ? (
+        <div className="filter-bar-row">
+          <span className="filter-bar-label">公開状態</span>
+          <select
+            value={visibility ?? ""}
+            onChange={(e) => updateVisibility(e.target.value)}
+            disabled={isPending}
+            aria-label="公開状態フィルタ"
+          >
+            <option value="">すべて</option>
+            <option value="private">非公開</option>
+            <option value="unlisted">限定公開</option>
+            <option value="public">公開</option>
+          </select>
+        </div>
+      ) : null}
+
+      {hasAnyFilter ? (
+        <button
+          type="button"
+          className="pill-btn"
+          onClick={clearAll}
+          disabled={isPending}
+        >
+          クリア
+        </button>
+      ) : null}
+    </div>
+  );
+}

@@ -1,0 +1,310 @@
+import type { R2Bucket } from "@cloudflare/workers-types";
+import {
+  type ObjectMetadata,
+  type ObjectStorage,
+  StorageNotFoundError,
+  StorageUnavailableError,
+} from "@/core/domain/media/ports/objectStorage";
+
+/**
+ * Credentials and endpoint configuration required to presign R2 object
+ * URLs. R2's Worker binding exposes data-plane methods (`put` / `get`
+ * / `delete`) but does not natively mint presigned URLs — those are
+ * minted against the S3-compatible endpoint using AWS SigV4. The
+ * account-scoped endpoint is `https://<accountId>.r2.cloudflarestorage.com`.
+ */
+export type R2PresignConfig = Readonly<{
+  accountId: string;
+  bucketName: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  /**
+   * Optional override for the host used in presigned URLs. When set
+   * (e.g. a custom domain or `<account>.r2.cloudflarestorage.com`),
+   * presigned URLs are issued against this host. Defaults to the
+   * account-scoped R2 endpoint.
+   */
+  endpoint?: string;
+}>;
+
+const R2_REGION = "auto";
+const S3_SERVICE = "s3";
+const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
+
+/**
+ * Cloudflare R2 implementation of {@link ObjectStorage}.
+ *
+ * Data-plane operations (`put` / `get` / `delete`) go through the R2
+ * Worker binding so they incur no S3-API egress and need no credentials.
+ * Presigned URL minting (`presignDownload` / `presignUpload`) uses the
+ * S3-compatible HTTPS endpoint and AWS SigV4 query-string signing —
+ * R2 currently does not expose a binding method for this, so the
+ * adapter does the signing itself with Web Crypto.
+ *
+ * Errors are translated into the shared {@link ObjectStorage} contract:
+ * lookup misses become {@link StorageNotFoundError}; transient binding
+ * or signing failures become {@link StorageUnavailableError}.
+ */
+export class R2ObjectStorage implements ObjectStorage {
+  private readonly endpoint: string;
+
+  constructor(
+    private readonly bucket: R2Bucket,
+    private readonly presignConfig: R2PresignConfig,
+  ) {
+    this.endpoint =
+      presignConfig.endpoint ??
+      `https://${presignConfig.accountId}.r2.cloudflarestorage.com`;
+  }
+
+  async put(
+    key: string,
+    bytes: ArrayBuffer,
+    contentType: string,
+  ): Promise<void> {
+    try {
+      await this.bucket.put(key, bytes, {
+        httpMetadata: { contentType },
+      });
+    } catch (cause) {
+      throw new StorageUnavailableError(`R2 put failed for key ${key}`, cause);
+    }
+  }
+
+  async get(key: string): Promise<ArrayBuffer> {
+    let object: Awaited<ReturnType<R2Bucket["get"]>>;
+    try {
+      object = await this.bucket.get(key);
+    } catch (cause) {
+      throw new StorageUnavailableError(`R2 get failed for key ${key}`, cause);
+    }
+    if (object === null) {
+      throw new StorageNotFoundError(`R2 object not found: ${key}`);
+    }
+    try {
+      return await object.arrayBuffer();
+    } catch (cause) {
+      throw new StorageUnavailableError(
+        `R2 body read failed for key ${key}`,
+        cause,
+      );
+    }
+  }
+
+  async stat(key: string): Promise<ObjectMetadata> {
+    let head: Awaited<ReturnType<R2Bucket["head"]>>;
+    try {
+      head = await this.bucket.head(key);
+    } catch (cause) {
+      throw new StorageUnavailableError(`R2 head failed for key ${key}`, cause);
+    }
+    if (head === null) {
+      throw new StorageNotFoundError(`R2 object not found: ${key}`);
+    }
+    return {
+      byteSize: head.size,
+      contentType: head.httpMetadata?.contentType ?? "application/octet-stream",
+    };
+  }
+
+  async delete(key: string): Promise<void> {
+    try {
+      await this.bucket.delete(key);
+    } catch (cause) {
+      throw new StorageUnavailableError(
+        `R2 delete failed for key ${key}`,
+        cause,
+      );
+    }
+  }
+
+  presignDownload(key: string, ttlSec: number): Promise<URL> {
+    return this.presign("GET", key, ttlSec, undefined);
+  }
+
+  presignUpload(
+    key: string,
+    contentType: string,
+    ttlSec: number,
+  ): Promise<URL> {
+    return this.presign("PUT", key, ttlSec, contentType);
+  }
+
+  // ---- SigV4 query-string signing -----------------------------------
+  //
+  // The S3-compatible R2 endpoint requires AWS SigV4. For a presigned
+  // URL the signature lives in the query string and the request body
+  // hash is `UNSIGNED-PAYLOAD`, so the URL alone is the bearer of
+  // authorization. PUT presigns pin `Content-Type` into the signed
+  // headers so the backend rejects uploads that don't match.
+  //
+  // The implementation follows AWS's "Signature Version 4 signing
+  // process" reference; the only R2-specific bits are `region = auto`
+  // and the account-scoped endpoint.
+  private async presign(
+    method: "GET" | "PUT",
+    key: string,
+    ttlSec: number,
+    contentType: string | undefined,
+  ): Promise<URL> {
+    if (!Number.isFinite(ttlSec) || ttlSec <= 0 || ttlSec > 7 * 86_400) {
+      throw new StorageUnavailableError(
+        `Invalid presign ttlSec: ${ttlSec} (must be 1..604800)`,
+      );
+    }
+    try {
+      const now = new Date();
+      const amzDate = toAmzDate(now);
+      const dateStamp = amzDate.slice(0, 8);
+      const credentialScope = `${dateStamp}/${R2_REGION}/${S3_SERVICE}/aws4_request`;
+      const credential = `${this.presignConfig.accessKeyId}/${credentialScope}`;
+
+      const url = new URL(this.endpoint);
+      url.pathname = `/${this.presignConfig.bucketName}/${encodeKey(key)}`;
+
+      const signedHeaderNames: string[] = ["host"];
+      const canonicalHeaderEntries: Array<[string, string]> = [
+        ["host", url.host],
+      ];
+      if (method === "PUT" && contentType !== undefined) {
+        signedHeaderNames.push("content-type");
+        canonicalHeaderEntries.push(["content-type", contentType]);
+      }
+      signedHeaderNames.sort();
+      canonicalHeaderEntries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      const signedHeaders = signedHeaderNames.join(";");
+
+      const queryParams: Array<[string, string]> = [
+        ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+        ["X-Amz-Credential", credential],
+        ["X-Amz-Date", amzDate],
+        ["X-Amz-Expires", String(Math.floor(ttlSec))],
+        ["X-Amz-SignedHeaders", signedHeaders],
+      ];
+      const canonicalQueryString = queryParams
+        .map(([k, v]) => `${encodeRfc3986(k)}=${encodeRfc3986(v)}`)
+        .sort()
+        .join("&");
+
+      const canonicalHeaders = `${canonicalHeaderEntries
+        .map(([k, v]) => `${k}:${v.trim()}`)
+        .join("\n")}\n`;
+
+      const canonicalRequest = [
+        method,
+        url.pathname,
+        canonicalQueryString,
+        canonicalHeaders,
+        signedHeaders,
+        UNSIGNED_PAYLOAD,
+      ].join("\n");
+
+      const stringToSign = [
+        "AWS4-HMAC-SHA256",
+        amzDate,
+        credentialScope,
+        await sha256Hex(canonicalRequest),
+      ].join("\n");
+
+      const signingKey = await deriveSigningKey(
+        this.presignConfig.secretAccessKey,
+        dateStamp,
+      );
+      const signature = await hmacHex(signingKey, stringToSign);
+
+      const signedUrl = new URL(url.toString());
+      for (const [k, v] of queryParams) {
+        signedUrl.searchParams.set(k, v);
+      }
+      signedUrl.searchParams.set("X-Amz-Signature", signature);
+      return signedUrl;
+    } catch (cause) {
+      if (cause instanceof StorageUnavailableError) throw cause;
+      throw new StorageUnavailableError(
+        `R2 presign failed for key ${key}`,
+        cause,
+      );
+    }
+  }
+}
+
+// `YYYYMMDDTHHMMSSZ` per SigV4 spec.
+function toAmzDate(now: Date): string {
+  const iso = now.toISOString();
+  return iso.replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+// SigV4 follows RFC 3986: every byte except `A-Z a-z 0-9 - _ . ~` is
+// percent-encoded. `encodeURIComponent` leaves `! * ' ( )` unescaped,
+// so they are re-encoded here.
+function encodeRfc3986(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!*'()]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+// S3 keys are percent-encoded segment-wise but `/` is preserved as a
+// path separator. R2 follows the same convention.
+function encodeKey(key: string): string {
+  return key
+    .split("/")
+    .map((segment) => encodeRfc3986(segment))
+    .join("/");
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input),
+  );
+  return toHex(new Uint8Array(buf));
+}
+
+async function hmacSha256(
+  key: ArrayBuffer | Uint8Array,
+  data: string,
+): Promise<ArrayBuffer> {
+  const keyBytes =
+    key instanceof Uint8Array
+      ? (key.buffer.slice(
+          key.byteOffset,
+          key.byteOffset + key.byteLength,
+        ) as ArrayBuffer)
+      : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
+}
+
+async function hmacHex(
+  key: ArrayBuffer | Uint8Array,
+  data: string,
+): Promise<string> {
+  const sig = await hmacSha256(key, data);
+  return toHex(new Uint8Array(sig));
+}
+
+async function deriveSigningKey(
+  secretAccessKey: string,
+  dateStamp: string,
+): Promise<ArrayBuffer> {
+  const kSecret = new TextEncoder().encode(`AWS4${secretAccessKey}`);
+  const kDate = await hmacSha256(kSecret, dateStamp);
+  const kRegion = await hmacSha256(kDate, R2_REGION);
+  const kService = await hmacSha256(kRegion, S3_SERVICE);
+  return hmacSha256(kService, "aws4_request");
+}
+
+function toHex(bytes: Uint8Array): string {
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += (bytes[i] as number).toString(16).padStart(2, "0");
+  }
+  return out;
+}

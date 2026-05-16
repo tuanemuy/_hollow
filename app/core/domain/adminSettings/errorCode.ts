@@ -1,0 +1,24 @@
+export const AdminSettingsErrorCode = {
+  InvalidUserId: "ADMIN_SETTINGS_INVALID_USER_ID",
+  InvalidLLMProvider: "ADMIN_SETTINGS_INVALID_LLM_PROVIDER",
+  InvalidLLMModel: "ADMIN_SETTINGS_INVALID_LLM_MODEL",
+  InvalidLLMModelTooLong: "ADMIN_SETTINGS_INVALID_LLM_MODEL_TOO_LONG",
+  InvalidLLMApiKeySource: "ADMIN_SETTINGS_INVALID_LLM_API_KEY_SOURCE",
+  InvalidLLMApiKeyCiphertext: "ADMIN_SETTINGS_INVALID_LLM_API_KEY_CIPHERTEXT",
+  InvalidPromptPurpose: "ADMIN_SETTINGS_INVALID_PROMPT_PURPOSE",
+  PromptTemplateTooLarge: "ADMIN_SETTINGS_PROMPT_TEMPLATE_TOO_LARGE",
+  PromptTemplateVariableMismatch:
+    "ADMIN_SETTINGS_PROMPT_TEMPLATE_VARIABLE_MISMATCH",
+  PromptTemplateInvalidVariableName:
+    "ADMIN_SETTINGS_PROMPT_TEMPLATE_INVALID_VARIABLE_NAME",
+  InvalidDesignTokenKey: "ADMIN_SETTINGS_INVALID_DESIGN_TOKEN_KEY",
+  InvalidDesignTokenValue: "ADMIN_SETTINGS_INVALID_DESIGN_TOKEN_VALUE",
+  DesignTokensTooMany: "ADMIN_SETTINGS_DESIGN_TOKENS_TOO_MANY",
+  InvalidRegistrationClosedReason:
+    "ADMIN_SETTINGS_INVALID_REGISTRATION_CLOSED_REASON",
+  InvalidInstanceLimit: "ADMIN_SETTINGS_INVALID_INSTANCE_LIMIT",
+  EnvOverrideMissingKey: "ADMIN_SETTINGS_ENV_OVERRIDE_MISSING_KEY",
+} as const;
+
+export type AdminSettingsErrorCode =
+  (typeof AdminSettingsErrorCode)[keyof typeof AdminSettingsErrorCode];

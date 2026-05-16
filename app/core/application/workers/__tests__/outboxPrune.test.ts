@@ -48,20 +48,32 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
   // The worker reaches for `clock`, `logger`, `outboxRepository`. The
   // remaining shared deps are stubbed at minimal viable shape since
   // they aren't observed by `pruneOutbox`.
-  return {
+  const base: WorkerContainer = {
     outboxRepository:
       overrides.outboxRepository ?? makeStubOutboxRepository({ deleted: 0 }),
-    idempotencyStore: {
+    idempotencyStore: overrides.idempotencyStore ?? {
       markProcessed: vi.fn(async () => ({ alreadyProcessed: false })),
     },
+    searchIndex: overrides.searchIndex ?? {
+      upsert: vi.fn(async () => {}),
+      delete: vi.fn(async () => {}),
+      query: vi.fn(async () => ({ hits: [], nextCursor: null })),
+      bulkRebuildFromSnapshots: vi.fn(async () => {}),
+    },
+    indexJobRepository: overrides.indexJobRepository ?? {
+      enqueue: vi.fn(async () => {}),
+      nextBatch: vi.fn(async () => []),
+      complete: vi.fn(async () => {}),
+      fail: vi.fn(async () => {}),
+    },
     clock: overrides.clock ?? { now: () => new Date(0) },
-    idGenerator: {
+    idGenerator: overrides.idGenerator ?? {
       next: () => "00000000-0000-7000-8000-000000000000",
       validate: () => true,
     },
     logger: overrides.logger ?? new FakeLogger(),
-    ...overrides,
   };
+  return base;
 }
 
 describe("pruneOutbox", () => {

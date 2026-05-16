@@ -7,6 +7,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
+import { ErrorPage } from "@/components/public/ErrorPage";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
@@ -15,6 +16,14 @@ import appCss from "../styles/index.css?url";
 // Server fns only reachable from `"use client"` components miss the
 // rsc manifest (frozen before the client build phase). Pull their
 // provider modules into a server-rendered route to register them.
+import "@/components/auth/AdminSignUpForm/action";
+import "@/components/auth/EmailChangeConfirm/action";
+import "@/components/auth/LoginForm/action";
+import "@/components/auth/PasswordResetConfirmForm/action";
+import "@/components/auth/PasswordResetRequestForm/action";
+import "@/components/auth/SignUpForm/action";
+import "@/components/auth/VerifyEmail/action";
+import "@/components/public/ShareLinkGate/action";
 import "@/components/todo/CreateTodoForm/action";
 import "@/components/todo/TodoItem/action";
 
@@ -49,17 +58,12 @@ export const Route = createRootRoute({
   component: RootComponent,
   errorComponent: ({ error }) => (
     <RootDocument>
-      <div>
-        <h1>Something went wrong</h1>
-        <pre>{sanitizeRouteError(error)}</pre>
-      </div>
+      <ErrorPage kind="system" message={sanitizeRouteError(error)} />
     </RootDocument>
   ),
   notFoundComponent: () => (
     <RootDocument>
-      <div>
-        <h1>404 Not Found</h1>
-      </div>
+      <ErrorPage kind="notFound" />
     </RootDocument>
   ),
 });

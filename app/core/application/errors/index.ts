@@ -79,7 +79,10 @@ export function isConflictError(error: unknown): error is ConflictError {
  * is a pure transport concern owned by the presentation layer.
  */
 export class UnauthorizedError extends ApplicationError {
-  override readonly name = "UnauthorizedError";
+  // `name` is widened to `string` so authentication-specific
+  // subclasses (`AuthenticationError`) can refine it without
+  // violating the literal-type contravariance check.
+  override readonly name: string = "UnauthorizedError";
 
   override toSerialized(): SerializedUnauthorizedError {
     return {
@@ -95,6 +98,34 @@ export function isUnauthorizedError(
   error: unknown,
 ): error is UnauthorizedError {
   return error instanceof UnauthorizedError;
+}
+
+/**
+ * Authentication-flow failure: actor presented credentials (password,
+ * setup token, verification challenge) that did not authenticate.
+ *
+ * Codes follow the spec literals (see `spec/usecases/identity.md`):
+ * - `'invalid_credentials'` — wrong password / unknown email
+ *   (LogIn, ChangePassword, RequestEmailChange). Single code on
+ *   purpose so the response cannot enumerate which side mismatched.
+ * - `'unverified'` — email not yet confirmed (LogIn).
+ * - `'account_unavailable'` — suspended / deleted user (LogIn).
+ * - `'setup_token_disabled'` — `ADMIN_SETUP_TOKEN` env unset
+ *   (AdminSignUp).
+ * - `'invalid_setup_token'` — token mismatch (AdminSignUp).
+ *
+ * Serialises as `kind: 'unauthorized'` so it reaches the client as
+ * HTTP 401 just like a plain `UnauthorizedError`; the dedicated
+ * class is a usecase-side affordance only.
+ */
+export class AuthenticationError extends UnauthorizedError {
+  override readonly name = "AuthenticationError";
+}
+
+export function isAuthenticationError(
+  error: unknown,
+): error is AuthenticationError {
+  return error instanceof AuthenticationError;
 }
 
 export class ForbiddenError extends ApplicationError {
