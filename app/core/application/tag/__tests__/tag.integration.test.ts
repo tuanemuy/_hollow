@@ -23,9 +23,9 @@ const OWNER_A = "01950000-0000-7000-8000-00000000000a" as UserId;
 const OWNER_B = "01950000-0000-7000-8000-00000000000b" as UserId;
 
 const tagRawId = (n: number) =>
-  `019dt000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
+  `019d7000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
 const noteRawId = (n: number) =>
-  `019dn000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
+  `019d0000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
 const dirRawId = (n: number) =>
   `019dd000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
 

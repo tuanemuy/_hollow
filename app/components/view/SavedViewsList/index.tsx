@@ -131,7 +131,12 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
           <span>{view.name}</span>
           <span>{view.kind === "personal" ? "個人" : "共有"}</span>
           <span>{view.displayMode}</span>
-          {view.isDefault ? <span aria-label="既定ビュー">★既定</span> : null}
+          {view.isDefault ? (
+            <span>
+              <span aria-hidden="true">★</span>
+              <span>既定</span>
+            </span>
+          ) : null}
           {view.brokenConditions.length > 0 ? (
             <span role="alert">
               壊れた条件: {view.brokenConditions.length} 件
