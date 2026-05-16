@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -380,6 +380,35 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
         .offset(opts.offset);
       return rows.map((r) => this.toEntity(r));
     });
+  }
+
+  sumByteSizeByOwnerSince(ownerId: UserId, since: Date): Promise<number> {
+    return mapDbError(
+      "Failed to aggregate ingestion_job byte sizes",
+      async () => {
+        const iso = since.toISOString();
+        const rows = await this.db
+          .select({
+            total: sql<number>`COALESCE(SUM(${ingestionJobs.byteSize}), 0)`,
+          })
+          .from(ingestionJobs)
+          .where(
+            and(
+              eq(ingestionJobs.ownerId, ownerId),
+              gte(ingestionJobs.createdAt, iso),
+            ),
+          );
+        const row = rows[0];
+        if (row === undefined) return 0;
+        const raw = row.total as unknown;
+        if (typeof raw === "number") return raw;
+        if (typeof raw === "string") {
+          const parsed = Number(raw);
+          return Number.isFinite(parsed) ? parsed : 0;
+        }
+        return 0;
+      },
+    );
   }
 
   findStuck(threshold: Date): Promise<readonly IngestionJob[]> {

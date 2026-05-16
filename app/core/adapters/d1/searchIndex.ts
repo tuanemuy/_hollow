@@ -136,6 +136,17 @@ export class D1SearchIndex implements SearchIndex {
           sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`,
         );
       }
+      if (q.directoryPathPrefix !== null) {
+        // Exact match for the directory itself, or any descendant whose
+        // path starts with `${prefix}/`. The latter pattern is escaped
+        // for LIKE so `_` / `%` / `\\` in path segments are treated
+        // literally.
+        const prefix = q.directoryPathPrefix as string;
+        const childPattern = `${escapeLikePattern(prefix)}/%`;
+        filterClauses.push(
+          sql`(sd.directory_path = ${prefix} OR sd.directory_path LIKE ${childPattern} ESCAPE '\\')`,
+        );
+      }
       // Tag filter is an AND-of-terms over the stored `tag_names_json`
       // array. Using `LIKE '%"<tag>"%'` matches a quoted JSON string token
       // exactly (so `"ai"` does not match `"ai-news"`). The plain LIKE

@@ -36,7 +36,14 @@ export type SanitizeResult = Readonly<{
  * `ContentHtml` value. Failures surface as `SanitizerError` and are
  * translated by the adapter into `SystemError` at the application
  * boundary.
+ *
+ * `toPlainText` is the inverse projection used to produce a search-/
+ * index-friendly body. It strips every tag, decodes the minimal set of
+ * HTML entities the sanitiser emits, and collapses whitespace so the
+ * downstream `NoteSnapshot.plainBody` round-trips through external
+ * indexers (FTS, embeddings) without HTML noise.
  */
 export interface HtmlSanitizer {
   sanitize(rawHtml: string, policy: SanitizePolicy): SanitizeResult;
+  toPlainText(html: ContentHtml): string;
 }

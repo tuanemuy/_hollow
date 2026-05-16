@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -9,8 +9,11 @@ import type {
   ExpectedVersion,
   Versioned,
 } from "@/core/domain/common/transactionalRepository";
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isRehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { NoteId } from "@/core/domain/note/valueObject";
+import type { TagId } from "@/core/domain/tag/valueObject";
 import { SavedView } from "@/core/domain/view/entity";
 import type { SavedViewRepository } from "@/core/domain/view/ports/savedViewRepository";
 import type { SavedViewName, ViewKind } from "@/core/domain/view/valueObject";
@@ -395,6 +398,53 @@ export class D1SavedViewRepository implements SavedViewRepository {
       const row = rows[0];
       return row ? this.toSavedView(row) : null;
     });
+  }
+
+  findReferencingTag(tagId: TagId): Promise<readonly SavedView[]> {
+    return mapDbError(
+      "Failed to find saved views referencing tag",
+      async () => {
+        const rows = await this.db
+          .select()
+          .from(savedViews)
+          .where(
+            sql`EXISTS (SELECT 1 FROM json_each(${savedViews.queryJson}, '$.tagIds') WHERE value = ${tagId})`,
+          );
+        return rows.map((row) => this.toSavedView(row));
+      },
+    );
+  }
+
+  findReferencingDirectory(
+    directoryId: DirectoryId,
+  ): Promise<readonly SavedView[]> {
+    return mapDbError(
+      "Failed to find saved views referencing directory",
+      async () => {
+        const rows = await this.db
+          .select()
+          .from(savedViews)
+          .where(
+            sql`json_extract(${savedViews.queryJson}, '$.directoryId') = ${directoryId}`,
+          );
+        return rows.map((row) => this.toSavedView(row));
+      },
+    );
+  }
+
+  findReferencingNote(noteId: NoteId): Promise<readonly SavedView[]> {
+    return mapDbError(
+      "Failed to find saved views referencing note",
+      async () => {
+        const rows = await this.db
+          .select()
+          .from(savedViews)
+          .where(
+            sql`json_extract(${savedViews.queryJson}, '$.referencingNoteId') = ${noteId}`,
+          );
+        return rows.map((row) => this.toSavedView(row));
+      },
+    );
   }
 
   findByName(

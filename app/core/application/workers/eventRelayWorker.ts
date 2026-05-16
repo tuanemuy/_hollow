@@ -3,9 +3,23 @@ import {
   type EventDecoder,
   EventId,
 } from "@/core/domain/common/event";
+import type { ExportEvent } from "@/core/domain/export/events";
+import type { IdentityEvent } from "@/core/domain/identity/events";
+import type { IngestionEvent } from "@/core/domain/ingestion/events";
+import type { MediaEvent } from "@/core/domain/media/events";
+import type { NoteEvent } from "@/core/domain/note/events";
+import type { PublicationEvent } from "@/core/domain/publication/events";
+import type { TagEvent } from "@/core/domain/tag/events";
 import type { TodoEvent } from "@/core/domain/todo/events";
 import type { WorkerContainer } from "../di/types";
+import { exportEventDecoders } from "../export/eventDecoders";
+import { identityEventDecoders } from "../identity/eventDecoders";
+import { ingestionEventDecoders } from "../ingestion/eventDecoders";
+import { mediaEventDecoders } from "../media/eventDecoders";
+import { noteEventDecoders } from "../note/eventDecoders";
 import type { OutboxEntry, OutboxFailure } from "../ports/outboxRepository";
+import { publicationEventDecoders } from "../publication/eventDecoders";
+import { tagEventDecoders } from "../tag/eventDecoders";
 import { todoEventDecoders } from "../todo/eventDecoders";
 
 // Delivery is at-least-once with NO ordering guarantee. Per-row failures
@@ -40,7 +54,15 @@ export type EventDispatcher = (
   events: readonly DomainEvent[],
 ) => Promise<readonly EventDispatchOutcome[]>;
 
-type AllDomainEvents = TodoEvent;
+type AllDomainEvents =
+  | TodoEvent
+  | PublicationEvent
+  | IdentityEvent
+  | MediaEvent
+  | NoteEvent
+  | TagEvent
+  | IngestionEvent
+  | ExportEvent;
 
 export type DefaultEventDecoderRegistry = {
   readonly [K in AllDomainEvents["type"]]: EventDecoder<
@@ -56,6 +78,13 @@ export type EventDecoderRegistry = Partial<DefaultEventDecoderRegistry>;
 
 export const defaultEventDecoderRegistry = {
   ...todoEventDecoders,
+  ...publicationEventDecoders,
+  ...identityEventDecoders,
+  ...mediaEventDecoders,
+  ...noteEventDecoders,
+  ...tagEventDecoders,
+  ...ingestionEventDecoders,
+  ...exportEventDecoders,
 } satisfies DefaultEventDecoderRegistry;
 
 export type ProcessOutboxEventsOptions = {

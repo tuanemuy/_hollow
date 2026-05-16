@@ -1,10 +1,23 @@
 import type { D1Database, Fetcher } from "@cloudflare/workers-types";
 import { content } from "@/config";
+import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
+import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
+import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
+import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
+import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
 import { D1UnitOfWorkProvider } from "@/core/adapters/d1/unitOfWork";
+import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder";
+import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
+import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
+import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
+import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
+import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
+import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
+import type { ExportLimits } from "@/core/domain/export/valueObject";
 import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
 import { ConsoleLogger } from "../ports/logger";
@@ -49,6 +62,10 @@ export type RequestServerConfig = AppConfig &
     // the originating request. Required when `relay` is set; ignored
     // otherwise.
     waitUntil?: (promise: Promise<unknown>) => void;
+    // Optional `ADMIN_SETUP_TOKEN` secret — when unset, `AdminSignUp`
+    // returns `AuthenticationError('setup_token_disabled')`. See
+    // `EnvSetupTokenVerifier` and ADR 007.
+    adminSetupToken?: string;
   }>;
 
 /**
@@ -59,6 +76,9 @@ export type ServerEnv = Readonly<{
   DB: D1Database;
   APP_URL: string;
   RELAY?: Fetcher;
+  // Optional admin-bootstrap secret (see ADR 007 / `EnvSetupTokenVerifier`).
+  // When absent, `AdminSignUp` is disabled at the usecase boundary.
+  ADMIN_SETUP_TOKEN?: string;
   // Worker tuning knobs. Wrangler `[vars]` deliver strings — parse +
   // default via `readRelayTuning` / `readPruneTuning` at the worker
   // entry boundary. Missing values fall back to the application-layer
@@ -95,6 +115,9 @@ export function readRequestServerConfig(
     appUrl: env.APP_URL,
     binding: env.DB,
     ...(env.RELAY ? { relay: env.RELAY } : {}),
+    ...(env.ADMIN_SETUP_TOKEN
+      ? { adminSetupToken: env.ADMIN_SETUP_TOKEN }
+      : {}),
     ...(ctx
       ? {
           waitUntil: (promise: Promise<unknown>) => ctx.waitUntil(promise),
@@ -120,7 +143,13 @@ export function createRequestContainer(
   config: RequestServerConfig,
 ): RequestContainer {
   const db = getDatabase(config.binding);
-  const { binding: _binding, relay, waitUntil, ...appConfig } = config;
+  const {
+    binding: _binding,
+    relay,
+    waitUntil,
+    adminSetupToken,
+    ...appConfig
+  } = config;
   const relayTrigger: RelayTrigger =
     relay && waitUntil
       ? new ServiceBindingRelayTrigger(relay, waitUntil, ConsoleLogger)
@@ -134,8 +163,39 @@ export function createRequestContainer(
       UuidV7Generator,
       relayTrigger,
     ),
-  };
+    htmlSanitizer: new SanitizeHtmlSanitizer(),
+    markdownConverter: new MarkdownItConverter(),
+    passwordHasher: new Argon2idPasswordHasher(),
+    searchIndex: new D1SearchIndex(db, UuidV7Generator),
+    sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
+    emailSender: new ConsoleEmailSender(ConsoleLogger),
+    setupTokenVerifier: new EnvSetupTokenVerifier(
+      adminSetupToken === undefined
+        ? undefined
+        : { ADMIN_SETUP_TOKEN: adminSetupToken },
+    ),
+    htmlRenderer: new TemplateHtmlRenderer(),
+    markdownRenderer: new HtmlToMarkdownRenderer(),
+    pdfRenderer: new StubPdfRenderer(),
+    archiveBuilder: new InMemoryZipArchiveBuilder(),
+    exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
+    exportLimits: DEFAULT_EXPORT_LIMITS,
+  } as unknown as RequestContainer;
 }
+
+/**
+ * Default export pipeline configuration. Tokens stay empty by default;
+ * deployments override via a custom container builder. Quota limits cap
+ * concurrent and per-day bulk exports per user — `ExportService.enforceQuota`
+ * treats both as upper bounds against the supplied usage counter.
+ */
+const DEFAULT_EXPORT_DESIGN_TOKENS: Readonly<Record<string, string>> =
+  Object.freeze({});
+
+const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
+  maxConcurrentJobs: 3,
+  maxJobsPerDay: 50,
+});
 
 /**
  * Build the worker-scoped container. Workers don't render HTML
@@ -148,5 +208,11 @@ export function createWorkerContainer(env: ServerEnv): WorkerContainer {
     ...buildSharedDeps(),
     outboxRepository: new D1OutboxRepository(db, UuidV7Generator, SystemClock),
     idempotencyStore: new D1IdempotencyStore(db, SystemClock),
+    searchIndex: new D1SearchIndex(db, UuidV7Generator),
+    indexJobRepository: new D1IndexJobRepository(
+      db,
+      UuidV7Generator,
+      SystemClock,
+    ),
   };
 }

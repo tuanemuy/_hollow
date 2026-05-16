@@ -144,11 +144,17 @@ export const SearchDocument = {
  * the queue semantics (claim, complete, fail) are owned by the
  * `IndexJobRepository` adapter — the row is mutated through dedicated
  * verbs rather than read-modify-write of the aggregate state.
+ *
+ * `snapshot` is non-null only for `op === 'upsert'` jobs and carries the
+ * upstream Note projection needed by `SearchService.applyUpsert`. The
+ * Search domain pulls the snapshot from this aggregate rather than from
+ * any Note repository so the indexer worker stays stateless.
  */
 export type IndexJob = Readonly<{
   id: IndexJobId;
   noteId: NoteId;
   op: IndexJobOp;
+  snapshot: NoteSnapshot | null;
   attempts: IndexJobAttempts;
   lastError: IndexJobLastError | null;
   enqueuedAt: Date;
@@ -158,6 +164,7 @@ type IndexJobReconstructInput = Readonly<{
   id: string;
   noteId: NoteId;
   op: string;
+  snapshot: NoteSnapshot | null;
   attempts: number;
   lastError: string | null;
   enqueuedAt: Date;
@@ -165,12 +172,18 @@ type IndexJobReconstructInput = Readonly<{
 
 export const IndexJob = {
   create: (
-    params: { id: string; noteId: NoteId; op: IndexJobOp },
+    params: {
+      id: string;
+      noteId: NoteId;
+      op: IndexJobOp;
+      snapshot: NoteSnapshot | null;
+    },
     now: Date,
   ): IndexJob => ({
     id: IndexJobId.create(params.id),
     noteId: params.noteId,
     op: params.op,
+    snapshot: params.op === "upsert" ? params.snapshot : null,
     attempts: IndexJobAttempts.zero(),
     lastError: null,
     enqueuedAt: now,
@@ -199,10 +212,12 @@ export const IndexJob = {
 
   reconstruct: (input: IndexJobReconstructInput): IndexJob => {
     try {
+      const op = IndexJobOp.create(input.op);
       return {
         id: IndexJobId.create(input.id),
         noteId: input.noteId,
-        op: IndexJobOp.create(input.op),
+        op,
+        snapshot: op === "upsert" ? input.snapshot : null,
         attempts: IndexJobAttempts.create(input.attempts),
         lastError:
           input.lastError === null

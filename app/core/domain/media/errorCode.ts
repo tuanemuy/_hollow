@@ -16,6 +16,8 @@ export const MediaErrorCode = {
   IllegalTransition: "MEDIA_ILLEGAL_TRANSITION",
   NotOwned: "media_not_owned",
   NotViewable: "media_not_viewable",
+  ByteSizeExceeded: "MEDIA_BYTE_SIZE_EXCEEDED",
+  ByteSizeMismatch: "MEDIA_BYTE_SIZE_MISMATCH",
 } as const;
 
 export type MediaErrorCode =

@@ -313,6 +313,7 @@ export type SearchQuery = Readonly<{
   ownerIdFilter: UserId | null;
   visibilityFilter: readonly Visibility[];
   tagNames: readonly string[];
+  directoryPathPrefix: SearchDirectoryPath | null;
   dateRange: DateRange | null;
   limit: SearchLimit;
   cursor: SearchCursor | null;
@@ -324,6 +325,7 @@ export const SearchQuery = {
     ownerIdFilter: UserId | null;
     visibilityFilter: readonly string[];
     tagNames: readonly string[];
+    directoryPathPrefix: string | null;
     dateRange: { from: Date; to: Date } | null;
     limit: number;
     cursor: string | null;
@@ -335,6 +337,10 @@ export const SearchQuery = {
         Visibility.create(v),
       ),
       tagNames: [...params.tagNames],
+      directoryPathPrefix:
+        params.directoryPathPrefix === null
+          ? null
+          : SearchDirectoryPath.create(params.directoryPathPrefix),
       dateRange:
         params.dateRange === null ? null : DateRange.create(params.dateRange),
       limit: SearchLimit.create(params.limit),

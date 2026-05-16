@@ -7,6 +7,37 @@ import type {
 } from "@/core/domain/note/ports/htmlSanitizer";
 import { ContentHtml } from "@/core/domain/note/valueObject";
 
+const HTML_ENTITIES: Readonly<Record<string, string>> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  "#39": "'",
+  nbsp: " ",
+};
+
+const decodeEntities = (raw: string): string =>
+  raw.replace(/&(#?[a-z0-9]+);/gi, (match, name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.startsWith("#")) {
+      const isHex = lower.startsWith("#x");
+      const codepoint = Number.parseInt(
+        lower.slice(isHex ? 2 : 1),
+        isHex ? 16 : 10,
+      );
+      if (Number.isFinite(codepoint) && codepoint > 0 && codepoint < 0x110000) {
+        try {
+          return String.fromCodePoint(codepoint);
+        } catch {
+          return match;
+        }
+      }
+      return match;
+    }
+    return HTML_ENTITIES[lower] ?? match;
+  });
+
 // Minimal allowlist-based sanitiser implemented as a small streaming
 // tokeniser. The MVP cannot depend on the `sanitize-html` npm package
 // because the Cloudflare Workers runtime forbids ad-hoc Node API usage
@@ -253,6 +284,22 @@ const serialiseAttrs = (
     .join("");
 
 class SanitizeHtmlSanitizer implements HtmlSanitizer {
+  toPlainText(html: ContentHtml): string {
+    try {
+      // Strip every tag; collapse runs of whitespace produced by the
+      // surrounding markup so the resulting body is index-friendly.
+      const stripped = (html as string).replace(/<[^>]*>/g, " ");
+      const decoded = decodeEntities(stripped);
+      return decoded.replace(/\s+/g, " ").trim();
+    } catch (cause) {
+      throw new SystemError(
+        SystemErrorCode.DataIntegrityError,
+        "Failed to project HTML to plain text",
+        cause,
+      );
+    }
+  }
+
   sanitize(rawHtml: string, policy: SanitizePolicy): SanitizeResult {
     try {
       return this.runUnchecked(rawHtml, policy);

@@ -38,6 +38,17 @@ export function isStorageUnavailableError(
   return error instanceof StorageUnavailableError;
 }
 
+/**
+ * Lightweight metadata for an object — size and content type only. Used
+ * by `FinalizeUpload` to reconcile the persisted `MediaAsset` row with
+ * the actual bytes the client uploaded against a presigned URL, without
+ * paying the cost of streaming the whole body back through the worker.
+ */
+export type ObjectMetadata = Readonly<{
+  byteSize: number;
+  contentType: string;
+}>;
+
 export interface ObjectStorage {
   /**
    * Upload `bytes` to the configured backend at `key`. Implementations
@@ -51,6 +62,14 @@ export interface ObjectStorage {
    * failures.
    */
   get(key: string): Promise<ArrayBuffer>;
+
+  /**
+   * Fetch size + content-type metadata for the object at `key` without
+   * downloading the body. Throws `StorageNotFoundError` if the key does
+   * not exist and `StorageUnavailableError` for transient backend
+   * failures.
+   */
+  stat(key: string): Promise<ObjectMetadata>;
 
   /**
    * Remove the object at `key`. Implementations treat "already gone"

@@ -1,5 +1,6 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 import {
+  type ObjectMetadata,
   type ObjectStorage,
   StorageNotFoundError,
   StorageUnavailableError,
@@ -88,6 +89,22 @@ export class R2ObjectStorage implements ObjectStorage {
         cause,
       );
     }
+  }
+
+  async stat(key: string): Promise<ObjectMetadata> {
+    let head: Awaited<ReturnType<R2Bucket["head"]>>;
+    try {
+      head = await this.bucket.head(key);
+    } catch (cause) {
+      throw new StorageUnavailableError(`R2 head failed for key ${key}`, cause);
+    }
+    if (head === null) {
+      throw new StorageNotFoundError(`R2 object not found: ${key}`);
+    }
+    return {
+      byteSize: head.size,
+      contentType: head.httpMetadata?.contentType ?? "application/octet-stream",
+    };
   }
 
   async delete(key: string): Promise<void> {

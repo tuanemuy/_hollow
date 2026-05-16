@@ -3,10 +3,11 @@ import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import { isRehydrationError } from "@/core/domain/error";
+import { UserId } from "@/core/domain/identity/valueObject";
 import { NoteId } from "@/core/domain/note/valueObject";
-import { IndexJob } from "@/core/domain/search/entity";
+import { IndexJob, type NoteSnapshot } from "@/core/domain/search/entity";
 import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepository";
-import type { IndexJobId } from "@/core/domain/search/valueObject";
+import { type IndexJobId, Visibility } from "@/core/domain/search/valueObject";
 import type { Database } from "../client";
 import { indexJobs } from "../schema";
 import { mapDbError } from "./helpers";
@@ -50,7 +51,8 @@ export class D1IndexJobRepository implements IndexJobRepository {
         id: job.id,
         noteId: job.noteId,
         op: job.op,
-        payloadJson: null,
+        payloadJson:
+          job.snapshot === null ? null : encodeSnapshot(job.snapshot),
         attempts: job.attempts,
         lastError: job.lastError,
         enqueuedAt: job.enqueuedAt.toISOString(),
@@ -158,6 +160,7 @@ export class D1IndexJobRepository implements IndexJobRepository {
         id: row.id,
         noteId: NoteId.create(row.noteId),
         op: row.op,
+        snapshot: decodeSnapshot(row.payloadJson, this.idGenerator),
         attempts: row.attempts,
         lastError: row.lastError,
         enqueuedAt: new Date(row.enqueuedAt),
@@ -172,5 +175,108 @@ export class D1IndexJobRepository implements IndexJobRepository {
       }
       throw error;
     }
+  }
+}
+
+type SnapshotPayload = Readonly<{
+  noteId: string;
+  ownerId: string;
+  visibility: string;
+  title: string;
+  plainBody: string;
+  tagNames: readonly string[];
+  directoryPath: string;
+  frontMatterDate: string | null;
+  updatedAt: string;
+}>;
+
+function encodeSnapshot(snapshot: NoteSnapshot): string {
+  const payload: SnapshotPayload = {
+    noteId: snapshot.noteId,
+    ownerId: snapshot.ownerId,
+    visibility: snapshot.visibility,
+    title: snapshot.title,
+    plainBody: snapshot.plainBody,
+    tagNames: [...snapshot.tagNames],
+    directoryPath: snapshot.directoryPath,
+    frontMatterDate:
+      snapshot.frontMatterDate === null
+        ? null
+        : snapshot.frontMatterDate.toISOString(),
+    updatedAt: snapshot.updatedAt.toISOString(),
+  };
+  return JSON.stringify(payload);
+}
+
+function decodeSnapshot(
+  raw: string | null,
+  idGenerator: IdGenerator,
+): NoteSnapshot | null {
+  if (raw === null) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      "Stored index job has malformed payload_json",
+      error,
+    );
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      "Stored index job payload is not an object",
+    );
+  }
+  const p = parsed as Partial<SnapshotPayload>;
+  if (
+    typeof p.noteId !== "string" ||
+    typeof p.ownerId !== "string" ||
+    typeof p.visibility !== "string" ||
+    typeof p.title !== "string" ||
+    typeof p.plainBody !== "string" ||
+    !Array.isArray(p.tagNames) ||
+    !p.tagNames.every((t): t is string => typeof t === "string") ||
+    typeof p.directoryPath !== "string" ||
+    (p.frontMatterDate !== null && typeof p.frontMatterDate !== "string") ||
+    typeof p.updatedAt !== "string"
+  ) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      "Stored index job payload violates shape",
+    );
+  }
+  if (!idGenerator.validate(p.noteId)) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      `Stored index job payload has malformed noteId: ${p.noteId}`,
+    );
+  }
+  if (!idGenerator.validate(p.ownerId)) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      `Stored index job payload has malformed ownerId: ${p.ownerId}`,
+    );
+  }
+  try {
+    return {
+      noteId: NoteId.create(p.noteId),
+      ownerId: UserId.create(p.ownerId),
+      visibility: Visibility.create(p.visibility),
+      title: p.title,
+      plainBody: p.plainBody,
+      tagNames: [...p.tagNames],
+      directoryPath: p.directoryPath,
+      frontMatterDate:
+        p.frontMatterDate === null ? null : new Date(p.frontMatterDate),
+      updatedAt: new Date(p.updatedAt),
+    };
+  } catch (error) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      "Stored index job payload violates invariants",
+      error,
+    );
   }
 }

@@ -1,5 +1,8 @@
 import type { TransactionalRepository } from "@/core/domain/common/transactionalRepository";
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { NoteId } from "@/core/domain/note/valueObject";
+import type { TagId } from "@/core/domain/tag/valueObject";
 import type { SavedView } from "../entity";
 import type { SavedViewName, ViewKind } from "../valueObject";
 
@@ -14,6 +17,11 @@ import type { SavedViewName, ViewKind } from "../valueObject";
  * (`SavedViewService.assertNameUnique`) are layered on top of these
  * primitives — the repository itself does not police uniqueness, it
  * only exposes the lookups.
+ *
+ * The `findReferencing*` lookups are used by the event handlers
+ * (`HandleTagDeletedEvent` / `HandleDirectoryDeletedEvent` /
+ * `HandleNotePurgedEvent`) to enumerate every saved view that needs its
+ * `brokenConditions` updated after a referenced aggregate is deleted.
  */
 export interface SavedViewRepository
   extends TransactionalRepository<SavedView> {
@@ -33,4 +41,15 @@ export interface SavedViewRepository
     kind: ViewKind,
     name: SavedViewName,
   ): Promise<SavedView | null>;
+
+  /** Saved views whose `query.tagIds` includes `tagId`. */
+  findReferencingTag(tagId: TagId): Promise<readonly SavedView[]>;
+
+  /** Saved views whose `query.directoryId === directoryId`. */
+  findReferencingDirectory(
+    directoryId: DirectoryId,
+  ): Promise<readonly SavedView[]>;
+
+  /** Saved views whose `query.referencingNoteId === noteId`. */
+  findReferencingNote(noteId: NoteId): Promise<readonly SavedView[]>;
 }

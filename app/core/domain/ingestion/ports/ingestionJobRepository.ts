@@ -44,4 +44,13 @@ export interface IngestionJobRepository
    * Used by the recovery worker to surface stuck jobs.
    */
   findStuck(threshold: Date): Promise<readonly IngestionJob[]>;
+
+  /**
+   * Sum of `byteSize` across jobs owned by `ownerId` whose `createdAt`
+   * is on or after `since`. Used by `UploadFile` to enforce
+   * `InstanceLimits.maxUploadBytesPerDay`. Discarded / failed rows count
+   * towards the quota because the upload bandwidth has already been
+   * consumed; only the post-commit aggregate matters.
+   */
+  sumByteSizeByOwnerSince(ownerId: UserId, since: Date): Promise<number>;
 }
