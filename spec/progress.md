@@ -44,17 +44,17 @@
 - [x] DI / test helpers 統合
 
 ## Phase 5: テスト
-- [ ] identity
-- [ ] directory
-- [ ] note
-- [ ] tag
-- [ ] publication
-- [ ] ingestion
-- [ ] media
-- [ ] export
-- [ ] search
-- [ ] view
-- [ ] adminSettings
+- [x] identity
+- [x] directory
+- [x] note
+- [x] tag
+- [x] publication
+- [x] ingestion
+- [x] media
+- [x] export
+- [x] search
+- [x] view
+- [x] adminSettings
 
 ## Phase 6: フロントエンド
 - [ ] P01-P07 (auth / onboarding)
