@@ -10,8 +10,8 @@
 > 「静かな書斎」— 内容に集中できる、装飾を引いた白い画面。
 
 - **白基調 × 余白**: ベースは `#ffffff`。区切りは線ではなくスペーシングで作る。線が必要なときは限りなく薄いヘアラインを使う。
-- **アクセントは Apple System Blue 一色** (`#0071e3`)。彩度の高い差し色を増やさない。
-- **タイポグラフィは軽く、間隔はわずかにタイト**。日本語混在でも端正に見える `-apple-system / SF Pro / Hiragino Sans / Noto Sans JP` のチェーン。
+- **アクセントはニュートラルなグレースケール一色** (`oklch(37.1% 0 0)`)。色相は持たず明度のみで表現することで、コンテンツの色味を邪魔しない。彩度の高い差し色を増やさない。
+- **タイポグラフィは軽く、間隔はわずかにタイト**。日本語混在でも端正に見える `Helvetica Neue / Arial / Hiragino Kaku Gothic ProN / Hiragino Sans / Meiryo` のチェーン。
 - **角丸はコンテンツ系で 12px、ピル系で完全な丸**。中間の値は避け、リズムを揃える。
 - **シャドウは原則使わない**。ドロップダウンやモーダルなど「浮く」要素のみ控えめに使う。
 
@@ -93,7 +93,7 @@
 | `<pre>` `#f6f8fa + 6px radius` | `--color-surface + --radius-lg (12px)` | ボーダーは付けない |
 | blockquote `0.25em solid #d1d9e0` | `3px solid --color-hairline-strong` | テキストは `--color-ink-secondary` |
 | table 縞 + 全周ボーダー | 横ヘアラインのみ、外周ボーダーなし | Apple Calm の "borderless" 原則を踏襲 |
-| `<a>` ブルー | `--color-accent` | ホバー時のみアンダーライン (`text-underline-offset: 3px`) |
+| `<a>` ブルー | `--color-accent`（無彩色アクセント） | ホバー時のみアンダーライン (`text-underline-offset: 3px`) |
 | `<img>` 角なし | `--radius-lg (12px)` | キャプションは `--color-ink-tertiary` |
 | GitHub task list | `--color-accent` の塗りつぶし + 白チェック | チェックボックスは `--radius-xs` (5px相当) |
 | `#hashtag` (なし) | `--color-accent` の素テキスト（チップ化しない） | 軽量に保つ |
@@ -120,7 +120,7 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
   - `--color-ink` (#1d1d1f) on `--color-bg` (#fff) = 17.3:1 ✅
   - `--color-ink-secondary` (#6e6e73) on `--color-bg` = 5.0:1 ✅
   - `--color-ink-tertiary` (#86868b) on `--color-bg` = 3.6:1 → 本文では使わず、補助情報・プレースホルダー専用
-  - `--color-accent` (#0071e3) on `--color-bg` = 4.7:1 ✅（リンクとして AA を満たす）
+  - `--color-accent` (`oklch(37.1% 0 0)`) on `--color-bg` = 9.3:1 ✅（無彩色アクセント、リンク・UIとも AAA 相当）
 - **フォーカス**: すべてのインタラクティブ要素で `:focus-visible` 時に `--shadow-focus` を表示。outline はリセットしない実装（`outline-offset` で代替可）。
 - **キーボード操作**: モーダル/Drawer のフォーカストラップ、`Escape` でクローズ。Tab 順は DOM 順。
 - **代替テキスト**: 装飾的アイコンは `aria-hidden="true"`、意味を持つ場合は `aria-label`。

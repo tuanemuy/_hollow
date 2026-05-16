@@ -11,15 +11,16 @@ Hollow の UI で使用する CSS カスタムプロパティの正準定義。
 
 ### 1.1 ブランド / アクセント
 
-| 用途 | プロパティ | HEX | OKLCH |
-|------|-----------|-----|-------|
-| Primary (Accent) | `--color-accent` | `#0071e3` | `oklch(0.591 0.181 252.7)` |
-| Accent hover | `--color-accent-hover` | `#0077ed` | `oklch(0.604 0.184 252.6)` |
-| Accent pressed | `--color-accent-pressed` | `#006edb` | `oklch(0.575 0.179 252.7)` |
-| Accent surface (淡背景) | `--color-accent-surface` | `#e8f1fd` | `oklch(0.949 0.029 244.2)` |
-| Accent ink (淡背景上文字) | `--color-accent-ink` | `#0058b4` | `oklch(0.488 0.155 252.6)` |
+| 用途 | プロパティ | OKLCH |
+|------|-----------|-------|
+| Primary (Accent) | `--color-accent` | `oklch(37.1% 0 0)` |
+| Accent hover | `--color-accent-hover` | `oklch(43.9% 0 0)` |
+| Accent pressed | `--color-accent-pressed` | `oklch(26.9% 0 0)` |
+| Accent surface (淡背景) | `--color-accent-surface` | `oklch(97% 0 0)` |
+| Accent ink (淡背景上文字) | `--color-accent-ink` | `oklch(26.9% 0 0)` |
+| Accent surface hover | （ホバー値） | `oklch(92.2% 0 0)` |
 
-ブランドカラーは Apple System Blue 一色を主体に使う。彩度の高い別アクセントは追加しない（普遍性を保つため）。
+ブランドカラーは無彩色のグレースケール（Neutral）を主体に使う。色相は持たず、明度のみで階調を作ることで、コンテンツの色味を邪魔せず、普遍的でタイムレスなトーンを保つ。彩度の高い別アクセントは追加しない。
 
 ### 1.2 ニュートラル / インク
 
@@ -81,9 +82,8 @@ GitHub Markdown 風の本文レンダリングでも、配色は Apple 側に寄
 
 ```css
 --font-sans:
-  -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-  "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
-  "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+  "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN",
+  "Hiragino Sans", Meiryo, sans-serif;
 
 --font-mono:
   "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
@@ -93,7 +93,7 @@ GitHub Markdown 風の本文レンダリングでも、配色は Apple 側に寄
 --font-body: var(--font-sans);
 ```
 
-見出しと本文で別フォントは使わない（SF Pro / システムサンセリフ統一）。Google Fonts はロードしない方針（システムフォント前提）。本文中の `<code>` / `<pre>` のみ `--font-mono`。
+見出しと本文で別フォントは使わない（Helvetica Neue / Hiragino Kaku Gothic ProN を基準にサンセリフ統一）。Google Fonts はロードしない方針（システムフォント前提）。本文中の `<code>` / `<pre>` のみ `--font-mono`。
 
 ### 2.2 サイズスケール
 
@@ -207,7 +207,7 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 | `--shadow-xs` | `0 1px 2px rgba(0,0,0,0.04)` | 浮上カード（控えめ） |
 | `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.06)` | ドロップダウン |
 | `--shadow-md` | `0 8px 24px rgba(0,0,0,0.08)` | モーダル、ポップオーバー |
-| `--shadow-focus` | `0 0 0 4px rgba(0,113,227,0.22)` | フォーカスリング |
+| `--shadow-focus` | `0 0 0 4px oklch(37.1% 0 0 / 0.28)` | フォーカスリング |
 
 ベース UI はシャドウなし。区切りはヘアラインで作る。
 
@@ -392,11 +392,11 @@ Apple Calm の象徴的な要素。
 ```css
 :root {
   /* Color: brand */
-  --color-accent: #0071e3;
-  --color-accent-hover: #0077ed;
-  --color-accent-pressed: #006edb;
-  --color-accent-surface: #e8f1fd;
-  --color-accent-ink: #0058b4;
+  --color-accent: oklch(37.1% 0 0);
+  --color-accent-hover: oklch(43.9% 0 0);
+  --color-accent-pressed: oklch(26.9% 0 0);
+  --color-accent-surface: oklch(97% 0 0);
+  --color-accent-ink: oklch(26.9% 0 0);
 
   /* Color: neutral */
   --color-bg: #ffffff;
@@ -431,7 +431,7 @@ Apple Calm の象徴的な要素。
   --code-number: #1d6fd6;
 
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+  --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
   --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-heading: var(--font-sans);
   --font-body: var(--font-sans);
@@ -497,7 +497,7 @@ Apple Calm の象徴的な要素。
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-  --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+  --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
   /* Motion */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);

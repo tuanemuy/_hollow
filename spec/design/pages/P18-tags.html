@@ -8,11 +8,11 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     /* Color: brand */
-    --color-accent: #0071e3;
-    --color-accent-hover: #0077ed;
-    --color-accent-pressed: #006edb;
-    --color-accent-surface: #e8f1fd;
-    --color-accent-ink: #0058b4;
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
 
     /* Color: neutral */
     --color-bg: #ffffff;
@@ -47,7 +47,7 @@
     --code-number: #1d6fd6;
 
     /* Typography */
-    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-heading: var(--font-sans);
     --font-body: var(--font-sans);
@@ -113,7 +113,7 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     /* Motion */
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -151,31 +151,152 @@
   button, input, select { font-family: inherit; }
 
 
-  /* === global mobile fixes (review 001) === */
-  button, .btn, .pill-btn, .icon-btn {
-    white-space: nowrap;
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
   }
+
+  /* =====================================================================
+   * Unified components — 本ページ内で使う共通コンポーネント定義。
+   * トークン以外はここに閉じ込め、ページ固有のスタイルは別セクションで
+   * 上書きしない方針。
+   * =================================================================== */
+
+  /* Button — `.btn` */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px;
+    height: 36px; padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: inherit;
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    white-space: nowrap;
+    border: none; cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .btn:hover  { background: var(--color-surface-hover); }
+  .btn:active { background: var(--color-hairline); }
+
+  .btn-sm { height: 32px; padding: 0 14px; }
+  .btn-xs {
+    height: 28px; padding: 0 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .btn-primary:hover  { background: var(--color-accent-hover); }
+  .btn-primary:active { background: var(--color-accent-pressed); }
+
+  .btn-ghost { background: transparent; }
+  .btn-ghost:hover  { background: var(--color-surface); }
+  .btn-ghost:active { background: var(--color-surface-hover); }
+
+  .btn-destructive {
+    background: transparent;
+    color: var(--color-ink-secondary);
+  }
+  .btn-destructive:hover {
+    background: var(--color-error-surface);
+    color: var(--color-error);
+  }
+
+  /* IconButton — `.icon-btn` */
+  .icon-btn {
+    width: 36px; height: 36px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border: none; cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover  { background: var(--color-surface-hover); }
+  .icon-btn:active { background: var(--color-hairline); }
+
+  .icon-btn-ghost { background: transparent; }
+  .icon-btn-ghost:hover  { background: var(--color-surface); }
+  .icon-btn-ghost:active { background: var(--color-surface-hover); }
+
+  .icon-btn-accent { color: var(--color-accent-ink); }
+  .icon-btn-accent.icon-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Segmented — `.segmented` */
+  .segmented {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    display: inline-flex;
+  }
+  .segmented-translucent { background: rgba(255, 255, 255, 0.6); }
+  .segmented-item {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    background: transparent;
+    border: none; cursor: pointer;
+    font-family: inherit;
+    transition: var(--transition-default);
+  }
+  .segmented-item:hover:not(.active) { color: var(--color-ink); }
+  .segmented-item.active {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+
+  /* ListRow — `.list-row` (grid-template-columns はインライン style で指定) */
+  .list-row {
+    display: grid;
+    gap: var(--space-4);
+    align-items: center;
+    padding: var(--space-4) var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+    transition: var(--transition-bg);
+  }
+  .list-row:hover { background: var(--color-surface); }
+  .list-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .list-row-actions-hover {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+  .list-row:hover .list-row-actions-hover,
+  .list-row:focus-within .list-row-actions-hover {
+    opacity: 1;
+  }
+  .list-row-kebab { display: none; }
+
+  /* Global: 44px tap target on mobile */
   @media (max-width: 639px) {
-    button,
-    .pill-btn,
+    .btn,
+    .btn-sm,
+    .btn-xs,
     .icon-btn,
-    a.pill-btn,
-    [role="button"] {
+    .segmented-item {
       min-height: 44px;
     }
     .icon-btn {
       min-width: 44px;
     }
   }
-  .doc-title, h1, .page-title, .note-title, .modal-title {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    min-width: 0;
-  }
-  button { cursor: pointer; border: none; background: none; color: inherit; }
-  a { color: inherit; text-decoration: none; }
-  ul { list-style: none; }
-  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
 
   /* ===== Header (same as P17) ===== */
   .header {
@@ -193,13 +314,6 @@
   }
   @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
   .header-left { display: flex; align-items: center; gap: var(--space-3); }
-  .menu-btn {
-    width: 36px; height: 36px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: var(--radius-md); color: var(--color-ink);
-    transition: var(--transition-bg);
-  }
-  .menu-btn:hover { background: var(--color-surface); }
   .logo {
     font-size: 21px; font-weight: var(--weight-light);
     letter-spacing: var(--tracking-tightest); color: var(--color-ink);
@@ -222,20 +336,6 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
-  .pill-btn {
-    height: 36px; padding: 0 var(--space-4);
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    font-size: var(--text-sm); font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: var(--transition-bg);
-  }
-  .pill-btn:hover { background: var(--color-surface-hover); }
-  .pill-btn:active { background: var(--color-hairline); }
-  .pill-btn.primary { background: var(--color-accent); color: #fff; }
-  .pill-btn.primary:hover { background: var(--color-accent-hover); }
-  .pill-btn.primary:active { background: var(--color-accent-pressed); }
   .avatar {
     width: 32px; height: 32px; border-radius: 50%;
     background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
@@ -363,7 +463,7 @@
   .process-banner-cancel:hover { background: rgba(255,255,255,0.85); }
   .process-banner-bar {
     height: 4px;
-    background: rgba(0,113,227,0.18);
+    background: color-mix(in oklch, var(--color-accent) 18%, transparent);
     border-radius: var(--radius-pill);
     overflow: hidden;
   }
@@ -412,36 +512,10 @@
     transform: translateY(-50%); color: var(--color-ink-tertiary);
     pointer-events: none;
   }
-  .segmented {
-    background: var(--color-surface); border-radius: var(--radius-md);
-    padding: 2px; display: inline-flex;
-  }
-  .segmented button {
-    padding: 6px 14px; border-radius: 7px;
-    font-size: var(--text-sm); font-weight: var(--weight-medium);
-    color: var(--color-ink-secondary);
-    transition: var(--transition-default);
-  }
-  .segmented button.active {
-    background: var(--color-bg); color: var(--color-ink);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
-  .segmented button:hover:not(.active) { color: var(--color-ink); }
-
-  /* Tag list */
+  /* Tag list — list-row のページ固有レイアウト (cell 内容のタイポと色のみ) */
   .tag-list {
     border-top: 1px solid var(--color-hairline);
   }
-  .tag-row {
-    display: grid;
-    grid-template-columns: 1fr 100px 160px auto;
-    gap: var(--space-4);
-    align-items: center;
-    padding: var(--space-4) var(--space-3);
-    border-bottom: 1px solid var(--color-hairline);
-    transition: var(--transition-bg);
-  }
-  .tag-row:hover { background: var(--color-surface); }
   .tag-name {
     font-size: var(--text-lg);
     font-weight: var(--weight-medium);
@@ -465,87 +539,23 @@
     font-size: var(--text-sm);
     color: var(--color-ink-tertiary);
   }
-  .row-actions {
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard);
-  }
-  .tag-row:hover .row-actions { opacity: 1; }
-  .row-actions .text-action {
-    padding: 4px 10px;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink-secondary);
-    transition: var(--transition-default);
-  }
-  .row-actions .text-action:hover { background: var(--color-surface-hover); color: var(--color-ink); }
-  .row-actions .text-action.destructive:hover { color: var(--color-error); background: var(--color-error-surface); }
 
-  /* Kebab menu trigger — only used on mobile */
-  .row-kebab {
-    display: none;
-    width: 36px; height: 36px;
-    align-items: center; justify-content: center;
-    border-radius: var(--radius-pill);
-    color: var(--color-ink-secondary);
-    transition: var(--transition-bg);
-  }
-  .row-kebab:hover { background: var(--color-surface-hover); color: var(--color-ink); }
-
-  /* Editing block — left accent bar marks state; no border, no shadow, no nested card */
+  /* Editing block — accent-surface 背景のみで状態を表現（borderless 原則）*/
   .tag-editing-block {
-    position: relative;
     background: var(--color-accent-surface);
     border-bottom: 1px solid var(--color-hairline);
-    padding-left: 3px; /* room for the accent bar */
   }
-  .tag-editing-block::before {
-    content: "";
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--color-accent);
-  }
-  .tag-editing-block .tag-row {
+  .tag-editing-block .list-row {
     background: transparent;
-    border-bottom: 1px solid rgba(0,113,227,0.14);
-    padding-top: var(--space-4);
-    padding-bottom: var(--space-4);
+    border-bottom: 1px solid color-mix(in oklch, var(--color-accent) 14%, transparent);
   }
-  .tag-editing-block .tag-row:hover { background: transparent; }
-  .editing-close {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px;
-    border-radius: var(--radius-pill);
-    color: var(--color-accent-ink);
-    transition: var(--transition-bg);
-  }
-  .editing-close:hover { background: rgba(255,255,255,0.6); }
-
-  /* Mode switcher (rename vs merge) */
+  .tag-editing-block .list-row:hover { background: transparent; }
   .editing-body {
     padding: var(--space-2) var(--space-3) var(--space-5);
     display: flex; flex-direction: column; gap: var(--space-4);
   }
-  .mode-switch {
-    background: rgba(255,255,255,0.6);
-    border-radius: var(--radius-md);
-    padding: 2px;
-    display: inline-flex;
-    align-self: flex-start;
-  }
-  .mode-switch button {
-    min-width: 64px;
-    padding: 6px 14px; border-radius: 7px;
-    font-size: var(--text-sm); font-weight: var(--weight-medium);
-    color: var(--color-accent-ink);
-    transition: var(--transition-default);
-  }
-  .mode-switch button.active {
-    background: var(--color-bg);
-    color: var(--color-ink);
-  }
-  .mode-switch button:hover:not(.active) { color: var(--color-ink); }
+  /* segmented variant for editing block — align segmented to the start */
+  .tag-editing-block .segmented { align-self: flex-start; }
 
   /* Form sits directly on accent-surface; inputs become white with hairline */
   .inline-form {
@@ -592,18 +602,6 @@
     display: flex; justify-content: flex-end; gap: var(--space-2);
     margin-top: var(--space-2);
   }
-  .btn-sm {
-    height: 32px; padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--color-surface);
-    font-size: var(--text-sm); font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: var(--transition-default);
-  }
-  .btn-sm:hover { background: var(--color-surface-hover); }
-  .btn-sm.primary { background: var(--color-accent); color: #fff; }
-  .btn-sm.primary:hover { background: var(--color-accent-hover); }
 
   /* Section divider for blacklist */
   .section-block { margin-top: var(--space-12); }
@@ -624,17 +622,9 @@
     max-width: 60ch;
     line-height: var(--leading-snug);
   }
-  .blacklist-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: var(--space-4);
-    align-items: center;
-    padding: var(--space-4) var(--space-3);
-    border-bottom: 1px solid var(--color-hairline);
-    transition: var(--transition-bg);
+  .section-block .list-row:first-of-type {
+    border-top: 1px solid var(--color-hairline);
   }
-  .blacklist-row:first-of-type { border-top: 1px solid var(--color-hairline); }
-  .blacklist-row:hover { background: var(--color-surface); }
   .blacklist-tag {
     font-size: var(--text-md);
     font-weight: var(--weight-medium);
@@ -664,21 +654,17 @@
       padding-top: var(--space-5);
     }
     .sidebar.open { transform: translateX(0); }
-    .tag-row {
-      grid-template-columns: 1fr auto;
-      gap: var(--space-3);
-    }
-    .tag-count, .tag-last { display: none; }
-    .row-actions { display: none; }
-    .row-kebab { display: inline-flex; }
+    /* インライン style の grid-template-columns を上書きしてモバイル時は 2 列に */
+    .list-row { grid-template-columns: 1fr auto !important; gap: var(--space-3); }
+    .tag-count, .tag-last, .blacklist-meta { display: none; }
+    .list-row-actions-hover { display: none; }
+    .list-row-kebab { display: inline-flex; }
     /* editing block keeps its close button visible (no kebab here) */
-    .tag-editing-block .row-actions { display: inline-flex; }
-    .blacklist-row { grid-template-columns: 1fr auto; }
-    .blacklist-meta { display: none; }
+    .tag-editing-block .list-row-actions { display: inline-flex; }
   }
   @media (min-width: 1024px) {
     .layout { grid-template-columns: var(--sidebar-width) 1fr; }
-    .menu-btn { display: none; }
+    .header .icon-btn { display: none; }
     .sidebar {
       border-right: 1px solid var(--color-hairline);
       padding-top: var(--space-5);
@@ -697,19 +683,13 @@
     .stats .stat-dot { display: none; }
     .stats { gap: var(--space-3); }
   }
-  @media (min-width: 768px) {
-    .row-actions {
-      flex-wrap: nowrap;
-      overflow-x: visible;
-    }
-  }
 </style>
 </head>
 <body>
 
 <header class="header">
   <div class="header-left">
-    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+    <button class="icon-btn icon-btn-ghost" id="menuBtn" aria-label="Menu">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
     </button>
     <div class="logo">Hollow</div>
@@ -721,9 +701,9 @@
   </div>
 
   <div class="header-right">
-    <button class="pill-btn primary">
+    <button class="btn btn-primary">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="label">新規</span>
+      <span>新規</span>
     </button>
     <div class="avatar" aria-hidden="true">YK</div>
   </div>
@@ -826,43 +806,43 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" placeholder="タグを検索">
       </div>
-      <div class="segmented">
-        <button class="active">利用件数</button>
-        <button>名前</button>
-        <button>最終使用</button>
+      <div class="segmented" role="tablist" aria-label="並び順">
+        <button class="segmented-item active" role="tab" aria-selected="true">利用件数</button>
+        <button class="segmented-item" role="tab" aria-selected="false">名前</button>
+        <button class="segmented-item" role="tab" aria-selected="false">最終使用</button>
       </div>
     </div>
 
     <div class="tag-list">
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>research</span>
         <span class="tag-count"><span class="num">42</span> 件</span>
         <span class="tag-last">最終: 今日 14:32</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
       <div class="tag-editing-block">
-        <div class="tag-row">
+        <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
           <span class="tag-name"><span class="hash">#</span>design</span>
           <span class="tag-count"><span class="num">38</span> 件</span>
           <span class="tag-last">最終: 今日 11:08</span>
-          <span class="row-actions" style="opacity: 1;">
-            <button class="editing-close" aria-label="編集を閉じる">
+          <span class="list-row-actions">
+            <button class="icon-btn icon-btn-ghost icon-btn-accent" aria-label="編集を閉じる">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
             </button>
           </span>
         </div>
         <div class="editing-body">
-          <div class="mode-switch" role="tablist" aria-label="操作モード">
-            <button class="active" role="tab" aria-selected="true">編集</button>
-            <button role="tab" aria-selected="false">統合</button>
+          <div class="segmented segmented-translucent" role="tablist" aria-label="操作モード">
+            <button class="segmented-item active" role="tab" aria-selected="true">編集</button>
+            <button class="segmented-item" role="tab" aria-selected="false">統合</button>
           </div>
           <div class="inline-form">
             <div class="form-group">
@@ -871,120 +851,120 @@
               <div class="form-hint">38 件のノートのタグが書き換えられます。元には戻せません。</div>
             </div>
             <div class="form-actions">
-              <button class="btn-sm primary">保存</button>
+              <button class="btn btn-sm btn-primary">保存</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>日記</span>
         <span class="tag-count"><span class="num">31</span> 件</span>
         <span class="tag-last">最終: 今日 09:15</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>読書</span>
         <span class="tag-count"><span class="num">24</span> 件</span>
         <span class="tag-last">最終: 昨日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>essay</span>
         <span class="tag-count"><span class="num">19</span> 件</span>
         <span class="tag-last">最終: 5月14日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>cloudflare</span>
         <span class="tag-count"><span class="num">14</span> 件</span>
         <span class="tag-last">最終: 昨日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>tanstack</span>
         <span class="tag-count"><span class="num">11</span> 件</span>
         <span class="tag-last">最終: 5月10日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>meeting</span>
         <span class="tag-count"><span class="num">9</span> 件</span>
         <span class="tag-last">最終: 5月14日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>travel</span>
         <span class="tag-count"><span class="num">7</span> 件</span>
         <span class="tag-last">最終: 5月12日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
 
-      <div class="tag-row">
+      <div class="list-row" style="grid-template-columns: 1fr 100px 160px auto;">
         <span class="tag-name"><span class="hash">#</span>quote</span>
         <span class="tag-count"><span class="num">5</span> 件</span>
         <span class="tag-last">最終: 5月2日</span>
-        <span class="row-actions">
-          <button class="text-action">編集</button>
-          <button class="text-action">統合</button>
-          <button class="text-action destructive">ブラックリスト</button>
+        <span class="list-row-actions list-row-actions-hover">
+          <button class="btn btn-xs">編集</button>
+          <button class="btn btn-xs">統合</button>
+          <button class="btn btn-xs btn-destructive">ブラックリスト</button>
         </span>
-        <button class="row-kebab" aria-label="操作メニュー">
+        <button class="icon-btn icon-btn-ghost list-row-kebab" aria-label="操作メニュー">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
       </div>
@@ -996,28 +976,28 @@
         <p class="section-desc">これらのタグは自動抽出時に再追加されません。手動でノートに付与することは可能です。</p>
       </div>
 
-      <div class="blacklist-row">
+      <div class="list-row" style="grid-template-columns: 1fr 1fr auto;">
         <span class="blacklist-tag">
           <span class="hash">#</span>todo
         </span>
         <span class="blacklist-meta">2026/03/12 に除外 · 元 142 件</span>
-        <button class="btn-sm">元に戻す</button>
+        <button class="btn btn-sm">元に戻す</button>
       </div>
 
-      <div class="blacklist-row">
+      <div class="list-row" style="grid-template-columns: 1fr 1fr auto;">
         <span class="blacklist-tag">
           <span class="hash">#</span>untagged
         </span>
         <span class="blacklist-meta">2026/02/28 に除外 · 元 18 件</span>
-        <button class="btn-sm">元に戻す</button>
+        <button class="btn btn-sm">元に戻す</button>
       </div>
 
-      <div class="blacklist-row">
+      <div class="list-row" style="grid-template-columns: 1fr 1fr auto;">
         <span class="blacklist-tag">
           <span class="hash">#</span>archived
         </span>
         <span class="blacklist-meta">2025/12/04 に除外 · 元 73 件</span>
-        <button class="btn-sm">元に戻す</button>
+        <button class="btn btn-sm">元に戻す</button>
       </div>
     </section>
   </main>

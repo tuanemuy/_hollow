@@ -7,8 +7,8 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --color-accent: #0071e3; --color-accent-hover: #0077ed; --color-accent-pressed: #006edb;
-    --color-accent-surface: #e8f1fd; --color-accent-ink: #0058b4;
+    --color-accent: oklch(37.1% 0 0); --color-accent-hover: oklch(43.9% 0 0); --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0); --color-accent-ink: oklch(26.9% 0 0);
     --color-bg: #ffffff; --color-surface: #f5f5f7; --color-surface-hover: #ececef; --color-surface-elevated: #fbfbfd;
     --color-ink: #1d1d1f; --color-ink-secondary: #6e6e73; --color-ink-tertiary: #86868b;
     --color-hairline: rgba(60,60,67,0.12); --color-hairline-strong: rgba(60,60,67,0.18);
@@ -18,7 +18,7 @@
     --color-info: var(--color-accent);
     --color-status-private: #86868b; --color-status-link: #a8580b; --color-status-public: #1f8f3a;
     --code-keyword: #aa3e3e; --code-string: #2a8c4f; --code-comment: var(--color-ink-tertiary); --code-function: #5b3da1; --code-number: #1d6fd6;
-    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-heading: var(--font-sans); --font-body: var(--font-sans);
     --text-xs: clamp(11px, 0.7vw + 9px, 12px); --text-sm: clamp(12px, 0.8vw + 10px, 13px); --text-base: clamp(14px, 1vw + 11px, 16px); --text-md: clamp(15px, 1vw + 12px, 17px); --text-lg: clamp(17px, 1.2vw + 13px, 19px); --text-xl: clamp(20px, 1.4vw + 14px, 24px); --text-2xl: clamp(24px, 2vw + 16px, 30px); --text-3xl: clamp(22px, 4vw, 40px); --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
@@ -29,7 +29,7 @@
     --container-max: 1280px; --container-padding: clamp(16px, 4vw, 32px);
     --sidebar-width: 260px; --meta-rail-width: 260px; --content-max: 760px; --header-height: 64px;
     --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px; --radius-pill: 980px; --radius-full: 9999px;
-    --shadow-none: none; --shadow-xs: 0 1px 2px rgba(0,0,0,0.04); --shadow-sm: 0 2px 8px rgba(0,0,0,0.06); --shadow-md: 0 8px 24px rgba(0,0,0,0.08); --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --shadow-none: none; --shadow-xs: 0 1px 2px rgba(0,0,0,0.04); --shadow-sm: 0 2px 8px rgba(0,0,0,0.06); --shadow-md: 0 8px 24px rgba(0,0,0,0.08); --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); --ease-decel: cubic-bezier(0, 0, 0.2, 1); --ease-accel: cubic-bezier(0.4, 0, 1, 1);
     --duration-fast: 120ms; --duration-base: 180ms; --duration-slow: 280ms;
     --transition-default: all var(--duration-base) var(--ease-standard);
@@ -262,15 +262,15 @@
           <div class="token-row">
             <div class="token-key">--color-accent</div>
             <div class="token-input-wrap">
-              <span class="swatch" style="background:#0071e3" aria-hidden="true"></span>
-              <input class="token-input" type="text" value="#0071e3">
+              <span class="swatch" style="background:oklch(37.1% 0 0)" aria-hidden="true"></span>
+              <input class="token-input" type="text" value="oklch(37.1% 0 0)">
             </div>
           </div>
           <div class="token-row">
             <div class="token-key">--color-accent-surface</div>
             <div class="token-input-wrap">
-              <span class="swatch" style="background:#e8f1fd" aria-hidden="true"></span>
-              <input class="token-input" type="text" value="#e8f1fd">
+              <span class="swatch" style="background:oklch(97% 0 0)" aria-hidden="true"></span>
+              <input class="token-input" type="text" value="oklch(97% 0 0)">
             </div>
           </div>
           <div class="token-row">

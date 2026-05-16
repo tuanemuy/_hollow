@@ -9,11 +9,11 @@
 
   :root {
     /* Color: brand */
-    --color-accent: #0071e3;
-    --color-accent-hover: #0077ed;
-    --color-accent-pressed: #006edb;
-    --color-accent-surface: #e8f1fd;
-    --color-accent-ink: #0058b4;
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
 
     /* Color: neutral */
     --color-bg: #ffffff;
@@ -48,7 +48,7 @@
     --code-number: #1d6fd6;
 
     /* Typography */
-    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", sans-serif;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
     --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --font-heading: var(--font-sans);
     --font-body: var(--font-sans);
@@ -114,7 +114,7 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-focus: 0 0 0 4px rgba(0,113,227,0.22);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     /* Motion */
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -479,7 +479,7 @@
     gap: 5px;
     transition: var(--transition-bg);
   }
-  .save-view-pill:hover { background: #ddeafc; }
+  .save-view-pill:hover { background: oklch(92.2% 0 0); }
 
   /* Segmented control */
   .toolbar {
@@ -539,7 +539,7 @@
   }
   .note-row:hover { background: var(--color-surface); }
   .note-row.selected { background: var(--color-accent-surface); }
-  .note-row.selected:hover { background: #ddeafc; }
+  .note-row.selected:hover { background: oklch(92.2% 0 0); }
   .note-check {
     width: 20px; height: 20px;
     margin-top: 1px;
