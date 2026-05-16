@@ -1,7 +1,8 @@
 "use client";
 
+import type { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
-import {
+import type {
   acquireEditLockFn,
   extendEditLockFn,
   releaseEditLockFn,
@@ -16,8 +17,8 @@ import type { EditorAction } from "./editorState";
 /**
  * Edit-lock orchestration for the editor (best-effort, see ADR-006).
  *
- * On mount the hook calls `acquireEditLockFn`. The error branches are
- * exhaustive per the plan:
+ * On mount the hook calls the supplied `acquireLock`. The error branches
+ * are exhaustive per the plan:
  *   - `business` + code `edit_locked_by_other` → dispatch `editLockDenied`
  *     and let the banner surface the warning. Editing remains permitted.
  *   - `forbidden` (`NOTE_FORBIDDEN`) / `not_found` (`NOTE_NOT_FOUND`)
@@ -25,13 +26,32 @@ import type { EditorAction } from "./editorState";
  *   - Anything else is logged and treated as denied so the editor stays
  *     usable but the user knows the lock is not guaranteed.
  *
- * Renewal runs on a `setInterval` until unmount or a denial. Unmount /
- * blur releases the lock; tab-close is intentionally left to the TTL
- * (no `sendBeacon` — ADR-006).
+ * Renewal runs on a `setInterval` until unmount or a denial. **Only**
+ * unmount releases the lock — tab-close / blur / pagehide are
+ * intentionally not wired and the TTL covers those cases (see PR #7
+ * Round 1 Blocker W-002).
+ *
+ * The three server functions are supplied by the caller as
+ * `useServerFn(...)` return values so the wrapper's redirect / session
+ * handling stays in effect; the hook never imports the raw server fns
+ * directly (PR #7 Round 1 Blocker B-001).
  */
+type AcquireEditLockServerFn = ReturnType<
+  typeof useServerFn<typeof acquireEditLockFn>
+>;
+type ExtendEditLockServerFn = ReturnType<
+  typeof useServerFn<typeof extendEditLockFn>
+>;
+type ReleaseEditLockServerFn = ReturnType<
+  typeof useServerFn<typeof releaseEditLockFn>
+>;
+
 export type UseEditLockArgs = Readonly<{
   noteId: string | null;
   dispatch: React.Dispatch<EditorAction>;
+  acquireLock: AcquireEditLockServerFn;
+  extendLock: ExtendEditLockServerFn;
+  releaseLock: ReleaseEditLockServerFn;
 }>;
 
 const HELD_BY_OTHER_CODES = new Set<string>([
@@ -39,21 +59,42 @@ const HELD_BY_OTHER_CODES = new Set<string>([
   "edit_lock_held_by_other",
 ]);
 
-function isHeldByOther(err: SerializedError): boolean {
+/**
+ * Recognises the two business-error codes the lock usecase emits when
+ * another session holds the lock. Exported as a pure helper so the
+ * branching policy is exercisable from vitest without mounting the hook.
+ */
+export function isHeldByOther(err: SerializedError): boolean {
   return err.kind === "business" && HELD_BY_OTHER_CODES.has(err.code ?? "");
 }
 
-function shouldRethrow(err: SerializedError): boolean {
+/**
+ * `forbidden` / `notFound` errors during lock acquire / extend should
+ * bubble up to the route's error boundary rather than being swallowed
+ * into the "denied" banner. Exported for unit coverage.
+ */
+export function shouldRethrow(err: SerializedError): boolean {
   return err.kind === "forbidden" || err.kind === "notFound";
 }
 
-function expiresAtToMs(value: string | null): number | null {
+/**
+ * Convert an ISO timestamp string into epoch-ms, defending against
+ * malformed input. `null` propagates through and unparseable strings
+ * collapse to `null` so the reducer never receives `NaN`.
+ */
+export function expiresAtToMs(value: string | null): number | null {
   if (value === null) return null;
   const t = new Date(value).getTime();
   return Number.isNaN(t) ? null : t;
 }
 
-export function useEditLock({ noteId, dispatch }: UseEditLockArgs) {
+export function useEditLock({
+  noteId,
+  dispatch,
+  acquireLock,
+  extendLock,
+  releaseLock,
+}: UseEditLockArgs) {
   const mountedRef = useRef(true);
   const acquiredRef = useRef(false);
 
@@ -64,7 +105,7 @@ export function useEditLock({ noteId, dispatch }: UseEditLockArgs) {
 
     const acquire = async () => {
       try {
-        const result = await acquireEditLockFn({ data: { noteId } });
+        const result = await acquireLock({ data: { noteId } });
         if (!mountedRef.current) return;
         acquiredRef.current = true;
         dispatch({
@@ -90,7 +131,7 @@ export function useEditLock({ noteId, dispatch }: UseEditLockArgs) {
     const extend = async () => {
       if (!acquiredRef.current) return;
       try {
-        const result = await extendEditLockFn({ data: { noteId } });
+        const result = await extendLock({ data: { noteId } });
         if (!mountedRef.current) return;
         dispatch({
           type: "editLockAcquired",
@@ -112,13 +153,6 @@ export function useEditLock({ noteId, dispatch }: UseEditLockArgs) {
       }
     };
 
-    const onBlur = () => {
-      if (!acquiredRef.current) return;
-      void releaseEditLockFn({ data: { noteId } }).catch(() => {
-        // Release is best-effort; the TTL covers any failure.
-      });
-    };
-
     void acquire().then(() => {
       if (!mountedRef.current) return;
       interval = setInterval(() => {
@@ -126,23 +160,16 @@ export function useEditLock({ noteId, dispatch }: UseEditLockArgs) {
       }, EDIT_LOCK_RENEW_INTERVAL_MS);
     });
 
-    if (typeof window !== "undefined") {
-      window.addEventListener("blur", onBlur);
-    }
-
     return () => {
       mountedRef.current = false;
       if (interval !== null) clearInterval(interval);
-      if (typeof window !== "undefined") {
-        window.removeEventListener("blur", onBlur);
-      }
       if (acquiredRef.current) {
         acquiredRef.current = false;
-        void releaseEditLockFn({ data: { noteId } }).catch(() => {
+        void releaseLock({ data: { noteId } }).catch(() => {
           // Release is best-effort; the TTL covers any failure.
         });
         dispatch({ type: "editLockReleased" });
       }
     };
-  }, [noteId, dispatch]);
+  }, [noteId, dispatch, acquireLock, extendLock, releaseLock]);
 }

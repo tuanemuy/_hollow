@@ -4,7 +4,14 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useReducer, useState, useTransition } from "react";
 import { createDirectoryFn } from "@/components/directory/actions";
-import { createNoteFn, saveNoteFn } from "@/components/note/actions";
+import {
+  acquireEditLockFn,
+  createNoteFn,
+  extendEditLockFn,
+  releaseEditLockFn,
+  saveNoteDraftFn,
+  saveNoteFn,
+} from "@/components/note/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -71,6 +78,10 @@ export function NoteEditor(props: NoteEditorProps) {
   const createNote = useServerFn(createNoteFn);
   const saveNote = useServerFn(saveNoteFn);
   const createDirectory = useServerFn(createDirectoryFn);
+  const saveDraft = useServerFn(saveNoteDraftFn);
+  const acquireLock = useServerFn(acquireEditLockFn);
+  const extendLock = useServerFn(extendEditLockFn);
+  const releaseLock = useServerFn(releaseEditLockFn);
 
   const noteId = props.mode === "edit" ? props.noteId : null;
 
@@ -94,8 +105,14 @@ export function NoteEditor(props: NoteEditorProps) {
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
 
-  useAutosave({ noteId, state, dispatch });
-  useEditLock({ noteId, dispatch });
+  useAutosave({ noteId, state, dispatch, saveDraft });
+  useEditLock({
+    noteId,
+    dispatch,
+    acquireLock,
+    extendLock,
+    releaseLock,
+  });
 
   const onMediaInsert = useCallback(
     (nextHtml: string, insertion: { id: string; url: string }) => {

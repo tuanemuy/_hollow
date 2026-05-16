@@ -10,21 +10,25 @@ import {
 } from "@/core/presentation/errorResponse";
 import { bulkMoveNotesFn, moveNoteFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
-import { useSelection } from "./SelectionContext";
 
 type Props = {
-  /** When supplied, the dialog operates in single-note move mode. */
-  noteId?: string;
+  noteIds: readonly string[];
   open: boolean;
   onClose: () => void;
   tree: readonly FlatDirectory[];
+  onMoved?: () => void;
 };
 
-export function MoveNoteDialog({ noteId, open, onClose, tree }: Props) {
+export function MoveNoteDialog({
+  noteIds,
+  open,
+  onClose,
+  tree,
+  onMoved,
+}: Props) {
   const router = useRouter();
   const moveOne = useServerFn(moveNoteFn);
   const moveMany = useServerFn(bulkMoveNotesFn);
-  const { state, dispatch } = useSelection();
   const [target, setTarget] = useState("");
   const [error, setError] = useState<SerializedError | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -33,23 +37,21 @@ export function MoveNoteDialog({ noteId, open, onClose, tree }: Props) {
 
   if (!open) return null;
 
-  const ids = noteId !== undefined ? [noteId] : [...state.ids];
-
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (target === "" || ids.length === 0) return;
+    if (target === "" || noteIds.length === 0) return;
     setError(null);
     setBatchError(null);
     startTransition(async () => {
       try {
-        const first = ids[0];
-        if (ids.length === 1 && first !== undefined) {
+        const first = noteIds[0];
+        if (noteIds.length === 1 && first !== undefined) {
           await moveOne({
             data: { noteId: first, newDirectoryId: target },
           });
         } else {
           const result = await moveMany({
-            data: { noteIds: ids, newDirectoryId: target },
+            data: { noteIds: [...noteIds], newDirectoryId: target },
           });
           if (result.failures.length > 0) {
             setBatchError(
@@ -57,7 +59,7 @@ export function MoveNoteDialog({ noteId, open, onClose, tree }: Props) {
             );
           }
         }
-        dispatch({ type: "clear" });
+        onMoved?.();
         await router.invalidate();
         onClose();
       } catch (e) {
@@ -83,7 +85,9 @@ export function MoveNoteDialog({ noteId, open, onClose, tree }: Props) {
     >
       <form className="dialog" onSubmit={submit}>
         <h2 className="dialog-title">
-          {ids.length === 1 ? "ノートを移動" : `${ids.length} 件のノートを移動`}
+          {noteIds.length === 1
+            ? "ノートを移動"
+            : `${noteIds.length} 件のノートを移動`}
         </h2>
         <div className="field">
           <label htmlFor={targetId}>移動先ディレクトリ</label>

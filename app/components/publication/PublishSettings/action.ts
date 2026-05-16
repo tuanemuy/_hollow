@@ -5,6 +5,7 @@ import type { ShareLinkId } from "@/core/domain/publication/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
+import { requireCurrentUser } from "@/lib/server/currentUser";
 import {
   changeVisibilitySchema,
   issueShareLinkSchema,
@@ -16,7 +17,6 @@ export const changeVisibilityFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(changeVisibilitySchema))
   .handler(async ({ data }) => {
-    const { requireCurrentUser } = await import("@/lib/server/currentUser");
     const actor = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () =>
@@ -36,7 +36,6 @@ export const issueShareLinkFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(issueShareLinkSchema))
   .handler(async ({ data }) => {
-    const { requireCurrentUser } = await import("@/lib/server/currentUser");
     const actor = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/publication/issueShareLink"),
@@ -55,7 +54,6 @@ export const revokeShareLinkFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(revokeShareLinkSchema))
   .handler(async ({ data }) => {
-    const { requireCurrentUser } = await import("@/lib/server/currentUser");
     const actor = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/publication/revokeShareLink"),
@@ -80,7 +78,6 @@ export const bulkChangeVisibilityFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(bulkVisibilitySchema))
   .handler(async ({ data }) => {
-    const { requireCurrentUser } = await import("@/lib/server/currentUser");
     const actor = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () =>
@@ -109,7 +106,6 @@ export const setShareLinkPasswordFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(setShareLinkPasswordSchema))
   .handler(async ({ data }) => {
-    const { requireCurrentUser } = await import("@/lib/server/currentUser");
     const actor = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/publication/setShareLinkPassword"),

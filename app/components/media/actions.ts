@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { MediaAssetId, MediaKind } from "@/core/domain/media/valueObject";
+import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -26,7 +26,7 @@ export const presignMediaUploadFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        kind: data.kind as MediaKind,
+        kind: data.kind,
         mimeType: data.mimeType,
         byteSize: data.byteSize,
       },

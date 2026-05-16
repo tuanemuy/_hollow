@@ -41,9 +41,23 @@ import {
  * domain-shaped record. Returns `undefined` when no JSON was supplied
  * so the caller can leave the existing FrontMatter untouched on save.
  *
- * Throws `BusinessRuleError` on malformed JSON / non-object payloads so
- * the error response middleware serialises it as a structured business
- * failure rather than leaking a `SyntaxError` to the client.
+ * Two distinct error families surface to the client depending on which
+ * boundary the input fails:
+ *
+ * - **Transport / shape failures** raised here as
+ *   `BusinessRuleError("FRONT_MATTER_JSON_INVALID")`: malformed JSON
+ *   (`JSON.parse` throws), or the parsed value is not a plain object
+ *   (`null`, array, primitive). We translate `SyntaxError` into a
+ *   structured business failure so the error-response middleware
+ *   serialises it consistently rather than leaking a `SyntaxError` to
+ *   the client.
+ * - **Domain invariant failures** raised by `FrontMatter.create` /
+ *   downstream value-object construction (e.g. forbidden value shapes,
+ *   reserved keys). Those carry their own domain error codes such as
+ *   `FRONT_MATTER_INVALID_VALUE` and are NOT re-translated here — they
+ *   flow through the usecase unchanged so the client can distinguish
+ *   "your JSON did not parse" from "your FrontMatter violates a domain
+ *   rule".
  */
 function parseFrontMatterJson(
   raw: string | undefined,

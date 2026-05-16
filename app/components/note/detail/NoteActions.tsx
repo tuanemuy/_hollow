@@ -12,19 +12,9 @@ import {
 } from "@/core/presentation/errorResponse";
 import { deleteNoteFn, duplicateNoteFn } from "../actions";
 import { MoveNoteDialog } from "../list/MoveNoteDialog";
-import { SelectionProvider } from "../list/SelectionContext";
 import type { FlatDirectory } from "../loaders";
 import { UrlCopyButton } from "./UrlCopyButton";
 
-/**
- * Operation menu for a single note on the detail page.
- *
- * Wrapped in a local `SelectionProvider` so the shared
- * `MoveNoteDialog` (originally a bulk-action component) can be reused
- * in single-note mode without dragging the home-page selection model
- * into the detail route. The dialog falls back to `noteId` when the
- * selection set is empty.
- */
 export type NoteActionsProps = Readonly<{
   noteId: NoteId;
   status: "active" | "trashed";
@@ -35,15 +25,7 @@ export type NoteActionsProps = Readonly<{
 
 type OpenDialog = "move" | null;
 
-export function NoteActions(props: NoteActionsProps) {
-  return (
-    <SelectionProvider>
-      <NoteActionsInner {...props} />
-    </SelectionProvider>
-  );
-}
-
-function NoteActionsInner({
+export function NoteActions({
   noteId,
   status,
   visibility,
@@ -172,7 +154,7 @@ function NoteActionsInner({
         ) : null}
       </div>
       <MoveNoteDialog
-        noteId={noteIdStr}
+        noteIds={[noteIdStr]}
         open={open === "move"}
         onClose={() => setOpen(null)}
         tree={tree}

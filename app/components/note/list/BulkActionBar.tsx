@@ -120,9 +120,11 @@ export function BulkActionBar({ tree }: Props) {
         ) : null}
       </section>
       <MoveNoteDialog
+        noteIds={ids}
         open={open === "move"}
         onClose={() => setOpen(null)}
         tree={tree}
+        onMoved={() => dispatch({ type: "clear" })}
       />
       <BulkVisibilityDialog
         open={open === "visibility"}

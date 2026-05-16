@@ -10,7 +10,9 @@ import { buildHead } from "@/core/presentation/head";
 const checkAlreadyAuthenticated = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
-    const { getCurrentUser } = await import("@/core/presentation/authMiddleware");
+    const { getCurrentUser } = await import(
+      "@/core/presentation/authMiddleware"
+    );
     const user = await getCurrentUser();
     return { authenticated: user !== null };
   });

@@ -194,6 +194,52 @@ describe("editorReducer setters", () => {
     expect(s1.pendingDirectoryName).toBe("Inbox");
   });
 
+  // W-013: same-value writes are referential no-ops for both directory
+  // setters. This keeps the reducer from churning `dirtyKeys` (and
+  // bouncing autosave) when a controlled input re-emits the current
+  // value during re-render.
+  it("setDirectory with the same directoryId is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "setDirectory",
+      directoryId: "dir-1",
+    });
+    const s1 = editorReducer(s0, {
+      type: "setDirectory",
+      directoryId: "dir-1",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("setDirectory with the same null directoryId is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, {
+      type: "setDirectory",
+      directoryId: null,
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("setPendingDirectoryName with the same value is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "setPendingDirectoryName",
+      value: "Inbox",
+    });
+    const s1 = editorReducer(s0, {
+      type: "setPendingDirectoryName",
+      value: "Inbox",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("setPendingDirectoryName with the same null value is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, {
+      type: "setPendingDirectoryName",
+      value: null,
+    });
+    expect(s1).toBe(s0);
+  });
+
   it("setMode no-ops on `wysiwyg-disabled`", () => {
     const s0 = freshState();
     const s1 = editorReducer(s0, {
@@ -253,6 +299,51 @@ describe("editorReducer autosave actions", () => {
     expect(s1.autosave.kind).toBe("saving");
     expect(s1.dirtyKeys.has("title")).toBe(true);
   });
+
+  // W-001: every dirty-marking setter must preserve `saving` so an
+  // in-flight autosave is not retroactively downgraded to `dirty` by a
+  // user keystroke landing mid-flight.
+  it.each([
+    {
+      label: "setContent",
+      action: { type: "setContent", value: "<p>new</p>" } as const,
+    },
+    {
+      label: "setFrontMatterField",
+      action: {
+        type: "setFrontMatterField",
+        key: "k",
+        value: 1,
+      } as const,
+    },
+    {
+      label: "setFrontMatterRawJson",
+      action: {
+        type: "setFrontMatterRawJson",
+        value: `{ "k": 1 }`,
+      } as const,
+    },
+    {
+      label: "setTagInput",
+      action: { type: "setTagInput", value: "a, b" } as const,
+    },
+    {
+      label: "setDirectory",
+      action: { type: "setDirectory", directoryId: "dir-1" } as const,
+    },
+    {
+      label: "setPendingDirectoryName",
+      action: {
+        type: "setPendingDirectoryName",
+        value: "Inbox",
+      } as const,
+    },
+  ])("$label during `saving` leaves autosave on `saving`", ({ action }) => {
+    const s0 = editorReducer(freshState(), { type: "autosaveStart" });
+    expect(s0.autosave.kind).toBe("saving");
+    const s1 = editorReducer(s0, action);
+    expect(s1.autosave.kind).toBe("saving");
+  });
 });
 
 describe("editorReducer edit-lock actions", () => {
@@ -293,6 +384,73 @@ describe("editorReducer edit-lock actions", () => {
       lockId: null,
       expiresAt: null,
     });
+  });
+
+  // W-002: the lock hook can drive the reducer through every legal
+  // transition during a single mount. We exercise the explicit edges so
+  // a regression in one branch surfaces as a focused failure.
+  it("released → acquired", () => {
+    const s0 = editorReducer(freshState(), { type: "editLockReleased" });
+    expect(s0.editLock.state).toBe("released");
+    const s1 = editorReducer(s0, {
+      type: "editLockAcquired",
+      lockId: "lock-1",
+      expiresAt: 1000,
+    });
+    expect(s1.editLock).toEqual({
+      state: "acquired",
+      lockId: "lock-1",
+      expiresAt: 1000,
+    });
+  });
+
+  it("released → denied", () => {
+    const s0 = editorReducer(freshState(), { type: "editLockReleased" });
+    const s1 = editorReducer(s0, {
+      type: "editLockDenied",
+      expiresAt: 5000,
+    });
+    expect(s1.editLock).toEqual({
+      state: "denied",
+      lockId: null,
+      expiresAt: 5000,
+    });
+  });
+
+  it("denied → acquired (promotion)", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "editLockDenied",
+      expiresAt: 5000,
+    });
+    const s1 = editorReducer(s0, {
+      type: "editLockAcquired",
+      lockId: "lock-promoted",
+      expiresAt: 9000,
+    });
+    expect(s1.editLock).toEqual({
+      state: "acquired",
+      lockId: "lock-promoted",
+      expiresAt: 9000,
+    });
+  });
+
+  it("acquired → acquired updates expiresAt and produces a new state object", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "editLockAcquired",
+      lockId: "lock-1",
+      expiresAt: 1000,
+    });
+    const s1 = editorReducer(s0, {
+      type: "editLockAcquired",
+      lockId: "lock-1",
+      expiresAt: 2000,
+    });
+    expect(s1.editLock.state).toBe("acquired");
+    expect(s1.editLock.expiresAt).toBe(2000);
+    // The reducer always allocates a new EditLockState on acquire so
+    // React detects the change; referential inequality is the contract.
+    expect(s1.editLock).not.toBe(s0.editLock);
+    expect(s1).not.toBe(s0);
   });
 });
 

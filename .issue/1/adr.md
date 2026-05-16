@@ -494,3 +494,41 @@ Phase E のスコープ（pure ロジックの境界テスト追加）と無関�
 ### Consequences
 - 良い点: スコープを膨らませず Phase E を完了できる
 - トレードオフ: 統合テストが赤のまま PR を出すことになる。PR 説明に「pre-existing on the branch、本 PR では未対応」と明記する必要がある
+
+---
+
+## ADR-025: サブエージェント並列実行は同一ファイルへの修正で逐次化する
+
+### Status
+Accepted
+
+### Context
+Issue #1 PR レビュー Round 2 で 3 つの修正 agent を並列起動した結果、3 つ目のテスト追加 agent が `useAutosave.ts` / `useEditLock.ts` / `MediaUploader.tsx` で「pure helper を export する」修正を行う際に、別 agent が並列で行っていた「signature を `useServerFn` ラップ用に変更する」修正を上書きで巻き戻した。両方とも同じファイルを触る変更で、独立タスクではなかった。
+
+### Decision
+- サブエージェント並列実行ポリシーは「独立した作業は並列」を原則とするが、**同一ファイルに対する修正タスクは逐次化する**ことを補足する
+- 修正タスクを並列起動する前にファイル単位の touch graph を確認し、重複があれば順序化 or 統合する
+- 並列 agent の出力を merge した後、`git diff` で意図しない巻き戻しが発生していないか確認するチェックを入れる
+
+### Consequences
+- 良い点: regression を防ぐ
+- トレードオフ: 並列度が下がる
+
+---
+
+## ADR-026: ホームルートの validateSearch は他ルートと意図的に divergence
+
+### Status
+Accepted
+
+### Context
+Round 2 で `validateSearch` を他ルート (`search.tsx`, `views/index.tsx` 等) の `(search) => schema.parse(search)` パターンに揃える修正を試みたが、`<Link to="/">` / `redirect({ to: "/" })` を呼ぶ 8 ファイル + `NoteListToolbar.tsx` の `search: (prev) => ...` updater で TypeScript の `MakeRequiredSearchParams` 要求が厳しくなり型エラーが発生する。`validateInput()` ラッパは入力を `unknown` に広げる効果があり、`<Link to="/">` から `search` prop を省略できる仕様を成立させている。
+
+### Decision
+- ホームルートは `validateInput(noteListSearchSchema)` を継続使用、他ルートとの divergence を**意図的に**維持
+- divergence の根拠を `app/routes/index.tsx` にコメントで明示
+- 統一化は Phase 4 で別 Issue として検討
+
+### Consequences
+- 良い点: 既存ルート群との後方互換が保たれる、`<Link to="/">` の省略が許可される UX が維持される
+- トレードオフ: throw 経路が他ルートと不統一（`AppServerError` vs `ZodError`）

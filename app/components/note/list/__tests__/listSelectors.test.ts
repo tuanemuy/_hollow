@@ -51,6 +51,29 @@ describe("selectionReducer", () => {
     const s2 = selectionReducer(s1, { type: "clear" });
     expect(s2.ids.size).toBe(0);
   });
+
+  // W-006: selectMany with an empty array still allocates a fresh set
+  // (the reducer doesn't fast-path that case) but must preserve every
+  // existing id. Documenting the behaviour pins it against accidental
+  // regressions in the loop guard.
+  it("selectMany([]) preserves existing ids", () => {
+    const s1 = selectionReducer(emptySelection, {
+      type: "selectMany",
+      ids: ["a", "b"],
+    });
+    const s2 = selectionReducer(s1, { type: "selectMany", ids: [] });
+    expect(s2.ids.size).toBe(2);
+    expect(s2.ids.has("a")).toBe(true);
+    expect(s2.ids.has("b")).toBe(true);
+  });
+
+  it("selectMany([]) from empty stays empty", () => {
+    const s1 = selectionReducer(emptySelection, {
+      type: "selectMany",
+      ids: [],
+    });
+    expect(s1.ids.size).toBe(0);
+  });
 });
 
 describe("groupNotesByDay", () => {
@@ -77,6 +100,31 @@ describe("groupNotesByDay", () => {
 
   it("returns an empty array for empty input", () => {
     expect(groupNotesByDay([], "UTC")).toEqual([]);
+  });
+
+  // W-005: the `tz` argument is the whole reason this helper exists
+  // (Workers default to UTC). The cases below pin the timezone shift,
+  // contrast it against UTC, and exercise a month rollover so DST-style
+  // edge cases stay obvious.
+  it("bucketed key follows the supplied tz (Asia/Tokyo shifts late UTC to next day)", () => {
+    const notes = [{ id: "1", updatedAt: "2024-01-15T23:30:00Z" }];
+    const jst = groupNotesByDay(notes, "Asia/Tokyo");
+    expect(jst[0]?.dateKey).toBe("2024-01-16");
+  });
+
+  it("Asia/Tokyo and UTC disagree on a late-evening UTC timestamp", () => {
+    const notes = [{ id: "1", updatedAt: "2024-01-15T23:30:00Z" }];
+    const jst = groupNotesByDay(notes, "Asia/Tokyo");
+    const utc = groupNotesByDay(notes, "UTC");
+    expect(jst[0]?.dateKey).not.toBe(utc[0]?.dateKey);
+    expect(utc[0]?.dateKey).toBe("2024-01-15");
+    expect(jst[0]?.dateKey).toBe("2024-01-16");
+  });
+
+  it("month rollover: 2024-01-31T23:00:00Z buckets as 2024-02-01 in Asia/Tokyo", () => {
+    const notes = [{ id: "1", updatedAt: "2024-01-31T23:00:00Z" }];
+    const buckets = groupNotesByDay(notes, "Asia/Tokyo");
+    expect(buckets[0]?.dateKey).toBe("2024-02-01");
   });
 });
 
@@ -117,6 +165,25 @@ describe("searchToViewQuery", () => {
     const out = searchToViewQuery({ ...baseSearch, q: "   " });
     expect(out.query.keyword).toBe(null);
   });
+
+  // W-003: the dateRange branch must engage when *either* bound is
+  // present, with the missing side null'd rather than dropped. Without
+  // this the SavedView would lose the open-ended interval entirely.
+  it("dateRange with only `from` keeps `to` null", () => {
+    const out = searchToViewQuery({ ...baseSearch, from: "2024-01-01" });
+    expect(out.query.dateRange).toEqual({
+      from: "2024-01-01",
+      to: null,
+    });
+  });
+
+  it("dateRange with only `to` keeps `from` null", () => {
+    const out = searchToViewQuery({ ...baseSearch, to: "2024-02-01" });
+    expect(out.query.dateRange).toEqual({
+      from: null,
+      to: "2024-02-01",
+    });
+  });
 });
 
 describe("viewQueryToSearch", () => {
@@ -155,6 +222,77 @@ describe("viewQueryToSearch", () => {
   it("resolves tag names when a resolver is supplied", () => {
     const out = viewQueryToSearch(view, (ids) => ids.map((id) => `name-${id}`));
     expect(out.tagNames).toEqual(["name-tag-1", "name-tag-2"]);
+  });
+
+  // W-004: every nullable field on the SavedView query is its own
+  // branch in `viewQueryToSearch`. We pin the null / partial cases
+  // explicitly and assert the resolver-call protocol.
+  const emptyView: SavedViewDTO = {
+    ...view,
+    query: {
+      directoryId: null,
+      tagIds: [] as unknown as SavedViewDTO["query"]["tagIds"],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+    },
+  };
+
+  it("omits directoryId when the view has none", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("directoryId" in out).toBe(false);
+  });
+
+  it("omits q when keyword is null", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("q" in out).toBe(false);
+  });
+
+  it("omits from / to when dateRange is null", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("from" in out).toBe(false);
+    expect("to" in out).toBe(false);
+  });
+
+  it("propagates only `from` when dateRange.to is null", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        dateRange: { from: "2024-01-01T00:00:00.000Z", to: null },
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.from).toBe("2024-01-01");
+    expect("to" in out).toBe(false);
+  });
+
+  it("propagates only `to` when dateRange.from is null", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        dateRange: { from: null, to: "2024-02-01T00:00:00.000Z" },
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.to).toBe("2024-02-01");
+    expect("from" in out).toBe(false);
+  });
+
+  it("omits tagNames when the resolver returns an empty array", () => {
+    const out = viewQueryToSearch(view, () => []);
+    expect("tagNames" in out).toBe(false);
+  });
+
+  it("does not invoke the resolver when tagIds is empty", () => {
+    let calls = 0;
+    const out = viewQueryToSearch(emptyView, (ids) => {
+      calls += 1;
+      return ids.map((id) => `name-${id}`);
+    });
+    expect(calls).toBe(0);
+    expect("tagNames" in out).toBe(false);
   });
 });
 

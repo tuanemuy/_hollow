@@ -1,4 +1,8 @@
 import { cache } from "react";
+import {
+  resolveTagNamesToIds,
+  TAG_RESOLVE_LIMIT,
+} from "@/components/tag/loaders";
 import type { NoteId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
@@ -84,11 +88,10 @@ export const loadOwnedNotes = cache(
       Promise.all([
         import("@/core/application/note/listNotesByOwner"),
         import("@/core/application/search/searchOwnNotes"),
-        import("@/core/application/tag/listTags"),
       ]),
     async (
       { container },
-      [listMod, searchMod, tagsMod],
+      [listMod, searchMod],
       input: OwnedNotesQuery,
     ): Promise<OwnedNotesResult> => {
       const keyword = input.q?.trim() ?? "";
@@ -130,23 +133,11 @@ export const loadOwnedNotes = cache(
       // Filter-only path: resolve tag names -> ids when present.
       let tagIds: readonly TagId[] | undefined;
       if (input.tagNames !== undefined && input.tagNames.length > 0) {
-        const { tags } = await tagsMod.listTags({
-          container,
-          input: {
-            actorUserId: input.actorUserId as unknown as Parameters<
-              typeof tagsMod.listTags
-            >[0]["input"]["actorUserId"],
-            limit: 200,
-          },
-        });
-        const byName = new Map<string, string>();
-        for (const tag of tags) {
-          byName.set(tag.name, tag.id as unknown as string);
-        }
-        tagIds = input.tagNames
-          .map((name) => byName.get(name))
-          .filter((id): id is string => id !== undefined)
-          .map((id) => id as unknown as TagId);
+        const resolved = await resolveTagNamesToIds(
+          input.actorUserId,
+          input.tagNames,
+        );
+        tagIds = resolved.map((id) => id as unknown as TagId);
       }
 
       const dateRange = normalizeListDateRange(input.dateRange);
@@ -271,7 +262,7 @@ export const loadAllTags = cache(
           actorUserId: args.actorUserId as unknown as Parameters<
             typeof listTags
           >[0]["input"]["actorUserId"],
-          limit: 200,
+          limit: TAG_RESOLVE_LIMIT,
         },
       });
       const byName = new Map<string, string>();

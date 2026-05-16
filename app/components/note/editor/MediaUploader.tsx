@@ -1,5 +1,6 @@
 "use client";
 
+import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
 import {
   finalizeMediaUploadFn,
@@ -44,12 +45,14 @@ export function MediaUploader({
   disabled,
 }: MediaUploaderProps) {
   const inputId = useId();
+  const presignMediaUpload = useServerFn(presignMediaUploadFn);
+  const finalizeMediaUpload = useServerFn(finalizeMediaUploadFn);
   const [state, setState] = useState<UploadState>({ kind: "idle" });
 
   const runUpload = async (file: File) => {
     setState({ kind: "uploading" });
     try {
-      const presigned = await presignMediaUploadFn({
+      const presigned = await presignMediaUpload({
         data: {
           kind: kindForMime(file.type),
           mimeType: file.type,
@@ -64,7 +67,7 @@ export function MediaUploader({
       if (!putRes.ok) {
         throw new Error(`Upload failed with status ${putRes.status}`);
       }
-      const finalized = await finalizeMediaUploadFn({
+      const finalized = await finalizeMediaUpload({
         data: { mediaId: presigned.mediaId },
       });
       const nextHtml = insertMediaIntoHtml(contentHtml, {
