@@ -15,9 +15,25 @@ import {
 } from "@/core/domain/common/event";
 import type { Database } from "./client";
 import { PendingBatch } from "./pendingBatch";
+import { D1CredentialStore } from "./repositories/credentialStore";
+import { D1DirectoryRepository } from "./repositories/directoryRepository";
+import { D1ExportJobRepository } from "./repositories/exportJobRepository";
 import { isOccGuardViolation, mapDbError } from "./repositories/helpers";
+import { D1IndexJobRepository } from "./repositories/indexJobRepository";
+import { D1IngestionJobRepository } from "./repositories/ingestionJobRepository";
+import { D1InstanceSettingsRepository } from "./repositories/instanceSettingsRepository";
+import { D1MediaAssetRepository } from "./repositories/mediaAssetRepository";
+import { D1NoteRepository } from "./repositories/noteRepository";
 import { D1OutboxRepository } from "./repositories/outboxRepository";
+import { D1PublicationStateRepository } from "./repositories/publicationStateRepository";
+import { D1SavedViewRepository } from "./repositories/savedViewRepository";
+import { D1ShareLinkRepository } from "./repositories/shareLinkRepository";
+import { D1TagBlacklistRepository } from "./repositories/tagBlacklistRepository";
+import { D1TagRepository } from "./repositories/tagRepository";
 import { D1TodoRepository } from "./repositories/todoRepository";
+import { D1UserPromptOverrideRepository } from "./repositories/userPromptOverrideRepository";
+import { D1UserRepository } from "./repositories/userRepository";
+import { D1VerificationChallenge } from "./repositories/verificationChallenge";
 
 /**
  * D1 implementation of `UnitOfWorkProvider`.
@@ -65,6 +81,91 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
       pending,
       this.idGenerator,
     );
+    const mediaAssetRepository = new D1MediaAssetRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const tagRepository = new D1TagRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const tagBlacklistRepository = new D1TagBlacklistRepository(
+      this.db,
+      pending,
+    );
+    const publicationStateRepository = new D1PublicationStateRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const shareLinkRepository = new D1ShareLinkRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const ingestionJobRepository = new D1IngestionJobRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const userRepository = new D1UserRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const directoryRepository = new D1DirectoryRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const noteRepository = new D1NoteRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const exportJobRepository = new D1ExportJobRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const savedViewRepository = new D1SavedViewRepository(
+      this.db,
+      pending,
+      this.idGenerator,
+    );
+    const instanceSettingsRepository = new D1InstanceSettingsRepository(
+      this.db,
+      pending,
+      this.clock,
+    );
+    const userPromptOverrideRepository = new D1UserPromptOverrideRepository(
+      this.db,
+      pending,
+    );
+    // Index jobs are dispatched out-of-band by an independent worker, so
+    // the repository does not need to participate in the pending batch.
+    // The slot still lives on the UoW context for symmetry, allowing
+    // usecases to enqueue jobs alongside the aggregate write that
+    // triggered them.
+    const indexJobRepository = new D1IndexJobRepository(
+      this.db,
+      this.idGenerator,
+      this.clock,
+    );
+    const verificationChallenge = new D1VerificationChallenge(
+      this.db,
+      pending,
+      this.idGenerator,
+      this.clock,
+    );
+    const credentialStore = new D1CredentialStore(
+      this.db,
+      pending,
+      this.idGenerator,
+      this.clock,
+    );
     const outbox = new D1OutboxRepository(
       this.db,
       this.idGenerator,
@@ -74,6 +175,22 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
 
     const ctx: UnitOfWorkContext = {
       todoRepository,
+      mediaAssetRepository,
+      tagRepository,
+      tagBlacklistRepository,
+      publicationStateRepository,
+      shareLinkRepository,
+      ingestionJobRepository,
+      userRepository,
+      directoryRepository,
+      noteRepository,
+      exportJobRepository,
+      savedViewRepository,
+      instanceSettingsRepository,
+      userPromptOverrideRepository,
+      indexJobRepository,
+      verificationChallenge,
+      credentialStore,
       // `EventId` is minted here, on the path between domain emission
       // and outbox persistence — keeping id generation a single
       // application-layer concern. Domain factories return identity-less

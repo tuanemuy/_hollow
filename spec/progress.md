@@ -14,18 +14,19 @@
 - [x] export
 
 ## Phase 3: アダプター
-- [ ] D1 schema 拡張
-- [ ] identity repositories / CredentialStore / SessionService / VerificationChallenge / SetupTokenVerifier / EmailSender
-- [ ] directory repository
-- [ ] note repository
-- [ ] tag repository
-- [ ] publication repository
-- [ ] ingestion repository / LLM adapter
-- [ ] media repository / R2 adapter
-- [ ] export repository
-- [ ] search repository
-- [ ] view repository
-- [ ] adminSettings repository
+- [x] D1 schema 拡張
+- [x] identity repositories / CredentialStore / SessionService / VerificationChallenge / SetupTokenVerifier / EmailSender
+- [x] directory repository
+- [x] note repository
+- [x] tag repository
+- [x] publication repository
+- [x] ingestion repository / LLM adapter
+- [x] media repository / R2 adapter
+- [x] export repository
+- [x] search repository
+- [x] view repository
+- [x] adminSettings repository
+- [x] DI / UoW 統合配線
 
 ## Phase 4: ユースケース
 - [ ] identity

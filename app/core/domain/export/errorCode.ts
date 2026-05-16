@@ -17,6 +17,7 @@ export const ExportErrorCode = {
   CompletedMissingArtifact: "EXPORT_COMPLETED_MISSING_ARTIFACT",
   QuotaExceeded: "export_quota_exceeded",
   Unauthorized: "export_unauthorized",
+  PdfNotImplemented: "pdf_export_not_implemented_in_mvp",
 } as const;
 
 export type ExportErrorCode =

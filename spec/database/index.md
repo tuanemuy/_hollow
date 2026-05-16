@@ -221,6 +221,7 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 | edit_lock_user_id | TEXT | NULL, REFERENCES users(id) ON DELETE SET NULL |
 | edit_lock_acquired_at | TEXT | NULL |
 | edit_lock_expires_at | TEXT | NULL |
+| version | INTEGER | NOT NULL DEFAULT 0 — OCC トークン |
 
 インデックス:
 - `uniq_notes_owner_slug` UNIQUE (owner_id, slug)
