@@ -417,7 +417,12 @@ describe("D1NoteRepository.findByOwner — status × visibility (integration)", 
       status: "trashed",
     });
     await seedPublicationState(container, activePriv, owner, "private");
-    await seedPublicationState(container, trashedPrivExplicit, owner, "private");
+    await seedPublicationState(
+      container,
+      trashedPrivExplicit,
+      owner,
+      "private",
+    );
     // trashedPrivImplicit has no publication_states row (implicit private)
     await seedPublicationState(container, trashedPublic, owner, "public");
 
