@@ -20,6 +20,10 @@ const TZ = NOW.toISOString();
 
 // Deterministic UUIDv7-shaped ids — the repositories validate the
 // `^........-....-7...-[89ab]...-............$` shape on rehydration.
+// The counter is module-scoped: each `createTestContainer` returns a
+// fresh in-memory D1 so cross-test id reuse is harmless, but the
+// monotonically-incrementing counter keeps ids globally unique even
+// when vitest runs files in parallel.
 let counter = 0;
 const nextId = (prefix: number): string => {
   counter += 1;
@@ -80,6 +84,7 @@ async function seedNote(
   }> = {},
 ): Promise<NoteId> {
   const id = nextId(0x03);
+  const status = opts.status ?? "active";
   await container.db.insert(schema.notes).values({
     id,
     ownerId,
@@ -88,8 +93,8 @@ async function seedNote(
     title: opts.title ?? `Note ${id.slice(-4)}`,
     contentHtml: "<p>body</p>",
     frontMatterJson: "{}",
-    status: opts.status ?? "active",
-    trashedAt: null,
+    status,
+    trashedAt: status === "trashed" ? TZ : null,
     createdAt: TZ,
     updatedAt: opts.updatedAt ?? TZ,
     editLockUserId: null,
@@ -268,6 +273,170 @@ describe("D1NoteRepository.findByOwner — visibility filter (integration)", () 
     );
     expect(found).toEqual([]);
   });
+
+  // T-W-001: passing every visibility takes the `wantsPrivate=true &&
+  // notWanted.length===0` early-return path. The candidate set must equal
+  // every owner-scoped active note without consulting publication_states
+  // for exclusion.
+  it("visibility=['private','unlisted','public'] returns every owner note", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const pub = await seedNote(container, owner, dir, { title: "pub" });
+    const unl = await seedNote(container, owner, dir, { title: "unl" });
+    const implicitPriv = await seedNote(container, owner, dir, {
+      title: "implicit",
+    });
+    await seedPublicationState(container, pub, owner, "public");
+    await seedPublicationState(container, unl, owner, "unlisted");
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          visibility: ["private", "unlisted", "public"],
+        }),
+    );
+    const ids = new Set(found.map((n) => n.id));
+    expect(ids.has(pub)).toBe(true);
+    expect(ids.has(unl)).toBe(true);
+    expect(ids.has(implicitPriv)).toBe(true);
+  });
+
+  // T-W-002: owner-scope leak regression. Another owner's notes must
+  // never bleed into the candidate set, even when their publication
+  // visibility falls within the filter.
+  it("does not leak notes belonging to other owners", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const other = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const otherDir = await seedDirectory(container, other);
+    const mine = await seedNote(container, owner, dir, { title: "mine" });
+    const theirs = await seedNote(container, other, otherDir, {
+      title: "theirs",
+    });
+    await seedPublicationState(container, mine, owner, "public");
+    await seedPublicationState(container, theirs, other, "public");
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          visibility: ["public"],
+        }),
+    );
+    const ids = found.map((n) => n.id);
+    expect(ids).toContain(mine);
+    expect(ids).not.toContain(theirs);
+  });
+
+  // T-W-003: when the intersection of all candidate sets is empty the
+  // adapter must short-circuit without issuing the main note select.
+  it("returns [] when intersecting candidate sets becomes empty", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    // `target` is the only public note. It also references itself in no
+    // way, so visibility=['public'] ∩ referencingNoteId=target = ∅.
+    await seedPublicationState(container, target, owner, "public");
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          visibility: ["public"],
+          referencingNoteId: target,
+        }),
+    );
+    expect(found).toEqual([]);
+  });
+});
+
+describe("D1NoteRepository.findByOwner — status × visibility (integration)", () => {
+  // I-W-003: trashed notes have publication_states rows too. Combining
+  // visibility=['public'] with status='trashed' must intersect both
+  // axes — only trashed notes whose publication is public should match.
+  it("intersects status='trashed' with visibility=['public']", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const activePub = await seedNote(container, owner, dir, {
+      title: "active-pub",
+      status: "active",
+    });
+    const trashedPub = await seedNote(container, owner, dir, {
+      title: "trashed-pub",
+      status: "trashed",
+    });
+    const trashedPriv = await seedNote(container, owner, dir, {
+      title: "trashed-priv",
+      status: "trashed",
+    });
+    await seedPublicationState(container, activePub, owner, "public");
+    await seedPublicationState(container, trashedPub, owner, "public");
+    await seedPublicationState(container, trashedPriv, owner, "private");
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          status: "trashed",
+          visibility: ["public"],
+        }),
+    );
+    expect(found.map((n) => n.id)).toEqual([trashedPub]);
+  });
+
+  // T-W-007: wantsPrivate=true sweep must honour status='trashed' so that
+  // trashed private notes (including those with no publication_states row)
+  // are returned while active notes are excluded.
+  it("intersects status='trashed' with visibility=['private']", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const activePriv = await seedNote(container, owner, dir, {
+      title: "active-priv",
+      status: "active",
+    });
+    const trashedPrivExplicit = await seedNote(container, owner, dir, {
+      title: "trashed-priv-explicit",
+      status: "trashed",
+    });
+    const trashedPrivImplicit = await seedNote(container, owner, dir, {
+      title: "trashed-priv-implicit",
+      status: "trashed",
+    });
+    const trashedPublic = await seedNote(container, owner, dir, {
+      title: "trashed-public",
+      status: "trashed",
+    });
+    await seedPublicationState(container, activePriv, owner, "private");
+    await seedPublicationState(container, trashedPrivExplicit, owner, "private");
+    // trashedPrivImplicit has no publication_states row (implicit private)
+    await seedPublicationState(container, trashedPublic, owner, "public");
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          status: "trashed",
+          visibility: ["private"],
+        }),
+    );
+    const ids = new Set(found.map((n) => n.id));
+    expect(ids.has(trashedPrivExplicit)).toBe(true);
+    expect(ids.has(trashedPrivImplicit)).toBe(true);
+    expect(ids.has(activePriv)).toBe(false);
+    expect(ids.has(trashedPublic)).toBe(false);
+    expect(found.length).toBe(2);
+  });
 });
 
 describe("D1NoteRepository.findByOwner — referencingNoteId filter (integration)", () => {
@@ -360,5 +529,37 @@ describe("D1NoteRepository.findByOwner — combined AND filters (integration)", 
         }),
     );
     expect(found.map((n) => n.id)).toEqual([winner]);
+  });
+});
+
+describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
+  // I-W-004: bulk lookup contract — empty input short-circuits, missing
+  // ids drop silently so the caller's `'private'` fallback is the single
+  // semantic source for "row absent".
+  it("returns [] for an empty id list without querying", async () => {
+    const container = createTestContainer();
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.findByNoteIds([]),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("omits ids that have no publication_states row", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const hasRow = await seedNote(container, owner, dir, { title: "has" });
+    const noRow = await seedNote(container, owner, dir, { title: "miss" });
+    await seedPublicationState(container, hasRow, owner, "public");
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.findByNoteIds([hasRow, noRow]),
+    );
+    const ids = result.map((s) => s.noteId);
+    expect(ids).toContain(hasRow);
+    expect(ids).not.toContain(noRow);
+    expect(result).toHaveLength(1);
   });
 });

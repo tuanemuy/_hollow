@@ -156,15 +156,21 @@ describe("listNotesByOwner — visibility projection (integration)", () => {
     expect(notes[0]?.visibility).toBe("private");
   });
 
+  // T-W-006: 4-way mix exercises every visibility resolution path in a
+  // single listing — explicit public/unlisted rows, an explicit private
+  // row (publication_states present), and an implicit private (row
+  // absent, falls back to the domain default).
   it("projects each note's visibility independently in a mixed listing", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
     const pub = await seedNote(container, owner, dir, "pub");
     const unl = await seedNote(container, owner, dir, "unl");
+    const explicitPriv = await seedNote(container, owner, dir, "explicit");
     const implicitPriv = await seedNote(container, owner, dir, "implicit");
     await seedPublicationState(container, pub, owner, "public");
     await seedPublicationState(container, unl, owner, "unlisted");
+    await seedPublicationState(container, explicitPriv, owner, "private");
 
     const { notes } = await listNotesByOwner({
       container,
@@ -173,6 +179,7 @@ describe("listNotesByOwner — visibility projection (integration)", () => {
     const byId = new Map(notes.map((n) => [n.id as string, n.visibility]));
     expect(byId.get(pub)).toBe("public");
     expect(byId.get(unl)).toBe("unlisted");
+    expect(byId.get(explicitPriv)).toBe("private");
     expect(byId.get(implicitPriv)).toBe("private");
   });
 });

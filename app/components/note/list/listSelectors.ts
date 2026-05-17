@@ -100,7 +100,6 @@ export type SaveViewPayload = Readonly<{
     }> | null;
     keyword: string | null;
     referencingNoteId: string | null;
-    visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
   }>;
   displayMode: "list" | "tile" | "calendar";
 }>;
@@ -128,9 +127,6 @@ export function searchToViewQuery(search: NoteListSearch): SaveViewPayload {
       keyword:
         search.q !== undefined && search.q.trim().length > 0 ? search.q : null,
       referencingNoteId: search.referencingNoteId ?? null,
-      ...(search.visibility !== undefined
-        ? { visibilityFilter: [search.visibility] }
-        : {}),
     },
     displayMode: search.display ?? "list",
   };
@@ -170,20 +166,6 @@ export function viewQueryToSearch(
     if (view.query.dateRange.to !== null) {
       out.to = isoToDateOnly(view.query.dateRange.to);
     }
-  }
-  // `ViewQueryDTO` does not statically carry `visibilityFilter` — it
-  // lives on the search-domain query shape that some persistence paths
-  // store alongside the saved view. When that auxiliary field is
-  // present at runtime, restore the first entry into the URL's
-  // single-value `visibility` slot. The URL schema can only carry one
-  // value today; multi-select rounds down to the first entry.
-  const auxVisibilityFilter = (
-    view.query as unknown as {
-      visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
-    }
-  ).visibilityFilter;
-  if (auxVisibilityFilter !== undefined && auxVisibilityFilter.length > 0) {
-    out.visibility = auxVisibilityFilter[0];
   }
   if (resolveTagNames !== undefined && view.query.tagIds.length > 0) {
     const names = resolveTagNames(

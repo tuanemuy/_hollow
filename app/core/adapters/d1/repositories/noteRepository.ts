@@ -346,7 +346,11 @@ export class D1NoteRepository implements NoteRepository {
       if (opts.visibility !== undefined) {
         if (opts.visibility.length === 0) return [];
         candidateSets.push(
-          await this.resolveVisibilityCandidates(ownerId, opts.visibility),
+          await this.resolveVisibilityCandidates(
+            ownerId,
+            opts.visibility,
+            opts.status,
+          ),
         );
       }
 
@@ -413,6 +417,7 @@ export class D1NoteRepository implements NoteRepository {
   private async resolveVisibilityCandidates(
     ownerId: UserId,
     visibility: readonly PublicationVisibility[],
+    statusFilter: NoteRow["status"] | undefined,
   ): Promise<ReadonlySet<string>> {
     const wantsPrivate = visibility.includes("private");
     if (!wantsPrivate) {
@@ -436,10 +441,18 @@ export class D1NoteRepository implements NoteRepository {
         "public",
       ] as const satisfies readonly PublicationVisibility[]
     ).filter((v) => !visibility.includes(v));
+    // Mirror the outer query's status filter so trashed notes don't leak
+    // into `candidates` and bloat the final `inArray` bind list. When the
+    // caller passes no status, leave the sweep unfiltered to match the
+    // outer query's semantics (all statuses).
+    const sweepConditions = [eq(notes.ownerId, ownerId)];
+    if (statusFilter !== undefined) {
+      sweepConditions.push(eq(notes.status, statusFilter));
+    }
     const ownerRows = await this.db
       .select({ id: notes.id })
       .from(notes)
-      .where(eq(notes.ownerId, ownerId));
+      .where(and(...sweepConditions));
     const candidates = new Set<string>();
     for (const r of ownerRows) candidates.add(r.id);
     if (notWanted.length === 0) return candidates;

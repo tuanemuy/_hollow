@@ -16,8 +16,6 @@ export const renameSavedViewSchema = z.object({
   name: z.string().trim().min(1).max(SAVED_VIEW_NAME_MAX),
 });
 
-const visibilityEnum = z.enum(["private", "unlisted", "public"]);
-
 /**
  * Schema for "save current filter + display as view" form.
  *
@@ -40,7 +38,6 @@ export const createSavedViewSchema = z.object({
       .default(null),
     keyword: z.string().nullable().default(null),
     referencingNoteId: z.string().min(1).nullable().default(null),
-    visibilityFilter: z.array(visibilityEnum).optional(),
   }),
   displayMode: z.enum(["list", "tile", "calendar"]).default("list"),
   calendarDateKey: z

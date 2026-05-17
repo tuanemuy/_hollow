@@ -136,7 +136,6 @@ describe("searchToViewQuery", () => {
     expect(out.query.directoryId).toBe(null);
     expect(out.query.dateRange).toBe(null);
     expect(out.query.keyword).toBe(null);
-    expect(out.query.visibilityFilter).toBeUndefined();
   });
 
   it("propagates filter fields", () => {
@@ -148,7 +147,6 @@ describe("searchToViewQuery", () => {
       from: "2024-01-01",
       to: "2024-02-01",
       q: "claude",
-      visibility: "public",
     });
     expect(out.displayMode).toBe("tile");
     expect(out.query.tagNames).toEqual(["draft", "idea"]);
@@ -158,7 +156,6 @@ describe("searchToViewQuery", () => {
       to: "2024-02-01",
     });
     expect(out.query.keyword).toBe("claude");
-    expect(out.query.visibilityFilter).toEqual(["public"]);
   });
 
   it("treats an empty `q` as a null keyword", () => {
@@ -324,39 +321,6 @@ describe("viewQueryToSearch", () => {
   it("omits `referencingNoteId` when the view has none", () => {
     const out = viewQueryToSearch(emptyView);
     expect("referencingNoteId" in out).toBe(false);
-  });
-
-  it("restores `visibility` from an aux `visibilityFilter` single entry", () => {
-    const v = {
-      ...view,
-      query: {
-        ...view.query,
-        visibilityFilter: ["public"],
-      },
-    } as unknown as SavedViewDTO;
-    const out = viewQueryToSearch(v);
-    expect(out.visibility).toBe("public");
-  });
-
-  it("rounds multi-entry `visibilityFilter` down to the first value", () => {
-    const v = {
-      ...view,
-      query: {
-        ...view.query,
-        visibilityFilter: ["unlisted", "public"],
-      },
-    } as unknown as SavedViewDTO;
-    const out = viewQueryToSearch(v);
-    expect(out.visibility).toBe("unlisted");
-  });
-
-  it("omits `visibility` when `visibilityFilter` is absent or empty", () => {
-    expect("visibility" in viewQueryToSearch(emptyView)).toBe(false);
-    const v = {
-      ...view,
-      query: { ...view.query, visibilityFilter: [] },
-    } as unknown as SavedViewDTO;
-    expect("visibility" in viewQueryToSearch(v)).toBe(false);
   });
 });
 

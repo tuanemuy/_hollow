@@ -69,7 +69,7 @@ export async function listNotesByOwner({
       const states = await ctx.publicationStateRepository.findByNoteIds(
         found.map((n) => n.id),
       );
-      const visById = new Map<string, PublicationVisibility>();
+      const visById = new Map<NoteId, PublicationVisibility>();
       for (const s of states) visById.set(s.noteId, s.visibility);
       const items = found.map((note) => {
         const excerpt = container.htmlSanitizer

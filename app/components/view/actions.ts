@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { resolveTagNamesToIds } from "@/components/tag/loaders";
-import type { NoteId } from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -45,7 +44,7 @@ export const createSavedViewFn = createServerFn({ method: "POST" })
                   to: data.query.dateRange.to,
                 },
           keyword: data.query.keyword,
-          referencingNoteId: data.query.referencingNoteId as NoteId | null,
+          referencingNoteId: data.query.referencingNoteId,
         },
         displayMode: data.displayMode,
         calendarDateKey: data.calendarDateKey,
