@@ -240,12 +240,17 @@ describe("editorReducer setters", () => {
     expect(s1).toBe(s0);
   });
 
-  it("setMode no-ops on `wysiwyg-disabled`", () => {
+  it("setMode transitions to wysiwyg without marking dirty", () => {
     const s0 = freshState();
-    const s1 = editorReducer(s0, {
-      type: "setMode",
-      mode: "wysiwyg-disabled",
-    });
+    const s1 = editorReducer(s0, { type: "setMode", mode: "wysiwyg" });
+    expect(s1.mode).toBe("wysiwyg");
+    expect(s1.dirtyKeys.size).toBe(0);
+    expect(s1.autosave.kind).toBe("idle");
+  });
+
+  it("setMode with the same mode is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, { type: "setMode", mode: s0.mode });
     expect(s1).toBe(s0);
   });
 

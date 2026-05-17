@@ -23,7 +23,7 @@ spec/pages/index.md P10 では「フィルタバー（タグ / 期間 / 公開�
 ## ADR-002: 本格 WYSIWYG は新規ライブラリ導入せず別 Issue へ。HTML モード + サニタイズプレビューで代替
 
 ### Status
-Accepted
+Superseded by Issue #9 (TipTap を採用し WYSIWYG タブを enabled 化、`.issue/9/adr.md` ADR-001 参照)
 
 ### Context
 spec/pages/index.md P12 は「WYSIWYG モード / HTML モード切替」を要求。検討した実装案:
