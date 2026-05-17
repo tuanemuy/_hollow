@@ -60,4 +60,29 @@ describe("selectInChunks", () => {
       /chunkSize/,
     );
   });
+
+  // Runs chunks in parallel via `Promise.all`. Asserts that the
+  // resolved array still tracks chunk (input) order regardless of the
+  // order in which the runner promises settle.
+  it("preserves input chunk order when chunks resolve out of order", async () => {
+    const ids = Array.from({ length: 9 }, (_, i) => `id-${i}`);
+    const runner = vi.fn(async (chunk: readonly string[]) => {
+      // Earlier chunks resolve slower, so settle order is reversed.
+      const idx = Number(chunk[0]?.split("-")[1] ?? "0");
+      await new Promise((r) => setTimeout(r, (9 - idx) * 2));
+      return chunk;
+    });
+    const out = await selectInChunks(ids, runner, 3);
+    expect(out).toEqual(ids);
+    expect(runner).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects with the first runner failure when a chunk throws", async () => {
+    const ids = Array.from({ length: 9 }, (_, i) => `id-${i}`);
+    const runner = vi.fn(async (chunk: readonly string[]) => {
+      if (chunk[0] === "id-3") throw new Error("boom");
+      return chunk;
+    });
+    await expect(selectInChunks(ids, runner, 3)).rejects.toThrow(/boom/);
+  });
 });

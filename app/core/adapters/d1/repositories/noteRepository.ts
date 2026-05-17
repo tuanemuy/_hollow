@@ -9,7 +9,6 @@ import {
   lt,
   notExists,
   type SQL,
-  sql,
 } from "drizzle-orm";
 import {
   ConflictError,
@@ -486,7 +485,7 @@ export class D1NoteRepository implements NoteRepository {
     if (notWanted.length === 0) return null;
     return notExists(
       this.db
-        .select({ _: sql`1` })
+        .select({ noteId: publicationStates.noteId })
         .from(publicationStates)
         .where(
           and(

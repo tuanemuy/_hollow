@@ -566,7 +566,7 @@ async function seedManyNotes(
         id,
         ownerId,
         directoryId,
-        slug: `bulk-${id.slice(9, 13)}-${i}`,
+        slug: `bulk-${i}`,
         title: `Bulk ${i}`,
         contentHtml: "<p>body</p>",
         frontMatterJson: "{}",
@@ -626,10 +626,10 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
         }),
     );
     expect(found).toHaveLength(100);
-    const publicSet = new Set(publicIds);
-    for (const note of found) {
-      expect(publicSet.has(note.id as NoteId)).toBe(false);
-    }
+    const expectedPrivateIds = new Set(ids.slice(50));
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(
+      expectedPrivateIds,
+    );
   });
 
   // T-bind-002: same seed, visibility covers all three values — the
@@ -665,18 +665,23 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
         }),
     );
     expect(found).toHaveLength(150);
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
   });
 
   // T-bind-003: covers the `loadChildren` chunk path. 150 notes each
-  // carry one tag and one media ref; `limit=150` makes `hydrateMany`
-  // load all children in one go and tip every child select past the
-  // bind cap on the pre-#33 implementation. Children must be hydrated
-  // without loss across the chunk boundary.
-  it("T-bind-003: loadChildren hydrates tags and mediaRefs across the chunk boundary", async () => {
+  // carry one tag, one media ref, and one internal link; `limit=150`
+  // makes `hydrateMany` load all children in one go and tip every child
+  // select past the bind cap on the pre-#33 implementation. Children
+  // must be hydrated without loss across the chunk boundary.
+  it("T-bind-003: loadChildren hydrates tags, internalLinks, and mediaRefs across the chunk boundary", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
     const tag = await seedTag(container, owner, "bulk");
+    // Anchor note that every bulk-seeded note will internal-link to.
+    const linkTarget = await seedNote(container, owner, dir, {
+      title: "link-target",
+    });
     const noteIds = await seedManyNotes(container, owner, dir, 150);
     const mediaId = nextId(0x07);
     // media_assets parent row required by FK declared in raw SQL.
@@ -703,11 +708,24 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     const mediaStmts = noteIds.map((noteId) =>
       container.db.insert(schema.noteMediaRefs).values({ noteId, mediaId }),
     );
+    const linkStmts = noteIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x09),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: linkTarget,
+        displayText: null,
+        resolvedNoteId: linkTarget,
+      }),
+    );
     await container.db.batch(
       tagStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
     );
     await container.db.batch(
       mediaStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
     );
 
     const found = await container.unitOfWorkProvider.run(
@@ -715,9 +733,13 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
         noteRepository.findByOwner(owner, { limit: 150, offset: 0 }),
     );
     expect(found).toHaveLength(150);
+    const bulkSet = new Set(noteIds);
     for (const note of found) {
+      if (!bulkSet.has(note.id as NoteId)) continue; // skip linkTarget
       expect(note.tagIds).toEqual([tag]);
       expect(note.mediaRefs).toEqual([mediaId]);
+      expect(note.internalLinkRefs).toHaveLength(1);
+      expect(note.internalLinkRefs[0]?.resolvedNoteId).toBe(linkTarget);
     }
   });
 
@@ -754,6 +776,88 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     // each row updatedAt = base + i s and a strictly increasing id, so
     // descending updatedAt is equivalent to descending insertion order.
     const expected = [...referrerIds].reverse();
+    expect(foundIds).toEqual(expected);
+  });
+
+  // T-bind-005: tie-break when several referrers share the same
+  // `updatedAt` millisecond — the JS sort must fall back to descending
+  // id, mirroring the pre-chunk SQL `desc(updatedAt), desc(id)` clause.
+  it("T-bind-005: findReferrers tie-breaks equal updatedAt by descending id", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    // Seed 5 referrers sharing one `updatedAt`, then 5 more sharing a
+    // later one — straddles the JS sort's primary and secondary keys.
+    const earlyTs = "2026-02-01T00:00:00.000Z";
+    const lateTs = "2026-02-02T00:00:00.000Z";
+    const earlyIds: NoteId[] = [];
+    const lateIds: NoteId[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      earlyIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `tie-early-${i}`,
+        title: `Early ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: earlyTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    for (let i = 0; i < 5; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      lateIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `tie-late-${i}`,
+        title: `Late ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: lateTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const allIds = [...earlyIds, ...lateIds];
+    const linkStmts = allIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    const foundIds = found.map((n) => n.id);
+    const expected = [
+      ...[...lateIds].sort().reverse(),
+      ...[...earlyIds].sort().reverse(),
+    ];
     expect(foundIds).toEqual(expected);
   });
 });

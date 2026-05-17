@@ -44,6 +44,9 @@ bind 数は `notWanted` の長さ（最大 2）+ ownerId のみ。owner ノー�
 ### 補足: NOT EXISTS subquery 内の `ownerId` 条件
 `publicationStates.noteId` は PK で `notes.id` への FK、かつ outer query は `notes.ownerId = ownerId` を条件に持つ。理屈上は subquery 側の `eq(publicationStates.ownerId, ownerId)` は冗長（ps.noteId → notes.id → notes.ownerId が 1:1）。しかし `idx_pubs_visibility_owner (visibility, ownerId)` を planner に選ばせる選択肢を残すために保持する。後の最適化レビューで「冗長 = 削除」と短絡しないよう注意。
 
+### 補足: status pre-filter 撤去の影響
+旧実装の `wantsPrivate=true` 経路は owner sweep の段階で `opts.status` を絞り込んで「`candidates` を縮める」狙いがあった（`.issue/8/adr.md` ADR-003 末尾）。NOT EXISTS 化で sweep そのものが消えるため、status は `findByOwner` 本体の `conditions` に積まれた `eq(notes.status, ?)` 1 箇所のみで評価される。結果セマンティクスは不変（`status='trashed' × visibility=['private']` 等は既存 integration test で canary）。索引選択は planner 任せになる — `idx_notes_owner_status_updated_at` がある owner では status × visibility 交差の絞り込みが効率的、極端な owner（>10k notes）では EXPLAIN QUERY PLAN で再評価が必要。
+
 ### 却下した選択肢
 - **(B) chunk 分割**: 対症療法。クエリ数が `ceil(N / 90)` 倍に増え、JS 側 union ロジックも追加コスト。bind 上限境界そのものに将来再ヒットする
 - **(C) 冗長列**: `publication_states` 変更時の `notes.visibility` 同期 (event handler / trigger)、schema migration、テスト改修すべて発生。読み取り 1 クエリ削減のための構造変更としては過剰
@@ -86,9 +89,11 @@ export async function selectInChunks<T>(
   - tag 系ユースケース (`limit=500`) で実際に踏むパスが防御される
   - chunk ヘルパは pure function で unit test 完備
   - 90 件チャンクで余白 10 を確保し、将来 D1 limit が変わっても少なくとも 90 までは安全
+  - **チャンク間は `Promise.all` で並列実行**（Review #001 W-PERF-001 反映）。500 件入力で 6 チャンクが直列に並ばず、`loadChildren` の Promise.all 3 並列効果が内側で打ち消されない
 - トレードオフ:
-  - クエリ数が `ceil(N / 90)` 倍に増える（500 件で 6 クエリ）。`loadChildren` は元々 `Promise.all` で 3 並列なので、合計 18 クエリ → 数 ms オーバーヘッド
-  - `findReferrers` の order は SQL 一発時と完全同等にはならない（chunk 跨ぎの並び順は JS sort 結果に依存）
+  - クエリ数が `ceil(N / 90)` 倍に増える（500 件で 6 クエリ × 3 テーブル = 18 クエリ）。並列実行のため累積レイテンシは最大 1 RTT に収まる想定
+  - `findReferrers` の order は SQL 一発時と完全同等にはならない（chunk 跨ぎの並び順は JS sort 結果に依存）。ISO-8601 ms 精度 + UUIDv7 の文字列比較で `desc(updatedAt), desc(id)` を再現
+  - `findReferrers` は依然として全件メモリ展開（chunk 化前から存在する性質）。referrer 数の上限制御は本 Issue スコープ外、ADR-003 参照
 
 ### 配置の判断
 - `app/core/adapters/d1/repositories/_chunks.ts`: adapter 局所の関心事（D1 ホスト変数上限）を domain / application に滲ませない
@@ -121,6 +126,11 @@ Accepted
 ### Consequences
 - 良い点: 本 Issue は完結性を保ち、レビュー負荷も適正
 - トレードオフ: `publicationStateRepository.findByNoteIds` 等で類似の落とし穴が残る。同パターンを `selectInChunks` で順次潰す follow-up Issue を別立てする方針
+
+### Follow-up 候補（Phase 4 で起票検討）
+- `publicationStateRepository.findByNoteIds` の `selectInChunks` 適用 — listing の `NoteListItemDTO.visibility` 実値化で踏みうる
+- 他リポジトリ (`mediaAsset`, `tag`) の inArray 監査
+- **`findReferrers` の結果上限制御** — chunk 化で bind-limit は解消したが、referrer 数が無制限である本質問題は残る。「人気ノートに 1 万件被リンク」のような将来想定では `LIMIT/OFFSET` 化 or 上位 N 件保証への変更が必要
 
 ---
 

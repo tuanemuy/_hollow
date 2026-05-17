@@ -32,11 +32,13 @@ export async function selectInChunks<T>(
   if (chunkSize <= 0) {
     throw new Error(`selectInChunks: chunkSize must be > 0, got ${chunkSize}`);
   }
-  const out: T[] = [];
+  const chunks: (readonly string[])[] = [];
   for (let i = 0; i < ids.length; i += chunkSize) {
-    const chunk = ids.slice(i, i + chunkSize);
-    const rows = await runner(chunk);
-    for (const row of rows) out.push(row);
+    chunks.push(ids.slice(i, i + chunkSize));
   }
-  return out;
+  // Chunks are independent read-only queries. `Promise.all` preserves
+  // input order in the resolved array, so callers that rely on chunk
+  // concatenation order keep that guarantee.
+  const results = await Promise.all(chunks.map(runner));
+  return results.flat();
 }
