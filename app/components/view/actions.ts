@@ -44,7 +44,7 @@ export const createSavedViewFn = createServerFn({ method: "POST" })
                   to: data.query.dateRange.to,
                 },
           keyword: data.query.keyword,
-          referencingNoteId: null,
+          referencingNoteId: data.query.referencingNoteId,
         },
         displayMode: data.displayMode,
         calendarDateKey: data.calendarDateKey,

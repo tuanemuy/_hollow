@@ -136,7 +136,6 @@ describe("searchToViewQuery", () => {
     expect(out.query.directoryId).toBe(null);
     expect(out.query.dateRange).toBe(null);
     expect(out.query.keyword).toBe(null);
-    expect(out.query.visibilityFilter).toBeUndefined();
   });
 
   it("propagates filter fields", () => {
@@ -148,7 +147,6 @@ describe("searchToViewQuery", () => {
       from: "2024-01-01",
       to: "2024-02-01",
       q: "claude",
-      visibility: "public",
     });
     expect(out.displayMode).toBe("tile");
     expect(out.query.tagNames).toEqual(["draft", "idea"]);
@@ -158,12 +156,24 @@ describe("searchToViewQuery", () => {
       to: "2024-02-01",
     });
     expect(out.query.keyword).toBe("claude");
-    expect(out.query.visibilityFilter).toEqual(["public"]);
   });
 
   it("treats an empty `q` as a null keyword", () => {
     const out = searchToViewQuery({ ...baseSearch, q: "   " });
     expect(out.query.keyword).toBe(null);
+  });
+
+  it("propagates `referencingNoteId` into the saved-view query", () => {
+    const out = searchToViewQuery({
+      ...baseSearch,
+      referencingNoteId: "note-ref-1",
+    });
+    expect(out.query.referencingNoteId).toBe("note-ref-1");
+  });
+
+  it("falls back to null `referencingNoteId` when unset", () => {
+    const out = searchToViewQuery(baseSearch);
+    expect(out.query.referencingNoteId).toBe(null);
   });
 
   // W-003: the dateRange branch must engage when *either* bound is
@@ -293,6 +303,24 @@ describe("viewQueryToSearch", () => {
     });
     expect(calls).toBe(0);
     expect("tagNames" in out).toBe(false);
+  });
+
+  it("restores `referencingNoteId` when the view carries one", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        referencingNoteId:
+          "note-ref-99" as unknown as SavedViewDTO["query"]["referencingNoteId"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.referencingNoteId).toBe("note-ref-99");
+  });
+
+  it("omits `referencingNoteId` when the view has none", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("referencingNoteId" in out).toBe(false);
   });
 });
 

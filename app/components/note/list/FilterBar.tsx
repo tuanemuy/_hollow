@@ -12,11 +12,8 @@ type Props = {
   from: string | undefined;
   to: string | undefined;
   visibility: NoteListSearch["visibility"];
-  /**
-   * Whether the current request is being served by `searchOwnNotes`.
-   * Visibility filter is only honored on that path (see ADR-001).
-   */
-  searchActive: boolean;
+  directoryId: string | undefined;
+  referencingNoteId: string | undefined;
 };
 
 export function FilterBar({
@@ -25,7 +22,8 @@ export function FilterBar({
   from,
   to,
   visibility,
-  searchActive,
+  directoryId,
+  referencingNoteId,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -75,6 +73,18 @@ export function FilterBar({
     });
   };
 
+  const clearReferencingNoteId = () => {
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev: NoteListSearch) => ({
+          ...prev,
+          referencingNoteId: undefined,
+        }),
+      });
+    });
+  };
+
   const clearAll = () => {
     startTransition(() => {
       router.navigate({
@@ -93,7 +103,9 @@ export function FilterBar({
     selectedTagNames.length > 0 ||
     from !== undefined ||
     to !== undefined ||
-    visibility !== undefined;
+    visibility !== undefined ||
+    directoryId !== undefined ||
+    referencingNoteId !== undefined;
 
   return (
     <div className="filter-bar" aria-busy={isPending}>
@@ -148,20 +160,36 @@ export function FilterBar({
         </div>
       </div>
 
-      {searchActive ? (
+      <div className="filter-bar-row">
+        <span className="filter-bar-label">公開状態</span>
+        <select
+          value={visibility ?? ""}
+          onChange={(e) => updateVisibility(e.target.value)}
+          disabled={isPending}
+          aria-label="公開状態フィルタ"
+        >
+          <option value="">すべて</option>
+          <option value="private">非公開</option>
+          <option value="unlisted">限定公開</option>
+          <option value="public">公開</option>
+        </select>
+      </div>
+
+      {referencingNoteId !== undefined ? (
         <div className="filter-bar-row">
-          <span className="filter-bar-label">公開状態</span>
-          <select
-            value={visibility ?? ""}
-            onChange={(e) => updateVisibility(e.target.value)}
-            disabled={isPending}
-            aria-label="公開状態フィルタ"
-          >
-            <option value="">すべて</option>
-            <option value="private">非公開</option>
-            <option value="unlisted">限定公開</option>
-            <option value="public">公開</option>
-          </select>
+          <span className="filter-bar-label">内部リンク参照</span>
+          <span className="chip chip-active">
+            参照中: {referencingNoteId.slice(0, 8)}
+            <button
+              type="button"
+              className="chip-remove"
+              aria-label="内部リンク参照フィルタを解除"
+              onClick={clearReferencingNoteId}
+              disabled={isPending}
+            >
+              ×
+            </button>
+          </span>
         </div>
       ) : null}
 

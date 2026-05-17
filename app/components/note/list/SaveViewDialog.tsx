@@ -43,9 +43,7 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
               directoryId: payload.query.directoryId,
               dateRange: payload.query.dateRange,
               keyword: payload.query.keyword,
-              ...(payload.query.visibilityFilter !== undefined
-                ? { visibilityFilter: [...payload.query.visibilityFilter] }
-                : {}),
+              referencingNoteId: payload.query.referencingNoteId ?? null,
             },
             displayMode: payload.displayMode,
             calendarDateKey: "updated",

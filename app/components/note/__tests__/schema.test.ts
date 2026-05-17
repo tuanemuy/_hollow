@@ -109,6 +109,25 @@ describe("noteListSearchSchema", () => {
     const parsed = noteListSearchSchema.parse({ viewId: "" });
     expect(parsed.viewId).toBeUndefined();
   });
+
+  it("accepts a non-empty `referencingNoteId`", () => {
+    const parsed = noteListSearchSchema.parse({
+      referencingNoteId: "note-abc",
+    });
+    expect(parsed.referencingNoteId).toBe("note-abc");
+  });
+
+  it("rejects empty-string `referencingNoteId` via .catch(undefined)", () => {
+    const parsed = noteListSearchSchema.parse({ referencingNoteId: "" });
+    expect(parsed.referencingNoteId).toBeUndefined();
+  });
+
+  it("falls back to undefined when `referencingNoteId` is not a string", () => {
+    const parsed = noteListSearchSchema.parse({
+      referencingNoteId: 123 as never,
+    });
+    expect(parsed.referencingNoteId).toBeUndefined();
+  });
 });
 
 describe("bulkMoveSchema", () => {

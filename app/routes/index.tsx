@@ -39,10 +39,12 @@ const renderHome = createServerFn({ method: "GET" })
         loadSavedViewsByKind,
         loadSavedViewById,
       },
+      { viewQueryToSearch },
     ] = await Promise.all([
       import("@/components/note/HomePage"),
       import("@/core/application/dto/identity"),
       import("@/components/note/loaders"),
+      import("@/components/note/list/listSelectors"),
     ]);
     const userDto = toUserDTO(user);
 
@@ -55,15 +57,10 @@ const renderHome = createServerFn({ method: "GET" })
         viewId: search.viewId,
       });
       if (view !== null) {
+        const restored = viewQueryToSearch(view);
         baseSearch = {
+          ...restored,
           ...search,
-          display: search.display ?? view.displayMode,
-          directoryId:
-            search.directoryId ??
-            (view.query.directoryId === null
-              ? undefined
-              : (view.query.directoryId as unknown as string)),
-          q: search.q ?? view.query.keyword ?? undefined,
         };
       }
     }
@@ -83,6 +80,9 @@ const renderHome = createServerFn({ method: "GET" })
           : {}),
         ...(baseSearch.visibility !== undefined
           ? { visibility: baseSearch.visibility }
+          : {}),
+        ...(baseSearch.referencingNoteId !== undefined
+          ? { referencingNoteId: baseSearch.referencingNoteId }
           : {}),
         ...(baseSearch.from !== undefined || baseSearch.to !== undefined
           ? {

@@ -99,7 +99,7 @@ export type SaveViewPayload = Readonly<{
       to: string | null;
     }> | null;
     keyword: string | null;
-    visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
+    referencingNoteId: string | null;
   }>;
   displayMode: "list" | "tile" | "calendar";
 }>;
@@ -126,9 +126,7 @@ export function searchToViewQuery(search: NoteListSearch): SaveViewPayload {
       dateRange,
       keyword:
         search.q !== undefined && search.q.trim().length > 0 ? search.q : null,
-      ...(search.visibility !== undefined
-        ? { visibilityFilter: [search.visibility] }
-        : {}),
+      referencingNoteId: search.referencingNoteId ?? null,
     },
     displayMode: search.display ?? "list",
   };
@@ -157,6 +155,9 @@ export function viewQueryToSearch(
   }
   if (view.query.keyword !== null) {
     out.q = view.query.keyword;
+  }
+  if (view.query.referencingNoteId !== null) {
+    out.referencingNoteId = view.query.referencingNoteId as unknown as string;
   }
   if (view.query.dateRange !== null) {
     if (view.query.dateRange.from !== null) {

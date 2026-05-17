@@ -1,6 +1,7 @@
 import type { TransactionalRepository } from "@/core/domain/common/transactionalRepository";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import type { Note } from "../entity";
 import type { DateRange, NoteId, NoteSlug, NoteStatus } from "../valueObject";
@@ -21,12 +22,28 @@ export type NoteListOpts = Readonly<{
  * Extended owner-scope listing options. Filters are combined with `AND`
  * semantics on the adapter side; `tagIds` matches notes that carry
  * every supplied tag.
+ *
+ * `visibility` semantics:
+ * - `undefined` — visibility filter is not applied.
+ * - Non-empty array — IN semantics: a note matches when its publication
+ *   visibility is in the supplied set. Notes without a `publication_states`
+ *   row are treated as `'private'` (the domain default), so passing
+ *   `['private']` includes them.
+ * - Empty array `[]` — "match nothing": the adapter returns `[]` without
+ *   touching `publication_states`. This keeps "no filter" (`undefined`)
+ *   and "all-excluded" (`[]`) distinguishable at the type level.
+ *
+ * `referencingNoteId` restricts to notes that link to the target note
+ * (i.e. rows in `noteInternalLinks` with `resolvedNoteId === id`).
+ * Unresolved `[[title]]` links do not count.
  */
 export type NoteOwnerListOpts = NoteListOpts &
   Readonly<{
     status?: NoteStatus;
     tagIds?: readonly TagId[];
     dateRange?: DateRange;
+    visibility?: readonly PublicationVisibility[];
+    referencingNoteId?: NoteId;
   }>;
 
 /**

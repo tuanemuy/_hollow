@@ -45,4 +45,13 @@ export interface PublicationStateRepository
   findAllPublic(
     opts: PublicationListOpts,
   ): Promise<readonly Readonly<{ ownerId: UserId; noteId: NoteId }>[]>;
+
+  /**
+   * Bulk read used by listing pipelines to avoid the N+1 that
+   * `Promise.all(findById)` would produce. Order is not guaranteed.
+   * Note ids without a matching row are simply absent from the result;
+   * callers fall back to the domain default (`'private'`).
+   * An empty `ids` argument short-circuits to `[]` without touching DB.
+   */
+  findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]>;
 }
