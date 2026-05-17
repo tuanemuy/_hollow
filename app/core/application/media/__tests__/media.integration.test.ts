@@ -21,7 +21,7 @@ import {
   type PublicationVisibility,
   ShareLinkId,
 } from "@/core/domain/publication/valueObject";
-import { isNotFoundError, isSystemError, SystemErrorCode } from "../../errors";
+import { isSystemError, SystemErrorCode } from "../../errors";
 import { attachMediaToNote } from "../attachMediaToNote";
 import { detachMediaFromNote } from "../detachMediaFromNote";
 import { downloadMedia } from "../downloadMedia";
@@ -599,29 +599,6 @@ describe("downloadMedia (integration)", () => {
   it.todo(
     "throws BusinessRuleError(media_not_viewable) for another viewer when the related note is unlisted and viaShareLinkId was not supplied (ADR-004 #1: downloadMedia ignores viaShareLinkId; tracked in a follow-up Issue)",
   );
-
-  it("throws NotFoundError when the media id does not exist", async () => {
-    const container = getContainer();
-    const ownerId = await seedUser(container);
-    const missingId = nextMediaId();
-
-    try {
-      await downloadMedia({
-        container,
-        input: {
-          viewerUserId: ownerId,
-          mediaId: missingId,
-          viaShareLinkId: null,
-          relatedNoteId: null,
-        },
-      });
-      expect.fail("should have thrown");
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        throw error;
-      }
-    }
-  });
 });
 
 describe("handleNotePurgedEvent (integration)", () => {

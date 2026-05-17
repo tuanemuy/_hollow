@@ -131,6 +131,58 @@ spec/testcases/{media,ingestion}/index.md の一部期待結果が現状実装�
     - 実装: アプリケーション層には `AuthorizationError` クラスが存在せず `ForbiddenError` がその役割を担う（`errors/index.ts` 参照）。
     - 本 Issue の扱い: テストは `isForbiddenError + code === "NOTE_FORBIDDEN"` / `"DIRECTORY_FORBIDDEN"` で検証。Phase 4 で spec 文言を `ForbiddenError` に揃える別 Issue を起票（既に Issue #5 の他の場所と同一案件）。
 
+14. **UploadFile — 日次クォータ超過のエラーコードに enum が無い**
+    - spec: 「日次容量上限超過 → BusinessRuleError」（具体的なコードは指定なし）
+    - 実装: `uploadFile.ts` が `IngestionErrorCode` を経由せず素の文字列 `"daily_upload_quota_exceeded"` で `BusinessRuleError` を投げる。他の ingestion 失敗は `IngestionErrorCode.XXX` に揃っているのにこの 1 ケースだけ enum エントリが欠落しており、テストもリテラル比較を強いられる。
+    - 本 Issue の扱い: `ingestion.integration.test.ts:382` でリテラル `"daily_upload_quota_exceeded"` をそのまま assert し、コメントで実装側リテラルと一致させる必要を明記。Phase 4 で `IngestionErrorCode.DailyUploadQuotaExceeded` を追加し usecase と spec を一致させる別 Issue を起票。
+
+15. **PurgeOrphans — R2 削除失敗時の挙動が spec と乖離**
+    - spec: 「R2 delete 失敗 → 失敗としてカウントし、次のスイープで再試行」
+    - 実装: 1st UoW で `orphan → deleting` をコミットしてから `storage.delete` を呼ぶため、失敗時は `deleting` 状態で残る。次のスイープは `status === 'orphan'` でフィルタするため再試行されず、stuck する。
+    - 本 Issue の扱い: `purgeOrphans.integration.test.ts:163-186` で `status === "deleting"` を assert し、コメントで spec 乖離を明示。Phase 4 で「`status === 'deleting'` も再試行対象に含める」か「2 段階コミットを 1 トランザクションに統合する」かを判断する別 Issue を起票。
+
+16. **DeleteNote — outbox イベント名 `note.trashed` vs spec `note.deleted`**
+    - spec: 「DeleteNote → note.deleted」
+    - 実装: 物理削除ではなく status 遷移のため `note.trashed` を発火（`NoteEvents.trashed`）。
+    - 本 Issue の扱い: `trashLifecycle.integration.test.ts:108` で `eventType === "note.trashed"` を pin。Phase 4 で spec 文言を `note.trashed` に揃える別 Issue を起票（実装側のイベント名のほうがドメイン意味的に正確）。
+
+17. **RestoreNote — outbox イベント名 `note.restored` vs spec `note.saved`**
+    - spec: 「RestoreNote → note.saved」
+    - 実装: `NoteEvents.restored` を発火。
+    - 本 Issue の扱い: `trashLifecycle.integration.test.ts:161` で `eventType === "note.restored"` を pin。Phase 4 で spec 文言を `note.restored` に揃える別 Issue を起票（#16 と同一の方向性）。
+
+18. **ListNotesByOwner — keyword フィルタは Search ドメインに委譲**
+    - spec: 「keyword 指定 → Search ドメインへ委譲」を ListNotesByOwner のテスト表に記載
+    - 実装: `listNotesByOwner` は `keyword` パラメータを受け取らない。フルテキスト検索は別ユースケース `searchOwnNotes`（Search ドメイン）が担う。
+    - 本 Issue の扱い: `listNotesByOwner.integration.test.ts:343` で `it.todo` として明示的に残し、コメントで委譲先を案内。Phase 4 で spec/testcases の当該行を `searchOwnNotes` の表に移動する別 Issue を起票。
+
 ### Consequences
 - 良い点: テストが実装と乖離する事態を回避、乖離が後追いで可視化される
 - トレードオフ: Phase 4 で起票する Issue が複数になる可能性。ただし spec-sync の本来の使い方（差分を Issue 化）と整合している
+
+---
+
+## ADR-005: spec カバレッジ外の補助テスト追加判断
+
+### Status
+Proposed
+
+### Context
+ADR-003 で「spec 表の全ケースを 1:1 で実装する」と定めたが、レビュー時に「spec に記載がないが実装ガードとして欠かせない 1 ケース」が見つかった。スコープ厳守なら削除すべきだが、削除すると重大なリグレッション（usecase 本体が常時 noop になる等）が検知できなくなる懸念がある。判断基準と例外を明文化しておく。
+
+### Decision
+原則 ADR-003 に従い spec 外テストは追加しない。例外として **「ユースケース本体の happy path が一切検証されない」状態になる場合に限り、最小限の guard テスト 1 件を追加する**。追加したテストには `// ADR-005:` プレフィックスのコメントで判断根拠を明記する。
+
+#### 列挙
+
+1. **ReleaseEditLock — happy path guard 追加**
+   - spec/testcases の表は「他人ロックの Release → ReleaseNotOwner」1 行のみ。Release 本体が正常に動くかは検証されない。
+   - 実装が常時 noop を返すバグが入っても spec ベーステストでは検知不能。
+   - 本 Issue の扱い: `editLock.integration.test.ts` に「lock holder が release すると editLockUserId / acquiredAt / expiresAt が null になる」guard テストを 1 件追加。spec 表には反映しない（テスト側で ADR-005 を参照）。
+
+2. **DownloadMedia — NotFoundError 補助テストの扱い**
+   - レビュー時に検討したが、「spec/testcases に記載がないケースは追加しない」原則（plan「含まれないもの」）に基づき削除。Phase 4 で MediaNotFound に該当する spec 行を追加するか、当該補助テストを再導入するかを別 Issue で判断する。
+
+### Consequences
+- 良い点: 「spec 表 = テスト一覧」の原則を維持しつつ、スコープ厳守がもたらすリグレッション盲点を最小限のテスト追加で塞げる
+- トレードオフ: 「最小限」の判断が属人化しうる。判断の都度 ADR-005 に列挙して透明性を確保する

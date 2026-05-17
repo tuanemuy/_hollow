@@ -237,6 +237,7 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
     expect(rows[0]?.previewJson).not.toBeNull();
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
       contentHtml: string;
@@ -266,6 +267,7 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
       contentHtml: string;
     };
@@ -299,6 +301,7 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
       contentHtml: string;
     };
@@ -332,6 +335,11 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("fake structured");
   });
 
   it("falls through PDF text extraction → OCR per page → LLM → sanitiser for a scanned PDF", async () => {
@@ -365,6 +373,11 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("fake structured");
   });
 
   it("runs OCR → LLM → sanitiser for an image upload", async () => {
@@ -393,6 +406,11 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("fake structured");
   });
 
   it("runs speech recognition → LLM → sanitiser for an audio upload", async () => {
@@ -421,6 +439,11 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("fake structured");
   });
 
   it("marks the job failed with code 'llm_failure' when the LLM throws an unavailable error", async () => {

@@ -372,6 +372,12 @@ describe("uploadFile", () => {
       if (!isBusinessRuleError(error)) {
         throw error;
       }
+      // ADR-004 #14: spec ↔ implementation literal mismatch.
+      // `uploadFile.ts` throws BusinessRuleError with the bare string
+      // "daily_upload_quota_exceeded"; `IngestionErrorCode` has no entry
+      // for this case, unlike every other ingestion failure. Keep the
+      // literal in sync with the usecase string until the enum gains a
+      // matching member.
       expect(error.code).toBe("daily_upload_quota_exceeded");
     }
   });
@@ -616,6 +622,13 @@ describe("commitIngestionPreview", () => {
     expect(noteRows).toHaveLength(1);
     expect(noteRows[0]?.title).toBe("Preview Title");
     expect(noteRows[0]?.version).toBe(1);
+
+    const events = await container.db
+      .select()
+      .from(schema.outboxEvents)
+      .where(eq(schema.outboxEvents.aggregateId, jobId));
+    const types = events.map((e) => e.eventType);
+    expect(types).toContain("ingestion.committed");
   });
 
   it("rejects commit on a pending (non-previewing) job with BusinessRuleError(InvalidStateForCommit)", async () => {
@@ -770,17 +783,12 @@ describe("getIngestionJob", () => {
   // spec: spec/testcases/ingestion/index.md#GetIngestionJobs / GetIngestionJob
   const getContainer = setupTestContainer();
 
-  it("returns the DTO for the actor's own job and throws ForbiddenError for another user's job (spec: AuthorizationError)", async () => {
+  it("returns the DTO for the actor's own job", async () => {
     const container = getContainer();
     await seedInstanceSettings(container);
     const ownerA = await seedUser(container);
-    const ownerB = await seedUser(container);
     const myJob = await seedIngestionJob(container, {
       ownerId: ownerA,
-      status: "previewing",
-    });
-    const otherJob = await seedIngestionJob(container, {
-      ownerId: ownerB,
       status: "previewing",
     });
 
@@ -793,6 +801,19 @@ describe("getIngestionJob", () => {
     });
     expect(job.id as unknown as string).toBe(myJob);
     expect(job.status).toBe("previewing");
+  });
+
+  // ADR-004 #7: spec says AuthorizationError but the application layer has
+  // no such class — ForbiddenError fulfils that role.
+  it("throws ForbiddenError when the actor requests another user's job (spec: AuthorizationError)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const ownerA = await seedUser(container);
+    const ownerB = await seedUser(container);
+    const otherJob = await seedIngestionJob(container, {
+      ownerId: ownerB,
+      status: "previewing",
+    });
 
     try {
       await getIngestionJob({

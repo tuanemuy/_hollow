@@ -105,6 +105,9 @@ describe("deleteNote (integration)", () => {
   // spec: spec/testcases/note/index.md#DeleteNote
   const getContainer = setupTestContainer();
 
+  // ADR-004 #16: spec wording uses `note.deleted` but the implementation
+  // emits `note.trashed` (status change, not removal). Tests pin the
+  // implementation type until Phase 4 reconciles the spec text.
   it("transitions an active note to trashed and emits a note.trashed outbox event", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -158,6 +161,9 @@ describe("restoreNote (integration)", () => {
   // spec: spec/testcases/note/index.md#DeleteNote / RestoreNote ...
   const getContainer = setupTestContainer();
 
+  // ADR-004 #17: spec wording uses `note.saved` for restoration but the
+  // implementation emits `note.restored`. Tests pin the implementation
+  // type until Phase 4 reconciles the spec text.
   it("restores a trashed note to active and emits a note.restored outbox event", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -183,6 +189,8 @@ describe("restoreNote (integration)", () => {
     const restored = added.filter((e) => e.eventType === "note.restored");
     expect(restored).toHaveLength(1);
     expect(restored[0]?.aggregateId).toBe(noteId);
+    // No accidental emission of other note.* types.
+    expect(added.every((e) => e.eventType === "note.restored")).toBe(true);
   });
 
   it("throws BusinessRuleError(NotTrashed) when restoring an already-active note", async () => {

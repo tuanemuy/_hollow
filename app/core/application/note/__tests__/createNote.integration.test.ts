@@ -9,6 +9,7 @@ import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
+import { isSystemError, SystemErrorCode } from "../../errors";
 import { createNote } from "../createNote";
 
 // spec: spec/testcases/note/index.md#CreateNote
@@ -228,10 +229,12 @@ describe("createNote (integration)", () => {
     }
   });
 
-  // ADR-004: spec calls for BusinessRuleError(content_too_large), but the
-  // sanitizer pipeline wraps the inner ContentHtml.create failure as a
-  // SystemError(DataIntegrityError) before the usecase sees it. We assert
-  // the implementation reality.
+  // ADR-004 #9: spec calls for BusinessRuleError(content_too_large), but
+  // the sanitizer pipeline (htmlSanitizer.ts:307) wraps the inner
+  // ContentHtml.create failure as a SystemError(DataIntegrityError) before
+  // the usecase ever sees the BusinessRuleError. We pin the implementation
+  // reality — SystemError on the outside, BusinessRuleError(ContentTooLarge)
+  // as the cause — so a future change in either direction is caught.
   it("translates oversized content (>1 MiB) into a system-level failure via the sanitizer", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -254,22 +257,15 @@ describe("createNote (integration)", () => {
       });
       expect.fail("should have thrown");
     } catch (error) {
-      // The thrown shape is SystemError caused by BusinessRuleError(ContentTooLarge).
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe(NoteErrorCode.ContentTooLarge);
-        return;
-      }
-      if (!(error instanceof Error)) {
+      if (!isSystemError(error)) {
         throw error;
       }
-      // SystemError wraps the underlying cause; surface the cause's code
-      // if available so spec-table semantics still hold.
+      expect(error.code).toBe(SystemErrorCode.DataIntegrityError);
       const cause = (error as { cause?: unknown }).cause;
-      if (isBusinessRuleError(cause)) {
-        expect(cause.code).toBe(NoteErrorCode.ContentTooLarge);
-        return;
+      if (!isBusinessRuleError(cause)) {
+        throw error;
       }
-      throw error;
+      expect(cause.code).toBe(NoteErrorCode.ContentTooLarge);
     }
   });
 

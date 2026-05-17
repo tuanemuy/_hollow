@@ -145,6 +145,14 @@ describe("acquireEditLock (integration)", () => {
       .where(eq(schema.notes.id, noteId as unknown as string));
     const newExpiresAt = new Date(rows[0]?.editLockExpiresAt ?? "");
     expect(newExpiresAt.getTime()).toBeGreaterThan(initialExpiresAt.getTime());
+    // Note.acquireEditLock unconditionally rewrites acquiredAt to `now`,
+    // even when the caller is just re-acquiring their own live lock.
+    // Pin that behaviour so a future change to "preserve the original
+    // acquiredAt on self re-acquire" is caught.
+    const newAcquiredAt = new Date(rows[0]?.editLockAcquiredAt ?? "");
+    expect(newAcquiredAt.getTime()).toBeGreaterThan(
+      initialAcquiredAt.getTime(),
+    );
   });
 
   it("throws BusinessRuleError(EditLockedByOther) when another user holds a live lock", async () => {
@@ -247,13 +255,12 @@ describe("extendEditLock (integration)", () => {
       if (!isBusinessRuleError(error)) {
         throw error;
       }
-      // Implementation distinguishes ExtendNotOwner from
-      // EditLockedByOther; accept either as the spec only specifies the
-      // outer error class.
-      expect([
-        NoteErrorCode.ExtendNotOwner,
-        NoteErrorCode.EditLockedByOther,
-      ]).toContain(error.code);
+      // Note.extendEditLock checks ownership before liveness: a live lock
+      // held by another user takes the `existing.userId !== userId` branch
+      // and throws ExtendNotOwner (EditLockedByOther is only reachable when
+      // the caller's own lock has lapsed). Pin to ExtendNotOwner so a
+      // future reordering of the checks is caught.
+      expect(error.code).toBe(NoteErrorCode.ExtendNotOwner);
     }
   });
 });
@@ -261,6 +268,34 @@ describe("extendEditLock (integration)", () => {
 describe("releaseEditLock (integration)", () => {
   // spec: spec/testcases/note/index.md#... / ReleaseEditLock
   const getContainer = setupTestContainer();
+
+  // ADR-005: spec only enumerates the "other user" rejection branch, but
+  // without a happy-path guard a regression that turns releaseEditLock
+  // into a permanent noop would slip through. One minimum guard test is
+  // added intentionally beyond the spec table.
+  it("clears the lock fields on the note row when the holder releases", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir, {
+      editLockUserId: owner,
+      editLockAcquiredAt: new Date(Date.now() - 60 * 1000),
+      editLockExpiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    await releaseEditLock({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    expect(rows[0]?.editLockUserId).toBeNull();
+    expect(rows[0]?.editLockAcquiredAt).toBeNull();
+    expect(rows[0]?.editLockExpiresAt).toBeNull();
+  });
 
   it("throws BusinessRuleError(ReleaseNotOwner) when releasing a lock held by another user", async () => {
     const container = getContainer();

@@ -177,10 +177,12 @@ describe("purgeOrphans (integration)", () => {
     const rows = await base.db.select().from(schema.mediaAssets);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(orphanId as unknown as string);
-    // The first UoW transitioned `orphan → deleting` and committed before
-    // the failing `storage.delete`; the asset row therefore remains in
-    // `deleting` for an operator to inspect (the next orphan sweep does
-    // not pick it back up because it filters on `status === 'orphan'`).
+    // ADR-004 #15: the first UoW transitions `orphan → deleting` and
+    // commits before the failing `storage.delete`, so the asset row
+    // remains in `deleting`. The next sweep filters on
+    // `status === 'orphan'` and will NOT retry — diverging from the
+    // spec's "counted as failed, retried next tick" wording. Pinned to
+    // the implementation reality; Phase 4 will reconcile.
     expect(rows[0]?.status).toBe("deleting");
   });
 });
