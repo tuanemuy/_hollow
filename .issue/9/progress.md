@@ -50,6 +50,20 @@ plan.md「リスクと注意点」に記録した既知リスク。`<table>`, `<
 
 ---
 
+## 4b. ツールバー再 render の高頻度化（FE-W-102）
+
+### 内容
+`onSelectionUpdate` で `forceRender` を呼ぶため、selection 変化（文字入力 / 矢印 / IME 確定）毎に 10 ボタン分の `isActive()` schema lookup が走る。
+
+### 影響
+10 ボタン規模では実害なし。長文編集で CPU を継続的に消費する可能性はある。
+
+### フォローアップ
+- 将来 Issue 候補: `@tiptap/react` v3 の `useEditorState` で active state のみ subscribe、または rAF coalesce で再 render を間引き
+- 本 Issue では受入条件外として記録のみ（バグでも UX 阻害でもない）
+
+---
+
 ## 4a. value 同期 effect の正規化副作用（FE-W-004 への対応として）
 
 ### 内容

@@ -95,6 +95,14 @@ export function WysiwygEditor({
     ],
     content: value,
     editable: disabled !== true,
+    onCreate: ({ editor: instance }) => {
+      // TipTap normalises content through the ProseMirror schema
+      // ("" → "<p></p>", "<P>X</P>" → "<p>X</p>", …). Seed the guard
+      // with the canonical post-parse HTML so the very first onUpdate
+      // — fired on initial render in some TipTap builds — does not
+      // mis-classify the normalisation as user input.
+      lastEmittedHtmlRef.current = instance.getHTML();
+    },
     onUpdate: ({ editor: instance }) => {
       const next = instance.getHTML();
       if (lastEmittedHtmlRef.current === next) return;
@@ -110,8 +118,13 @@ export function WysiwygEditor({
   useEffect(() => {
     if (editor === null) return;
     if (editor.getHTML() === value) return;
-    lastEmittedHtmlRef.current = value;
     editor.commands.setContent(value, { emitUpdate: false });
+    // `setContent` may normalise the incoming HTML through the
+    // ProseMirror schema, so the editor's canonical form can differ
+    // from `value`. Pin the guard to the post-parse HTML so any later
+    // `onUpdate` that fires with the normalised form is filtered out
+    // as a self-emit rather than mis-routed to `onChange`.
+    lastEmittedHtmlRef.current = editor.getHTML();
   }, [editor, value]);
 
   useEffect(() => {
