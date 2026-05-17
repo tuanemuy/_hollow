@@ -5,8 +5,9 @@ import {
   type EventDraft,
   EventId,
 } from "@/core/domain/common/event";
-import { TodoEvents } from "@/core/domain/todo/events";
-import { TodoId, TodoTitle } from "@/core/domain/todo/valueObject";
+import { UserId } from "@/core/domain/identity/valueObject";
+import { NoteEvents } from "@/core/domain/note/events";
+import { NoteId } from "@/core/domain/note/valueObject";
 import { PendingBatch } from "../pendingBatch";
 import { D1OutboxRepository } from "../repositories/outboxRepository";
 import * as schema from "../schema";
@@ -22,9 +23,10 @@ import { createTestContainer } from "./helpers";
  * `save` is buffered and only legal inside a UoW. To keep these tests
  * focused on outbox semantics rather than UoW plumbing, the helper
  * below builds a one-off `PendingBatch`, calls `save`, and flushes —
- * giving the test full control over event ids and timestamps the way
  * giving the test full control over event ids and timestamps.
  */
+
+const OWNER_ID = UserId.create("0193e7d0-0001-7000-8000-200000000000");
 
 let counter = 0;
 const nextEventId = (): EventId => {
@@ -33,15 +35,26 @@ const nextEventId = (): EventId => {
     `0193e7d0-${counter.toString(16).padStart(4, "0")}-7000-9000-200000000000`,
   );
 };
-const nextTodoId = () => {
+const nextNoteId = () => {
   counter += 1;
-  return TodoId.create(
+  return NoteId.create(
     `0193e7d0-${counter.toString(16).padStart(4, "0")}-7000-9000-300000000000`,
   );
 };
 const withId = <TEvent extends DomainEvent>(
   draft: EventDraft<TEvent>,
 ): TEvent => ({ ...draft, id: nextEventId() }) as TEvent;
+
+function makeTrashedDraft(noteId: NoteId, occurredAt: Date) {
+  return NoteEvents.trashed(
+    {
+      noteId,
+      ownerId: OWNER_ID,
+      mediaRefs: [],
+    },
+    occurredAt,
+  );
+}
 
 async function manualSave(
   container: ReturnType<typeof createTestContainer>,
@@ -64,9 +77,8 @@ async function manualSave(
 describe("D1OutboxRepository.save (integration)", () => {
   it("writes payload / eventType / aggregateId to the correct columns", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("persistence");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId, new Date()));
 
     await manualSave(container, [event], new Date());
 
@@ -75,13 +87,13 @@ describe("D1OutboxRepository.save (integration)", () => {
     const row = rows[0];
     if (!row) return;
     expect(row.id).toBe(event.id);
-    expect(row.eventType).toBe("todo.created");
-    expect(row.aggregateId).toBe(todoId);
+    expect(row.eventType).toBe("note.trashed");
+    expect(row.aggregateId).toBe(noteId);
     expect(row.processedAt).toBeNull();
 
-    const stored = row.payload as { todoId: string; title: string };
-    expect(stored.todoId).toBe(todoId);
-    expect(stored.title).toBe(title);
+    const stored = row.payload as { noteId: string; ownerId: string };
+    expect(stored.noteId).toBe(noteId);
+    expect(stored.ownerId).toBe(OWNER_ID);
   });
 });
 
@@ -98,10 +110,9 @@ describe("D1OutboxRepository.claimPending (integration)", () => {
 
   it("returns only unprocessed entries in approximate created_at order", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("claim");
-    const a = withId(TodoEvents.created(todoId, title, new Date(0)));
-    const b = withId(TodoEvents.toggled(todoId, true, new Date(1000)));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date(0)));
+    const b = withId(makeTrashedDraft(nextNoteId(), new Date(1000)));
     await manualSave(container, [a, b], new Date(0));
     await manualSave(container, [], new Date(1000)); // ordering noop
 
@@ -119,9 +130,8 @@ describe("D1OutboxRepository.claimPending (integration)", () => {
 
   it("never returns the same row to two concurrent claimers", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
     const events = Array.from({ length: 8 }, (_, i) =>
-      withId(TodoEvents.toggled(todoId, i % 2 === 0, new Date(i))),
+      withId(makeTrashedDraft(nextNoteId(), new Date(i))),
     );
     await manualSave(container, events, new Date(0));
 
@@ -144,9 +154,8 @@ describe("D1OutboxRepository.claimPending (integration)", () => {
 
   it("hides newly-claimed rows from concurrent claims until the lease lapses", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("lease");
-    const a = withId(TodoEvents.created(todoId, title, new Date(0)));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date(0)));
     await manualSave(container, [a], new Date(0));
 
     const t0 = new Date(10_000);
@@ -168,9 +177,8 @@ describe("D1OutboxRepository.claimPending (integration)", () => {
 describe("D1OutboxRepository.finalize (integration)", () => {
   it("stamps processed_at and clears the claim for processed ids", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("processed");
-    const a = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date()));
     await manualSave(container, [a], new Date());
 
     const claim = new Date(10_000);
@@ -196,9 +204,8 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 
   it("schedules retry and releases claim when nextAttemptAt is set", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("retry");
-    const a = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date()));
     await manualSave(container, [a], new Date());
 
     await container.outboxRepository.claimPending({
@@ -225,9 +232,8 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 
   it("quarantines the row when nextAttemptAt is null", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("quarantine");
-    const a = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date()));
     await manualSave(container, [a], new Date());
 
     const failedAt = new Date(30_000);
@@ -245,9 +251,8 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 
   it("excludes quarantined rows from claimPending", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("excluded");
-    const a = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date()));
     await manualSave(container, [a], new Date());
 
     await container.outboxRepository.finalize({
@@ -267,10 +272,9 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 
   it("commits processed and failures together in one call", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("mixed");
-    const a = withId(TodoEvents.created(todoId, title, new Date(0)));
-    const b = withId(TodoEvents.toggled(todoId, true, new Date(1000)));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date(0)));
+    const b = withId(makeTrashedDraft(nextNoteId(), new Date(1000)));
     await manualSave(container, [a, b], new Date(0));
 
     await container.outboxRepository.claimPending({
@@ -301,9 +305,8 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 
   it("is a no-op when both processed and failures are empty", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("noop");
-    const a = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const a = withId(makeTrashedDraft(noteId, new Date()));
     await manualSave(container, [a], new Date());
 
     await container.outboxRepository.finalize({
@@ -322,10 +325,8 @@ describe("D1OutboxRepository.finalize (integration)", () => {
 describe("D1OutboxRepository.pruneProcessed (integration)", () => {
   it("deletes only rows processed before the cutoff", async () => {
     const container = createTestContainer();
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("prune");
-    const old = withId(TodoEvents.created(todoId, title, new Date(0)));
-    const fresh = withId(TodoEvents.toggled(todoId, true, new Date(1000)));
+    const old = withId(makeTrashedDraft(nextNoteId(), new Date(0)));
+    const fresh = withId(makeTrashedDraft(nextNoteId(), new Date(1000)));
     await manualSave(container, [old, fresh], new Date(0));
 
     await container.db

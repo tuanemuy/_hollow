@@ -2,22 +2,22 @@ import { asc, isNull } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import type { DomainEvent } from "@/core/domain/common/event";
-import { TodoEvents } from "@/core/domain/todo/events";
-import { TodoId, TodoTitle } from "@/core/domain/todo/valueObject";
+import { UserId } from "@/core/domain/identity/valueObject";
+import { NoteEvents } from "@/core/domain/note/events";
+import { NoteId } from "@/core/domain/note/valueObject";
 import { FakeIdGenerator, FakeLogger } from "../../__tests__/fakes";
 import { setupTestContainer } from "../../__tests__/helpers";
-import { changeTodoStatus } from "../../todo/changeTodoStatus";
-import { createTodo } from "../../todo/createTodo";
-import { deleteTodo } from "../../todo/deleteTodo";
 import { type EventDispatcher, processOutboxEvents } from "../eventRelayWorker";
 
 const T0 = new Date(0);
 
-// A `FakeIdGenerator` shared across the file feeds deterministic `TodoId`s.
+const OWNER_ID = UserId.create("0193e7d0-0001-7000-8000-200000000000");
+
+// A `FakeIdGenerator` shared across the file feeds deterministic `NoteId`s.
 // Outbox event ids are minted by the container's UoW when drafts are
 // buffered — tests no longer thread `EventId` through manually.
 const ids = new FakeIdGenerator();
-const nextTodoId = (): TodoId => TodoId.create(ids.next());
+const nextNoteId = (): NoteId => NoteId.create(ids.next());
 
 const makeAllSucceed = (): EventDispatcher =>
   vi.fn(async (events: readonly DomainEvent[]) =>
@@ -33,21 +33,34 @@ const makeAllFail = (error: Error): EventDispatcher =>
     })),
   );
 
+// Build a simple note.trashed event draft (no FK dependencies in the payload).
+function makeTrashedDraft(noteId: NoteId) {
+  return NoteEvents.trashed(
+    {
+      noteId,
+      ownerId: OWNER_ID,
+      mediaRefs: [],
+    },
+    T0,
+  );
+}
+
 describe("processOutboxEvents", () => {
   const getContainer = setupTestContainer();
 
   it("dispatches decoded events with branded payloads and marks rows processed", async () => {
     const container = getContainer();
 
-    const { todo: a } = await createTodo({
-      container,
-      input: { title: "A" },
+    const noteIdA = nextNoteId();
+    const noteIdB = nextNoteId();
+    const noteIdC = nextNoteId();
+    await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
+      collectEvents([
+        makeTrashedDraft(noteIdA),
+        makeTrashedDraft(noteIdB),
+        makeTrashedDraft(noteIdC),
+      ]);
     });
-    await changeTodoStatus({
-      container,
-      input: { id: a.id, status: "completed" },
-    });
-    await deleteTodo({ container, input: { id: a.id } });
 
     const beforeRows = await container.db
       .select()
@@ -72,22 +85,10 @@ describe("processOutboxEvents", () => {
       payload: unknown;
     }>;
     expect(events.map((e) => e.type)).toEqual([
-      "todo.created",
-      "todo.toggled",
-      "todo.deleted",
+      "note.trashed",
+      "note.trashed",
+      "note.trashed",
     ]);
-
-    const created = events[0]?.payload as { todoId: string; title: string };
-    expect(created.todoId).toBe(a.id);
-    expect(created.title).toBe("A");
-    const toggled = events[1]?.payload as {
-      todoId: string;
-      completed: boolean;
-    };
-    expect(toggled.todoId).toBe(a.id);
-    expect(toggled.completed).toBe(true);
-    const deleted = events[2]?.payload as { todoId: string };
-    expect(deleted.todoId).toBe(a.id);
 
     const afterRows = await container.db.select().from(schema.outboxEvents);
     expect(afterRows.every((r) => r.processedAt !== null)).toBe(true);
@@ -103,13 +104,12 @@ describe("processOutboxEvents", () => {
 
   it("respects the batchSize option", async () => {
     const container = getContainer();
-    const id = nextTodoId();
-    const title = TodoTitle.create("batched");
+    const noteId = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
       collectEvents([
-        TodoEvents.created(id, title, T0),
-        TodoEvents.toggled(id, true, T0),
-        TodoEvents.deleted(id, T0),
+        makeTrashedDraft(noteId),
+        makeTrashedDraft(nextNoteId()),
+        makeTrashedDraft(nextNoteId()),
       ]);
     });
 
@@ -198,22 +198,19 @@ describe("processOutboxEvents", () => {
     const container = getContainer();
 
     const badId = "01950000-0000-7000-8000-000000000002";
-    const goodId = nextTodoId();
-    const goodTitle = TodoTitle.create("ok");
-    // `TodoId.create` is intentionally format-agnostic at the domain
-    // layer (UUIDv7 enforcement is on the adapter side). A malformed
-    // payload here violates a still-load-bearing invariant: the title
-    // must be non-empty.
+    const goodNoteId = nextNoteId();
+    // A malformed payload here violates a still-load-bearing invariant:
+    // `noteId` must be non-empty.
     await container.db.insert(schema.outboxEvents).values({
       id: badId,
-      eventType: "todo.created",
+      eventType: "note.trashed",
       aggregateId: badId,
-      payload: { todoId: badId, title: "" },
+      payload: { noteId: "", ownerId: OWNER_ID, mediaRefs: [] },
       occurredAt: new Date(0),
       createdAt: new Date(0),
     });
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(goodId, goodTitle, T0)]);
+      collectEvents([makeTrashedDraft(goodNoteId)]);
     });
 
     const dispatch = makeAllSucceed();
@@ -242,14 +239,10 @@ describe("processOutboxEvents", () => {
   it("tolerates dispatcher failure on one row without dropping the rest of the batch", async () => {
     const container = getContainer();
 
-    const idA = nextTodoId();
-    const idB = nextTodoId();
-    const title = TodoTitle.create("allSettled");
+    const idA = nextNoteId();
+    const idB = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([
-        TodoEvents.created(idA, title, T0),
-        TodoEvents.created(idB, title, T0),
-      ]);
+      collectEvents([makeTrashedDraft(idA), makeTrashedDraft(idB)]);
     });
 
     const dispatch: EventDispatcher = vi.fn(
@@ -281,10 +274,9 @@ describe("processOutboxEvents", () => {
   it("leaves rows unprocessed when every dispatch fails", async () => {
     const container = getContainer();
 
-    const id = nextTodoId();
-    const title = TodoTitle.create("all-fail");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     const dispatch = makeAllFail(new Error("consumer is always angry"));
@@ -301,10 +293,9 @@ describe("processOutboxEvents", () => {
   it("accepts a caller-supplied decoder registry", async () => {
     const container = getContainer();
 
-    const id = nextTodoId();
-    const title = TodoTitle.create("custom-registry");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     const dispatch = makeAllSucceed();
@@ -319,10 +310,9 @@ describe("processOutboxEvents", () => {
 
   it("schedules a backed-off retry after a dispatch failure", async () => {
     const container = getContainer();
-    const id = nextTodoId();
-    const title = TodoTitle.create("retry-backoff");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     const dispatch = makeAllFail(new Error("transient downstream blip"));
@@ -344,10 +334,9 @@ describe("processOutboxEvents", () => {
 
   it("caps a runaway error message before persisting it to last_error", async () => {
     const container = getContainer();
-    const id = nextTodoId();
-    const title = TodoTitle.create("oversize-error");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     const huge = "x".repeat(20_000);
@@ -368,10 +357,9 @@ describe("processOutboxEvents", () => {
 
   it("excludes rows whose nextAttemptAt is still in the future from claimPending", async () => {
     const container = getContainer();
-    const id = nextTodoId();
-    const title = TodoTitle.create("not-yet");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     const failing = makeAllFail(new Error("first failure"));
@@ -396,10 +384,9 @@ describe("processOutboxEvents", () => {
     const container = getContainer();
     const logger = new FakeLogger();
     const containerWithLogger = { ...container, logger };
-    const id = nextTodoId();
-    const title = TodoTitle.create("poison");
+    const id = nextNoteId();
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
-      collectEvents([TodoEvents.created(id, title, T0)]);
+      collectEvents([makeTrashedDraft(id)]);
     });
 
     // Pre-bump the row to one attempt below the cap so a single failing
@@ -469,12 +456,9 @@ describe("processOutboxEvents", () => {
 
   it("hands the whole decoded batch to the dispatcher in a single call", async () => {
     const container = getContainer();
-    const title = TodoTitle.create("batched-call");
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
       collectEvents(
-        Array.from({ length: 10 }, () =>
-          TodoEvents.created(nextTodoId(), title, T0),
-        ),
+        Array.from({ length: 10 }, () => makeTrashedDraft(nextNoteId())),
       );
     });
 
@@ -493,11 +477,10 @@ describe("processOutboxEvents", () => {
 
   it("treats a thrown dispatcher as a batch-wide failure", async () => {
     const container = getContainer();
-    const title = TodoTitle.create("all-or-nothing");
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
       collectEvents([
-        TodoEvents.created(nextTodoId(), title, T0),
-        TodoEvents.created(nextTodoId(), title, T0),
+        makeTrashedDraft(nextNoteId()),
+        makeTrashedDraft(nextNoteId()),
       ]);
     });
 
@@ -521,11 +504,10 @@ describe("processOutboxEvents", () => {
 
   it("treats events missing from the dispatcher's outcomes as failures", async () => {
     const container = getContainer();
-    const title = TodoTitle.create("partial-outcome");
     await container.unitOfWorkProvider.run(async ({ collectEvents }) => {
       collectEvents([
-        TodoEvents.created(nextTodoId(), title, T0),
-        TodoEvents.created(nextTodoId(), title, T0),
+        makeTrashedDraft(nextNoteId()),
+        makeTrashedDraft(nextNoteId()),
       ]);
     });
 

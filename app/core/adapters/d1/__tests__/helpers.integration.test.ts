@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { isConflictError, isSystemError } from "@/core/application/errors";
 import { mapDbError } from "../repositories/helpers";
-import { todos } from "../schema";
+import { processedEvents } from "../schema";
 import { createTestContainer } from "./helpers";
 
 // Pins the SQLITE_CONSTRAINT_* → ConflictError classification end-to-end
@@ -16,27 +16,19 @@ describe("mapDbError SQLITE_CONSTRAINT_* classification (integration)", () => {
 
   it("maps SQLITE_CONSTRAINT_PRIMARYKEY to ConflictError(UNIQUE_VIOLATION)", async () => {
     const container = createTestContainer();
-    const id = "todo-pk-collision";
+    const id = "event-pk-collision";
 
-    await container.db.insert(todos).values({
+    await container.db.insert(processedEvents).values({
       id,
-      title: "first",
-      status: "active",
-      version: 0,
-      createdAt: NOW,
-      updatedAt: NOW,
+      processedAt: NOW,
     });
 
     let caught: unknown;
     try {
       await mapDbError("collision", () =>
-        container.db.insert(todos).values({
+        container.db.insert(processedEvents).values({
           id,
-          title: "second",
-          status: "active",
-          version: 0,
-          createdAt: NOW,
-          updatedAt: NOW,
+          processedAt: NOW,
         }),
       );
     } catch (error) {

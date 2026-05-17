@@ -139,7 +139,7 @@ function parseOptions(raw: string): ExportOptions {
 }
 
 /**
- * D1 implementation of `ExportJobRepository`. Mirrors `D1TodoRepository`
+ * D1 implementation of `ExportJobRepository`. Mirrors `D1NoteRepository`
  * — reads run immediately against the binding, writes register Drizzle
  * query expressions on the supplied `PendingBatch` so the surrounding
  * `D1UnitOfWorkProvider` can flush them atomically via `db.batch()`.
