@@ -70,6 +70,7 @@ export const noteListSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
   viewId: z.string().min(1).optional().catch(undefined),
   visibility: visibilitySchema.optional().catch(undefined),
+  referencingNoteId: z.string().min(1).optional().catch(undefined),
   tagNames: z.array(z.string().min(1)).optional().catch(undefined),
   from: z.string().date().optional().catch(undefined),
   to: z.string().date().optional().catch(undefined),

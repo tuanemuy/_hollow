@@ -3,7 +3,7 @@
 ## ADR-001: 公開状態フィルタ / 内部リンク参照フィルタはスコープ外
 
 ### Status
-Accepted
+Superseded by Issue #8 (filter 経路は完全解消、`.issue/8/adr.md` ADR-010 参照)
 
 ### Context
 spec/pages/index.md P10 では「フィルタバー（タグ / 期間 / 公開状態 / 内部リンク参照）」が要求されている。しかし:
@@ -230,7 +230,7 @@ B-7 / A-3 の SavedView 復元（`?viewId=...`）のため、単体 SavedView �
 ## ADR-012: `searchOwnNotes` 結果の `NoteListItemDTO` projection は MVP では退化形
 
 ### Status
-Accepted
+Accepted (search 経路の visibility 実値化は Issue #8 スコープ外、別 Issue で対応予定。`.issue/8/adr.md` ADR-008 / ADR-010 参照)
 
 ### Context
 home page loader は `q` 有無で `searchOwnNotes`（`SearchHitDTO` を返す） / `listNotesByOwner`（`NoteListItemDTO` を返す）を切り替える。両者は共通の表示用 view-model に集約する必要があるが、`SearchHitDTO` には `directoryId` / `slug` / `updatedAt` / `visibility` が含まれず、`NoteListItemDTO` の `excerpt` / `tagNames` も別経路から来る。
@@ -252,7 +252,7 @@ home page loader は `q` 有無で `searchOwnNotes`（`SearchHitDTO` を返す�
 ## ADR-013: Phase B では visibility バッジ / フィルタを search 経路にのみ出す
 
 ### Status
-Accepted
+Superseded by Issue #8: filter 経路で visibility 実値化済、`showVisibilityBadge = mode === "filter"` に切替。公開状態 select は両モード常時表示（`.issue/8/adr.md` ADR-008 / ADR-010 参照）
 
 ### Context
 Phase B の表示モード（list / tile）で公開状態バッジを描画する設計だが、`listNotesByOwner` 経路では `NoteListItemDTO.visibility` が `'private'` 固定で返ってくる（ADR-001 / ADR-012）。filter 経路でバッジを出すと「すべて非公開と表示される」誤情報になる。

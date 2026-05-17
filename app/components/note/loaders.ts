@@ -6,6 +6,8 @@ import {
 import type { NoteId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
+import { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 
@@ -29,6 +31,7 @@ export type OwnedNotesQuery = Readonly<{
   directoryId?: string | null;
   q?: string | null;
   visibility?: "private" | "unlisted" | "public" | null;
+  referencingNoteId?: string | null;
   dateRange?: Readonly<{ from?: string | null; to?: string | null }> | null;
 }>;
 
@@ -141,6 +144,30 @@ export const loadOwnedNotes = cache(
       }
 
       const dateRange = normalizeListDateRange(input.dateRange);
+
+      // URL exposes visibility as a single enum; the port accepts an
+      // array to leave room for a future multi-select without breaking
+      // the application boundary. Build the array exactly here.
+      const visibilityArr: readonly PublicationVisibility[] | undefined =
+        input.visibility !== undefined && input.visibility !== null
+          ? [input.visibility]
+          : undefined;
+
+      // Transport boundary: a malformed `?referencingNoteId=...` (rare —
+      // the schema already rejects empty strings) is silently dropped
+      // rather than failing the whole loader.
+      let referencingNoteId: DomainNoteId | undefined;
+      if (
+        input.referencingNoteId !== undefined &&
+        input.referencingNoteId !== null
+      ) {
+        try {
+          referencingNoteId = DomainNoteId.create(input.referencingNoteId);
+        } catch {
+          referencingNoteId = undefined;
+        }
+      }
+
       const { notes, count } = await listMod.listNotesByOwner({
         container,
         input: {
@@ -152,6 +179,8 @@ export const loadOwnedNotes = cache(
           order: "desc",
           ...(tagIds !== undefined ? { tagIds } : {}),
           ...(dateRange !== undefined ? { dateRange } : {}),
+          ...(visibilityArr !== undefined ? { visibility: visibilityArr } : {}),
+          ...(referencingNoteId !== undefined ? { referencingNoteId } : {}),
         },
       });
 

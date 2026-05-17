@@ -1,6 +1,11 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
-import type { DateRange, NoteStatus } from "@/core/domain/note/valueObject";
+import type {
+  DateRange,
+  NoteId,
+  NoteStatus,
+} from "@/core/domain/note/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import type { ServiceArgs } from "../types";
 import type { NoteListItemDTO } from "./view";
@@ -11,6 +16,8 @@ export type ListNotesByOwnerInput = Readonly<{
   status?: NoteStatus;
   tagIds?: readonly TagId[];
   dateRange?: DateRange;
+  visibility?: readonly PublicationVisibility[];
+  referencingNoteId?: NoteId;
   page: number;
   limit: number;
   sort?: "updatedAt" | "createdAt" | "title";
@@ -35,6 +42,10 @@ export async function listNotesByOwner({
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
     ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
+    ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+    ...(input.referencingNoteId !== undefined
+      ? { referencingNoteId: input.referencingNoteId }
+      : {}),
   };
 
   const { items, count } = await container.unitOfWorkProvider.run(
@@ -55,6 +66,11 @@ export async function listNotesByOwner({
         );
         for (const t of tags) tagMap.set(t.id, t.name);
       }
+      const states = await ctx.publicationStateRepository.findByNoteIds(
+        found.map((n) => n.id),
+      );
+      const visById = new Map<string, PublicationVisibility>();
+      for (const s of states) visById.set(s.noteId, s.visibility);
       const items = found.map((note) => {
         const excerpt = container.htmlSanitizer
           .toPlainText(note.contentHtml)
@@ -66,10 +82,7 @@ export async function listNotesByOwner({
           excerpt,
           thumbnailUrl: null,
           tagNames,
-          // Listing payload defaults to `private` — the publication
-          // projection that flips this to `public` / `unlisted` runs as a
-          // separate join when the caller needs it.
-          visibility: "private",
+          visibility: visById.get(note.id) ?? "private",
         });
       });
       return { items, count: total };

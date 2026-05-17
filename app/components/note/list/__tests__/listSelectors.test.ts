@@ -166,6 +166,19 @@ describe("searchToViewQuery", () => {
     expect(out.query.keyword).toBe(null);
   });
 
+  it("propagates `referencingNoteId` into the saved-view query", () => {
+    const out = searchToViewQuery({
+      ...baseSearch,
+      referencingNoteId: "note-ref-1",
+    });
+    expect(out.query.referencingNoteId).toBe("note-ref-1");
+  });
+
+  it("falls back to null `referencingNoteId` when unset", () => {
+    const out = searchToViewQuery(baseSearch);
+    expect(out.query.referencingNoteId).toBe(null);
+  });
+
   // W-003: the dateRange branch must engage when *either* bound is
   // present, with the missing side null'd rather than dropped. Without
   // this the SavedView would lose the open-ended interval entirely.
@@ -293,6 +306,57 @@ describe("viewQueryToSearch", () => {
     });
     expect(calls).toBe(0);
     expect("tagNames" in out).toBe(false);
+  });
+
+  it("restores `referencingNoteId` when the view carries one", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        referencingNoteId:
+          "note-ref-99" as unknown as SavedViewDTO["query"]["referencingNoteId"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.referencingNoteId).toBe("note-ref-99");
+  });
+
+  it("omits `referencingNoteId` when the view has none", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("referencingNoteId" in out).toBe(false);
+  });
+
+  it("restores `visibility` from an aux `visibilityFilter` single entry", () => {
+    const v = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["public"],
+      },
+    } as unknown as SavedViewDTO;
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("public");
+  });
+
+  it("rounds multi-entry `visibilityFilter` down to the first value", () => {
+    const v = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["unlisted", "public"],
+      },
+    } as unknown as SavedViewDTO;
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("unlisted");
+  });
+
+  it("omits `visibility` when `visibilityFilter` is absent or empty", () => {
+    expect("visibility" in viewQueryToSearch(emptyView)).toBe(false);
+    const v = {
+      ...view,
+      query: { ...view.query, visibilityFilter: [] },
+    } as unknown as SavedViewDTO;
+    expect("visibility" in viewQueryToSearch(v)).toBe(false);
   });
 });
 

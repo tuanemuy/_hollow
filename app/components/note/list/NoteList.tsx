@@ -29,10 +29,11 @@ type Props = {
  * controls / dialogs run on the client inside `<SelectionProvider>`.
  *
  * Display mode (list / tile / calendar) is URL-driven via
- * `search.display`. Visibility badges and the visibility filter are
- * only meaningful on the `searchOwnNotes` path; in the filter path the
- * `NoteListItemDTO.visibility` projection is currently fixed to
- * `'private'` (see ADR-001 / ADR-012).
+ * `search.display`. The visibility badge is shown on the filter path
+ * (the listing usecase joins `publication_states` to project real
+ * visibility) but suppressed on the search path, where
+ * `NoteListItemDTO.visibility` is still a `'private'` placeholder
+ * (see `.issue/1/adr.md` ADR-012 / `.issue/8/adr.md` ADR-010).
  */
 export function NoteList({
   user: _user,
@@ -47,14 +48,15 @@ export function NoteList({
   const { notes, count, mode } = data;
   const display: DisplayMode = search.display ?? "list";
   const searchActive = mode === "search";
-  const showVisibilityBadge = searchActive;
+  const showVisibilityBadge = mode === "filter";
 
   const hasAnyFilter =
     (search.tagNames !== undefined && search.tagNames.length > 0) ||
     search.from !== undefined ||
     search.to !== undefined ||
     search.directoryId !== undefined ||
-    search.visibility !== undefined;
+    search.visibility !== undefined ||
+    search.referencingNoteId !== undefined;
 
   const headingText = searchActive
     ? `「${search.q ?? ""}」の検索結果`
@@ -78,7 +80,8 @@ export function NoteList({
         from={search.from}
         to={search.to}
         visibility={search.visibility}
-        searchActive={searchActive}
+        directoryId={search.directoryId}
+        referencingNoteId={search.referencingNoteId}
       />
 
       <BulkActionBar tree={tree} />

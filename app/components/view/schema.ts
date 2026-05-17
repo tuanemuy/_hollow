@@ -39,6 +39,7 @@ export const createSavedViewSchema = z.object({
       .nullable()
       .default(null),
     keyword: z.string().nullable().default(null),
+    referencingNoteId: z.string().min(1).nullable().default(null),
     visibilityFilter: z.array(visibilityEnum).optional(),
   }),
   displayMode: z.enum(["list", "tile", "calendar"]).default("list"),

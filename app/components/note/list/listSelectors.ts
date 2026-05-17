@@ -99,6 +99,7 @@ export type SaveViewPayload = Readonly<{
       to: string | null;
     }> | null;
     keyword: string | null;
+    referencingNoteId: string | null;
     visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
   }>;
   displayMode: "list" | "tile" | "calendar";
@@ -126,6 +127,7 @@ export function searchToViewQuery(search: NoteListSearch): SaveViewPayload {
       dateRange,
       keyword:
         search.q !== undefined && search.q.trim().length > 0 ? search.q : null,
+      referencingNoteId: search.referencingNoteId ?? null,
       ...(search.visibility !== undefined
         ? { visibilityFilter: [search.visibility] }
         : {}),
@@ -158,6 +160,9 @@ export function viewQueryToSearch(
   if (view.query.keyword !== null) {
     out.q = view.query.keyword;
   }
+  if (view.query.referencingNoteId !== null) {
+    out.referencingNoteId = view.query.referencingNoteId as unknown as string;
+  }
   if (view.query.dateRange !== null) {
     if (view.query.dateRange.from !== null) {
       out.from = isoToDateOnly(view.query.dateRange.from);
@@ -165,6 +170,20 @@ export function viewQueryToSearch(
     if (view.query.dateRange.to !== null) {
       out.to = isoToDateOnly(view.query.dateRange.to);
     }
+  }
+  // `ViewQueryDTO` does not statically carry `visibilityFilter` — it
+  // lives on the search-domain query shape that some persistence paths
+  // store alongside the saved view. When that auxiliary field is
+  // present at runtime, restore the first entry into the URL's
+  // single-value `visibility` slot. The URL schema can only carry one
+  // value today; multi-select rounds down to the first entry.
+  const auxVisibilityFilter = (
+    view.query as unknown as {
+      visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
+    }
+  ).visibilityFilter;
+  if (auxVisibilityFilter !== undefined && auxVisibilityFilter.length > 0) {
+    out.visibility = auxVisibilityFilter[0];
   }
   if (resolveTagNames !== undefined && view.query.tagIds.length > 0) {
     const names = resolveTagNames(
