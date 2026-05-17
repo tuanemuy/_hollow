@@ -50,6 +50,21 @@ plan.md「リスクと注意点」に記録した既知リスク。`<table>`, `<
 
 ---
 
+## 4a. value 同期 effect の正規化副作用（FE-W-004 への対応として）
+
+### 内容
+WYSIWYG モード時、TipTap parse 正規化で `editor.getHTML() !== value` の状態が生じうる。`setContent` の自己発火は `lastEmittedHtmlRef` で抑止しているが、TipTap が初回 parse で構造正規化（例: `<li>plain</li>` → `<li><p>plain</p></li>`）した場合、`value` prop は古いまま editor 内が正規化済みになる短い期間が存在する。
+
+### 適用した回避策
+- `lastEmittedHtmlRef` を入れて `onUpdate` の自己発火経路を遮断
+- 初回マウントで `onChange` が呼ばれない（TC-008 観察事象）ことを `wysiwygEditorOnChange.test.tsx` で自動回帰
+
+### フォローアップ
+- カーソルリセットの副作用は受入条件外、`WysiwygEditor.tsx` の JSDoc で文書化済み
+- 将来 Issue 候補: モード切替時に未対応タグ検出 → warning banner（FE-W-006 と同根）
+
+---
+
 ## 4. メディアアップロード（dev 環境では R2 未バインド）
 
 ### 内容

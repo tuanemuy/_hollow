@@ -262,6 +262,24 @@ describe("editorReducer setters", () => {
     expect(s.mode).toBe("frontMatter");
   });
 
+  it("setMode preserves an in-flight autosave and existing dirty keys (W-014)", () => {
+    // Mode switching must never restart or clear an in-progress autosave
+    // — that would either lose a save attempt or strand the indicator.
+    // Likewise dirty fields stay dirty until autosaveSuccess clears them.
+    let s: EditorState = editorReducer(freshState(), {
+      type: "setTitle",
+      value: "draft",
+    });
+    s = editorReducer(s, { type: "autosaveStart" });
+    expect(s.autosave.kind).toBe("saving");
+    expect(s.dirtyKeys.has("title")).toBe(true);
+
+    const next = editorReducer(s, { type: "setMode", mode: "wysiwyg" });
+    expect(next.mode).toBe("wysiwyg");
+    expect(next.autosave.kind).toBe("saving");
+    expect(next.dirtyKeys.has("title")).toBe(true);
+  });
+
   it("setTagInput updates the raw tag string and marks tags dirty", () => {
     const s = editorReducer(freshState(), {
       type: "setTagInput",
