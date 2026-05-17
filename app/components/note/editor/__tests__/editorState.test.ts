@@ -240,12 +240,17 @@ describe("editorReducer setters", () => {
     expect(s1).toBe(s0);
   });
 
-  it("setMode no-ops on `wysiwyg-disabled`", () => {
+  it("setMode transitions to wysiwyg without marking dirty", () => {
     const s0 = freshState();
-    const s1 = editorReducer(s0, {
-      type: "setMode",
-      mode: "wysiwyg-disabled",
-    });
+    const s1 = editorReducer(s0, { type: "setMode", mode: "wysiwyg" });
+    expect(s1.mode).toBe("wysiwyg");
+    expect(s1.dirtyKeys.size).toBe(0);
+    expect(s1.autosave.kind).toBe("idle");
+  });
+
+  it("setMode with the same mode is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, { type: "setMode", mode: s0.mode });
     expect(s1).toBe(s0);
   });
 
@@ -255,6 +260,24 @@ describe("editorReducer setters", () => {
       mode: "frontMatter",
     });
     expect(s.mode).toBe("frontMatter");
+  });
+
+  it("setMode preserves an in-flight autosave and existing dirty keys (W-014)", () => {
+    // Mode switching must never restart or clear an in-progress autosave
+    // — that would either lose a save attempt or strand the indicator.
+    // Likewise dirty fields stay dirty until autosaveSuccess clears them.
+    let s: EditorState = editorReducer(freshState(), {
+      type: "setTitle",
+      value: "draft",
+    });
+    s = editorReducer(s, { type: "autosaveStart" });
+    expect(s.autosave.kind).toBe("saving");
+    expect(s.dirtyKeys.has("title")).toBe(true);
+
+    const next = editorReducer(s, { type: "setMode", mode: "wysiwyg" });
+    expect(next.mode).toBe("wysiwyg");
+    expect(next.autosave.kind).toBe("saving");
+    expect(next.dirtyKeys.has("title")).toBe(true);
   });
 
   it("setTagInput updates the raw tag string and marks tags dirty", () => {

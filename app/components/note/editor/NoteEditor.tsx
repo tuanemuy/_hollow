@@ -2,7 +2,14 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useReducer, useState, useTransition } from "react";
+import type { Editor } from "@tiptap/react";
+import {
+  useCallback,
+  useReducer,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { createDirectoryFn } from "@/components/directory/actions";
 import {
   acquireEditLockFn,
@@ -33,24 +40,28 @@ import { HtmlEditor } from "./HtmlEditor";
 import { MediaUploader } from "./MediaUploader";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
+import { WysiwygEditor } from "./WysiwygEditor";
 
 /**
  * Note editor (P12) — orchestrator client component.
  *
  * Phase D coverage:
  * - HTML edit pane + sanitized-on-save preview (`HtmlEditor`)
+ * - WYSIWYG pane backed by TipTap (`WysiwygEditor`, Issue #9)
  * - Structured FrontMatter known-key UI + raw-JSON toggle (`FrontMatterEditor`)
  * - Directory pick / inline new-directory creation (`DirectoryPicker`)
- * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`)
+ * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`).
+ *   In WYSIWYG mode the upload completion targets the current cursor via
+ *   the TipTap editor command (`setImage`); in HTML mode the existing
+ *   string-tail-append behaviour is preserved (Issue #9 ADR-003).
  * - Debounced autosave via `saveNoteDraft` with backoff (`useAutosave`)
  * - Best-effort edit lock with acquire / extend / release (`useEditLock`)
- * - WYSIWYG tab rendered disabled with tooltip (ADR-002)
  *
  * Out of scope (separate issues):
- * - Full WYSIWYG (TipTap / Lexical, ADR-002)
  * - History / revision aggregate (spec marks "future")
  * - Real-time collision presence (no SSE/WebSocket infra yet, ADR-006)
- * - Cross-note / tag suggest for internal links
+ * - Cross-note / tag suggest for internal links (Issue #9 ADR-002 —
+ *   `@tiptap/extension-mention` will be added in a follow-up Issue)
  * - Raw YAML edit (ADR-003 — JSON only here)
  * - Single-note export from this surface (handled at `/notes/$noteId/export`)
  */
@@ -104,6 +115,7 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
+  const tiptapEditorRef = useRef<Editor | null>(null);
 
   useAutosave({ noteId, state, dispatch, saveDraft });
   useEditLock({
@@ -116,10 +128,19 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const onMediaInsert = useCallback(
     (nextHtml: string, insertion: { id: string; url: string }) => {
+      if (state.mode === "wysiwyg" && tiptapEditorRef.current !== null) {
+        tiptapEditorRef.current
+          .chain()
+          .focus()
+          .setImage({ src: `/media/${insertion.id}`, alt: "" })
+          .run();
+        dispatch({ type: "mediaInsertionAdded", insertion });
+        return;
+      }
       dispatch({ type: "setContent", value: nextHtml });
       dispatch({ type: "mediaInsertionAdded", insertion });
     },
-    [],
+    [state.mode],
   );
 
   const resolveDirectoryId = async (): Promise<string | null> => {
@@ -244,6 +265,22 @@ export function NoteEditor(props: NoteEditorProps) {
             value={state.contentHtml}
             onChange={(v) => dispatch({ type: "setContent", value: v })}
             disabled={isPending}
+          />
+          <MediaUploader
+            contentHtml={state.contentHtml}
+            onInsert={onMediaInsert}
+            disabled={isPending}
+          />
+        </>
+      ) : null}
+
+      {state.mode === "wysiwyg" ? (
+        <>
+          <WysiwygEditor
+            value={state.contentHtml}
+            onChange={(v) => dispatch({ type: "setContent", value: v })}
+            disabled={isPending}
+            editorRef={tiptapEditorRef}
           />
           <MediaUploader
             contentHtml={state.contentHtml}

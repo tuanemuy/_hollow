@@ -18,14 +18,15 @@
  * - The reducer never throws. Invalid FrontMatter raw text records a
  *   `frontMatterJsonError` string and disables the save button at the
  *   UI level instead of failing the action.
- * - `setMode` to a disabled mode (`wysiwyg-disabled`) is a no-op so the
- *   tab can still be rendered as a placeholder without a guard at the
- *   call-site.
+ * - `setMode` accepts any `EditorMode` literal. All three modes are
+ *   fully wired (HTML / FrontMatter / WYSIWYG); the WYSIWYG tab was
+ *   previously rendered disabled (Issue #1 ADR-002) and is now enabled
+ *   per Issue #9.
  */
 
 import type { SerializedError } from "@/core/presentation/errorResponse";
 
-export type EditorMode = "html" | "frontMatter" | "wysiwyg-disabled";
+export type EditorMode = "html" | "frontMatter" | "wysiwyg";
 
 export type AutosaveStatus =
   | { kind: "idle" }
@@ -277,7 +278,6 @@ export function editorReducer(
       });
     }
     case "setMode": {
-      if (action.mode === "wysiwyg-disabled") return state;
       if (state.mode === action.mode) return state;
       return { ...state, mode: action.mode };
     }
