@@ -24,8 +24,6 @@ import "@/components/auth/PasswordResetRequestForm/action";
 import "@/components/auth/SignUpForm/action";
 import "@/components/auth/VerifyEmail/action";
 import "@/components/public/ShareLinkGate/action";
-import "@/components/todo/CreateTodoForm/action";
-import "@/components/todo/TodoItem/action";
 
 export const loadAppContext = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])

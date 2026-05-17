@@ -30,7 +30,6 @@ import { D1SavedViewRepository } from "./repositories/savedViewRepository";
 import { D1ShareLinkRepository } from "./repositories/shareLinkRepository";
 import { D1TagBlacklistRepository } from "./repositories/tagBlacklistRepository";
 import { D1TagRepository } from "./repositories/tagRepository";
-import { D1TodoRepository } from "./repositories/todoRepository";
 import { D1UserPromptOverrideRepository } from "./repositories/userPromptOverrideRepository";
 import { D1UserRepository } from "./repositories/userRepository";
 import { D1VerificationChallenge } from "./repositories/verificationChallenge";
@@ -53,7 +52,7 @@ import { D1VerificationChallenge } from "./repositories/verificationChallenge";
  *      are translated through `mapDbError`.
  *
  * Read-your-write within the same UoW is unsupported by design — see
- * `D1TodoRepository` for the rationale.
+ * `D1NoteRepository` for the rationale.
  *
  * No application-level retry: D1 surfaces transient conditions
  * (`SQLITE_BUSY` / `SQLITE_LOCKED`) as connection-level errors that
@@ -76,11 +75,6 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
     const pending = new PendingBatch(this.db);
     const collected: DomainEvent[] = [];
 
-    const todoRepository = new D1TodoRepository(
-      this.db,
-      pending,
-      this.idGenerator,
-    );
     const mediaAssetRepository = new D1MediaAssetRepository(
       this.db,
       pending,
@@ -174,7 +168,6 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
     );
 
     const ctx: UnitOfWorkContext = {
-      todoRepository,
       mediaAssetRepository,
       tagRepository,
       tagBlacklistRepository,

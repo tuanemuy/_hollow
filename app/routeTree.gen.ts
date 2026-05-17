@@ -17,7 +17,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ErrorRouteImport } from './routes/error'
 import { Route as ViewsRouteRouteImport } from './routes/views/route'
 import { Route as URouteRouteImport } from './routes/u/route'
-import { Route as TodoRouteRouteImport } from './routes/todo/route'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
 import { Route as ExportsRouteRouteImport } from './routes/exports/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
@@ -25,7 +24,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ViewsIndexRouteImport } from './routes/views/index'
 import { Route as UploadIndexRouteImport } from './routes/upload/index'
 import { Route as TrashIndexRouteImport } from './routes/trash/index'
-import { Route as TodoIndexRouteImport } from './routes/todo/index'
 import { Route as TagsIndexRouteImport } from './routes/tags/index'
 import { Route as PasswordResetIndexRouteImport } from './routes/password-reset/index'
 import { Route as ExportsIndexRouteImport } from './routes/exports/index'
@@ -94,11 +92,6 @@ const URouteRoute = URouteRouteImport.update({
   path: '/u',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TodoRouteRoute = TodoRouteRouteImport.update({
-  id: '/todo',
-  path: '/todo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRouteRoute = SettingsRouteRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -133,11 +126,6 @@ const TrashIndexRoute = TrashIndexRouteImport.update({
   id: '/trash/',
   path: '/trash/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const TodoIndexRoute = TodoIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => TodoRouteRoute,
 } as any)
 const TagsIndexRoute = TagsIndexRouteImport.update({
   id: '/tags/',
@@ -280,7 +268,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/exports': typeof ExportsRouteRouteWithChildren
   '/settings': typeof SettingsRouteRouteWithChildren
-  '/todo': typeof TodoRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
   '/views': typeof ViewsRouteRouteWithChildren
   '/error': typeof ErrorRoute
@@ -309,7 +296,6 @@ export interface FileRoutesByFullPath {
   '/exports/': typeof ExportsIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
   '/tags/': typeof TagsIndexRoute
-  '/todo/': typeof TodoIndexRoute
   '/trash/': typeof TrashIndexRoute
   '/upload/': typeof UploadIndexRoute
   '/views/': typeof ViewsIndexRoute
@@ -351,7 +337,6 @@ export interface FileRoutesByTo {
   '/exports': typeof ExportsIndexRoute
   '/password-reset': typeof PasswordResetIndexRoute
   '/tags': typeof TagsIndexRoute
-  '/todo': typeof TodoIndexRoute
   '/trash': typeof TrashIndexRoute
   '/upload': typeof UploadIndexRoute
   '/views': typeof ViewsIndexRoute
@@ -369,7 +354,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/exports': typeof ExportsRouteRouteWithChildren
   '/settings': typeof SettingsRouteRouteWithChildren
-  '/todo': typeof TodoRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
   '/views': typeof ViewsRouteRouteWithChildren
   '/error': typeof ErrorRoute
@@ -398,7 +382,6 @@ export interface FileRoutesById {
   '/exports/': typeof ExportsIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
   '/tags/': typeof TagsIndexRoute
-  '/todo/': typeof TodoIndexRoute
   '/trash/': typeof TrashIndexRoute
   '/upload/': typeof UploadIndexRoute
   '/views/': typeof ViewsIndexRoute
@@ -417,7 +400,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/exports'
     | '/settings'
-    | '/todo'
     | '/u'
     | '/views'
     | '/error'
@@ -446,7 +428,6 @@ export interface FileRouteTypes {
     | '/exports/'
     | '/password-reset/'
     | '/tags/'
-    | '/todo/'
     | '/trash/'
     | '/upload/'
     | '/views/'
@@ -488,7 +469,6 @@ export interface FileRouteTypes {
     | '/exports'
     | '/password-reset'
     | '/tags'
-    | '/todo'
     | '/trash'
     | '/upload'
     | '/views'
@@ -505,7 +485,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/exports'
     | '/settings'
-    | '/todo'
     | '/u'
     | '/views'
     | '/error'
@@ -534,7 +513,6 @@ export interface FileRouteTypes {
     | '/exports/'
     | '/password-reset/'
     | '/tags/'
-    | '/todo/'
     | '/trash/'
     | '/upload/'
     | '/views/'
@@ -552,7 +530,6 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   ExportsRouteRoute: typeof ExportsRouteRouteWithChildren
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
-  TodoRouteRoute: typeof TodoRouteRouteWithChildren
   URouteRoute: typeof URouteRouteWithChildren
   ViewsRouteRoute: typeof ViewsRouteRouteWithChildren
   ErrorRoute: typeof ErrorRoute
@@ -636,13 +613,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof URouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/todo': {
-      id: '/todo'
-      path: '/todo'
-      fullPath: '/todo'
-      preLoaderRoute: typeof TodoRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -691,13 +661,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/trash/'
       preLoaderRoute: typeof TrashIndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/todo/': {
-      id: '/todo/'
-      path: '/'
-      fullPath: '/todo/'
-      preLoaderRoute: typeof TodoIndexRouteImport
-      parentRoute: typeof TodoRouteRoute
     }
     '/tags/': {
       id: '/tags/'
@@ -945,18 +908,6 @@ const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
   SettingsRouteRouteChildren,
 )
 
-interface TodoRouteRouteChildren {
-  TodoIndexRoute: typeof TodoIndexRoute
-}
-
-const TodoRouteRouteChildren: TodoRouteRouteChildren = {
-  TodoIndexRoute: TodoIndexRoute,
-}
-
-const TodoRouteRouteWithChildren = TodoRouteRoute._addFileChildren(
-  TodoRouteRouteChildren,
-)
-
 interface URouteRouteChildren {
   UUsernameNoteSlugRoute: typeof UUsernameNoteSlugRoute
   UUsernameIndexRoute: typeof UUsernameIndexRoute
@@ -987,7 +938,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   ExportsRouteRoute: ExportsRouteRouteWithChildren,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
-  TodoRouteRoute: TodoRouteRouteWithChildren,
   URouteRoute: URouteRouteWithChildren,
   ViewsRouteRoute: ViewsRouteRouteWithChildren,
   ErrorRoute: ErrorRoute,

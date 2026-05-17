@@ -14,7 +14,6 @@ import type { ShareLinkRepository } from "@/core/domain/publication/ports/shareL
 import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepository";
 import type { TagBlacklistRepository } from "@/core/domain/tag/ports/tagBlacklistRepository";
 import type { TagRepository } from "@/core/domain/tag/ports/tagRepository";
-import type { TodoRepository } from "@/core/domain/todo/ports/todoRepository";
 import type { SavedViewRepository } from "@/core/domain/view/ports/savedViewRepository";
 
 /**
@@ -38,7 +37,6 @@ import type { SavedViewRepository } from "@/core/domain/view/ports/savedViewRepo
  * them.
  */
 export interface UnitOfWorkContext {
-  todoRepository: TodoRepository;
   userRepository: UserRepository;
   directoryRepository: DirectoryRepository;
   noteRepository: NoteRepository;
