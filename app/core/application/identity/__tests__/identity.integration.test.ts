@@ -20,13 +20,16 @@ import { logIn } from "../logIn";
 import { logOut } from "../logOut";
 import { promoteUserToAdmin } from "../promoteUserToAdmin";
 import { reinstateUser } from "../reinstateUser";
+import { requestEmailChange } from "../requestEmailChange";
 import { requestPasswordReset } from "../requestPasswordReset";
 import { resendVerification } from "../resendVerification";
 import { resetPassword } from "../resetPassword";
+import { revokeAllOtherSessions } from "../revokeAllOtherSessions";
 import { type SignUpInput, signUp } from "../signUp";
 import { suspendUser } from "../suspendUser";
 import { updateProfile } from "../updateProfile";
 import { verifyEmail } from "../verifyEmail";
+import { verifyEmailChange } from "../verifyEmailChange";
 
 /**
  * Integration tests covering the representative paths from
@@ -629,6 +632,64 @@ describe("LogIn / LogOut", () => {
   });
 });
 
+describe("RevokeAllOtherSessions", () => {
+  const getContainer = setupTestContainer();
+  beforeEach(async () => {
+    await truncateIdentityTables(getContainer());
+  });
+
+  it("revokes all sessions except the current one and returns the count", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("rvk001") });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    // verifyEmail issues session 1 — this becomes the "current" session.
+    const { sessionToken: currentToken } = await verifyEmail({
+      container,
+      input: { token: verifyToken },
+    });
+
+    // Create 4 more sessions via logIn.
+    for (let i = 0; i < 4; i++) {
+      await logIn({
+        container,
+        input: {
+          email: uniqueEmail("rvk001"),
+          password: strongPassword("rvk001"),
+          userAgent: null,
+          ipAddress: null,
+        },
+      });
+    }
+
+    const beforeRows = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, userId));
+    expect(beforeRows).toHaveLength(5);
+
+    const { revokedCount } = await revokeAllOtherSessions({
+      container,
+      input: {
+        actorUserId: userId as never,
+        currentSessionToken: currentToken,
+      },
+    });
+
+    expect(revokedCount).toBe(4);
+
+    const afterRows = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, userId));
+    expect(afterRows).toHaveLength(1);
+    expect(afterRows[0]?.token).toBe(currentToken);
+  });
+});
+
 describe("RequestPasswordReset / ResetPassword", () => {
   const getContainer = setupTestContainer();
   beforeEach(async () => {
@@ -792,6 +853,222 @@ describe("ChangePassword", () => {
       expect(isAuthenticationError(error)).toBe(true);
       if (isAuthenticationError(error)) {
         expect(error.code).toBe("invalid_credentials");
+      }
+    }
+  });
+});
+
+describe("RequestEmailChange", () => {
+  const getContainer = setupTestContainer();
+  beforeEach(async () => {
+    await truncateIdentityTables(getContainer());
+  });
+
+  async function activeMember(seed: string) {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp(seed) });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+    return { userId };
+  }
+
+  it("issues an email_change challenge for a valid request", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("eml001");
+
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail: "new_eml001@example.com",
+        currentPassword: strongPassword("eml001"),
+      },
+    });
+
+    const verificationRows = await container.db
+      .select()
+      .from(schema.verifications)
+      .where(eq(schema.verifications.identifier, `email_change:${userId}`));
+    expect(verificationRows).toHaveLength(1);
+  });
+
+  it("rejects when the new email is already taken", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("eml002");
+    // Register another user who holds the target email.
+    await signUp({ container, input: baseSignUp("eml003") });
+
+    try {
+      await requestEmailChange({
+        container,
+        input: {
+          actorUserId: userId as never,
+          newEmail: uniqueEmail("eml003"),
+          currentPassword: strongPassword("eml002"),
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("email_taken");
+      }
+    }
+  });
+
+  it("rejects an incorrect current password", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("eml004");
+
+    try {
+      await requestEmailChange({
+        container,
+        input: {
+          actorUserId: userId as never,
+          newEmail: "new_eml004@example.com",
+          currentPassword: "WrongPass99!a",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isAuthenticationError(error)).toBe(true);
+      if (isAuthenticationError(error)) {
+        expect(error.code).toBe("invalid_credentials");
+      }
+    }
+  });
+});
+
+describe("VerifyEmailChange", () => {
+  const getContainer = setupTestContainer();
+  beforeEach(async () => {
+    await truncateIdentityTables(getContainer());
+  });
+
+  async function activeMember(seed: string) {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp(seed) });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+    return { userId };
+  }
+
+  it("updates the user's email to the new address", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("vec001");
+    const newEmail = "changed_vec001@example.com";
+
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail,
+        currentPassword: strongPassword("vec001"),
+      },
+    });
+
+    const changeToken = await readVerificationToken(
+      container,
+      userId,
+      "email_change",
+    );
+    const result = await verifyEmailChange({
+      container,
+      input: { token: changeToken },
+    });
+    expect(result.userId).toBe(userId);
+
+    const userRows = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    expect(userRows[0]?.email).toBe(newEmail);
+  });
+
+  it("rejects if the new email is claimed between request and verify", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("vec002");
+    const targetEmail = "contested_vec002@example.com";
+
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail: targetEmail,
+        currentPassword: strongPassword("vec002"),
+      },
+    });
+
+    const changeToken = await readVerificationToken(
+      container,
+      userId,
+      "email_change",
+    );
+
+    // Another user claims the target email before verification completes.
+    await signUp({
+      container,
+      input: {
+        username: "uvec003x",
+        email: targetEmail,
+        password: strongPassword("vec003"),
+        displayName: null,
+        acceptTerms: true,
+      },
+    });
+
+    try {
+      await verifyEmailChange({ container, input: { token: changeToken } });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("email_taken");
+      }
+    }
+  });
+
+  it("rejects an expired token", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("vec004");
+    const newEmail = "expiry_vec004@example.com";
+
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail,
+        currentPassword: strongPassword("vec004"),
+      },
+    });
+
+    const changeToken = await readVerificationToken(
+      container,
+      userId,
+      "email_change",
+    );
+
+    // Expire the token by backdating it in the DB.
+    await container.db
+      .update(schema.verifications)
+      .set({ expiresAt: new Date(0).toISOString() })
+      .where(eq(schema.verifications.identifier, `email_change:${userId}`));
+
+    try {
+      await verifyEmailChange({ container, input: { token: changeToken } });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("token_expired");
       }
     }
   });
