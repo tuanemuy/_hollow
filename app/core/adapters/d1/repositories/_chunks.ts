@@ -12,6 +12,11 @@
  * results in input chunk order. It performs no deduplication and no
  * cross-chunk sorting — both are the caller's responsibility when the
  * underlying query relied on a `WHERE id IN (...) ORDER BY ...` clause.
+ *
+ * Chunks are dispatched in parallel via `Promise.all`. The first
+ * runner rejection propagates as the function's rejection; sibling
+ * runners that were already in flight will still settle, their results
+ * simply discarded.
  */
 export const D1_BIND_LIMIT_HOST_VARS = 100;
 

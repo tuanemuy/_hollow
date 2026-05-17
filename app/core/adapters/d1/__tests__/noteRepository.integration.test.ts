@@ -860,6 +860,87 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     ];
     expect(foundIds).toEqual(expected);
   });
+
+  // T-bind-006: regression on the chunk-fold seam — 120 referrers
+  // straddle `SAFE_CHUNK_SIZE=90`, half share one `updatedAt` and the
+  // rest share another. Verifies that JS sort after `Promise.all`
+  // concat still applies the `(updatedAt DESC, id DESC)` ordering
+  // across multiple chunks.
+  it("T-bind-006: findReferrers preserves (updatedAt DESC, id DESC) across the chunk boundary with ties", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const earlyTs = "2026-03-01T00:00:00.000Z";
+    const lateTs = "2026-03-02T00:00:00.000Z";
+    const earlyIds: NoteId[] = [];
+    const lateIds: NoteId[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      lateIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `seam-late-${i}`,
+        title: `Late ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: lateTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      earlyIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `seam-early-${i}`,
+        title: `Early ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: earlyTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const linkStmts = [...lateIds, ...earlyIds].map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    const foundIds = found.map((n) => n.id);
+    const expected = [
+      ...[...lateIds].sort().reverse(),
+      ...[...earlyIds].sort().reverse(),
+    ];
+    expect(foundIds).toEqual(expected);
+  });
 });
 
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {

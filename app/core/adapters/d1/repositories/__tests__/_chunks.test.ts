@@ -84,5 +84,9 @@ describe("selectInChunks", () => {
       return chunk;
     });
     await expect(selectInChunks(ids, runner, 3)).rejects.toThrow(/boom/);
+    // Parallel dispatch: all chunks were attempted even though one
+    // failed. The JSDoc contract calls this out explicitly so callers
+    // know not to rely on "stop after first failure" semantics.
+    expect(runner).toHaveBeenCalledTimes(3);
   });
 });
