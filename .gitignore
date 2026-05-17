@@ -18,3 +18,9 @@
 *.db
 *.db-shm
 *.db-wal
+
+# manual-test execution artifacts (seed scripts and docs are tracked;
+# results/screenshots/server-info are run-local and noisy)
+/.manual-test/*/results/
+/.manual-test/*/screenshots/
+/.manual-test/*/server-info.md
