@@ -254,7 +254,7 @@ function encodeBrokenConditionsJson(view: SavedView): string {
 
 /**
  * D1 implementation of `SavedViewRepository`. Mirrors the deferred-batch
- * pattern in `D1TodoRepository`: reads run immediately, writes are
+ * pattern in `D1NoteRepository`: reads run immediately, writes are
  * buffered onto a `PendingBatch` and flushed atomically by the
  * surrounding `D1UnitOfWorkProvider`.
  *

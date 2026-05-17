@@ -26,7 +26,7 @@ type PublicationStateRow = typeof publicationStates.$inferSelect;
 
 /**
  * D1 implementation of `PublicationStateRepository`. Mirrors
- * `D1TodoRepository` — reads run immediately, writes buffer onto the
+ * `D1NoteRepository` — reads run immediately, writes buffer onto the
  * surrounding `PendingBatch` so `D1UnitOfWorkProvider` can flush them
  * atomically. The aggregate id is `NoteId`; the table's primary key
  * column `note_id` doubles as that id, so `findById` and `findByNoteId`

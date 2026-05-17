@@ -26,7 +26,7 @@ type ShareLinkRow = typeof shareLinks.$inferSelect;
 
 /**
  * D1 implementation of `ShareLinkRepository`. Same buffered-batch /
- * OCC-token discipline as `D1TodoRepository`. The token hash is the
+ * OCC-token discipline as `D1NoteRepository`. The token hash is the
  * lookup key used by `ResolveShareLink`; the unique index on
  * `token_hash` ensures it is collision-free.
  */
