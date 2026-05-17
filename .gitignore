@@ -24,3 +24,6 @@
 /.manual-test/*/results/
 /.manual-test/*/screenshots/
 /.manual-test/*/server-info.md
+
+# Manual test screenshots under .issue/
+.issue/**/screenshots/
