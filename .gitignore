@@ -18,3 +18,6 @@
 *.db
 *.db-shm
 *.db-wal
+
+# Manual test screenshots under .issue/
+.issue/**/screenshots/
