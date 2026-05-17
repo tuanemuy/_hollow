@@ -894,6 +894,70 @@ describe("RequestEmailChange", () => {
       .from(schema.verifications)
       .where(eq(schema.verifications.identifier, `email_change:${userId}`));
     expect(verificationRows).toHaveLength(1);
+    const storedValue = JSON.parse(verificationRows[0]?.value ?? "{}") as {
+      token: string;
+      payload: Record<string, string>;
+    };
+    expect(storedValue.payload.newEmail).toBe("new_eml001@example.com");
+  });
+
+  it("invalidates the prior token when re-issued", async () => {
+    const container = getContainer();
+    const { userId } = await activeMember("eml005");
+
+    // First request
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail: "first_eml005@example.com",
+        currentPassword: strongPassword("eml005"),
+      },
+    });
+    const firstToken = await readVerificationToken(
+      container,
+      userId,
+      "email_change",
+    );
+
+    // Second request — the adapter deletes the prior row before inserting
+    await requestEmailChange({
+      container,
+      input: {
+        actorUserId: userId as never,
+        newEmail: "second_eml005@example.com",
+        currentPassword: strongPassword("eml005"),
+      },
+    });
+    const secondToken = await readVerificationToken(
+      container,
+      userId,
+      "email_change",
+    );
+
+    // First token is no longer in the DB so consume must fail.
+    try {
+      await verifyEmailChange({ container, input: { token: firstToken } });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("token_not_found");
+      }
+    }
+
+    // Second token resolves to the new email address.
+    const result = await verifyEmailChange({
+      container,
+      input: { token: secondToken },
+    });
+    expect(result.userId).toBe(userId);
+
+    const userRows = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    expect(userRows[0]?.email).toBe("second_eml005@example.com");
   });
 
   it("rejects when the new email is already taken", async () => {
