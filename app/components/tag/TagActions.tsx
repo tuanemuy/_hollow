@@ -9,13 +9,15 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { deleteTagFn, renameTagFn } from "./actions";
+import { MergeTagDialog } from "./MergeTagDialog";
 
 type Props = {
   tagId: string;
   name: string;
+  candidates: ReadonlyArray<{ id: string; name: string }>;
 };
 
-export function TagActions({ tagId, name }: Props) {
+export function TagActions({ tagId, name, candidates }: Props) {
   const router = useRouter();
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
@@ -24,6 +26,7 @@ export function TagActions({ tagId, name }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+  const [isMergeOpen, setIsMergeOpen] = useState(false);
 
   const onRename = () => {
     const trimmed = draft.trim();
@@ -45,7 +48,9 @@ export function TagActions({ tagId, name }: Props) {
 
   const onDelete = () => {
     if (
-      !confirm(`タグ "${name}" を削除しますか？参照ノートからも除去されます。`)
+      !confirm(
+        `タグ "#${name}" を削除します。参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？`,
+      )
     )
       return;
     startTransition(async () => {
@@ -109,6 +114,16 @@ export function TagActions({ tagId, name }: Props) {
           >
             リネーム
           </button>
+          {candidates.length > 0 ? (
+            <button
+              type="button"
+              className="pill-btn"
+              onClick={() => setIsMergeOpen(true)}
+              disabled={isPending}
+            >
+              統合
+            </button>
+          ) : null}
           <button
             type="button"
             className="pill-btn danger"
@@ -123,6 +138,15 @@ export function TagActions({ tagId, name }: Props) {
         <span className="form-error" role="alert">
           {displayError(error)}
         </span>
+      ) : null}
+      {isMergeOpen ? (
+        <MergeTagDialog
+          sourceTagId={tagId}
+          sourceName={name}
+          candidates={candidates}
+          open={isMergeOpen}
+          onClose={() => setIsMergeOpen(false)}
+        />
       ) : null}
     </div>
   );
