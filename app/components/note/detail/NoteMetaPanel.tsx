@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
 
@@ -55,6 +56,7 @@ export function NoteMetaPanel({
   status,
   backlinks,
 }: NoteMetaPanelProps) {
+  const noteIdStr = noteId as unknown as string;
   return (
     <section className="meta-panel" aria-label="ノートのメタ情報">
       <dl className="meta-panel-grid">
@@ -113,7 +115,7 @@ export function NoteMetaPanel({
             <div className="meta-panel-referencing">
               <Link
                 to="/"
-                search={{ referencingNoteId: noteId as unknown as string }}
+                search={{ ...HOME_SEARCH, referencingNoteId: noteIdStr }}
               >
                 このノートを参照しているノート一覧を見る
               </Link>

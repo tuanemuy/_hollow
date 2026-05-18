@@ -47,9 +47,9 @@ Issue #8 (PR #28) のフォローアップ。`referencingNoteId` フィルタは
   - 戻り値: `{ title: string | null }`
   - 実装方針: 既存 `loadPublishStateForNote` の `container.unitOfWorkProvider.run` 直叩きパターンに揃える（行 386 周辺）
   - **catch の範囲を限定する**（レビュー反映 P-C）:
-    - `DomainNoteId.create(noteId)` のドメインエラーは try/catch で握って `{ title: null }` を即返す（既存 `loadOwnedNotes` 行 170-180 と同じ transport-boundary パターン）
+    - `DomainNoteId.create(noteId)` のドメインエラーは try/catch で握って `{ title: null }` を即返す（既存 `loadOwnedNotes` 行 170-180 と同じ transport-boundary パターン）。**ただし** `NoteId.create` の実装は trim/length チェックのみで UUID 形式は検証しないため、`not-a-uuid-string` のような非 UUID 文字列はこの catch には到達せず通過する（空文字列のみ catch される）
     - `noteRepository.findById` 自体は **catch せずに throw を許す**。driver-level の transient error は listing 側 (`loadOwnedNotes`) と同様に `Promise.all` を倒し、ホーム全体が一貫したエラー応答に倒れる方が UX として一貫
-    - owner 不一致 / `found === null` は **catch ではなく分岐** で `{ title: null }` を返す（通常制御フロー）
+    - owner 不一致 / `found === null` は **catch ではなく分岐** で `{ title: null }` を返す（通常制御フロー）。**不正 UUID は `findById` が 0 件で `null` を返すこの分岐に着地する**（review-001 W-S1 反映）
 - **理由:**
   - port を増やさず既存 `findById` を再利用（ADR-002）
   - `getNoteDetail` usecase 再利用案は `findReferrers` + directory path 計算まで走り無駄が大きい

@@ -103,15 +103,16 @@ pnpm db:apply:staging
   - chip ラベルは `参照中: <X.id の先頭 8 文字>`（UUID 断片表示）
   - 他ユーザーのノートタイトルは **表示されない**
 
-### 6. 不正な UUID（schema パス通過後、`DomainNoteId.create` で reject）
+### 6. 不正な UUID（schema パス通過後、`findById` が 0 件で `null` フォールバック）
 
-- **目的:** ID 生成のドメインエラーを catch して `{ title: null }` フォールバックが効くこと
+- **目的:** 形式上 UUID と異なる文字列でも resolver が安全にフォールバックして 500 にならないこと
 - **手順:**
   1. `/?referencingNoteId=not-a-uuid-string` を URL 入力（`noteListSearchSchema` は `z.string().min(1)` で通す）
 - **期待結果:**
   - ページが 200 で表示される
   - chip ラベルは `参照中: not-a-uu`（先頭 8 文字）
   - ページ全体は壊れない
+- **メカニズム:** `NoteId.create` は trim/length チェックのみで UUID 形式は検証しないため、文字列は port 層を通過する。`noteRepository.findById('not-a-uuid-string')` が D1 で 0 件 → `null` → resolver は `{ title: null }` を返す
 
 ### 7. 存在しない id
 
