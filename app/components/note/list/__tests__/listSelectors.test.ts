@@ -3,6 +3,7 @@ import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { NoteListSearch } from "../../schema";
 import {
   emptySelection,
+  formatReferencingNoteChipLabel,
   groupNotesByDay,
   searchToViewQuery,
   selectionReducer,
@@ -367,6 +368,22 @@ describe("viewQueryToSearch", () => {
     };
     const out = viewQueryToSearch(v);
     expect(out.visibility).toBe("public");
+  });
+});
+
+describe("formatReferencingNoteChipLabel", () => {
+  const id = "0123456789abcdef0123456789abcdef";
+
+  it("returns the title when one is supplied", () => {
+    expect(formatReferencingNoteChipLabel(id, "My Note")).toBe("My Note");
+  });
+
+  it("falls back to the first 8 id chars when title is null", () => {
+    expect(formatReferencingNoteChipLabel(id, null)).toBe("01234567");
+  });
+
+  it("falls back to the first 8 id chars when title is empty", () => {
+    expect(formatReferencingNoteChipLabel(id, "")).toBe("01234567");
   });
 });
 

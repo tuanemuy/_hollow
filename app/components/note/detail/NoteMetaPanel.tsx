@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { BacklinkDTO } from "@/core/application/dto/note";
+import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
 
 /**
@@ -10,6 +10,7 @@ import type { Visibility } from "@/core/application/dto/publication";
  * and `directoryId -> path` mappings before passing data in.
  */
 export type NoteMetaPanelProps = Readonly<{
+  noteId: NoteId;
   createdAt: string;
   updatedAt: string;
   directoryPath: string;
@@ -44,6 +45,7 @@ function visibilityLabel(v: Visibility): string {
 }
 
 export function NoteMetaPanel({
+  noteId,
   createdAt,
   updatedAt,
   directoryPath,
@@ -108,6 +110,14 @@ export function NoteMetaPanel({
             <span className="meta-panel-backlink-count">
               {backlinks.length} 件
             </span>
+            <div className="meta-panel-referencing">
+              <Link
+                to="/"
+                search={{ referencingNoteId: noteId as unknown as string }}
+              >
+                このノートを参照しているノート一覧を見る
+              </Link>
+            </div>
             {backlinks.length > 0 ? (
               <ul className="meta-panel-backlinks">
                 {backlinks.map((bl) => (

@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useId, useTransition } from "react";
 import type { NoteListSearch } from "../schema";
+import { formatReferencingNoteChipLabel } from "./listSelectors";
 
 type TagOption = Readonly<{ id: string; name: string; noteCount: number }>;
 
@@ -14,6 +15,7 @@ type Props = {
   visibility: NoteListSearch["visibility"];
   directoryId: string | undefined;
   referencingNoteId: string | undefined;
+  referencingNoteTitle?: string | null;
 };
 
 export function FilterBar({
@@ -24,6 +26,7 @@ export function FilterBar({
   visibility,
   directoryId,
   referencingNoteId,
+  referencingNoteTitle,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -179,7 +182,11 @@ export function FilterBar({
         <div className="filter-bar-row">
           <span className="filter-bar-label">内部リンク参照</span>
           <span className="chip chip-active">
-            参照中: {referencingNoteId.slice(0, 8)}
+            参照中:{" "}
+            {formatReferencingNoteChipLabel(
+              referencingNoteId,
+              referencingNoteTitle ?? null,
+            )}
             <button
               type="button"
               className="chip-remove"
