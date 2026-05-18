@@ -14,7 +14,7 @@ import { MergeTagDialog } from "./MergeTagDialog";
 type Props = {
   tagId: string;
   name: string;
-  candidates: ReadonlyArray<{ id: string; name: string }>;
+  candidates: readonly { id: string; name: string }[];
 };
 
 export function TagActions({ tagId, name, candidates }: Props) {

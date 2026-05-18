@@ -79,12 +79,7 @@ export function MergeTagDialog({
           </select>
         </div>
         {targetTag !== undefined ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--color-ink-secondary)",
-            }}
-          >
+          <p className="dialog-description">
             #{sourceName} を #{targetTag.name} に統合します。#{sourceName}{" "}
             は削除され、参照ノートは #{targetTag.name} を持つよう更新されます。
           </p>

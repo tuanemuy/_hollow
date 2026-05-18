@@ -75,6 +75,36 @@ Proposed
 
 ---
 
+## ADR-005: ダイアログのフォーカストラップ・Esc クローズ・Portal 化は本 PR で対応せず別 Issue 化
+
+### Status
+Proposed
+
+### Context
+Phase 3 レビュー（review-001.md）で以下が Warning として指摘された:
+
+- **[W-001]** `MergeTagDialog` にフォーカストラップ・Esc クローズが未実装
+- **[W-002]** ダイアログがリスト項目（`<li>` 配下）にレンダリングされており Portal 化されていない
+
+選択肢:
+1. 本 PR で `MergeTagDialog` だけ修正
+2. 本 PR で `MoveNoteDialog` と `MergeTagDialog` の両方を修正
+3. 共通 `<Dialog>` ラッパーを別 Issue で導入し、既存ダイアログを段階的に置き換え
+
+### Decision
+3 を採用する。本 PR では既存パターン（`MoveNoteDialog` 踏襲）のままとし、別 Issue（#54）として起票する。
+
+### Consequences
+- 良い点:
+  - 本 PR のスコープを「マージ機能の UI 接続 + 削除確認文言の更新」に絞り続けられる
+  - `MoveNoteDialog` と `MergeTagDialog` の片方だけ直して整合性が崩れる事態を回避できる
+  - 共通化のタイミングで focus trap / Esc / Portal を一括で導入できる
+- トレードオフ:
+  - 本 PR がマージされた時点でダイアログのアクセシビリティ改善は未着手のまま残る
+  - 別 Issue (#54) を確実にフォローしないと放置される懸念
+
+---
+
 ## ADR-004: 「一括処理ジョブの進捗表示」は本 Issue のスコープ外
 
 ### Status

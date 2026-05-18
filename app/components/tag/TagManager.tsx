@@ -24,33 +24,39 @@ export async function TagManager({ user }: Props) {
         </div>
       ) : (
         <ul style={{ marginTop: "var(--space-6)" }}>
-          {tags.map((tag) => {
-            const candidates = tags
-              .filter((t) => t.id !== tag.id)
-              .map((t) => ({ id: t.id as unknown as string, name: t.name }));
-            return (
-              <li key={tag.id as unknown as string} className="data-row">
-                <div>
-                  <div style={{ fontWeight: "var(--weight-medium)" }}>
-                    #{tag.name}
+          {(() => {
+            const all = tags.map((t) => ({
+              id: t.id as unknown as string,
+              name: t.name,
+            }));
+            return tags.map((tag, index) => {
+              const self = all[index];
+              if (self === undefined) return null;
+              const candidates = all.filter((t) => t.id !== self.id);
+              return (
+                <li key={self.id} className="data-row">
+                  <div>
+                    <div style={{ fontWeight: "var(--weight-medium)" }}>
+                      #{tag.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--color-ink-tertiary)",
+                      }}
+                    >
+                      {tag.noteCount} 件のノート
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--color-ink-tertiary)",
-                    }}
-                  >
-                    {tag.noteCount} 件のノート
-                  </div>
-                </div>
-                <TagActions
-                  tagId={tag.id as unknown as string}
-                  name={tag.name}
-                  candidates={candidates}
-                />
-              </li>
-            );
-          })}
+                  <TagActions
+                    tagId={self.id}
+                    name={tag.name}
+                    candidates={candidates}
+                  />
+                </li>
+              );
+            });
+          })()}
         </ul>
       )}
     </>

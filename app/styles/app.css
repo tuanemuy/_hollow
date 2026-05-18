@@ -1125,6 +1125,11 @@ select {
   justify-content: flex-end;
   width: 100%;
 }
+.dialog-description {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  margin-top: var(--space-2);
+}
 .radio-row {
   display: flex;
   align-items: center;
