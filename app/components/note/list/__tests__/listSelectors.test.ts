@@ -351,6 +351,23 @@ describe("viewQueryToSearch", () => {
     const out = viewQueryToSearch(emptyView);
     expect("visibility" in out).toBe(false);
   });
+
+  // ADR-002 documents that URL schema carries a single `visibility` enum
+  // while the SavedView VO can hold multiple. When a view holds multiple
+  // visibility values (e.g. via direct API), the selector projects the
+  // first value into the URL and drops the rest. Pin this behavior so a
+  // future change to URL-multi-select doesn't silently regress it.
+  it("projects only the first `visibilityFilter` entry when the view carries multiple", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["public", "unlisted"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("public");
+  });
 });
 
 describe("viewQueryEquals", () => {

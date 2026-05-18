@@ -122,4 +122,46 @@ describe("createSavedView", () => {
     });
     expect(view.brokenConditions).toEqual([]);
   });
+
+  it("persists a populated visibilityFilter through the usecase", async () => {
+    const container = createViewTestContainer();
+    const { view } = await createSavedView({
+      container,
+      input: baseInput({
+        query: {
+          directoryId: null,
+          tagIds: [],
+          dateRange: null,
+          keyword: null,
+          referencingNoteId: null,
+          visibilityFilter: ["public"],
+        },
+      }),
+    });
+    expect(view.query.visibilityFilter).toEqual(["public"]);
+    const persisted = container.savedViewRepository.list();
+    expect(persisted[0]?.query.visibilityFilter).toEqual(["public"]);
+  });
+
+  it("rejects input with an unknown visibilityFilter value at the domain boundary", async () => {
+    const container = createViewTestContainer();
+    try {
+      await createSavedView({
+        container,
+        input: baseInput({
+          query: {
+            directoryId: null,
+            tagIds: [],
+            dateRange: null,
+            keyword: null,
+            referencingNoteId: null,
+            visibilityFilter: ["bogus" as never],
+          },
+        }),
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+    }
+  });
 });

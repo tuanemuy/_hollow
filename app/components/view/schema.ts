@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { visibilitySchema } from "@/components/note/schema";
 
 export const SAVED_VIEW_NAME_MAX = 60;
-
-const visibilitySchema = z.enum(["private", "unlisted", "public"]);
 
 export const deleteSavedViewSchema = z.object({
   viewId: z.string().min(1),

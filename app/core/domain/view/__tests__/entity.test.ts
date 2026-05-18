@@ -270,6 +270,26 @@ describe("SavedView.repairBrokenConditions", () => {
     expect(repaired.brokenConditions.length).toBe(0);
     expect(repaired.version).toBe(withBroken.version + 1);
   });
+
+  it("preserves a non-empty visibilityFilter across repair (visibility cannot be broken)", () => {
+    const query = ViewQuery.create({
+      directoryId: null,
+      tagIds: ["t-a" as TagId],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public"],
+    });
+    const view = freshView({ query });
+    const withBroken = SavedView.markBroken(
+      view,
+      [BrokenConditionMarker.tag("t-a" as TagId, at(1))],
+      at(1),
+    );
+    const repaired = SavedView.repairBrokenConditions(withBroken, at(2));
+    expect(repaired.query.tagIds).toEqual([]);
+    expect(repaired.query.visibilityFilter).toEqual(["public"]);
+  });
 });
 
 describe("SavedView.reconstruct", () => {

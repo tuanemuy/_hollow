@@ -60,7 +60,7 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
-function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
+export function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -229,7 +229,7 @@ function parseStoredDate(value: string, context: string): Date {
   return date;
 }
 
-function encodeQueryJson(view: SavedView): string {
+export function encodeQueryJson(view: SavedView): string {
   return JSON.stringify({
     directoryId: view.query.directoryId,
     tagIds: view.query.tagIds,

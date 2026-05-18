@@ -120,4 +120,59 @@ describe("updateSavedView", () => {
       expect(isNotFoundError(error)).toBe(true);
     }
   });
+
+  it("applies a populated visibilityFilter through query update", async () => {
+    const container = createViewTestContainer();
+    const { view: created } = await createSavedView({
+      container,
+      input: baseInput(),
+    });
+
+    const { view: updated } = await updateSavedView({
+      container,
+      input: {
+        actorUserId: OWNER,
+        viewId: created.id,
+        query: {
+          directoryId: null,
+          tagIds: [],
+          dateRange: null,
+          keyword: null,
+          referencingNoteId: null,
+          visibilityFilter: ["unlisted", "public"],
+        },
+      },
+    });
+
+    expect(updated.query.visibilityFilter).toEqual(["unlisted", "public"]);
+  });
+
+  it("rejects an update whose visibilityFilter contains an unknown value", async () => {
+    const container = createViewTestContainer();
+    const { view: created } = await createSavedView({
+      container,
+      input: baseInput(),
+    });
+
+    try {
+      await updateSavedView({
+        container,
+        input: {
+          actorUserId: OWNER,
+          viewId: created.id,
+          query: {
+            directoryId: null,
+            tagIds: [],
+            dateRange: null,
+            keyword: null,
+            referencingNoteId: null,
+            visibilityFilter: ["bogus" as never],
+          },
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+    }
+  });
 });
