@@ -37,6 +37,11 @@ export type IngestionJobDiscardedEvent = DomainEventBase<
   Readonly<{ jobId: IngestionJobId }>
 >;
 
+export type IngestionJobRetryRequestedEvent = DomainEventBase<
+  "ingestion.retryRequested",
+  Readonly<{ jobId: IngestionJobId }>
+>;
+
 export type IngestionEvent =
   | IngestionJobCreatedEvent
   | IngestionJobProcessingStartedEvent
@@ -44,7 +49,8 @@ export type IngestionEvent =
   | IngestionJobRegeneratedEvent
   | IngestionJobCommittedEvent
   | IngestionJobFailedEvent
-  | IngestionJobDiscardedEvent;
+  | IngestionJobDiscardedEvent
+  | IngestionJobRetryRequestedEvent;
 
 // Identity-less drafts; `EventId` is attached by the application layer
 // inside the UoW so the domain stays free of `IdGenerator` concerns.
@@ -119,6 +125,16 @@ export const IngestionEvents = {
     occurredAt: Date,
   ): EventDraft<IngestionJobDiscardedEvent> => ({
     type: "ingestion.discarded",
+    payload: { jobId },
+    occurredAt,
+    aggregateId: jobId,
+  }),
+
+  retryRequested: (
+    jobId: IngestionJobId,
+    occurredAt: Date,
+  ): EventDraft<IngestionJobRetryRequestedEvent> => ({
+    type: "ingestion.retryRequested",
     payload: { jobId },
     occurredAt,
     aggregateId: jobId,

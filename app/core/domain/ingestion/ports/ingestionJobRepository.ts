@@ -40,6 +40,20 @@ export interface IngestionJobRepository
   ): Promise<readonly IngestionJob[]>;
 
   /**
+   * Admin-only read-only listing across all owners, most-recent-first.
+   * Used by `/admin/jobs` to surface failing / in-flight ingestion jobs
+   * across the instance. The caller's admin guard runs at the page /
+   * usecase boundary — the port itself is unauthenticated.
+   *
+   * Not a write-intent surface: callers that intend to mutate must still
+   * go through `findById` to capture an `ExpectedVersion`.
+   */
+  findRecent(opts: {
+    limit: number;
+    offset?: number;
+  }): Promise<readonly IngestionJob[]>;
+
+  /**
    * Returns jobs that have been in `processing` since before `threshold`.
    * Used by the recovery worker to surface stuck jobs.
    */

@@ -18,6 +18,8 @@ export const IngestionErrorCode = {
   InvalidStateForRegenerate: "INGESTION_INVALID_STATE_FOR_REGENERATE",
   InvalidStateForCommit: "INGESTION_INVALID_STATE_FOR_COMMIT",
   InvalidStateForDiscard: "INGESTION_INVALID_STATE_FOR_DISCARD",
+  InvalidStateForRetry: "INGESTION_INVALID_STATE_FOR_RETRY",
+  NoTempStorageForRetry: "INGESTION_NO_TEMP_STORAGE_FOR_RETRY",
 
   RegenerationLimitExceeded: "INGESTION_REGENERATION_LIMIT_EXCEEDED",
   ByteSizeExceedsLimit: "INGESTION_BYTE_SIZE_EXCEEDS_LIMIT",

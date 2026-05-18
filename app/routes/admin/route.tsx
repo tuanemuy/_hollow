@@ -14,6 +14,7 @@ import "@/components/admin/PromptsForm/action";
 import "@/components/admin/DesignTokensForm/action";
 import "@/components/admin/RegistrationForm/action";
 import "@/components/admin/UsersTable/action";
+import "@/components/admin/Jobs/action";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -67,7 +68,8 @@ type AdminNavItem = {
     | "/admin/design"
     | "/admin/registration"
     | "/admin/users"
-    | "/admin/metrics";
+    | "/admin/metrics"
+    | "/admin/jobs";
   label: string;
 };
 
@@ -79,6 +81,7 @@ const ADMIN_NAV: readonly AdminNavItem[] = [
   { to: "/admin/registration", label: "登録制御" },
   { to: "/admin/users", label: "ユーザー" },
   { to: "/admin/metrics", label: "利用状況" },
+  { to: "/admin/jobs", label: "ジョブ監視" },
 ];
 
 function AdminLayout() {

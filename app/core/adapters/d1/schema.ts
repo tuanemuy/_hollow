@@ -473,6 +473,11 @@ export const ingestionJobs = sqliteTable(
       desc(table.updatedAt),
     ),
     index("idx_ij_status_updated").on(table.status, table.updatedAt),
+    // Admin-wide listing sort key (P46 /admin/jobs). The composite
+    // `(owner, status, updated_at)` indices above are useless once the
+    // query drops the leading owner predicate, so a dedicated index on
+    // `(updated_at DESC, id DESC)` keeps the all-owners scan bounded.
+    index("idx_ij_updated_at").on(desc(table.updatedAt), desc(table.id)),
     check("ij_byte_size_positive", sql`${table.byteSize} > 0`),
     check(
       "ij_status_enum",
@@ -559,6 +564,12 @@ export const exportJobs = sqliteTable(
       desc(table.updatedAt),
     ),
     index("idx_export_jobs_expires_at").on(table.expiresAt),
+    // Admin-wide listing sort key (P46 /admin/jobs). Mirrors
+    // `idx_ij_updated_at` on ingestion_jobs.
+    index("idx_export_jobs_updated_at").on(
+      desc(table.updatedAt),
+      desc(table.id),
+    ),
     check(
       "export_jobs_format_enum",
       sql`${table.format} IN ('html', 'markdown', 'pdf')`,

@@ -329,6 +329,21 @@ export class D1ExportJobRepository implements ExportJobRepository {
     });
   }
 
+  findRecent(opts: {
+    limit: number;
+    offset?: number;
+  }): Promise<readonly ExportJob[]> {
+    return mapDbError("Failed to list recent export_jobs", async () => {
+      const rows = await this.db
+        .select()
+        .from(exportJobs)
+        .orderBy(desc(exportJobs.updatedAt), desc(exportJobs.id))
+        .limit(opts.limit)
+        .offset(opts.offset ?? 0);
+      return rows.map((row) => this.toEntity(row));
+    });
+  }
+
   findExpired(now: Date, limit: number): Promise<readonly ExportJob[]> {
     return mapDbError("Failed to list expired export_jobs", async () => {
       const cutoff = now.toISOString();

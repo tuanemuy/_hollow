@@ -180,4 +180,18 @@ describe("exportEventDecoders.cancelled / expired", () => {
     });
     expect(decoded.payload.exportJobId).toBe(id);
   });
+
+  it("decodes retryRequested", () => {
+    const id = jobId(42);
+    const draft = ExportEvents.retryRequested(id, T0);
+    const decoded = exportEventDecoders["export.job.retryRequested"](
+      draft.payload,
+      {
+        id: eventId(42),
+        occurredAt: draft.occurredAt,
+        aggregateId: id,
+      },
+    );
+    expect(decoded.payload.exportJobId).toBe(id);
+  });
 });

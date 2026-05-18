@@ -411,6 +411,21 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
     );
   }
 
+  findRecent(opts: {
+    limit: number;
+    offset?: number;
+  }): Promise<readonly IngestionJob[]> {
+    return mapDbError("Failed to list recent ingestion_jobs", async () => {
+      const rows = await this.db
+        .select()
+        .from(ingestionJobs)
+        .orderBy(desc(ingestionJobs.updatedAt), desc(ingestionJobs.id))
+        .limit(opts.limit)
+        .offset(opts.offset ?? 0);
+      return rows.map((r) => this.toEntity(r));
+    });
+  }
+
   findStuck(threshold: Date): Promise<readonly IngestionJob[]> {
     return mapDbError("Failed to list stuck ingestion_jobs", async () => {
       const iso = threshold.toISOString();

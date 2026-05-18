@@ -424,6 +424,106 @@ describe("IngestionJob.discard", () => {
   });
 });
 
+describe("IngestionJob.retry", () => {
+  it("from failed: returns to pending, resets preview / errorCode / errorReason, bumps version, emits retryRequested", () => {
+    const { entity: pending } = seedPending(80);
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: failed } = IngestionJob.markFailed(
+      processing,
+      "llm_failure",
+      "boom",
+      at(2),
+    );
+    const { entity: retried, eventDrafts } = IngestionJob.retry(failed, at(3));
+
+    expect(retried.status).toBe("pending");
+    expect(retried.preview).toBeNull();
+    expect(retried.errorCode).toBeNull();
+    expect(retried.errorReason).toBeNull();
+    expect(retried.savedAsNoteId).toBeNull();
+    expect(retried.tempStorageKey).toBe(failed.tempStorageKey);
+    expect(retried.version as number).toBe((failed.version as number) + 1);
+    expect(retried.updatedAt.getTime()).toBe(at(3).getTime());
+    expect(eventDrafts).toHaveLength(1);
+    expect(eventDrafts[0]?.type).toBe("ingestion.retryRequested");
+  });
+
+  it("from failed with preview retained: clears the preview snapshot too", () => {
+    const { entity: pending } = seedPending(81);
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const preview = samplePreview("kept");
+    const { entity: previewing } = IngestionJob.attachPreview(
+      processing,
+      preview,
+      at(2),
+    );
+    const { entity: failed } = IngestionJob.markFailed(
+      previewing,
+      "sanitize_failure",
+      "denied",
+      at(3),
+    );
+    expect(failed.preview).toBe(preview);
+    const { entity: retried } = IngestionJob.retry(failed, at(4));
+    expect(retried.preview).toBeNull();
+  });
+
+  it("rejects retry when tempStorageKey is null with NoTempStorageForRetry", () => {
+    // Build a failed job via reconstruct so we can pin tempStorageKey to null.
+    const failed = IngestionJob.reconstruct({
+      id: rawId(82),
+      ownerId: ownerId as unknown as string,
+      originalFileName: "doc.html",
+      mimeType: "text/html",
+      byteSize: 16,
+      kind: "html",
+      status: "failed",
+      tempStorageKey: null,
+      preview: null,
+      errorCode: "llm_failure",
+      errorReason: "boom",
+      regenerationCount: 0,
+      savedAsNoteId: null,
+      version: 2,
+      createdAt: T0,
+      updatedAt: at(2),
+    });
+    try {
+      IngestionJob.retry(failed as IngestionJobType, at(3));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.NoTempStorageForRetry);
+      }
+    }
+  });
+
+  it("rejects retry from non-failed states with InvalidStateForRetry", () => {
+    const { entity: pending } = seedPending(83);
+    try {
+      IngestionJob.retry(pending, at(1));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRetry);
+      }
+    }
+
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    try {
+      IngestionJob.retry(processing, at(2));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRetry);
+      }
+    }
+  });
+});
+
 describe("IngestionJob type guards", () => {
   it("isPending narrows to PendingIngestionJob", () => {
     const { entity: pending } = seedPending(70);

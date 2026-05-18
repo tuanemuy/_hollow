@@ -328,6 +328,30 @@ function cancel(
   };
 }
 
+function retry(
+  job: FailedExportJob,
+  now: Date,
+): WithEventDrafts<PendingExportJob, ExportEvent> {
+  const next: PendingExportJob = {
+    ...job,
+    status: "pending",
+    artifactKey: null,
+    artifactSize: null,
+    errorCode: null,
+    errorReason: null,
+    completedAt: null,
+    expiresAt: null,
+    progress: ExportProgress.initial(),
+    failedNoteIds: [],
+    version: Version.next(job.version),
+    updatedAt: now,
+  };
+  return {
+    entity: next,
+    eventDrafts: [ExportEvents.retryRequested(next.id, now)],
+  };
+}
+
 function expire(
   job: CompletedExportJob,
   now: Date,
@@ -652,6 +676,25 @@ export const ExportJob = {
   cancel,
   expire,
   assertOwnedBy,
+
+  /**
+   * Admin-driven retry of a `failed` export job. Resets progress,
+   * completedAt, errorCode / errorReason, and the failed-note list so
+   * the queue consumer can re-run from scratch. Rejects with
+   * `EXPORT_INVALID_STATE_FOR_RETRY` for any non-failed state.
+   */
+  retry: (
+    job: ExportJob,
+    now: Date,
+  ): WithEventDrafts<PendingExportJob, ExportEvent> => {
+    if (job.status !== "failed") {
+      throw new BusinessRuleError(
+        ExportErrorCode.InvalidStateForRetry,
+        `Cannot retry export job from state: ${job.status}`,
+      );
+    }
+    return retry(job, now);
+  },
 
   /**
    * Throws an illegal-transition error for the `(from, to)` pair. Useful

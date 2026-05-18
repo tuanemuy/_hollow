@@ -43,6 +43,7 @@ import { Route as AdminRegistrationRouteImport } from './routes/admin/registrati
 import { Route as AdminPromptsRouteImport } from './routes/admin/prompts'
 import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
 import { Route as AdminLlmRouteImport } from './routes/admin/llm'
+import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
 import { Route as AdminDesignRouteImport } from './routes/admin/design'
 import { Route as UUsernameIndexRouteImport } from './routes/u/$username/index'
 import { Route as NotesNoteIdIndexRouteImport } from './routes/notes/$noteId/index'
@@ -222,6 +223,11 @@ const AdminLlmRoute = AdminLlmRouteImport.update({
   path: '/llm',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminJobsRoute = AdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDesignRoute = AdminDesignRouteImport.update({
   id: '/design',
   path: '/design',
@@ -277,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
@@ -318,6 +325,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/admin/design'
+    | '/admin/jobs'
     | '/admin/llm'
     | '/admin/metrics'
     | '/admin/prompts'
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/admin/design'
+    | '/admin/jobs'
     | '/admin/llm'
     | '/admin/metrics'
     | '/admin/prompts'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/admin/design'
+    | '/admin/jobs'
     | '/admin/llm'
     | '/admin/metrics'
     | '/admin/prompts'
@@ -795,6 +807,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLlmRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/jobs': {
+      id: '/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/design': {
       id: '/admin/design'
       path: '/design'
@@ -856,6 +875,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteRouteChildren {
   AdminDesignRoute: typeof AdminDesignRoute
+  AdminJobsRoute: typeof AdminJobsRoute
   AdminLlmRoute: typeof AdminLlmRoute
   AdminMetricsRoute: typeof AdminMetricsRoute
   AdminPromptsRoute: typeof AdminPromptsRoute
@@ -866,6 +886,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminDesignRoute: AdminDesignRoute,
+  AdminJobsRoute: AdminJobsRoute,
   AdminLlmRoute: AdminLlmRoute,
   AdminMetricsRoute: AdminMetricsRoute,
   AdminPromptsRoute: AdminPromptsRoute,

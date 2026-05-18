@@ -39,12 +39,13 @@ describe("ingestionEventDecoders", () => {
     expect(decoded.payload.kind).toBe("html");
   });
 
-  it("decodes ingestion.processingStarted / previewAttached / discarded", () => {
+  it("decodes ingestion.processingStarted / previewAttached / discarded / retryRequested", () => {
     const id = jobId(2);
     for (const t of [
       "ingestion.processingStarted",
       "ingestion.previewAttached",
       "ingestion.discarded",
+      "ingestion.retryRequested",
     ] as const) {
       const decoded = ingestionEventDecoders[t](
         { jobId: id },
