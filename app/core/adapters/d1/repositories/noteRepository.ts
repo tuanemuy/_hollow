@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  lt,
+  notExists,
+  type SQL,
+} from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -34,6 +45,7 @@ import {
   noteTags,
   publicationStates,
 } from "../schema";
+import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
 type NoteRow = typeof notes.$inferSelect;
@@ -212,19 +224,28 @@ export class D1NoteRepository implements NoteRepository {
     };
     if (noteIds.length === 0) return empty;
 
+    // Each child-table fetch is chunked under the D1 host-var cap;
+    // the three tables remain fetched in parallel so the typical
+    // listing's I/O latency is unchanged for sub-cap id lists.
     const [tagRows, linkRows, mediaRows] = await Promise.all([
-      this.db
-        .select()
-        .from(noteTags)
-        .where(inArray(noteTags.noteId, [...noteIds])),
-      this.db
-        .select()
-        .from(noteInternalLinks)
-        .where(inArray(noteInternalLinks.fromNoteId, [...noteIds])),
-      this.db
-        .select()
-        .from(noteMediaRefs)
-        .where(inArray(noteMediaRefs.noteId, [...noteIds])),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteTags)
+          .where(inArray(noteTags.noteId, [...chunk])),
+      ),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteInternalLinks)
+          .where(inArray(noteInternalLinks.fromNoteId, [...chunk])),
+      ),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteMediaRefs)
+          .where(inArray(noteMediaRefs.noteId, [...chunk])),
+      ),
     ]);
 
     const tagIds = new Map<string, string[]>();
@@ -345,13 +366,21 @@ export class D1NoteRepository implements NoteRepository {
 
       if (opts.visibility !== undefined) {
         if (opts.visibility.length === 0) return [];
-        candidateSets.push(
-          await this.resolveVisibilityCandidates(
+        const wantsPrivate = opts.visibility.includes("private");
+        if (wantsPrivate) {
+          // `notExists` keeps the bind count at `notWanted.length`
+          // (≤ 2) + ownerId regardless of owner note count, so the
+          // main `notes` query no longer hits the D1 host-var cap.
+          const pred = this.buildVisibilityNotExistsPredicate(
             ownerId,
             opts.visibility,
-            opts.status,
-          ),
-        );
+          );
+          if (pred !== null) conditions.push(pred);
+        } else {
+          candidateSets.push(
+            await this.resolveVisibilityCandidateIds(ownerId, opts.visibility),
+          );
+        }
       }
 
       if (opts.tagIds !== undefined && opts.tagIds.length > 0) {
@@ -409,31 +438,43 @@ export class D1NoteRepository implements NoteRepository {
     return matched;
   }
 
-  // The visibility filter has to honour the "row absent ⇒ private"
-  // invariant. When `private` is in the desired set we have to materialise
-  // the owner's full id list and subtract the ids whose stored visibility
-  // is *not* desired. When it isn't, a direct lookup on the publication
-  // table is enough.
-  private async resolveVisibilityCandidates(
+  // `wantsPrivate === false`: a direct lookup on `publication_states`
+  // is enough. The "row absent ⇒ private" invariant doesn't matter
+  // here — only ids that have an explicit row in the desired visibility
+  // set qualify, and that set excludes `private`.
+  private async resolveVisibilityCandidateIds(
     ownerId: UserId,
     visibility: readonly PublicationVisibility[],
-    statusFilter: NoteRow["status"] | undefined,
   ): Promise<ReadonlySet<string>> {
-    const wantsPrivate = visibility.includes("private");
-    if (!wantsPrivate) {
-      const rows = await this.db
-        .select({ noteId: publicationStates.noteId })
-        .from(publicationStates)
-        .where(
-          and(
-            eq(publicationStates.ownerId, ownerId),
-            inArray(publicationStates.visibility, [...visibility]),
-          ),
-        );
-      const out = new Set<string>();
-      for (const r of rows) out.add(r.noteId);
-      return out;
-    }
+    const rows = await this.db
+      .select({ noteId: publicationStates.noteId })
+      .from(publicationStates)
+      .where(
+        and(
+          eq(publicationStates.ownerId, ownerId),
+          inArray(publicationStates.visibility, [...visibility]),
+        ),
+      );
+    const out = new Set<string>();
+    for (const r of rows) out.add(r.noteId);
+    return out;
+  }
+
+  // `wantsPrivate === true`: instead of materialising every owner id
+  // and intersecting, emit a correlated `NOT EXISTS` against the
+  // publication-state rows whose visibility is *not* desired. That
+  // matches both explicit `private` (row exists with visibility in the
+  // desired set) and implicit `private` (no row at all), without ever
+  // feeding owner-scoped ids into `inArray(notes.id, [...])`.
+  // The `ownerId` predicate inside the subquery is logically
+  // redundant — `ps.note_id` is the PK and FKs back into the outer
+  // `notes` filtered by `notes.owner_id = ?` — but it lets the planner
+  // use `idx_pubs_visibility_owner (visibility, owner_id)` instead of
+  // the PK alone. See ADR-001 §補足.
+  private buildVisibilityNotExistsPredicate(
+    ownerId: UserId,
+    visibility: readonly PublicationVisibility[],
+  ): SQL | null {
     const notWanted = (
       [
         "private",
@@ -441,32 +482,19 @@ export class D1NoteRepository implements NoteRepository {
         "public",
       ] as const satisfies readonly PublicationVisibility[]
     ).filter((v) => !visibility.includes(v));
-    // Mirror the outer query's status filter so trashed notes don't leak
-    // into `candidates` and bloat the final `inArray` bind list. When the
-    // caller passes no status, leave the sweep unfiltered to match the
-    // outer query's semantics (all statuses).
-    const sweepConditions = [eq(notes.ownerId, ownerId)];
-    if (statusFilter !== undefined) {
-      sweepConditions.push(eq(notes.status, statusFilter));
-    }
-    const ownerRows = await this.db
-      .select({ id: notes.id })
-      .from(notes)
-      .where(and(...sweepConditions));
-    const candidates = new Set<string>();
-    for (const r of ownerRows) candidates.add(r.id);
-    if (notWanted.length === 0) return candidates;
-    const excludeRows = await this.db
-      .select({ noteId: publicationStates.noteId })
-      .from(publicationStates)
-      .where(
-        and(
-          eq(publicationStates.ownerId, ownerId),
-          inArray(publicationStates.visibility, [...notWanted]),
+    if (notWanted.length === 0) return null;
+    return notExists(
+      this.db
+        .select({ noteId: publicationStates.noteId })
+        .from(publicationStates)
+        .where(
+          and(
+            eq(publicationStates.noteId, notes.id),
+            eq(publicationStates.ownerId, ownerId),
+            inArray(publicationStates.visibility, [...notWanted]),
+          ),
         ),
-      );
-    for (const r of excludeRows) candidates.delete(r.noteId);
-    return candidates;
+    );
   }
 
   private async resolveReferrerCandidates(
@@ -512,12 +540,25 @@ export class D1NoteRepository implements NoteRepository {
         new Set(linkRows.map((row) => row.fromNoteId)),
       );
       if (fromIds.length === 0) return [];
-      const rows = await this.db
-        .select()
-        .from(notes)
-        .where(inArray(notes.id, fromIds))
-        .orderBy(desc(notes.updatedAt), desc(notes.id));
-      return this.hydrateMany(rows);
+      // Chunked to stay under the D1 host-var cap; the per-chunk SQL
+      // ORDER BY no longer holds across the combined row set, so re-sort
+      // in JS before hydration. `updated_at` is stored as ISO-8601
+      // text (lexicographic == chronological for the same prefix
+      // length) and `id` is UUIDv7 — both are safe to compare as
+      // strings under SQLite's BINARY collation.
+      const rows = await selectInChunks(fromIds, (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(inArray(notes.id, [...chunk])),
+      );
+      const sorted = [...rows].sort((a, b) => {
+        if (a.updatedAt !== b.updatedAt) {
+          return a.updatedAt < b.updatedAt ? 1 : -1;
+        }
+        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+      });
+      return this.hydrateMany(sorted);
     });
   }
 

@@ -1,3 +1,4 @@
+import type { BatchItem } from "drizzle-orm/batch";
 import { describe, expect, it } from "vitest";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
@@ -534,6 +535,411 @@ describe("D1NoteRepository.findByOwner — combined AND filters (integration)", 
         }),
     );
     expect(found.map((n) => n.id)).toEqual([winner]);
+  });
+});
+
+// Seed many notes via per-row `db.batch` statements. A multi-row
+// `INSERT ... VALUES (...), (...), ...` would consume `cols * rows`
+// host variables — for `notes` (15 columns) 50 rows is already 750
+// binds, well past the D1 limit this Issue is closing. Per-statement
+// batching keeps each insert under the cap regardless of `count`.
+async function seedManyNotes(
+  container: TestContainer,
+  ownerId: UserId,
+  directoryId: string,
+  count: number,
+  opts: Readonly<{
+    updatedAtBase?: Date;
+    status?: "active" | "trashed";
+  }> = {},
+): Promise<readonly NoteId[]> {
+  const base = opts.updatedAtBase ?? NOW;
+  const status = opts.status ?? "active";
+  const ids: NoteId[] = [];
+  const stmts: BatchItem<"sqlite">[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const id = nextId(0x06) as NoteId;
+    ids.push(id);
+    const updatedAt = new Date(base.getTime() + i * 1000).toISOString();
+    stmts.push(
+      container.db.insert(schema.notes).values({
+        id,
+        ownerId,
+        directoryId,
+        slug: `bulk-${i}`,
+        title: `Bulk ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status,
+        trashedAt: status === "trashed" ? TZ : null,
+        createdAt: TZ,
+        updatedAt,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      }),
+    );
+  }
+  if (stmts.length > 0) {
+    await container.db.batch(
+      stmts as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+  }
+  return ids;
+}
+
+describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
+  // T-bind-001: 150 active notes, 50 of them publicly published.
+  // `visibility=['private']` exercises the `wantsPrivate=true` path,
+  // which on the pre-#33 implementation feeds owner_count − public_count
+  // = 100 ids into a single `inArray(notes.id, [...])` and trips the D1
+  // host-variable cap. Post-fix this is a single `NOT EXISTS` correlated
+  // subquery, so bind count is owner-independent.
+  it("T-bind-001: visibility=['private'] over 150 owner notes returns implicit + explicit private", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    // First 50 ids get an explicit `public` publication state.
+    const publicIds = ids.slice(0, 50);
+    const pubStmts = publicIds.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["private"],
+        }),
+    );
+    expect(found).toHaveLength(100);
+    const expectedPrivateIds = new Set(ids.slice(50));
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(
+      expectedPrivateIds,
+    );
+  });
+
+  // T-bind-002: same seed, visibility covers all three values — the
+  // `notWanted` set is empty so the new code path adds no predicate and
+  // returns every owner note. On the pre-#33 implementation this still
+  // takes the owner-sweep path and overflows the bind cap.
+  it("T-bind-002: visibility=['private','public'] over 150 owner notes returns all 150", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const publicIds = ids.slice(0, 50);
+    const pubStmts = publicIds.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["private", "public"],
+        }),
+    );
+    expect(found).toHaveLength(150);
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
+  });
+
+  // T-bind-003: covers the `loadChildren` chunk path. 150 notes each
+  // carry one tag, one media ref, and one internal link; `limit=150`
+  // makes `hydrateMany` load all children in one go and tip every child
+  // select past the bind cap on the pre-#33 implementation. Children
+  // must be hydrated without loss across the chunk boundary.
+  it("T-bind-003: loadChildren hydrates tags, internalLinks, and mediaRefs across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTag(container, owner, "bulk");
+    // Anchor note that every bulk-seeded note will internal-link to.
+    const linkTarget = await seedNote(container, owner, dir, {
+      title: "link-target",
+    });
+    const noteIds = await seedManyNotes(container, owner, dir, 150);
+    const mediaId = nextId(0x07);
+    // media_assets parent row required by FK declared in raw SQL.
+    await container.db.insert(schema.mediaAssets).values({
+      id: mediaId,
+      ownerId: owner,
+      kind: "image",
+      mimeType: "image/png",
+      byteSize: 1,
+      backend: "r2",
+      storageKey: `bulk/${mediaId}`,
+      originalFileName: "x.png",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 1,
+      status: "attached",
+      createdAt: TZ,
+      updatedAt: TZ,
+    });
+    const tagStmts = noteIds.map((noteId) =>
+      container.db.insert(schema.noteTags).values({ noteId, tagId: tag }),
+    );
+    const mediaStmts = noteIds.map((noteId) =>
+      container.db.insert(schema.noteMediaRefs).values({ noteId, mediaId }),
+    );
+    const linkStmts = noteIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x09),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: linkTarget,
+        displayText: null,
+        resolvedNoteId: linkTarget,
+      }),
+    );
+    await container.db.batch(
+      tagStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+    await container.db.batch(
+      mediaStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, { limit: 150, offset: 0 }),
+    );
+    expect(found).toHaveLength(150);
+    const bulkSet = new Set(noteIds);
+    for (const note of found) {
+      if (!bulkSet.has(note.id as NoteId)) continue; // skip linkTarget
+      expect(note.tagIds).toEqual([tag]);
+      expect(note.mediaRefs).toEqual([mediaId]);
+      expect(note.internalLinkRefs).toHaveLength(1);
+      expect(note.internalLinkRefs[0]?.resolvedNoteId).toBe(linkTarget);
+    }
+  });
+
+  // T-bind-004: `findReferrers` chunk path. 150 distinct notes each
+  // link to the same target; chunked-and-rejoined rows must be sorted
+  // by `(updatedAt DESC, id DESC)` to match the pre-chunk SQL order.
+  it("T-bind-004: findReferrers returns 150 referrers in updatedAt DESC, id DESC order across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const referrerIds = await seedManyNotes(container, owner, dir, 150);
+    const linkStmts = referrerIds.map((fromId) => {
+      const linkId = nextId(0x08);
+      return container.db.insert(schema.noteInternalLinks).values({
+        id: linkId,
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      });
+    });
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    expect(found).toHaveLength(150);
+    const foundIds = found.map((n) => n.id);
+    // Expected order: updatedAt DESC, id DESC. `seedManyNotes` assigns
+    // each row updatedAt = base + i s and a strictly increasing id, so
+    // descending updatedAt is equivalent to descending insertion order.
+    const expected = [...referrerIds].reverse();
+    expect(foundIds).toEqual(expected);
+  });
+
+  // T-bind-005: tie-break when several referrers share the same
+  // `updatedAt` millisecond — the JS sort must fall back to descending
+  // id, mirroring the pre-chunk SQL `desc(updatedAt), desc(id)` clause.
+  it("T-bind-005: findReferrers tie-breaks equal updatedAt by descending id", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    // Seed 5 referrers sharing one `updatedAt`, then 5 more sharing a
+    // later one — straddles the JS sort's primary and secondary keys.
+    const earlyTs = "2026-02-01T00:00:00.000Z";
+    const lateTs = "2026-02-02T00:00:00.000Z";
+    const earlyIds: NoteId[] = [];
+    const lateIds: NoteId[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      earlyIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `tie-early-${i}`,
+        title: `Early ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: earlyTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    for (let i = 0; i < 5; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      lateIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `tie-late-${i}`,
+        title: `Late ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: lateTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const allIds = [...earlyIds, ...lateIds];
+    const linkStmts = allIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    const foundIds = found.map((n) => n.id);
+    const expected = [
+      ...[...lateIds].sort().reverse(),
+      ...[...earlyIds].sort().reverse(),
+    ];
+    expect(foundIds).toEqual(expected);
+  });
+
+  // T-bind-006: regression on the chunk-fold seam — 120 referrers
+  // straddle `SAFE_CHUNK_SIZE=90`, half share one `updatedAt` and the
+  // rest share another. Verifies that JS sort after `Promise.all`
+  // concat still applies the `(updatedAt DESC, id DESC)` ordering
+  // across multiple chunks.
+  it("T-bind-006: findReferrers preserves (updatedAt DESC, id DESC) across the chunk boundary with ties", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const earlyTs = "2026-03-01T00:00:00.000Z";
+    const lateTs = "2026-03-02T00:00:00.000Z";
+    const earlyIds: NoteId[] = [];
+    const lateIds: NoteId[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      lateIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `seam-late-${i}`,
+        title: `Late ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: lateTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      earlyIds.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `seam-early-${i}`,
+        title: `Early ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: earlyTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const linkStmts = [...lateIds, ...earlyIds].map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    const foundIds = found.map((n) => n.id);
+    const expected = [
+      ...[...lateIds].sort().reverse(),
+      ...[...earlyIds].sort().reverse(),
+    ];
+    expect(foundIds).toEqual(expected);
   });
 });
 
