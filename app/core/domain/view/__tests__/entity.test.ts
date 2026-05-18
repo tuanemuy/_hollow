@@ -108,6 +108,7 @@ describe("SavedView.updateQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const next = SavedView.updateQuery(view, nextQuery, at(2));
     expect(next.query.directoryId).toBe("d-1");
@@ -250,6 +251,7 @@ describe("SavedView.repairBrokenConditions", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: noteId,
+      visibilityFilter: [],
     });
     const view = freshView({ query });
     const withBroken = SavedView.markBroken(
@@ -268,6 +270,26 @@ describe("SavedView.repairBrokenConditions", () => {
     expect(repaired.brokenConditions.length).toBe(0);
     expect(repaired.version).toBe(withBroken.version + 1);
   });
+
+  it("preserves a non-empty visibilityFilter across repair (visibility cannot be broken)", () => {
+    const query = ViewQuery.create({
+      directoryId: null,
+      tagIds: ["t-a" as TagId],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public"],
+    });
+    const view = freshView({ query });
+    const withBroken = SavedView.markBroken(
+      view,
+      [BrokenConditionMarker.tag("t-a" as TagId, at(1))],
+      at(1),
+    );
+    const repaired = SavedView.repairBrokenConditions(withBroken, at(2));
+    expect(repaired.query.tagIds).toEqual([]);
+    expect(repaired.query.visibilityFilter).toEqual(["public"]);
+  });
 });
 
 describe("SavedView.reconstruct", () => {
@@ -282,6 +304,7 @@ describe("SavedView.reconstruct", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "list",
     calendarDateKey: "updated",
@@ -353,6 +376,37 @@ describe("SavedView.reconstruct", () => {
   it("throws RehydrationError when stored version is negative", () => {
     try {
       SavedView.reconstruct({ ...validRow(), version: -1 });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isRehydrationError(error)).toBe(true);
+    }
+  });
+
+  it("rebuilds visibilityFilter values through PublicationVisibility validation", () => {
+    const row = validRow();
+    const reconstructed = SavedView.reconstruct({
+      ...row,
+      query: {
+        ...row.query,
+        visibilityFilter: ["public", "unlisted"],
+      },
+    });
+    expect(reconstructed.query.visibilityFilter).toEqual([
+      "public",
+      "unlisted",
+    ]);
+  });
+
+  it("throws RehydrationError when stored visibilityFilter contains an unknown value", () => {
+    const row = validRow();
+    try {
+      SavedView.reconstruct({
+        ...row,
+        query: {
+          ...row.query,
+          visibilityFilter: ["bogus"],
+        },
+      });
       expect.fail("should have thrown");
     } catch (error) {
       expect(isRehydrationError(error)).toBe(true);

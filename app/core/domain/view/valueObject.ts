@@ -1,6 +1,7 @@
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
 import type { NoteId } from "@/core/domain/note/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { ViewErrorCode } from "./errorCode";
 
@@ -242,9 +243,15 @@ export const ViewKeyword = {
  * Composite filter describing what notes a `SavedView` matches.
  *
  * All fields are optional — `null` / empty array means "no filter on
- * this axis". `tagIds` is order-insensitive but materialised as a
- * frozen array; duplicates are collapsed at construction time so
- * equality is structural.
+ * this axis". `tagIds` and `visibilityFilter` are order-insensitive but
+ * materialised as frozen arrays; duplicates are collapsed at
+ * construction time so equality is structural.
+ *
+ * `visibilityFilter` mirrors the multi-valued `tagIds` convention rather
+ * than the port-level `undefined | []` distinction used by
+ * `NoteOwnerListOpts.visibility`. The selector boundary translates an
+ * empty array to `undefined` before passing through to the list usecase
+ * (see `.issue/31/adr.md` ADR-001).
  */
 export type ViewQuery = Readonly<{
   directoryId: DirectoryId | null;
@@ -252,6 +259,7 @@ export type ViewQuery = Readonly<{
   dateRange: DateRange | null;
   keyword: ViewKeyword | null;
   referencingNoteId: NoteId | null;
+  visibilityFilter: readonly PublicationVisibility[];
 }>;
 
 export const ViewQuery = {
@@ -261,6 +269,7 @@ export const ViewQuery = {
     dateRange: DateRange | null;
     keyword: ViewKeyword | null;
     referencingNoteId: NoteId | null;
+    visibilityFilter: readonly PublicationVisibility[];
   }): ViewQuery => {
     const seen = new Set<string>();
     const unique: TagId[] = [];
@@ -270,12 +279,21 @@ export const ViewQuery = {
         unique.push(tagId);
       }
     }
+    const seenVis = new Set<PublicationVisibility>();
+    const uniqueVis: PublicationVisibility[] = [];
+    for (const v of params.visibilityFilter) {
+      if (!seenVis.has(v)) {
+        seenVis.add(v);
+        uniqueVis.push(v);
+      }
+    }
     return {
       directoryId: params.directoryId,
       tagIds: Object.freeze(unique),
       dateRange: params.dateRange,
       keyword: params.keyword,
       referencingNoteId: params.referencingNoteId,
+      visibilityFilter: Object.freeze(uniqueVis),
     };
   },
 
@@ -285,6 +303,7 @@ export const ViewQuery = {
     dateRange: null,
     keyword: null,
     referencingNoteId: null,
+    visibilityFilter: Object.freeze([]),
   }),
 
   equals: (a: ViewQuery, b: ViewQuery): boolean => {
@@ -302,6 +321,14 @@ export const ViewQuery = {
     }
     for (let i = 0; i < a.tagIds.length; i += 1) {
       if (a.tagIds[i] !== b.tagIds[i]) {
+        return false;
+      }
+    }
+    if (a.visibilityFilter.length !== b.visibilityFilter.length) {
+      return false;
+    }
+    for (let i = 0; i < a.visibilityFilter.length; i += 1) {
+      if (a.visibilityFilter[i] !== b.visibilityFilter[i]) {
         return false;
       }
     }

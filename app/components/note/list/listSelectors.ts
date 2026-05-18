@@ -100,6 +100,7 @@ export type SaveViewPayload = Readonly<{
     }> | null;
     keyword: string | null;
     referencingNoteId: string | null;
+    visibilityFilter: ReadonlyArray<"private" | "unlisted" | "public">;
   }>;
   displayMode: "list" | "tile" | "calendar";
 }>;
@@ -127,6 +128,8 @@ export function searchToViewQuery(search: NoteListSearch): SaveViewPayload {
       keyword:
         search.q !== undefined && search.q.trim().length > 0 ? search.q : null,
       referencingNoteId: search.referencingNoteId ?? null,
+      visibilityFilter:
+        search.visibility !== undefined ? [search.visibility] : [],
     },
     displayMode: search.display ?? "list",
   };
@@ -158,6 +161,13 @@ export function viewQueryToSearch(
   }
   if (view.query.referencingNoteId !== null) {
     out.referencingNoteId = view.query.referencingNoteId as unknown as string;
+  }
+  // URL schema carries a single `visibility` enum; the SavedView VO stores
+  // it as an array to keep room for future multi-select UI without a port
+  // break. Until that UI lands we project the first value back into the
+  // URL (see `.issue/31/adr.md` ADR-002).
+  if (view.query.visibilityFilter.length > 0) {
+    out.visibility = view.query.visibilityFilter[0];
   }
   if (view.query.dateRange !== null) {
     if (view.query.dateRange.from !== null) {
@@ -199,6 +209,10 @@ export function viewQueryEquals(
   if (a.tagIds.length !== b.tagIds.length) return false;
   for (let i = 0; i < a.tagIds.length; i++) {
     if (a.tagIds[i] !== b.tagIds[i]) return false;
+  }
+  if (a.visibilityFilter.length !== b.visibilityFilter.length) return false;
+  for (let i = 0; i < a.visibilityFilter.length; i++) {
+    if (a.visibilityFilter[i] !== b.visibilityFilter[i]) return false;
   }
   if (a.dateRange === null && b.dateRange === null) return true;
   if (a.dateRange === null || b.dateRange === null) return false;

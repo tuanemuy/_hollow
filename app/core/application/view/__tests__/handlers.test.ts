@@ -20,6 +20,7 @@ function baseInput(
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "list",
     calendarDateKey: "updated",
@@ -44,6 +45,7 @@ describe("handleTagDeletedEvent", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });
@@ -57,6 +59,7 @@ describe("handleTagDeletedEvent", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });
@@ -87,6 +90,7 @@ describe("handleTagDeletedEvent", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });
@@ -113,6 +117,7 @@ describe("handleDirectoryDeletedEvent", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });
@@ -143,6 +148,7 @@ describe("handleNotePurgedEvent", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: "n-1",
+          visibilityFilter: [],
         },
       }),
     });

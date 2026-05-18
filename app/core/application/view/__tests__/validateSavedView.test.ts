@@ -20,6 +20,7 @@ function baseInput(
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "list",
     calendarDateKey: "updated",
@@ -41,6 +42,7 @@ describe("validateSavedView", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });

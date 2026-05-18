@@ -11,7 +11,7 @@ export const NOTE_TITLE_MAX_LENGTH = 200;
 export const NOTE_BODY_MAX_BYTES = 1024 * 1024;
 const FRONT_MATTER_JSON_MAX_BYTES = 64 * 1024;
 
-const visibilitySchema = z.enum(["private", "unlisted", "public"]);
+export const visibilitySchema = z.enum(["private", "unlisted", "public"]);
 
 export const createNoteSchema = z.object({
   title: z.string().trim().max(NOTE_TITLE_MAX_LENGTH).default(""),

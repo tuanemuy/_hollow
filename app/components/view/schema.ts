@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { visibilitySchema } from "@/components/note/schema";
 
 export const SAVED_VIEW_NAME_MAX = 60;
 
@@ -38,6 +39,7 @@ export const createSavedViewSchema = z.object({
       .default(null),
     keyword: z.string().nullable().default(null),
     referencingNoteId: z.string().min(1).nullable().default(null),
+    visibilityFilter: z.array(visibilitySchema).default([]),
   }),
   displayMode: z.enum(["list", "tile", "calendar"]).default("list"),
   calendarDateKey: z

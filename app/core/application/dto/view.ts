@@ -15,6 +15,7 @@ export type ViewQueryDTO = Readonly<{
   dateRange: DateRange | null;
   keyword: string | null;
   referencingNoteId: NoteId | null;
+  visibilityFilter: ReadonlyArray<"private" | "unlisted" | "public">;
 }>;
 
 /**
@@ -72,6 +73,7 @@ export function toViewQueryDTO(query: ViewQuery): ViewQueryDTO {
       query.referencingNoteId === null
         ? null
         : (query.referencingNoteId as unknown as NoteId),
+    visibilityFilter: query.visibilityFilter.map((v) => v),
   };
 }
 
