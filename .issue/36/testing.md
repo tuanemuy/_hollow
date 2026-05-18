@@ -69,7 +69,7 @@ pnpm deploy:staging
 - **手順:**
   1. ノート A の編集画面で本文に `[[Hel` と入力 → ポップアップ表示
   2. ↓キーで `Helsinki` を選択 → Enter で確定
-  3. 本文に `[[Helsinki] ` （末尾に半角スペース）が挿入されることを確認
+  3. 本文に `[[Helsinki]] ` （末尾に半角スペース）が挿入されることを確認
   4. autosave 完了まで待つ（既存の autosave 表示で完了を確認）
   5. ノート Helsinki の詳細画面（`/notes/<B.id>`）を開く
   6. バックリンクパネルに「Hello World」（ノート A）が表示されることを確認
