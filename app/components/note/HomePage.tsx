@@ -14,6 +14,7 @@ type Props = {
   tags: ReadonlyArray<{ id: string; name: string; noteCount: number }>;
   savedViews: readonly SavedViewDTO[];
   search: NoteListSearch;
+  referencingNoteTitle?: string | null;
 };
 
 /**
@@ -31,6 +32,7 @@ export function HomePage({
   tags,
   savedViews,
   search,
+  referencingNoteTitle,
 }: Props) {
   return (
     <AppShell user={user}>
@@ -43,6 +45,9 @@ export function HomePage({
         tags={tags}
         savedViews={savedViews}
         search={search}
+        {...(referencingNoteTitle !== undefined
+          ? { referencingNoteTitle }
+          : {})}
       />
     </AppShell>
   );

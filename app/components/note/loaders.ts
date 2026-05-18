@@ -364,6 +364,44 @@ export const loadSavedViewById = cache(
   ),
 );
 
+/**
+ * Resolve the title of a note referenced by `?referencingNoteId=<id>`
+ * so the FilterBar chip can display it instead of a UUID fragment.
+ *
+ * Failure modes (malformed id / not found / owner mismatch / empty
+ * title) all collapse to `{ title: null }` so the caller falls back
+ * to the existing UUID-prefix label. Driver-level errors from
+ * `findById` are intentionally not caught: they collapse the parent
+ * `Promise.all` together with the listing load, keeping the home
+ * page's error response coherent rather than silently showing a
+ * UUID-fragment chip on top of a 500 listing.
+ */
+export const loadReferencingNoteTitle = cache(
+  serverData(
+    () => Promise.resolve({}),
+    async (
+      { container },
+      _mod,
+      args: { actorUserId: string; noteId: string },
+    ): Promise<{ title: string | null }> => {
+      let noteId: DomainNoteId;
+      try {
+        noteId = DomainNoteId.create(args.noteId);
+      } catch {
+        return { title: null };
+      }
+      return container.unitOfWorkProvider.run(async ({ noteRepository }) => {
+        const found = await noteRepository.findById(noteId);
+        if (found === null) return { title: null };
+        if ((found.entity.ownerId as unknown as string) !== args.actorUserId) {
+          return { title: null };
+        }
+        return { title: found.entity.title };
+      });
+    },
+  ),
+);
+
 export const loadPublishStateForNote = cache(
   serverData(
     () => import("@/core/application/publication/listShareLinks"),

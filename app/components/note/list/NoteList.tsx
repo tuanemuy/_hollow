@@ -21,6 +21,7 @@ type Props = {
   tags: ReadonlyArray<{ id: string; name: string; noteCount: number }>;
   savedViews: readonly SavedViewDTO[];
   search: NoteListSearch;
+  referencingNoteTitle?: string | null;
 };
 
 /**
@@ -44,6 +45,7 @@ export function NoteList({
   tags,
   savedViews,
   search,
+  referencingNoteTitle,
 }: Props) {
   const { notes, count, mode } = data;
   const display: DisplayMode = search.display ?? "list";
@@ -82,6 +84,9 @@ export function NoteList({
         visibility={search.visibility}
         directoryId={search.directoryId}
         referencingNoteId={search.referencingNoteId}
+        {...(referencingNoteTitle !== undefined
+          ? { referencingNoteTitle }
+          : {})}
       />
 
       <BulkActionBar tree={tree} />

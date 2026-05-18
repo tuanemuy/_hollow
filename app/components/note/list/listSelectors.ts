@@ -186,6 +186,21 @@ export function viewQueryToSearch(
   return out;
 }
 
+/**
+ * Build the `referencingNoteId` chip label for the FilterBar.
+ *
+ * When the home loader resolved the referenced note's title the chip
+ * shows that title; otherwise it falls back to the first 8 characters
+ * of the id (the existing pre-resolver behaviour).
+ */
+export function formatReferencingNoteChipLabel(
+  id: string,
+  title: string | null,
+): string {
+  if (title !== null && title !== "") return title;
+  return id.slice(0, 8);
+}
+
 function isoToDateOnly(iso: string): string {
   // The view-query payload uses full ISO datetime, but the URL search
   // schema constrains `from` / `to` to `YYYY-MM-DD`. Slice rather than

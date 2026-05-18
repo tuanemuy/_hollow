@@ -38,6 +38,7 @@ const renderHome = createServerFn({ method: "GET" })
         loadAllTags,
         loadSavedViewsByKind,
         loadSavedViewById,
+        loadReferencingNoteTitle,
       },
       { viewQueryToSearch },
     ] = await Promise.all([
@@ -65,7 +66,7 @@ const renderHome = createServerFn({ method: "GET" })
       }
     }
 
-    const [owned, tree, tags, savedViews] = await Promise.all([
+    const [owned, tree, tags, savedViews, referencing] = await Promise.all([
       loadOwnedNotes({
         actorUserId: user.id,
         status: "active",
@@ -96,6 +97,12 @@ const renderHome = createServerFn({ method: "GET" })
       loadDirectoryTreeFlat({ actorUserId: user.id }),
       loadAllTags({ actorUserId: user.id }),
       loadSavedViewsByKind({ actorUserId: user.id, kind: "personal" }),
+      baseSearch.referencingNoteId !== undefined
+        ? loadReferencingNoteTitle({
+            actorUserId: user.id,
+            noteId: baseSearch.referencingNoteId,
+          })
+        : Promise.resolve({ title: null as string | null }),
     ]);
 
     return {
@@ -110,6 +117,7 @@ const renderHome = createServerFn({ method: "GET" })
           tags={tags.tags}
           savedViews={savedViews.views}
           search={baseSearch}
+          referencingNoteTitle={referencing.title}
         />,
       ),
     };

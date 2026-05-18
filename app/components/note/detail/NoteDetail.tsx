@@ -65,6 +65,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
       </header>
 
       <NoteMetaPanel
+        noteId={note.id}
         createdAt={note.createdAt}
         updatedAt={note.updatedAt}
         directoryPath={directoryPath}

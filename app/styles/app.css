@@ -633,6 +633,14 @@ select {
 .meta-panel-backlinks a {
   color: var(--color-accent);
 }
+.meta-panel-referencing {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+}
+.meta-panel-referencing a {
+  color: var(--color-accent);
+  font-size: 12px;
+}
 
 .front-matter-panel {
   margin-top: var(--space-8);
