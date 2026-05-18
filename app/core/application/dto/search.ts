@@ -11,6 +11,7 @@ export type SearchHitDTO = Readonly<{
   snippet: string;
   tagNames: readonly string[];
   score: number;
+  visibility: "private" | "unlisted" | "public";
 }>;
 
 /**
@@ -37,5 +38,6 @@ export function toSearchHitDTO(hit: SearchHit): SearchHitDTO {
     snippet: hit.snippet as string,
     tagNames: hit.tagNames.map((name) => name as string),
     score: hit.score as number,
+    visibility: hit.visibility,
   };
 }

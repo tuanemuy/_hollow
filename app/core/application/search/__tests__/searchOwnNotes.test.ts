@@ -18,6 +18,7 @@ import {
   SearchScore,
   SearchSnippet,
   SearchTitle,
+  Visibility,
 } from "@/core/domain/search/valueObject";
 import { isNotFoundError } from "../../errors";
 import { searchOwnNotes } from "../searchOwnNotes";
@@ -82,6 +83,7 @@ function makeHit(over: Partial<SearchHit> = {}): SearchHit {
     snippet: SearchSnippet.create("..."),
     tagNames: [],
     score: SearchScore.create(1),
+    visibility: Visibility.create("private"),
     ...over,
   };
 }
@@ -110,6 +112,23 @@ describe("searchOwnNotes", () => {
     if (!observed) return;
     expect(observed.keyword as unknown as string).toBe("hello");
     expect(observed.ownerIdFilter).toBe(actorUserId);
+  });
+
+  it("defaults visibilityFilter to all three when visibility is omitted", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "any", limit: 10 },
+    });
+
+    expect(observed).toBeDefined();
+    if (!observed) return;
     expect([...observed.visibilityFilter].sort()).toEqual([
       "private",
       "public",
@@ -242,6 +261,56 @@ describe("searchOwnNotes", () => {
       expect(isNotFoundError(error)).toBe(true);
     }
     expect(searchIndex.query).not.toHaveBeenCalled();
+  });
+
+  it("forwards input.visibility to the query's visibilityFilter when provided", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchOwnNotes({
+      container,
+      input: {
+        actorUserId: userId(1),
+        keyword: "hello",
+        visibility: ["public"],
+        limit: 10,
+      },
+    });
+
+    expect(observed?.visibilityFilter).toEqual(["public"]);
+  });
+
+  it("projects each hit's visibility into the returned DTO", async () => {
+    const searchIndex = makeIndex(async () => ({
+      hits: [
+        makeHit({ noteId: noteId(1), visibility: Visibility.create("public") }),
+        makeHit({
+          noteId: noteId(2),
+          visibility: Visibility.create("unlisted"),
+        }),
+        makeHit({
+          noteId: noteId(3),
+          visibility: Visibility.create("private"),
+        }),
+      ],
+      nextCursor: null,
+    }));
+    const container = makeContainer({ searchIndex });
+
+    const result = await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "hello", limit: 10 },
+    });
+
+    expect(result.hits.map((h) => h.visibility)).toEqual([
+      "public",
+      "unlisted",
+      "private",
+    ]);
   });
 
   it("propagates SearchIndexUnavailableError from the index unchanged", async () => {
