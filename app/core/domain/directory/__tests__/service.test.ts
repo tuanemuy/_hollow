@@ -9,6 +9,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import type { Note } from "@/core/domain/note/entity";
 import type {
   NoteListOpts,
+  NoteOwnerCountOpts,
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
@@ -176,7 +177,7 @@ class StubNoteRepository implements NoteRepository {
   purge(_id: NoteId): Promise<void> {
     throw new Error("not implemented");
   }
-  countByOwner(): Promise<number> {
+  countByOwner(_o: UserId, _opts?: NoteOwnerCountOpts): Promise<number> {
     throw new Error("not implemented");
   }
 

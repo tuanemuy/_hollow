@@ -122,9 +122,10 @@ export interface NoteRepository extends TransactionalRepository<Note> {
   /**
    * Total notes for `ownerId` matching the supplied filters. Filter
    * semantics mirror {@link NoteRepository.findByOwner}. When `opts` is
-   * `undefined` every note belonging to the owner is counted (active +
-   * trashed); when `opts` is supplied, only notes that would be returned
-   * by `findByOwner` with the same filters are counted.
+   * `undefined` (or an empty object — the two are equivalent) every
+   * note belonging to the owner is counted (active + trashed); when
+   * `opts` carries one or more filter fields, only notes that would be
+   * returned by `findByOwner` with the same filters are counted.
    *
    * Used by `listNotesByOwner` to keep the rendered "total count" in
    * sync with the filtered slice so the UI does not display a total
