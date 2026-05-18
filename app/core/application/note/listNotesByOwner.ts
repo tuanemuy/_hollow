@@ -1,5 +1,8 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
-import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
+import type {
+  NoteOwnerCountOpts,
+  NoteOwnerListOpts,
+} from "@/core/domain/note/ports/noteRepository";
 import type {
   DateRange,
   NoteId,
@@ -34,11 +37,9 @@ export async function listNotesByOwner({
   input,
 }: ServiceArgs<ListNotesByOwnerInput>): Promise<ListNotesByOwnerOutput> {
   const offset = Math.max(0, (input.page - 1) * input.limit);
-  const opts: NoteOwnerListOpts = {
-    limit: input.limit,
-    offset,
-    ...(input.sort !== undefined ? { sort: input.sort } : {}),
-    ...(input.order !== undefined ? { order: input.order } : {}),
+  // Filter set shared between the list query and the count query so the
+  // rendered `count` cannot disagree with the visible slice (Issue #30).
+  const countOpts: NoteOwnerCountOpts = {
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
     ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
@@ -47,6 +48,13 @@ export async function listNotesByOwner({
       ? { referencingNoteId: input.referencingNoteId }
       : {}),
   };
+  const opts: NoteOwnerListOpts = {
+    limit: input.limit,
+    offset,
+    ...(input.sort !== undefined ? { sort: input.sort } : {}),
+    ...(input.order !== undefined ? { order: input.order } : {}),
+    ...countOpts,
+  };
 
   const { items, count } = await container.unitOfWorkProvider.run(
     async (ctx) => {
@@ -54,7 +62,10 @@ export async function listNotesByOwner({
         input.actorUserId,
         opts,
       );
-      const total = await ctx.noteRepository.countByOwner(input.actorUserId);
+      const total = await ctx.noteRepository.countByOwner(
+        input.actorUserId,
+        countOpts,
+      );
       const tagIds = new Set<string>();
       for (const note of found) {
         for (const id of note.tagIds) tagIds.add(id);
