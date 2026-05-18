@@ -9,6 +9,7 @@ import {
   lt,
   notExists,
   type SQL,
+  sql,
 } from "drizzle-orm";
 import {
   ConflictError,
@@ -47,7 +48,7 @@ import {
   publicationStates,
 } from "../schema";
 import { selectInChunks } from "./_chunks";
-import { mapDbError } from "./helpers";
+import { escapeLikePattern, mapDbError } from "./helpers";
 
 type NoteRow = typeof notes.$inferSelect;
 type NoteTagRow = typeof noteTags.$inferSelect;
@@ -311,6 +312,32 @@ export class D1NoteRepository implements NoteRepository {
       if (!row) return null;
       const children = await this.loadChildren([row.id]);
       return this.toNote(row, children);
+    });
+  }
+
+  searchByTitlePrefix(
+    ownerId: UserId,
+    prefix: string,
+    limit: number,
+  ): Promise<readonly Note[]> {
+    return mapDbError("Failed to search notes by title prefix", async () => {
+      if (limit <= 0) return [];
+      const trimmed = prefix.trim();
+      if (trimmed.length === 0) return [];
+      const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+      const rows = await this.db
+        .select()
+        .from(notes)
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+            sql`lower(${notes.title}) LIKE ${pattern} ESCAPE '\\'`,
+          ),
+        )
+        .orderBy(asc(notes.title), asc(notes.id))
+        .limit(limit);
+      return this.hydrateMany(rows);
     });
   }
 

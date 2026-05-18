@@ -33,4 +33,17 @@ export interface TagRepository extends TransactionalRepository<Tag> {
   findByOwnerAndName(ownerId: UserId, name: TagName): Promise<Tag | null>;
   findByOwner(ownerId: UserId, opts: TagListOpts): Promise<readonly Tag[]>;
   findByIds(ids: readonly TagId[]): Promise<readonly Tag[]>;
+
+  /**
+   * Owner-scoped tags whose `name` matches `prefix` as a case-insensitive
+   * prefix (compared against `nameNormalized`). Ordered by name asc, id
+   * asc. Same caller contract as `NoteRepository.searchByTitlePrefix` —
+   * the caller trims `prefix` and clamps `limit`, the adapter LIKE-escapes
+   * wildcards.
+   */
+  searchByNamePrefix(
+    ownerId: UserId,
+    prefix: string,
+    limit: number,
+  ): Promise<readonly Tag[]>;
 }

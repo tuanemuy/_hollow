@@ -203,6 +203,9 @@ function buildAssemblyDeps(
       async findByOwner() {
         return [];
       },
+      async searchByTitlePrefix() {
+        return [];
+      },
       async findTrashedOlderThan() {
         return [];
       },
