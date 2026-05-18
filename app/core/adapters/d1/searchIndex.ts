@@ -32,8 +32,8 @@ type SearchRow = Readonly<{
   title: string;
   snippet: string;
   tagNamesJson: string;
-  score: number;
   visibility: string;
+  score: number;
 }>;
 
 /**

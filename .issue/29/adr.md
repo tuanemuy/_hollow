@@ -83,11 +83,18 @@ Proposed
 ### フォロー Issue 起票
 本 Issue クローズ時に、フォロー Issue として以下を起票する:
 
-- タイトル: 「search 経路 (searchOwnNotes) の `updatedAt` / `directoryId` / `slug` projection 実値化 + ADR-013/014 解消」
-- スコープ:
-  - `NoteRepository.findByIds` (または相当の port) で search hit の `noteId` 群を二次クエリし、`updatedAt` / `directoryId` / `slug` を実値で埋める
-  - `NoteList.showVisibilityBadge` の `mode === "filter"` ガード撤廃（ADR-013 / 本 Issue ADR-004 解消）
-  - `CalendarView` の `mode === "search"` フォールバック撤廃（ADR-014 解消）
+- **タイトル A**: 「search 経路 (searchOwnNotes) の `updatedAt` / `directoryId` / `slug` projection 実値化 + ADR-013/014 解消」
+  - スコープ:
+    - `NoteRepository.findByIds` (または相当の port) で search hit の `noteId` 群を二次クエリし、`updatedAt` / `directoryId` / `slug` を実値で埋める
+    - `NoteList.showVisibilityBadge` の `mode === "filter"` ガード撤廃（ADR-013 / 本 Issue ADR-004 解消）
+    - `CalendarView` の `mode === "search"` フォールバック撤廃（ADR-014 解消）
+
+- **タイトル B**: 「D1 SearchIndex の integration test ハーネス整備」
+  - 動機: ADR-005 で発覚した pre-existing FTS join バグ (`sd.note_id = fts.rowid`) は fake `SearchIndex` を使う unit テストでは検出できない。本 Issue の review-001 W-002 で指摘された通り、SQL 層のリグレッション防止には integration test が必要
+  - スコープ:
+    - 既存に存在しない D1 adapter integration test の新規ハーネス整備（vitest config / fixture / migration セットアップ）
+    - `D1SearchIndex.upsert → query` の往復で `visibility` フィルタが effective に動くこと、`Visibility.create` のエラー変換、FTS join が正しい行を返すこと等を担保する smoke レベルの test を追加
+  - 規模: 数時間以上（ハーネス整備込み）のため本 Issue とは独立
 
 ### Consequences
 - 良い点:

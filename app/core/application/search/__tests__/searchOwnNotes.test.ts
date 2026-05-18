@@ -112,6 +112,23 @@ describe("searchOwnNotes", () => {
     if (!observed) return;
     expect(observed.keyword as unknown as string).toBe("hello");
     expect(observed.ownerIdFilter).toBe(actorUserId);
+  });
+
+  it("defaults visibilityFilter to all three when visibility is omitted", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "any", limit: 10 },
+    });
+
+    expect(observed).toBeDefined();
+    if (!observed) return;
     expect([...observed.visibilityFilter].sort()).toEqual([
       "private",
       "public",
