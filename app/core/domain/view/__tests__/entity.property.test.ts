@@ -168,6 +168,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
             dateRange: null,
             keyword: null,
             referencingNoteId: null,
+            visibilityFilter: [],
           });
           const view = freshView("inbox", false, query);
           const markers = brokenIds.map((id) =>
@@ -195,6 +196,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         });
         const view = freshView("inbox", false, query);
         const markers = broken
@@ -221,6 +223,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: noteId,
+          visibilityFilter: [],
         });
         const view = freshView("inbox", false, query);
         const markers = broken

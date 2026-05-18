@@ -19,6 +19,7 @@ function baseInput(
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "list",
     calendarDateKey: "updated",
@@ -92,6 +93,7 @@ describe("createSavedView", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });
@@ -114,6 +116,7 @@ describe("createSavedView", () => {
           dateRange: null,
           keyword: null,
           referencingNoteId: null,
+          visibilityFilter: [],
         },
       }),
     });

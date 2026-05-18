@@ -38,6 +38,7 @@ type StoredQueryJson = Readonly<{
   }> | null;
   keyword: string | null;
   referencingNoteId: string | null;
+  visibilityFilter: readonly string[];
 }>;
 
 type StoredSortJson = Readonly<{
@@ -81,6 +82,11 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
   const dateRange = parsed.dateRange;
   const keyword = parsed.keyword;
   const referencingNoteId = parsed.referencingNoteId;
+  // `visibilityFilter` was added in Issue #31. Older rows persisted before
+  // that change do not carry the key, so a missing field is treated as
+  // "no filter" rather than a data-integrity violation (see ADR-003).
+  const rawVisibilityFilter =
+    parsed.visibilityFilter === undefined ? [] : parsed.visibilityFilter;
 
   if (directoryId !== null && typeof directoryId !== "string") {
     throw new SystemError(
@@ -104,6 +110,12 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
     throw new SystemError(
       SystemErrorCode.DataIntegrityError,
       `Saved view ${viewId} query_json.referencingNoteId is not a string|null`,
+    );
+  }
+  if (!isStringArray(rawVisibilityFilter)) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      `Saved view ${viewId} query_json.visibilityFilter is not string[]`,
     );
   }
 
@@ -138,6 +150,7 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
     dateRange: dateRangeOut,
     keyword,
     referencingNoteId,
+    visibilityFilter: rawVisibilityFilter,
   };
 }
 
@@ -235,6 +248,7 @@ function encodeQueryJson(view: SavedView): string {
           },
     keyword: view.query.keyword,
     referencingNoteId: view.query.referencingNoteId,
+    visibilityFilter: view.query.visibilityFilter,
   });
 }
 
@@ -318,6 +332,7 @@ export class D1SavedViewRepository implements SavedViewRepository {
                 },
           keyword: storedQuery.keyword,
           referencingNoteId: storedQuery.referencingNoteId,
+          visibilityFilter: storedQuery.visibilityFilter,
         },
         displayMode: row.displayMode,
         calendarDateKey: row.calendarDateKey,

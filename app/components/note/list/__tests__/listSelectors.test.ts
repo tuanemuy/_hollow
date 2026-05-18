@@ -176,6 +176,16 @@ describe("searchToViewQuery", () => {
     expect(out.query.referencingNoteId).toBe(null);
   });
 
+  it("wraps a single URL `visibility` into a 1-element array", () => {
+    const out = searchToViewQuery({ ...baseSearch, visibility: "public" });
+    expect(out.query.visibilityFilter).toEqual(["public"]);
+  });
+
+  it("falls back to an empty `visibilityFilter` when unset", () => {
+    const out = searchToViewQuery(baseSearch);
+    expect(out.query.visibilityFilter).toEqual([]);
+  });
+
   // W-003: the dateRange branch must engage when *either* bound is
   // present, with the missing side null'd rather than dropped. Without
   // this the SavedView would lose the open-ended interval entirely.
@@ -211,6 +221,7 @@ describe("viewQueryToSearch", () => {
       },
       keyword: "hi",
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "calendar",
     calendarDateKey: "updated",
@@ -245,6 +256,7 @@ describe("viewQueryToSearch", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
   };
 
@@ -322,6 +334,23 @@ describe("viewQueryToSearch", () => {
     const out = viewQueryToSearch(emptyView);
     expect("referencingNoteId" in out).toBe(false);
   });
+
+  it("projects the first `visibilityFilter` entry into the URL `visibility`", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["unlisted"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("unlisted");
+  });
+
+  it("omits `visibility` when `visibilityFilter` is empty", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("visibility" in out).toBe(false);
+  });
 });
 
 describe("viewQueryEquals", () => {
@@ -331,6 +360,7 @@ describe("viewQueryEquals", () => {
     dateRange: null,
     keyword: null,
     referencingNoteId: null,
+    visibilityFilter: [],
   } as unknown as SavedViewDTO["query"];
 
   it("returns true for identical shapes", () => {
@@ -356,6 +386,37 @@ describe("viewQueryEquals", () => {
   it("handles null vs non-null date ranges", () => {
     const a = { ...base, dateRange: null };
     const b = { ...base, dateRange: { from: "2024-01-01", to: null } };
+    expect(viewQueryEquals(a, b)).toBe(false);
+  });
+
+  it("returns false when visibilityFilter length differs", () => {
+    const a = {
+      ...base,
+      visibilityFilter:
+        [] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    const b = {
+      ...base,
+      visibilityFilter: [
+        "public",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    expect(viewQueryEquals(a, b)).toBe(false);
+  });
+
+  it("returns false when visibilityFilter values differ", () => {
+    const a = {
+      ...base,
+      visibilityFilter: [
+        "public",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    const b = {
+      ...base,
+      visibilityFilter: [
+        "unlisted",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
     expect(viewQueryEquals(a, b)).toBe(false);
   });
 });

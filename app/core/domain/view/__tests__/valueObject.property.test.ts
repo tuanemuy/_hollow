@@ -212,6 +212,7 @@ describe("ViewQuery (property)", () => {
             dateRange: null,
             keyword: null,
             referencingNoteId: null,
+            visibilityFilter: [],
           });
           const expected: TagId[] = [];
           const seen = new Set<string>();
