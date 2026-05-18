@@ -14,6 +14,7 @@ export const ExportErrorCode = {
   InvalidDateRange: "EXPORT_INVALID_DATE_RANGE",
   ScopeTargetMismatch: "EXPORT_SCOPE_TARGET_MISMATCH",
   IllegalTransition: "EXPORT_ILLEGAL_TRANSITION",
+  InvalidStateForRetry: "EXPORT_INVALID_STATE_FOR_RETRY",
   CompletedMissingArtifact: "EXPORT_COMPLETED_MISSING_ARTIFACT",
   QuotaExceeded: "export_quota_exceeded",
   Unauthorized: "export_unauthorized",

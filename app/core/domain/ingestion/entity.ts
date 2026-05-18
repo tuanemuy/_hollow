@@ -240,6 +240,36 @@ function markFailed(
   };
 }
 
+function retry(
+  job: FailedIngestionJob,
+  now: Date,
+): WithEventDrafts<PendingIngestionJob, IngestionEvent> {
+  // The temp blob is the only retry-able payload — once it has been
+  // reclaimed, the only meaningful "retry" would be a re-upload, so
+  // reject here rather than transition into a pending state we cannot
+  // service.
+  if (job.tempStorageKey === null) {
+    throw new BusinessRuleError(
+      IngestionErrorCode.NoTempStorageForRetry,
+      `Cannot retry ingestion job ${job.id}: temp storage key has been reclaimed`,
+    );
+  }
+  const next: PendingIngestionJob = {
+    ...job,
+    status: "pending",
+    preview: null,
+    errorCode: null,
+    errorReason: null,
+    savedAsNoteId: null,
+    version: Version.next(job.version),
+    updatedAt: now,
+  };
+  return {
+    entity: next,
+    eventDrafts: [IngestionEvents.retryRequested(next.id, now)],
+  };
+}
+
 function discard(
   job: PreviewingIngestionJob | FailedIngestionJob,
   now: Date,
@@ -539,6 +569,29 @@ export const IngestionJob = {
       );
     }
     return discard(job, now);
+  },
+
+  /**
+   * Admin-driven retry of a `failed` job. Resets `preview` / `errorCode` /
+   * `errorReason` and returns the job to `pending` so the queue consumer
+   * can pick it up again. Rejects when the job is not `failed`, or when
+   * its `tempStorageKey` has already been reclaimed (the retry has no
+   * payload to re-process).
+   *
+   * Note: `regenerationCount` is intentionally preserved across retry
+   * (a retry must not bypass the per-job regeneration cap).
+   */
+  retry: (
+    job: IngestionJob,
+    now: Date,
+  ): WithEventDrafts<PendingIngestionJob, IngestionEvent> => {
+    if (job.status !== "failed") {
+      throw new BusinessRuleError(
+        IngestionErrorCode.InvalidStateForRetry,
+        `Cannot retry from state: ${job.status}`,
+      );
+    }
+    return retry(job, now);
   },
 
   // Value objects throw `BusinessRuleError` from fresh-input paths; the

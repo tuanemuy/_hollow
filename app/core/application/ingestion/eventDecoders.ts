@@ -27,6 +27,7 @@ const failedSchema = z
   })
   .strict();
 const discardedSchema = z.object({ jobId: z.string() }).strict();
+const retryRequestedSchema = z.object({ jobId: z.string() }).strict();
 
 export type IngestionEventDecoders = {
   readonly [K in IngestionEvent["type"]]: EventDecoder<
@@ -81,6 +82,11 @@ export const ingestionEventDecoders: IngestionEventDecoders = {
   "ingestion.discarded": buildEventDecoder(
     "ingestion.discarded",
     discardedSchema,
+    (p) => ({ jobId: IngestionJobId.create(p.jobId) }),
+  ),
+  "ingestion.retryRequested": buildEventDecoder(
+    "ingestion.retryRequested",
+    retryRequestedSchema,
     (p) => ({ jobId: IngestionJobId.create(p.jobId) }),
   ),
 };
