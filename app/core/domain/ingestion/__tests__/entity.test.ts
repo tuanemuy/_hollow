@@ -442,6 +442,7 @@ describe("IngestionJob.retry", () => {
     expect(retried.errorReason).toBeNull();
     expect(retried.savedAsNoteId).toBeNull();
     expect(retried.tempStorageKey).toBe(failed.tempStorageKey);
+    expect(retried.regenerationCount).toBe(failed.regenerationCount);
     expect(retried.version as number).toBe((failed.version as number) + 1);
     expect(retried.updatedAt.getTime()).toBe(at(3).getTime());
     expect(eventDrafts).toHaveLength(1);

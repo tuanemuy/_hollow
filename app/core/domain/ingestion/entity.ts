@@ -577,6 +577,9 @@ export const IngestionJob = {
    * can pick it up again. Rejects when the job is not `failed`, or when
    * its `tempStorageKey` has already been reclaimed (the retry has no
    * payload to re-process).
+   *
+   * Note: `regenerationCount` is intentionally preserved across retry
+   * (a retry must not bypass the per-job regeneration cap).
    */
   retry: (
     job: IngestionJob,

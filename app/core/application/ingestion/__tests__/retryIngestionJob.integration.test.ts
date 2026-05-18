@@ -32,16 +32,18 @@ beforeEach(() => {
 async function seedUser(
   container: ReturnType<ReturnType<typeof setupTestContainer>>,
   role: "admin" | "member" = "admin",
+  status: "active" | "deleted" | "suspended" = "active",
 ): Promise<UserId> {
   const id = nextUserId();
   await container.db.insert(schema.users).values({
     id,
     name: `user-${id.slice(-6)}`,
     email: `user-${id.slice(-6)}@example.test`,
-    emailVerified: 1,
+    emailVerified: status === "active" ? 1 : 0,
     username: `user-${id.slice(-6)}`,
     role,
-    banned: 0,
+    banned: status === "suspended" ? 1 : 0,
+    deletedAt: status === "deleted" ? iso(0) : null,
     createdAt: iso(0),
     updatedAt: iso(0),
   });
@@ -146,6 +148,31 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: member,
+          jobId: jobId as unknown as IngestionJobId,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isForbiddenError(error)).toBe(true);
+    }
+  });
+
+  it("deleted admin actor is rejected with ForbiddenError", async () => {
+    const container = getContainer();
+    const deletedAdmin = await seedUser(container, "admin", "deleted");
+    const member = await seedUser(container, "member");
+    const jobId = await seedIngestionJob(container, {
+      ownerId: member,
+      status: "failed",
+      errorCode: "llm_failure",
+      errorReason: "boom",
+    });
+
+    try {
+      await retryIngestionJob({
+        container,
+        input: {
+          actorUserId: deletedAdmin,
           jobId: jobId as unknown as IngestionJobId,
         },
       });

@@ -39,13 +39,12 @@ describe("ingestionEventDecoders", () => {
     expect(decoded.payload.kind).toBe("html");
   });
 
-  it("decodes ingestion.processingStarted / previewAttached / discarded / retryRequested", () => {
+  it("decodes ingestion.processingStarted / previewAttached / discarded", () => {
     const id = jobId(2);
     for (const t of [
       "ingestion.processingStarted",
       "ingestion.previewAttached",
       "ingestion.discarded",
-      "ingestion.retryRequested",
     ] as const) {
       const decoded = ingestionEventDecoders[t](
         { jobId: id },
@@ -54,6 +53,21 @@ describe("ingestionEventDecoders", () => {
       expect(decoded.type).toBe(t);
       expect(decoded.payload.jobId).toBe(id);
     }
+  });
+
+  it("decodes ingestion.retryRequested", () => {
+    const id = jobId(9);
+    const draft = IngestionEvents.retryRequested(id, T0);
+    const decoded = ingestionEventDecoders["ingestion.retryRequested"](
+      draft.payload,
+      {
+        id: eventId(9),
+        occurredAt: draft.occurredAt,
+        aggregateId: id,
+      },
+    );
+    expect(decoded.type).toBe("ingestion.retryRequested");
+    expect(decoded.payload.jobId).toBe(id);
   });
 
   it("decodes ingestion.regenerated and preserves regenerationCount", () => {

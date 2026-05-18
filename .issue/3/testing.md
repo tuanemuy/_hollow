@@ -53,7 +53,7 @@ pnpm db:apply:staging             # ステージング D1 へマイグレーシ�
   - failed 行が先頭に表示される。
 - **確認ポイント:**
   - 行に `jobId` / `ownerId` / `status` / `errorCode` / `updatedAt` が表示される。
-  - 行数が 50 件以内に収まっている（limit 50 のクランプ）。
+  - 行数が 100 件以内に収まっている（`JOB_LIST_LIMIT=100` のクランプ）。
 
 ### 3. エクスポートジョブ一覧の表示
 

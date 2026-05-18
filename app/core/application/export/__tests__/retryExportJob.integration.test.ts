@@ -39,16 +39,18 @@ beforeEach(() => {
 async function seedUser(
   container: ReturnType<ReturnType<typeof setupTestContainer>>,
   role: "admin" | "member" = "admin",
+  status: "active" | "deleted" | "suspended" = "active",
 ): Promise<UserId> {
   const id = nextUserId();
   await container.db.insert(schema.users).values({
     id,
     name: `user-${id.slice(-6)}`,
     email: `user-${id.slice(-6)}@example.test`,
-    emailVerified: 1,
+    emailVerified: status === "active" ? 1 : 0,
     username: `user-${id.slice(-6)}`,
     role,
-    banned: 0,
+    banned: status === "suspended" ? 1 : 0,
+    deletedAt: status === "deleted" ? iso(0) : null,
     createdAt: iso(0),
     updatedAt: iso(0),
   });
@@ -105,6 +107,11 @@ async function seedExportJob(
 
 describe("retryExportJob", () => {
   // spec: P46 G3 — admin can retry failed export jobs.
+  //
+  // Unlike ingestion retry, export retry does not require a
+  // `tempStorageKey`-equivalent precondition (see ADR-001): the export
+  // pipeline re-renders the source notes on every run, so the only
+  // retry precondition is `status === 'failed'`.
   const getContainer = setupTestContainer();
 
   it("admin can retry a failed job: row returns to pending, errors / progress / failedNoteIds reset, version bumped, retryRequested event emitted", async () => {
@@ -165,6 +172,31 @@ describe("retryExportJob", () => {
         container,
         input: {
           actorUserId: member,
+          jobId: jobId as unknown as ExportJobId,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isForbiddenError(error)).toBe(true);
+    }
+  });
+
+  it("deleted admin actor is rejected with ForbiddenError", async () => {
+    const container = getContainer();
+    const deletedAdmin = await seedUser(container, "admin", "deleted");
+    const member = await seedUser(container, "member");
+    const jobId = await seedExportJob(container, {
+      ownerId: member,
+      status: "failed",
+      errorCode: "pdf_render_error",
+      errorReason: "boom",
+    });
+
+    try {
+      await retryExportJob({
+        container,
+        input: {
+          actorUserId: deletedAdmin,
           jobId: jobId as unknown as ExportJobId,
         },
       });

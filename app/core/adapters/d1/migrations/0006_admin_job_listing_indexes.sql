@@ -1,3 +1,6 @@
+-- Manual migration (not drizzle-kit generated). Uses `IF NOT EXISTS`
+-- to be idempotent for repeated `db:apply:local` runs.
+--
 -- Add admin-wide listing indexes for `/admin/jobs` (P46).
 --
 -- The existing composite indexes lead with `owner_id` / `status`, so

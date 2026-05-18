@@ -15,6 +15,7 @@ import { retryExportJobFn, retryIngestionJobFn } from "./action";
 type IngestionStatus = IngestionJobDTO["status"];
 type ExportStatus = ExportJobDTO["status"];
 
+// Stable sort (ES2019+) preserves the loader-side ORDER BY updated_at DESC for rows within the same bucket.
 const STATUS_ORDER: Record<IngestionStatus | ExportStatus, number> = {
   failed: 0,
   pending: 1,
@@ -35,7 +36,9 @@ function sortFailedFirst<T extends { status: IngestionStatus | ExportStatus }>(
   );
 }
 
-function ingestionStatusTag(status: IngestionStatus): string {
+type StatusTag = "info" | "success" | "warning" | "error";
+
+function ingestionStatusTag(status: IngestionStatus): StatusTag {
   switch (status) {
     case "failed":
       return "error";
@@ -67,7 +70,7 @@ function ingestionStatusLabel(status: IngestionStatus): string {
   }
 }
 
-function exportStatusTag(status: ExportStatus): string {
+function exportStatusTag(status: ExportStatus): StatusTag {
   switch (status) {
     case "failed":
       return "error";

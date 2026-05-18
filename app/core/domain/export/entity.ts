@@ -682,6 +682,11 @@ export const ExportJob = {
    * completedAt, errorCode / errorReason, and the failed-note list so
    * the queue consumer can re-run from scratch. Rejects with
    * `EXPORT_INVALID_STATE_FOR_RETRY` for any non-failed state.
+   *
+   * Note: other transitions in this module accept narrowed types
+   * (e.g. `PendingExportJob`), but `retry` is intentionally exposed as
+   * a full-union + runtime guard form for the spec G3 admin operation,
+   * where the caller has only the unioned `ExportJob` in hand.
    */
   retry: (
     job: ExportJob,

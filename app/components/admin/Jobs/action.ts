@@ -2,11 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
 import {
   type ExportJobDTO,
+  type ExportJobId as ExportJobIdDTO,
   toExportJobDTO,
 } from "@/core/application/dto/export";
 import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
 import {
   type IngestionJobDTO,
+  type IngestionJobId as IngestionJobIdDTO,
   toIngestionJobDTO,
 } from "@/core/application/dto/ingestion";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -60,6 +62,14 @@ function toUserIdDTO(value: string): UserIdDTO {
   return value as UserIdDTO;
 }
 
+function toIngestionJobIdDTO(value: string): IngestionJobIdDTO {
+  return value as IngestionJobIdDTO;
+}
+
+function toExportJobIdDTO(value: string): ExportJobIdDTO {
+  return value as ExportJobIdDTO;
+}
+
 export const retryIngestionJobFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(targetIngestionJobSchema))
@@ -73,9 +83,7 @@ export const retryIngestionJobFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: toUserIdDTO(actor.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.retryIngestionJob
-        >[0]["input"]["jobId"],
+        jobId: toIngestionJobIdDTO(data.jobId),
       },
     });
     return {};
@@ -94,9 +102,7 @@ export const retryExportJobFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: toUserIdDTO(actor.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.retryExportJob
-        >[0]["input"]["jobId"],
+        jobId: toExportJobIdDTO(data.jobId),
       },
     });
     return {};
