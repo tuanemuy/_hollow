@@ -10,6 +10,7 @@ import {
   SearchScore,
   SearchSnippet,
   SearchTitle,
+  Visibility,
 } from "../valueObject";
 
 const T0 = new Date(0);
@@ -105,6 +106,7 @@ describe("SearchService.runQuery", () => {
           snippet: SearchSnippet.create("snip"),
           tagNames: [],
           score: SearchScore.create(1.0),
+          visibility: Visibility.create("public"),
         },
       ],
       nextCursor: null,

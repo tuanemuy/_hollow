@@ -359,4 +359,5 @@ export type SearchHit = Readonly<{
   snippet: SearchSnippet;
   tagNames: readonly string[];
   score: SearchScore;
+  visibility: Visibility;
 }>;

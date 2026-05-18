@@ -1,6 +1,7 @@
 import { DirectoryService } from "@/core/domain/directory/service";
 import { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import { SearchService } from "@/core/domain/search/service";
 import { SearchQuery } from "@/core/domain/search/valueObject";
 import type { RequestContainer } from "../di/types";
@@ -14,6 +15,7 @@ export type SearchOwnNotesInput = Readonly<{
   tagNames?: readonly string[];
   directoryId?: string | null;
   dateRange?: { from: Date; to: Date } | null;
+  visibility?: readonly PublicationVisibility[];
   cursor?: string | null;
   limit: number;
 }>;
@@ -43,7 +45,7 @@ export async function searchOwnNotes({
   const query = SearchQuery.create({
     keyword: input.keyword,
     ownerIdFilter: input.actorUserId,
-    visibilityFilter: ["private", "unlisted", "public"],
+    visibilityFilter: input.visibility ?? ["private", "unlisted", "public"],
     tagNames: input.tagNames ?? [],
     directoryPathPrefix,
     dateRange: input.dateRange ?? null,

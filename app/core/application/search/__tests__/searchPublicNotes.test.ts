@@ -20,6 +20,7 @@ import {
   SearchScore,
   SearchSnippet,
   SearchTitle,
+  Visibility,
 } from "@/core/domain/search/valueObject";
 import { isNotFoundError } from "../../errors";
 import { searchPublicNotes } from "../searchPublicNotes";
@@ -77,7 +78,7 @@ function makeContainer(parts: {
   } as unknown as RequestContainer;
 }
 
-function makeHit(): SearchHit {
+function makeHit(over: Partial<SearchHit> = {}): SearchHit {
   return {
     noteId: noteId(1),
     ownerId: userId(1),
@@ -86,6 +87,8 @@ function makeHit(): SearchHit {
     snippet: SearchSnippet.create("..."),
     tagNames: [],
     score: SearchScore.create(1),
+    visibility: Visibility.create("public"),
+    ...over,
   };
 }
 
@@ -128,6 +131,21 @@ describe("searchPublicNotes", () => {
     expect(result.hits).toHaveLength(1);
     expect(observed?.visibilityFilter).toEqual(["public"]);
     expect(observed?.ownerIdFilter).toBeNull();
+  });
+
+  it("projects each hit's visibility ('public') into the returned DTO", async () => {
+    const searchIndex = makeIndex(async () => ({
+      hits: [makeHit({ visibility: Visibility.create("public") })],
+      nextCursor: null,
+    }));
+    const container = makeContainer({ searchIndex });
+
+    const result = await searchPublicNotes({
+      container,
+      input: { viewerUserId: null, keyword: "anything", limit: 5 },
+    });
+
+    expect(result.hits.map((h) => h.visibility)).toEqual(["public"]);
   });
 
   it("resolves the username to a UserId and filters by ownerId when set", async () => {

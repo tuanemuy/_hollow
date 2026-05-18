@@ -72,6 +72,19 @@ function normalizeSearchDateRange(
   };
 }
 
+/**
+ * URL exposes visibility as a single enum; both the list and search
+ * usecase ports accept an array to leave room for a future multi-select
+ * without breaking the application boundary. Build the array exactly
+ * once so the two paths cannot drift.
+ */
+function toVisibilityArr(
+  v: OwnedNotesQuery["visibility"],
+): readonly PublicationVisibility[] | undefined {
+  if (v === undefined || v === null) return undefined;
+  return [v];
+}
+
 function normalizeListDateRange(
   raw: OwnedNotesQuery["dateRange"],
 ): { from: Date | null; to: Date | null } | undefined {
@@ -100,6 +113,7 @@ export const loadOwnedNotes = cache(
       const keyword = input.q?.trim() ?? "";
 
       if (keyword.length > 0) {
+        const visibilityArr = toVisibilityArr(input.visibility);
         const result = await searchMod.searchOwnNotes({
           container,
           input: {
@@ -110,6 +124,9 @@ export const loadOwnedNotes = cache(
               : {}),
             directoryId: input.directoryId ?? null,
             dateRange: normalizeSearchDateRange(input.dateRange),
+            ...(visibilityArr !== undefined
+              ? { visibility: visibilityArr }
+              : {}),
             limit: input.limit,
             cursor: null,
           },
@@ -125,7 +142,7 @@ export const loadOwnedNotes = cache(
             thumbnailUrl: null,
             tagNames: hit.tagNames,
             updatedAt: new Date(0).toISOString(),
-            visibility: "private" as const,
+            visibility: hit.visibility,
           })),
           count: result.hits.length,
           nextCursor: result.nextCursor,
@@ -145,13 +162,7 @@ export const loadOwnedNotes = cache(
 
       const dateRange = normalizeListDateRange(input.dateRange);
 
-      // URL exposes visibility as a single enum; the port accepts an
-      // array to leave room for a future multi-select without breaking
-      // the application boundary. Build the array exactly here.
-      const visibilityArr: readonly PublicationVisibility[] | undefined =
-        input.visibility !== undefined && input.visibility !== null
-          ? [input.visibility]
-          : undefined;
+      const visibilityArr = toVisibilityArr(input.visibility);
 
       // Transport boundary: a malformed `?referencingNoteId=...` (rare —
       // the schema already rejects empty strings) is silently dropped
