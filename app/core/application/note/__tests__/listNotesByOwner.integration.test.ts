@@ -372,6 +372,156 @@ describe("listNotesByOwner — spec table cases (integration)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Issue #30 — `count` must reflect the same filter set as `notes` so the
+// UI's "N notes" total cannot disagree with the visible slice.
+// ---------------------------------------------------------------------------
+
+describe("listNotesByOwner — count reflects filters", () => {
+  it("counts only notes matching the visibility filter", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const pub = await seedNote(container, owner, dir, "pub");
+    const unl = await seedNote(container, owner, dir, "unl");
+    await seedNote(container, owner, dir, "implicit-priv");
+    await seedPublicationState(container, pub, owner, "public");
+    await seedPublicationState(container, unl, owner, "unlisted");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        visibility: ["public"],
+      },
+    });
+    expect(notes).toHaveLength(1);
+    expect(count).toBe(1);
+  });
+
+  it("counts only notes matching every tag (AND semantics)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const a = await seedTag(container, owner, "a");
+    const b = await seedTag(container, owner, "b");
+    const both = await seedNote(container, owner, dir, "both");
+    const onlyA = await seedNote(container, owner, dir, "only-a");
+    await seedNote(container, owner, dir, "neither");
+    await linkTag(container, both, a);
+    await linkTag(container, both, b);
+    await linkTag(container, onlyA, a);
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        tagIds: [a, b],
+      },
+    });
+    expect(notes).toHaveLength(1);
+    expect(count).toBe(1);
+  });
+
+  it("counts only active notes when status='active' is supplied", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, "alive");
+    await seedTrashedNote(container, owner, dir, "trash-1");
+    await seedTrashedNote(container, owner, dir, "trash-2");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        status: "active",
+      },
+    });
+    expect(notes).toHaveLength(1);
+    expect(count).toBe(1);
+  });
+
+  it("counts only notes that reference the target when `referencingNoteId` is supplied", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, "target");
+    const referrer = await seedNote(container, owner, dir, "referrer");
+    await seedNote(container, owner, dir, "unrelated-1");
+    await seedNote(container, owner, dir, "unrelated-2");
+    await seedInternalLink(container, referrer, target);
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        referencingNoteId: target,
+      },
+    });
+    expect(notes).toHaveLength(1);
+    expect(count).toBe(1);
+  });
+
+  // Issue #30 — guards the canonical pagination case where the visible
+  // slice is smaller than the filter-aware total. Prior to the fix
+  // `count` reported every note owned by the user, so this test would
+  // have read `count === 5` against a visible slice of 2.
+  it("returns count > limit when the filtered total exceeds the page limit", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const publicIds: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const id = await seedNote(container, owner, dir, `pub-${i}`);
+      await seedPublicationState(container, id, owner, "public");
+      publicIds.push(id);
+    }
+    for (let i = 0; i < 2; i += 1) {
+      await seedNote(container, owner, dir, `priv-${i}`);
+    }
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 2,
+        visibility: ["public"],
+      },
+    });
+    expect(notes).toHaveLength(2);
+    expect(count).toBe(3);
+  });
+
+  it("returns count = 0 when an empty visibility array is supplied", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, "n");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        visibility: [],
+      },
+    });
+    expect(notes).toHaveLength(0);
+    expect(count).toBe(0);
+  });
+});
+
 describe("listNotesInDirectory (integration)", () => {
   // spec: spec/testcases/note/index.md#ListNotesByOwner / ListNotesInDirectory
   it("returns only the notes that live directly under the directory", async () => {

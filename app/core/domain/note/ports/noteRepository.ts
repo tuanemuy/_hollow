@@ -47,6 +47,20 @@ export type NoteOwnerListOpts = NoteListOpts &
   }>;
 
 /**
+ * Owner-scope count options. Filter semantics mirror
+ * `NoteOwnerListOpts`; pagination and sort fields are intentionally
+ * omitted since they have no meaning for a count.
+ *
+ * Derived via `Pick` from `NoteOwnerListOpts` so the two cannot drift —
+ * any new filter on the list side is automatically reflected on the
+ * count side via the picked key set.
+ */
+export type NoteOwnerCountOpts = Pick<
+  NoteOwnerListOpts,
+  "status" | "tagIds" | "dateRange" | "visibility" | "referencingNoteId"
+>;
+
+/**
  * `NoteRepository` inherits the OCC-enforced contract
  * (`insert` / `findById` / `save` / `delete`) from
  * `TransactionalRepository<Note>` and adds the read-only queries that
@@ -105,6 +119,16 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    */
   purge(id: NoteId): Promise<void>;
 
-  /** Total notes for `ownerId` (active + trashed). */
-  countByOwner(ownerId: UserId): Promise<number>;
+  /**
+   * Total notes for `ownerId` matching the supplied filters. Filter
+   * semantics mirror {@link NoteRepository.findByOwner}. When `opts` is
+   * `undefined` every note belonging to the owner is counted (active +
+   * trashed); when `opts` is supplied, only notes that would be returned
+   * by `findByOwner` with the same filters are counted.
+   *
+   * Used by `listNotesByOwner` to keep the rendered "total count" in
+   * sync with the filtered slice so the UI does not display a total
+   * that disagrees with the visible page.
+   */
+  countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number>;
 }

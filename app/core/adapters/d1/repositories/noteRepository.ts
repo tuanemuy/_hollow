@@ -26,6 +26,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import type {
   NoteListOpts,
+  NoteOwnerCountOpts,
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
@@ -344,65 +345,13 @@ export class D1NoteRepository implements NoteRepository {
       const sortCol = pickSortColumn(opts.sort);
       const order = opts.order ?? "desc";
 
-      const conditions = [eq(notes.ownerId, ownerId)];
-      if (opts.status) {
-        conditions.push(eq(notes.status, opts.status));
-      }
-      if (opts.dateRange?.from) {
-        conditions.push(
-          gte(notes.updatedAt, opts.dateRange.from.toISOString()),
-        );
-      }
-      if (opts.dateRange?.to) {
-        conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
-      }
-
-      // Each filter that needs a multi-row lookup contributes a candidate
-      // note-id set; the intersection feeds a single `IN` predicate on
-      // the main query. Keeping these as JS-side set ops (instead of
-      // nested subqueries) preserves Drizzle's type inference and matches
-      // the existing tagIds pattern.
-      const candidateSets: Array<ReadonlySet<string>> = [];
-
-      if (opts.visibility !== undefined) {
-        if (opts.visibility.length === 0) return [];
-        const wantsPrivate = opts.visibility.includes("private");
-        if (wantsPrivate) {
-          // `notExists` keeps the bind count at `notWanted.length`
-          // (≤ 2) + ownerId regardless of owner note count, so the
-          // main `notes` query no longer hits the D1 host-var cap.
-          const pred = this.buildVisibilityNotExistsPredicate(
-            ownerId,
-            opts.visibility,
-          );
-          if (pred !== null) conditions.push(pred);
-        } else {
-          candidateSets.push(
-            await this.resolveVisibilityCandidateIds(ownerId, opts.visibility),
-          );
-        }
-      }
-
-      if (opts.tagIds !== undefined && opts.tagIds.length > 0) {
-        candidateSets.push(await this.resolveTagAndCandidates(opts.tagIds));
-      }
-
-      if (opts.referencingNoteId !== undefined) {
-        candidateSets.push(
-          await this.resolveReferrerCandidates(opts.referencingNoteId),
-        );
-      }
-
-      if (candidateSets.length > 0) {
-        const intersected = intersectIdSets(candidateSets);
-        if (intersected.size === 0) return [];
-        conditions.push(inArray(notes.id, [...intersected]));
-      }
+      const where = await this.buildOwnerListWhere(ownerId, opts);
+      if (where === null) return [];
 
       const rows = await this.db
         .select()
         .from(notes)
-        .where(and(...conditions))
+        .where(where)
         .orderBy(
           order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
           desc(notes.id),
@@ -411,6 +360,72 @@ export class D1NoteRepository implements NoteRepository {
         .offset(opts.offset);
       return this.hydrateMany(rows);
     });
+  }
+
+  // Filter-only where-builder shared by `findByOwner` and `countByOwner`
+  // so the two cannot drift in filter semantics. Returns `null` when the
+  // filter mix is structurally guaranteed to match zero rows (empty
+  // `visibility` array, or any candidate-set intersection that is
+  // empty); callers short-circuit to `[]` / `0` in that case without
+  // hitting the database again.
+  private async buildOwnerListWhere(
+    ownerId: UserId,
+    opts: NoteOwnerCountOpts,
+  ): Promise<SQL | null> {
+    const conditions = [eq(notes.ownerId, ownerId)];
+    if (opts.status) {
+      conditions.push(eq(notes.status, opts.status));
+    }
+    if (opts.dateRange?.from) {
+      conditions.push(gte(notes.updatedAt, opts.dateRange.from.toISOString()));
+    }
+    if (opts.dateRange?.to) {
+      conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
+    }
+
+    // Each filter that needs a multi-row lookup contributes a candidate
+    // note-id set; the intersection feeds a single `IN` predicate on
+    // the main query. Keeping these as JS-side set ops (instead of
+    // nested subqueries) preserves Drizzle's type inference and matches
+    // the existing tagIds pattern.
+    const candidateSets: Array<ReadonlySet<string>> = [];
+
+    if (opts.visibility !== undefined) {
+      if (opts.visibility.length === 0) return null;
+      const wantsPrivate = opts.visibility.includes("private");
+      if (wantsPrivate) {
+        // `notExists` keeps the bind count at `notWanted.length`
+        // (≤ 2) + ownerId regardless of owner note count, so the
+        // main `notes` query no longer hits the D1 host-var cap.
+        const pred = this.buildVisibilityNotExistsPredicate(
+          ownerId,
+          opts.visibility,
+        );
+        if (pred !== null) conditions.push(pred);
+      } else {
+        candidateSets.push(
+          await this.resolveVisibilityCandidateIds(ownerId, opts.visibility),
+        );
+      }
+    }
+
+    if (opts.tagIds !== undefined && opts.tagIds.length > 0) {
+      candidateSets.push(await this.resolveTagAndCandidates(opts.tagIds));
+    }
+
+    if (opts.referencingNoteId !== undefined) {
+      candidateSets.push(
+        await this.resolveReferrerCandidates(opts.referencingNoteId),
+      );
+    }
+
+    if (candidateSets.length > 0) {
+      const intersected = intersectIdSets(candidateSets);
+      if (intersected.size === 0) return null;
+      conditions.push(inArray(notes.id, [...intersected]));
+    }
+
+    return and(...conditions) ?? null;
   }
 
   // Tag AND-filter: a note matches when it carries *every* supplied tag.
@@ -562,15 +577,17 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
-  countByOwner(ownerId: UserId): Promise<number> {
+  countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number> {
     return mapDbError("Failed to count notes", async () => {
+      const where = await this.buildOwnerListWhere(ownerId, opts ?? {});
+      if (where === null) return 0;
       // `count(*)` would be faster but Drizzle's typed builder needs
       // the projection to spell out a column; pulling the id only is
       // cheap in SQLite (no row body materialisation).
       const rows = await this.db
         .select({ id: notes.id })
         .from(notes)
-        .where(eq(notes.ownerId, ownerId));
+        .where(where);
       return rows.length;
     });
   }

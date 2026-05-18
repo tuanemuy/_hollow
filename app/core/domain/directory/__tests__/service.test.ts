@@ -176,7 +176,7 @@ class StubNoteRepository implements NoteRepository {
   purge(_id: NoteId): Promise<void> {
     throw new Error("not implemented");
   }
-  countByOwner(_o: UserId): Promise<number> {
+  countByOwner(): Promise<number> {
     throw new Error("not implemented");
   }
 
