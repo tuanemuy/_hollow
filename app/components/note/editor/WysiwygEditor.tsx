@@ -102,11 +102,15 @@ export function WysiwygEditor({
   // here so the rest of the editor stays untouched:
   //
   // 1. The `searchSuggestions` server-fn reference must be re-read on
-  //    every invocation but must NOT make `extensions` reference-unstable
-  //    — otherwise `useEditor` would tear down and re-create the editor
-  //    on each render, dropping cursor / selection / autosave state
-  //    (Issue #36 P-004). We pin the latest fn in a ref and read it
-  //    inside the items callback.
+  //    every invocation. `useEditor` with no `deps` argument does not
+  //    re-create the editor on `extensions` identity change, but it does
+  //    call `setOptions` on every render — that path re-evaluates each
+  //    extension's `configure()` and re-instantiates ProseMirror plugins.
+  //    More importantly, the closure inside the `useMemo([])` block
+  //    below would freeze on the first `searchSuggestions` reference and
+  //    silently miss future server-fn refreshes. We pin the latest fn in
+  //    a ref and read it from the items callback so the memoised glue
+  //    keeps working with a stable identity (Issue #36 P-004).
   // 2. The popup is rendered through `ReactRenderer` + a manual
   //    `document.body.appendChild` (ADR-003) so we avoid pulling in
   //    `tippy.js` as an extra dependency.

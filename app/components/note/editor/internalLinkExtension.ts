@@ -1,3 +1,5 @@
+"use client";
+
 import Mention from "@tiptap/extension-mention";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";

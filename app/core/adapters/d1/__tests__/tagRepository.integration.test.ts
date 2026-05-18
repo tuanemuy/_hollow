@@ -88,6 +88,7 @@ describe("D1TagRepository.searchByNamePrefix (integration)", () => {
     );
     expect(rows.length).toBe(1);
     expect(rows[0].name).toBe("alpha-mine");
+    expect(rows[0].ownerId).toBe(owner);
   });
 
   it("escapes LIKE wildcards `%` and `_` so they match literally", async () => {

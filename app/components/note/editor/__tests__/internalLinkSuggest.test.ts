@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { NoteId } from "@/core/application/dto/note";
+import type { TagId } from "@/core/application/dto/tag";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import {
   formatInternalLinkInsertion,
@@ -6,6 +8,9 @@ import {
   nextSuggestionIndex,
   suggestionKey,
 } from "../internalLinkSuggest";
+
+const asNoteId = (raw: string): NoteId => raw as unknown as NoteId;
+const asTagId = (raw: string): TagId => raw as unknown as TagId;
 
 // These patterns mirror the canonical definitions in the domain
 // services. We re-declare them locally rather than re-exporting from
@@ -18,7 +23,7 @@ const noteSuggestion = (
   overrides: Partial<Extract<InternalLinkSuggestion, { kind: "note" }>> = {},
 ): InternalLinkSuggestion => ({
   kind: "note",
-  noteId: "note-1",
+  noteId: asNoteId("note-1"),
   title: "My Note",
   slug: "my-note",
   ...overrides,
@@ -28,7 +33,7 @@ const tagSuggestion = (
   overrides: Partial<Extract<InternalLinkSuggestion, { kind: "tag" }>> = {},
 ): InternalLinkSuggestion => ({
   kind: "tag",
-  tagId: "tag-1",
+  tagId: asTagId("tag-1"),
   name: "draft",
   ...overrides,
 });
@@ -99,19 +104,23 @@ describe("nextSuggestionIndex", () => {
 
 describe("suggestionKey", () => {
   it("prefixes note keys with `note:`", () => {
-    expect(suggestionKey(noteSuggestion({ noteId: "abc" }))).toBe("note:abc");
+    expect(suggestionKey(noteSuggestion({ noteId: asNoteId("abc") }))).toBe(
+      "note:abc",
+    );
   });
 
   it("prefixes tag keys with `tag:`", () => {
-    expect(suggestionKey(tagSuggestion({ tagId: "xyz" }))).toBe("tag:xyz");
+    expect(suggestionKey(tagSuggestion({ tagId: asTagId("xyz") }))).toBe(
+      "tag:xyz",
+    );
   });
 
   it("produces different keys for a note and tag with the same label", () => {
     const noteK = suggestionKey(
-      noteSuggestion({ noteId: "shared", title: "shared" }),
+      noteSuggestion({ noteId: asNoteId("shared"), title: "shared" }),
     );
     const tagK = suggestionKey(
-      tagSuggestion({ tagId: "shared", name: "shared" }),
+      tagSuggestion({ tagId: asTagId("shared"), name: "shared" }),
     );
     expect(noteK).not.toBe(tagK);
   });

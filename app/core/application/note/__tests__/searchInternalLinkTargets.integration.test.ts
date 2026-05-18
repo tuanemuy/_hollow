@@ -239,6 +239,7 @@ describe("searchInternalLinkTargets (integration)", () => {
     await seedNote(container, owner, dir, { title: "foo plain" });
     await seedNote(container, owner, dir, { title: "foo|bar" });
     await seedNote(container, owner, dir, { title: "foo [draft]" });
+    await seedNote(container, owner, dir, { title: "foo]bar" });
 
     const { suggestions } = await searchInternalLinkTargets({
       container,
@@ -248,5 +249,53 @@ describe("searchInternalLinkTargets (integration)", () => {
       .filter((s) => s.kind === "note")
       .map((s) => (s.kind === "note" ? s.title : ""));
     expect(titles).toEqual(["foo plain"]);
+  });
+
+  it("does not let tags backfill the cap when notes already fill it", async () => {
+    // ADR-005 pins the merge as "all matching notes first, then tags
+    // until the cap is hit". When five notes hit the prefix and the
+    // cap is four, every slot is consumed by notes and the two tags
+    // get dropped — verified here so future ranking experiments don't
+    // silently violate the contract.
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "ya" });
+    await seedNote(container, owner, dir, { title: "yb" });
+    await seedNote(container, owner, dir, { title: "yc" });
+    await seedNote(container, owner, dir, { title: "yd" });
+    await seedNote(container, owner, dir, { title: "ye" });
+    await seedTag(container, owner, "ytag1");
+    await seedTag(container, owner, "ytag2");
+
+    const { suggestions } = await searchInternalLinkTargets({
+      container,
+      input: { actorUserId: owner, query: "y", limit: 4 },
+    });
+    expect(suggestions.length).toBe(4);
+    expect(suggestions.every((s) => s.kind === "note")).toBe(true);
+  });
+
+  it("does not backfill ADR-008-excluded note slots from the tag pool", async () => {
+    // When every note matching the prefix is filtered out by ADR-008
+    // (boundary chars in the title), the cap is not topped up from
+    // the tag pool — the result is intentionally shorter than `limit`.
+    // Pin the observable behaviour so a future "let tags fill the
+    // gap" change is a deliberate decision.
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "z|a" });
+    await seedNote(container, owner, dir, { title: "z|b" });
+    await seedTag(container, owner, "ztag1");
+    await seedTag(container, owner, "ztag2");
+    await seedTag(container, owner, "ztag3");
+
+    const { suggestions } = await searchInternalLinkTargets({
+      container,
+      input: { actorUserId: owner, query: "z", limit: 5 },
+    });
+    expect(suggestions.length).toBe(3);
+    expect(suggestions.every((s) => s.kind === "tag")).toBe(true);
   });
 });

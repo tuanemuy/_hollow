@@ -1,3 +1,5 @@
+import type { NoteId } from "@/core/application/dto/note";
+import type { TagId } from "@/core/application/dto/tag";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { ServiceArgs } from "../types";
 
@@ -5,17 +7,22 @@ import type { ServiceArgs } from "../types";
  * Discriminated-union read model for the WYSIWYG internal-link suggest
  * popup. Notes and tags are unioned and capped server-side so the UI
  * can render the list without further filtering.
+ *
+ * `noteId` / `tagId` carry the wire-side branded types so downstream
+ * consumers (server fn boundary, popup component) preserve identity
+ * provenance instead of round-tripping bare `string`. `slug` mirrors the
+ * existing `NoteListItemDTO.slug` shape (plain `string`).
  */
 export type InternalLinkSuggestion =
   | Readonly<{
       kind: "note";
-      noteId: string;
+      noteId: NoteId;
       title: string;
       slug: string;
     }>
   | Readonly<{
       kind: "tag";
-      tagId: string;
+      tagId: TagId;
       name: string;
     }>;
 
@@ -87,7 +94,7 @@ export async function searchInternalLinkTargets({
     if (/[[\]|]/.test(note.title)) continue;
     suggestions.push({
       kind: "note",
-      noteId: note.id,
+      noteId: note.id as unknown as NoteId,
       title: note.title,
       slug: note.slug,
     });
@@ -96,7 +103,7 @@ export async function searchInternalLinkTargets({
     if (suggestions.length >= limit) break;
     suggestions.push({
       kind: "tag",
-      tagId: tag.id,
+      tagId: tag.id as unknown as TagId,
       name: tag.name,
     });
   }

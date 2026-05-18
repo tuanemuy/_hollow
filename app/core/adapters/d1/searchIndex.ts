@@ -19,7 +19,7 @@ import {
   Visibility,
 } from "@/core/domain/search/valueObject";
 import type { Database } from "./client";
-import { mapDbError } from "./repositories/helpers";
+import { escapeLikePattern, mapDbError } from "./repositories/helpers";
 import { searchDocuments } from "./schema";
 
 const BULK_REBUILD_CHUNK_SIZE = 100;
@@ -319,10 +319,6 @@ function buildMatchExpression(keyword: string): string {
     return '""';
   }
   return tokens.map((tok) => `"${tok}"`).join(" ");
-}
-
-function escapeLikePattern(raw: string): string {
-  return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 function encodeCursor(offset: number): SearchCursor {

@@ -102,6 +102,13 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * `limit` to a small constant; the adapter LIKE-escapes wildcards in
    * the user input. Ordered by title asc, id asc for stable ranking
    * across identical titles. Trashed notes are excluded.
+   *
+   * The adapter returns up to `limit` matches **without** semantic
+   * post-filtering (e.g. excluding titles containing
+   * `INTERNAL_LINK_PATTERN` boundary characters `[` / `]` / `|` for
+   * round-trippable insertion — see ADR-008). Any such filtering is the
+   * usecase's responsibility; the port intentionally stays neutral so
+   * other callers with different filter rules can reuse the method.
    */
   searchByTitlePrefix(
     ownerId: UserId,
