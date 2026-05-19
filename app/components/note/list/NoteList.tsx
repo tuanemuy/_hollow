@@ -4,6 +4,7 @@ import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { FlatDirectory, OwnedNotesResult } from "../loaders";
 import type { NoteListSearch } from "../schema";
+import { pillBtn, pillBtnPrimary } from "../styles";
 import { BulkActionBar } from "./BulkActionBar";
 import { CalendarView } from "./CalendarView";
 import { FilterBar } from "./FilterBar";
@@ -66,8 +67,10 @@ export function NoteList({
 
   return (
     <SelectionProvider>
-      <h1 className="page-title">{headingText}</h1>
-      <p className="page-subtitle">{count} 件のノート</p>
+      <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">
+        {headingText}
+      </h1>
+      <p className="text-md text-ink-secondary mb-7">{count} 件のノート</p>
 
       <NoteListToolbar
         display={display}
@@ -92,10 +95,18 @@ export function NoteList({
       <BulkActionBar tree={tree} />
 
       {notes.length === 0 ? (
-        <div className="empty-state">
-          <h2>該当するノートがありません</h2>
-          <p>条件を変更するか、新しいノートを作成してください。</p>
-          <Link to="/notes/new" className="pill-btn primary">
+        <div className="mt-6 rounded-lg border border-dashed border-hairline-strong px-6 py-12 text-center text-ink-secondary">
+          <h2 className="mb-2 text-xl font-medium text-ink">
+            該当するノートがありません
+          </h2>
+          <p className="mb-4 text-sm">
+            条件を変更するか、新しいノートを作成してください。
+          </p>
+          <Link
+            to="/notes/new"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
+          >
             最初のノートを作成
           </Link>
         </div>

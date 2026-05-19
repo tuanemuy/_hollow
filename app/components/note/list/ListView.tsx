@@ -21,10 +21,13 @@ function formatDate(iso: string): string {
   });
 }
 
+const CHIP_BASE =
+  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill text-xs";
+
 function visibilityChipClass(v: Note["visibility"]): string {
-  if (v === "public") return "chip public";
-  if (v === "unlisted") return "chip unlisted";
-  return "chip private";
+  if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;
+  if (v === "unlisted") return `${CHIP_BASE} bg-warning-surface text-warning`;
+  return `${CHIP_BASE} bg-surface text-ink-tertiary`;
 }
 
 function visibilityLabel(v: Note["visibility"]): string {
@@ -36,38 +39,46 @@ function visibilityLabel(v: Note["visibility"]): string {
 export function ListView({ notes, showVisibilityBadge }: Props) {
   const { state, dispatch } = useSelection();
   return (
-    <ul className="note-list">
+    <ul className="mt-2 list-none p-0 m-0">
       {notes.map((note) => {
         const checked = state.ids.has(note.id);
         return (
           <li
             key={note.id}
-            className={`note-row${checked ? " is-selected" : ""}`}
+            data-selected={checked || undefined}
+            className="grid grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors hover:bg-surface data-[selected]:bg-accent-surface"
           >
-            <div className="note-select">
+            <div className="self-start pt-1">
               <input
                 type="checkbox"
                 aria-label={`${note.title} を選択`}
                 checked={checked}
                 onChange={() => dispatch({ type: "toggle", id: note.id })}
+                className="w-4 h-4 accent-accent"
               />
             </div>
-            <div className="note-main">
-              <div className="note-title">
-                <Link to="/notes/$noteId" params={{ noteId: note.id }}>
+            <div className="min-w-0">
+              <div className="mb-1 text-base font-medium text-ink tracking-tight overflow-hidden text-ellipsis whitespace-nowrap">
+                <Link
+                  to="/notes/$noteId"
+                  params={{ noteId: note.id }}
+                  className="text-inherit hover:text-accent"
+                >
                   {note.title}
                 </Link>
               </div>
               {note.excerpt.length > 0 ? (
-                <div className="note-snippet">{note.excerpt}</div>
+                <div className="mb-[6px] text-sm text-ink-secondary leading-[1.45] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
+                  {note.excerpt}
+                </div>
               ) : null}
-              <div className="note-meta">
+              <div className="flex items-center gap-[10px] flex-wrap text-[13px] text-ink-tertiary">
                 {note.tagNames.length > 0 ? (
                   <>
-                    <span className="note-tags">
+                    <span className="text-accent text-[13px]">
                       {note.tagNames.map((name) => `#${name}`).join(" ")}
                     </span>
-                    <span className="dot">·</span>
+                    <span className="text-hairline-strong">·</span>
                   </>
                 ) : null}
                 {showVisibilityBadge ? (
@@ -75,13 +86,15 @@ export function ListView({ notes, showVisibilityBadge }: Props) {
                     <span className={visibilityChipClass(note.visibility)}>
                       {visibilityLabel(note.visibility)}
                     </span>
-                    <span className="dot">·</span>
+                    <span className="text-hairline-strong">·</span>
                   </>
                 ) : null}
                 <span>{formatDate(note.updatedAt)}</span>
               </div>
             </div>
-            <div className="note-date">{formatDate(note.updatedAt)}</div>
+            <div className="text-[13px] text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
+              {formatDate(note.updatedAt)}
+            </div>
           </li>
         );
       })}

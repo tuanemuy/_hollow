@@ -27,7 +27,7 @@ export function InternalLinkSuggestPopup({
 }: InternalLinkSuggestPopupProps) {
   return (
     <div
-      className="internal-link-suggest-popup"
+      className="z-[200] min-w-[240px] max-w-[320px] rounded-md border border-hairline bg-bg shadow-md py-1"
       role="listbox"
       aria-label="内部リンク候補"
       style={{
@@ -37,34 +37,42 @@ export function InternalLinkSuggestPopup({
       }}
     >
       {items.length === 0 ? (
-        <div className="suggest-empty">候補なし</div>
+        <div className="px-3 py-2 text-sm text-ink-tertiary">候補なし</div>
       ) : (
-        items.map((item, idx) => (
-          <button
-            key={suggestionKey(item)}
-            type="button"
-            role="option"
-            aria-selected={idx === selectedIndex}
-            className={`suggest-row${idx === selectedIndex ? " active" : ""}`}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onSelect(item);
-            }}
-            onMouseEnter={() => onHover(idx)}
-          >
-            {item.kind === "note" ? (
-              <>
-                <span className="suggest-icon">N</span>
-                <span className="suggest-title">{item.title}</span>
-              </>
-            ) : (
-              <>
-                <span className="suggest-icon">#</span>
-                <span className="suggest-title">{item.name}</span>
-              </>
-            )}
-          </button>
-        ))
+        items.map((item, idx) => {
+          const isActive = idx === selectedIndex;
+          return (
+            <button
+              key={suggestionKey(item)}
+              type="button"
+              role="option"
+              aria-selected={isActive}
+              data-active={isActive || undefined}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-surface data-[active]:bg-surface"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelect(item);
+              }}
+              onMouseEnter={() => onHover(idx)}
+            >
+              {item.kind === "note" ? (
+                <>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-xs bg-surface text-xs font-medium text-ink-secondary">
+                    N
+                  </span>
+                  <span className="flex-1 truncate">{item.title}</span>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-xs bg-surface text-xs font-medium text-accent">
+                    #
+                  </span>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
+            </button>
+          );
+        })
       )}
     </div>
   );

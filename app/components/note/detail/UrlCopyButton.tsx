@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { pillBtn } from "../styles";
 
 /**
  * Client-side URL copy button.
@@ -52,10 +53,10 @@ export function UrlCopyButton({
   };
 
   return (
-    <span className="url-copy">
+    <span className="inline-flex items-center gap-2">
       <button
         type="button"
-        className="pill-btn"
+        className={pillBtn}
         onClick={onCopy}
         aria-describedby={statusId}
       >
@@ -63,7 +64,7 @@ export function UrlCopyButton({
       </button>
       <span
         id={statusId}
-        className="url-copy-status"
+        className="text-xs text-ink-tertiary min-w-0"
         role="status"
         aria-live="polite"
       >

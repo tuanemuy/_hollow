@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { field, fieldControl, fieldLabel, fieldTextarea } from "../styles";
 
 /**
  * HTML edit pane with a sanitized-on-save preview folded under
@@ -19,9 +20,11 @@ export type HtmlEditorProps = Readonly<{
 export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
   const textareaId = useId();
   return (
-    <div className="html-editor">
-      <div className="field">
-        <label htmlFor={textareaId}>本文（HTML）</label>
+    <div className="mt-4">
+      <div className={field}>
+        <label htmlFor={textareaId} className={fieldLabel}>
+          本文（HTML）
+        </label>
         <textarea
           id={textareaId}
           value={value}
@@ -30,12 +33,15 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
           rows={18}
           disabled={disabled}
           spellCheck={false}
+          className={`${fieldControl} ${fieldTextarea}`}
         />
       </div>
-      <details className="html-preview">
-        <summary>プレビュー（保存時にサニタイズされます）</summary>
+      <details className="mt-2 rounded-md border border-hairline bg-surface-elevated">
+        <summary className="cursor-pointer px-4 py-2 text-[13px] text-ink-secondary">
+          プレビュー（保存時にサニタイズされます）
+        </summary>
         <div
-          className="html-preview-body"
+          className="note-detail-content border-t border-hairline p-4"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: preview-only; the persisted form is sanitized server-side at save time
           dangerouslySetInnerHTML={{ __html: value }}
         />

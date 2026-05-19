@@ -13,8 +13,12 @@ export type EditLockBannerProps = Readonly<{
 export function EditLockBanner({ lock }: EditLockBannerProps) {
   if (lock.state !== "denied") return null;
   return (
-    <div className="edit-lock-banner" role="status" aria-live="polite">
-      <strong>他のユーザーが編集中です。</strong>
+    <div
+      className="flex flex-col gap-1 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink"
+      role="status"
+      aria-live="polite"
+    >
+      <strong className="font-semibold">他のユーザーが編集中です。</strong>
       <span>
         編集は続行できますが、保存時に競合が発生する可能性があります。
       </span>

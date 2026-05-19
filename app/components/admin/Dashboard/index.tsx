@@ -19,7 +19,9 @@ function formatBytes(value: number | null): string {
   return `${scaled.toFixed(scaled >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-function bannerToneFor(severity: AlertDTO["severity"]): string {
+type BannerTone = "error" | "warning" | "info";
+
+function bannerToneFor(severity: AlertDTO["severity"]): BannerTone {
   switch (severity) {
     case "critical":
       return "error";
@@ -29,6 +31,15 @@ function bannerToneFor(severity: AlertDTO["severity"]): string {
       return "info";
   }
 }
+
+const BANNER_BASE =
+  "flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink";
+
+const BANNER_TONE: Record<BannerTone, string> = {
+  error: "bg-error-surface",
+  warning: "bg-warning-surface",
+  info: "bg-accent-surface",
+};
 
 export async function AdminDashboard() {
   const actor = await requireAdminUser();
@@ -41,34 +52,43 @@ export async function AdminDashboard() {
         (metrics.storageR2Bytes ?? 0);
 
   return (
-    <main className="admin-main">
-      <h1 className="admin-page-title">ダッシュボード</h1>
-      <p className="admin-page-subtitle">Hollow インスタンス全体の状態</p>
+    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
+      <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
+        ダッシュボード
+      </h1>
+      <p className="text-md text-ink-secondary m-0 mb-8">
+        Hollow インスタンス全体の状態
+      </p>
 
       {metrics.alerts.length > 0 ? (
         <div>
           {metrics.alerts.map((alert) => (
             <div
               key={alert.code}
-              className={`admin-banner ${bannerToneFor(alert.severity)}`}
+              className={`${BANNER_BASE} ${BANNER_TONE[bannerToneFor(alert.severity)]}`}
               role="alert"
             >
-              <div className="admin-banner-body">
-                <strong>{alert.code}</strong>
+              <div className="flex-1 text-ink">
+                <strong className="block mb-[2px] font-semibold">
+                  {alert.code}
+                </strong>
                 {alert.message}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="admin-status-banners">
-          <div className="admin-status-banner">
-            <span className="admin-status-dot" aria-hidden="true" />
-            <div className="admin-status-banner-body">
-              <div className="admin-status-banner-title">
+        <div className="grid grid-cols-1 gap-3 mb-8 md:grid-cols-2">
+          <div className="flex items-center gap-3 px-5 py-4 rounded-lg border border-hairline bg-bg">
+            <span
+              className="shrink-0 w-[10px] h-[10px] rounded-full bg-success shadow-[0_0_0_4px_rgba(31,143,58,0.12)]"
+              aria-hidden="true"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-ink">
                 All systems operational
               </div>
-              <div className="admin-status-banner-meta">
+              <div className="text-xs text-ink-secondary mt-[2px]">
                 重大アラートはありません
               </div>
             </div>
@@ -76,49 +96,60 @@ export async function AdminDashboard() {
         </div>
       )}
 
-      <section className="admin-metrics" aria-label="主要メトリクス">
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">ユーザー数</div>
-          <div className="admin-metric-value">
+      <section
+        className="grid grid-cols-1 gap-4 mb-10 sm:grid-cols-2 lg:grid-cols-4"
+        aria-label="主要メトリクス"
+      >
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">ユーザー数</div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.userCount)}
           </div>
-          <div className="admin-metric-sub">
+          <div className="text-xs text-ink-tertiary">
             {metrics.userCount === null ? "取得失敗" : "現在の登録数"}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">ストレージ消費</div>
-          <div className="admin-metric-value">{formatBytes(totalStorage)}</div>
-          <div className="admin-metric-sub">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">ストレージ消費</div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
+            {formatBytes(totalStorage)}
+          </div>
+          <div className="text-xs text-ink-tertiary">
             R2 {formatBytes(metrics.storageR2Bytes)} · DO{" "}
             {formatBytes(metrics.storageDurableObjectBytes)}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">当日アップロード</div>
-          <div className="admin-metric-value">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">
+            当日アップロード
+          </div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.uploadsToday)}
           </div>
-          <div className="admin-metric-sub">
+          <div className="text-xs text-ink-tertiary">
             {metrics.uploadsToday === null ? "取得失敗" : "件 / 24h"}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">LLM 呼び出し (24h)</div>
-          <div className="admin-metric-value">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">
+            LLM 呼び出し (24h)
+          </div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.llmCallsToday)}
           </div>
-          <div className="admin-metric-sub">
+          <div className="text-xs text-ink-tertiary">
             {metrics.llmCallsToday === null ? "取得失敗" : "回 / 24h"}
           </div>
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-header">
-          <h2 className="admin-section-title">管理メニュー</h2>
+      <section className="mb-10">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold tracking-tight m-0">
+            管理メニュー
+          </h2>
         </div>
-        <p className="admin-section-desc">
+        <p className="text-sm text-ink-secondary m-0 mb-4">
           ヘッダーの管理ナビから各設定画面に移動できます。
         </p>
       </section>

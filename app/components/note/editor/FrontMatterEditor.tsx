@@ -1,6 +1,14 @@
 "use client";
 
 import { useId } from "react";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  fieldTextarea,
+  formError,
+  pillBtn,
+} from "../styles";
 import type { FrontMatterMode } from "./editorState";
 
 /**
@@ -79,11 +87,11 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
   };
 
   return (
-    <div className="front-matter-editor">
-      <div className="front-matter-mode-toggle">
+    <div className="mt-4 rounded-lg border border-hairline bg-surface p-5">
+      <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           onClick={onToggleMode}
           aria-pressed={mode === "raw"}
           disabled={disabled}
@@ -91,15 +99,17 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
           {mode === "raw" ? "構造編集に戻す" : "生編集（JSON）"}
         </button>
         {mode === "raw" && parseError !== null ? (
-          <span className="form-error" role="alert">
+          <span className={formError} role="alert">
             JSON エラー: {parseError}
           </span>
         ) : null}
       </div>
       {mode === "structured" ? (
-        <div className="front-matter-known-form">
-          <div className="field">
-            <label htmlFor={fieldId.title}>title</label>
+        <div className="flex flex-col">
+          <div className={field}>
+            <label htmlFor={fieldId.title} className={fieldLabel}>
+              title
+            </label>
             <input
               id={fieldId.title}
               type="text"
@@ -107,20 +117,26 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
               onChange={(e) => onSetField("title", e.target.value)}
               disabled={disabled}
               placeholder="ノートのタイトル（FrontMatter）"
+              className={fieldControl}
             />
           </div>
-          <div className="field">
-            <label htmlFor={fieldId.date}>date</label>
+          <div className={field}>
+            <label htmlFor={fieldId.date} className={fieldLabel}>
+              date
+            </label>
             <input
               id={fieldId.date}
               type="date"
               value={asString(parsed.date)}
               onChange={(e) => onSetField("date", e.target.value)}
               disabled={disabled}
+              className={fieldControl}
             />
           </div>
-          <div className="field">
-            <label htmlFor={fieldId.tags}>tags（カンマ区切り）</label>
+          <div className={field}>
+            <label htmlFor={fieldId.tags} className={fieldLabel}>
+              tags（カンマ区切り）
+            </label>
             <input
               id={fieldId.tags}
               type="text"
@@ -128,32 +144,41 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
               onChange={(e) => onSetField("tags", parseTagList(e.target.value))}
               disabled={disabled}
               placeholder="例: idea, draft"
+              className={fieldControl}
             />
           </div>
-          <div className="field">
-            <label htmlFor={fieldId.description}>description</label>
+          <div className={field}>
+            <label htmlFor={fieldId.description} className={fieldLabel}>
+              description
+            </label>
             <textarea
               id={fieldId.description}
               value={asString(parsed.description)}
               onChange={(e) => onSetField("description", e.target.value)}
               disabled={disabled}
               rows={3}
+              className={`${fieldControl} resize-y`}
             />
           </div>
-          <div className="field">
-            <label htmlFor={fieldId.slug}>slug</label>
+          <div className={field}>
+            <label htmlFor={fieldId.slug} className={fieldLabel}>
+              slug
+            </label>
             <input
               id={fieldId.slug}
               type="text"
               value={asString(parsed.slug)}
               onChange={(e) => onSetField("slug", e.target.value)}
               disabled={disabled}
+              className={fieldControl}
             />
           </div>
         </div>
       ) : (
-        <div className="field">
-          <label htmlFor={rawId}>FrontMatter（JSON）</label>
+        <div className={field}>
+          <label htmlFor={rawId} className={fieldLabel}>
+            FrontMatter（JSON）
+          </label>
           <textarea
             id={rawId}
             value={rawJson}
@@ -162,9 +187,10 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
             spellCheck={false}
             rows={12}
             aria-invalid={parseError !== null}
+            className={`${fieldControl} ${fieldTextarea}`}
           />
           {parseError !== null ? (
-            <p className="form-error" role="alert">
+            <p className={formError} role="alert">
               JSON が解析できません: {parseError}
             </p>
           ) : null}

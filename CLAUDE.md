@@ -39,6 +39,17 @@ Hexagonal architecture with DDD. Dependencies point inward: presentation → app
 
 TanStack Start with React 19 / RSC, TanStack Router (file-based routes), Tailwind v4. Components live under `app/components/`, routes under `app/routes/`. Default to async server components for data fetching and usecase invocation; use server functions (via the presentation-layer entry point) for mutations and loader bridges; drive client mutations through React 19 primitives directly rather than custom wrappers.
 
+### Styling
+
+- **Utility-first only.** Write Tailwind utilities directly in `className`. Do not introduce new handwritten CSS files or `@apply`-based component classes.
+- **Design tokens** live in `app/styles/tokens.css` (single source of truth, mirrored in `spec/design/tokens.md`). The token CSS variables are bridged into Tailwind utilities via `@theme inline` in `app/styles/index.css` — adding a new token means adding it to `tokens.css` and, if you want a utility for it, extending the `@theme inline` block.
+- **State styles** use `data-*` attributes plus Tailwind's `data-[name]:` variants, not conditional class strings. Render the attribute as `data-active={isActive || undefined}` so it disappears when falsy.
+- **Repeated utility strings** can be hoisted into a module-scoped string constant (see `app/components/note/styles.ts`, `auth/styles.ts`, `layout/styles.ts`, `public/styles.ts`). Tailwind's JIT scans those literals, so behavior is identical to inline.
+- **Documented exception:** `.note-detail-content` lives in `app/styles/index.css` under `@layer components` because its descendant elements come from `dangerouslySetInnerHTML` and cannot carry utility classes. See `.issue/70/adr.md` ADR-002 before adding more exceptions.
+- **Breakpoints are duplicated on purpose.** `tokens.css` defines `--bp-sm/md/lg/xl/2xl` as the SSOT, but `index.css` re-declares `--breakpoint-*` as literal `px` values inside `@theme inline`. lightningcss rejects `var()` inside `@media (width >= ...)` during minify, so the bridge cannot be a `var()` reference. When you change a `--bp-*` value, update the corresponding `--breakpoint-*` literal too.
+- **backdrop-filter** uses the "always-on base + `supports-[backdrop-filter]:` for blur" pattern (see ADR-005). `not-supports-[backdrop-filter:blur(1px)]:` is unreliable on Safari/Chrome.
+- **`data-*` attribute conventions** (ADR-003): `data-x={value || undefined}` for dynamic state, `data-x=""` for statically-on attributes. Tailwind's `data-[x]:` variant tests for attribute presence, not value, so both work.
+
 ## Key concepts
 
 Each of these is enforced in code and documented in library-level JSDoc at the relevant module — read there for the details.

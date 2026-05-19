@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { FlatDirectory } from "../loaders";
+import { field, fieldControl, fieldLabel } from "../styles";
 
 /**
  * Directory selector for the editor.
@@ -34,10 +35,14 @@ export function DirectoryPicker({
   const usingNew = pendingDirectoryName !== null;
 
   return (
-    <fieldset className="directory-picker">
-      <legend>ディレクトリ</legend>
-      <div className="field">
-        <label htmlFor={selectId}>既存ディレクトリ</label>
+    <fieldset className="mb-4 rounded-lg border border-hairline p-4">
+      <legend className="px-2 text-[13px] font-medium text-ink-secondary">
+        ディレクトリ
+      </legend>
+      <div className={field}>
+        <label htmlFor={selectId} className={fieldLabel}>
+          既存ディレクトリ
+        </label>
         <select
           id={selectId}
           value={directoryId ?? ""}
@@ -46,6 +51,7 @@ export function DirectoryPicker({
             onSelectExisting(v.length === 0 ? null : v);
           }}
           disabled={disabled === true || usingNew}
+          className={fieldControl}
         >
           <option value="">未選択</option>
           {tree.map((node) => (
@@ -56,8 +62,10 @@ export function DirectoryPicker({
           ))}
         </select>
       </div>
-      <div className="field">
-        <label htmlFor={newId}>または新規ディレクトリ名</label>
+      <div className="flex flex-col gap-2">
+        <label htmlFor={newId} className={fieldLabel}>
+          または新規ディレクトリ名
+        </label>
         <input
           id={newId}
           type="text"
@@ -68,6 +76,7 @@ export function DirectoryPicker({
           }}
           placeholder="新しいディレクトリ名を入力すると保存時に自動作成"
           disabled={disabled}
+          className={fieldControl}
         />
       </div>
     </fieldset>

@@ -10,6 +10,18 @@ import {
 } from "@/core/presentation/errorResponse";
 import { bulkMoveNotesFn, moveNoteFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
+import {
+  dialog,
+  dialogActions,
+  dialogBackdrop,
+  dialogTitle,
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+} from "../styles";
 
 type Props = {
   noteIds: readonly string[];
@@ -78,24 +90,27 @@ export function MoveNoteDialog({
 
   return (
     <div
-      className="dialog-backdrop"
+      className={dialogBackdrop}
       role="dialog"
       aria-modal="true"
       aria-label="ノートを移動"
     >
-      <form className="dialog" onSubmit={submit}>
-        <h2 className="dialog-title">
+      <form className={dialog} onSubmit={submit}>
+        <h2 className={dialogTitle}>
           {noteIds.length === 1
             ? "ノートを移動"
             : `${noteIds.length} 件のノートを移動`}
         </h2>
-        <div className="field">
-          <label htmlFor={targetId}>移動先ディレクトリ</label>
+        <div className={field}>
+          <label htmlFor={targetId} className={fieldLabel}>
+            移動先ディレクトリ
+          </label>
           <select
             id={targetId}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             required
+            className={fieldControl}
           >
             <option value="">— 選択してください —</option>
             {tree.map((dir) => (
@@ -107,19 +122,19 @@ export function MoveNoteDialog({
           </select>
         </div>
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
         {batchError !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {batchError}
           </p>
         ) : null}
-        <div className="dialog-actions">
+        <div className={dialogActions}>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -127,7 +142,8 @@ export function MoveNoteDialog({
           </button>
           <button
             type="submit"
-            className="pill-btn primary"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
             disabled={isPending || target === ""}
           >
             {isPending ? "移動中..." : "移動"}

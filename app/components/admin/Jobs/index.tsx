@@ -14,6 +14,36 @@ import { retryExportJobFn, retryIngestionJobFn } from "./action";
 
 type IngestionStatus = IngestionJobDTO["status"];
 type ExportStatus = ExportJobDTO["status"];
+type Tone = "info" | "success" | "warning" | "error";
+
+const TAG_BASE =
+  "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium";
+const TAG_TONE: Record<Tone, string> = {
+  info: "bg-accent-surface text-accent-ink",
+  success: "bg-success-surface text-success",
+  warning: "bg-warning-surface text-warning",
+  error: "bg-error-surface text-error",
+};
+
+const BTN_SM_CLASS =
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-ink text-xs font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
+
+const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
+
+const SECTION_CLASS = "mb-10";
+const SECTION_HEADER_CLASS = "flex items-baseline justify-between gap-3 mb-4";
+const SECTION_TITLE_CLASS = "text-xl font-semibold tracking-tight m-0";
+const SECTION_DESC_CLASS = "text-sm text-ink-secondary m-0 mb-4";
+const TABLE_WRAP_CLASS = "border border-hairline rounded-lg overflow-hidden";
+const TABLE_SCROLL_CLASS = "overflow-x-auto";
+const TABLE_CLASS = "w-full border-collapse text-sm";
+const TH_CLASS =
+  "font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3";
+const TH_RIGHT_CLASS = `${TH_CLASS.replace("text-left", "text-right")}`;
+const TD_CLASS = "px-4 py-3 text-left align-middle";
+const TD_RIGHT_CLASS = "px-4 py-3 text-right align-middle";
+const ROW_CLASS =
+  "border-t border-hairline first:border-t-0 hover:bg-surface-elevated";
 
 // Stable sort (ES2019+) preserves the loader-side ORDER BY updated_at DESC for rows within the same bucket.
 const STATUS_ORDER: Record<IngestionStatus | ExportStatus, number> = {
@@ -36,9 +66,7 @@ function sortFailedFirst<T extends { status: IngestionStatus | ExportStatus }>(
   );
 }
 
-type StatusTag = "info" | "success" | "warning" | "error";
-
-function ingestionStatusTag(status: IngestionStatus): StatusTag {
+function ingestionStatusTag(status: IngestionStatus): Tone {
   switch (status) {
     case "failed":
       return "error";
@@ -70,7 +98,7 @@ function ingestionStatusLabel(status: IngestionStatus): string {
   }
 }
 
-function exportStatusTag(status: ExportStatus): StatusTag {
+function exportStatusTag(status: ExportStatus): Tone {
   switch (status) {
     case "failed":
       return "error";
@@ -145,42 +173,45 @@ function IngestionRow({
   const summary = error !== null ? displayError(error) : "";
 
   return (
-    <tr>
-      <td>
-        <div className="admin-user-handle" title={job.id as unknown as string}>
+    <tr className={ROW_CLASS}>
+      <td className={TD_CLASS}>
+        <div
+          className="text-sm font-medium"
+          title={job.id as unknown as string}
+        >
           {shortenId(job.id as unknown as string)}
         </div>
-        <div className="admin-user-sub">{job.originalFileName}</div>
+        <div className="text-xs text-ink-tertiary">{job.originalFileName}</div>
       </td>
-      <td>
-        <span className={`admin-tag ${ingestionStatusTag(job.status)}`}>
+      <td className={TD_CLASS}>
+        <span
+          className={`${TAG_BASE} ${TAG_TONE[ingestionStatusTag(job.status)]}`}
+        >
           {ingestionStatusLabel(job.status)}
         </span>
       </td>
-      <td>{job.kind}</td>
-      <td title={job.ownerId as unknown as string}>
+      <td className={TD_CLASS}>{job.kind}</td>
+      <td className={TD_CLASS} title={job.ownerId as unknown as string}>
         {shortenId(job.ownerId as unknown as string)}
       </td>
-      <td>{formatDateTime(job.updatedAt)}</td>
-      <td>
+      <td className={TD_CLASS}>{formatDateTime(job.updatedAt)}</td>
+      <td className={TD_CLASS}>
         {job.errorCode !== null ? (
           <div>
-            <div style={{ fontFamily: "var(--admin-font-mono)" }}>
-              {job.errorCode}
-            </div>
+            <div className="font-mono">{job.errorCode}</div>
             {job.errorReason !== null ? (
-              <div className="admin-user-sub">{job.errorReason}</div>
+              <div className="text-xs text-ink-tertiary">{job.errorReason}</div>
             ) : null}
           </div>
         ) : (
-          <span style={{ color: "var(--admin-color-ink-tertiary)" }}>—</span>
+          <span className="text-ink-tertiary">—</span>
         )}
       </td>
-      <td style={{ textAlign: "right" }}>
+      <td className={TD_RIGHT_CLASS}>
         {job.status === "failed" ? (
           <button
             type="button"
-            className="admin-btn sm"
+            className={BTN_SM_CLASS}
             onClick={runRetry}
             disabled={isPending}
           >
@@ -189,8 +220,8 @@ function IngestionRow({
         ) : null}
         {summary !== "" ? (
           <p
-            className="admin-field-error"
-            style={{ textAlign: "right", marginTop: 6 }}
+            className={`${FIELD_ERROR_CLASS} text-right`}
+            style={{ marginTop: 6 }}
           >
             {summary}
           </p>
@@ -226,41 +257,46 @@ function ExportRow({
   const summary = error !== null ? displayError(error) : "";
 
   return (
-    <tr>
-      <td>
-        <div className="admin-user-handle" title={job.id as unknown as string}>
+    <tr className={ROW_CLASS}>
+      <td className={TD_CLASS}>
+        <div
+          className="text-sm font-medium"
+          title={job.id as unknown as string}
+        >
           {shortenId(job.id as unknown as string)}
         </div>
-        <div className="admin-user-sub">
+        <div className="text-xs text-ink-tertiary">
           {job.format} · {job.scope}
         </div>
       </td>
-      <td>
-        <span className={`admin-tag ${exportStatusTag(job.status)}`}>
+      <td className={TD_CLASS}>
+        <span
+          className={`${TAG_BASE} ${TAG_TONE[exportStatusTag(job.status)]}`}
+        >
           {exportStatusLabel(job.status)}
         </span>
       </td>
-      <td>
+      <td className={TD_CLASS}>
         {job.progress.total > 0
           ? `${job.progress.processed}/${job.progress.total}`
           : "—"}
       </td>
-      <td title={job.ownerId as unknown as string}>
+      <td className={TD_CLASS} title={job.ownerId as unknown as string}>
         {shortenId(job.ownerId as unknown as string)}
       </td>
-      <td>{formatDateTime(job.createdAt)}</td>
-      <td>
+      <td className={TD_CLASS}>{formatDateTime(job.createdAt)}</td>
+      <td className={TD_CLASS}>
         {job.errorReason !== null ? (
-          <div className="admin-user-sub">{job.errorReason}</div>
+          <div className="text-xs text-ink-tertiary">{job.errorReason}</div>
         ) : (
-          <span style={{ color: "var(--admin-color-ink-tertiary)" }}>—</span>
+          <span className="text-ink-tertiary">—</span>
         )}
       </td>
-      <td style={{ textAlign: "right" }}>
+      <td className={TD_RIGHT_CLASS}>
         {job.status === "failed" ? (
           <button
             type="button"
-            className="admin-btn sm"
+            className={BTN_SM_CLASS}
             onClick={runRetry}
             disabled={isPending}
           >
@@ -269,8 +305,8 @@ function ExportRow({
         ) : null}
         {summary !== "" ? (
           <p
-            className="admin-field-error"
-            style={{ textAlign: "right", marginTop: 6 }}
+            className={`${FIELD_ERROR_CLASS} text-right`}
+            style={{ marginTop: 6 }}
           >
             {summary}
           </p>
@@ -299,28 +335,28 @@ function CleanupSection() {
     },
   ];
   return (
-    <section className="admin-section">
-      <div className="admin-section-header">
-        <h2 className="admin-section-title">クリーンアップ</h2>
+    <section className={SECTION_CLASS}>
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>クリーンアップ</h2>
       </div>
-      <p className="admin-section-desc">
+      <p className={SECTION_DESC_CLASS}>
         以下は cron
         駆動で実行されます。実行履歴の永続化は未対応のため、ここでは概要のみ表示します。
       </p>
-      <div className="admin-table-wrap">
-        <div className="admin-table-scroll">
-          <table className="admin-table">
+      <div className={TABLE_WRAP_CLASS}>
+        <div className={TABLE_SCROLL_CLASS}>
+          <table className={TABLE_CLASS}>
             <thead>
               <tr>
-                <th>項目</th>
-                <th>説明</th>
+                <th className={TH_CLASS}>項目</th>
+                <th className={TH_CLASS}>説明</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.title}>
-                  <td>{item.title}</td>
-                  <td>{item.description}</td>
+                <tr key={item.title} className={ROW_CLASS}>
+                  <td className={TD_CLASS}>{item.title}</td>
+                  <td className={TD_CLASS}>{item.description}</td>
                 </tr>
               ))}
             </tbody>
@@ -352,25 +388,25 @@ export function JobsBoard({
 
   return (
     <>
-      <section className="admin-section">
-        <div className="admin-section-header">
-          <h2 className="admin-section-title">取り込みジョブ</h2>
+      <section className={SECTION_CLASS}>
+        <div className={SECTION_HEADER_CLASS}>
+          <h2 className={SECTION_TITLE_CLASS}>取り込みジョブ</h2>
         </div>
-        <p className="admin-section-desc">
+        <p className={SECTION_DESC_CLASS}>
           最新 {ingestionJobs.length} 件。失敗ジョブを上部にピン留めします。
         </p>
-        <div className="admin-table-wrap">
-          <div className="admin-table-scroll">
-            <table className="admin-table">
+        <div className={TABLE_WRAP_CLASS}>
+          <div className={TABLE_SCROLL_CLASS}>
+            <table className={TABLE_CLASS}>
               <thead>
                 <tr>
-                  <th>ジョブ</th>
-                  <th>状態</th>
-                  <th>種別</th>
-                  <th>所有者</th>
-                  <th>更新</th>
-                  <th>エラー</th>
-                  <th style={{ textAlign: "right" }}>アクション</th>
+                  <th className={TH_CLASS}>ジョブ</th>
+                  <th className={TH_CLASS}>状態</th>
+                  <th className={TH_CLASS}>種別</th>
+                  <th className={TH_CLASS}>所有者</th>
+                  <th className={TH_CLASS}>更新</th>
+                  <th className={TH_CLASS}>エラー</th>
+                  <th className={TH_RIGHT_CLASS}>アクション</th>
                 </tr>
               </thead>
               <tbody>
@@ -378,11 +414,7 @@ export function JobsBoard({
                   <tr>
                     <td
                       colSpan={7}
-                      style={{
-                        textAlign: "center",
-                        color: "var(--admin-color-ink-tertiary)",
-                        padding: "var(--admin-space-6)",
-                      }}
+                      className="text-center text-ink-tertiary px-4 py-6"
                     >
                       取り込みジョブはまだありません。
                     </td>
@@ -402,25 +434,25 @@ export function JobsBoard({
         </div>
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-header">
-          <h2 className="admin-section-title">エクスポートジョブ</h2>
+      <section className={SECTION_CLASS}>
+        <div className={SECTION_HEADER_CLASS}>
+          <h2 className={SECTION_TITLE_CLASS}>エクスポートジョブ</h2>
         </div>
-        <p className="admin-section-desc">
+        <p className={SECTION_DESC_CLASS}>
           最新 {exportJobs.length} 件。失敗ジョブを上部にピン留めします。
         </p>
-        <div className="admin-table-wrap">
-          <div className="admin-table-scroll">
-            <table className="admin-table">
+        <div className={TABLE_WRAP_CLASS}>
+          <div className={TABLE_SCROLL_CLASS}>
+            <table className={TABLE_CLASS}>
               <thead>
                 <tr>
-                  <th>ジョブ</th>
-                  <th>状態</th>
-                  <th>進捗</th>
-                  <th>所有者</th>
-                  <th>作成</th>
-                  <th>エラー</th>
-                  <th style={{ textAlign: "right" }}>アクション</th>
+                  <th className={TH_CLASS}>ジョブ</th>
+                  <th className={TH_CLASS}>状態</th>
+                  <th className={TH_CLASS}>進捗</th>
+                  <th className={TH_CLASS}>所有者</th>
+                  <th className={TH_CLASS}>作成</th>
+                  <th className={TH_CLASS}>エラー</th>
+                  <th className={TH_RIGHT_CLASS}>アクション</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,11 +460,7 @@ export function JobsBoard({
                   <tr>
                     <td
                       colSpan={7}
-                      style={{
-                        textAlign: "center",
-                        color: "var(--admin-color-ink-tertiary)",
-                        padding: "var(--admin-space-6)",
-                      }}
+                      className="text-center text-ink-tertiary px-4 py-6"
                     >
                       エクスポートジョブはまだありません。
                     </td>

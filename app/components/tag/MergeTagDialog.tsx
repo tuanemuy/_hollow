@@ -8,6 +8,12 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FORM_ERROR,
+  PILL_BTN,
+} from "../layout/styles";
 import { mergeTagsFn } from "./actions";
 
 type Props = {
@@ -17,6 +23,14 @@ type Props = {
   open: boolean;
   onClose: () => void;
 };
+
+const DIALOG_BACKDROP =
+  "fixed inset-0 z-[100] bg-black/35 flex items-center justify-center p-4";
+const DIALOG =
+  "bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-[0_16px_32px_rgba(0,0,0,0.15)]";
+const DIALOG_TITLE = "text-lg font-medium mb-4";
+const DIALOG_ACTIONS = "inline-flex gap-2 mt-4 justify-end w-full";
+const DIALOG_DESCRIPTION = "text-[13px] text-ink-secondary mt-2";
 
 export function MergeTagDialog({
   sourceTagId,
@@ -55,20 +69,23 @@ export function MergeTagDialog({
 
   return (
     <div
-      className="dialog-backdrop"
+      className={DIALOG_BACKDROP}
       role="dialog"
       aria-modal="true"
       aria-label="タグを統合"
     >
-      <form className="dialog" onSubmit={submit}>
-        <h2 className="dialog-title">タグを統合</h2>
-        <div className="field">
-          <label htmlFor={targetId}>統合先タグ</label>
+      <form className={DIALOG} onSubmit={submit}>
+        <h2 className={DIALOG_TITLE}>タグを統合</h2>
+        <div className="flex flex-col gap-2 mb-4">
+          <label htmlFor={targetId} className={FIELD_LABEL}>
+            統合先タグ
+          </label>
           <select
             id={targetId}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             required
+            className={FIELD_INPUT}
           >
             <option value="">— 選択してください —</option>
             {candidates.map((c) => (
@@ -79,20 +96,20 @@ export function MergeTagDialog({
           </select>
         </div>
         {targetTag !== undefined ? (
-          <p className="dialog-description">
+          <p className={DIALOG_DESCRIPTION}>
             #{sourceName} を #{targetTag.name} に統合します。#{sourceName}{" "}
             は削除され、参照ノートは #{targetTag.name} を持つよう更新されます。
           </p>
         ) : null}
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={FORM_ERROR} role="alert">
             {displayError(error)}
           </p>
         ) : null}
-        <div className="dialog-actions">
+        <div className={DIALOG_ACTIONS}>
           <button
             type="button"
-            className="pill-btn"
+            className={PILL_BTN}
             onClick={onClose}
             disabled={isPending}
           >
@@ -100,7 +117,8 @@ export function MergeTagDialog({
           </button>
           <button
             type="submit"
-            className="pill-btn primary"
+            className={PILL_BTN}
+            data-primary=""
             disabled={isPending || target === ""}
           >
             {isPending ? "統合中..." : "統合"}

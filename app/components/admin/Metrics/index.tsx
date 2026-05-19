@@ -49,25 +49,29 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
     },
   ];
   return (
-    <div className="admin-table-wrap">
-      <div className="admin-table-scroll">
-        <table className="admin-table">
+    <div className="border border-hairline rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th>項目</th>
-              <th style={{ textAlign: "right" }}>値</th>
+              <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3">
+                項目
+              </th>
+              <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-right align-middle px-4 py-3">
+                値
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.label}>
-                <td>{row.label}</td>
-                <td
-                  style={{
-                    textAlign: "right",
-                    fontFamily: "var(--admin-font-mono)",
-                  }}
-                >
+              <tr
+                key={row.label}
+                className="border-t border-hairline first:border-t-0 hover:bg-surface-elevated"
+              >
+                <td className="px-4 py-3 text-left align-middle">
+                  {row.label}
+                </td>
+                <td className="px-4 py-3 text-right align-middle font-mono">
                   {row.value}
                 </td>
               </tr>
@@ -93,60 +97,73 @@ export async function MetricsPage() {
         (metrics.storageR2Bytes ?? 0);
 
   return (
-    <main className="admin-main">
-      <h1 className="admin-page-title">利用状況</h1>
-      <p className="admin-page-subtitle">
+    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
+      <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
+        利用状況
+      </h1>
+      <p className="text-md text-ink-secondary m-0 mb-8">
         インスタンス全体の利用量と、設定済みの上限値。
       </p>
 
-      <section className="admin-metrics" aria-label="現在の利用量">
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">ユーザー数</div>
-          <div className="admin-metric-value">
+      <section
+        className="grid grid-cols-1 gap-4 mb-10 sm:grid-cols-2 lg:grid-cols-4"
+        aria-label="現在の利用量"
+      >
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">ユーザー数</div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.userCount)}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">合計ストレージ</div>
-          <div className="admin-metric-value">{formatBytes(totalStorage)}</div>
-          <div className="admin-metric-sub">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">合計ストレージ</div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
+            {formatBytes(totalStorage)}
+          </div>
+          <div className="text-xs text-ink-tertiary">
             R2 {formatBytes(metrics.storageR2Bytes)} / DO{" "}
             {formatBytes(metrics.storageDurableObjectBytes)}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">本日アップロード</div>
-          <div className="admin-metric-value">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">
+            本日アップロード
+          </div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.uploadsToday)}
           </div>
         </div>
-        <div className="admin-metric-card">
-          <div className="admin-metric-label">LLM 呼び出し (24h)</div>
-          <div className="admin-metric-value">
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="text-sm text-ink-secondary mb-2">
+            LLM 呼び出し (24h)
+          </div>
+          <div className="text-2xl font-regular tracking-tighter text-ink mb-[2px]">
             {formatNumber(metrics.llmCallsToday)}
           </div>
         </div>
       </section>
 
       {metrics.alerts.length > 0 ? (
-        <section className="admin-section">
-          <h2 className="admin-section-title">アラート</h2>
-          <p className="admin-section-desc">
+        <section className="mb-10">
+          <h2 className="text-xl font-semibold tracking-tight m-0">アラート</h2>
+          <p className="text-sm text-ink-secondary m-0 mb-4">
             しきい値を超えた / 注意が必要な項目。
           </p>
           {metrics.alerts.map((alert) => (
             <div
               key={alert.code}
-              className={`admin-banner ${
+              className={`flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink ${
                 alert.severity === "critical"
-                  ? "error"
+                  ? "bg-error-surface"
                   : alert.severity === "warning"
-                    ? "warning"
-                    : "info"
+                    ? "bg-warning-surface"
+                    : "bg-accent-surface"
               }`}
             >
-              <div className="admin-banner-body">
-                <strong>{alert.code}</strong>
+              <div className="flex-1 text-ink">
+                <strong className="block mb-[2px] font-semibold">
+                  {alert.code}
+                </strong>
                 {alert.message}
               </div>
             </div>
@@ -154,36 +171,44 @@ export async function MetricsPage() {
         </section>
       ) : null}
 
-      <section className="admin-section">
-        <div className="admin-section-header">
-          <h2 className="admin-section-title">インスタンス上限</h2>
+      <section className="mb-10">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold tracking-tight m-0">
+            インスタンス上限
+          </h2>
         </div>
-        <p className="admin-section-desc">
+        <p className="text-sm text-ink-secondary m-0 mb-4">
           各種クォータ・ストレージ上限の現在値。
         </p>
         <LimitsCard limits={settings.limits} />
       </section>
 
-      <section className="admin-section">
-        <div className="admin-section-header">
-          <h2 className="admin-section-title">登録ポリシー</h2>
+      <section className="mb-10">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold tracking-tight m-0">
+            登録ポリシー
+          </h2>
         </div>
-        <p className="admin-section-desc">
+        <p className="text-sm text-ink-secondary m-0 mb-4">
           現在のサインアップ公開状態。
-          <code className="admin-code">/admin/registration</code>{" "}
+          <code className="font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs">
+            /admin/registration
+          </code>{" "}
           から変更できます。
         </p>
-        <div className="admin-card">
-          <div style={{ display: "flex", gap: "var(--admin-space-3)" }}>
+        <div className="border border-hairline rounded-lg p-5 bg-bg">
+          <div className="flex gap-3">
             <span
-              className={`admin-tag ${
-                settings.registration.open ? "success" : "warning"
+              className={`inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium ${
+                settings.registration.open
+                  ? "bg-success-surface text-success"
+                  : "bg-warning-surface text-warning"
               }`}
             >
               {settings.registration.open ? "公開中" : "停止中"}
             </span>
             {settings.registration.closedReason !== null ? (
-              <span style={{ color: "var(--admin-color-ink-secondary)" }}>
+              <span className="text-ink-secondary">
                 {settings.registration.closedReason}
               </span>
             ) : null}

@@ -13,6 +13,7 @@ import {
 import { deleteNoteFn, duplicateNoteFn } from "../actions";
 import { MoveNoteDialog } from "../list/MoveNoteDialog";
 import type { FlatDirectory } from "../loaders";
+import { formError, pillBtn, pillBtnDanger, pillBtnPrimary } from "../styles";
 import { UrlCopyButton } from "./UrlCopyButton";
 
 export type NoteActionsProps = Readonly<{
@@ -79,10 +80,12 @@ export function NoteActions({
     });
   };
 
+  const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
+
   if (status === "trashed") {
     return (
-      <div className="action-menu">
-        <Link to="/trash" search={{ page: 1, limit: 20 }} className="pill-btn">
+      <div className={MENU}>
+        <Link to="/trash" search={{ page: 1, limit: 20 }} className={pillBtn}>
           ゴミ箱を開く
         </Link>
       </div>
@@ -91,24 +94,25 @@ export function NoteActions({
 
   return (
     <>
-      <div className="action-menu" role="toolbar" aria-label="ノート操作">
+      <div className={MENU} role="toolbar" aria-label="ノート操作">
         <Link
           to="/notes/$noteId/edit"
           params={{ noteId: noteIdStr }}
-          className="pill-btn primary"
+          data-primary
+          className={`${pillBtn} ${pillBtnPrimary}`}
         >
           編集
         </Link>
         <Link
           to="/notes/$noteId/publish"
           params={{ noteId: noteIdStr }}
-          className="pill-btn"
+          className={pillBtn}
         >
           公開設定
         </Link>
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           onClick={() => setOpen("move")}
           disabled={isPending}
         >
@@ -117,7 +121,7 @@ export function NoteActions({
         <UrlCopyButton url={copyUrl} />
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           onClick={onDuplicate}
           disabled={isPending}
         >
@@ -126,13 +130,13 @@ export function NoteActions({
         <Link
           to="/notes/$noteId/export"
           params={{ noteId: noteIdStr }}
-          className="pill-btn"
+          className={pillBtn}
         >
           エクスポート
         </Link>
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           disabled
           aria-disabled="true"
           title="履歴は今後実装予定です"
@@ -141,14 +145,14 @@ export function NoteActions({
         </button>
         <button
           type="button"
-          className="pill-btn danger"
+          className={pillBtnDanger}
           onClick={onDelete}
           disabled={isPending}
         >
           削除
         </button>
         {error !== null ? (
-          <span className="form-error" role="alert">
+          <span className={formError} role="alert">
             {displayError(error)}
           </span>
         ) : null}

@@ -8,6 +8,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
 import { MergeTagDialog } from "./MergeTagDialog";
 
@@ -65,7 +66,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
   };
 
   return (
-    <div className="row-actions">
+    <div className={ROW_ACTIONS}>
       {isEditing ? (
         <>
           <input
@@ -75,18 +76,12 @@ export function TagActions({ tagId, name, candidates }: Props) {
             disabled={isPending}
             // biome-ignore lint/a11y/noAutofocus: inline edit field
             autoFocus
-            style={{
-              height: 30,
-              padding: "0 10px",
-              background: "var(--color-surface)",
-              border: "1px solid transparent",
-              borderRadius: "var(--radius-md)",
-              fontSize: 13,
-            }}
+            className="h-[30px] px-2.5 bg-surface border border-transparent rounded-md text-[13px] text-ink outline-none focus:bg-bg focus:border-accent"
           />
           <button
             type="button"
-            className="pill-btn primary"
+            className={PILL_BTN}
+            data-primary=""
             onClick={onRename}
             disabled={isPending}
           >
@@ -94,7 +89,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={PILL_BTN}
             onClick={() => {
               setIsEditing(false);
               setDraft(name);
@@ -108,7 +103,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
         <>
           <button
             type="button"
-            className="pill-btn"
+            className={PILL_BTN}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
           >
@@ -117,7 +112,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
           {candidates.length > 0 ? (
             <button
               type="button"
-              className="pill-btn"
+              className={PILL_BTN}
               onClick={() => setIsMergeOpen(true)}
               disabled={isPending}
             >
@@ -126,7 +121,8 @@ export function TagActions({ tagId, name, candidates }: Props) {
           ) : null}
           <button
             type="button"
-            className="pill-btn danger"
+            className={PILL_BTN}
+            data-danger=""
             onClick={onDelete}
             disabled={isPending}
           >
@@ -135,7 +131,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
         </>
       )}
       {error !== null ? (
-        <span className="form-error" role="alert">
+        <span className={FORM_ERROR} role="alert">
           {displayError(error)}
         </span>
       ) : null}

@@ -9,12 +9,19 @@ type AuthHeaderProps = {
 
 export function AuthHeader({ rightSlot }: AuthHeaderProps) {
   return (
-    <header className="app-header">
-      <Link to="/" search={HOME_SEARCH} className="app-logo">
+    <header className="sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)]">
+      <Link
+        to="/"
+        search={HOME_SEARCH}
+        className="text-[21px] font-light tracking-tightest text-ink"
+      >
         Hollow
       </Link>
       {rightSlot ?? (
-        <Link to="/login" className="header-link">
+        <Link
+          to="/login"
+          className="text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors hover:text-ink hover:bg-surface"
+        >
           ログイン
         </Link>
       )}

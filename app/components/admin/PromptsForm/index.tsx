@@ -35,6 +35,19 @@ const PROMPT_DESCRIPTORS: readonly PromptDescriptor[] = [
   },
 ];
 
+const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
+const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
+const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
+const INPUT_CLASS =
+  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
+const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
+const TEXTAREA_CLASS =
+  "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
+const BTN_PRIMARY_CLASS =
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-50 disabled:cursor-not-allowed";
+const CODE_INLINE_CLASS =
+  "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
+
 function PromptCard({
   descriptor,
   initial,
@@ -83,20 +96,22 @@ function PromptCard({
   const summary = error !== null ? displayError(error) : "";
 
   return (
-    <article className="admin-prompt-card">
-      <header className="admin-prompt-card-header">
+    <article className="border border-hairline rounded-lg p-5">
+      <header className="flex justify-between items-baseline gap-3 mb-3">
         <div>
-          <h3 className="admin-prompt-card-title">{descriptor.title}</h3>
-          <p className="admin-prompt-card-meta">{descriptor.description}</p>
+          <h3 className="text-md font-medium m-0">{descriptor.title}</h3>
+          <p className="text-xs text-ink-tertiary mt-[2px]">
+            {descriptor.description}
+          </p>
         </div>
       </header>
-      <div className="admin-field">
-        <label className="admin-field-label" htmlFor={textId}>
+      <div className="mb-4">
+        <label className={FIELD_LABEL_CLASS} htmlFor={textId}>
           プロンプト本文
         </label>
         <textarea
           id={textId}
-          className="admin-textarea"
+          className={TEXTAREA_CLASS}
           value={text}
           spellCheck={false}
           onChange={(event) => setText(event.target.value)}
@@ -104,59 +119,37 @@ function PromptCard({
           required
         />
         {fieldErrors?.text?.[0] !== undefined ? (
-          <p className="admin-field-error">{fieldErrors.text[0]}</p>
+          <p className={FIELD_ERROR_CLASS}>{fieldErrors.text[0]}</p>
         ) : null}
       </div>
-      <div className="admin-field">
-        <label className="admin-field-label" htmlFor={variablesId}>
+      <div className="mb-4">
+        <label className={FIELD_LABEL_CLASS} htmlFor={variablesId}>
           期待するプレースホルダ（カンマ区切り）
         </label>
         <input
           id={variablesId}
           type="text"
-          className="admin-input mono"
+          className={INPUT_MONO_CLASS}
           value={variables}
           onChange={(event) => setVariables(event.target.value)}
           placeholder="content, existingDirectories"
           disabled={isPending}
         />
-        <p className="admin-field-hint">
-          本文中の <code className="admin-code">{"{{name}}"}</code>{" "}
+        <p className={FIELD_HINT_CLASS}>
+          本文中の <code className={CODE_INLINE_CLASS}>{"{{name}}"}</code>{" "}
           と一致させる必要があります。
         </p>
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--admin-space-3)",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          marginTop: "var(--admin-space-3)",
-        }}
-      >
+      <div className="flex gap-3 items-center justify-end mt-3">
         {savedAt !== null && error === null ? (
-          <span
-            style={{
-              color: "var(--admin-color-success)",
-              fontSize: "var(--admin-text-xs)",
-            }}
-          >
-            保存しました
-          </span>
+          <span className="text-success text-xs">保存しました</span>
         ) : null}
         {summary !== "" && fieldErrors === undefined ? (
-          <span
-            style={{
-              color: "var(--admin-color-error)",
-              fontSize: "var(--admin-text-xs)",
-            }}
-          >
-            {summary}
-          </span>
+          <span className="text-error text-xs">{summary}</span>
         ) : null}
         <button
           type="button"
-          className="admin-btn primary"
+          className={BTN_PRIMARY_CLASS}
           onClick={onSave}
           disabled={isPending || text.trim().length === 0}
         >
@@ -173,7 +166,7 @@ export function PromptsForm({
   prompts: Readonly<Record<string, PromptDTO>>;
 }) {
   return (
-    <div className="admin-prompt-grid">
+    <div className="grid grid-cols-1 gap-6">
       {PROMPT_DESCRIPTORS.map((descriptor) => (
         <PromptCard
           key={descriptor.purpose}

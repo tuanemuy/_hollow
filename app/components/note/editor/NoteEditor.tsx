@@ -25,6 +25,14 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { FlatDirectory } from "../loaders";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+} from "../styles";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { EditLockBanner } from "./EditLockBanner";
@@ -199,9 +207,9 @@ export function NoteEditor(props: NoteEditorProps) {
   };
 
   return (
-    <form className="note-editor" onSubmit={onSubmit}>
-      <header className="note-editor-header">
-        <h1 className="page-title">
+    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+      <header className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink m-0">
           {props.mode === "new" ? "新規ノート" : "ノートを編集"}
         </h1>
         <AutosaveIndicator status={state.autosave} />
@@ -209,8 +217,10 @@ export function NoteEditor(props: NoteEditorProps) {
 
       <EditLockBanner lock={state.editLock} />
 
-      <div className="field">
-        <label htmlFor="note-editor-title">タイトル</label>
+      <div className={field}>
+        <label htmlFor="note-editor-title" className={fieldLabel}>
+          タイトル
+        </label>
         <input
           id="note-editor-title"
           type="text"
@@ -222,11 +232,14 @@ export function NoteEditor(props: NoteEditorProps) {
           maxLength={200}
           disabled={isPending}
           required
+          className={fieldControl}
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="note-editor-tags">タグ（カンマ区切り）</label>
+      <div className={field}>
+        <label htmlFor="note-editor-tags" className={fieldLabel}>
+          タグ（カンマ区切り）
+        </label>
         <input
           id="note-editor-tags"
           type="text"
@@ -236,6 +249,7 @@ export function NoteEditor(props: NoteEditorProps) {
           }
           placeholder="例: idea, draft"
           disabled={isPending}
+          className={fieldControl}
         />
       </div>
 
@@ -312,28 +326,23 @@ export function NoteEditor(props: NoteEditorProps) {
       ) : null}
 
       {submitError !== null ? (
-        <p className="form-error" role="alert">
+        <p className={formError} role="alert">
           {displayError(submitError)}
         </p>
       ) : null}
 
-      <div
-        style={{
-          display: "inline-flex",
-          gap: "var(--space-2)",
-          marginTop: "var(--space-4)",
-        }}
-      >
+      <div className="inline-flex gap-2 mt-4">
         <button
           type="submit"
-          className="pill-btn primary"
+          data-primary
+          className={`${pillBtn} ${pillBtnPrimary}`}
           disabled={saveDisabled}
         >
           {isPending ? "保存中..." : props.mode === "new" ? "作成" : "保存"}
         </button>
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           disabled={isPending}
           onClick={() => router.history.back()}
         >

@@ -59,9 +59,11 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
   const publicShareUrl = firstActiveLink === null ? null : firstActiveLink.url;
 
   return (
-    <article className="note-detail">
+    <article className="max-w-[760px] mx-auto">
       <header>
-        <h1 className="page-title">{note.title}</h1>
+        <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">
+          {note.title}
+        </h1>
       </header>
 
       <NoteMetaPanel

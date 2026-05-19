@@ -9,6 +9,18 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  dialog,
+  dialogActions,
+  dialogBackdrop,
+  dialogTitle,
+  field,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+  radioRow,
+} from "../styles";
 import { useSelection } from "./SelectionContext";
 
 type Props = {
@@ -70,19 +82,17 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
 
   return (
     <div
-      className="dialog-backdrop"
+      className={dialogBackdrop}
       role="dialog"
       aria-modal="true"
       aria-label="公開設定を一括変更"
     >
-      <form className="dialog" onSubmit={submit}>
-        <h2 className="dialog-title">
-          {ids.length} 件のノートの公開設定を変更
-        </h2>
-        <fieldset className="field">
-          <legend>新しい公開状態</legend>
+      <form className={dialog} onSubmit={submit}>
+        <h2 className={dialogTitle}>{ids.length} 件のノートの公開設定を変更</h2>
+        <fieldset className={field}>
+          <legend className={fieldLabel}>新しい公開状態</legend>
           {(["private", "unlisted", "public"] as const).map((v) => (
-            <label key={v} className="radio-row">
+            <label key={v} className={radioRow}>
               <input
                 type="radio"
                 name={radioName}
@@ -101,24 +111,24 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
           ))}
         </fieldset>
         {progress !== null ? (
-          <p className="form-progress" aria-live="polite">
+          <p className="text-[13px] text-ink-secondary" aria-live="polite">
             {progress}
           </p>
         ) : null}
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
         {batchError !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {batchError}
           </p>
         ) : null}
-        <div className="dialog-actions">
+        <div className={dialogActions}>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -126,7 +136,8 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
           </button>
           <button
             type="submit"
-            className="pill-btn primary"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
             disabled={isPending}
           >
             {isPending ? "適用中..." : "適用"}

@@ -7,6 +7,19 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  GATE_CARD,
+  GATE_FOOT,
+  GATE_FORM,
+  GATE_ICON,
+  GATE_INPUT,
+  GATE_LABEL,
+  GATE_SUB,
+  GATE_SUBMIT,
+  GATE_TITLE,
+  LOCKOUT,
+  SHARE_PAGE,
+} from "../styles";
 import { resolveShareLinkFn } from "./action";
 
 type FormState = {
@@ -65,36 +78,40 @@ export function ShareLinkGate({ token }: Props) {
   const isExpiredOrGone = isRevoked || isMissing;
 
   return (
-    <div className="share-page">
-      <div className="gate-card">
-        <div className={`gate-icon${isExpiredOrGone ? " expired" : ""}`}>
+    <div className={SHARE_PAGE}>
+      <div className={GATE_CARD}>
+        <div
+          className={GATE_ICON}
+          data-expired={isExpiredOrGone ? "" : undefined}
+        >
           <LockIcon />
         </div>
-        <h1 className="gate-title">
+        <h1 className={GATE_TITLE}>
           {isExpiredOrGone
             ? "リンクは無効です"
             : "このノートはパスワードで保護されています"}
         </h1>
-        <p className="gate-sub">
+        <p className={GATE_SUB}>
           {isExpiredOrGone
             ? "リンクが失効しているか、削除された可能性があります。"
             : "共有元から教えられたパスワードを入力してください。"}
         </p>
 
         {isLocked ? (
-          <div className="lockout" role="alert">
+          <div className={LOCKOUT} role="alert">
             <span>{message}</span>
           </div>
         ) : null}
 
         {!isExpiredOrGone ? (
-          <form action={formAction} className="gate-form">
-            <label className="gate-label" htmlFor={passwordId}>
+          <form action={formAction} className={GATE_FORM}>
+            <label className={GATE_LABEL} htmlFor={passwordId}>
               パスワード
             </label>
             <input
               id={passwordId}
-              className={`gate-input${state.error !== null && !isLocked ? " error" : ""}`}
+              className={GATE_INPUT}
+              data-error={state.error !== null && !isLocked ? "" : undefined}
               type="password"
               name="password"
               autoComplete="current-password"
@@ -104,13 +121,17 @@ export function ShareLinkGate({ token }: Props) {
               aria-describedby={message !== null ? errorId : undefined}
             />
             {message !== null && !isLocked ? (
-              <p id={errorId} className="gate-error" role="alert">
+              <p
+                id={errorId}
+                className="text-[13px] text-error -mt-1 flex items-center gap-1.5"
+                role="alert"
+              >
                 {message}
               </p>
             ) : null}
             <button
               type="submit"
-              className="gate-submit"
+              className={GATE_SUBMIT}
               disabled={isPending || isLocked}
             >
               {isPending ? "確認中..." : "閲覧する"}
@@ -118,7 +139,7 @@ export function ShareLinkGate({ token }: Props) {
           </form>
         ) : null}
 
-        <div className="gate-foot">
+        <div className={GATE_FOOT}>
           パスワードはサーバー側でのみ検証され、保存されません。
         </div>
       </div>

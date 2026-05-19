@@ -11,6 +11,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { field, fieldLabel, pillBtn } from "../styles";
 import { insertMediaIntoHtml } from "./mediaInsert";
 
 /**
@@ -97,27 +98,33 @@ export function MediaUploader({
   };
 
   return (
-    <div className="media-uploader">
-      <div className="field">
-        <label htmlFor={inputId}>メディアを追加</label>
+    <div className="mt-4">
+      <div className={field}>
+        <label htmlFor={inputId} className={fieldLabel}>
+          メディアを追加
+        </label>
         <input
           id={inputId}
           type="file"
           accept="image/*,video/*"
           onChange={onPick}
           disabled={disabled === true || state.kind === "uploading"}
+          className="text-sm text-ink"
         />
       </div>
       {state.kind === "uploading" ? (
-        <p className="form-hint" aria-live="polite">
+        <p className="text-xs text-ink-tertiary mt-2" aria-live="polite">
           アップロード中…
         </p>
       ) : null}
       {state.kind === "error" ? (
-        <div className="form-error" role="alert">
+        <div
+          className="text-error text-[13px] mt-2 flex flex-col gap-2"
+          role="alert"
+        >
           <p>アップロードに失敗: {displayError(state.error)}</p>
           {state.lastFile !== null ? (
-            <button type="button" className="pill-btn" onClick={onRetry}>
+            <button type="button" className={pillBtn} onClick={onRetry}>
               再試行
             </button>
           ) : null}
