@@ -453,6 +453,8 @@ D1 上に物理テーブルを置き、SQLite の FTS5 仮想テーブル（`sea
 
 FTS5 仮想テーブル。`title`, `body_plain`, `tag_names_json` をトークナイズして全文検索を提供。`content` テーブルとして `search_documents` を参照（contentless ではなく external content モード）。
 
+トークナイザは `tokenize='trigram'`（migration 0008 で `unicode61` から切替、Issue #50）。CJK / ASCII を統一経路で部分一致できるようにするのが目的。trigram の本質的制約として 3 Unicode codepoint 未満のクエリトークンはマッチしないため、adapter (`D1SearchIndex.buildMatchExpression`) で短トークンを除外し、全滅時は `'""'` リテラルで 0 件にフォールバックする。
+
 ### index_jobs
 
 | カラム | 型 | 制約 |
