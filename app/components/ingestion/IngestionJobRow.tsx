@@ -201,7 +201,6 @@ export function IngestionJobRow({ job }: Props) {
         open={confirmDiscardOpen}
         title="ジョブを破棄"
         description="このジョブを破棄しますか？"
-        variant="danger"
         confirmLabel="破棄"
         isPending={isPending}
         onConfirm={() => {

@@ -64,6 +64,14 @@ export type OwnedNoteFilterItem = OwnedNoteCommon &
  * Search-path note: the search index does not project `directoryId` /
  * `slug` / `updatedAt`, so these fields are intentionally absent in the
  * type. Consumers that need them must narrow on `kind === "filter"`.
+ *
+ * Note: this is currently identical to `OwnedNoteCommon` field-for-
+ * field. TypeScript's structural typing means an `OwnedNoteFilterItem`
+ * is also assignable to `OwnedNoteSearchItem` — discrimination at the
+ * call site must always go through `OwnedNotesResult.kind`, not the
+ * shape of the row alone. If the search projection ever picks up its
+ * own fields, this alias should be widened in place rather than
+ * re-introducing sentinel values.
  */
 export type OwnedNoteSearchItem = OwnedNoteCommon;
 

@@ -35,6 +35,7 @@ Issue #13 のスコープ D は「長期的には統一が望ましい」と明�
   - 将来 `noteListSearchSchema` にフィールド追加した場合、`HOME_SEARCH` も追従更新が必要
 - 関連 ADR 更新:
   - Issue #1 ADR-026 の Status を「Superseded by Issue #13 — ADR-001」に変更する
+- ZodError serialization: `schema.parse(search)` で投げられる素の `ZodError` は `CodedError` を継承していないため、`extractSerializedError` → `serializeError` で `kind: "unknown"` にフォールバックする。これは既存の他 9 ルート（`search.tsx`, `views/index.tsx` 等）も同じ挙動。`validateInput` のような `kind: "validation"` への変換が必要になった場合は、別 Issue で `validateSearch` 用ユーティリティを追加する。
 
 ---
 
@@ -63,7 +64,9 @@ Proposed
   - `publication` ドメインで完結することで、機能追加時に「schema どこ?」と迷わない
 - トレードオフ:
   - テストファイルも同時移動が必要（`publication/__tests__/` ディレクトリの新規作成を伴う）
-- 追加メモ: `app/components/publication/schema.ts` には既に `visibilitySchema = z.enum(["private", "unlisted", "public"])` が独自定義されているため、`bulkVisibilitySchema` の中で `visibilitySchema` を参照する際は publication 側の既存定義を流用する（cross-domain import は発生しない）
+- 追加メモ:
+  - `visibilitySchema` は publication 側の既存定義（`schema.ts:5`）を流用するため再 import 不要
+  - `BULK_NOTE_IDS_MAX` のみ `@/components/note/constants` から import するが、これはドメイン概念ではなく**フロントエンド共有の上限定数**のため、cross-domain import として許容範囲
 
 ---
 

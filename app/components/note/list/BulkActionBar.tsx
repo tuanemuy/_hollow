@@ -145,7 +145,6 @@ export function BulkActionBar({ tree }: Props) {
         open={confirmTrashOpen}
         title="一括ゴミ箱移動"
         description={`${ids.length} 件のノートをゴミ箱に移動しますか？`}
-        variant="danger"
         confirmLabel="ゴミ箱へ"
         isPending={isPending}
         onConfirm={() => {

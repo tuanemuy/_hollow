@@ -168,7 +168,6 @@ export function NoteActions({
       <ConfirmDialog
         open={confirmDeleteOpen}
         title="このノートをゴミ箱に移動"
-        variant="danger"
         confirmLabel="ゴミ箱へ"
         isPending={isPending}
         onConfirm={() => {

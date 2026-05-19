@@ -77,7 +77,6 @@ export function TrashRowActions({ noteId }: Props) {
         open={confirmPurgeOpen}
         title="ノートを完全に削除"
         description="このノートを完全に削除しますか？この操作は取り消せません。"
-        variant="danger"
         confirmLabel="完全削除"
         isPending={isPending}
         onConfirm={() => {

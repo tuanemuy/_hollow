@@ -118,7 +118,7 @@ export function NoteList({
         kind === "filter" ? (
           <CalendarView notes={notes} kind="filter" />
         ) : (
-          <CalendarView notes={[]} kind="search" />
+          <CalendarView kind="search" />
         )
       ) : kind === "filter" ? (
         <ListView

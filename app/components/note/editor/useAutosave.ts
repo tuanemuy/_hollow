@@ -148,7 +148,7 @@ export function useAutosave({
         frontMatter,
         tagInput,
         directoryId,
-      } as EditorState),
+      }),
     [title, contentHtml, frontMatter, tagInput, directoryId],
   );
 
@@ -214,7 +214,12 @@ export function useAutosave({
           return;
         }
         const p = flush().finally(() => {
-          inFlightRef.current = null;
+          // Only clear the slot if it still holds *our* promise — a
+          // later schedule() could have abandoned us by aborting the
+          // effect and a new effect installing its own promise. Without
+          // this guard the stale `.finally` would null out the newer
+          // effect's in-flight pointer and let two flushes overlap.
+          if (inFlightRef.current === p) inFlightRef.current = null;
           if (reRunRef.current && !signal.aborted) {
             reRunRef.current = false;
             schedule();

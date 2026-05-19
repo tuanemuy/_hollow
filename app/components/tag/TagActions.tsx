@@ -144,7 +144,6 @@ export function TagActions({ tagId, name, candidates }: Props) {
         open={confirmDeleteOpen}
         title={`タグ "#${name}" を削除`}
         description="参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？"
-        variant="danger"
         confirmLabel="削除"
         isPending={isPending}
         onConfirm={() => {

@@ -408,12 +408,25 @@ export type EditorSubmitSnapshot = Readonly<{
   directoryId: string | null;
 }>;
 
-export function snapshotForSubmit(state: EditorState): EditorSubmitSnapshot {
+/**
+ * Slice of `EditorState` that the submit / autosave path actually
+ * needs. Narrowing the input lets `useAutosave` build the snapshot
+ * from destructured fields without `as EditorState` casts, and keeps
+ * future additions to `snapshotForSubmit` visible at the type level.
+ */
+export type EditorSnapshotInput = Pick<
+  EditorState,
+  "title" | "contentHtml" | "frontMatter" | "tagInput" | "directoryId"
+>;
+
+export function snapshotForSubmit(
+  input: EditorSnapshotInput,
+): EditorSubmitSnapshot {
   return {
-    title: state.title,
-    contentHtml: state.contentHtml,
-    frontMatterJson: JSON.stringify(state.frontMatter),
-    tagNames: parseTagInput(state.tagInput),
-    directoryId: state.directoryId,
+    title: input.title,
+    contentHtml: input.contentHtml,
+    frontMatterJson: JSON.stringify(input.frontMatter),
+    tagNames: parseTagInput(input.tagInput),
+    directoryId: input.directoryId,
   };
 }

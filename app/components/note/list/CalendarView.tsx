@@ -11,10 +11,7 @@ type Props =
       kind: "filter";
       notes: readonly OwnedNoteFilterItem[];
     }>
-  | Readonly<{
-      kind: "search";
-      notes: readonly never[];
-    }>;
+  | Readonly<{ kind: "search" }>;
 
 function formatDay(dateKey: string): string {
   if (dateKey === "unknown") return "日付不明";
@@ -40,15 +37,15 @@ export function CalendarView(props: Props) {
       ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC")
       : "UTC";
 
-  // Hook must be called unconditionally; the `search` branch passes an
-  // empty `OwnedNoteFilterItem[]` so the grouping is a no-op. Explicit
-  // type parameterization keeps the bucket's `notes[number]` carrying
+  // Hook must be called unconditionally; the `search` branch resolves to
+  // an empty array so the grouping is a no-op. Explicit type
+  // parameterization keeps the bucket's `notes[number]` carrying
   // `title` etc. instead of collapsing to the generic constraint.
   const grouped = useMemo(
     () =>
       props.kind === "filter"
         ? groupNotesByDay<OwnedNoteFilterItem>(props.notes, tz)
-        : groupNotesByDay<OwnedNoteFilterItem>([], tz),
+        : [],
     [props, tz],
   );
 

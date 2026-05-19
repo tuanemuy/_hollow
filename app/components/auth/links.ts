@@ -8,17 +8,19 @@
  * here so the literal stays in lockstep with the schema and a future
  * field addition has a single update point.
  *
+ * `limit` reads `NOTE_LIST_LIMIT_DEFAULT` directly from the schema's
+ * SSOT (`@/components/note/constants`) so the home navigation default
+ * cannot drift from the value `noteListSearchSchema.limit` would have
+ * filled in via `.default()`.
+ *
  * `satisfies` keeps the constant strongly typed against the schema's
  * pagination slice while preserving the literal types of `page` / `limit`
  * for TanStack Router's `MakeRequiredSearchParams` inference.
  */
+import { NOTE_LIST_LIMIT_DEFAULT } from "@/components/note/constants";
 import type { NoteListSearch } from "@/components/note/schema";
-import {
-  PAGINATION_DEFAULT_LIMIT,
-  PAGINATION_DEFAULT_PAGE,
-} from "@/core/presentation/pagination";
 
 export const HOME_SEARCH = {
-  page: PAGINATION_DEFAULT_PAGE,
-  limit: PAGINATION_DEFAULT_LIMIT,
+  page: 1,
+  limit: NOTE_LIST_LIMIT_DEFAULT,
 } as const satisfies Pick<NoteListSearch, "page" | "limit">;

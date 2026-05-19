@@ -170,7 +170,6 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
         open={confirmDeleteOpen}
         title="保存ビューを削除"
         description={`「${view.name}」を削除しますか？`}
-        variant="danger"
         confirmLabel="削除"
         isPending={isPending}
         onConfirm={() => {
