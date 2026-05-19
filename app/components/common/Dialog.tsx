@@ -20,7 +20,13 @@ export type DialogProps = Readonly<{
 }>;
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+
+// Module-scope counter for body scroll lock. Multiple concurrent dialogs
+// (e.g. a Confirm rendered on top of another Dialog) share the lock so the
+// outermost dialog restores the original overflow value on close.
+let bodyScrollLockCount = 0;
+let bodyScrollLockPrevious = "";
 
 /**
  * Modal dialog wrapper with focus trap, Esc-to-close, and Portal rendering.
@@ -37,8 +43,11 @@ const FOCUSABLE_SELECTOR =
  */
 export function Dialog(props: DialogProps) {
   if (!props.open) return null;
-  return <DialogInner {...props} />;
+  const { open: _open, ...inner } = props;
+  return <DialogInner {...inner} />;
 }
+
+type DialogInnerProps = Omit<DialogProps, "open">;
 
 function DialogInner({
   onClose,
@@ -48,7 +57,7 @@ function DialogInner({
   ariaDescribedBy,
   closable = true,
   children,
-}: DialogProps) {
+}: DialogInnerProps) {
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
@@ -76,19 +85,29 @@ function DialogInner({
     };
   }, []);
 
-  // Lock body scroll while the dialog is mounted. Single-dialog-at-a-time is
-  // assumed; concurrent dialogs would need a reference-counted lock.
+  // Lock body scroll while the dialog is mounted. Multiple concurrent dialogs
+  // share a module-scope counter so the outermost dialog restores the original
+  // overflow value on close.
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (bodyScrollLockCount === 0) {
+      bodyScrollLockPrevious = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    bodyScrollLockCount += 1;
     return () => {
-      document.body.style.overflow = previousOverflow;
+      bodyScrollLockCount -= 1;
+      if (bodyScrollLockCount === 0) {
+        document.body.style.overflow = bodyScrollLockPrevious;
+      }
     };
   }, []);
 
   // Esc to close + Tab/Shift+Tab focus trap.
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      // Ignore Esc during IME composition (e.g. Japanese 変換 cancel) — otherwise
+      // users would lose in-progress form input when cancelling an IME conversion.
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape") {
         if (closable) onClose();
         return;
@@ -107,13 +126,14 @@ function DialogInner({
       const last = focusables[focusables.length - 1];
       if (first === undefined || last === undefined) return;
       const active = document.activeElement;
+      const activeIsOutside = !panel.contains(active);
       if (event.shiftKey) {
-        if (active === first || !panel.contains(active)) {
+        if (active === first || activeIsOutside) {
           event.preventDefault();
           last.focus();
         }
       } else {
-        if (active === last) {
+        if (active === last || activeIsOutside) {
           event.preventDefault();
           first.focus();
         }
@@ -127,8 +147,10 @@ function DialogInner({
 
   // Initial focus: alertdialog focuses the panel itself; otherwise focus
   // the first focusable element inside the panel. Use rAF so the panel is
-  // committed to the DOM before we try to focus into it.
+  // committed to the DOM before we try to focus into it. Depends on `mounted`
+  // because the portal (and thus panelRef) is not attached until then.
   useEffect(() => {
+    if (!mounted) return;
     const raf = requestAnimationFrame(() => {
       const panel = panelRef.current;
       if (panel === null) return;
@@ -148,7 +170,7 @@ function DialogInner({
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [role]);
+  }, [mounted, role]);
 
   if (!mounted) return null;
 

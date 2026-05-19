@@ -189,6 +189,40 @@ Accepted
 
 ---
 
+## ADR-013: Esc handler に IME composition ガードを入れる
+
+### Status
+Accepted
+
+### Context
+review-001 Robustness B-001 指摘。日本語入力プロダクトとして、IME 変換中の Esc キーは「IME 変換キャンセル」用途に使われるが、`document` レベルの keydown listener が無条件にダイアログを閉じると、ユーザーの入力フォーム状態が消失する。既存 6 ダイアログには Esc クローズ自体がなかったので、これは純粋な regression。
+
+### Decision
+Esc handler の冒頭で `if (event.isComposing || event.keyCode === 229) return;` を実行し、IME composition 中は handler を素通りさせる。
+
+### Consequences
+- 良い点: 日本語入力ユーザーが IME 変換キャンセル時に意図せずダイアログを閉じる事故を防ぐ
+- トレードオフ: IME composition 検出は `event.isComposing`（Web Standards）に依存。一部の古いブラウザでは `keyCode === 229` のフォールバックが必要なため両方を見ている
+
+---
+
+## ADR-014: body scroll lock を module-scope の reference counter で管理
+
+### Status
+Accepted
+
+### Context
+当初は「単一ダイアログ同時表示前提」で `document.body.style.overflow` を直接操作していた。しかし `BulkActionBar` は複数の独立した `useState`（move / visibility / export / trash confirm）を持ち、誤って同時 open すると lock 状態が壊れる可能性がある（dialog A が `""` を保存して `hidden` セット → dialog B が `hidden` を保存して `hidden` セット → A unmount で `""` 復元 → B unmount で `hidden` 復元 → ページが永続スクロールロック）。review-001 W-Rob-001 指摘。
+
+### Decision
+`bodyScrollLockCount` / `bodyScrollLockPrevious` を module-scope に置き、最初の dialog が lock したときだけ overflow を保存・セット、最後の dialog が unmount したときだけ復元する。
+
+### Consequences
+- 良い点: 複数ダイアログが意図せず同時 open しても scroll lock が壊れない。防御コストは数行で済む
+- トレードオフ: module-scope mutable state を導入する（テスト時にリセット必要だが、Dialog 単体テストは現状ない）
+
+---
+
 ## ADR-010: `Dialog` / `DialogInner` の 2 階層構造
 
 ### Status
