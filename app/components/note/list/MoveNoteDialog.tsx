@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -11,9 +12,7 @@ import {
 import { bulkMoveNotesFn, moveNoteFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
 import {
-  dialog,
   dialogActions,
-  dialogBackdrop,
   dialogTitle,
   field,
   fieldControl,
@@ -46,8 +45,6 @@ export function MoveNoteDialog({
   const [batchError, setBatchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetId = useId();
-
-  if (!open) return null;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,13 +86,13 @@ export function MoveNoteDialog({
   };
 
   return (
-    <div
-      className={dialogBackdrop}
-      role="dialog"
-      aria-modal="true"
-      aria-label="ノートを移動"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="ノートを移動"
+      closable={!isPending}
     >
-      <form className={dialog} onSubmit={submit}>
+      <form onSubmit={submit}>
         <h2 className={dialogTitle}>
           {noteIds.length === 1
             ? "ノートを移動"
@@ -150,6 +147,6 @@ export function MoveNoteDialog({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

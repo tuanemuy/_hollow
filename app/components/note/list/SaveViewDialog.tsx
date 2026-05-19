@@ -2,6 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { createSavedViewFn } from "@/components/view/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -10,9 +11,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import type { NoteListSearch } from "../schema";
 import {
-  dialog,
   dialogActions,
-  dialogBackdrop,
   dialogTitle,
   field,
   fieldControl,
@@ -37,8 +36,6 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [isPending, startTransition] = useTransition();
   const nameId = useId();
-
-  if (!open) return null;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -74,13 +71,13 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
   };
 
   return (
-    <div
-      className={dialogBackdrop}
-      role="dialog"
-      aria-modal="true"
-      aria-label="ビューとして保存"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="ビューとして保存"
+      closable={!isPending}
     >
-      <form className={dialog} onSubmit={submit}>
+      <form onSubmit={submit}>
         <h2 className={dialogTitle}>現在のフィルタをビューとして保存</h2>
         <div className={field}>
           <label htmlFor={nameId} className={fieldLabel}>
@@ -141,6 +138,6 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -24,12 +25,6 @@ type Props = {
   onClose: () => void;
 };
 
-const DIALOG_BACKDROP =
-  "fixed inset-0 z-[100] bg-black/35 flex items-center justify-center p-4";
-const DIALOG =
-  "bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-[0_16px_32px_rgba(0,0,0,0.15)]";
-const DIALOG_TITLE = "text-lg font-medium mb-4";
-const DIALOG_ACTIONS = "inline-flex gap-2 mt-4 justify-end w-full";
 const DIALOG_DESCRIPTION = "text-[13px] text-ink-secondary mt-2";
 
 export function MergeTagDialog({
@@ -45,8 +40,6 @@ export function MergeTagDialog({
   const [error, setError] = useState<SerializedError | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetId = useId();
-
-  if (!open) return null;
 
   const targetTag = candidates.find((c) => c.id === target);
 
@@ -68,14 +61,14 @@ export function MergeTagDialog({
   };
 
   return (
-    <div
-      className={DIALOG_BACKDROP}
-      role="dialog"
-      aria-modal="true"
-      aria-label="タグを統合"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="タグを統合"
+      closable={!isPending}
     >
-      <form className={DIALOG} onSubmit={submit}>
-        <h2 className={DIALOG_TITLE}>タグを統合</h2>
+      <form onSubmit={submit}>
+        <h2 className="text-lg font-medium mb-4">タグを統合</h2>
         <div className="flex flex-col gap-2 mb-4">
           <label htmlFor={targetId} className={FIELD_LABEL}>
             統合先タグ
@@ -106,7 +99,7 @@ export function MergeTagDialog({
             {displayError(error)}
           </p>
         ) : null}
-        <div className={DIALOG_ACTIONS}>
+        <div className="inline-flex gap-2 mt-4 justify-end w-full">
           <button
             type="button"
             className={PILL_BTN}
@@ -125,6 +118,6 @@ export function MergeTagDialog({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
