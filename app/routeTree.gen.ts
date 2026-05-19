@@ -37,6 +37,7 @@ import { Route as SettingsAccountDeleteRouteImport } from './routes/settings/acc
 import { Route as PasswordResetConfirmRouteImport } from './routes/password-reset/confirm'
 import { Route as NotesNewRouteImport } from './routes/notes/new'
 import { Route as MediaMediaIdRouteImport } from './routes/media/$mediaId'
+import { Route as ExportsJobIdRouteImport } from './routes/exports/$jobId'
 import { Route as EmailChangeConfirmRouteImport } from './routes/email-change/confirm'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRegistrationRouteImport } from './routes/admin/registration'
@@ -193,6 +194,11 @@ const MediaMediaIdRoute = MediaMediaIdRouteImport.update({
   path: '/media/$mediaId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExportsJobIdRoute = ExportsJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => ExportsRouteRoute,
+} as any)
 const EmailChangeConfirmRoute = EmailChangeConfirmRouteImport.update({
   id: '/email-change/confirm',
   path: '/email-change/confirm',
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
+  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/notes/new': typeof NotesNewRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
+    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/notes/new'
     | '/password-reset/confirm'
@@ -765,6 +777,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exports/$jobId': {
+      id: '/exports/$jobId'
+      path: '/$jobId'
+      fullPath: '/exports/$jobId'
+      preLoaderRoute: typeof ExportsJobIdRouteImport
+      parentRoute: typeof ExportsRouteRoute
+    }
     '/email-change/confirm': {
       id: '/email-change/confirm'
       path: '/email-change/confirm'
@@ -900,10 +919,12 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 )
 
 interface ExportsRouteRouteChildren {
+  ExportsJobIdRoute: typeof ExportsJobIdRoute
   ExportsIndexRoute: typeof ExportsIndexRoute
 }
 
 const ExportsRouteRouteChildren: ExportsRouteRouteChildren = {
+  ExportsJobIdRoute: ExportsJobIdRoute,
   ExportsIndexRoute: ExportsIndexRoute,
 }
 

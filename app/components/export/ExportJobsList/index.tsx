@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import type { ExportJobDTO } from "@/core/application/export/view";
@@ -11,7 +11,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import { cancelExportFn, downloadExportFn } from "../ExportForm/action";
 
-const STATUS_LABEL: Readonly<Record<ExportJobDTO["status"], string>> = {
+export const STATUS_LABEL: Readonly<Record<ExportJobDTO["status"], string>> = {
   pending: "待機中",
   processing: "処理中",
   completed: "完了",
@@ -100,6 +100,9 @@ function ExportJobRow({ job }: { job: ExportJobDTO }) {
             キャンセル
           </button>
         ) : null}
+        <Link to="/exports/$jobId" params={{ jobId: job.id }}>
+          詳細
+        </Link>
       </div>
       {message !== "" ? <p role="alert">{message}</p> : null}
     </li>
