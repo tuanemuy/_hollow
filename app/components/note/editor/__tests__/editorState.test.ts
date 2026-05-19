@@ -477,6 +477,107 @@ describe("editorReducer edit-lock actions", () => {
   });
 });
 
+describe("editorReducer wysiwyg unsupported-tag warning (Issue #37)", () => {
+  it("starts with an empty tag list and ack=false", () => {
+    const s = freshState();
+    expect(s.wysiwygUnsupportedTags).toEqual([]);
+    expect(s.wysiwygUnsupportedAck).toBe(false);
+  });
+
+  it("wysiwygUnsupportedDetected with non-empty tags stores them sorted and leaves ack=false", () => {
+    const s = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["table", "mark", "kbd"],
+    });
+    expect(s.wysiwygUnsupportedTags).toEqual(["kbd", "mark", "table"]);
+    expect(s.wysiwygUnsupportedAck).toBe(false);
+    expect(s.dirtyKeys.size).toBe(0);
+  });
+
+  // ADR-005 latch: empty `tags` must never erase an existing warning.
+  it("wysiwygUnsupportedDetected with [] is a no-op even after a warning is set", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: [],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with [] on initial state is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: [],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with the same set (different order) is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark", "table"],
+    });
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["table", "mark"],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with a different set resets ack to false", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    expect(s1.wysiwygUnsupportedAck).toBe(true);
+    const s2 = editorReducer(s1, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark", "kbd"],
+    });
+    expect(s2.wysiwygUnsupportedTags).toEqual(["kbd", "mark"]);
+    expect(s2.wysiwygUnsupportedAck).toBe(false);
+  });
+
+  it("wysiwygUnsupportedAck flips ack to true without touching the tag list", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    expect(s1.wysiwygUnsupportedAck).toBe(true);
+    expect(s1.wysiwygUnsupportedTags).toEqual(["mark"]);
+    expect(s1.dirtyKeys.size).toBe(0);
+  });
+
+  it("wysiwygUnsupportedAck when already acked is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    const s2 = editorReducer(s1, { type: "wysiwygUnsupportedAck" });
+    expect(s2).toBe(s1);
+  });
+
+  it("neither action mutates dirtyKeys nor autosave status", () => {
+    let s: EditorState = freshState();
+    s = editorReducer(s, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    expect(s.dirtyKeys.size).toBe(0);
+    expect(s.autosave.kind).toBe("idle");
+    s = editorReducer(s, { type: "wysiwygUnsupportedAck" });
+    expect(s.dirtyKeys.size).toBe(0);
+    expect(s.autosave.kind).toBe("idle");
+  });
+});
+
 describe("editorReducer media insertions", () => {
   it("mediaInsertionAdded appends to the insertion history", () => {
     const s0 = editorReducer(freshState(), {

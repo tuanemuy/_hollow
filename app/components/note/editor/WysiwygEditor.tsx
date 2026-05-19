@@ -20,6 +20,7 @@ import type { InternalLinkSuggestion } from "@/core/application/note/searchInter
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";
+import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
  * WYSIWYG pane backed by TipTap (P12 / Issue #9). Mirrors `HtmlEditor`'s
@@ -66,6 +67,22 @@ export type WysiwygEditorProps = Readonly<{
   onChange: (html: string) => void;
   disabled?: boolean;
   editorRef?: React.RefObject<Editor | null>;
+  /**
+   * Names of element tags present in `value` that fall outside the
+   * TipTap-supported set (Issue #37). Drives the inline warning banner.
+   */
+  unsupportedTags?: readonly string[];
+  /** Whether the user has acknowledged the unsupported-tag warning. */
+  unsupportedAck?: boolean;
+  /**
+   * Fired once on initial mount with the tags `detectUnsupportedTags`
+   * found in the *original* `value`. Detection deliberately runs only
+   * inside `onCreate` — see ADR-005 for why later re-detection (against
+   * a `value` that TipTap may already have flattened) is unsafe.
+   */
+  onUnsupportedTagsDetected?: (tags: readonly string[]) => void;
+  /** Acknowledge callback for the "了解した" button. */
+  onAcknowledge?: () => void;
 }>;
 
 const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
@@ -87,11 +104,20 @@ export function WysiwygEditor({
   onChange,
   disabled,
   editorRef,
+  unsupportedTags,
+  unsupportedAck,
+  onUnsupportedTagsDetected,
+  onAcknowledge,
 }: WysiwygEditorProps) {
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  const onUnsupportedTagsDetectedRef = useRef(onUnsupportedTagsDetected);
+  useEffect(() => {
+    onUnsupportedTagsDetectedRef.current = onUnsupportedTagsDetected;
+  }, [onUnsupportedTagsDetected]);
 
   const lastEmittedHtmlRef = useRef<string>(value);
 
@@ -276,6 +302,15 @@ export function WysiwygEditor({
       // — fired on initial render in some TipTap builds — does not
       // mis-classify the normalisation as user input.
       lastEmittedHtmlRef.current = instance.getHTML();
+      // Detect unsupported tags against the *original* `value` captured
+      // by this closure on mount — `instance.getHTML()` is already the
+      // post-parse (lossy) form. Detection runs exactly here so that
+      // user keystrokes flowing through `onUpdate` cannot retroactively
+      // erase the warning (ADR-005).
+      const lost = detectUnsupportedTags(value);
+      if (lost.length > 0) {
+        onUnsupportedTagsDetectedRef.current?.(lost);
+      }
     },
     onUpdate: ({ editor: instance }) => {
       const next = instance.getHTML();
@@ -406,6 +441,10 @@ export function WysiwygEditor({
           },
         ];
 
+  const lostTags = unsupportedTags ?? [];
+  const showWarning = lostTags.length > 0 && unsupportedAck !== true;
+  const showAckedNotice = lostTags.length > 0 && unsupportedAck === true;
+
   return (
     <div className="wysiwyg-editor">
       <div className="wysiwyg-toolbar" role="toolbar" aria-label="書式">
@@ -436,6 +475,39 @@ export function WysiwygEditor({
           Link
         </button>
       </div>
+      {showWarning ? (
+        <div
+          className="wysiwyg-unsupported-banner"
+          role="alert"
+          aria-live="assertive"
+        >
+          <p>
+            {"この本文には WYSIWYG モードで編集できない要素 ("}
+            {lostTags.map((t, i) => (
+              <span key={t}>
+                {i > 0 ? ", " : ""}
+                <code>{`<${t}>`}</code>
+              </span>
+            ))}
+            {
+              ") が含まれています。WYSIWYG モードで編集を加えると失われます。確認するまで自動保存は一時停止します。"
+            }
+          </p>
+          <button
+            type="button"
+            className="pill-btn primary"
+            onClick={() => onAcknowledge?.()}
+          >
+            了解した
+          </button>
+        </div>
+      ) : null}
+      {showAckedNotice ? (
+        <p className="wysiwyg-unsupported-notice" role="note">
+          {"以下の要素は WYSIWYG モードでは保持されません: "}
+          {lostTags.join(", ")}
+        </p>
+      ) : null}
       <EditorContent editor={editor} />
     </div>
   );
