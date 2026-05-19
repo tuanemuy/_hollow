@@ -43,3 +43,4 @@ Phase 4 で起票判定。
 - **AT 隔離強化（兄弟 `aria-hidden` / `inert`）** — review-001 W-Rob-006、ADR-006。iOS Safari + VoiceOver の `aria-modal` 不確実性への対応
 - **iOS Safari `position: fixed` ハック / モバイル scroll lock** — review-001 W-002
 - **Dialog 単体テスト整備** — Round 1 / 2 では現状未追加。テスト基盤が `happy-dom + createRoot + act` で揃ったらフォーカストラップ / Esc / Portal / scroll lock counter を網羅したい
+- **複数ダイアログ同時表示時の Tab トラップ協調** — review-002 W-Round3-001。`bodyScrollLockCount` は導入したが、`document` 全体に attach する keydown listener は各 Dialog ごとに独立しており、外側 Dialog のリスナが内側 Dialog の active を「自分の panel 外」と判定して focus を奪う可能性がある。`module-scope` の active panel スタックで「最上位 Dialog のリスナのみ active」とする仕組みを追加すれば一貫性が出る

@@ -26,6 +26,9 @@ const FOCUSABLE_SELECTOR =
 // (e.g. a Confirm rendered on top of another Dialog) share the lock so the
 // outermost dialog restores the original overflow value on close. Client-only:
 // untouched in the SSR path because all reads/writes happen inside `useEffect`.
+// Dev-only caveat: Vite HMR re-evaluates this module, resetting both vars to
+// their initial values; a dialog open across an HMR boundary can leave
+// `overflow: hidden` stuck. Restart the dev server if it happens.
 let bodyScrollLockCount = 0;
 let bodyScrollLockPrevious = "";
 
@@ -62,6 +65,12 @@ function DialogInner({
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
+  // Read latest `closable` / `onClose` from a ref so the keydown listener can
+  // be attached once and avoid churn when `isPending` toggles each render.
+  const closableRef = useRef(closable);
+  const onCloseRef = useRef(onClose);
+  closableRef.current = closable;
+  onCloseRef.current = onClose;
 
   // SSR guard: `"use client"` still goes through the SSR pass in TanStack
   // Start, so we defer `document` access until after hydration.
@@ -111,7 +120,11 @@ function DialogInner({
         // otherwise users would lose in-progress form input when cancelling
         // an IME conversion. Scoped to Esc only so Tab trap stays active.
         if (event.isComposing || event.keyCode === 229) return;
-        if (closable) onClose();
+        // Consume the Esc event whether or not we close, so upstream listeners
+        // (route-level shortcuts, parent modals) don't act on a modal Esc.
+        event.preventDefault();
+        event.stopPropagation();
+        if (closableRef.current) onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -148,7 +161,7 @@ function DialogInner({
     return () => {
       document.removeEventListener("keydown", handler);
     };
-  }, [closable, onClose]);
+  }, []);
 
   // Initial focus: alertdialog focuses the panel itself; otherwise focus
   // the first focusable element inside the panel. Use rAF so the panel is
