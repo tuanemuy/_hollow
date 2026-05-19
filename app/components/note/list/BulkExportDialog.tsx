@@ -67,10 +67,12 @@ export function BulkExportDialog({ open, onClose }: Props) {
             },
           },
         });
-        void result;
         dispatch({ type: "clear" });
         onClose();
-        await router.navigate({ to: "/exports", search: { offset: 0 } });
+        await router.navigate({
+          to: "/exports/$jobId",
+          params: { jobId: result.jobId },
+        });
       } catch (e) {
         const err = extractSerializedError(e);
         if (
