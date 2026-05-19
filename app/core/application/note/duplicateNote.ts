@@ -1,5 +1,7 @@
+import { BusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { MediaService } from "@/core/domain/media/service";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import { NoteService } from "@/core/domain/note/service";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
@@ -32,6 +34,12 @@ export async function duplicateNote({
       throw new ForbiddenError(
         "NOTE_FORBIDDEN",
         `Note ${input.noteId} is owned by another user`,
+      );
+    }
+    if (found.entity.status !== "active") {
+      throw new BusinessRuleError(
+        NoteErrorCode.AlreadyTrashed,
+        `Cannot duplicate trashed note: ${input.noteId}`,
       );
     }
     const { entity: copy, eventDrafts } = await NoteService.duplicate(

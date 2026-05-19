@@ -79,6 +79,7 @@ export async function restoreNote({
       found.entity.slug,
       found.entity.id,
       ctx.noteRepository,
+      NoteErrorCode.SlugConflict,
     );
 
     const { entity: next, eventDrafts } = Note.restore(

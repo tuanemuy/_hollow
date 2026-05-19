@@ -102,23 +102,27 @@ async function purge(
 
 /**
  * Access-control check for media reads. The owner can always view; for
- * anonymous viewers the related note must be `public`, or the caller
- * must have already validated a limited-share link out of band and pass
- * `relatedNoteVisibility === 'unlisted'` to mark that case.
+ * anonymous viewers the related note must be `public`, or — when the
+ * related note is `unlisted` — the caller must additionally signal that a
+ * share link has already been validated out of band by passing
+ * `hasShareLink: true`. `hasShareLink` is intentionally non-optional so
+ * every call site is forced to declare its share-link state at the type
+ * level.
  */
 function assertViewableBy(args: {
   asset: MediaAsset;
   viewerOwnerId: UserId | null;
   relatedNoteVisibility: Visibility | null;
+  hasShareLink: boolean;
 }): void {
-  const { asset, viewerOwnerId, relatedNoteVisibility } = args;
+  const { asset, viewerOwnerId, relatedNoteVisibility, hasShareLink } = args;
   if (viewerOwnerId !== null && viewerOwnerId === asset.ownerId) {
     return;
   }
-  if (
-    relatedNoteVisibility === "public" ||
-    relatedNoteVisibility === "unlisted"
-  ) {
+  if (relatedNoteVisibility === "public") {
+    return;
+  }
+  if (relatedNoteVisibility === "unlisted" && hasShareLink) {
     return;
   }
   throw new BusinessRuleError(

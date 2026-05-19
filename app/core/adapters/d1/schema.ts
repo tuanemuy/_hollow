@@ -258,7 +258,9 @@ export const notes = sqliteTable(
     version: integer("version").notNull().default(0),
   },
   (table) => [
-    uniqueIndex("uniq_notes_owner_slug").on(table.ownerId, table.slug),
+    uniqueIndex("uniq_notes_owner_slug")
+      .on(table.ownerId, table.slug)
+      .where(sql`status = 'active'`),
     index("idx_notes_owner_status_updated").on(
       table.ownerId,
       table.status,

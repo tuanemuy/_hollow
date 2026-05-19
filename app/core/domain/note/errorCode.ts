@@ -19,6 +19,7 @@ export const NoteErrorCode = {
   CannotMoveTrashed: "note_cannot_move_trashed",
   AlreadyTrashed: "note_already_trashed",
   NotTrashed: "note_not_trashed",
+  SlugConflict: "slug_conflict",
   ReleaseNotOwner: "note_release_not_owner",
   ExtendNotOwner: "note_extend_not_owner",
   MediaNotOwned: "media_not_owned",

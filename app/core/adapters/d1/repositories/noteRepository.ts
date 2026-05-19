@@ -306,7 +306,13 @@ export class D1NoteRepository implements NoteRepository {
       const rows = await this.db
         .select()
         .from(notes)
-        .where(and(eq(notes.ownerId, ownerId), eq(notes.slug, slug)))
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.slug, slug),
+            eq(notes.status, "active"),
+          ),
+        )
         .limit(1);
       const row = rows[0];
       if (!row) return null;
