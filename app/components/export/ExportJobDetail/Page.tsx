@@ -1,3 +1,4 @@
+import type { ExportJobDTO } from "@/core/application/export/view";
 import { isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportErrorCode } from "@/core/domain/export/errorCode";
@@ -20,7 +21,7 @@ import { loadExportJob } from "./loader";
  */
 export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
   const user = await requireCurrentUser();
-  let job;
+  let job: ExportJobDTO;
   try {
     ({ job } = await loadExportJob({ actorUserId: user.id, jobId }));
   } catch (error) {
