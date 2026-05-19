@@ -19,7 +19,7 @@ const ADMIN_SHELL_CLASS =
   "min-h-screen bg-bg text-ink font-sans text-md leading-normal tracking-normal antialiased";
 
 const ADMIN_HEADER_CLASS =
-  "sticky top-0 z-50 grid grid-cols-[auto_1fr_auto] items-center gap-5 px-6 py-[14px] bg-[var(--header-bg)] backdrop-blur-[20px] backdrop-saturate-[180%] not-supports-[backdrop-filter:blur(1px)]:bg-white max-sm:gap-[10px] max-sm:px-4 max-sm:py-3";
+  "sticky top-0 z-50 grid grid-cols-[auto_1fr_auto] items-center gap-5 px-6 py-[14px] bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:gap-[10px] max-sm:px-4 max-sm:py-3";
 
 const ADMIN_HEADER_LEFT_CLASS = "flex items-center gap-3";
 
@@ -27,7 +27,7 @@ const ADMIN_LOGO_CLASS =
   "text-[21px] font-light tracking-tightest text-ink max-sm:hidden";
 
 const ADMIN_PILL_CLASS =
-  "inline-flex items-center gap-[6px] px-[10px] py-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium before:content-[''] before:w-[6px] before:h-[6px] before:rounded-full before:bg-accent";
+  "inline-flex items-center gap-1.5 px-[10px] py-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium before:content-[''] before:w-[6px] before:h-[6px] before:rounded-full before:bg-accent";
 
 const ADMIN_MAIN_CLASS =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20";
@@ -38,7 +38,7 @@ const ADMIN_PAGE_TITLE_CLASS =
 const ADMIN_PAGE_SUBTITLE_CLASS = "text-md text-ink-secondary m-0 mb-8";
 
 const ADMIN_BTN_CLASS =
-  "inline-flex items-center gap-[6px] h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,

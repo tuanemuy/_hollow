@@ -13,6 +13,11 @@ type Props = {
   user: UserDTO;
 };
 
+const ACTIVE_NAV_PROPS = {
+  "data-active": "",
+  "aria-current": "page" as const,
+};
+
 function DirectoryNode({
   node,
   depth,
@@ -26,6 +31,7 @@ function DirectoryNode({
         to="/"
         search={{ directoryId: node.id as unknown as string }}
         className={NAV_ITEM}
+        activeProps={ACTIVE_NAV_PROPS}
         style={{ paddingLeft: `${12 + depth * 12}px` }}
       >
         <span>{node.name}</span>
@@ -50,7 +56,12 @@ export async function Sidebar({ user }: Props) {
         <div className={SIDEBAR_SECTION_TITLE}>ライブラリ</div>
         <ul className="list-none m-0 p-0">
           <li>
-            <Link to="/" className={NAV_ITEM}>
+            <Link
+              to="/"
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+              activeOptions={{ exact: true }}
+            >
               <span>すべてのノート</span>
             </Link>
           </li>
@@ -76,7 +87,11 @@ export async function Sidebar({ user }: Props) {
         <div className={SIDEBAR_SECTION_TITLE}>管理</div>
         <ul className="list-none m-0 p-0">
           <li>
-            <Link to="/tags" className={NAV_ITEM}>
+            <Link
+              to="/tags"
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
               <span>タグ</span>
             </Link>
           </li>
@@ -85,12 +100,17 @@ export async function Sidebar({ user }: Props) {
               to="/trash"
               search={{ page: 1, limit: 20 }}
               className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
             >
               <span>ゴミ箱</span>
             </Link>
           </li>
           <li>
-            <Link to="/upload" className={NAV_ITEM}>
+            <Link
+              to="/upload"
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
               <span>アップロード</span>
             </Link>
           </li>

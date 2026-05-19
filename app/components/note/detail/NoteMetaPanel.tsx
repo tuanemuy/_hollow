@@ -115,7 +115,7 @@ export function NoteMetaPanel({
             {tagNames.length === 0 ? (
               <span className="text-ink-tertiary italic">なし</span>
             ) : (
-              <ul className="inline-flex flex-wrap gap-[6px] m-0 p-0 list-none">
+              <ul className="inline-flex flex-wrap gap-1.5 m-0 p-0 list-none">
                 {tagNames.map((name) => (
                   <li key={name}>
                     <span className={`${CHIP_BASE} bg-surface text-ink`}>

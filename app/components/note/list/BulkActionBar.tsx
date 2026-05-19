@@ -72,7 +72,7 @@ export function BulkActionBar({ tree }: Props) {
         <span className="text-[13px] font-medium text-ink">
           {state.ids.size} 件選択中
         </span>
-        <div className="inline-flex gap-[6px] flex-wrap ml-auto">
+        <div className="inline-flex gap-1.5 flex-wrap ml-auto">
           <button
             type="button"
             className={pillBtn}

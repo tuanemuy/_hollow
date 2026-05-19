@@ -128,7 +128,7 @@ export function FilterBar({
       {tags.length > 0 ? (
         <div className="inline-flex items-center gap-2 flex-wrap">
           <span className={FILTER_LABEL}>タグ</span>
-          <div className="inline-flex gap-[6px] flex-wrap">
+          <div className="inline-flex gap-1.5 flex-wrap">
             {tags.map((tag) => {
               const active = selected.has(tag.name);
               return (
@@ -142,10 +142,7 @@ export function FilterBar({
                   disabled={isPending}
                 >
                   #{tag.name}
-                  <span
-                    data-active={active || undefined}
-                    className="ml-[6px] text-[11px] text-ink-tertiary data-[active]:text-white/85"
-                  >
+                  <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
                     {tag.noteCount}
                   </span>
                 </button>
@@ -157,7 +154,7 @@ export function FilterBar({
 
       <div className="inline-flex items-center gap-2 flex-wrap">
         <span className={FILTER_LABEL}>期間</span>
-        <div className="inline-flex items-center gap-[6px]">
+        <div className="inline-flex items-center gap-1.5">
           <label
             htmlFor={fromId}
             className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"

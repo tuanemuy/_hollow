@@ -3,7 +3,7 @@
 ## ADR-001: `@theme inline` を使い tokens.css の SSOT を維持
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 Tailwind v4 では `@theme` ブロックに CSS 変数を書くことで Tailwind utility が自動生成される。本プロジェクトでは既に `app/styles/tokens.css` が `--color-*` / `--space-*` / `--text-*` 等のトークンを定義しており、`spec/design/tokens.md` がこの SSOT を明示している。
@@ -26,7 +26,7 @@ B を採用する。`@theme inline` 構文は CSS 変数を即座に解決して
 ## ADR-002: `@apply` ベースの component class を原則作らない
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 Tailwind では繰り返される utility 列を `@apply` で component class にまとめる方法がある。一方で Issue #68 / #70 の根本問題は「コンポーネントは class を当てているのに CSS 側で未定義」というギャップであり、CSS ファイルに class を残すこと自体が再発リスク。
@@ -63,7 +63,7 @@ B を採用する。Issue の主旨「utility-first 統一」「孤児クラス�
 ## ADR-003: 状態 class は `data-*` 属性 + Tailwind variant で表現する
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 既存のセマンティック class には `pill-btn primary` / `field has-error` / `note-tile is-selected` / `dropzone dragover` のような状態 class が多数ある。これらは Tailwind utility に展開するとき、条件式で utility 文字列を組み立てる方式と、`data-*` 属性 + variant の方式がある。
@@ -87,12 +87,26 @@ B を採用する。
   - `""` を渡すと属性は付くが値が空で「あり」と評価されるため、boolean 以外を渡すケースは要注意。
   - 繰り返しが多くなったら 1 関数だけ `dataAttr(v) => v ? "" : undefined` 相当のヘルパを導入してもよい（本 PR では導入せず、必要になったら別 Issue）。
 
+### 表記の選択ガイド（PR #71 のレビューで補足）
+
+実装上、以下の 3 つの書き方が混在することがある。それぞれの使い分け:
+
+- `data-x={value || undefined}` ― **動的な状態（基本）**: boolean / 比較式 / `Set.has()` などから組み立てる場合。`false` のとき属性が消えるので最も安全。
+- `data-x={cond ? "" : undefined}` ― **値の空文字を明示したいケース**: DOM 上 `data-x=""` として可視化したいときや、属性値そのものに意味がない場合。挙動は上と同等。
+- `data-x=""` ― **常に true の静的属性**: 「常に primary」のようにレンダラー側で確定している場合。`data-[x]:` バリアントの CSS 効果は同じ。
+
+すべて Tailwind の `data-[x]:` バリアントは値ではなく属性の存在を見るため、上記いずれも CSS 上の挙動は同じ。読み手にとっての宣言性で選ぶ。
+
+### `aria-*` との併用
+
+ナビゲーションの現在地のように aria-* で十分意味が伝わる場合は、`aria-current="page"` と `data-active` を併用するか、`aria-[current=page]:` バリアントで aria-* に寄せる。`FilterBar.tsx` のような複数階層に同じ data-* を撒くアンチパターンは避け、親側に `[[data-active]_&]:` 形式の子孫セレクタで集約する。
+
 ---
 
 ## ADR-004: 単一 PR で一括移行（コミット粒度は分割）
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 Issue 本文の「アプローチ」セクションで一括移行（単一 PR）が明示されている。移行途中の半端な状態（一部 utility / 一部手書き）を残さないことが優先される。
@@ -112,5 +126,48 @@ Issue 本文の「アプローチ」セクションで一括移行（単一 PR�
 ### Consequences
 - 良い点: レビュー時に「どこからどこまでが何のための変更か」が追える。万一 revert が必要になっても粒度ごとに戻せる
 - トレードオフ: 各コミットで動作する状態を維持するため、CSS の削除はコミット 7 まで遅らせる必要がある
+
+実際の進行: 並列サブエージェント実装の都合上、最終的に 1 コミットに統合した。コミット粒度分割の意図は PR 説明と CLAUDE.md / ADR で代替する。
+
+---
+
+## ADR-005: backdrop-filter フォールバックは「常時 bg + supports- で blur 追加」に統一
+
+### Status
+Accepted
+
+### Context
+レビューラウンド 1 で `not-supports-[backdrop-filter:blur(1px)]:bg-white` パターンが Safari/Chrome の `blur(1px)` 判定で常にサポート扱いとなり、フォールバックが機能しないことが判明した。
+
+### Decision
+すべての backdrop-filter 使用箇所で、以下のパターンに統一する:
+
+```
+bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]
+```
+
+- ベース: 不透明の `bg-[var(--header-bg)]`（`--header-bg` は半透明だが背後が透ければ blur で消える）
+- 対応ブラウザ: `supports-[backdrop-filter]:` で blur と saturate を追加
+
+### Consequences
+- 良い点: 未対応ブラウザでもヘッダーが透けず、視認性が確保される
+- トレードオフ: `--header-bg` が半透明なので、未対応環境ではややくすんだ見え方になる（許容範囲）
+
+---
+
+## ADR-006: transition のデュレーション差は許容
+
+### Status
+Accepted
+
+### Context
+旧 CSS の `transition-bg`(120ms) / `transition-color`(120ms) を utility 化する過程で、多くの箇所が Tailwind 既定の `transition-colors`（duration 150ms）に置き換わった。レビューで「30ms の差が累積する」と指摘されたが、視覚的な差は人間の知覚閾値以下。
+
+### Decision
+`transition-colors` (150ms) を許容する。トークン (`--duration-fast`) を厳密に守りたい場所（admin nav 等）では `duration-[var(--duration-fast)] ease-[var(--ease-standard)]` を併用して明示する。
+
+### Consequences
+- 良い点: utility のシンプルさを優先できる
+- トレードオフ: 一部箇所で 30ms の体感差が生じる可能性（実用上問題なし）
 
 ---

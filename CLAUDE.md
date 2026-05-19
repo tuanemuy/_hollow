@@ -46,6 +46,9 @@ TanStack Start with React 19 / RSC, TanStack Router (file-based routes), Tailwin
 - **State styles** use `data-*` attributes plus Tailwind's `data-[name]:` variants, not conditional class strings. Render the attribute as `data-active={isActive || undefined}` so it disappears when falsy.
 - **Repeated utility strings** can be hoisted into a module-scoped string constant (see `app/components/note/styles.ts`, `auth/styles.ts`, `layout/styles.ts`, `public/styles.ts`). Tailwind's JIT scans those literals, so behavior is identical to inline.
 - **Documented exception:** `.note-detail-content` lives in `app/styles/index.css` under `@layer components` because its descendant elements come from `dangerouslySetInnerHTML` and cannot carry utility classes. See `.issue/70/adr.md` ADR-002 before adding more exceptions.
+- **Breakpoints are duplicated on purpose.** `tokens.css` defines `--bp-sm/md/lg/xl/2xl` as the SSOT, but `index.css` re-declares `--breakpoint-*` as literal `px` values inside `@theme inline`. lightningcss rejects `var()` inside `@media (width >= ...)` during minify, so the bridge cannot be a `var()` reference. When you change a `--bp-*` value, update the corresponding `--breakpoint-*` literal too.
+- **backdrop-filter** uses the "always-on base + `supports-[backdrop-filter]:` for blur" pattern (see ADR-005). `not-supports-[backdrop-filter:blur(1px)]:` is unreliable on Safari/Chrome.
+- **`data-*` attribute conventions** (ADR-003): `data-x={value || undefined}` for dynamic state, `data-x=""` for statically-on attributes. Tailwind's `data-[x]:` variant tests for attribute presence, not value, so both work.
 
 ## Key concepts
 

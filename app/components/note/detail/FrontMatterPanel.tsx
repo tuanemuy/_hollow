@@ -28,7 +28,7 @@ export type FrontMatterPanelProps = Readonly<{
 
 const EMPTY = "text-ink-tertiary italic";
 const SCALAR = "font-mono text-mono";
-const ARRAY_LIST = "flex flex-wrap gap-[6px] m-0 p-0 list-none";
+const ARRAY_LIST = "flex flex-wrap gap-1.5 m-0 p-0 list-none";
 const ARRAY_ITEM = "bg-surface-hover px-2 py-[2px] rounded-xs text-xs";
 const OBJ_DL = "grid gap-1 m-0 p-2 bg-surface-hover rounded-xs";
 const OBJ_ROW = "grid grid-cols-[auto_1fr] gap-2";

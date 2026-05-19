@@ -10,7 +10,7 @@
 
 /** Pill button base — apply to every variant. */
 export const pillBtn =
-  "inline-flex items-center gap-[6px] h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed";
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =

@@ -31,7 +31,7 @@ const TAG_TONE: Record<Tone, string> = {
 };
 
 const BTN_SM_CLASS =
-  "inline-flex items-center gap-[6px] h-7 px-3 rounded-pill bg-surface text-ink text-xs font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-ink text-xs font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
 
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
