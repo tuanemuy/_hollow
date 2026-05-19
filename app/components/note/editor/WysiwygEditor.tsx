@@ -14,12 +14,13 @@ import type {
   SuggestionKeyDownProps,
   SuggestionProps,
 } from "@tiptap/suggestion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { searchInternalLinkTargetsFn } from "@/components/note/actions";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";
+import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
  * WYSIWYG pane backed by TipTap (P12 / Issue #9). Mirrors `HtmlEditor`'s
@@ -60,12 +61,41 @@ import { nextSuggestionIndex } from "./internalLinkSuggest";
  * package (`@tiptap/extension-image`) and is configured to reject base64
  * payloads so only `/media/<id>` URLs make it into the document
  * (ADR-009 carry-over).
+ *
+ * The four unsupported-tag props (`unsupportedTags`, `unsupportedAck`,
+ * `onUnsupportedTagsDetected`, `onAcknowledge`) form one cohesive
+ * feature contract (Issue #37). They are individually optional only so
+ * callers that do not opt into the warning UI can omit the whole set;
+ * pass them as a group or not at all. Partial wiring (e.g. omitting
+ * `onAcknowledge`) leaves the "了解した" button as a no-op and stalls
+ * autosave indefinitely.
  */
 export type WysiwygEditorProps = Readonly<{
   value: string;
   onChange: (html: string) => void;
   disabled?: boolean;
   editorRef?: React.RefObject<Editor | null>;
+  /**
+   * Names of element tags present in `value` that fall outside the
+   * TipTap-supported set (Issue #37). Drives the inline warning banner.
+   */
+  unsupportedTags?: readonly string[];
+  /** Whether the user has acknowledged the unsupported-tag warning. */
+  unsupportedAck?: boolean;
+  /**
+   * Fired once on initial mount with the tags `detectUnsupportedTags`
+   * found in the *original* `value`. Detection deliberately runs only
+   * inside `onCreate` — see ADR-005 for why later re-detection (against
+   * a `value` that TipTap may already have flattened) is unsafe.
+   *
+   * The reducer compares incoming sets with `setsEqual`, so dispatching
+   * the same tag set after an `unsupportedAck` toggle preserves the ack
+   * state (ADR-003). This lets the WYSIWYG editor remount-and-redetect
+   * without spuriously resetting acknowledgement.
+   */
+  onUnsupportedTagsDetected?: (tags: readonly string[]) => void;
+  /** Acknowledge callback for the "了解した" button. */
+  onAcknowledge?: () => void;
 }>;
 
 const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
@@ -87,6 +117,10 @@ export function WysiwygEditor({
   onChange,
   disabled,
   editorRef,
+  unsupportedTags,
+  unsupportedAck,
+  onUnsupportedTagsDetected,
+  onAcknowledge,
 }: WysiwygEditorProps) {
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -276,6 +310,15 @@ export function WysiwygEditor({
       // — fired on initial render in some TipTap builds — does not
       // mis-classify the normalisation as user input.
       lastEmittedHtmlRef.current = instance.getHTML();
+      // Detect unsupported tags against the *original* `value` captured
+      // by this closure on mount — `instance.getHTML()` is already the
+      // post-parse (lossy) form. Detection runs exactly here so that
+      // user keystrokes flowing through `onUpdate` cannot retroactively
+      // erase the warning (ADR-005).
+      const lost = detectUnsupportedTags(value);
+      if (lost.length > 0) {
+        onUnsupportedTagsDetected?.(lost);
+      }
     },
     onUpdate: ({ editor: instance }) => {
       const next = instance.getHTML();
@@ -406,8 +449,54 @@ export function WysiwygEditor({
           },
         ];
 
+  const lostTags = unsupportedTags ?? [];
+  const hasUnsupported = lostTags.length > 0;
+  const isAcked = unsupportedAck === true;
+
+  const renderTagList = () =>
+    lostTags.map((t, i) => (
+      <Fragment key={t}>
+        {i > 0 ? ", " : ""}
+        <code>{`<${t}>`}</code>
+      </Fragment>
+    ));
+
   return (
     <div className="wysiwyg-editor">
+      {hasUnsupported ? (
+        <div
+          className={
+            isAcked
+              ? "wysiwyg-unsupported-notice"
+              : "wysiwyg-unsupported-banner"
+          }
+          role={isAcked ? "note" : "alert"}
+        >
+          {isAcked ? (
+            <p>
+              以下の要素は WYSIWYG モードでは保持されません: {renderTagList()}
+            </p>
+          ) : (
+            <>
+              <p>
+                この本文には WYSIWYG モードで編集できない要素 ({renderTagList()}
+                ) が含まれています。WYSIWYG
+                モードで編集を加えると失われます。確認するまで自動保存は一時停止します。
+              </p>
+              <button
+                type="button"
+                className="pill-btn primary"
+                onClick={() => {
+                  onAcknowledge?.();
+                  editor?.commands.focus();
+                }}
+              >
+                了解した
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
       <div className="wysiwyg-toolbar" role="toolbar" aria-label="書式">
         {buttons.map((btn) => {
           const active = btn.isActive();

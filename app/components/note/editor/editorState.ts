@@ -22,6 +22,10 @@
  *   fully wired (HTML / FrontMatter / WYSIWYG); the WYSIWYG tab was
  *   previously rendered disabled (Issue #1 ADR-002) and is now enabled
  *   per Issue #9.
+ * - `wysiwygUnsupportedDetected` is a *latch*: dispatching it with an
+ *   empty `tags` array is a no-op (Issue #37 ADR-005). This makes it
+ *   safe for callers to fan-out detection without worrying that a late
+ *   "no unsupported tags" signal could erase an earlier warning.
  */
 
 import type { SerializedError } from "@/core/presentation/errorResponse";
@@ -70,6 +74,8 @@ export type EditorState = Readonly<{
   autosave: AutosaveStatus;
   dirtyKeys: ReadonlySet<DirtyKey>;
   editLock: EditLockState;
+  wysiwygUnsupportedTags: readonly string[];
+  wysiwygUnsupportedAck: boolean;
 }>;
 
 export type EditorAction =
@@ -92,7 +98,12 @@ export type EditorAction =
       expiresAt: number | null;
     }>
   | Readonly<{ type: "editLockDenied"; expiresAt: number | null }>
-  | Readonly<{ type: "editLockReleased" }>;
+  | Readonly<{ type: "editLockReleased" }>
+  | Readonly<{
+      type: "wysiwygUnsupportedDetected";
+      tags: readonly string[];
+    }>
+  | Readonly<{ type: "wysiwygUnsupportedAck" }>;
 
 export type EditorInit = Readonly<{
   title: string;
@@ -140,7 +151,18 @@ export function createInitialEditorState(init: EditorInit): EditorState {
     autosave: { kind: "idle" },
     dirtyKeys: EMPTY_DIRTY,
     editLock: init.editLock ?? UNKNOWN_LOCK,
+    wysiwygUnsupportedTags: [],
+    wysiwygUnsupportedAck: false,
   };
+}
+
+function setsEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const item of b) {
+    if (!aSet.has(item)) return false;
+  }
+  return true;
 }
 
 function addDirty(
@@ -329,6 +351,28 @@ export function editorReducer(
     }
     case "editLockReleased": {
       return { ...state, editLock: RELEASED_LOCK };
+    }
+    case "wysiwygUnsupportedDetected": {
+      // Latch (Issue #37 / ADR-005): an empty `tags` dispatch never
+      // mutates state. The detection helper runs once per `WysiwygEditor`
+      // mount on the original HTML; if a caller ever re-runs detection
+      // against the *post-edit* HTML (which TipTap may already have
+      // flattened) we must not clear the warning — that would silently
+      // release the autosave gate and lose the user's original markup.
+      if (action.tags.length === 0) return state;
+      // Set-equality comparison so callers don't need to keep tag order
+      // stable. If the warning set is unchanged, return the current
+      // state by reference so React skips downstream renders.
+      if (setsEqual(state.wysiwygUnsupportedTags, action.tags)) return state;
+      return {
+        ...state,
+        wysiwygUnsupportedTags: [...action.tags].sort(),
+        wysiwygUnsupportedAck: false,
+      };
+    }
+    case "wysiwygUnsupportedAck": {
+      if (state.wysiwygUnsupportedAck) return state;
+      return { ...state, wysiwygUnsupportedAck: true };
     }
   }
 }

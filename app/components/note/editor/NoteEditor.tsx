@@ -279,6 +279,12 @@ export function NoteEditor(props: NoteEditorProps) {
             onChange={(v) => dispatch({ type: "setContent", value: v })}
             disabled={isPending}
             editorRef={tiptapEditorRef}
+            unsupportedTags={state.wysiwygUnsupportedTags}
+            unsupportedAck={state.wysiwygUnsupportedAck}
+            onUnsupportedTagsDetected={(tags) =>
+              dispatch({ type: "wysiwygUnsupportedDetected", tags })
+            }
+            onAcknowledge={() => dispatch({ type: "wysiwygUnsupportedAck" })}
           />
           <MediaUploader
             contentHtml={state.contentHtml}

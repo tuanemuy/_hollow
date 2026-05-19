@@ -62,6 +62,43 @@ export function isAutosaveExhausted(attempt: number): boolean {
   return attempt >= MAX_ATTEMPTS;
 }
 
+/**
+ * Pure predicate that the autosave hook consults before scheduling a
+ * flush. Returns `true` only when *every* precondition is met:
+ *
+ * - The note has been persisted (`noteId !== null`); new-note mode
+ *   defers to the explicit `createNote` submit.
+ * - Something is actually dirty.
+ * - FrontMatter raw JSON parses cleanly.
+ * - In WYSIWYG mode with unsupported tags detected, the user has
+ *   acknowledged the warning. HTML mode is *not* gated — see ADR-002
+ *   for why we let the HTML tab keep saving while the warning is up.
+ *
+ * `wysiwygUnsupportedAck` is intentionally retained across WYSIWYG
+ * editor unmount/remount; the reducer's `setsEqual` latch combined with
+ * the `onCreate`-only detection in `WysiwygEditor.tsx` keeps the ack
+ * state consistent with the originally-detected tag set (ADR-003 / -005).
+ *
+ * Exported as a pure function so the gating ladder is unit-testable
+ * without mounting the hook (Issue #37).
+ */
+export function shouldFlushAutosave(
+  state: EditorState,
+  noteId: string | null,
+): boolean {
+  if (noteId === null) return false;
+  if (state.dirtyKeys.size === 0) return false;
+  if (state.frontMatterJsonError !== null) return false;
+  if (
+    state.mode === "wysiwyg" &&
+    state.wysiwygUnsupportedTags.length > 0 &&
+    !state.wysiwygUnsupportedAck
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function useAutosave({
   noteId,
   state,
@@ -82,9 +119,7 @@ export function useAutosave({
   }, []);
 
   useEffect(() => {
-    if (noteId === null) return;
-    if (state.dirtyKeys.size === 0) return;
-    if (state.frontMatterJsonError !== null) return;
+    if (!shouldFlushAutosave(state, noteId)) return;
 
     const flush = async () => {
       if (!mountedRef.current) return;
