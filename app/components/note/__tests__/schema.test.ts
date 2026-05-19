@@ -10,7 +10,6 @@ import {
   bulkExportSchema,
   bulkMoveSchema,
   bulkTrashSchema,
-  bulkVisibilitySchema,
   createNoteSchema,
   deleteNoteSchema,
   duplicateNoteSchema,
@@ -109,6 +108,25 @@ describe("noteListSearchSchema", () => {
     const parsed = noteListSearchSchema.parse({ viewId: "" });
     expect(parsed.viewId).toBeUndefined();
   });
+
+  it("accepts a non-empty `referencingNoteId`", () => {
+    const parsed = noteListSearchSchema.parse({
+      referencingNoteId: "note-abc",
+    });
+    expect(parsed.referencingNoteId).toBe("note-abc");
+  });
+
+  it("rejects empty-string `referencingNoteId` via .catch(undefined)", () => {
+    const parsed = noteListSearchSchema.parse({ referencingNoteId: "" });
+    expect(parsed.referencingNoteId).toBeUndefined();
+  });
+
+  it("falls back to undefined when `referencingNoteId` is not a string", () => {
+    const parsed = noteListSearchSchema.parse({
+      referencingNoteId: 123 as never,
+    });
+    expect(parsed.referencingNoteId).toBeUndefined();
+  });
 });
 
 describe("bulkMoveSchema", () => {
@@ -169,45 +187,6 @@ describe("bulkTrashSchema", () => {
 
   it("rejects empty arrays", () => {
     expect(() => bulkTrashSchema.parse({ noteIds: [] })).toThrow();
-  });
-});
-
-describe("bulkVisibilitySchema", () => {
-  it("accepts exactly BULK_NOTE_IDS_MAX ids", () => {
-    const noteIds = Array.from(
-      { length: BULK_NOTE_IDS_MAX },
-      (_, i) => `n${i}`,
-    );
-    expect(() =>
-      bulkVisibilitySchema.parse({ noteIds, nextVisibility: "public" }),
-    ).not.toThrow();
-  });
-
-  it("rejects more than BULK_NOTE_IDS_MAX ids", () => {
-    const noteIds = Array.from(
-      { length: BULK_NOTE_IDS_MAX + 1 },
-      (_, i) => `n${i}`,
-    );
-    expect(() =>
-      bulkVisibilitySchema.parse({ noteIds, nextVisibility: "public" }),
-    ).toThrow();
-  });
-
-  it("rejects unknown visibility values", () => {
-    expect(() =>
-      bulkVisibilitySchema.parse({
-        noteIds: ["n1"],
-        nextVisibility: "bogus" as never,
-      }),
-    ).toThrow();
-  });
-
-  it("accepts each allowed visibility", () => {
-    for (const v of ["private", "unlisted", "public"] as const) {
-      expect(() =>
-        bulkVisibilitySchema.parse({ noteIds: ["n1"], nextVisibility: v }),
-      ).not.toThrow();
-    }
   });
 });
 

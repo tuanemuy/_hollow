@@ -2,6 +2,25 @@ import { Link } from "@tanstack/react-router";
 import { cache } from "react";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout, SearchIcon } from "./PublicLayout";
+import {
+  AUTHOR_AVATAR,
+  PAGINATION,
+  PILL_BTN,
+  PUBLIC_MAIN,
+  SEARCH_EMPTY,
+  SEARCH_FORM,
+  SEARCH_FORM_BUTTON,
+  SEARCH_FORM_INPUT,
+  SEARCH_HERO,
+  SEARCH_HERO_H1,
+  SEARCH_HIT_AUTHOR,
+  SEARCH_HIT_LIST,
+  SEARCH_HIT_META,
+  SEARCH_HIT_ROW,
+  SEARCH_HIT_SNIPPET,
+  SEARCH_HIT_TITLE,
+  SEARCH_SUMMARY,
+} from "./styles";
 
 type SearchArgs = {
   keyword: string;
@@ -50,13 +69,16 @@ export async function PublicSearch({
 
   return (
     <PublicLayout searchKeyword={keyword} hideHeaderSearch>
-      <main className="public-main">
-        <section className="search-hero">
-          <h1>公開ノートを検索</h1>
-          <search className="search-form">
+      <main className={PUBLIC_MAIN}>
+        <section className={SEARCH_HERO}>
+          <h1 className={SEARCH_HERO_H1}>公開ノートを検索</h1>
+          <search className={SEARCH_FORM}>
             <form method="get" action="/search">
               <SearchIcon size={18} />
-              <label htmlFor="public-search-input" className="visually-hidden">
+              <label
+                htmlFor="public-search-input"
+                className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
+              >
                 キーワード
               </label>
               <input
@@ -65,19 +87,23 @@ export async function PublicSearch({
                 name="q"
                 defaultValue={keyword}
                 placeholder="キーワードを入力"
+                className={SEARCH_FORM_INPUT}
               />
               {username !== null ? (
                 <input type="hidden" name="username" value={username} />
               ) : null}
-              <button type="submit">検索</button>
+              <button type="submit" className={SEARCH_FORM_BUTTON}>
+                検索
+              </button>
             </form>
           </search>
         </section>
 
         {hasKeyword ? (
-          <div className="search-summary">
+          <div className={SEARCH_SUMMARY}>
             <span>
-              <strong>「{keyword}」</strong>の検索結果
+              <strong className="text-ink font-semibold">「{keyword}」</strong>
+              の検索結果
             </span>
             {username !== null ? (
               <>
@@ -93,15 +119,19 @@ export async function PublicSearch({
           </div>
         ) : null}
 
-        <section className="search-hit-list" aria-label="検索結果">
+        <section className={SEARCH_HIT_LIST} aria-label="検索結果">
           {!hasKeyword ? (
-            <div className="search-empty">
-              <h2>キーワードを入力してください</h2>
+            <div className={SEARCH_EMPTY}>
+              <h2 className="text-lg font-semibold mb-2 text-ink">
+                キーワードを入力してください
+              </h2>
               <p>同じインスタンスの公開ノートを横断検索できます。</p>
             </div>
           ) : hits.length === 0 ? (
-            <div className="search-empty">
-              <h2>該当するノートが見つかりませんでした</h2>
+            <div className={SEARCH_EMPTY}>
+              <h2 className="text-lg font-semibold mb-2 text-ink">
+                該当するノートが見つかりませんでした
+              </h2>
               <p>キーワードを変えて再度お試しください。</p>
             </div>
           ) : (
@@ -110,20 +140,23 @@ export async function PublicSearch({
                 key={hit.noteId}
                 to="/notes/public/$noteId"
                 params={{ noteId: hit.noteId }}
-                className="search-hit-row"
+                className={SEARCH_HIT_ROW}
               >
-                <div className="search-hit-author">
-                  <span className="author-avatar" aria-hidden="true">
+                <div className={SEARCH_HIT_AUTHOR}>
+                  <span
+                    className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[8px]`}
+                    aria-hidden="true"
+                  >
                     {avatarInitials(hit.username)}
                   </span>
                   <span>@{hit.username}</span>
                 </div>
-                <div className="search-hit-title">{hit.title}</div>
+                <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
                 {hit.snippet.length > 0 ? (
-                  <p className="search-hit-snippet">{hit.snippet}</p>
+                  <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
                 ) : null}
                 {hit.tagNames.length > 0 ? (
-                  <div className="search-hit-meta">
+                  <div className={SEARCH_HIT_META}>
                     <span>{hit.tagNames.map((t) => `#${t}`).join(" ")}</span>
                   </div>
                 ) : null}
@@ -133,7 +166,7 @@ export async function PublicSearch({
         </section>
 
         {nextCursor !== null ? (
-          <nav className="pagination" aria-label="ページネーション">
+          <nav className={PAGINATION} aria-label="ページネーション">
             <span />
             <Link
               to="/search"
@@ -143,7 +176,7 @@ export async function PublicSearch({
                 cursor: nextCursor,
                 limit,
               }}
-              className="pill-btn"
+              className={PILL_BTN}
             >
               次のページ
             </Link>

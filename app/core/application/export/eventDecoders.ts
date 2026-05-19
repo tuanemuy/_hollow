@@ -57,6 +57,12 @@ const expiredSchema = z
   })
   .strict();
 
+const retryRequestedSchema = z
+  .object({
+    exportJobId: z.string(),
+  })
+  .strict();
+
 export type ExportEventDecoders = {
   readonly [K in ExportEvent["type"]]: EventDecoder<
     Extract<ExportEvent, { type: K }>
@@ -110,6 +116,13 @@ export const exportEventDecoders: ExportEventDecoders = {
   "export.job.expired": buildEventDecoder(
     "export.job.expired",
     expiredSchema,
+    (p) => ({
+      exportJobId: ExportJobId.create(p.exportJobId),
+    }),
+  ),
+  "export.job.retryRequested": buildEventDecoder(
+    "export.job.retryRequested",
+    retryRequestedSchema,
     (p) => ({
       exportJobId: ExportJobId.create(p.exportJobId),
     }),

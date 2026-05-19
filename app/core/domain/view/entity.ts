@@ -3,6 +3,7 @@ import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { RehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
+import { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import {
   BrokenConditionMarker,
@@ -210,6 +211,7 @@ function repairBrokenConditions(view: SavedView, now: Date): SavedView {
     dateRange: view.query.dateRange,
     keyword: view.query.keyword,
     referencingNoteId: repairedReferencingNoteId,
+    visibilityFilter: view.query.visibilityFilter,
   });
 
   return {
@@ -237,6 +239,7 @@ type ReconstructInput = Readonly<{
     } | null;
     keyword: string | null;
     referencingNoteId: string | null;
+    visibilityFilter: readonly string[];
   };
   displayMode: string;
   calendarDateKey: string;
@@ -338,12 +341,17 @@ export const SavedView = {
               to: input.query.dateRange.to,
             });
 
+      const visibilityFilter = input.query.visibilityFilter.map((raw) =>
+        PublicationVisibility.create(raw),
+      );
+
       const query = ViewQuery.create({
         directoryId,
         tagIds,
         dateRange,
         keyword,
         referencingNoteId,
+        visibilityFilter,
       });
 
       const brokenConditions = input.brokenConditions.map((row) => {

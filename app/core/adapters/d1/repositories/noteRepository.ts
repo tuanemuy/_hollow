@@ -1,4 +1,16 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  lt,
+  notExists,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -15,6 +27,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import type {
   NoteListOpts,
+  NoteOwnerCountOpts,
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
@@ -23,11 +36,19 @@ import type {
   NoteId,
   NoteSlug,
 } from "@/core/domain/note/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { noteInternalLinks, noteMediaRefs, notes, noteTags } from "../schema";
-import { mapDbError } from "./helpers";
+import {
+  noteInternalLinks,
+  noteMediaRefs,
+  notes,
+  noteTags,
+  publicationStates,
+} from "../schema";
+import { selectInChunks } from "./_chunks";
+import { escapeLikePattern, mapDbError } from "./helpers";
 
 type NoteRow = typeof notes.$inferSelect;
 type NoteTagRow = typeof noteTags.$inferSelect;
@@ -205,19 +226,28 @@ export class D1NoteRepository implements NoteRepository {
     };
     if (noteIds.length === 0) return empty;
 
+    // Each child-table fetch is chunked under the D1 host-var cap;
+    // the three tables remain fetched in parallel so the typical
+    // listing's I/O latency is unchanged for sub-cap id lists.
     const [tagRows, linkRows, mediaRows] = await Promise.all([
-      this.db
-        .select()
-        .from(noteTags)
-        .where(inArray(noteTags.noteId, [...noteIds])),
-      this.db
-        .select()
-        .from(noteInternalLinks)
-        .where(inArray(noteInternalLinks.fromNoteId, [...noteIds])),
-      this.db
-        .select()
-        .from(noteMediaRefs)
-        .where(inArray(noteMediaRefs.noteId, [...noteIds])),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteTags)
+          .where(inArray(noteTags.noteId, [...chunk])),
+      ),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteInternalLinks)
+          .where(inArray(noteInternalLinks.fromNoteId, [...chunk])),
+      ),
+      selectInChunks(noteIds, (chunk) =>
+        this.db
+          .select()
+          .from(noteMediaRefs)
+          .where(inArray(noteMediaRefs.noteId, [...chunk])),
+      ),
     ]);
 
     const tagIds = new Map<string, string[]>();
@@ -285,6 +315,32 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
+  searchByTitlePrefix(
+    ownerId: UserId,
+    prefix: string,
+    limit: number,
+  ): Promise<readonly Note[]> {
+    return mapDbError("Failed to search notes by title prefix", async () => {
+      if (limit <= 0) return [];
+      const trimmed = prefix.trim();
+      if (trimmed.length === 0) return [];
+      const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+      const rows = await this.db
+        .select()
+        .from(notes)
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+            sql`lower(${notes.title}) LIKE ${pattern} ESCAPE '\\'`,
+          ),
+        )
+        .orderBy(asc(notes.title), asc(notes.id))
+        .limit(limit);
+      return this.hydrateMany(rows);
+    });
+  }
+
   findByDirectory(
     directoryId: DirectoryId,
     opts: NoteListOpts,
@@ -316,49 +372,13 @@ export class D1NoteRepository implements NoteRepository {
       const sortCol = pickSortColumn(opts.sort);
       const order = opts.order ?? "desc";
 
-      const conditions = [eq(notes.ownerId, ownerId)];
-      if (opts.status) {
-        conditions.push(eq(notes.status, opts.status));
-      }
-      if (opts.dateRange?.from) {
-        conditions.push(
-          gte(notes.updatedAt, opts.dateRange.from.toISOString()),
-        );
-      }
-      if (opts.dateRange?.to) {
-        conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
-      }
-
-      // Tag AND-filter: a note matches when it carries *every* supplied
-      // tag. The cheapest expression in SQLite is `note_id IN (SELECT
-      // ... GROUP BY note_id HAVING count(distinct tag_id) = N)` — but
-      // Drizzle's typed builder doesn't model subqueries on `inArray`
-      // cleanly enough to keep this readable. Two-pass instead: pull the
-      // candidate note ids first, then feed them into the main filter.
-      let candidateIds: readonly string[] | null = null;
-      if (opts.tagIds && opts.tagIds.length > 0) {
-        const tagIds = opts.tagIds as readonly TagId[];
-        const tagRows = await this.db
-          .select({ noteId: noteTags.noteId, tagId: noteTags.tagId })
-          .from(noteTags)
-          .where(inArray(noteTags.tagId, [...tagIds]));
-        const countByNote = new Map<string, Set<string>>();
-        for (const row of tagRows) {
-          const seen = countByNote.get(row.noteId) ?? new Set<string>();
-          seen.add(row.tagId);
-          countByNote.set(row.noteId, seen);
-        }
-        candidateIds = [...countByNote.entries()]
-          .filter(([, seen]) => seen.size === tagIds.length)
-          .map(([noteId]) => noteId);
-        if (candidateIds.length === 0) return [];
-        conditions.push(inArray(notes.id, [...candidateIds]));
-      }
+      const where = await this.buildOwnerListWhere(ownerId, opts);
+      if (where === null) return [];
 
       const rows = await this.db
         .select()
         .from(notes)
-        .where(and(...conditions))
+        .where(where)
         .orderBy(
           order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
           desc(notes.id),
@@ -367,6 +387,168 @@ export class D1NoteRepository implements NoteRepository {
         .offset(opts.offset);
       return this.hydrateMany(rows);
     });
+  }
+
+  // Filter-only where-builder shared by `findByOwner` and `countByOwner`
+  // so the two cannot drift in filter semantics. Returns `null` when the
+  // filter mix is structurally guaranteed to match zero rows (empty
+  // `visibility` array, or any candidate-set intersection that is
+  // empty); callers short-circuit to `[]` / `0` in that case without
+  // hitting the database again.
+  private async buildOwnerListWhere(
+    ownerId: UserId,
+    opts: NoteOwnerCountOpts,
+  ): Promise<SQL | null> {
+    const conditions = [eq(notes.ownerId, ownerId)];
+    if (opts.status) {
+      conditions.push(eq(notes.status, opts.status));
+    }
+    if (opts.dateRange?.from) {
+      conditions.push(gte(notes.updatedAt, opts.dateRange.from.toISOString()));
+    }
+    if (opts.dateRange?.to) {
+      conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
+    }
+
+    // Each filter that needs a multi-row lookup contributes a candidate
+    // note-id set; the intersection feeds a single `IN` predicate on
+    // the main query. Keeping these as JS-side set ops (instead of
+    // nested subqueries) preserves Drizzle's type inference and matches
+    // the existing tagIds pattern.
+    const candidateSets: Array<ReadonlySet<string>> = [];
+
+    if (opts.visibility !== undefined) {
+      if (opts.visibility.length === 0) return null;
+      const wantsPrivate = opts.visibility.includes("private");
+      if (wantsPrivate) {
+        // `notExists` keeps the bind count at `notWanted.length`
+        // (≤ 2) + ownerId regardless of owner note count, so the
+        // main `notes` query no longer hits the D1 host-var cap.
+        const pred = this.buildVisibilityNotExistsPredicate(
+          ownerId,
+          opts.visibility,
+        );
+        if (pred !== null) conditions.push(pred);
+      } else {
+        candidateSets.push(
+          await this.resolveVisibilityCandidateIds(ownerId, opts.visibility),
+        );
+      }
+    }
+
+    if (opts.tagIds !== undefined && opts.tagIds.length > 0) {
+      candidateSets.push(await this.resolveTagAndCandidates(opts.tagIds));
+    }
+
+    if (opts.referencingNoteId !== undefined) {
+      candidateSets.push(
+        await this.resolveReferrerCandidates(opts.referencingNoteId),
+      );
+    }
+
+    if (candidateSets.length > 0) {
+      const intersected = intersectIdSets(candidateSets);
+      if (intersected.size === 0) return null;
+      conditions.push(inArray(notes.id, [...intersected]));
+    }
+
+    return and(...conditions) ?? null;
+  }
+
+  // Tag AND-filter: a note matches when it carries *every* supplied tag.
+  // The cheapest expression in SQLite is `note_id IN (SELECT ... GROUP
+  // BY note_id HAVING count(distinct tag_id) = N)` — but Drizzle's typed
+  // builder doesn't model subqueries on `inArray` cleanly. Two-pass
+  // instead: pull the candidate note ids first, then intersect.
+  private async resolveTagAndCandidates(
+    tagIds: readonly TagId[],
+  ): Promise<ReadonlySet<string>> {
+    const tagRows = await this.db
+      .select({ noteId: noteTags.noteId, tagId: noteTags.tagId })
+      .from(noteTags)
+      .where(inArray(noteTags.tagId, [...tagIds]));
+    const countByNote = new Map<string, Set<string>>();
+    for (const row of tagRows) {
+      const seen = countByNote.get(row.noteId) ?? new Set<string>();
+      seen.add(row.tagId);
+      countByNote.set(row.noteId, seen);
+    }
+    const matched = new Set<string>();
+    for (const [noteId, seen] of countByNote) {
+      if (seen.size === tagIds.length) matched.add(noteId);
+    }
+    return matched;
+  }
+
+  // `wantsPrivate === false`: a direct lookup on `publication_states`
+  // is enough. The "row absent ⇒ private" invariant doesn't matter
+  // here — only ids that have an explicit row in the desired visibility
+  // set qualify, and that set excludes `private`.
+  private async resolveVisibilityCandidateIds(
+    ownerId: UserId,
+    visibility: readonly PublicationVisibility[],
+  ): Promise<ReadonlySet<string>> {
+    const rows = await this.db
+      .select({ noteId: publicationStates.noteId })
+      .from(publicationStates)
+      .where(
+        and(
+          eq(publicationStates.ownerId, ownerId),
+          inArray(publicationStates.visibility, [...visibility]),
+        ),
+      );
+    const out = new Set<string>();
+    for (const r of rows) out.add(r.noteId);
+    return out;
+  }
+
+  // `wantsPrivate === true`: instead of materialising every owner id
+  // and intersecting, emit a correlated `NOT EXISTS` against the
+  // publication-state rows whose visibility is *not* desired. That
+  // matches both explicit `private` (row exists with visibility in the
+  // desired set) and implicit `private` (no row at all), without ever
+  // feeding owner-scoped ids into `inArray(notes.id, [...])`.
+  // The `ownerId` predicate inside the subquery is logically
+  // redundant — `ps.note_id` is the PK and FKs back into the outer
+  // `notes` filtered by `notes.owner_id = ?` — but it lets the planner
+  // use `idx_pubs_visibility_owner (visibility, owner_id)` instead of
+  // the PK alone. See ADR-001 §補足.
+  private buildVisibilityNotExistsPredicate(
+    ownerId: UserId,
+    visibility: readonly PublicationVisibility[],
+  ): SQL | null {
+    const notWanted = (
+      [
+        "private",
+        "unlisted",
+        "public",
+      ] as const satisfies readonly PublicationVisibility[]
+    ).filter((v) => !visibility.includes(v));
+    if (notWanted.length === 0) return null;
+    return notExists(
+      this.db
+        .select({ noteId: publicationStates.noteId })
+        .from(publicationStates)
+        .where(
+          and(
+            eq(publicationStates.noteId, notes.id),
+            eq(publicationStates.ownerId, ownerId),
+            inArray(publicationStates.visibility, [...notWanted]),
+          ),
+        ),
+    );
+  }
+
+  private async resolveReferrerCandidates(
+    targetNoteId: NoteId,
+  ): Promise<ReadonlySet<string>> {
+    const linkRows = await this.db
+      .select({ fromNoteId: noteInternalLinks.fromNoteId })
+      .from(noteInternalLinks)
+      .where(eq(noteInternalLinks.resolvedNoteId, targetNoteId));
+    const out = new Set<string>();
+    for (const r of linkRows) out.add(r.fromNoteId);
+    return out;
   }
 
   findTrashedOlderThan(
@@ -400,24 +582,39 @@ export class D1NoteRepository implements NoteRepository {
         new Set(linkRows.map((row) => row.fromNoteId)),
       );
       if (fromIds.length === 0) return [];
-      const rows = await this.db
-        .select()
-        .from(notes)
-        .where(inArray(notes.id, fromIds))
-        .orderBy(desc(notes.updatedAt), desc(notes.id));
-      return this.hydrateMany(rows);
+      // Chunked to stay under the D1 host-var cap; the per-chunk SQL
+      // ORDER BY no longer holds across the combined row set, so re-sort
+      // in JS before hydration. `updated_at` is stored as ISO-8601
+      // text (lexicographic == chronological for the same prefix
+      // length) and `id` is UUIDv7 — both are safe to compare as
+      // strings under SQLite's BINARY collation.
+      const rows = await selectInChunks(fromIds, (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(inArray(notes.id, [...chunk])),
+      );
+      const sorted = [...rows].sort((a, b) => {
+        if (a.updatedAt !== b.updatedAt) {
+          return a.updatedAt < b.updatedAt ? 1 : -1;
+        }
+        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+      });
+      return this.hydrateMany(sorted);
     });
   }
 
-  countByOwner(ownerId: UserId): Promise<number> {
+  countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number> {
     return mapDbError("Failed to count notes", async () => {
+      const where = await this.buildOwnerListWhere(ownerId, opts ?? {});
+      if (where === null) return 0;
       // `count(*)` would be faster but Drizzle's typed builder needs
       // the projection to spell out a column; pulling the id only is
       // cheap in SQLite (no row body materialisation).
       const rows = await this.db
         .select({ id: notes.id })
         .from(notes)
-        .where(eq(notes.ownerId, ownerId));
+        .where(where);
       return rows.length;
     });
   }
@@ -617,6 +814,26 @@ export class D1NoteRepository implements NoteRepository {
       );
     }
   }
+}
+
+function intersectIdSets(
+  sets: ReadonlyArray<ReadonlySet<string>>,
+): ReadonlySet<string> {
+  if (sets.length === 0) return new Set();
+  let smallestIdx = 0;
+  for (let i = 1; i < sets.length; i += 1) {
+    if (sets[i].size < sets[smallestIdx].size) smallestIdx = i;
+  }
+  const base = sets[smallestIdx];
+  const out = new Set<string>();
+  outer: for (const id of base) {
+    for (let i = 0; i < sets.length; i += 1) {
+      if (i === smallestIdx) continue;
+      if (!sets[i].has(id)) continue outer;
+    }
+    out.add(id);
+  }
+  return out;
 }
 
 function pickSortColumn(sort: NoteListOpts["sort"]): SortColumn {

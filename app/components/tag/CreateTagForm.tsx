@@ -8,6 +8,12 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FORM_ERROR,
+  PILL_BTN,
+} from "../layout/styles";
 import { createTagFn } from "./actions";
 import { TAG_NAME_MAX_LENGTH } from "./schema";
 
@@ -35,21 +41,11 @@ export function CreateTagForm() {
   );
 
   return (
-    <form
-      action={formAction}
-      style={{
-        display: "flex",
-        gap: "var(--space-2)",
-        alignItems: "end",
-        marginTop: "var(--space-4)",
-        flexWrap: "wrap",
-      }}
-    >
-      <div
-        className="field"
-        style={{ flex: 1, marginBottom: 0, minWidth: 200 }}
-      >
-        <label htmlFor={nameId}>新しいタグ</label>
+    <form action={formAction} className="flex gap-2 items-end mt-4 flex-wrap">
+      <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
+        <label htmlFor={nameId} className={FIELD_LABEL}>
+          新しいタグ
+        </label>
         <input
           id={nameId}
           name="name"
@@ -58,13 +54,19 @@ export function CreateTagForm() {
           placeholder="タグ名"
           disabled={isPending}
           required
+          className={FIELD_INPUT}
         />
       </div>
-      <button type="submit" className="pill-btn primary" disabled={isPending}>
+      <button
+        type="submit"
+        className={PILL_BTN}
+        data-primary=""
+        disabled={isPending}
+      >
         {isPending ? "作成中..." : "追加"}
       </button>
       {state.error !== null ? (
-        <p className="form-error" role="alert" style={{ width: "100%" }}>
+        <p className={`${FORM_ERROR} w-full`} role="alert">
           {displayError(state.error)}
         </p>
       ) : null}

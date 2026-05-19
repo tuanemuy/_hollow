@@ -1,6 +1,7 @@
 import type { TransactionalRepository } from "@/core/domain/common/transactionalRepository";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import type { Note } from "../entity";
 import type { DateRange, NoteId, NoteSlug, NoteStatus } from "../valueObject";
@@ -21,13 +22,43 @@ export type NoteListOpts = Readonly<{
  * Extended owner-scope listing options. Filters are combined with `AND`
  * semantics on the adapter side; `tagIds` matches notes that carry
  * every supplied tag.
+ *
+ * `visibility` semantics:
+ * - `undefined` — visibility filter is not applied.
+ * - Non-empty array — IN semantics: a note matches when its publication
+ *   visibility is in the supplied set. Notes without a `publication_states`
+ *   row are treated as `'private'` (the domain default), so passing
+ *   `['private']` includes them.
+ * - Empty array `[]` — "match nothing": the adapter returns `[]` without
+ *   touching `publication_states`. This keeps "no filter" (`undefined`)
+ *   and "all-excluded" (`[]`) distinguishable at the type level.
+ *
+ * `referencingNoteId` restricts to notes that link to the target note
+ * (i.e. rows in `noteInternalLinks` with `resolvedNoteId === id`).
+ * Unresolved `[[title]]` links do not count.
  */
 export type NoteOwnerListOpts = NoteListOpts &
   Readonly<{
     status?: NoteStatus;
     tagIds?: readonly TagId[];
     dateRange?: DateRange;
+    visibility?: readonly PublicationVisibility[];
+    referencingNoteId?: NoteId;
   }>;
+
+/**
+ * Owner-scope count options. Filter semantics mirror
+ * `NoteOwnerListOpts`; pagination and sort fields are intentionally
+ * omitted since they have no meaning for a count.
+ *
+ * Derived via `Pick` from `NoteOwnerListOpts` so the two cannot drift —
+ * any new filter on the list side is automatically reflected on the
+ * count side via the picked key set.
+ */
+export type NoteOwnerCountOpts = Pick<
+  NoteOwnerListOpts,
+  "status" | "tagIds" | "dateRange" | "visibility" | "referencingNoteId"
+>;
 
 /**
  * `NoteRepository` inherits the OCC-enforced contract
@@ -64,6 +95,27 @@ export interface NoteRepository extends TransactionalRepository<Note> {
     opts: NoteOwnerListOpts,
   ): Promise<readonly Note[]>;
 
+  /**
+   * Owner-scoped active notes whose `title` matches `prefix` as a
+   * case-insensitive prefix. Used by the WYSIWYG internal-link suggest
+   * popup. The caller is responsible for trimming `prefix` and clamping
+   * `limit` to a small constant; the adapter LIKE-escapes wildcards in
+   * the user input. Ordered by title asc, id asc for stable ranking
+   * across identical titles. Trashed notes are excluded.
+   *
+   * The adapter returns up to `limit` matches **without** semantic
+   * post-filtering (e.g. excluding titles containing
+   * `INTERNAL_LINK_PATTERN` boundary characters `[` / `]` / `|` for
+   * round-trippable insertion — see ADR-008). Any such filtering is the
+   * usecase's responsibility; the port intentionally stays neutral so
+   * other callers with different filter rules can reuse the method.
+   */
+  searchByTitlePrefix(
+    ownerId: UserId,
+    prefix: string,
+    limit: number,
+  ): Promise<readonly Note[]>;
+
   /** Trashed notes older than `before`. Used by the purge worker. */
   findTrashedOlderThan(ownerId: UserId, before: Date): Promise<readonly Note[]>;
 
@@ -88,6 +140,17 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    */
   purge(id: NoteId): Promise<void>;
 
-  /** Total notes for `ownerId` (active + trashed). */
-  countByOwner(ownerId: UserId): Promise<number>;
+  /**
+   * Total notes for `ownerId` matching the supplied filters. Filter
+   * semantics mirror {@link NoteRepository.findByOwner}. When `opts` is
+   * `undefined` (or an empty object — the two are equivalent) every
+   * note belonging to the owner is counted (active + trashed); when
+   * `opts` carries one or more filter fields, only notes that would be
+   * returned by `findByOwner` with the same filters are counted.
+   *
+   * Used by `listNotesByOwner` to keep the rendered "total count" in
+   * sync with the filtered slice so the UI does not display a total
+   * that disagrees with the visible page.
+   */
+  countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number>;
 }

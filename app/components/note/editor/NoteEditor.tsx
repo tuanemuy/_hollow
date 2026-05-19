@@ -2,7 +2,14 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useReducer, useState, useTransition } from "react";
+import type { Editor } from "@tiptap/react";
+import {
+  useCallback,
+  useReducer,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { createDirectoryFn } from "@/components/directory/actions";
 import {
   acquireEditLockFn,
@@ -18,6 +25,14 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { FlatDirectory } from "../loaders";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+} from "../styles";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { EditLockBanner } from "./EditLockBanner";
@@ -33,24 +48,26 @@ import { HtmlEditor } from "./HtmlEditor";
 import { MediaUploader } from "./MediaUploader";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
+import { WysiwygEditor } from "./WysiwygEditor";
 
 /**
  * Note editor (P12) — orchestrator client component.
  *
  * Phase D coverage:
  * - HTML edit pane + sanitized-on-save preview (`HtmlEditor`)
+ * - WYSIWYG pane backed by TipTap (`WysiwygEditor`, Issue #9)
  * - Structured FrontMatter known-key UI + raw-JSON toggle (`FrontMatterEditor`)
  * - Directory pick / inline new-directory creation (`DirectoryPicker`)
- * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`)
+ * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`).
+ *   In WYSIWYG mode the upload completion targets the current cursor via
+ *   the TipTap editor command (`setImage`); in HTML mode the existing
+ *   string-tail-append behaviour is preserved (Issue #9 ADR-003).
  * - Debounced autosave via `saveNoteDraft` with backoff (`useAutosave`)
  * - Best-effort edit lock with acquire / extend / release (`useEditLock`)
- * - WYSIWYG tab rendered disabled with tooltip (ADR-002)
  *
  * Out of scope (separate issues):
- * - Full WYSIWYG (TipTap / Lexical, ADR-002)
  * - History / revision aggregate (spec marks "future")
  * - Real-time collision presence (no SSE/WebSocket infra yet, ADR-006)
- * - Cross-note / tag suggest for internal links
  * - Raw YAML edit (ADR-003 — JSON only here)
  * - Single-note export from this surface (handled at `/notes/$noteId/export`)
  */
@@ -104,6 +121,7 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
+  const tiptapEditorRef = useRef<Editor | null>(null);
 
   useAutosave({ noteId, state, dispatch, saveDraft });
   useEditLock({
@@ -116,10 +134,19 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const onMediaInsert = useCallback(
     (nextHtml: string, insertion: { id: string; url: string }) => {
+      if (state.mode === "wysiwyg" && tiptapEditorRef.current !== null) {
+        tiptapEditorRef.current
+          .chain()
+          .focus()
+          .setImage({ src: `/media/${insertion.id}`, alt: "" })
+          .run();
+        dispatch({ type: "mediaInsertionAdded", insertion });
+        return;
+      }
       dispatch({ type: "setContent", value: nextHtml });
       dispatch({ type: "mediaInsertionAdded", insertion });
     },
-    [],
+    [state.mode],
   );
 
   const resolveDirectoryId = async (): Promise<string | null> => {
@@ -180,9 +207,9 @@ export function NoteEditor(props: NoteEditorProps) {
   };
 
   return (
-    <form className="note-editor" onSubmit={onSubmit}>
-      <header className="note-editor-header">
-        <h1 className="page-title">
+    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+      <header className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink m-0">
           {props.mode === "new" ? "新規ノート" : "ノートを編集"}
         </h1>
         <AutosaveIndicator status={state.autosave} />
@@ -190,8 +217,10 @@ export function NoteEditor(props: NoteEditorProps) {
 
       <EditLockBanner lock={state.editLock} />
 
-      <div className="field">
-        <label htmlFor="note-editor-title">タイトル</label>
+      <div className={field}>
+        <label htmlFor="note-editor-title" className={fieldLabel}>
+          タイトル
+        </label>
         <input
           id="note-editor-title"
           type="text"
@@ -203,11 +232,14 @@ export function NoteEditor(props: NoteEditorProps) {
           maxLength={200}
           disabled={isPending}
           required
+          className={fieldControl}
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="note-editor-tags">タグ（カンマ区切り）</label>
+      <div className={field}>
+        <label htmlFor="note-editor-tags" className={fieldLabel}>
+          タグ（カンマ区切り）
+        </label>
         <input
           id="note-editor-tags"
           type="text"
@@ -217,6 +249,7 @@ export function NoteEditor(props: NoteEditorProps) {
           }
           placeholder="例: idea, draft"
           disabled={isPending}
+          className={fieldControl}
         />
       </div>
 
@@ -253,6 +286,28 @@ export function NoteEditor(props: NoteEditorProps) {
         </>
       ) : null}
 
+      {state.mode === "wysiwyg" ? (
+        <>
+          <WysiwygEditor
+            value={state.contentHtml}
+            onChange={(v) => dispatch({ type: "setContent", value: v })}
+            disabled={isPending}
+            editorRef={tiptapEditorRef}
+            unsupportedTags={state.wysiwygUnsupportedTags}
+            unsupportedAck={state.wysiwygUnsupportedAck}
+            onUnsupportedTagsDetected={(tags) =>
+              dispatch({ type: "wysiwygUnsupportedDetected", tags })
+            }
+            onAcknowledge={() => dispatch({ type: "wysiwygUnsupportedAck" })}
+          />
+          <MediaUploader
+            contentHtml={state.contentHtml}
+            onInsert={onMediaInsert}
+            disabled={isPending}
+          />
+        </>
+      ) : null}
+
       {state.mode === "frontMatter" ? (
         <FrontMatterEditor
           mode={state.frontMatterMode}
@@ -271,28 +326,23 @@ export function NoteEditor(props: NoteEditorProps) {
       ) : null}
 
       {submitError !== null ? (
-        <p className="form-error" role="alert">
+        <p className={formError} role="alert">
           {displayError(submitError)}
         </p>
       ) : null}
 
-      <div
-        style={{
-          display: "inline-flex",
-          gap: "var(--space-2)",
-          marginTop: "var(--space-4)",
-        }}
-      >
+      <div className="inline-flex gap-2 mt-4">
         <button
           type="submit"
-          className="pill-btn primary"
+          data-primary
+          className={`${pillBtn} ${pillBtnPrimary}`}
           disabled={saveDisabled}
         >
           {isPending ? "保存中..." : props.mode === "new" ? "作成" : "保存"}
         </button>
         <button
           type="button"
-          className="pill-btn"
+          className={pillBtn}
           disabled={isPending}
           onClick={() => router.history.back()}
         >

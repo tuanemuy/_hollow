@@ -99,7 +99,8 @@ export type SaveViewPayload = Readonly<{
       to: string | null;
     }> | null;
     keyword: string | null;
-    visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
+    referencingNoteId: string | null;
+    visibilityFilter: ReadonlyArray<"private" | "unlisted" | "public">;
   }>;
   displayMode: "list" | "tile" | "calendar";
 }>;
@@ -126,9 +127,9 @@ export function searchToViewQuery(search: NoteListSearch): SaveViewPayload {
       dateRange,
       keyword:
         search.q !== undefined && search.q.trim().length > 0 ? search.q : null,
-      ...(search.visibility !== undefined
-        ? { visibilityFilter: [search.visibility] }
-        : {}),
+      referencingNoteId: search.referencingNoteId ?? null,
+      visibilityFilter:
+        search.visibility !== undefined ? [search.visibility] : [],
     },
     displayMode: search.display ?? "list",
   };
@@ -158,6 +159,16 @@ export function viewQueryToSearch(
   if (view.query.keyword !== null) {
     out.q = view.query.keyword;
   }
+  if (view.query.referencingNoteId !== null) {
+    out.referencingNoteId = view.query.referencingNoteId as unknown as string;
+  }
+  // URL schema carries a single `visibility` enum; the SavedView VO stores
+  // it as an array to keep room for future multi-select UI without a port
+  // break. Until that UI lands we project the first value back into the
+  // URL (see `.issue/31/adr.md` ADR-002).
+  if (view.query.visibilityFilter.length > 0) {
+    out.visibility = view.query.visibilityFilter[0];
+  }
   if (view.query.dateRange !== null) {
     if (view.query.dateRange.from !== null) {
       out.from = isoToDateOnly(view.query.dateRange.from);
@@ -173,6 +184,21 @@ export function viewQueryToSearch(
     if (names.length > 0) out.tagNames = [...names];
   }
   return out;
+}
+
+/**
+ * Build the `referencingNoteId` chip label for the FilterBar.
+ *
+ * When the home loader resolved the referenced note's title the chip
+ * shows that title; otherwise it falls back to the first 8 characters
+ * of the id (the existing pre-resolver behaviour).
+ */
+export function formatReferencingNoteChipLabel(
+  id: string,
+  title: string | null,
+): string {
+  if (title !== null && title !== "") return title;
+  return id.slice(0, 8);
 }
 
 function isoToDateOnly(iso: string): string {
@@ -198,6 +224,10 @@ export function viewQueryEquals(
   if (a.tagIds.length !== b.tagIds.length) return false;
   for (let i = 0; i < a.tagIds.length; i++) {
     if (a.tagIds[i] !== b.tagIds[i]) return false;
+  }
+  if (a.visibilityFilter.length !== b.visibilityFilter.length) return false;
+  for (let i = 0; i < a.visibilityFilter.length; i++) {
+    if (a.visibilityFilter[i] !== b.visibilityFilter[i]) return false;
   }
   if (a.dateRange === null && b.dateRange === null) return true;
   if (a.dateRange === null || b.dateRange === null) return false;

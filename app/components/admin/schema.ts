@@ -55,3 +55,11 @@ export const toggleRegistrationPolicySchema = z.object({
 export const targetUserSchema = z.object({
   targetUserId: z.string().min(1).max(200),
 });
+
+export const targetIngestionJobSchema = z.object({
+  jobId: z.string().min(1).max(200),
+});
+
+export const targetExportJobSchema = z.object({
+  jobId: z.string().min(1).max(200),
+});

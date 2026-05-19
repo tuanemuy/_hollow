@@ -55,6 +55,21 @@ describe("ingestionEventDecoders", () => {
     }
   });
 
+  it("decodes ingestion.retryRequested", () => {
+    const id = jobId(9);
+    const draft = IngestionEvents.retryRequested(id, T0);
+    const decoded = ingestionEventDecoders["ingestion.retryRequested"](
+      draft.payload,
+      {
+        id: eventId(9),
+        occurredAt: draft.occurredAt,
+        aggregateId: id,
+      },
+    );
+    expect(decoded.type).toBe("ingestion.retryRequested");
+    expect(decoded.payload.jobId).toBe(id);
+  });
+
   it("decodes ingestion.regenerated and preserves regenerationCount", () => {
     const id = jobId(3);
     const decoded = ingestionEventDecoders["ingestion.regenerated"](

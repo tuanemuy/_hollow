@@ -38,6 +38,7 @@ type StoredQueryJson = Readonly<{
   }> | null;
   keyword: string | null;
   referencingNoteId: string | null;
+  visibilityFilter: readonly string[];
 }>;
 
 type StoredSortJson = Readonly<{
@@ -59,7 +60,7 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
-function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
+export function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -81,6 +82,11 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
   const dateRange = parsed.dateRange;
   const keyword = parsed.keyword;
   const referencingNoteId = parsed.referencingNoteId;
+  // `visibilityFilter` was added in Issue #31. Older rows persisted before
+  // that change do not carry the key, so a missing field is treated as
+  // "no filter" rather than a data-integrity violation (see ADR-003).
+  const rawVisibilityFilter =
+    parsed.visibilityFilter === undefined ? [] : parsed.visibilityFilter;
 
   if (directoryId !== null && typeof directoryId !== "string") {
     throw new SystemError(
@@ -104,6 +110,12 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
     throw new SystemError(
       SystemErrorCode.DataIntegrityError,
       `Saved view ${viewId} query_json.referencingNoteId is not a string|null`,
+    );
+  }
+  if (!isStringArray(rawVisibilityFilter)) {
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      `Saved view ${viewId} query_json.visibilityFilter is not string[]`,
     );
   }
 
@@ -138,6 +150,7 @@ function decodeQueryJson(raw: string, viewId: string): StoredQueryJson {
     dateRange: dateRangeOut,
     keyword,
     referencingNoteId,
+    visibilityFilter: rawVisibilityFilter,
   };
 }
 
@@ -216,7 +229,7 @@ function parseStoredDate(value: string, context: string): Date {
   return date;
 }
 
-function encodeQueryJson(view: SavedView): string {
+export function encodeQueryJson(view: SavedView): string {
   return JSON.stringify({
     directoryId: view.query.directoryId,
     tagIds: view.query.tagIds,
@@ -235,6 +248,7 @@ function encodeQueryJson(view: SavedView): string {
           },
     keyword: view.query.keyword,
     referencingNoteId: view.query.referencingNoteId,
+    visibilityFilter: view.query.visibilityFilter,
   });
 }
 
@@ -254,7 +268,7 @@ function encodeBrokenConditionsJson(view: SavedView): string {
 
 /**
  * D1 implementation of `SavedViewRepository`. Mirrors the deferred-batch
- * pattern in `D1TodoRepository`: reads run immediately, writes are
+ * pattern in `D1NoteRepository`: reads run immediately, writes are
  * buffered onto a `PendingBatch` and flushed atomically by the
  * surrounding `D1UnitOfWorkProvider`.
  *
@@ -318,6 +332,7 @@ export class D1SavedViewRepository implements SavedViewRepository {
                 },
           keyword: storedQuery.keyword,
           referencingNoteId: storedQuery.referencingNoteId,
+          visibilityFilter: storedQuery.visibilityFilter,
         },
         displayMode: row.displayMode,
         calendarDateKey: row.calendarDateKey,

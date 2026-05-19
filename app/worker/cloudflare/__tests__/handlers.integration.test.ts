@@ -16,8 +16,9 @@ import {
   type EventDraft,
   EventId,
 } from "@/core/domain/common/event";
-import { TodoEvents } from "@/core/domain/todo/events";
-import { TodoId, TodoTitle } from "@/core/domain/todo/valueObject";
+import { UserId } from "@/core/domain/identity/valueObject";
+import { NoteEvents } from "@/core/domain/note/events";
+import { NoteId } from "@/core/domain/note/valueObject";
 import {
   type ConsumerEnv,
   type DlqEnv,
@@ -39,6 +40,8 @@ import {
 // main app Worker (`app/worker.ts`) and is gated on TanStack Start's
 // build pipeline.
 
+const OWNER_ID = UserId.create("0193e7d0-0001-7000-8000-200000000000");
+
 let counter = 0;
 const nextEventId = (): EventId => {
   counter += 1;
@@ -46,15 +49,26 @@ const nextEventId = (): EventId => {
     `0193e7d0-${counter.toString(16).padStart(4, "0")}-7000-a000-400000000000`,
   );
 };
-const nextTodoId = () => {
+const nextNoteId = () => {
   counter += 1;
-  return TodoId.create(
+  return NoteId.create(
     `0193e7d0-${counter.toString(16).padStart(4, "0")}-7000-a000-500000000000`,
   );
 };
 const withId = <TEvent extends DomainEvent>(
   draft: EventDraft<TEvent>,
 ): TEvent => ({ ...draft, id: nextEventId() }) as TEvent;
+
+function makeTrashedDraft(noteId: NoteId) {
+  return NoteEvents.trashed(
+    {
+      noteId,
+      ownerId: OWNER_ID,
+      mediaRefs: [],
+    },
+    new Date(),
+  );
+}
 
 async function seedOutbox(events: readonly DomainEvent[]): Promise<void> {
   const db = getDatabase(env.DB);
@@ -81,9 +95,8 @@ const dlqEnv = (): DlqEnv => env as unknown as DlqEnv;
 
 describe("relay producer Worker — runRelayTick", () => {
   it("claims pending outbox rows, sends them to the queue, and marks processed", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("relay");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
     await seedOutbox([event]);
 
     const result = await runRelayTick(relayEnv());
@@ -106,9 +119,8 @@ describe("relay producer Worker — runRelayTick", () => {
 
 describe("pruner Worker — runPruneTick", () => {
   it("deletes processed rows older than the retention window", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("prune");
-    const event = withId(TodoEvents.created(todoId, title, new Date(0)));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
     await seedOutbox([event]);
 
     const db = getDatabase(env.DB);
@@ -127,9 +139,8 @@ describe("pruner Worker — runPruneTick", () => {
   });
 
   it("retains processed rows newer than the retention window", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("recent");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
     await seedOutbox([event]);
 
     const db = getDatabase(env.DB);
@@ -153,9 +164,8 @@ afterEach(() => {
 
 describe("consumer Worker — handleQueue", () => {
   it("acks every message in the batch on the happy path", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("queue-ack");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
 
     const batch = createMessageBatch<DomainEvent>(
       "tanstack-start-template-events",
@@ -186,9 +196,8 @@ describe("consumer Worker — handleQueue", () => {
   });
 
   it("acks a redelivered message without re-running the handler", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("queue-redeliver");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
 
     // First delivery — stamps `processed_events`.
     const firstBatch = createMessageBatch<DomainEvent>(
@@ -255,14 +264,10 @@ describe("consumer Worker — handleQueue", () => {
 // parity between the test miniflare setup and wrangler.toml.
 describe("consumer Worker — handleQueue retry path", () => {
   it("routes failed messages to retry() so the queue can dead-letter them", async () => {
-    const okTodo = nextTodoId();
-    const okEvent = withId(
-      TodoEvents.created(okTodo, TodoTitle.create("ok"), new Date()),
-    );
-    const failTodo = nextTodoId();
-    const failEvent = withId(
-      TodoEvents.created(failTodo, TodoTitle.create("fail"), new Date()),
-    );
+    const okNote = nextNoteId();
+    const okEvent = withId(makeTrashedDraft(okNote));
+    const failNote = nextNoteId();
+    const failEvent = withId(makeTrashedDraft(failNote));
 
     const originalMarkProcessed = D1IdempotencyStore.prototype.markProcessed;
     vi.spyOn(D1IdempotencyStore.prototype, "markProcessed").mockImplementation(
@@ -318,9 +323,8 @@ describe("consumer Worker — handleQueue retry path", () => {
 
 describe("DLQ Worker — handleDlq", () => {
   it("acks every quarantined message so it does not re-enter the DLQ", async () => {
-    const todoId = nextTodoId();
-    const title = TodoTitle.create("dlq-ack");
-    const event = withId(TodoEvents.created(todoId, title, new Date()));
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
 
     const batch = createMessageBatch<DomainEvent>(
       "tanstack-start-template-events-dlq",

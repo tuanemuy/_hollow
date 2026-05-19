@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -31,7 +32,7 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
         // Account deleted — invalidate so caches drop the now-purged
         // session data, then navigate to landing.
         await router.invalidate();
-        await router.navigate({ to: "/" });
+        await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null, ok: true };
       } catch (e) {
         return { error: extractSerializedError(e), ok: false };

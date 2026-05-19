@@ -9,6 +9,19 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { NoteListSearch } from "../schema";
+import {
+  dialog,
+  dialogActions,
+  dialogBackdrop,
+  dialogTitle,
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+  radioRow,
+} from "../styles";
 import { searchToViewQuery } from "./listSelectors";
 
 type Props = {
@@ -43,9 +56,8 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
               directoryId: payload.query.directoryId,
               dateRange: payload.query.dateRange,
               keyword: payload.query.keyword,
-              ...(payload.query.visibilityFilter !== undefined
-                ? { visibilityFilter: [...payload.query.visibilityFilter] }
-                : {}),
+              referencingNoteId: payload.query.referencingNoteId ?? null,
+              visibilityFilter: [...payload.query.visibilityFilter],
             },
             displayMode: payload.displayMode,
             calendarDateKey: "updated",
@@ -63,15 +75,17 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
 
   return (
     <div
-      className="dialog-backdrop"
+      className={dialogBackdrop}
       role="dialog"
       aria-modal="true"
       aria-label="ビューとして保存"
     >
-      <form className="dialog" onSubmit={submit}>
-        <h2 className="dialog-title">現在のフィルタをビューとして保存</h2>
-        <div className="field">
-          <label htmlFor={nameId}>名前</label>
+      <form className={dialog} onSubmit={submit}>
+        <h2 className={dialogTitle}>現在のフィルタをビューとして保存</h2>
+        <div className={field}>
+          <label htmlFor={nameId} className={fieldLabel}>
+            名前
+          </label>
           <input
             id={nameId}
             type="text"
@@ -79,11 +93,12 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
             onChange={(e) => setName(e.target.value)}
             required
             maxLength={60}
+            className={fieldControl}
           />
         </div>
-        <fieldset className="field">
-          <legend>公開範囲</legend>
-          <label className="radio-row">
+        <fieldset className={field}>
+          <legend className={fieldLabel}>公開範囲</legend>
+          <label className={radioRow}>
             <input
               type="radio"
               name="view-kind"
@@ -92,7 +107,7 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
             />
             個人用
           </label>
-          <label className="radio-row">
+          <label className={radioRow}>
             <input
               type="radio"
               name="view-kind"
@@ -103,14 +118,14 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
           </label>
         </fieldset>
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
-        <div className="dialog-actions">
+        <div className={dialogActions}>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -118,7 +133,8 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
           </button>
           <button
             type="submit"
-            className="pill-btn primary"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
             disabled={isPending || name.trim().length === 0}
           >
             {isPending ? "保存中..." : "保存"}

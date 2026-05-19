@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { validateInput } from "@/core/presentation/validator";
@@ -13,7 +14,7 @@ const renderNoteDetail = createServerFn({ method: "GET" })
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
     if (user === null) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/", search: HOME_SEARCH });
     }
     const { NoteDetail } = await import("@/components/note/detail/NoteDetail");
     const { AppShell } = await import("@/components/layout/AppShell");

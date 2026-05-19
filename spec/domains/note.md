@@ -105,7 +105,7 @@
   - `findById(id: NoteId): Promise<Note | null>`
   - `findByOwnerAndSlug(ownerId: UserId, slug: NoteSlug): Promise<Note | null>`
   - `findByDirectory(directoryId: DirectoryId, opts: ListOpts): Promise<Note[]>`
-  - `findByOwner(ownerId: UserId, opts: ListOpts & { status?: NoteStatus; tagIds?: TagId[]; dateRange?: DateRange }): Promise<Note[]>`
+  - `findByOwner(ownerId: UserId, opts: ListOpts & { status?: NoteStatus; tagIds?: TagId[]; dateRange?: DateRange; visibility?: PublicationVisibility[]; referencingNoteId?: NoteId }): Promise<Note[]>` — `visibility` は IN 意味論、`undefined` でフィルタなし / `[]` でマッチなし、`private` 含有時は `publication_states` 行なしも `'private'` として拾う。`referencingNoteId` は `noteInternalLinks.resolvedNoteId === id` を満たす note に絞り込む
   - `findTrashedOlderThan(ownerId: UserId, before: Instant): Promise<Note[]>`
   - `findReferrers(targetNoteId: NoteId): Promise<Note[]>` — バックリンクのため
   - `save(note: Note): Promise<void>`

@@ -9,6 +9,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import type { Note } from "@/core/domain/note/entity";
 import type {
   NoteListOpts,
+  NoteOwnerCountOpts,
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
@@ -167,6 +168,13 @@ class StubNoteRepository implements NoteRepository {
   findByOwner(_o: UserId, _opts: NoteOwnerListOpts): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
+  searchByTitlePrefix(
+    _o: UserId,
+    _p: string,
+    _l: number,
+  ): Promise<readonly Note[]> {
+    throw new Error("not implemented");
+  }
   findTrashedOlderThan(_o: UserId, _b: Date): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
@@ -176,7 +184,7 @@ class StubNoteRepository implements NoteRepository {
   purge(_id: NoteId): Promise<void> {
     throw new Error("not implemented");
   }
-  countByOwner(_o: UserId): Promise<number> {
+  countByOwner(_o: UserId, _opts?: NoteOwnerCountOpts): Promise<number> {
     throw new Error("not implemented");
   }
 

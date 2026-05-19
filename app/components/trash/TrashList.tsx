@@ -1,6 +1,13 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { loadOwnedNotes } from "@/components/note/loaders";
 import type { UserDTO } from "@/core/application/dto/identity";
+import {
+  EMPTY_STATE,
+  PAGE_SUBTITLE,
+  PAGE_TITLE,
+  PILL_BTN,
+} from "../layout/styles";
 import { TrashRowActions } from "./TrashRowActions";
 
 type Props = {
@@ -20,46 +27,59 @@ function formatDate(iso: string): string {
 }
 
 export async function TrashList({ user, page, limit }: Props) {
-  const { notes, count } = await loadOwnedNotes({
+  // Trash always uses the filter path (no `q`), so we narrow eagerly
+  // here; the discriminant is checked rather than blindly asserted so
+  // a future search-on-trash extension would be caught.
+  const result = await loadOwnedNotes({
     actorUserId: user.id,
     status: "trashed",
     page,
     limit,
   });
+  if (result.kind !== "filter") {
+    throw new Error("TrashList: expected filter-kind OwnedNotesResult");
+  }
+  const { notes, count } = result;
 
   return (
     <>
-      <h1 className="page-title">ゴミ箱</h1>
-      <p className="page-subtitle">
+      <h1 className={PAGE_TITLE}>ゴミ箱</h1>
+      <p className={PAGE_SUBTITLE}>
         {count}{" "}
         件のノートがゴミ箱にあります。保存期間を過ぎたものは自動的に完全削除されます。
       </p>
 
       {notes.length === 0 ? (
-        <div className="empty-state">
-          <h2>ゴミ箱は空です</h2>
-          <p>削除したノートはここに表示されます。</p>
-          <Link to="/" className="pill-btn">
+        <div className={EMPTY_STATE}>
+          <h2 className="text-xl font-medium text-ink mb-2">ゴミ箱は空です</h2>
+          <p className="text-sm mb-4">削除したノートはここに表示されます。</p>
+          <Link to="/" search={HOME_SEARCH} className={PILL_BTN}>
             すべてのノートに戻る
           </Link>
         </div>
       ) : (
-        <ul className="note-list">
+        <ul className="mt-2 list-none p-0 m-0">
           {notes.map((note) => (
-            <li key={note.id} className="note-row">
-              <div className="note-main">
-                <div className="note-title">
+            <li
+              key={note.id}
+              className="grid grid-cols-[1fr_auto] gap-4 px-3 py-5 border-t border-hairline transition-colors items-start hover:bg-surface"
+            >
+              <div className="min-w-0">
+                <div className="text-base font-medium text-ink tracking-[-0.01em] mb-1 overflow-hidden text-ellipsis whitespace-nowrap">
                   <Link
                     to="/notes/$noteId"
                     params={{ noteId: note.id as unknown as string }}
+                    className="text-inherit hover:text-accent"
                   >
                     {note.title}
                   </Link>
                 </div>
                 {note.excerpt.length > 0 ? (
-                  <div className="note-snippet">{note.excerpt}</div>
+                  <div className="text-sm text-ink-secondary leading-[1.45] overflow-hidden mb-1.5 [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
+                    {note.excerpt}
+                  </div>
                 ) : null}
-                <div className="note-meta">
+                <div className="text-[13px] text-ink-tertiary flex items-center gap-2.5 flex-wrap">
                   <span>削除日 {formatDate(note.updatedAt)}</span>
                 </div>
               </div>

@@ -19,7 +19,7 @@ type MediaAssetRow = typeof mediaAssets.$inferSelect;
 /**
  * D1 implementation of `MediaAssetRepository`.
  *
- * Unlike `D1TodoRepository`, this aggregate does not extend
+ * Unlike `D1NoteRepository`, this aggregate does not extend
  * `TransactionalRepository`: ref-count mutations are too high-frequency
  * to thread `ExpectedVersion` tokens without deadlock. `save` is
  * upsert-style and relies on SQLite's per-statement atomicity for
@@ -31,8 +31,7 @@ type MediaAssetRow = typeof mediaAssets.$inferSelect;
  * immediately against the binding.
  *
  * Timestamps round-trip through ISO 8601 because `media_assets`'
- * `created_at` / `updated_at` columns are `TEXT` (the schema diverges
- * from `todos`' `integer timestamp_ms`).
+ * `created_at` / `updated_at` columns are `TEXT`.
  */
 export class D1MediaAssetRepository implements MediaAssetRepository {
   constructor(

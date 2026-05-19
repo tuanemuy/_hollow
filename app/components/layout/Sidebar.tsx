@@ -1,10 +1,22 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
 import type { DirectoryTreeNode } from "@/core/application/dto/directory";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
+import {
+  APP_SIDEBAR,
+  NAV_ITEM,
+  SIDEBAR_SECTION,
+  SIDEBAR_SECTION_TITLE,
+} from "./styles";
 
 type Props = {
   user: UserDTO;
+};
+
+const ACTIVE_NAV_PROPS = {
+  "data-active": "",
+  "aria-current": "page" as const,
 };
 
 function DirectoryNode({
@@ -18,14 +30,18 @@ function DirectoryNode({
     <li>
       <Link
         to="/"
-        search={{ directoryId: node.id as unknown as string }}
-        className="nav-item"
+        // ADR-015: intentional filter-reset — only `directoryId` is set;
+        // the rest of the filter slots fall back to schema defaults via
+        // HOME_SEARCH so type-level required `page`/`limit` are satisfied.
+        search={{ ...HOME_SEARCH, directoryId: node.id as unknown as string }}
+        className={NAV_ITEM}
+        activeProps={ACTIVE_NAV_PROPS}
         style={{ paddingLeft: `${12 + depth * 12}px` }}
       >
         <span>{node.name}</span>
       </Link>
       {node.children.length > 0 ? (
-        <ul>
+        <ul className="list-none m-0 p-0">
           {node.children.map((child) => (
             <DirectoryNode key={child.id} node={child} depth={depth + 1} />
           ))}
@@ -39,32 +55,32 @@ export async function Sidebar({ user }: Props) {
   const { tree } = await loadDirectoryTree(user.id);
 
   return (
-    <aside className="app-sidebar">
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">ライブラリ</div>
-        <ul>
+    <aside className={APP_SIDEBAR}>
+      <div className={SIDEBAR_SECTION}>
+        <div className={SIDEBAR_SECTION_TITLE}>ライブラリ</div>
+        <ul className="list-none m-0 p-0">
           <li>
-            <Link to="/" className="nav-item">
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+              activeOptions={{ exact: true }}
+            >
               <span>すべてのノート</span>
             </Link>
           </li>
         </ul>
       </div>
 
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">ディレクトリ</div>
+      <div className={SIDEBAR_SECTION}>
+        <div className={SIDEBAR_SECTION_TITLE}>ディレクトリ</div>
         {tree.length === 0 ? (
-          <p
-            style={{
-              padding: "0 12px",
-              fontSize: "13px",
-              color: "var(--color-ink-tertiary)",
-            }}
-          >
+          <p className="px-3 text-[13px] text-ink-tertiary">
             まだディレクトリがありません
           </p>
         ) : (
-          <ul>
+          <ul className="list-none m-0 p-0">
             {tree.map((node) => (
               <DirectoryNode key={node.id} node={node} depth={0} />
             ))}
@@ -72,25 +88,34 @@ export async function Sidebar({ user }: Props) {
         )}
       </div>
 
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">管理</div>
-        <ul>
+      <div className={SIDEBAR_SECTION}>
+        <div className={SIDEBAR_SECTION_TITLE}>管理</div>
+        <ul className="list-none m-0 p-0">
           <li>
-            <Link to="/tags" className="nav-item">
+            <Link
+              to="/tags"
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
               <span>タグ</span>
             </Link>
           </li>
           <li>
             <Link
               to="/trash"
-              search={{ page: 1, limit: 20 }}
-              className="nav-item"
+              search={TRASH_SEARCH}
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
             >
               <span>ゴミ箱</span>
             </Link>
           </li>
           <li>
-            <Link to="/upload" className="nav-item">
+            <Link
+              to="/upload"
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
               <span>アップロード</span>
             </Link>
           </li>

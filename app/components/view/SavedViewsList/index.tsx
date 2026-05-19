@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -41,11 +42,11 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(view.name);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const nameId = useId();
 
-  const onDelete = () => {
-    if (!window.confirm(`「${view.name}」を削除しますか？`)) return;
+  const runDelete = () => {
     startTransition(async () => {
       try {
         await remove({ data: { viewId: view.id } });
@@ -152,7 +153,11 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
           <button type="button" onClick={onToggleDefault} disabled={isPending}>
             {view.isDefault ? "既定を解除" : "既定にする"}
           </button>
-          <button type="button" onClick={onDelete} disabled={isPending}>
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={isPending}
+          >
             削除
           </button>
         </>
@@ -161,6 +166,18 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
         <p role="alert">{nameFieldErrors[0]}</p>
       ) : null}
       {summary !== "" ? <p role="alert">{summary}</p> : null}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="保存ビューを削除"
+        description={`「${view.name}」を削除しますか？`}
+        confirmLabel="削除"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDeleteOpen(false);
+          runDelete();
+        }}
+        onClose={() => setConfirmDeleteOpen(false)}
+      />
     </li>
   );
 }

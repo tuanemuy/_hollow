@@ -1,4 +1,5 @@
 import type { UserDTO } from "@/core/application/dto/identity";
+import { EMPTY_STATE, PAGE_SUBTITLE, PAGE_TITLE } from "../layout/styles";
 import { IngestionJobRow } from "./IngestionJobRow";
 import { loadIngestionJobs } from "./loaders";
 import { UploadForm } from "./UploadForm";
@@ -12,28 +13,24 @@ export async function UploadPage({ user }: Props) {
 
   return (
     <>
-      <h1 className="page-title">アップロード</h1>
-      <p className="page-subtitle">
+      <h1 className={PAGE_TITLE}>アップロード</h1>
+      <p className={PAGE_SUBTITLE}>
         ファイルから新規ノートを作成します。HTML / Markdown / Office / PDF /
         画像 / 音声に対応しています。
       </p>
 
       <UploadForm />
 
-      <section style={{ marginTop: "var(--space-12)" }}>
-        <h2
-          style={{
-            fontSize: "var(--text-xl)",
-            fontWeight: "var(--weight-semibold)",
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          取り込みキュー
-        </h2>
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold mb-4">取り込みキュー</h2>
         {jobs.length === 0 ? (
-          <div className="empty-state">
-            <h2>まだジョブがありません</h2>
-            <p>ファイルをアップロードすると、ここに進行状況が表示されます。</p>
+          <div className={EMPTY_STATE}>
+            <h2 className="text-xl font-medium text-ink mb-2">
+              まだジョブがありません
+            </h2>
+            <p className="text-sm">
+              ファイルをアップロードすると、ここに進行状況が表示されます。
+            </p>
           </div>
         ) : (
           <div>

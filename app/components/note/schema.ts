@@ -11,7 +11,7 @@ export const NOTE_TITLE_MAX_LENGTH = 200;
 export const NOTE_BODY_MAX_BYTES = 1024 * 1024;
 const FRONT_MATTER_JSON_MAX_BYTES = 64 * 1024;
 
-const visibilitySchema = z.enum(["private", "unlisted", "public"]);
+export const visibilitySchema = z.enum(["private", "unlisted", "public"]);
 
 export const createNoteSchema = z.object({
   title: z.string().trim().max(NOTE_TITLE_MAX_LENGTH).default(""),
@@ -70,6 +70,7 @@ export const noteListSearchSchema = z.object({
   q: z.string().optional().catch(undefined),
   viewId: z.string().min(1).optional().catch(undefined),
   visibility: visibilitySchema.optional().catch(undefined),
+  referencingNoteId: z.string().min(1).optional().catch(undefined),
   tagNames: z.array(z.string().min(1)).optional().catch(undefined),
   from: z.string().date().optional().catch(undefined),
   to: z.string().date().optional().catch(undefined),
@@ -93,11 +94,6 @@ export const bulkMoveSchema = z.object({
 
 export const bulkTrashSchema = z.object({
   noteIds: z.array(z.string().min(1)).min(1).max(BULK_NOTE_IDS_MAX),
-});
-
-export const bulkVisibilitySchema = z.object({
-  noteIds: z.array(z.string().min(1)).min(1).max(BULK_NOTE_IDS_MAX),
-  nextVisibility: visibilitySchema,
 });
 
 export const bulkExportSchema = z
@@ -133,4 +129,13 @@ export const extendLockSchema = z.object({
 
 export const releaseLockSchema = z.object({
   noteId: z.string().min(1),
+});
+
+// `query.max(NOTE_TITLE_MAX_LENGTH)` is sized so a user can prefix-match
+// a full note title without the transport layer rejecting the request.
+// `limit` is clamped server-side as well, but the schema cap is a cheap
+// DoS guard before the usecase runs.
+export const searchInternalLinkTargetsSchema = z.object({
+  query: z.string().trim().min(1).max(NOTE_TITLE_MAX_LENGTH),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
 });

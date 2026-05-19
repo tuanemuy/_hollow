@@ -243,6 +243,7 @@ describe("SavedViewService.detectBrokenConditions", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: noteId,
+      visibilityFilter: [],
     });
     const view = makeView({ name: "All", query });
 
@@ -262,6 +263,7 @@ describe("SavedViewService.detectBrokenConditions", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const view = makeView({ name: "Dir", query });
     const markers = await SavedViewService.detectBrokenConditions(view, T0, {
@@ -284,6 +286,7 @@ describe("SavedViewService.detectBrokenConditions", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const view = makeView({ name: "Tags", query });
     const markers = await SavedViewService.detectBrokenConditions(view, T0, {
@@ -303,6 +306,7 @@ describe("SavedViewService.detectBrokenConditions", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: noteId,
+      visibilityFilter: [],
     });
     const view = makeView({ name: "Note", query });
     const markers = await SavedViewService.detectBrokenConditions(view, T0, {

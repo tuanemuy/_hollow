@@ -8,6 +8,21 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  AUTH_FOOTER,
+  AUTH_FOOTER_LINK,
+  AUTH_SUBTITLE,
+  AUTH_TITLE,
+  BTN_PRIMARY,
+  FIELD,
+  FIELD_HINT,
+  FIELD_HINT_ERROR,
+  FIELD_LABEL,
+  FORM,
+  FORM_ERROR,
+  INPUT,
+  NOTICE,
+} from "../styles";
 import { requestPasswordResetFn } from "./action";
 
 type FormState = {
@@ -48,13 +63,15 @@ export function PasswordResetRequestForm() {
   if (state.sent) {
     return (
       <>
-        <h1 className="auth-title">再設定リンクを送信しました</h1>
-        <p className="auth-subtitle">
+        <h1 className={AUTH_TITLE}>再設定リンクを送信しました</h1>
+        <p className={AUTH_SUBTITLE}>
           入力されたアドレスが登録済みの場合、再設定用のリンクをお送りしています。
           メールが届かない場合は、迷惑メールフォルダもご確認ください。
         </p>
-        <div className="auth-footer">
-          <Link to="/login">ログインに戻る</Link>
+        <div className={AUTH_FOOTER}>
+          <Link to="/login" className={AUTH_FOOTER_LINK}>
+            ログインに戻る
+          </Link>
         </div>
       </>
     );
@@ -62,20 +79,20 @@ export function PasswordResetRequestForm() {
 
   return (
     <>
-      <h1 className="auth-title">パスワードを再設定</h1>
-      <p className="auth-subtitle">
+      <h1 className={AUTH_TITLE}>パスワードを再設定</h1>
+      <p className={AUTH_SUBTITLE}>
         登録済みのメールアドレスを入力してください。再設定用のリンクをお送りします。
         <br />
         セキュリティ上の理由から、入力されたアドレスが登録済みかどうかはお伝えできません。
       </p>
 
-      <form className="form" action={formAction} noValidate>
-        <div className={`field${fieldError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={emailId}>
+      <form className={FORM} action={formAction} noValidate>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={emailId}>
             メールアドレス
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={emailId}
             name="email"
             type="email"
@@ -84,29 +101,32 @@ export function PasswordResetRequestForm() {
             required
             disabled={isPending}
             aria-invalid={fieldError !== undefined}
+            data-error={fieldError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={fieldError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {fieldError ?? "登録時に使用したアドレスを入力してください。"}
           </span>
         </div>
 
         {summary !== null ? (
-          <div className="form-error" role="alert">
+          <div className={FORM_ERROR} role="alert">
             <span>{summary}</span>
           </div>
         ) : null}
 
-        <button type="submit" className="btn-primary" disabled={isPending}>
+        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
           {isPending ? "送信中..." : "再設定リンクを送る"}
         </button>
       </form>
 
-      <div className="notice">
+      <div className={NOTICE}>
         メールが届かない場合は、迷惑メールフォルダもご確認ください。それでも届かない場合は、別のアドレスで登録されている可能性があります。
       </div>
 
-      <div className="auth-footer">
-        <Link to="/login">ログインに戻る</Link>
+      <div className={AUTH_FOOTER}>
+        <Link to="/login" className={AUTH_FOOTER_LINK}>
+          ログインに戻る
+        </Link>
       </div>
     </>
   );

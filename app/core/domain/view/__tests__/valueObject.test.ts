@@ -357,6 +357,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     expect(query.tagIds).toEqual([tagA, tagB]);
   });
@@ -369,6 +370,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     expect(Object.isFrozen(query.tagIds)).toBe(true);
   });
@@ -380,6 +382,71 @@ describe("ViewQuery", () => {
     expect(query.dateRange).toBeNull();
     expect(query.keyword).toBeNull();
     expect(query.referencingNoteId).toBeNull();
+    expect(query.visibilityFilter.length).toBe(0);
+  });
+
+  it("collapses duplicate visibilityFilter entries at construction time", () => {
+    const query = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public", "unlisted", "public"],
+    });
+    expect(query.visibilityFilter).toEqual(["public", "unlisted"]);
+  });
+
+  it("freezes visibilityFilter so callers cannot mutate it post-construction", () => {
+    const query = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public"],
+    });
+    expect(Object.isFrozen(query.visibilityFilter)).toBe(true);
+  });
+
+  it("equals returns false when visibilityFilter length differs", () => {
+    const a = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public"],
+    });
+    const b = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public", "unlisted"],
+    });
+    expect(ViewQuery.equals(a, b)).toBe(false);
+  });
+
+  it("equals returns false when visibilityFilter values differ at the same position", () => {
+    const a = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["public"],
+    });
+    const b = ViewQuery.create({
+      directoryId: null,
+      tagIds: [],
+      dateRange: null,
+      keyword: null,
+      referencingNoteId: null,
+      visibilityFilter: ["unlisted"],
+    });
+    expect(ViewQuery.equals(a, b)).toBe(false);
   });
 
   it("equals compares all axes structurally", () => {
@@ -395,6 +462,7 @@ describe("ViewQuery", () => {
       dateRange: range,
       keyword: kw,
       referencingNoteId: note,
+      visibilityFilter: [],
     });
     const b = ViewQuery.create({
       directoryId: dirId,
@@ -402,6 +470,7 @@ describe("ViewQuery", () => {
       dateRange: DateRange.create({ from: new Date(1), to: new Date(2) }),
       keyword: kw,
       referencingNoteId: note,
+      visibilityFilter: [],
     });
     expect(ViewQuery.equals(a, b)).toBe(true);
   });
@@ -415,6 +484,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const b = ViewQuery.create({
       directoryId: null,
@@ -422,6 +492,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     expect(ViewQuery.equals(a, b)).toBe(false);
   });
@@ -435,6 +506,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const b = ViewQuery.create({
       directoryId: null,
@@ -442,6 +514,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     expect(ViewQuery.equals(a, b)).toBe(false);
   });
@@ -454,6 +527,7 @@ describe("ViewQuery", () => {
       dateRange: range,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     const b = ViewQuery.create({
       directoryId: null,
@@ -461,6 +535,7 @@ describe("ViewQuery", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     });
     expect(ViewQuery.equals(a, b)).toBe(false);
   });

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -26,7 +26,7 @@ type PublicationStateRow = typeof publicationStates.$inferSelect;
 
 /**
  * D1 implementation of `PublicationStateRepository`. Mirrors
- * `D1TodoRepository` — reads run immediately, writes buffer onto the
+ * `D1NoteRepository` — reads run immediately, writes buffer onto the
  * surrounding `PendingBatch` so `D1UnitOfWorkProvider` can flush them
  * atomically. The aggregate id is `NoteId`; the table's primary key
  * column `note_id` doubles as that id, so `findById` and `findByNoteId`
@@ -178,6 +178,17 @@ export class D1PublicationStateRepository
         .orderBy(asc(publicationStates.noteId))
         .limit(opts.limit);
       return rows.map((r) => NoteId.create(r.noteId));
+    });
+  }
+
+  findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]> {
+    return mapDbError("Failed to bulk-read publication_states", async () => {
+      if (ids.length === 0) return [];
+      const rows = await this.db
+        .select()
+        .from(publicationStates)
+        .where(inArray(publicationStates.noteId, [...ids]));
+      return rows.map((row) => this.toEntity(row));
     });
   }
 

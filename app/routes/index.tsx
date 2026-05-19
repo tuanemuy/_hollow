@@ -38,11 +38,14 @@ const renderHome = createServerFn({ method: "GET" })
         loadAllTags,
         loadSavedViewsByKind,
         loadSavedViewById,
+        loadReferencingNoteTitle,
       },
+      { viewQueryToSearch },
     ] = await Promise.all([
       import("@/components/note/HomePage"),
       import("@/core/application/dto/identity"),
       import("@/components/note/loaders"),
+      import("@/components/note/list/listSelectors"),
     ]);
     const userDto = toUserDTO(user);
 
@@ -55,20 +58,15 @@ const renderHome = createServerFn({ method: "GET" })
         viewId: search.viewId,
       });
       if (view !== null) {
+        const restored = viewQueryToSearch(view);
         baseSearch = {
+          ...restored,
           ...search,
-          display: search.display ?? view.displayMode,
-          directoryId:
-            search.directoryId ??
-            (view.query.directoryId === null
-              ? undefined
-              : (view.query.directoryId as unknown as string)),
-          q: search.q ?? view.query.keyword ?? undefined,
         };
       }
     }
 
-    const [owned, tree, tags, savedViews] = await Promise.all([
+    const [owned, tree, tags, savedViews, referencing] = await Promise.all([
       loadOwnedNotes({
         actorUserId: user.id,
         status: "active",
@@ -84,6 +82,9 @@ const renderHome = createServerFn({ method: "GET" })
         ...(baseSearch.visibility !== undefined
           ? { visibility: baseSearch.visibility }
           : {}),
+        ...(baseSearch.referencingNoteId !== undefined
+          ? { referencingNoteId: baseSearch.referencingNoteId }
+          : {}),
         ...(baseSearch.from !== undefined || baseSearch.to !== undefined
           ? {
               dateRange: {
@@ -96,6 +97,12 @@ const renderHome = createServerFn({ method: "GET" })
       loadDirectoryTreeFlat({ actorUserId: user.id }),
       loadAllTags({ actorUserId: user.id }),
       loadSavedViewsByKind({ actorUserId: user.id, kind: "personal" }),
+      baseSearch.referencingNoteId !== undefined
+        ? loadReferencingNoteTitle({
+            actorUserId: user.id,
+            noteId: baseSearch.referencingNoteId,
+          })
+        : Promise.resolve({ title: null as string | null }),
     ]);
 
     return {
@@ -110,6 +117,7 @@ const renderHome = createServerFn({ method: "GET" })
           tags={tags.tags}
           savedViews={savedViews.views}
           search={baseSearch}
+          referencingNoteTitle={referencing.title}
         />,
       ),
     };
@@ -117,14 +125,11 @@ const renderHome = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/")({
   staleTime: 0,
-  // Note: other routes use `(search) => schema.parse(search)` directly, but
-  // the home route keeps the `validateInput()` wrapper. The wrapper widens
-  // the `search` parameter to `unknown`, which lets TanStack's inferred
-  // search union (across all routes) coexist with `<Link to="/">` /
-  // `redirect({ to: "/" })` callers that omit the `search` prop. Direct
-  // `parse(search)` would narrow the input type and force every link
-  // target to spell out the full search shape.
-  validateSearch: validateInput(noteListSearchSchema),
+  // Unified with the rest of the routes via `schema.parse(search)`
+  // (Issue #13 ADR-001 supersedes Issue #1 ADR-026). Callers using
+  // `<Link to="/">` / `redirect({ to: "/" })` must pass
+  // `search={HOME_SEARCH}` from `@/components/auth/links`.
+  validateSearch: (search) => noteListSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => renderHome({ data: deps }),
   head: ({ match }) => {
@@ -135,9 +140,11 @@ export const Route = createFileRoute("/")({
   },
   component: HomeRoute,
   errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+    <div role="alert" className="p-6">
+      <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
+      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
+        {sanitizeRouteError(error)}
+      </pre>
     </div>
   ),
 });

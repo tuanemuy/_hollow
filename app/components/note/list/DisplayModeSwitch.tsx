@@ -2,8 +2,10 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useTransition } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
+import { pillBtn, pillBtnPrimary } from "../styles";
 
 type Props = {
   current: DisplayMode;
@@ -24,7 +26,15 @@ export function DisplayModeSwitch({ current }: Props) {
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({ ...prev, display: mode }),
+        // `prev` is the inferred cross-route search union, so `page`/`limit`
+        // may be `undefined`. Collapse onto `HOME_SEARCH` so the returned
+        // shape always satisfies the home schema's required defaults.
+        search: (prev) => ({
+          ...(prev as Partial<NoteListSearch>),
+          page: (prev as Partial<NoteListSearch>).page ?? HOME_SEARCH.page,
+          limit: (prev as Partial<NoteListSearch>).limit ?? HOME_SEARCH.limit,
+          display: mode,
+        }),
       });
     });
   };
@@ -33,7 +43,7 @@ export function DisplayModeSwitch({ current }: Props) {
     <div
       role="tablist"
       aria-label="表示形式"
-      className="display-mode-switch"
+      className="inline-flex gap-1"
       aria-busy={isPending}
     >
       {DISPLAY_MODES.map((mode) => {
@@ -44,7 +54,8 @@ export function DisplayModeSwitch({ current }: Props) {
             role="tab"
             type="button"
             aria-selected={active}
-            className={`pill-btn${active ? " primary" : ""}`}
+            data-primary={active || undefined}
+            className={`${pillBtn} ${pillBtnPrimary}`}
             onClick={() => select(mode)}
             disabled={isPending}
           >

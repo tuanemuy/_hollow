@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -10,6 +11,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import { bulkTrashNotesFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
+import { formError, pillBtn, pillBtnDanger } from "../styles";
 import { BulkExportDialog } from "./BulkExportDialog";
 import { BulkVisibilityDialog } from "./BulkVisibilityDialog";
 import { MoveNoteDialog } from "./MoveNoteDialog";
@@ -26,6 +28,7 @@ export function BulkActionBar({ tree }: Props) {
   const trash = useServerFn(bulkTrashNotesFn);
   const { state, dispatch } = useSelection();
   const [open, setOpen] = useState<OpenDialog>(null);
+  const [confirmTrashOpen, setConfirmTrashOpen] = useState(false);
   const [error, setError] = useState<SerializedError | null>(null);
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -34,8 +37,7 @@ export function BulkActionBar({ tree }: Props) {
 
   const ids = [...state.ids];
 
-  const onTrash = () => {
-    if (!confirm(`${ids.length} 件のノートをゴミ箱に移動しますか？`)) return;
+  const runTrash = () => {
     setError(null);
     setBatchMessage(null);
     startTransition(async () => {
@@ -64,12 +66,17 @@ export function BulkActionBar({ tree }: Props) {
 
   return (
     <>
-      <section className="bulk-bar" aria-label="一括操作">
-        <span className="bulk-bar-count">{state.ids.size} 件選択中</span>
-        <div className="bulk-bar-actions">
+      <section
+        className="sticky top-[var(--header-height)] z-[5] flex flex-wrap items-center gap-3 px-4 py-3 mb-3 bg-accent-surface rounded-md"
+        aria-label="一括操作"
+      >
+        <span className="text-[13px] font-medium text-ink">
+          {state.ids.size} 件選択中
+        </span>
+        <div className="inline-flex gap-1.5 flex-wrap ml-auto">
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("move")}
             disabled={isPending}
           >
@@ -77,7 +84,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("visibility")}
             disabled={isPending}
           >
@@ -85,7 +92,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("export")}
             disabled={isPending}
           >
@@ -93,15 +100,15 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn danger"
-            onClick={onTrash}
+            className={pillBtnDanger}
+            onClick={() => setConfirmTrashOpen(true)}
             disabled={isPending}
           >
             {isPending ? "処理中..." : "ゴミ箱へ"}
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => dispatch({ type: "clear" })}
             disabled={isPending}
           >
@@ -109,12 +116,12 @@ export function BulkActionBar({ tree }: Props) {
           </button>
         </div>
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
         {batchMessage !== null ? (
-          <p className="form-error" role="status">
+          <p className={formError} role="status">
             {batchMessage}
           </p>
         ) : null}
@@ -133,6 +140,18 @@ export function BulkActionBar({ tree }: Props) {
       <BulkExportDialog
         open={open === "export"}
         onClose={() => setOpen(null)}
+      />
+      <ConfirmDialog
+        open={confirmTrashOpen}
+        title="一括ゴミ箱移動"
+        description={`${ids.length} 件のノートをゴミ箱に移動しますか？`}
+        confirmLabel="ゴミ箱へ"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmTrashOpen(false);
+          runTrash();
+        }}
+        onClose={() => setConfirmTrashOpen(false)}
       />
     </>
   );

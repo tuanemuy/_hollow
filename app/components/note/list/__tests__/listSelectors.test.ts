@@ -3,6 +3,7 @@ import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { NoteListSearch } from "../../schema";
 import {
   emptySelection,
+  formatReferencingNoteChipLabel,
   groupNotesByDay,
   searchToViewQuery,
   selectionReducer,
@@ -136,7 +137,6 @@ describe("searchToViewQuery", () => {
     expect(out.query.directoryId).toBe(null);
     expect(out.query.dateRange).toBe(null);
     expect(out.query.keyword).toBe(null);
-    expect(out.query.visibilityFilter).toBeUndefined();
   });
 
   it("propagates filter fields", () => {
@@ -148,7 +148,6 @@ describe("searchToViewQuery", () => {
       from: "2024-01-01",
       to: "2024-02-01",
       q: "claude",
-      visibility: "public",
     });
     expect(out.displayMode).toBe("tile");
     expect(out.query.tagNames).toEqual(["draft", "idea"]);
@@ -158,12 +157,34 @@ describe("searchToViewQuery", () => {
       to: "2024-02-01",
     });
     expect(out.query.keyword).toBe("claude");
-    expect(out.query.visibilityFilter).toEqual(["public"]);
   });
 
   it("treats an empty `q` as a null keyword", () => {
     const out = searchToViewQuery({ ...baseSearch, q: "   " });
     expect(out.query.keyword).toBe(null);
+  });
+
+  it("propagates `referencingNoteId` into the saved-view query", () => {
+    const out = searchToViewQuery({
+      ...baseSearch,
+      referencingNoteId: "note-ref-1",
+    });
+    expect(out.query.referencingNoteId).toBe("note-ref-1");
+  });
+
+  it("falls back to null `referencingNoteId` when unset", () => {
+    const out = searchToViewQuery(baseSearch);
+    expect(out.query.referencingNoteId).toBe(null);
+  });
+
+  it("wraps a single URL `visibility` into a 1-element array", () => {
+    const out = searchToViewQuery({ ...baseSearch, visibility: "public" });
+    expect(out.query.visibilityFilter).toEqual(["public"]);
+  });
+
+  it("falls back to an empty `visibilityFilter` when unset", () => {
+    const out = searchToViewQuery(baseSearch);
+    expect(out.query.visibilityFilter).toEqual([]);
   });
 
   // W-003: the dateRange branch must engage when *either* bound is
@@ -201,6 +222,7 @@ describe("viewQueryToSearch", () => {
       },
       keyword: "hi",
       referencingNoteId: null,
+      visibilityFilter: [],
     },
     displayMode: "calendar",
     calendarDateKey: "updated",
@@ -235,6 +257,7 @@ describe("viewQueryToSearch", () => {
       dateRange: null,
       keyword: null,
       referencingNoteId: null,
+      visibilityFilter: [],
     },
   };
 
@@ -294,6 +317,74 @@ describe("viewQueryToSearch", () => {
     expect(calls).toBe(0);
     expect("tagNames" in out).toBe(false);
   });
+
+  it("restores `referencingNoteId` when the view carries one", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        referencingNoteId:
+          "note-ref-99" as unknown as SavedViewDTO["query"]["referencingNoteId"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.referencingNoteId).toBe("note-ref-99");
+  });
+
+  it("omits `referencingNoteId` when the view has none", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("referencingNoteId" in out).toBe(false);
+  });
+
+  it("projects the first `visibilityFilter` entry into the URL `visibility`", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["unlisted"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("unlisted");
+  });
+
+  it("omits `visibility` when `visibilityFilter` is empty", () => {
+    const out = viewQueryToSearch(emptyView);
+    expect("visibility" in out).toBe(false);
+  });
+
+  // ADR-002 documents that URL schema carries a single `visibility` enum
+  // while the SavedView VO can hold multiple. When a view holds multiple
+  // visibility values (e.g. via direct API), the selector projects the
+  // first value into the URL and drops the rest. Pin this behavior so a
+  // future change to URL-multi-select doesn't silently regress it.
+  it("projects only the first `visibilityFilter` entry when the view carries multiple", () => {
+    const v: SavedViewDTO = {
+      ...view,
+      query: {
+        ...view.query,
+        visibilityFilter: ["public", "unlisted"],
+      },
+    };
+    const out = viewQueryToSearch(v);
+    expect(out.visibility).toBe("public");
+  });
+});
+
+describe("formatReferencingNoteChipLabel", () => {
+  const id = "0123456789abcdef0123456789abcdef";
+
+  it("returns the title when one is supplied", () => {
+    expect(formatReferencingNoteChipLabel(id, "My Note")).toBe("My Note");
+  });
+
+  it("falls back to the first 8 id chars when title is null", () => {
+    expect(formatReferencingNoteChipLabel(id, null)).toBe("01234567");
+  });
+
+  it("falls back to the first 8 id chars when title is empty", () => {
+    expect(formatReferencingNoteChipLabel(id, "")).toBe("01234567");
+  });
 });
 
 describe("viewQueryEquals", () => {
@@ -303,6 +394,7 @@ describe("viewQueryEquals", () => {
     dateRange: null,
     keyword: null,
     referencingNoteId: null,
+    visibilityFilter: [],
   } as unknown as SavedViewDTO["query"];
 
   it("returns true for identical shapes", () => {
@@ -328,6 +420,37 @@ describe("viewQueryEquals", () => {
   it("handles null vs non-null date ranges", () => {
     const a = { ...base, dateRange: null };
     const b = { ...base, dateRange: { from: "2024-01-01", to: null } };
+    expect(viewQueryEquals(a, b)).toBe(false);
+  });
+
+  it("returns false when visibilityFilter length differs", () => {
+    const a = {
+      ...base,
+      visibilityFilter:
+        [] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    const b = {
+      ...base,
+      visibilityFilter: [
+        "public",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    expect(viewQueryEquals(a, b)).toBe(false);
+  });
+
+  it("returns false when visibilityFilter values differ", () => {
+    const a = {
+      ...base,
+      visibilityFilter: [
+        "public",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
+    const b = {
+      ...base,
+      visibilityFilter: [
+        "unlisted",
+      ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
+    };
     expect(viewQueryEquals(a, b)).toBe(false);
   });
 });

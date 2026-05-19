@@ -9,28 +9,6 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-// Timestamps are ms-precision so they round-trip with `Date` and align
-// with outbox `occurred_at` and the UUIDv7 monotonic ordering encoded
-// in `id`. All timestamps come from the application `Clock` (no SQL
-// defaults) so fakes can freeze time deterministically.
-export const todos = sqliteTable(
-  "todos",
-  {
-    id: text("id").primaryKey(),
-    title: text("title").notNull(),
-    status: text("status").notNull(),
-    version: integer("version").notNull().default(0),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-  },
-  (table) => [
-    // Backs `findPage`'s `ORDER BY created_at DESC, id DESC` paging key.
-    // Without this the planner falls back to a sort over the full table
-    // once the row count grows past the cache.
-    index("idx_todos_created_id").on(desc(table.createdAt), desc(table.id)),
-  ],
-);
-
 export const outboxEvents = sqliteTable(
   "outbox_events",
   {
@@ -110,7 +88,7 @@ export const occGuard = sqliteTable(
 //
 // All Identity timestamps are stored as ISO8601 text per
 // `spec/database/index.md` (better-auth convention), distinct from
-// the legacy `todos` / `outbox_events` integer-ms columns above.
+// the legacy `outbox_events` integer-ms columns above.
 
 export const users = sqliteTable(
   "users",
@@ -483,7 +461,7 @@ export const ingestionJobs = sqliteTable(
     // OCC token column. The `IngestionJob` aggregate is updated through
     // the shared `TransactionalRepository` contract (see
     // `D1IngestionJobRepository`); matching the convention used by
-    // `todos.version` / `publication_states.version`.
+    // `publication_states.version`.
     version: integer("version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -495,6 +473,11 @@ export const ingestionJobs = sqliteTable(
       desc(table.updatedAt),
     ),
     index("idx_ij_status_updated").on(table.status, table.updatedAt),
+    // Admin-wide listing sort key (P46 /admin/jobs). The composite
+    // `(owner, status, updated_at)` indices above are useless once the
+    // query drops the leading owner predicate, so a dedicated index on
+    // `(updated_at DESC, id DESC)` keeps the all-owners scan bounded.
+    index("idx_ij_updated_at").on(desc(table.updatedAt), desc(table.id)),
     check("ij_byte_size_positive", sql`${table.byteSize} > 0`),
     check(
       "ij_status_enum",
@@ -581,6 +564,12 @@ export const exportJobs = sqliteTable(
       desc(table.updatedAt),
     ),
     index("idx_export_jobs_expires_at").on(table.expiresAt),
+    // Admin-wide listing sort key (P46 /admin/jobs). Mirrors
+    // `idx_ij_updated_at` on ingestion_jobs.
+    index("idx_export_jobs_updated_at").on(
+      desc(table.updatedAt),
+      desc(table.id),
+    ),
     check(
       "export_jobs_format_enum",
       sql`${table.format} IN ('html', 'markdown', 'pdf')`,

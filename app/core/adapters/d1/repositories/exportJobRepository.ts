@@ -139,7 +139,7 @@ function parseOptions(raw: string): ExportOptions {
 }
 
 /**
- * D1 implementation of `ExportJobRepository`. Mirrors `D1TodoRepository`
+ * D1 implementation of `ExportJobRepository`. Mirrors `D1NoteRepository`
  * — reads run immediately against the binding, writes register Drizzle
  * query expressions on the supplied `PendingBatch` so the surrounding
  * `D1UnitOfWorkProvider` can flush them atomically via `db.batch()`.
@@ -325,6 +325,21 @@ export class D1ExportJobRepository implements ExportJobRepository {
         .orderBy(...orderBy)
         .limit(opts.limit)
         .offset(opts.offset);
+      return rows.map((row) => this.toEntity(row));
+    });
+  }
+
+  findRecent(opts: {
+    limit: number;
+    offset?: number;
+  }): Promise<readonly ExportJob[]> {
+    return mapDbError("Failed to list recent export_jobs", async () => {
+      const rows = await this.db
+        .select()
+        .from(exportJobs)
+        .orderBy(desc(exportJobs.updatedAt), desc(exportJobs.id))
+        .limit(opts.limit)
+        .offset(opts.offset ?? 0);
       return rows.map((row) => this.toEntity(row));
     });
   }

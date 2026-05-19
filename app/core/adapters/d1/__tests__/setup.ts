@@ -11,7 +11,6 @@ beforeAll(async () => {
 });
 
 const CLEAN_STATEMENTS: ReadonlyArray<readonly [label: string, sql: string]> = [
-  ["todos", "DELETE FROM todos"],
   ["outbox_events", "DELETE FROM outbox_events"],
   ["processed_events", "DELETE FROM processed_events"],
   ["index_jobs", "DELETE FROM index_jobs"],

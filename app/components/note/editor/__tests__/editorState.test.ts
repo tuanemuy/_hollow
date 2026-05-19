@@ -240,12 +240,17 @@ describe("editorReducer setters", () => {
     expect(s1).toBe(s0);
   });
 
-  it("setMode no-ops on `wysiwyg-disabled`", () => {
+  it("setMode transitions to wysiwyg without marking dirty", () => {
     const s0 = freshState();
-    const s1 = editorReducer(s0, {
-      type: "setMode",
-      mode: "wysiwyg-disabled",
-    });
+    const s1 = editorReducer(s0, { type: "setMode", mode: "wysiwyg" });
+    expect(s1.mode).toBe("wysiwyg");
+    expect(s1.dirtyKeys.size).toBe(0);
+    expect(s1.autosave.kind).toBe("idle");
+  });
+
+  it("setMode with the same mode is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, { type: "setMode", mode: s0.mode });
     expect(s1).toBe(s0);
   });
 
@@ -255,6 +260,24 @@ describe("editorReducer setters", () => {
       mode: "frontMatter",
     });
     expect(s.mode).toBe("frontMatter");
+  });
+
+  it("setMode preserves an in-flight autosave and existing dirty keys (W-014)", () => {
+    // Mode switching must never restart or clear an in-progress autosave
+    // — that would either lose a save attempt or strand the indicator.
+    // Likewise dirty fields stay dirty until autosaveSuccess clears them.
+    let s: EditorState = editorReducer(freshState(), {
+      type: "setTitle",
+      value: "draft",
+    });
+    s = editorReducer(s, { type: "autosaveStart" });
+    expect(s.autosave.kind).toBe("saving");
+    expect(s.dirtyKeys.has("title")).toBe(true);
+
+    const next = editorReducer(s, { type: "setMode", mode: "wysiwyg" });
+    expect(next.mode).toBe("wysiwyg");
+    expect(next.autosave.kind).toBe("saving");
+    expect(next.dirtyKeys.has("title")).toBe(true);
   });
 
   it("setTagInput updates the raw tag string and marks tags dirty", () => {
@@ -451,6 +474,107 @@ describe("editorReducer edit-lock actions", () => {
     // React detects the change; referential inequality is the contract.
     expect(s1.editLock).not.toBe(s0.editLock);
     expect(s1).not.toBe(s0);
+  });
+});
+
+describe("editorReducer wysiwyg unsupported-tag warning (Issue #37)", () => {
+  it("starts with an empty tag list and ack=false", () => {
+    const s = freshState();
+    expect(s.wysiwygUnsupportedTags).toEqual([]);
+    expect(s.wysiwygUnsupportedAck).toBe(false);
+  });
+
+  it("wysiwygUnsupportedDetected with non-empty tags stores them sorted and leaves ack=false", () => {
+    const s = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["table", "mark", "kbd"],
+    });
+    expect(s.wysiwygUnsupportedTags).toEqual(["kbd", "mark", "table"]);
+    expect(s.wysiwygUnsupportedAck).toBe(false);
+    expect(s.dirtyKeys.size).toBe(0);
+  });
+
+  // ADR-005 latch: empty `tags` must never erase an existing warning.
+  it("wysiwygUnsupportedDetected with [] is a no-op even after a warning is set", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: [],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with [] on initial state is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: [],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with the same set (different order) is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark", "table"],
+    });
+    const s1 = editorReducer(s0, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["table", "mark"],
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("wysiwygUnsupportedDetected with a different set resets ack to false", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    expect(s1.wysiwygUnsupportedAck).toBe(true);
+    const s2 = editorReducer(s1, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark", "kbd"],
+    });
+    expect(s2.wysiwygUnsupportedTags).toEqual(["kbd", "mark"]);
+    expect(s2.wysiwygUnsupportedAck).toBe(false);
+  });
+
+  it("wysiwygUnsupportedAck flips ack to true without touching the tag list", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    expect(s1.wysiwygUnsupportedAck).toBe(true);
+    expect(s1.wysiwygUnsupportedTags).toEqual(["mark"]);
+    expect(s1.dirtyKeys.size).toBe(0);
+  });
+
+  it("wysiwygUnsupportedAck when already acked is a referential no-op", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    const s1 = editorReducer(s0, { type: "wysiwygUnsupportedAck" });
+    const s2 = editorReducer(s1, { type: "wysiwygUnsupportedAck" });
+    expect(s2).toBe(s1);
+  });
+
+  it("neither action mutates dirtyKeys nor autosave status", () => {
+    let s: EditorState = freshState();
+    s = editorReducer(s, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    expect(s.dirtyKeys.size).toBe(0);
+    expect(s.autosave.kind).toBe("idle");
+    s = editorReducer(s, { type: "wysiwygUnsupportedAck" });
+    expect(s.dirtyKeys.size).toBe(0);
+    expect(s.autosave.kind).toBe("idle");
   });
 });
 

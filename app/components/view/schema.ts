@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { visibilitySchema } from "@/components/note/schema";
 
 export const SAVED_VIEW_NAME_MAX = 60;
 
@@ -15,8 +16,6 @@ export const renameSavedViewSchema = z.object({
   viewId: z.string().min(1),
   name: z.string().trim().min(1).max(SAVED_VIEW_NAME_MAX),
 });
-
-const visibilityEnum = z.enum(["private", "unlisted", "public"]);
 
 /**
  * Schema for "save current filter + display as view" form.
@@ -39,7 +38,8 @@ export const createSavedViewSchema = z.object({
       .nullable()
       .default(null),
     keyword: z.string().nullable().default(null),
-    visibilityFilter: z.array(visibilityEnum).optional(),
+    referencingNoteId: z.string().min(1).nullable().default(null),
+    visibilityFilter: z.array(visibilitySchema).default([]),
   }),
   displayMode: z.enum(["list", "tile", "calendar"]).default("list"),
   calendarDateKey: z

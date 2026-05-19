@@ -48,7 +48,13 @@ const fallbackSlugBase = (base: string): string => {
   return "note";
 };
 
-const MEDIA_ID_FROM_URL = /\/media\/([0-9a-z-]+)/i;
+/**
+ * Pattern used by both server-side ref extraction and the WYSIWYG editor
+ * integration tests to confirm that `<img src="/media/<id>">` URLs
+ * survive serialisation. Exported so callers cannot accidentally drift
+ * from the canonical form (ADR-009).
+ */
+export const MEDIA_ID_FROM_URL = /\/media\/([0-9a-z-]+)/i;
 const INTERNAL_LINK_PATTERN = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
 const UUID_V7_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

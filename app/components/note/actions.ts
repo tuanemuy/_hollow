@@ -26,6 +26,7 @@ import {
   restoreNoteSchema,
   saveDraftSchema,
   saveNoteSchema,
+  searchInternalLinkTargetsSchema,
 } from "./schema";
 
 // All note server fns return only the minimal scalar payload the UI
@@ -396,6 +397,25 @@ export const extendEditLockFn = createServerFn({ method: "POST" })
       noteId: result.note.id as unknown as string,
       expiresAt: result.note.editLock?.expiresAt ?? null,
     };
+  });
+
+export const searchInternalLinkTargetsFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(searchInternalLinkTargetsSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/searchInternalLinkTargets"),
+    );
+    const result = await module.searchInternalLinkTargets({
+      container,
+      input: {
+        actorUserId: user.id,
+        query: data.query,
+        ...(data.limit === undefined ? {} : { limit: data.limit }),
+      },
+    });
+    return { suggestions: result.suggestions };
   });
 
 export const releaseEditLockFn = createServerFn({ method: "POST" })

@@ -2,9 +2,11 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState, useTransition } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
+import { pillBtn, pillBtnPrimary } from "../styles";
 import { DisplayModeSwitch } from "./DisplayModeSwitch";
 import { SaveViewDialog } from "./SaveViewDialog";
 
@@ -30,11 +32,14 @@ export function NoteListToolbar({
       startTransition(() => {
         router.navigate({
           to: "/",
-          search: (prev: NoteListSearch) => ({
-            display: prev.display,
-            page: prev.page,
-            limit: prev.limit,
-          }),
+          search: (prev) => {
+            const p = prev as Partial<NoteListSearch>;
+            return {
+              display: p.display,
+              page: p.page ?? HOME_SEARCH.page,
+              limit: p.limit ?? HOME_SEARCH.limit,
+            };
+          },
         });
       });
       return;
@@ -42,19 +47,22 @@ export function NoteListToolbar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          page: prev.page,
-          limit: prev.limit,
-          viewId,
-        }),
+        search: (prev) => {
+          const p = prev as Partial<NoteListSearch>;
+          return {
+            page: p.page ?? HOME_SEARCH.page,
+            limit: p.limit ?? HOME_SEARCH.limit,
+            viewId,
+          };
+        },
       });
     });
   };
 
   return (
     <>
-      <div className="toolbar">
-        <div className="toolbar-left">
+      <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
+        <div className="inline-flex items-center gap-2 flex-wrap">
           <DisplayModeSwitch current={display} />
           {savedViews.length > 0 ? (
             <select
@@ -62,6 +70,7 @@ export function NoteListToolbar({
               value={search.viewId ?? ""}
               onChange={(e) => onSelectView(e.target.value)}
               disabled={isPending}
+              className="h-9 px-3 rounded-md border border-hairline bg-surface text-sm text-ink"
             >
               <option value="">保存ビューを選択</option>
               {savedViews.map((view) => (
@@ -75,10 +84,10 @@ export function NoteListToolbar({
             </select>
           ) : null}
         </div>
-        <div className="toolbar-right">
+        <div className="inline-flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen(true)}
             disabled={!hasAnyFilter && search.q === undefined}
             title={
@@ -89,10 +98,14 @@ export function NoteListToolbar({
           >
             ビューとして保存
           </button>
-          <Link to="/notes/new" className="pill-btn primary">
+          <Link
+            to="/notes/new"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
+          >
             新規作成
           </Link>
-          <Link to="/upload" className="pill-btn">
+          <Link to="/upload" className={pillBtn}>
             アップロード
           </Link>
         </div>

@@ -3,19 +3,23 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
+import { MergeTagDialog } from "./MergeTagDialog";
 
 type Props = {
   tagId: string;
   name: string;
+  candidates: readonly { id: string; name: string }[];
 };
 
-export function TagActions({ tagId, name }: Props) {
+export function TagActions({ tagId, name, candidates }: Props) {
   const router = useRouter();
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
@@ -24,6 +28,8 @@ export function TagActions({ tagId, name }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+  const [isMergeOpen, setIsMergeOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const onRename = () => {
     const trimmed = draft.trim();
@@ -43,11 +49,7 @@ export function TagActions({ tagId, name }: Props) {
     });
   };
 
-  const onDelete = () => {
-    if (
-      !confirm(`タグ "${name}" を削除しますか？参照ノートからも除去されます。`)
-    )
-      return;
+  const runDelete = () => {
     startTransition(async () => {
       try {
         await removeTag({ data: { tagId } });
@@ -60,7 +62,7 @@ export function TagActions({ tagId, name }: Props) {
   };
 
   return (
-    <div className="row-actions">
+    <div className={ROW_ACTIONS}>
       {isEditing ? (
         <>
           <input
@@ -70,18 +72,12 @@ export function TagActions({ tagId, name }: Props) {
             disabled={isPending}
             // biome-ignore lint/a11y/noAutofocus: inline edit field
             autoFocus
-            style={{
-              height: 30,
-              padding: "0 10px",
-              background: "var(--color-surface)",
-              border: "1px solid transparent",
-              borderRadius: "var(--radius-md)",
-              fontSize: 13,
-            }}
+            className="h-[30px] px-2.5 bg-surface border border-transparent rounded-md text-[13px] text-ink outline-none focus:bg-bg focus:border-accent"
           />
           <button
             type="button"
-            className="pill-btn primary"
+            className={PILL_BTN}
+            data-primary=""
             onClick={onRename}
             disabled={isPending}
           >
@@ -89,7 +85,7 @@ export function TagActions({ tagId, name }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={PILL_BTN}
             onClick={() => {
               setIsEditing(false);
               setDraft(name);
@@ -103,16 +99,27 @@ export function TagActions({ tagId, name }: Props) {
         <>
           <button
             type="button"
-            className="pill-btn"
+            className={PILL_BTN}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
           >
             リネーム
           </button>
+          {candidates.length > 0 ? (
+            <button
+              type="button"
+              className={PILL_BTN}
+              onClick={() => setIsMergeOpen(true)}
+              disabled={isPending}
+            >
+              統合
+            </button>
+          ) : null}
           <button
             type="button"
-            className="pill-btn danger"
-            onClick={onDelete}
+            className={PILL_BTN}
+            data-danger=""
+            onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
           >
             削除
@@ -120,10 +127,31 @@ export function TagActions({ tagId, name }: Props) {
         </>
       )}
       {error !== null ? (
-        <span className="form-error" role="alert">
+        <span className={FORM_ERROR} role="alert">
           {displayError(error)}
         </span>
       ) : null}
+      {isMergeOpen ? (
+        <MergeTagDialog
+          sourceTagId={tagId}
+          sourceName={name}
+          candidates={candidates}
+          open={isMergeOpen}
+          onClose={() => setIsMergeOpen(false)}
+        />
+      ) : null}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={`タグ "#${name}" を削除`}
+        description="参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？"
+        confirmLabel="削除"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDeleteOpen(false);
+          runDelete();
+        }}
+        onClose={() => setConfirmDeleteOpen(false)}
+      />
     </div>
   );
 }

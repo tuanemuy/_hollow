@@ -19,6 +19,22 @@ type FormState = {
 
 const initialState: FormState = { error: null, success: false };
 
+const BTN_BASE =
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-50 disabled:cursor-not-allowed";
+
+const BTN_CLASS = `${BTN_BASE} bg-surface text-ink hover:not-disabled:bg-surface-hover`;
+const BTN_PRIMARY_CLASS = `${BTN_BASE} bg-accent text-white hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed`;
+const BTN_DESTRUCTIVE_CLASS = `${BTN_BASE} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
+
+const BTN_SM_CLASS =
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-50 disabled:cursor-not-allowed";
+const BTN_SM_DESTRUCTIVE_CLASS = `${BTN_SM_CLASS} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
+
+const INPUT_CLASS =
+  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
+
+const CARD_CLASS = "border border-hairline rounded-lg p-5 bg-bg mb-5";
+
 function tokensToEntries(
   tokens: Readonly<Record<string, string>>,
 ): TokenEntry[] {
@@ -106,41 +122,29 @@ export function DesignTokensForm({
 
   return (
     <form action={formAction}>
-      <p className="admin-form-section-desc">
+      <p className="text-sm text-ink-secondary m-0 mb-5">
         ここで設定したトークンはエクスポート時の CSS に注入されます（DB
         値が空の場合はビルトインの既定値が使われます）。
       </p>
 
       {entries.length === 0 ? (
-        <div
-          className="admin-card"
-          style={{ marginBottom: "var(--admin-space-5)" }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: "var(--admin-text-sm)",
-              color: "var(--admin-color-ink-secondary)",
-            }}
-          >
+        <div className={CARD_CLASS}>
+          <p className="m-0 text-sm text-ink-secondary">
             上書きトークンは登録されていません。「+
             トークンを追加」から追加してください。
           </p>
         </div>
       ) : (
-        <div
-          className="admin-card"
-          style={{ marginBottom: "var(--admin-space-5)" }}
-        >
+        <div className={CARD_CLASS}>
           {entries.map((entry, index) => (
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: token rows are reorderable only by add/remove, position is stable within a render
               key={index}
-              className="admin-token-row"
+              className="grid grid-cols-[220px_1fr] gap-3 py-2 items-center border-b border-hairline last:border-b-0"
             >
               <input
                 type="text"
-                className="admin-input admin-token-key"
+                className={`${INPUT_CLASS} font-mono text-xs text-ink-secondary`}
                 value={entry.key}
                 placeholder="--color-accent"
                 onChange={(event) =>
@@ -149,17 +153,17 @@ export function DesignTokensForm({
                 disabled={isPending}
                 aria-label={`トークン名 ${index + 1}`}
               />
-              <div className="admin-token-input-wrap">
+              <div className="flex items-center gap-2">
                 {isColorValue(entry.value) ? (
                   <span
-                    className="admin-token-swatch"
+                    className="w-6 h-6 shrink-0 rounded-sm border border-hairline"
                     style={{ background: entry.value }}
                     aria-hidden="true"
                   />
                 ) : null}
                 <input
                   type="text"
-                  className="admin-input admin-token-input"
+                  className={`${INPUT_CLASS} flex-1 font-mono text-xs h-8 px-[10px] py-[6px]`}
                   value={entry.value}
                   onChange={(event) =>
                     onRowChange(index, { value: event.target.value })
@@ -169,7 +173,7 @@ export function DesignTokensForm({
                 />
                 <button
                   type="button"
-                  className="admin-btn sm destructive"
+                  className={BTN_SM_DESTRUCTIVE_CLASS}
                   onClick={() => onRowRemove(index)}
                   disabled={isPending}
                 >
@@ -183,56 +187,35 @@ export function DesignTokensForm({
 
       <button
         type="button"
-        className="admin-btn"
+        className={BTN_CLASS}
         onClick={onAddRow}
         disabled={isPending}
       >
         ＋ トークンを追加
       </button>
 
-      <div className="admin-form-footer">
+      <div className="flex gap-3 justify-end pt-6 border-t border-hairline mt-10">
         <button
           type="button"
-          className="admin-btn destructive"
+          className={BTN_DESTRUCTIVE_CLASS}
           onClick={onReset}
           disabled={isResetting}
         >
           {isResetting ? "リセット中..." : "初期値リセット"}
         </button>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         {state.success && state.error === null ? (
-          <span
-            style={{
-              color: "var(--admin-color-success)",
-              fontSize: "var(--admin-text-sm)",
-            }}
-          >
-            保存しました
-          </span>
+          <span className="text-success text-sm">保存しました</span>
         ) : null}
         {summary !== "" ? (
-          <span
-            style={{
-              color: "var(--admin-color-error)",
-              fontSize: "var(--admin-text-sm)",
-            }}
-          >
-            {summary}
-          </span>
+          <span className="text-error text-sm">{summary}</span>
         ) : null}
         {resetSummary !== "" ? (
-          <span
-            style={{
-              color: "var(--admin-color-error)",
-              fontSize: "var(--admin-text-sm)",
-            }}
-          >
-            {resetSummary}
-          </span>
+          <span className="text-error text-sm">{resetSummary}</span>
         ) : null}
         <button
           type="submit"
-          className="admin-btn primary"
+          className={BTN_PRIMARY_CLASS}
           disabled={isPending}
         >
           {isPending ? "保存中..." : "保存"}

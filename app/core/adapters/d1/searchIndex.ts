@@ -16,9 +16,10 @@ import {
   SearchScore,
   SearchSnippet,
   SearchTitle,
+  Visibility,
 } from "@/core/domain/search/valueObject";
 import type { Database } from "./client";
-import { mapDbError } from "./repositories/helpers";
+import { escapeLikePattern, mapDbError } from "./repositories/helpers";
 import { searchDocuments } from "./schema";
 
 const BULK_REBUILD_CHUNK_SIZE = 100;
@@ -31,6 +32,7 @@ type SearchRow = Readonly<{
   title: string;
   snippet: string;
   tagNamesJson: string;
+  visibility: string;
   score: number;
 }>;
 
@@ -115,7 +117,11 @@ export class D1SearchIndex implements SearchIndex {
       // `nextCursor` without an additional COUNT round trip.
       const peekLimit = limit + 1;
 
-      const filterClauses = [sql`sd.note_id = fts.rowid`];
+      // FTS contentless table joins back to the host via the implicit
+      // `rowid` column (configured `content_rowid='rowid'` in the migration's
+      // FTS5 DDL). Comparing `sd.note_id` (text UUID) against `fts.rowid`
+      // (integer) silently produces zero rows on every query.
+      const filterClauses = [sql`sd.rowid = fts.rowid`];
       filterClauses.push(sql`fts.search_documents_fts MATCH ${matchExpr}`);
 
       if (q.ownerIdFilter !== null) {
@@ -168,6 +174,7 @@ export class D1SearchIndex implements SearchIndex {
           sd.title        AS "title",
           snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET}) AS "snippet",
           sd.tag_names_json AS "tagNamesJson",
+          sd.visibility   AS "visibility",
           bm25(fts.search_documents_fts) AS "score"
         FROM search_documents_fts AS fts
         JOIN search_documents AS sd
@@ -277,6 +284,7 @@ export class D1SearchIndex implements SearchIndex {
             ? normalisedScore
             : 0,
         ),
+        visibility: Visibility.create(row.visibility),
       };
     } catch (error) {
       if (isRehydrationError(error)) {
@@ -311,10 +319,6 @@ function buildMatchExpression(keyword: string): string {
     return '""';
   }
   return tokens.map((tok) => `"${tok}"`).join(" ");
-}
-
-function escapeLikePattern(raw: string): string {
-  return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 function encodeCursor(offset: number): SearchCursor {

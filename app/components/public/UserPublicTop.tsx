@@ -3,6 +3,29 @@ import { cache } from "react";
 import { isNotFoundError } from "@/core/application/errors";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout, SearchIcon } from "./PublicLayout";
+import {
+  EMPTY_LIST,
+  NOTE_DATE,
+  NOTE_LIST,
+  NOTE_META,
+  NOTE_ROW,
+  NOTE_SNIPPET,
+  NOTE_TAGS,
+  NOTE_TITLE,
+  NOTE_TITLE_ROW,
+  PAGINATION,
+  PILL_BTN,
+  PROFILE_AVATAR,
+  PROFILE_BIO,
+  PROFILE_HERO,
+  PROFILE_NAME,
+  PROFILE_STATS,
+  PROFILE_USERNAME,
+  PUBLIC_MAIN,
+  USER_SEARCH,
+  USER_SEARCH_INPUT,
+  USER_TOOLS,
+} from "./styles";
 
 const loadProfile = cache(
   serverData(
@@ -60,34 +83,37 @@ export async function UserPublicTop({ username, page, limit }: Props) {
 
   return (
     <PublicLayout>
-      <main className="public-main">
-        <section className="profile-hero">
-          <div className="profile-avatar" aria-hidden="true">
+      <main className={PUBLIC_MAIN}>
+        <section className={PROFILE_HERO}>
+          <div className={PROFILE_AVATAR} aria-hidden="true">
             {initials}
           </div>
-          <div className="profile-info">
-            <h1 className="profile-name">{user.displayName}</h1>
-            <div className="profile-username">@{user.username}</div>
+          <div className="min-w-0">
+            <h1 className={PROFILE_NAME}>{user.displayName}</h1>
+            <div className={PROFILE_USERNAME}>@{user.username}</div>
             {user.bio !== null && user.bio.length > 0 ? (
-              <p className="profile-bio">{user.bio}</p>
+              <p className={PROFILE_BIO}>{user.bio}</p>
             ) : null}
-            <div className="profile-stats">
+            <div className={PROFILE_STATS}>
               <span>
-                <strong>{publicNoteCount}</strong>公開ノート
+                <strong className="text-ink font-semibold mr-1">
+                  {publicNoteCount}
+                </strong>
+                公開ノート
               </span>
-              <span className="dot">·</span>
+              <span className="text-hairline-strong">·</span>
               <span>{joinedLabel}から</span>
             </div>
           </div>
         </section>
 
-        <section className="user-tools">
-          <search className="user-search">
+        <section className={USER_TOOLS}>
+          <search className={USER_SEARCH}>
             <form method="get" action="/search">
               <SearchIcon />
               <label
                 htmlFor={`user-search-${user.username}`}
-                className="visually-hidden"
+                className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
               >
                 このユーザーの公開ノートを検索
               </label>
@@ -96,15 +122,16 @@ export async function UserPublicTop({ username, page, limit }: Props) {
                 type="search"
                 name="q"
                 placeholder="このユーザーの公開ノートを検索"
+                className={USER_SEARCH_INPUT}
               />
               <input type="hidden" name="username" value={user.username} />
             </form>
           </search>
         </section>
 
-        <section className="note-list" aria-label="公開ノート一覧">
+        <section className={NOTE_LIST} aria-label="公開ノート一覧">
           {notes.length === 0 ? (
-            <div className="empty-list">
+            <div className={EMPTY_LIST}>
               公開されているノートはまだありません。
             </div>
           ) : (
@@ -113,25 +140,25 @@ export async function UserPublicTop({ username, page, limit }: Props) {
                 key={note.id}
                 to="/u/$username/$noteSlug"
                 params={{ username: user.username, noteSlug: note.slug }}
-                className="note-row"
+                className={NOTE_ROW}
               >
-                <div className="note-main">
-                  <div className="note-title-row">
-                    <div className="note-title">{note.title}</div>
+                <div className="min-w-0">
+                  <div className={NOTE_TITLE_ROW}>
+                    <div className={NOTE_TITLE}>{note.title}</div>
                   </div>
                   {note.excerpt.length > 0 ? (
-                    <div className="note-snippet">{note.excerpt}</div>
+                    <div className={NOTE_SNIPPET}>{note.excerpt}</div>
                   ) : null}
-                  <div className="note-meta">
+                  <div className={NOTE_META}>
                     {note.tagNames.length > 0 ? (
-                      <span className="note-tags">
+                      <span className={NOTE_TAGS}>
                         {note.tagNames.map((t) => `#${t}`).join(" ")}
                       </span>
                     ) : null}
                     <span>{formatDate(new Date(note.updatedAt))}</span>
                   </div>
                 </div>
-                <div className="note-date">
+                <div className={NOTE_DATE}>
                   {formatShort(new Date(note.updatedAt))}
                 </div>
               </Link>
@@ -165,17 +192,17 @@ function Pagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   return (
-    <nav className="pagination" aria-label="ページネーション">
-      <span className="pagination-info">
+    <nav className={PAGINATION} aria-label="ページネーション">
+      <span className="text-ink-tertiary text-[13px]">
         {page} / {totalPages}
       </span>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex gap-2">
         {page > 1 ? (
           <Link
             to="/u/$username"
             params={{ username }}
             search={{ page: page - 1, limit }}
-            className="pill-btn"
+            className={PILL_BTN}
           >
             前へ
           </Link>
@@ -185,7 +212,7 @@ function Pagination({
             to="/u/$username"
             params={{ username }}
             search={{ page: page + 1, limit }}
-            className="pill-btn"
+            className={PILL_BTN}
           >
             次へ
           </Link>

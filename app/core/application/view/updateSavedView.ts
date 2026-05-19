@@ -1,6 +1,7 @@
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
+import { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { SavedView } from "@/core/domain/view/entity";
 import { SavedViewService } from "@/core/domain/view/service";
@@ -29,6 +30,7 @@ export type UpdateSavedViewInput = Readonly<{
     dateRange: Readonly<{ from: string | null; to: string | null }> | null;
     keyword: string | null;
     referencingNoteId: string | null;
+    visibilityFilter: ReadonlyArray<"private" | "unlisted" | "public">;
   }>;
   displayMode?: "list" | "tile" | "calendar";
   calendarDateKey?: "updated" | "created" | "frontMatterDate";
@@ -64,6 +66,9 @@ function buildQuery(
       input.referencingNoteId === null
         ? null
         : (input.referencingNoteId as NoteId),
+    visibilityFilter: input.visibilityFilter.map((v) =>
+      PublicationVisibility.create(v),
+    ),
   });
 }
 

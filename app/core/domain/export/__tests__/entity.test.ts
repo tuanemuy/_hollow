@@ -384,6 +384,76 @@ describe("ExportJob.cancel", () => {
   });
 });
 
+describe("ExportJob.retry", () => {
+  it("from failed: returns to pending, resets errorCode / errorReason / completedAt / progress / failedNoteIds, bumps version, emits retryRequested", () => {
+    const { entity: pending } = ExportJob.create(baseCreateInput(70), T0);
+    const { entity: processing } = ExportJob.startProcessing(pending, 3, at(1));
+    const { entity: withProgress } = ExportJob.recordProgress(
+      processing,
+      2,
+      at(2),
+    );
+    const { entity: withFailedNote } = ExportJob.recordFailedNote(
+      withProgress,
+      noteId(70),
+      at(3),
+    );
+    const { entity: failed } = ExportJob.fail(
+      withFailedNote,
+      "pdf_render_error",
+      "engine timeout",
+      at(4),
+    );
+    expect(failed.failedNoteIds).toHaveLength(1);
+    expect(failed.completedAt.getTime()).toBe(at(4).getTime());
+
+    const { entity: retried, eventDrafts } = ExportJob.retry(failed, at(5));
+    expect(retried.status).toBe("pending");
+    expect(retried.errorCode).toBeNull();
+    expect(retried.errorReason).toBeNull();
+    expect(retried.completedAt).toBeNull();
+    expect(retried.expiresAt).toBeNull();
+    expect(retried.artifactKey).toBeNull();
+    expect(retried.artifactSize).toBeNull();
+    expect(retried.progress.processed).toBe(0);
+    expect(retried.progress.total).toBe(0);
+    expect(retried.failedNoteIds).toEqual([]);
+    expect(retried.version).toBe(failed.version + 1);
+    expect(retried.updatedAt.getTime()).toBe(at(5).getTime());
+    expect(eventDrafts).toHaveLength(1);
+    const draft = eventDrafts[0];
+    if (!draft || draft.type !== "export.job.retryRequested") {
+      expect.fail("expected export.job.retryRequested");
+      return;
+    }
+    expect(draft.payload.exportJobId).toBe(retried.id);
+  });
+
+  it("rejects retry from non-failed states with InvalidStateForRetry", () => {
+    const { entity: pending } = ExportJob.create(baseCreateInput(71), T0);
+    try {
+      ExportJob.retry(pending, at(1));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(ExportErrorCode.InvalidStateForRetry);
+      }
+    }
+
+    const { entity: processing } = ExportJob.startProcessing(pending, 1, at(1));
+    try {
+      ExportJob.retry(processing, at(2));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(ExportErrorCode.InvalidStateForRetry);
+      }
+    }
+  });
+});
+
 describe("ExportJob.expire", () => {
   it("transitions completed → expired and emits an expired event", () => {
     const { entity: pending } = ExportJob.create(baseCreateInput(50), T0);

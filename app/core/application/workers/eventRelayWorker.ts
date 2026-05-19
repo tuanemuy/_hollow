@@ -10,7 +10,6 @@ import type { MediaEvent } from "@/core/domain/media/events";
 import type { NoteEvent } from "@/core/domain/note/events";
 import type { PublicationEvent } from "@/core/domain/publication/events";
 import type { TagEvent } from "@/core/domain/tag/events";
-import type { TodoEvent } from "@/core/domain/todo/events";
 import type { WorkerContainer } from "../di/types";
 import { exportEventDecoders } from "../export/eventDecoders";
 import { identityEventDecoders } from "../identity/eventDecoders";
@@ -20,7 +19,6 @@ import { noteEventDecoders } from "../note/eventDecoders";
 import type { OutboxEntry, OutboxFailure } from "../ports/outboxRepository";
 import { publicationEventDecoders } from "../publication/eventDecoders";
 import { tagEventDecoders } from "../tag/eventDecoders";
-import { todoEventDecoders } from "../todo/eventDecoders";
 
 // Delivery is at-least-once with NO ordering guarantee. Per-row failures
 // bump `attempts` and schedule a backed-off retry; once a row exceeds
@@ -55,7 +53,6 @@ export type EventDispatcher = (
 ) => Promise<readonly EventDispatchOutcome[]>;
 
 type AllDomainEvents =
-  | TodoEvent
   | PublicationEvent
   | IdentityEvent
   | MediaEvent
@@ -77,7 +74,6 @@ export type DefaultEventDecoderRegistry = {
 export type EventDecoderRegistry = Partial<DefaultEventDecoderRegistry>;
 
 export const defaultEventDecoderRegistry = {
-  ...todoEventDecoders,
   ...publicationEventDecoders,
   ...identityEventDecoders,
   ...mediaEventDecoders,

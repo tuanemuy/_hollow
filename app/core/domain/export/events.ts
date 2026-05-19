@@ -41,13 +41,19 @@ export type ExportJobExpiredEvent = DomainEventBase<
   Readonly<{ exportJobId: ExportJobId }>
 >;
 
+export type ExportJobRetryRequestedEvent = DomainEventBase<
+  "export.job.retryRequested",
+  Readonly<{ exportJobId: ExportJobId }>
+>;
+
 export type ExportEvent =
   | ExportJobRequestedEvent
   | ExportJobStartedEvent
   | ExportJobCompletedEvent
   | ExportJobFailedEvent
   | ExportJobCancelledEvent
-  | ExportJobExpiredEvent;
+  | ExportJobExpiredEvent
+  | ExportJobRetryRequestedEvent;
 
 // Domain factories return identity-less drafts; `EventId` is attached by
 // the application layer so the domain remains free of `IdGenerator`
@@ -116,6 +122,16 @@ export const ExportEvents = {
     occurredAt: Date,
   ): EventDraft<ExportJobExpiredEvent> => ({
     type: "export.job.expired",
+    payload: { exportJobId },
+    occurredAt,
+    aggregateId: exportJobId,
+  }),
+
+  retryRequested: (
+    exportJobId: ExportJobId,
+    occurredAt: Date,
+  ): EventDraft<ExportJobRetryRequestedEvent> => ({
+    type: "export.job.retryRequested",
     payload: { exportJobId },
     occurredAt,
     aggregateId: exportJobId,

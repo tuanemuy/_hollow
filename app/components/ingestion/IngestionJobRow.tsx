@@ -3,12 +3,21 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  CHIP,
+  CHIP_MUTED,
+  CHIP_SUCCESS,
+  CHIP_WARNING,
+  FORM_ERROR,
+  PILL_BTN,
+} from "../layout/styles";
 import {
   commitIngestionPreviewFn,
   discardIngestionPreviewFn,
@@ -18,6 +27,14 @@ import {
 type Props = {
   job: IngestionJobDTO;
 };
+
+const JOB_CARD =
+  "border border-hairline rounded-lg px-5 py-4 mb-3 bg-surface-elevated";
+const JOB_CARD_HEAD =
+  "flex justify-between gap-3 mb-2 items-baseline flex-wrap";
+const JOB_CARD_NAME = "text-[15px] font-medium text-ink break-words";
+const JOB_CARD_META = "text-xs text-ink-tertiary";
+const JOB_CARD_ACTIONS = "inline-flex gap-2 mt-3 flex-wrap";
 
 const statusLabel: Record<IngestionJobDTO["status"], string> = {
   pending: "待機中",
@@ -31,13 +48,13 @@ const statusLabel: Record<IngestionJobDTO["status"], string> = {
 const statusChipClass = (status: IngestionJobDTO["status"]): string => {
   switch (status) {
     case "failed":
-      return "chip warning";
+      return `${CHIP} ${CHIP_WARNING}`;
     case "saved":
-      return "chip success";
+      return `${CHIP} ${CHIP_SUCCESS}`;
     case "previewing":
-      return "chip";
+      return CHIP;
     default:
-      return "chip muted";
+      return `${CHIP} ${CHIP_MUTED}`;
   }
 };
 
@@ -49,6 +66,7 @@ export function IngestionJobRow({ job }: Props) {
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   const jobId = job.id as unknown as string;
 
@@ -66,8 +84,7 @@ export function IngestionJobRow({ job }: Props) {
     });
   };
 
-  const onDiscard = () => {
-    if (!confirm("このジョブを破棄しますか？")) return;
+  const runDiscard = () => {
     startTransition(async () => {
       try {
         await discard({ data: { jobId } });
@@ -92,11 +109,11 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   return (
-    <div className="job-card">
-      <div className="job-card-head">
+    <div className={JOB_CARD}>
+      <div className={JOB_CARD_HEAD}>
         <div>
-          <div className="job-card-name">{job.originalFileName}</div>
-          <div className="job-card-meta">
+          <div className={JOB_CARD_NAME}>{job.originalFileName}</div>
+          <div className={JOB_CARD_META}>
             {job.mimeType} · {(job.byteSize / 1024).toFixed(1)} KB
           </div>
         </div>
@@ -105,12 +122,10 @@ export function IngestionJobRow({ job }: Props) {
         </span>
       </div>
       {job.preview !== null ? (
-        <div style={{ fontSize: 13, color: "var(--color-ink-secondary)" }}>
-          <strong style={{ color: "var(--color-ink)" }}>
-            {job.preview.title}
-          </strong>
+        <div className="text-[13px] text-ink-secondary">
+          <strong className="text-ink">{job.preview.title}</strong>
           {job.preview.suggestedTagNames.length > 0 ? (
-            <span style={{ marginLeft: "var(--space-2)" }}>
+            <span className="ml-2">
               {job.preview.suggestedTagNames
                 .map((name) => `#${name}`)
                 .join(" ")}
@@ -119,16 +134,17 @@ export function IngestionJobRow({ job }: Props) {
         </div>
       ) : null}
       {job.errorReason !== null ? (
-        <p className="form-error" role="alert">
+        <p className={FORM_ERROR} role="alert">
           {job.errorCode}: {job.errorReason}
         </p>
       ) : null}
-      <div className="job-card-actions">
+      <div className={JOB_CARD_ACTIONS}>
         {job.status === "previewing" ? (
           <>
             <button
               type="button"
-              className="pill-btn primary"
+              className={PILL_BTN}
+              data-primary=""
               onClick={onCommit}
               disabled={isPending}
             >
@@ -136,7 +152,7 @@ export function IngestionJobRow({ job }: Props) {
             </button>
             <button
               type="button"
-              className="pill-btn"
+              className={PILL_BTN}
               onClick={onRegenerate}
               disabled={isPending}
             >
@@ -144,8 +160,9 @@ export function IngestionJobRow({ job }: Props) {
             </button>
             <button
               type="button"
-              className="pill-btn danger"
-              onClick={onDiscard}
+              className={PILL_BTN}
+              data-danger=""
+              onClick={() => setConfirmDiscardOpen(true)}
               disabled={isPending}
             >
               破棄
@@ -155,8 +172,9 @@ export function IngestionJobRow({ job }: Props) {
         {job.status === "failed" ? (
           <button
             type="button"
-            className="pill-btn danger"
-            onClick={onDiscard}
+            className={PILL_BTN}
+            data-danger=""
+            onClick={() => setConfirmDiscardOpen(true)}
             disabled={isPending}
           >
             破棄
@@ -168,17 +186,29 @@ export function IngestionJobRow({ job }: Props) {
             params={{
               noteId: job.savedAsNoteId as unknown as string,
             }}
-            className="pill-btn"
+            className={PILL_BTN}
           >
             ノートを開く
           </Link>
         ) : null}
       </div>
       {error !== null ? (
-        <p className="form-error" role="alert">
+        <p className={FORM_ERROR} role="alert">
           {displayError(error)}
         </p>
       ) : null}
+      <ConfirmDialog
+        open={confirmDiscardOpen}
+        title="ジョブを破棄"
+        description="このジョブを破棄しますか？"
+        confirmLabel="破棄"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDiscardOpen(false);
+          runDiscard();
+        }}
+        onClose={() => setConfirmDiscardOpen(false)}
+      />
     </div>
   );
 }

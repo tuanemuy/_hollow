@@ -6,6 +6,8 @@ import {
 import type { NoteId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
+import { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
+import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 
@@ -29,27 +31,71 @@ export type OwnedNotesQuery = Readonly<{
   directoryId?: string | null;
   q?: string | null;
   visibility?: "private" | "unlisted" | "public" | null;
+  referencingNoteId?: string | null;
   dateRange?: Readonly<{ from?: string | null; to?: string | null }> | null;
 }>;
 
-export type OwnedNotesResult = Readonly<{
-  notes: ReadonlyArray<{
-    id: string;
-    ownerId: string;
+/**
+ * Fields shared by both filter and search modes of `OwnedNotesResult`.
+ *
+ * `thumbnailUrl` is always `null` on the search path today, but it lives
+ * in the common shape so a future search-index extension that surfaces
+ * the thumbnail can drop into place without churning consumers.
+ */
+export type OwnedNoteCommon = Readonly<{
+  id: string;
+  ownerId: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string | null;
+  tagNames: readonly string[];
+  visibility: "private" | "unlisted" | "public";
+}>;
+
+/** Filter-path note: carries directory / slug / updatedAt projections. */
+export type OwnedNoteFilterItem = OwnedNoteCommon &
+  Readonly<{
     directoryId: string;
     slug: string;
-    title: string;
-    excerpt: string;
-    thumbnailUrl: string | null;
-    tagNames: readonly string[];
     updatedAt: string;
-    visibility: "private" | "unlisted" | "public";
   }>;
-  count: number;
-  /** `null` for the filter-only path; populated for the search path. */
-  nextCursor: string | null;
-  mode: "filter" | "search";
-}>;
+
+/**
+ * Search-path note: the search index does not project `directoryId` /
+ * `slug` / `updatedAt`, so these fields are intentionally absent in the
+ * type. Consumers that need them must narrow on `kind === "filter"`.
+ *
+ * Note: this is currently identical to `OwnedNoteCommon` field-for-
+ * field. TypeScript's structural typing means an `OwnedNoteFilterItem`
+ * is also assignable to `OwnedNoteSearchItem` — discrimination at the
+ * call site must always go through `OwnedNotesResult.kind`, not the
+ * shape of the row alone. If the search projection ever picks up its
+ * own fields, this alias should be widened in place rather than
+ * re-introducing sentinel values.
+ */
+export type OwnedNoteSearchItem = OwnedNoteCommon;
+
+/**
+ * Result of `loadOwnedNotes`. A discriminated union over `kind` makes
+ * the search-path's missing projections (directoryId / slug / updatedAt)
+ * a type-level fact instead of a sentinel-value gotcha — see Issue #13
+ * ADR-003.
+ */
+export type OwnedNotesResult =
+  | Readonly<{
+      kind: "filter";
+      notes: readonly OwnedNoteFilterItem[];
+      count: number;
+      /** Filter-only path: pagination is page/offset based; cursor is unused. */
+      nextCursor: string | null;
+    }>
+  | Readonly<{
+      kind: "search";
+      notes: readonly OwnedNoteSearchItem[];
+      count: number;
+      /** Search path: cursor for follow-up `searchOwnNotes` pages. */
+      nextCursor: string | null;
+    }>;
 
 /**
  * Both ends of the `[from, to]` window are required by the search
@@ -67,6 +113,19 @@ function normalizeSearchDateRange(
     from: from === null ? new Date(0) : new Date(from),
     to: to === null ? new Date() : new Date(to),
   };
+}
+
+/**
+ * URL exposes visibility as a single enum; both the list and search
+ * usecase ports accept an array to leave room for a future multi-select
+ * without breaking the application boundary. Build the array exactly
+ * once so the two paths cannot drift.
+ */
+function toVisibilityArr(
+  v: OwnedNotesQuery["visibility"],
+): readonly PublicationVisibility[] | undefined {
+  if (v === undefined || v === null) return undefined;
+  return [v];
 }
 
 function normalizeListDateRange(
@@ -97,6 +156,7 @@ export const loadOwnedNotes = cache(
       const keyword = input.q?.trim() ?? "";
 
       if (keyword.length > 0) {
+        const visibilityArr = toVisibilityArr(input.visibility);
         const result = await searchMod.searchOwnNotes({
           container,
           input: {
@@ -107,26 +167,26 @@ export const loadOwnedNotes = cache(
               : {}),
             directoryId: input.directoryId ?? null,
             dateRange: normalizeSearchDateRange(input.dateRange),
+            ...(visibilityArr !== undefined
+              ? { visibility: visibilityArr }
+              : {}),
             limit: input.limit,
             cursor: null,
           },
         });
         return {
+          kind: "search" as const,
           notes: result.hits.map((hit) => ({
             id: hit.noteId as unknown as string,
             ownerId: hit.ownerId as unknown as string,
-            directoryId: "" as string,
-            slug: "",
             title: hit.title as unknown as string,
             excerpt: hit.snippet as unknown as string,
             thumbnailUrl: null,
             tagNames: hit.tagNames,
-            updatedAt: new Date(0).toISOString(),
-            visibility: "private" as const,
+            visibility: hit.visibility,
           })),
           count: result.hits.length,
           nextCursor: result.nextCursor,
-          mode: "search" as const,
         };
       }
 
@@ -141,6 +201,24 @@ export const loadOwnedNotes = cache(
       }
 
       const dateRange = normalizeListDateRange(input.dateRange);
+
+      const visibilityArr = toVisibilityArr(input.visibility);
+
+      // Transport boundary: a malformed `?referencingNoteId=...` (rare —
+      // the schema already rejects empty strings) is silently dropped
+      // rather than failing the whole loader.
+      let referencingNoteId: DomainNoteId | undefined;
+      if (
+        input.referencingNoteId !== undefined &&
+        input.referencingNoteId !== null
+      ) {
+        try {
+          referencingNoteId = DomainNoteId.create(input.referencingNoteId);
+        } catch {
+          referencingNoteId = undefined;
+        }
+      }
+
       const { notes, count } = await listMod.listNotesByOwner({
         container,
         input: {
@@ -152,10 +230,13 @@ export const loadOwnedNotes = cache(
           order: "desc",
           ...(tagIds !== undefined ? { tagIds } : {}),
           ...(dateRange !== undefined ? { dateRange } : {}),
+          ...(visibilityArr !== undefined ? { visibility: visibilityArr } : {}),
+          ...(referencingNoteId !== undefined ? { referencingNoteId } : {}),
         },
       });
 
       return {
+        kind: "filter" as const,
         notes: notes.map((n) => ({
           id: n.id as unknown as string,
           ownerId: n.ownerId as unknown as string,
@@ -170,7 +251,6 @@ export const loadOwnedNotes = cache(
         })),
         count,
         nextCursor: null,
-        mode: "filter" as const,
       };
     },
   ),
@@ -320,6 +400,44 @@ export const loadSavedViewById = cache(
         if (match !== undefined) return { view: match };
       }
       return { view: null };
+    },
+  ),
+);
+
+/**
+ * Resolve the title of a note referenced by `?referencingNoteId=<id>`
+ * so the FilterBar chip can display it instead of a UUID fragment.
+ *
+ * Failure modes (malformed id / not found / owner mismatch / empty
+ * title) all collapse to `{ title: null }` so the caller falls back
+ * to the existing UUID-prefix label. Driver-level errors from
+ * `findById` are intentionally not caught: they collapse the parent
+ * `Promise.all` together with the listing load, keeping the home
+ * page's error response coherent rather than silently showing a
+ * UUID-fragment chip on top of a 500 listing.
+ */
+export const loadReferencingNoteTitle = cache(
+  serverData(
+    () => Promise.resolve({}),
+    async (
+      { container },
+      _mod,
+      args: { actorUserId: string; noteId: string },
+    ): Promise<{ title: string | null }> => {
+      let noteId: DomainNoteId;
+      try {
+        noteId = DomainNoteId.create(args.noteId);
+      } catch {
+        return { title: null };
+      }
+      return container.unitOfWorkProvider.run(async ({ noteRepository }) => {
+        const found = await noteRepository.findById(noteId);
+        if (found === null) return { title: null };
+        if ((found.entity.ownerId as unknown as string) !== args.actorUserId) {
+          return { title: null };
+        }
+        return { title: found.entity.title };
+      });
     },
   ),
 );
