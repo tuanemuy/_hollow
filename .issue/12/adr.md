@@ -148,3 +148,33 @@ export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
 ### Consequences
 - 良い点: jobId / userId の生メッセージが画面に出ない。NotFound vs Unauthorized の区別を画面で漏らさない（オラクル攻撃に強い）
 - トレードオフ: ユーザ視点で「実は存在するが権限がない」と「そもそも存在しない」が見分けられない（=セキュリティ的には望ましい挙動）。`sanitizeRouteError` を完全に避けることで、想定外の `kind` が来たときの fallback が必要（上記コードでは `business` (Unauthorized 以外) / `system` / `unknown` 等は `sanitizeRouteError` 経由で残す）
+
+---
+
+## ADR-005: `errorComponent` ではエラーメッセージを画面に出さない（深層防御）
+
+### Status
+Accepted
+
+### Context
+ADR-004 で `ExportJobDetailPage`（RSC）が `NotFoundError` と `BusinessRuleError(Unauthorized)` を吸収して中立メッセージを返す設計を採用した。この whitelist 設計では、それ以外の `BusinessRuleError`（例: 別 code、または将来 `getExportJob` の振る舞いが拡張されて他コードを投げるケース）は `Page.tsx` の `catch` で素通りされ、route の `errorComponent` に到達する。
+
+PR レビュー（Security W-001）で指摘されたように、`errorComponent` が `sanitizeRouteError(error)` → `renderErrorMessage` 経路で `kind === "business"` を踏むと `error.message` がそのまま `<pre>` 経由で画面表示される。仮に message に jobId / userId / 内部状態が含まれれば情報リーク。現状の `getExportJob` 実装では到達経路は存在しないが、深層防御として防ぐべき。
+
+### Decision
+`/exports/$jobId.tsx` の `errorComponent` を、`error` 引数を一切参照しないハードコード文言に置き換える:
+
+```tsx
+errorComponent: () => (
+  <div role="alert">
+    <h1>エラーが発生しました</h1>
+    <p>時間をおいて再度お試しください。</p>
+  </div>
+),
+```
+
+`sanitizeRouteError` import も削除する。ADR-004 が吸収する範囲（NotFound / Unauthorized）以外のすべての例外について、画面には error message を一切出さない。
+
+### Consequences
+- 良い点: 将来の usecase 拡張で新しい `BusinessRuleError` code が増えても、message に含まれる識別子が画面に漏れることはない（whitelist の取りこぼしを画面側で塞ぐ）。`Page.tsx` の catch を ADR-004 の whitelist のままに保てる（catch 範囲を広げると `redirect()` 等の制御フロー例外を巻き込むリスクが出るため避けたい）
+- トレードオフ: 開発時に画面上でエラー詳細が見えなくなる。代わりに `sanitizeRouteError` 内の `console.error` が DEV モードで詳細を出す（既存仕様）。`errorComponent` 経路に来るのは想定上「予期しない system / business エラー」であり、ユーザ向け文言は中立で十分

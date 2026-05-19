@@ -14,17 +14,9 @@ import { loadExportJob } from "./loader";
  */
 export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
   const user = await requireCurrentUser();
+  let job;
   try {
-    const { job } = await loadExportJob({
-      actorUserId: user.id,
-      jobId,
-    });
-    return (
-      <main>
-        <h1>エクスポートジョブ詳細</h1>
-        <ExportJobDetailView job={job} />
-      </main>
-    );
+    ({ job } = await loadExportJob({ actorUserId: user.id, jobId }));
   } catch (error) {
     if (
       isNotFoundError(error) ||
@@ -42,4 +34,10 @@ export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
     }
     throw error;
   }
+  return (
+    <main>
+      <h1>エクスポートジョブ詳細</h1>
+      <ExportJobDetailView job={job} />
+    </main>
+  );
 }

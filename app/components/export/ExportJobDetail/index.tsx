@@ -2,7 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { ExportJobDTO } from "@/core/application/export/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -13,6 +13,7 @@ import { cancelExportFn, downloadExportFn } from "../ExportForm/action";
 import { STATUS_LABEL } from "../ExportJobsList";
 
 const POLL_INTERVAL_MS = 3000;
+const FAILED_NOTE_IDS_DISPLAY_LIMIT = 50;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -37,21 +38,20 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
     Date.parse(job.expiresAt) <= Date.now();
   const canDownload = isCompleted && !isExpiredByClock;
 
-  const inFlightRef = useRef(false);
-
   useEffect(() => {
     if (!isActive) return;
     let cancelled = false;
+    let inFlight = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const tick = async () => {
       if (cancelled) return;
-      if (document.visibilityState !== "hidden" && !inFlightRef.current) {
-        inFlightRef.current = true;
+      if (document.visibilityState !== "hidden" && !inFlight) {
+        inFlight = true;
         try {
           await router.invalidate();
         } finally {
-          inFlightRef.current = false;
+          inFlight = false;
         }
       }
       if (cancelled) return;
@@ -168,10 +168,18 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
             <dt>失敗したノート</dt>
             <dd>
               <ul>
-                {job.failedNoteIds.map((id) => (
-                  <li key={id}>{id}</li>
-                ))}
+                {job.failedNoteIds
+                  .slice(0, FAILED_NOTE_IDS_DISPLAY_LIMIT)
+                  .map((id) => (
+                    <li key={id}>{id}</li>
+                  ))}
               </ul>
+              {job.failedNoteIds.length > FAILED_NOTE_IDS_DISPLAY_LIMIT ? (
+                <p>
+                  他 {job.failedNoteIds.length - FAILED_NOTE_IDS_DISPLAY_LIMIT}{" "}
+                  件
+                </p>
+              ) : null}
             </dd>
           </>
         ) : null}

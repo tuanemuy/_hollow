@@ -3,7 +3,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import type { ExportJobId } from "@/core/domain/export/valueObject";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { validateInput } from "@/core/presentation/validator";
 
@@ -26,10 +25,10 @@ export const Route = createFileRoute("/exports/$jobId")({
   loader: ({ params }) =>
     renderExportJobDetail({ data: { jobId: params.jobId } }),
   component: ExportJobDetailRoute,
-  errorComponent: ({ error }) => (
+  errorComponent: () => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+      <p>時間をおいて再度お試しください。</p>
     </div>
   ),
 });
