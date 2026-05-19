@@ -4,6 +4,7 @@ import {
   Outlet,
   useLocation,
 } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 
 // Register server-fn handlers with the RSC manifest before the client
@@ -44,7 +45,9 @@ function SettingsLayout() {
   return (
     <div>
       <header>
-        <Link to="/">← Home</Link>
+        <Link to="/" search={HOME_SEARCH}>
+          ← Home
+        </Link>
         <h1>設定</h1>
       </header>
       <nav aria-label="設定ナビゲーション">

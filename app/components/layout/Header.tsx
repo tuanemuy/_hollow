@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { UserDTO } from "@/core/application/dto";
 import {
   APP_HEADER,
@@ -26,7 +27,7 @@ export function Header({ user }: Props) {
   return (
     <header className={APP_HEADER}>
       <div className={APP_HEADER_LEFT}>
-        <Link to="/" className={APP_LOGO}>
+        <Link to="/" search={HOME_SEARCH} className={APP_LOGO}>
           Hollow
         </Link>
       </div>
@@ -58,6 +59,7 @@ export function Header({ user }: Props) {
         </Link>
         <Link
           to="/"
+          search={HOME_SEARCH}
           className={AVATAR}
           title={user.displayName}
           aria-label={`${user.displayName} のメニュー`}

@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -27,6 +28,7 @@ export function BulkActionBar({ tree }: Props) {
   const trash = useServerFn(bulkTrashNotesFn);
   const { state, dispatch } = useSelection();
   const [open, setOpen] = useState<OpenDialog>(null);
+  const [confirmTrashOpen, setConfirmTrashOpen] = useState(false);
   const [error, setError] = useState<SerializedError | null>(null);
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -35,8 +37,7 @@ export function BulkActionBar({ tree }: Props) {
 
   const ids = [...state.ids];
 
-  const onTrash = () => {
-    if (!confirm(`${ids.length} 件のノートをゴミ箱に移動しますか？`)) return;
+  const runTrash = () => {
     setError(null);
     setBatchMessage(null);
     startTransition(async () => {
@@ -100,7 +101,7 @@ export function BulkActionBar({ tree }: Props) {
           <button
             type="button"
             className={pillBtnDanger}
-            onClick={onTrash}
+            onClick={() => setConfirmTrashOpen(true)}
             disabled={isPending}
           >
             {isPending ? "処理中..." : "ゴミ箱へ"}
@@ -139,6 +140,18 @@ export function BulkActionBar({ tree }: Props) {
       <BulkExportDialog
         open={open === "export"}
         onClose={() => setOpen(null)}
+      />
+      <ConfirmDialog
+        open={confirmTrashOpen}
+        title="一括ゴミ箱移動"
+        description={`${ids.length} 件のノートをゴミ箱に移動しますか？`}
+        confirmLabel="ゴミ箱へ"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmTrashOpen(false);
+          runTrash();
+        }}
+        onClose={() => setConfirmTrashOpen(false)}
       />
     </>
   );

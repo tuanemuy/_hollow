@@ -2,6 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState, useTransition } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
@@ -31,11 +32,14 @@ export function NoteListToolbar({
       startTransition(() => {
         router.navigate({
           to: "/",
-          search: (prev: NoteListSearch) => ({
-            display: prev.display,
-            page: prev.page,
-            limit: prev.limit,
-          }),
+          search: (prev) => {
+            const p = prev as Partial<NoteListSearch>;
+            return {
+              display: p.display,
+              page: p.page ?? HOME_SEARCH.page,
+              limit: p.limit ?? HOME_SEARCH.limit,
+            };
+          },
         });
       });
       return;
@@ -43,11 +47,14 @@ export function NoteListToolbar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          page: prev.page,
-          limit: prev.limit,
-          viewId,
-        }),
+        search: (prev) => {
+          const p = prev as Partial<NoteListSearch>;
+          return {
+            page: p.page ?? HOME_SEARCH.page,
+            limit: p.limit ?? HOME_SEARCH.limit,
+            viewId,
+          };
+        },
       });
     });
   };

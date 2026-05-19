@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useTransition } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
 import { pillBtn, pillBtnPrimary } from "../styles";
@@ -25,7 +26,15 @@ export function DisplayModeSwitch({ current }: Props) {
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({ ...prev, display: mode }),
+        // `prev` is the inferred cross-route search union, so `page`/`limit`
+        // may be `undefined`. Collapse onto `HOME_SEARCH` so the returned
+        // shape always satisfies the home schema's required defaults.
+        search: (prev) => ({
+          ...(prev as Partial<NoteListSearch>),
+          page: (prev as Partial<NoteListSearch>).page ?? HOME_SEARCH.page,
+          limit: (prev as Partial<NoteListSearch>).limit ?? HOME_SEARCH.limit,
+          display: mode,
+        }),
       });
     });
   };

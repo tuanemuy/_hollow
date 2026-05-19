@@ -1,12 +1,36 @@
 "use client";
 
 import type { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { saveNoteDraftFn } from "@/components/note/actions";
 import { AUTOSAVE_DEBOUNCE_MS } from "@/components/note/constants";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
 import type { EditorAction, EditorState } from "./editorState";
 import { snapshotForSubmit } from "./editorState";
+
+/**
+ * Promise-based sleep that rejects with `AbortError` when the given
+ * signal is aborted (either pre-aborted at call time, or aborted during
+ * the wait). The caller is expected to filter `AbortError` out of its
+ * catch block so a cancelled wait does not leak as a retry attempt.
+ */
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("aborted", "AbortError"));
+      return;
+    }
+    const t = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new DOMException("aborted", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 /**
  * Drive `saveNoteDraft` from the reducer state.
@@ -109,21 +133,39 @@ export function useAutosave({
   const inFlightRef = useRef<Promise<void> | null>(null);
   const reRunRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
+
+  // Snapshot only the fields actually sent on flush; this keeps the
+  // autosave effect from restarting when unrelated state slices (e.g.
+  // `state.autosave`, `state.editLock`) change. Destructuring `state`
+  // gives the lint rule precise dep tracking — passing the whole `state`
+  // object would force the effect to depend on the full record.
+  const { title, contentHtml, frontMatter, tagInput, directoryId } = state;
+  const snapshot = useMemo(
+    () =>
+      snapshotForSubmit({
+        title,
+        contentHtml,
+        frontMatter,
+        tagInput,
+        directoryId,
+      }),
+    [title, contentHtml, frontMatter, tagInput, directoryId],
+  );
+
+  // Hoist the flush gate to the hook body so the effect's dep list does
+  // not need to depend on the whole `state` object. This keeps the
+  // exhaustive-deps lint satisfied while preserving the same semantics
+  // (the effect re-runs when any of these fields change).
+  const canFlush = shouldFlushAutosave(state, noteId);
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+    if (!canFlush) return;
 
-  useEffect(() => {
-    if (!shouldFlushAutosave(state, noteId)) return;
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-    const flush = async () => {
-      if (!mountedRef.current) return;
-      const snapshot = snapshotForSubmit(state);
+    const flush = async (): Promise<void> => {
+      if (signal.aborted) return;
       dispatch({ type: "autosaveStart" });
       try {
         await saveDraft({
@@ -134,11 +176,12 @@ export function useAutosave({
             frontMatterJson: snapshot.frontMatterJson,
           },
         });
-        if (!mountedRef.current) return;
+        if (signal.aborted) return;
         attemptRef.current = 0;
         dispatch({ type: "autosaveSuccess", at: Date.now() });
       } catch (e) {
-        if (!mountedRef.current) return;
+        if (signal.aborted) return;
+        if (e instanceof DOMException && e.name === "AbortError") return;
         attemptRef.current += 1;
         if (isAutosaveExhausted(attemptRef.current)) {
           attemptRef.current = 0;
@@ -149,23 +192,35 @@ export function useAutosave({
           return;
         }
         const wait = backoffWaitMs(attemptRef.current);
-        await new Promise((r) => setTimeout(r, wait));
-        if (!mountedRef.current) return;
+        try {
+          await abortableSleep(wait, signal);
+        } catch {
+          // abortable sleep cancelled — effect torn down, do not retry.
+          return;
+        }
+        if (signal.aborted) return;
         await flush();
       }
     };
 
-    const schedule = () => {
+    const schedule = (): void => {
+      if (signal.aborted) return;
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
+        if (signal.aborted) return;
         if (inFlightRef.current !== null) {
           reRunRef.current = true;
           return;
         }
         const p = flush().finally(() => {
-          inFlightRef.current = null;
-          if (reRunRef.current && mountedRef.current) {
+          // Only clear the slot if it still holds *our* promise — a
+          // later schedule() could have abandoned us by aborting the
+          // effect and a new effect installing its own promise. Without
+          // this guard the stale `.finally` would null out the newer
+          // effect's in-flight pointer and let two flushes overlap.
+          if (inFlightRef.current === p) inFlightRef.current = null;
+          if (reRunRef.current && !signal.aborted) {
             reRunRef.current = false;
             schedule();
           }
@@ -176,10 +231,11 @@ export function useAutosave({
 
     schedule();
     return () => {
+      controller.abort();
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [noteId, state, dispatch, saveDraft]);
+  }, [canFlush, noteId, snapshot, dispatch, saveDraft]);
 }

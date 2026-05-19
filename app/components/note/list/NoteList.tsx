@@ -48,10 +48,10 @@ export function NoteList({
   search,
   referencingNoteTitle,
 }: Props) {
-  const { notes, count, mode } = data;
+  const { notes, count, kind } = data;
   const display: DisplayMode = search.display ?? "list";
-  const searchActive = mode === "search";
-  const showVisibilityBadge = mode === "filter";
+  const searchActive = kind === "search";
+  const showVisibilityBadge = kind === "filter";
 
   const hasAnyFilter =
     (search.tagNames !== undefined && search.tagNames.length > 0) ||
@@ -113,9 +113,25 @@ export function NoteList({
       ) : display === "tile" ? (
         <TileView notes={notes} showVisibilityBadge={showVisibilityBadge} />
       ) : display === "calendar" ? (
-        <CalendarView notes={notes} mode={mode} />
+        // CalendarView only supports the filter kind; search hits don't
+        // carry `updatedAt`, so the calendar falls back to a message.
+        kind === "filter" ? (
+          <CalendarView notes={notes} kind="filter" />
+        ) : (
+          <CalendarView kind="search" />
+        )
+      ) : kind === "filter" ? (
+        <ListView
+          kind="filter"
+          notes={notes}
+          showVisibilityBadge={showVisibilityBadge}
+        />
       ) : (
-        <ListView notes={notes} showVisibilityBadge={showVisibilityBadge} />
+        <ListView
+          kind="search"
+          notes={notes}
+          showVisibilityBadge={showVisibilityBadge}
+        />
       )}
     </SelectionProvider>
   );

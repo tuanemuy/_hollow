@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { bulkVisibilitySchema } from "@/components/note/schema";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { ShareLinkId } from "@/core/domain/publication/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -7,6 +6,7 @@ import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
 import { requireCurrentUser } from "@/lib/server/currentUser";
 import {
+  bulkVisibilitySchema,
   changeVisibilitySchema,
   issueShareLinkSchema,
   revokeShareLinkSchema,

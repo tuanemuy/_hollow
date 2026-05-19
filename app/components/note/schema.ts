@@ -96,11 +96,6 @@ export const bulkTrashSchema = z.object({
   noteIds: z.array(z.string().min(1)).min(1).max(BULK_NOTE_IDS_MAX),
 });
 
-export const bulkVisibilitySchema = z.object({
-  noteIds: z.array(z.string().min(1)).min(1).max(BULK_NOTE_IDS_MAX),
-  nextVisibility: visibilitySchema,
-});
-
 export const bulkExportSchema = z
   .object({
     noteIds: z.array(z.string().min(1)).min(1).max(EXPORT_BULK_LIMIT),

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { loadOwnedNotes } from "@/components/note/loaders";
 import type { UserDTO } from "@/core/application/dto/identity";
 import {
@@ -26,12 +27,19 @@ function formatDate(iso: string): string {
 }
 
 export async function TrashList({ user, page, limit }: Props) {
-  const { notes, count } = await loadOwnedNotes({
+  // Trash always uses the filter path (no `q`), so we narrow eagerly
+  // here; the discriminant is checked rather than blindly asserted so
+  // a future search-on-trash extension would be caught.
+  const result = await loadOwnedNotes({
     actorUserId: user.id,
     status: "trashed",
     page,
     limit,
   });
+  if (result.kind !== "filter") {
+    throw new Error("TrashList: expected filter-kind OwnedNotesResult");
+  }
+  const { notes, count } = result;
 
   return (
     <>
@@ -45,7 +53,7 @@ export async function TrashList({ user, page, limit }: Props) {
         <div className={EMPTY_STATE}>
           <h2 className="text-xl font-medium text-ink mb-2">ゴミ箱は空です</h2>
           <p className="text-sm mb-4">削除したノートはここに表示されます。</p>
-          <Link to="/" className={PILL_BTN}>
+          <Link to="/" search={HOME_SEARCH} className={PILL_BTN}>
             すべてのノートに戻る
           </Link>
         </div>

@@ -4,6 +4,7 @@ import {
   Outlet,
   useLocation,
 } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 
 // Side-effect imports so admin server-fn handlers register with the RSC
@@ -46,11 +47,7 @@ export const Route = createFileRoute("/admin")({
     <div className={ADMIN_SHELL_CLASS}>
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
-          <Link
-            to="/"
-            search={{ page: 1, limit: 20 }}
-            className={ADMIN_LOGO_CLASS}
-          >
+          <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
             Hollow
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>
@@ -59,11 +56,7 @@ export const Route = createFileRoute("/admin")({
       <main className={ADMIN_MAIN_CLASS}>
         <h1 className={ADMIN_PAGE_TITLE_CLASS}>アクセスできません</h1>
         <p className={ADMIN_PAGE_SUBTITLE_CLASS}>{sanitizeRouteError(error)}</p>
-        <Link
-          to="/"
-          search={{ page: 1, limit: 20 }}
-          className={ADMIN_BTN_CLASS}
-        >
+        <Link to="/" search={HOME_SEARCH} className={ADMIN_BTN_CLASS}>
           ホームへ戻る
         </Link>
       </main>
@@ -73,11 +66,7 @@ export const Route = createFileRoute("/admin")({
     <div className={ADMIN_SHELL_CLASS}>
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
-          <Link
-            to="/"
-            search={{ page: 1, limit: 20 }}
-            className={ADMIN_LOGO_CLASS}
-          >
+          <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
             Hollow
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>
@@ -123,11 +112,7 @@ function AdminLayout() {
     <div className={ADMIN_SHELL_CLASS}>
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
-          <Link
-            to="/"
-            search={{ page: 1, limit: 20 }}
-            className={ADMIN_LOGO_CLASS}
-          >
+          <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
             Hollow
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>

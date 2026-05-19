@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -65,6 +66,7 @@ export function IngestionJobRow({ job }: Props) {
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   const jobId = job.id as unknown as string;
 
@@ -82,8 +84,7 @@ export function IngestionJobRow({ job }: Props) {
     });
   };
 
-  const onDiscard = () => {
-    if (!confirm("このジョブを破棄しますか？")) return;
+  const runDiscard = () => {
     startTransition(async () => {
       try {
         await discard({ data: { jobId } });
@@ -161,7 +162,7 @@ export function IngestionJobRow({ job }: Props) {
               type="button"
               className={PILL_BTN}
               data-danger=""
-              onClick={onDiscard}
+              onClick={() => setConfirmDiscardOpen(true)}
               disabled={isPending}
             >
               破棄
@@ -173,7 +174,7 @@ export function IngestionJobRow({ job }: Props) {
             type="button"
             className={PILL_BTN}
             data-danger=""
-            onClick={onDiscard}
+            onClick={() => setConfirmDiscardOpen(true)}
             disabled={isPending}
           >
             破棄
@@ -196,6 +197,18 @@ export function IngestionJobRow({ job }: Props) {
           {displayError(error)}
         </p>
       ) : null}
+      <ConfirmDialog
+        open={confirmDiscardOpen}
+        title="ジョブを破棄"
+        description="このジョブを破棄しますか？"
+        confirmLabel="破棄"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDiscardOpen(false);
+          runDiscard();
+        }}
+        onClose={() => setConfirmDiscardOpen(false)}
+      />
     </div>
   );
 }

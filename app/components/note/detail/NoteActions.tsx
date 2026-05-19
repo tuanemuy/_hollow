@@ -3,6 +3,8 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -40,6 +42,7 @@ export function NoteActions({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
   const [open, setOpen] = useState<OpenDialog>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const noteIdStr = noteId as unknown as string;
 
@@ -54,12 +57,11 @@ export function NoteActions({
         ? `/notes/${noteIdStr}`
         : `${location.origin}/notes/${noteIdStr}`;
 
-  const onDelete = () => {
-    if (!confirm("このノートをゴミ箱に移動しますか？")) return;
+  const runDelete = () => {
     startTransition(async () => {
       try {
         await remove({ data: { noteId: noteIdStr } });
-        await router.navigate({ to: "/" });
+        await router.navigate({ to: "/", search: HOME_SEARCH });
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -85,7 +87,7 @@ export function NoteActions({
   if (status === "trashed") {
     return (
       <div className={MENU}>
-        <Link to="/trash" search={{ page: 1, limit: 20 }} className={pillBtn}>
+        <Link to="/trash" search={TRASH_SEARCH} className={pillBtn}>
           ゴミ箱を開く
         </Link>
       </div>
@@ -146,7 +148,7 @@ export function NoteActions({
         <button
           type="button"
           className={pillBtnDanger}
-          onClick={onDelete}
+          onClick={() => setConfirmDeleteOpen(true)}
           disabled={isPending}
         >
           削除
@@ -162,6 +164,17 @@ export function NoteActions({
         open={open === "move"}
         onClose={() => setOpen(null)}
         tree={tree}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="このノートをゴミ箱に移動"
+        confirmLabel="ゴミ箱へ"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDeleteOpen(false);
+          runDelete();
+        }}
+        onClose={() => setConfirmDeleteOpen(false)}
       />
     </>
   );

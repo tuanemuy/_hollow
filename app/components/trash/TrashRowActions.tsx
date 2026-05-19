@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { purgeNoteFn, restoreNoteFn } from "@/components/note/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -22,6 +23,7 @@ export function TrashRowActions({ noteId }: Props) {
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
+  const [confirmPurgeOpen, setConfirmPurgeOpen] = useState(false);
 
   const onRestore = () => {
     startTransition(async () => {
@@ -35,9 +37,7 @@ export function TrashRowActions({ noteId }: Props) {
     });
   };
 
-  const onPurge = () => {
-    if (!confirm("このノートを完全に削除しますか？この操作は取り消せません。"))
-      return;
+  const runPurge = () => {
     startTransition(async () => {
       try {
         await purge({ data: { noteId } });
@@ -63,7 +63,7 @@ export function TrashRowActions({ noteId }: Props) {
         type="button"
         className={PILL_BTN}
         data-danger=""
-        onClick={onPurge}
+        onClick={() => setConfirmPurgeOpen(true)}
         disabled={isPending}
       >
         完全削除
@@ -73,6 +73,18 @@ export function TrashRowActions({ noteId }: Props) {
           {displayError(error)}
         </span>
       ) : null}
+      <ConfirmDialog
+        open={confirmPurgeOpen}
+        title="ノートを完全に削除"
+        description="このノートを完全に削除しますか？この操作は取り消せません。"
+        confirmLabel="完全削除"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmPurgeOpen(false);
+          runPurge();
+        }}
+        onClose={() => setConfirmPurgeOpen(false)}
+      />
     </div>
   );
 }

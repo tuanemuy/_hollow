@@ -122,7 +122,11 @@ describe("Directory.rename (property)", () => {
   it("changing the name bumps version by exactly 1", () => {
     fc.assert(
       fc.property(nameArb, nameArb, (a, b) => {
-        fc.pre(a.toLowerCase() !== b.toLowerCase());
+        // DirectoryName.create() trims whitespace, so compare the
+        // post-trim case-folded form to match DirectoryName.equals(),
+        // otherwise pairs like ("b", "b ") slip past the precondition
+        // and the rename becomes a no-op.
+        fc.pre(a.trim().toLowerCase() !== b.trim().toLowerCase());
         const root = Directory.createRoot(
           { id: nextRawId(), ownerId: OWNER },
           T0,

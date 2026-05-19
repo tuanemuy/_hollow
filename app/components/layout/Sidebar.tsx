@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
 import type { DirectoryTreeNode } from "@/core/application/dto/directory";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
@@ -29,7 +30,10 @@ function DirectoryNode({
     <li>
       <Link
         to="/"
-        search={{ directoryId: node.id as unknown as string }}
+        // ADR-015: intentional filter-reset — only `directoryId` is set;
+        // the rest of the filter slots fall back to schema defaults via
+        // HOME_SEARCH so type-level required `page`/`limit` are satisfied.
+        search={{ ...HOME_SEARCH, directoryId: node.id as unknown as string }}
         className={NAV_ITEM}
         activeProps={ACTIVE_NAV_PROPS}
         style={{ paddingLeft: `${12 + depth * 12}px` }}
@@ -58,6 +62,7 @@ export async function Sidebar({ user }: Props) {
           <li>
             <Link
               to="/"
+              search={HOME_SEARCH}
               className={NAV_ITEM}
               activeProps={ACTIVE_NAV_PROPS}
               activeOptions={{ exact: true }}
@@ -98,7 +103,7 @@ export async function Sidebar({ user }: Props) {
           <li>
             <Link
               to="/trash"
-              search={{ page: 1, limit: 20 }}
+              search={TRASH_SEARCH}
               className={NAV_ITEM}
               activeProps={ACTIVE_NAV_PROPS}
             >

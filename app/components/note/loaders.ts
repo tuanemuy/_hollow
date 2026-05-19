@@ -35,24 +35,67 @@ export type OwnedNotesQuery = Readonly<{
   dateRange?: Readonly<{ from?: string | null; to?: string | null }> | null;
 }>;
 
-export type OwnedNotesResult = Readonly<{
-  notes: ReadonlyArray<{
-    id: string;
-    ownerId: string;
+/**
+ * Fields shared by both filter and search modes of `OwnedNotesResult`.
+ *
+ * `thumbnailUrl` is always `null` on the search path today, but it lives
+ * in the common shape so a future search-index extension that surfaces
+ * the thumbnail can drop into place without churning consumers.
+ */
+export type OwnedNoteCommon = Readonly<{
+  id: string;
+  ownerId: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string | null;
+  tagNames: readonly string[];
+  visibility: "private" | "unlisted" | "public";
+}>;
+
+/** Filter-path note: carries directory / slug / updatedAt projections. */
+export type OwnedNoteFilterItem = OwnedNoteCommon &
+  Readonly<{
     directoryId: string;
     slug: string;
-    title: string;
-    excerpt: string;
-    thumbnailUrl: string | null;
-    tagNames: readonly string[];
     updatedAt: string;
-    visibility: "private" | "unlisted" | "public";
   }>;
-  count: number;
-  /** `null` for the filter-only path; populated for the search path. */
-  nextCursor: string | null;
-  mode: "filter" | "search";
-}>;
+
+/**
+ * Search-path note: the search index does not project `directoryId` /
+ * `slug` / `updatedAt`, so these fields are intentionally absent in the
+ * type. Consumers that need them must narrow on `kind === "filter"`.
+ *
+ * Note: this is currently identical to `OwnedNoteCommon` field-for-
+ * field. TypeScript's structural typing means an `OwnedNoteFilterItem`
+ * is also assignable to `OwnedNoteSearchItem` — discrimination at the
+ * call site must always go through `OwnedNotesResult.kind`, not the
+ * shape of the row alone. If the search projection ever picks up its
+ * own fields, this alias should be widened in place rather than
+ * re-introducing sentinel values.
+ */
+export type OwnedNoteSearchItem = OwnedNoteCommon;
+
+/**
+ * Result of `loadOwnedNotes`. A discriminated union over `kind` makes
+ * the search-path's missing projections (directoryId / slug / updatedAt)
+ * a type-level fact instead of a sentinel-value gotcha — see Issue #13
+ * ADR-003.
+ */
+export type OwnedNotesResult =
+  | Readonly<{
+      kind: "filter";
+      notes: readonly OwnedNoteFilterItem[];
+      count: number;
+      /** Filter-only path: pagination is page/offset based; cursor is unused. */
+      nextCursor: string | null;
+    }>
+  | Readonly<{
+      kind: "search";
+      notes: readonly OwnedNoteSearchItem[];
+      count: number;
+      /** Search path: cursor for follow-up `searchOwnNotes` pages. */
+      nextCursor: string | null;
+    }>;
 
 /**
  * Both ends of the `[from, to]` window are required by the search
@@ -132,21 +175,18 @@ export const loadOwnedNotes = cache(
           },
         });
         return {
+          kind: "search" as const,
           notes: result.hits.map((hit) => ({
             id: hit.noteId as unknown as string,
             ownerId: hit.ownerId as unknown as string,
-            directoryId: "" as string,
-            slug: "",
             title: hit.title as unknown as string,
             excerpt: hit.snippet as unknown as string,
             thumbnailUrl: null,
             tagNames: hit.tagNames,
-            updatedAt: new Date(0).toISOString(),
             visibility: hit.visibility,
           })),
           count: result.hits.length,
           nextCursor: result.nextCursor,
-          mode: "search" as const,
         };
       }
 
@@ -196,6 +236,7 @@ export const loadOwnedNotes = cache(
       });
 
       return {
+        kind: "filter" as const,
         notes: notes.map((n) => ({
           id: n.id as unknown as string,
           ownerId: n.ownerId as unknown as string,
@@ -210,7 +251,6 @@ export const loadOwnedNotes = cache(
         })),
         count,
         nextCursor: null,
-        mode: "filter" as const,
       };
     },
   ),
