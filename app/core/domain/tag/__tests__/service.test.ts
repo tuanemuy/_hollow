@@ -41,6 +41,9 @@ class FakeTagRepo implements TagRepository {
   async findByIds() {
     return [];
   }
+  async searchByNamePrefix() {
+    return [];
+  }
   async findById() {
     return null;
   }

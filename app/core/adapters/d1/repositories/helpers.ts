@@ -81,6 +81,20 @@ function constraintViolationCode(sqliteCode: string): string {
   return "CONSTRAINT_VIOLATION";
 }
 
+/**
+ * Escapes the SQL `LIKE` wildcards (`%` and `_`) and the backslash
+ * escape character so a user-supplied substring matches literally.
+ * Paired with `ESCAPE '\\'` on the predicate so SQLite recognises the
+ * escape character — drizzle-orm's `like()` helper does not emit the
+ * `ESCAPE` clause, so callers must use raw `sql\`... LIKE ${pat} ESCAPE
+ * '\\\\'\`` to make this escaping functional. Single source of truth
+ * for LIKE-pattern escaping across the D1 adapter (see ADR-006 / ADR-007
+ * in `.issue/36/adr.md`).
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export async function mapDbError<T>(
   message: string,
   fn: () => Promise<T>,

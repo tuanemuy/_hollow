@@ -135,3 +135,12 @@ export const extendLockSchema = z.object({
 export const releaseLockSchema = z.object({
   noteId: z.string().min(1),
 });
+
+// `query.max(NOTE_TITLE_MAX_LENGTH)` is sized so a user can prefix-match
+// a full note title without the transport layer rejecting the request.
+// `limit` is clamped server-side as well, but the schema cap is a cheap
+// DoS guard before the usecase runs.
+export const searchInternalLinkTargetsSchema = z.object({
+  query: z.string().trim().min(1).max(NOTE_TITLE_MAX_LENGTH),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+});

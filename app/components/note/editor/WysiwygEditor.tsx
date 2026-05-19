@@ -1,10 +1,25 @@
 "use client";
 
+import { useServerFn } from "@tanstack/react-start";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
-import { type Editor, EditorContent, useEditor } from "@tiptap/react";
+import {
+  type Editor,
+  EditorContent,
+  ReactRenderer,
+  useEditor,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState } from "react";
+import type {
+  SuggestionKeyDownProps,
+  SuggestionProps,
+} from "@tiptap/suggestion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { searchInternalLinkTargetsFn } from "@/components/note/actions";
+import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
+import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
+import { buildInternalLinkMention } from "./internalLinkExtension";
+import { nextSuggestionIndex } from "./internalLinkSuggest";
 
 /**
  * WYSIWYG pane backed by TipTap (P12 / Issue #9). Mirrors `HtmlEditor`'s
@@ -82,6 +97,164 @@ export function WysiwygEditor({
 
   const [, forceRender] = useState(0);
 
+  // The `[[` internal-link suggest plugin is wired through the Mention
+  // extension's Suggestion host. Two cross-cutting concerns are handled
+  // here so the rest of the editor stays untouched:
+  //
+  // 1. The `searchSuggestions` server-fn reference must be re-read on
+  //    every invocation. `useEditor` with no `deps` argument does not
+  //    re-create the editor on `extensions` identity change, but it does
+  //    call `setOptions` on every render — that path re-evaluates each
+  //    extension's `configure()` and re-instantiates ProseMirror plugins.
+  //    More importantly, the closure inside the `useMemo([])` block
+  //    below would freeze on the first `searchSuggestions` reference and
+  //    silently miss future server-fn refreshes. We pin the latest fn in
+  //    a ref and read it from the items callback so the memoised glue
+  //    keeps working with a stable identity (Issue #36 P-004).
+  // 2. The popup is rendered through `ReactRenderer` + a manual
+  //    `document.body.appendChild` (ADR-003) so we avoid pulling in
+  //    `tippy.js` as an extra dependency.
+  const searchSuggestions = useServerFn(searchInternalLinkTargetsFn);
+  const searchSuggestionsRef = useRef(searchSuggestions);
+  useEffect(() => {
+    searchSuggestionsRef.current = searchSuggestions;
+  }, [searchSuggestions]);
+
+  const suggestionGlue = useMemo(() => {
+    // Single-flight debounce: a fresh keypress cancels the pending
+    // timer and aborts any in-flight request before scheduling the
+    // next one. 100ms keeps perceived latency low while suppressing
+    // the high-frequency D1 LIKE queries that naive per-keystroke
+    // dispatch would produce (Issue #36 S-003).
+    let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+    let pendingAbort: AbortController | null = null;
+    return {
+      items: ({ query }: { query: string }) =>
+        new Promise<InternalLinkSuggestion[]>((resolve) => {
+          if (pendingTimeout !== null) clearTimeout(pendingTimeout);
+          if (pendingAbort !== null) pendingAbort.abort();
+          const trimmed = query.trim();
+          if (trimmed.length === 0) {
+            resolve([]);
+            return;
+          }
+          const ctrl = new AbortController();
+          pendingAbort = ctrl;
+          pendingTimeout = setTimeout(async () => {
+            try {
+              const { suggestions } = await searchSuggestionsRef.current({
+                data: { query: trimmed, limit: 8 },
+                signal: ctrl.signal,
+              });
+              if (!ctrl.signal.aborted) {
+                resolve([...suggestions] as InternalLinkSuggestion[]);
+              }
+            } catch {
+              if (!ctrl.signal.aborted) resolve([]);
+            }
+          }, 100);
+        }),
+      render: () => {
+        let renderer: ReactRenderer | null = null;
+        let selectedIndex = 0;
+        let items: readonly InternalLinkSuggestion[] = [];
+        let clientRect: (() => DOMRect | null) | null | undefined = null;
+        let commandRef: ((item: InternalLinkSuggestion) => void) | null = null;
+        const computePos = () => {
+          const rect = clientRect?.() ?? null;
+          if (rect === null) return { left: 0, top: 0 };
+          return {
+            left: rect.left + window.scrollX,
+            top: rect.bottom + window.scrollY + 4,
+          };
+        };
+        const buildProps = () => ({
+          items,
+          selectedIndex,
+          onSelect: (item: InternalLinkSuggestion) => commandRef?.(item),
+          onHover: (idx: number) => {
+            selectedIndex = idx;
+            renderer?.updateProps(buildProps());
+          },
+          position: computePos(),
+        });
+        const teardown = () => {
+          if (renderer === null) return;
+          renderer.element.remove();
+          renderer.destroy();
+          renderer = null;
+        };
+        return {
+          onStart: (
+            props: SuggestionProps<
+              InternalLinkSuggestion,
+              InternalLinkSuggestion
+            >,
+          ) => {
+            items = props.items;
+            selectedIndex = 0;
+            clientRect = props.clientRect;
+            commandRef = props.command;
+            renderer = new ReactRenderer(InternalLinkSuggestPopup, {
+              props: buildProps(),
+              editor: props.editor,
+            });
+            document.body.appendChild(renderer.element);
+          },
+          onUpdate: (
+            props: SuggestionProps<
+              InternalLinkSuggestion,
+              InternalLinkSuggestion
+            >,
+          ) => {
+            items = props.items;
+            clientRect = props.clientRect;
+            commandRef = props.command;
+            if (selectedIndex >= items.length) selectedIndex = 0;
+            renderer?.updateProps(buildProps());
+          },
+          onKeyDown: ({ event }: SuggestionKeyDownProps) => {
+            if (event.key === "ArrowDown") {
+              selectedIndex = nextSuggestionIndex(
+                selectedIndex,
+                "down",
+                items.length,
+              );
+              renderer?.updateProps(buildProps());
+              return true;
+            }
+            if (event.key === "ArrowUp") {
+              selectedIndex = nextSuggestionIndex(
+                selectedIndex,
+                "up",
+                items.length,
+              );
+              renderer?.updateProps(buildProps());
+              return true;
+            }
+            if (event.key === "Enter") {
+              const item = items[selectedIndex];
+              if (item !== undefined) commandRef?.(item);
+              return true;
+            }
+            if (event.key === "Escape") {
+              teardown();
+              return true;
+            }
+            return false;
+          },
+          onExit: () => {
+            teardown();
+          },
+        };
+      },
+    };
+    // Initialise once — `searchSuggestionsRef` keeps the latest server-fn
+    // reachable without making `extensions` reference-unstable. See the
+    // header comment for the editor-recreation rationale.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: see comment
+  }, []);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: false }),
@@ -92,6 +265,7 @@ export function WysiwygEditor({
         isAllowedUri: (url) => isAllowedLinkUri(url),
       }),
       Image.configure({ inline: false, allowBase64: false }),
+      buildInternalLinkMention(suggestionGlue),
     ],
     content: value,
     editable: disabled !== true,

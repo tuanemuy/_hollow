@@ -974,3 +974,102 @@ describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
     expect(result).toHaveLength(1);
   });
 });
+
+describe("D1NoteRepository.searchByTitlePrefix (integration)", () => {
+  it("returns the owner's active notes matching the prefix, case-insensitively, ordered by title", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "Alpha" });
+    await seedNote(container, owner, dir, { title: "alphabet" });
+    await seedNote(container, owner, dir, { title: "Beta" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "ALPH", 10),
+    );
+    expect(rows.map((n) => n.title)).toEqual(["Alpha", "alphabet"]);
+  });
+
+  it("isolates owners — does not return another user's matching note", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const ownerDir = await seedDirectory(container, owner);
+    const strangerDir = await seedDirectory(container, stranger);
+    await seedNote(container, owner, ownerDir, { title: "Shared" });
+    await seedNote(container, stranger, strangerDir, { title: "Shared" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "Shared", 10),
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0].ownerId).toBe(owner);
+  });
+
+  it("excludes trashed notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "live one" });
+    await seedNote(container, owner, dir, {
+      title: "live two",
+      status: "trashed",
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "live", 10),
+    );
+    expect(rows.map((n) => n.title)).toEqual(["live one"]);
+  });
+
+  it("escapes LIKE wildcards `%` and `_` so they match literally (ESCAPE clause works)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "50% off" });
+    await seedNote(container, owner, dir, { title: "50abc off" });
+    await seedNote(container, owner, dir, { title: "foo_bar" });
+    await seedNote(container, owner, dir, { title: "fooxbar" });
+
+    const pct = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "50%", 10),
+    );
+    expect(pct.map((n) => n.title)).toEqual(["50% off"]);
+
+    const underscore = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "foo_", 10),
+    );
+    expect(underscore.map((n) => n.title)).toEqual(["foo_bar"]);
+  });
+
+  it("returns [] when limit <= 0 without touching the DB result shape", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "anything" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "any", 0),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("returns [] for an empty / whitespace-only prefix", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "anything" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.searchByTitlePrefix(owner, "   ", 10),
+    );
+    expect(rows).toEqual([]);
+  });
+});

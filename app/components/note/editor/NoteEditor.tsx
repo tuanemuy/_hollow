@@ -60,8 +60,6 @@ import { WysiwygEditor } from "./WysiwygEditor";
  * Out of scope (separate issues):
  * - History / revision aggregate (spec marks "future")
  * - Real-time collision presence (no SSE/WebSocket infra yet, ADR-006)
- * - Cross-note / tag suggest for internal links (Issue #9 ADR-002 —
- *   `@tiptap/extension-mention` will be added in a follow-up Issue)
  * - Raw YAML edit (ADR-003 — JSON only here)
  * - Single-note export from this surface (handled at `/notes/$noteId/export`)
  */

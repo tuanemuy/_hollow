@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -20,7 +20,7 @@ import type { TagId, TagName } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { tags } from "../schema";
-import { mapDbError } from "./helpers";
+import { escapeLikePattern, mapDbError } from "./helpers";
 
 type TagRow = typeof tags.$inferSelect;
 
@@ -33,16 +33,6 @@ type TagRow = typeof tags.$inferSelect;
  */
 function normalizeName(name: TagName): string {
   return (name as string).toLowerCase();
-}
-
-/**
- * Escapes the SQL `LIKE` wildcards (`%` and `_`) and the backslash
- * escape character so a user-supplied `query` substring matches
- * literally. Paired with `ESCAPE '\\'` on the predicate so SQLite
- * recognises the escape character.
- */
-function escapeLikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 /**
@@ -150,10 +140,7 @@ export class D1TagRepository implements TagRepository {
         trimmedQuery.length > 0
           ? and(
               eq(tags.ownerId, ownerId),
-              like(
-                tags.nameNormalized,
-                `%${escapeLikePattern(trimmedQuery.toLowerCase())}%`,
-              ),
+              sql`${tags.nameNormalized} LIKE ${`%${escapeLikePattern(trimmedQuery.toLowerCase())}%`} ESCAPE '\\'`,
             )
           : eq(tags.ownerId, ownerId);
 
@@ -164,6 +151,31 @@ export class D1TagRepository implements TagRepository {
         .orderBy(direction(sortColumn), asc(tags.id))
         .limit(opts.limit)
         .offset(opts.offset);
+      return rows.map((row) => this.toTag(row));
+    });
+  }
+
+  searchByNamePrefix(
+    ownerId: UserId,
+    prefix: string,
+    limit: number,
+  ): Promise<readonly Tag[]> {
+    return mapDbError("Failed to search tags by name prefix", async () => {
+      if (limit <= 0) return [];
+      const trimmed = prefix.trim();
+      if (trimmed.length === 0) return [];
+      const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+      const rows = await this.db
+        .select()
+        .from(tags)
+        .where(
+          and(
+            eq(tags.ownerId, ownerId),
+            sql`${tags.nameNormalized} LIKE ${pattern} ESCAPE '\\'`,
+          ),
+        )
+        .orderBy(asc(tags.nameNormalized), asc(tags.id))
+        .limit(limit);
       return rows.map((row) => this.toTag(row));
     });
   }

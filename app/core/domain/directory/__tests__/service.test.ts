@@ -168,6 +168,13 @@ class StubNoteRepository implements NoteRepository {
   findByOwner(_o: UserId, _opts: NoteOwnerListOpts): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
+  searchByTitlePrefix(
+    _o: UserId,
+    _p: string,
+    _l: number,
+  ): Promise<readonly Note[]> {
+    throw new Error("not implemented");
+  }
   findTrashedOlderThan(_o: UserId, _b: Date): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
