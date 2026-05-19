@@ -103,6 +103,49 @@ pnpm db:apply:production         # apply to production D1
 
 For per-stage D1 migration management, see [`docs/runtime_cloudflare.md`](docs/runtime_cloudflare.md).
 
+## Deployment
+
+Cloudflare infrastructure (D1 / Queues / DNS / Worker Routes) is managed by Pulumi under [`infra/`](infra/); Worker scripts themselves are deployed by Wrangler from GitHub Actions. The split exists because Wrangler needs a build artifact to push, while everything Workers depend on is plain configuration.
+
+| Branch / tag | Workflow                                | Target                          |
+|--------------|-----------------------------------------|---------------------------------|
+| push `main`  | `.github/workflows/deploy-staging.yml`  | `https://staging.hollow.maku-ja.com` |
+| tag `v*.*.*` | `.github/workflows/deploy-production.yml` (manual approval via `production` Environment) | `https://hollow.maku-ja.com` |
+
+### Required GitHub Secrets
+
+- `CLOUDFLARE_API_TOKEN` — scopes: Workers Scripts:Edit, D1:Edit, Queues:Edit, Zone:Edit, Workers Routes:Edit
+- `CLOUDFLARE_ACCOUNT_ID`
+- `PULUMI_ACCESS_TOKEN`
+- `PULUMI_CONFIG_PASSPHRASE` (only if any stack config uses `--secret`)
+- `SOPS_AGE_KEY` — the private age key matching a recipient in `.sops.yaml`
+
+運用詳細は [`docs/deployment_setup.md`](docs/deployment_setup.md) を参照。
+
+### Release flow
+
+```sh
+# bump version, create a tag, push it
+pnpm version patch         # or minor / major
+git push --follow-tags
+```
+
+The tag push triggers `deploy-production.yml`. GitHub waits for required-reviewer approval, then deploys and creates a GitHub Release with auto-generated notes.
+
+### Local infra commands
+
+```sh
+pnpm infra:preview:staging       # pulumi preview --stack staging
+pnpm infra:up:staging            # pulumi up --stack staging
+pnpm infra:render:staging        # render wrangler.staging.toml from Pulumi outputs
+```
+
+The generated `wrangler.{staging,production}.toml` files are git-ignored; sources of truth are the templates in [`infra/templates/`](infra/templates/) and the Pulumi stack outputs.
+
+### Secrets workflow
+
+See [`infra/secrets/README.md`](infra/secrets/README.md) for adding / rotating secrets and onboarding teammates. The required keys are declared in [`infra/src/secrets.ts`](infra/src/secrets.ts).
+
 ## License
 
 Undecided (private).

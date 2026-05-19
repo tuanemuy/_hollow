@@ -1,0 +1,10 @@
+packages:
+  - "."
+  - "infra"
+overrides:
+  tinypool: 1.0.2
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+  sharp: true
+  workerd: true
