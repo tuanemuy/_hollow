@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useId, useTransition } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { NoteListSearch } from "../schema";
 import { pillBtn } from "../styles";
 import { formatReferencingNoteChipLabel } from "./listSelectors";
@@ -42,6 +43,16 @@ export function FilterBar({
 
   const selected = new Set(selectedTagNames);
 
+  // `prev` is the inferred cross-route search union, so `page` / `limit`
+  // are optional from the router's perspective. We collapse them onto
+  // the home-route defaults so every updater return satisfies
+  // `MakeRequiredSearchParams`.
+  const withDefaults = (prev: Partial<NoteListSearch>): NoteListSearch => ({
+    ...prev,
+    page: prev.page ?? HOME_SEARCH.page,
+    limit: prev.limit ?? HOME_SEARCH.limit,
+  });
+
   const toggleTag = (name: string) => {
     const next = new Set(selected);
     if (next.has(name)) next.delete(name);
@@ -50,8 +61,8 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          ...prev,
+        search: (prev) => ({
+          ...withDefaults(prev as Partial<NoteListSearch>),
           tagNames: arr.length === 0 ? undefined : arr,
         }),
       });
@@ -62,8 +73,8 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          ...prev,
+        search: (prev) => ({
+          ...withDefaults(prev as Partial<NoteListSearch>),
           [key]: value === "" ? undefined : value,
         }),
       });
@@ -74,8 +85,8 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          ...prev,
+        search: (prev) => ({
+          ...withDefaults(prev as Partial<NoteListSearch>),
           visibility:
             value === "" ? undefined : (value as NoteListSearch["visibility"]),
         }),
@@ -87,8 +98,8 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          ...prev,
+        search: (prev) => ({
+          ...withDefaults(prev as Partial<NoteListSearch>),
           referencingNoteId: undefined,
         }),
       });
@@ -99,12 +110,15 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev: NoteListSearch) => ({
-          display: prev.display,
-          page: prev.page,
-          limit: prev.limit,
-          ...(prev.q !== undefined ? { q: prev.q } : {}),
-        }),
+        search: (prev) => {
+          const p = prev as Partial<NoteListSearch>;
+          return {
+            display: p.display,
+            page: p.page ?? HOME_SEARCH.page,
+            limit: p.limit ?? HOME_SEARCH.limit,
+            ...(p.q !== undefined ? { q: p.q } : {}),
+          };
+        },
       });
     });
   };

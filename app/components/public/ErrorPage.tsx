@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { PublicLayout, SearchIcon } from "./PublicLayout";
 import {
   ERR_ACTIONS,
@@ -86,7 +87,7 @@ export function ErrorPage({ kind, message }: Props) {
           <div className={ERR_ACTIONS}>
             <Link
               to="/"
-              search={{ page: 1, limit: 20 }}
+              search={HOME_SEARCH}
               className={PILL_BTN}
               data-primary=""
             >

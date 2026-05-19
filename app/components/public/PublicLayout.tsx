@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
 import {
   PILL_BTN,
   PUBLIC_FOOTER,
@@ -32,7 +33,7 @@ export function PublicLayout({
     <div className="flex flex-col min-h-screen">
       <header className={PUBLIC_HEADER}>
         <div className={PUBLIC_HEADER_LEFT}>
-          <Link to="/" search={{ page: 1, limit: 20 }} className={PUBLIC_LOGO}>
+          <Link to="/" search={HOME_SEARCH} className={PUBLIC_LOGO}>
             Hollow
           </Link>
         </div>
@@ -62,14 +63,10 @@ export function PublicLayout({
         )}
 
         <div className={PUBLIC_HEADER_RIGHT}>
-          <Link
-            to="/"
-            search={{ page: 1, limit: 20 }}
-            className={PUBLIC_TEXT_LINK_SIGNUP}
-          >
+          <Link to="/" search={HOME_SEARCH} className={PUBLIC_TEXT_LINK_SIGNUP}>
             サインアップ
           </Link>
-          <Link to="/" search={{ page: 1, limit: 20 }} className={PILL_BTN}>
+          <Link to="/" search={HOME_SEARCH} className={PILL_BTN}>
             ログイン
           </Link>
         </div>
@@ -81,25 +78,13 @@ export function PublicLayout({
         <div className={PUBLIC_FOOTER_INNER}>
           <div>Hollow</div>
           <div className={PUBLIC_FOOTER_LINKS}>
-            <Link
-              to="/"
-              search={{ page: 1, limit: 20 }}
-              className={PUBLIC_FOOTER_LINK}
-            >
+            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
               利用規約
             </Link>
-            <Link
-              to="/"
-              search={{ page: 1, limit: 20 }}
-              className={PUBLIC_FOOTER_LINK}
-            >
+            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
               プライバシー
             </Link>
-            <Link
-              to="/"
-              search={{ page: 1, limit: 20 }}
-              className={PUBLIC_FOOTER_LINK}
-            >
+            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
               このインスタンスについて
             </Link>
           </div>

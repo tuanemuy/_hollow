@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { redirect } from "@tanstack/react-router";
 import { setCookie } from "@tanstack/react-start/server";
+import { HOME_SEARCH } from "@/components/auth/links";
 import { toUserDTO, type UserDTO } from "@/core/application/dto/identity";
 import { getCurrentUser as readCurrentUserEntity } from "@/lib/server/currentUser";
 
@@ -74,6 +75,6 @@ export async function requireCurrentUser(): Promise<UserDTO> {
 export async function redirectIfAuthenticated(): Promise<void> {
   const user = await getCurrentUser();
   if (user !== null) {
-    throw redirect({ to: "/", search: { page: 1, limit: 20 } });
+    throw redirect({ to: "/", search: HOME_SEARCH });
   }
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BULK_NOTE_IDS_MAX } from "@/components/note/constants";
 
 export const SHARE_LINK_PASSWORD_MAX = 128;
 
@@ -33,4 +34,9 @@ export const setShareLinkPasswordSchema = z.object({
     .transform((value) =>
       value === null || value.length === 0 ? null : value,
     ),
+});
+
+export const bulkVisibilitySchema = z.object({
+  noteIds: z.array(z.string().min(1)).min(1).max(BULK_NOTE_IDS_MAX),
+  nextVisibility: visibilitySchema,
 });

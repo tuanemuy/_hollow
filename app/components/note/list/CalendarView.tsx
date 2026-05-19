@@ -2,16 +2,19 @@
 
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { OwnedNotesResult } from "../loaders";
+import type { OwnedNoteFilterItem } from "../loaders";
 import { groupNotesByDay } from "./listSelectors";
 import { useSelection } from "./SelectionContext";
 
-type Note = OwnedNotesResult["notes"][number];
-
-type Props = {
-  notes: readonly Note[];
-  mode: "filter" | "search";
-};
+type Props =
+  | Readonly<{
+      kind: "filter";
+      notes: readonly OwnedNoteFilterItem[];
+    }>
+  | Readonly<{
+      kind: "search";
+      notes: readonly never[];
+    }>;
 
 function formatDay(dateKey: string): string {
   if (dateKey === "unknown") return "日付不明";
@@ -25,20 +28,31 @@ function formatDay(dateKey: string): string {
   });
 }
 
-export function CalendarView({ notes, mode }: Props) {
+export function CalendarView(props: Props) {
   const { state, dispatch } = useSelection();
 
-  // The search-result projection currently flattens `updatedAt` to the
-  // epoch (see ADR-012). Grouping that into a calendar would be misleading
-  // — fall back to the list rendering in that mode.
+  // The search-result projection does not expose `updatedAt` (the field
+  // is intentionally absent on `OwnedNoteSearchItem` since Issue #13).
+  // Grouping by day would be impossible — fall back to a notice in that
+  // mode (preserving the behavior from Issue #1 ADR-014).
   const tz =
     typeof Intl !== "undefined"
       ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC")
       : "UTC";
 
-  const grouped = useMemo(() => groupNotesByDay(notes, tz), [notes, tz]);
+  // Hook must be called unconditionally; the `search` branch passes an
+  // empty `OwnedNoteFilterItem[]` so the grouping is a no-op. Explicit
+  // type parameterization keeps the bucket's `notes[number]` carrying
+  // `title` etc. instead of collapsing to the generic constraint.
+  const grouped = useMemo(
+    () =>
+      props.kind === "filter"
+        ? groupNotesByDay<OwnedNoteFilterItem>(props.notes, tz)
+        : groupNotesByDay<OwnedNoteFilterItem>([], tz),
+    [props, tz],
+  );
 
-  if (mode === "search") {
+  if (props.kind === "search") {
     return (
       <div className="mt-3 rounded-md bg-surface p-4 text-sm text-ink-secondary">
         <p>

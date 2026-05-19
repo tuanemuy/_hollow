@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -28,6 +29,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [isMergeOpen, setIsMergeOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const onRename = () => {
     const trimmed = draft.trim();
@@ -47,13 +49,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
     });
   };
 
-  const onDelete = () => {
-    if (
-      !confirm(
-        `タグ "#${name}" を削除します。参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？`,
-      )
-    )
-      return;
+  const runDelete = () => {
     startTransition(async () => {
       try {
         await removeTag({ data: { tagId } });
@@ -123,7 +119,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
             type="button"
             className={PILL_BTN}
             data-danger=""
-            onClick={onDelete}
+            onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
           >
             削除
@@ -144,6 +140,19 @@ export function TagActions({ tagId, name, candidates }: Props) {
           onClose={() => setIsMergeOpen(false)}
         />
       ) : null}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={`タグ "#${name}" を削除`}
+        description="参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？"
+        variant="danger"
+        confirmLabel="削除"
+        isPending={isPending}
+        onConfirm={() => {
+          setConfirmDeleteOpen(false);
+          runDelete();
+        }}
+        onClose={() => setConfirmDeleteOpen(false)}
+      />
     </div>
   );
 }

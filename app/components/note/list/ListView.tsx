@@ -1,15 +1,20 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { OwnedNotesResult } from "../loaders";
+import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
 import { useSelection } from "./SelectionContext";
 
-type Note = OwnedNotesResult["notes"][number];
-
-type Props = {
-  notes: readonly Note[];
-  showVisibilityBadge: boolean;
-};
+type Props =
+  | Readonly<{
+      kind: "filter";
+      notes: readonly OwnedNoteFilterItem[];
+      showVisibilityBadge: boolean;
+    }>
+  | Readonly<{
+      kind: "search";
+      notes: readonly OwnedNoteSearchItem[];
+      showVisibilityBadge: boolean;
+    }>;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -24,24 +29,32 @@ function formatDate(iso: string): string {
 const CHIP_BASE =
   "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill text-xs";
 
-function visibilityChipClass(v: Note["visibility"]): string {
+type Visibility = OwnedNoteFilterItem["visibility"];
+
+function visibilityChipClass(v: Visibility): string {
   if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;
   if (v === "unlisted") return `${CHIP_BASE} bg-warning-surface text-warning`;
   return `${CHIP_BASE} bg-surface text-ink-tertiary`;
 }
 
-function visibilityLabel(v: Note["visibility"]): string {
+function visibilityLabel(v: Visibility): string {
   if (v === "public") return "公開";
   if (v === "unlisted") return "限定公開";
   return "非公開";
 }
 
-export function ListView({ notes, showVisibilityBadge }: Props) {
+export function ListView(props: Props) {
   const { state, dispatch } = useSelection();
+  // Render branches over the discriminant so TypeScript narrows
+  // `notes[number]` correctly inside each branch.
+  const isFilter = props.kind === "filter";
+  const showVisibilityBadge = props.showVisibilityBadge;
   return (
     <ul className="mt-2 list-none p-0 m-0">
-      {notes.map((note) => {
+      {props.notes.map((note) => {
         const checked = state.ids.has(note.id);
+        const updatedAtDisplay =
+          isFilter && "updatedAt" in note ? formatDate(note.updatedAt) : "—";
         return (
           <li
             key={note.id}
@@ -89,11 +102,11 @@ export function ListView({ notes, showVisibilityBadge }: Props) {
                     <span className="text-hairline-strong">·</span>
                   </>
                 ) : null}
-                <span>{formatDate(note.updatedAt)}</span>
+                <span>{updatedAtDisplay}</span>
               </div>
             </div>
             <div className="text-[13px] text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
-              {formatDate(note.updatedAt)}
+              {updatedAtDisplay}
             </div>
           </li>
         );

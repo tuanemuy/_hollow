@@ -125,14 +125,11 @@ const renderHome = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/")({
   staleTime: 0,
-  // Note: other routes use `(search) => schema.parse(search)` directly, but
-  // the home route keeps the `validateInput()` wrapper. The wrapper widens
-  // the `search` parameter to `unknown`, which lets TanStack's inferred
-  // search union (across all routes) coexist with `<Link to="/">` /
-  // `redirect({ to: "/" })` callers that omit the `search` prop. Direct
-  // `parse(search)` would narrow the input type and force every link
-  // target to spell out the full search shape.
-  validateSearch: validateInput(noteListSearchSchema),
+  // Unified with the rest of the routes via `schema.parse(search)`
+  // (Issue #13 ADR-001 supersedes Issue #1 ADR-026). Callers using
+  // `<Link to="/">` / `redirect({ to: "/" })` must pass
+  // `search={HOME_SEARCH}` from `@/components/auth/links`.
+  validateSearch: (search) => noteListSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => renderHome({ data: deps }),
   head: ({ match }) => {
