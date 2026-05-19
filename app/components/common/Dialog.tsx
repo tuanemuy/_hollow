@@ -24,7 +24,8 @@ const FOCUSABLE_SELECTOR =
 
 // Module-scope counter for body scroll lock. Multiple concurrent dialogs
 // (e.g. a Confirm rendered on top of another Dialog) share the lock so the
-// outermost dialog restores the original overflow value on close.
+// outermost dialog restores the original overflow value on close. Client-only:
+// untouched in the SSR path because all reads/writes happen inside `useEffect`.
 let bodyScrollLockCount = 0;
 let bodyScrollLockPrevious = "";
 
@@ -105,10 +106,11 @@ function DialogInner({
   // Esc to close + Tab/Shift+Tab focus trap.
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      // Ignore Esc during IME composition (e.g. Japanese 変換 cancel) — otherwise
-      // users would lose in-progress form input when cancelling an IME conversion.
-      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape") {
+        // Ignore Esc during IME composition (e.g. Japanese 変換 cancel) —
+        // otherwise users would lose in-progress form input when cancelling
+        // an IME conversion. Scoped to Esc only so Tab trap stays active.
+        if (event.isComposing || event.keyCode === 229) return;
         if (closable) onClose();
         return;
       }
@@ -126,7 +128,10 @@ function DialogInner({
       const last = focusables[focusables.length - 1];
       if (first === undefined || last === undefined) return;
       const active = document.activeElement;
-      const activeIsOutside = !panel.contains(active);
+      // `Node.contains(self)` returns true, so the panel itself (tabIndex=-1,
+      // outside the tab cycle) must be treated as "outside" to keep the trap
+      // closed when initial focus lands on the panel — e.g. alertdialog.
+      const activeIsOutside = !panel.contains(active) || active === panel;
       if (event.shiftKey) {
         if (active === first || activeIsOutside) {
           event.preventDefault();

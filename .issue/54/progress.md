@@ -32,3 +32,14 @@ PR レビュー時に `.issue/54/testing.md` の手動チェックリスト（12
 ### フォローアップ
 
 - 認証必須シナリオを agent-browser で自動化するための共通基盤（共有シード SQL + テスト用ユーザー）が整えば、本 Issue のチェックリストも自動化対象に含められる。これは Issue 群全体に効く改善であり、本 Issue で個別対応する範囲ではない（別 Issue 候補）
+
+## レビューで別 Issue に切り出した項目（Round 1 / Round 2）
+
+Phase 4 で起票判定。
+
+- **共通 `app/components/common/styles.ts` の新設** — review-001 W-Arch-001/002 系。現状 `common/Dialog.tsx` と `common/ConfirmDialog.tsx` が `note/styles.ts` を import している cross-domain 依存を解消する。同時に `MergeTagDialog` のインラインスタイル直書きも整理できる
+- **5 ダイアログの `aria-labelledby` 化** — review-001 W-Arch-005。`MoveNoteDialog` / `BulkExportDialog` / `BulkVisibilityDialog` / `SaveViewDialog` / `MergeTagDialog` が `ariaLabel` + 同文の `<h2>` で二重ラベリングしている。`useId()` で `titleId` を発番して `aria-labelledby` 統一する
+- **`MergeTagDialog` の primary ボタン API 揃え** — review-001 W-Arch-006。他ダイアログの `${pillBtn} ${pillBtnPrimary}` + `data-primary` パターンに揃える
+- **AT 隔離強化（兄弟 `aria-hidden` / `inert`）** — review-001 W-Rob-006、ADR-006。iOS Safari + VoiceOver の `aria-modal` 不確実性への対応
+- **iOS Safari `position: fixed` ハック / モバイル scroll lock** — review-001 W-002
+- **Dialog 単体テスト整備** — Round 1 / 2 では現状未追加。テスト基盤が `happy-dom + createRoot + act` で揃ったらフォーカストラップ / Esc / Portal / scroll lock counter を網羅したい
