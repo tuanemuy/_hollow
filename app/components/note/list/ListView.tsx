@@ -1,12 +1,11 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
+import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
 import { useSelection } from "./SelectionContext";
 
 type Props = Readonly<{
-  notes: readonly (OwnedNoteFilterItem | OwnedNoteSearchItem)[];
-  showVisibilityBadge: boolean;
+  notes: readonly DisplayedNote[];
 }>;
 
 function formatDate(iso: string): string {
@@ -38,15 +37,14 @@ function visibilityLabel(v: Visibility): string {
 
 /**
  * Shared row renderer. Since Issue #48 both filter and search rows
- * carry a real `updatedAt`, so the previous discriminated branch with
- * an `—` substitute is gone.
+ * carry a real `updatedAt` and the visibility chip is rendered
+ * unconditionally, so the previous discriminated branch with an `—`
+ * substitute and the `showVisibilityBadge` guard are gone.
  */
 function NoteListRow({
   note,
-  showVisibilityBadge,
 }: Readonly<{
-  note: OwnedNoteFilterItem | OwnedNoteSearchItem;
-  showVisibilityBadge: boolean;
+  note: DisplayedNote;
 }>) {
   const { state, dispatch } = useSelection();
   const checked = state.ids.has(note.id);
@@ -90,14 +88,10 @@ function NoteListRow({
               <span className="text-hairline-strong">·</span>
             </>
           ) : null}
-          {showVisibilityBadge ? (
-            <>
-              <span className={visibilityChipClass(note.visibility)}>
-                {visibilityLabel(note.visibility)}
-              </span>
-              <span className="text-hairline-strong">·</span>
-            </>
-          ) : null}
+          <span className={visibilityChipClass(note.visibility)}>
+            {visibilityLabel(note.visibility)}
+          </span>
+          <span className="text-hairline-strong">·</span>
           <span>{updatedAtDisplay}</span>
         </div>
       </div>
@@ -108,15 +102,11 @@ function NoteListRow({
   );
 }
 
-export function ListView({ notes, showVisibilityBadge }: Props) {
+export function ListView({ notes }: Props) {
   return (
     <ul className="mt-2 list-none p-0 m-0">
       {notes.map((note) => (
-        <NoteListRow
-          key={note.id}
-          note={note}
-          showVisibilityBadge={showVisibilityBadge}
-        />
+        <NoteListRow key={note.id} note={note} />
       ))}
     </ul>
   );

@@ -304,7 +304,7 @@ export class D1NoteRepository implements NoteRepository {
   findByIds(ids: readonly NoteId[]): Promise<readonly Note[]> {
     return mapDbError("Failed to find notes by ids", async () => {
       if (ids.length === 0) return [];
-      const rows = await selectInChunks(ids as readonly string[], (chunk) =>
+      const rows = await selectInChunks(ids, (chunk) =>
         this.db
           .select()
           .from(notes)

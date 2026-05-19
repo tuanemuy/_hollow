@@ -1197,18 +1197,22 @@ describe("D1NoteRepository.findByIds (integration)", () => {
     expect(ids.has(unknown)).toBe(false);
   });
 
-  it("handles inputs that cross the SAFE_CHUNK_SIZE boundary", async () => {
+  // 90 = SAFE_CHUNK_SIZE exactly (single chunk), 91 = first id past
+  // the boundary (1 full + 1 partial), 181 = two full chunks + 1
+  // partial. Covers boundary-equal, boundary-+1, and multi-full-chunk
+  // dispatch in the adapter.
+  it.each([
+    90, 91, 181,
+  ])("handles %i ids across the SAFE_CHUNK_SIZE boundary", async (count) => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
-    // 95 > SAFE_CHUNK_SIZE (90); the adapter must split the lookup
-    // into multiple chunks and concatenate the results.
-    const ids = await seedManyNotes(container, owner, dir, 95);
+    const ids = await seedManyNotes(container, owner, dir, count);
 
     const found = await container.unitOfWorkProvider.run(
       async ({ noteRepository }) => noteRepository.findByIds(ids),
     );
-    expect(found).toHaveLength(95);
+    expect(found).toHaveLength(count);
     expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
   });
 });

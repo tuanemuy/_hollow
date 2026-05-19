@@ -36,7 +36,9 @@ type Props = {
  * `NoteRepository.findByIds`, so the previous `showVisibilityBadge =
  * kind === "filter"` guard (`.issue/1/adr.md` ADR-013) and the
  * `CalendarView` search-mode fallback (ADR-014) are no longer needed.
- * `kind` is still threaded through downstream as the pagination-mode
+ * The `showVisibilityBadge` prop itself is gone from the view
+ * components — the chip is now unconditionally rendered. `kind` is
+ * still threaded through downstream as the pagination-mode
  * discriminant (cursor vs page-offset).
  */
 export function NoteList({
@@ -112,11 +114,11 @@ export function NoteList({
           </Link>
         </div>
       ) : display === "tile" ? (
-        <TileView notes={notes} showVisibilityBadge />
+        <TileView notes={notes} />
       ) : display === "calendar" ? (
         <CalendarView notes={notes} />
       ) : (
-        <ListView notes={notes} showVisibilityBadge />
+        <ListView notes={notes} />
       )}
     </SelectionProvider>
   );

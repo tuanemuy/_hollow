@@ -79,6 +79,14 @@ export type OwnedNoteSearchItem = OwnedNoteCommon &
   }>;
 
 /**
+ * Shared display shape across both filter and search paths. The two
+ * row types are structurally identical since Issue #48 — this alias
+ * lets view components depend on a single name without losing the
+ * `kind` discriminant on the surrounding `OwnedNotesResult`.
+ */
+export type DisplayedNote = OwnedNoteFilterItem | OwnedNoteSearchItem;
+
+/**
  * Result of `loadOwnedNotes`. The discriminated union over `kind`
  * encodes the pagination-semantics difference between the two paths
  * (filter: page/offset, search: cursor-based); the row shape itself is

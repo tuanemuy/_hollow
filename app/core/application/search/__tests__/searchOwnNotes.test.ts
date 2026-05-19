@@ -60,12 +60,16 @@ function makeIndex(
  */
 function makeFakeNoteForId(id: NoteId): Note {
   const idStr = id as unknown as string;
+  // Ids are UUIDv7 hex — `Number(...)` would silently NaN out on
+  // letters. Parse the last 2 hex digits and clamp to a valid hour.
+  const last = Number.parseInt(idStr.slice(-2), 16);
+  const hour = (Number.isNaN(last) ? 0 : last) % 24;
   return {
     id,
     directoryId: `dir-${idStr.slice(-4)}`,
     slug: `slug-${idStr.slice(-4)}`,
     updatedAt: new Date(
-      `2026-05-01T0${(Number(idStr.slice(-1)) || 0) % 10}:00:00.000Z`,
+      `2026-05-01T${hour.toString().padStart(2, "0")}:00:00.000Z`,
     ),
   } as unknown as Note;
 }
@@ -432,6 +436,8 @@ describe("searchOwnNotes", () => {
     });
 
     expect(result.hits.map((h) => h.noteId)).toEqual([noteId(1), noteId(3)]);
+    // drop 済み件数が観測される — loaders.ts の `count` がここから読まれる
+    expect(result.hits).toHaveLength(2);
     // Cursor still reflects the index position so subsequent pages
     // pick up correctly even when some rows were dropped.
     expect(result.nextCursor).toBe("cur-after");

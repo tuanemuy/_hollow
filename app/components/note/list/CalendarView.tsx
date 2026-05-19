@@ -2,12 +2,12 @@
 
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
+import type { DisplayedNote } from "../loaders";
 import { groupNotesByDay } from "./listSelectors";
 import { useSelection } from "./SelectionContext";
 
 type Props = Readonly<{
-  notes: readonly (OwnedNoteFilterItem | OwnedNoteSearchItem)[];
+  notes: readonly DisplayedNote[];
 }>;
 
 function formatDay(dateKey: string): string {
@@ -38,7 +38,7 @@ export function CalendarView({ notes }: Props) {
       : "UTC";
 
   const grouped = useMemo(
-    () => groupNotesByDay<OwnedNoteFilterItem | OwnedNoteSearchItem>(notes, tz),
+    () => groupNotesByDay<DisplayedNote>(notes, tz),
     [notes, tz],
   );
 

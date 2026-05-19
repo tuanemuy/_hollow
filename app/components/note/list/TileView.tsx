@@ -1,12 +1,11 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
+import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
 import { useSelection } from "./SelectionContext";
 
 type Props = {
-  notes: readonly (OwnedNoteFilterItem | OwnedNoteSearchItem)[];
-  showVisibilityBadge: boolean;
+  notes: readonly DisplayedNote[];
 };
 
 const CHIP_BASE =
@@ -26,7 +25,7 @@ function visibilityLabel(v: Visibility): string {
   return "非公開";
 }
 
-export function TileView({ notes, showVisibilityBadge }: Props) {
+export function TileView({ notes }: Props) {
   const { state, dispatch } = useSelection();
   return (
     <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 list-none p-0 m-0">
@@ -75,13 +74,11 @@ export function TileView({ notes, showVisibilityBadge }: Props) {
                     {note.excerpt}
                   </div>
                 ) : null}
-                {showVisibilityBadge ? (
-                  <div className="flex justify-end">
-                    <span className={visibilityChipClass(note.visibility)}>
-                      {visibilityLabel(note.visibility)}
-                    </span>
-                  </div>
-                ) : null}
+                <div className="flex justify-end">
+                  <span className={visibilityChipClass(note.visibility)}>
+                    {visibilityLabel(note.visibility)}
+                  </span>
+                </div>
               </div>
             </Link>
           </li>

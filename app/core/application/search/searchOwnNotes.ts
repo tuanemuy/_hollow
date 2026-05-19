@@ -69,20 +69,23 @@ export async function searchOwnNotes({
   // the adapter's row order. Ids missing from the DB are silently
   // dropped — see `.issue/48/adr.md` ADR-002 (search index eventual
   // consistency vs. UX integrity).
-  const hitIds = result.hits.map((hit) => hit.noteId as unknown as NoteId);
+  const hitIds = result.hits.map((hit) => hit.noteId);
+  // Open a fresh read-only UoW for the projection lookup rather than
+  // extending `resolveDirectoryPathPrefix`'s UoW across the index RPC.
+  // See `.issue/48/adr.md` ADR-001 (UoW の分離方針).
   const notesById = await container.unitOfWorkProvider.run(
     async ({ noteRepository }) => {
       const found = await noteRepository.findByIds(hitIds);
-      const map = new Map<string, Note>();
+      const map = new Map<NoteId, Note>();
       for (const note of found) {
-        map.set(note.id as unknown as string, note);
+        map.set(note.id, note);
       }
       return map;
     },
   );
 
   const projected = result.hits.flatMap((hit) => {
-    const note = notesById.get(hit.noteId as unknown as string);
+    const note = notesById.get(hit.noteId);
     if (note === undefined) return [];
     return [toOwnedSearchHitView(hit, note)];
   });

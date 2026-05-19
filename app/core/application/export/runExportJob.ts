@@ -200,8 +200,10 @@ function buildAssemblyDeps(
       async findByDirectory() {
         return [];
       },
-      async findByIds() {
-        return [];
+      async findByIds(ids: readonly NoteId[]) {
+        throw new Error(
+          `runExportJob: noteRepo.findByIds is not implemented (received ${ids.length} ids)`,
+        );
       },
       async findByOwner() {
         return [];
