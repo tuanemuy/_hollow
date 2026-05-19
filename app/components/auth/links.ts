@@ -19,8 +19,25 @@
  */
 import { NOTE_LIST_LIMIT_DEFAULT } from "@/components/note/constants";
 import type { NoteListSearch } from "@/components/note/schema";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_DEFAULT_PAGE,
+} from "@/core/presentation/pagination";
 
 export const HOME_SEARCH = {
   page: 1,
   limit: NOTE_LIST_LIMIT_DEFAULT,
 } as const satisfies Pick<NoteListSearch, "page" | "limit">;
+
+/**
+ * Shared `search` payload for `<Link to="/trash">` / `redirect({ to: "/trash" })`.
+ *
+ * `/trash` validates `search` via `paginationSearchSchema.parse`, so callers
+ * must pass a `search` shape compatible with `paginationSearchSchema` defaults.
+ * Same SSOT discipline as {@link HOME_SEARCH}: a single update point keeps the
+ * link-side defaults in sync with the schema's `.catch()` fallbacks.
+ */
+export const TRASH_SEARCH = {
+  page: PAGINATION_DEFAULT_PAGE,
+  limit: PAGINATION_DEFAULT_LIMIT,
+} as const;

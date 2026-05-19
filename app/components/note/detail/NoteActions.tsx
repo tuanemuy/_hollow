@@ -3,7 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
-import { HOME_SEARCH } from "@/components/auth/links";
+import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
@@ -87,7 +87,7 @@ export function NoteActions({
   if (status === "trashed") {
     return (
       <div className={MENU}>
-        <Link to="/trash" search={{ page: 1, limit: 20 }} className={pillBtn}>
+        <Link to="/trash" search={TRASH_SEARCH} className={pillBtn}>
           ゴミ箱を開く
         </Link>
       </div>

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { HOME_SEARCH } from "@/components/auth/links";
+import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
 import type { DirectoryTreeNode } from "@/core/application/dto/directory";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
@@ -103,7 +103,7 @@ export async function Sidebar({ user }: Props) {
           <li>
             <Link
               to="/trash"
-              search={{ page: 1, limit: 20 }}
+              search={TRASH_SEARCH}
               className={NAV_ITEM}
               activeProps={ACTIVE_NAV_PROPS}
             >
