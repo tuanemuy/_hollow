@@ -1,0 +1,26 @@
+# SOPS encryption rules for git-managed secrets.
+#
+# Replace the `age:` recipient(s) below with the team's age public key(s)
+# before the first `sops` invocation. Each recipient can decrypt — add
+# multiple for shared access (one per teammate / CI).
+#
+# Workflow:
+#   1. `age-keygen -o ~/.config/sops/age/keys.txt`  (each contributor)
+#   2. Share the resulting `age1...` *public* key (not the secret) with
+#      the repo maintainer.
+#   3. Maintainer appends it to the `age:` list here and re-keys existing
+#      files with `sops updatekeys infra/secrets/<stage>.enc.json`.
+#   4. CI's age secret is loaded from `secrets.SOPS_AGE_KEY` — see
+#      `.github/workflows/deploy-*.yml`.
+#
+# Files matching `infra/secrets/*.enc.json` are encrypted in place. All
+# fields are encrypted (no value left in plaintext, only JSON keys), so
+# `git diff` on an encrypted file is mostly noise — that is by design.
+creation_rules:
+  - path_regex: infra/secrets/staging\.enc\.json$
+    encrypted_regex: "^(.+)$"
+    age: age1cpdwupjlzvaqxnprjr8s2c9fvgja9rm6jjq60uc25j97pn76x4zqvdwkyx
+
+  - path_regex: infra/secrets/production\.enc\.json$
+    encrypted_regex: "^(.+)$"
+    age: age1htzzdd6fpyxx36q89nzzry5pl586aq84739la0zel03d8nnq7s0qeesekk
