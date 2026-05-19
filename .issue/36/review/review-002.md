@@ -58,6 +58,10 @@ Round 1 で挙がった Warning 18 件のうち、即時修正コストが見合
 
 Round 2 で新たな Blocker / Warning は検出されていない。Round 1 で挙がった Warning 18 件のうち、本 PR で即時修正可能なものは全て反映。残りは progress.md に体系的に記録され、後続 PR / Issue で追跡可能な形にした。
 
+### Round 2 final-reviewer の確認
+
+Round 2 で 1 名の final reviewer が全レイヤを横断レビューし、W-D1/D2/D3/A1/F1/F2/T4/T6 の全 8 件について実装が意図通りであることを確認。typecheck / test:unit (1388) / test:integration (325) すべて pass。新規 Blocker / Warning なし。Open risk R-1〜R-5 の deferral 判断も妥当と承認。
+
 ---
 
 ## Design Decisions
