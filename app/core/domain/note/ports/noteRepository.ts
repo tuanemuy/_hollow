@@ -94,6 +94,18 @@ export interface NoteRepository extends TransactionalRepository<Note> {
     opts: NoteListOpts,
   ): Promise<readonly Note[]>;
 
+  /**
+   * Bulk read by ids. Used by listing pipelines (notably the search
+   * path) to materialise per-note fields that are not carried by
+   * `SearchHit` (`directoryId` / `slug` / `updatedAt`) without
+   * producing N+1 queries. Order is not guaranteed; the caller must
+   * re-index by id (typically via `Map<NoteId, Note>`) when preserving
+   * input order matters. Ids without a matching row are simply absent
+   * from the result. An empty `ids` argument short-circuits to `[]`
+   * without touching the DB.
+   */
+  findByIds(ids: readonly NoteId[]): Promise<readonly Note[]>;
+
   /** Owner-scoped listing with status / tag / date filters. */
   findByOwner(
     ownerId: UserId,

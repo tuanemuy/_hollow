@@ -8,6 +8,7 @@ import {
 } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { UserId, Username } from "@/core/domain/identity/valueObject";
+import type { Note } from "@/core/domain/note/entity";
 import { NoteId } from "@/core/domain/note/valueObject";
 import { SearchErrorCode } from "@/core/domain/search/errorCode";
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
@@ -51,12 +52,36 @@ function makeIndex(
   } as SearchIndexSpy;
 }
 
+/**
+ * Default `noteRepository.findByIds` stub: build a fake `Note` per
+ * requested id with deterministic `directoryId` / `slug` / `updatedAt`
+ * derived from the id, so projection assertions can pin field-by-field
+ * without seeding a full `Note.create` pipeline.
+ */
+function makeFakeNoteForId(id: NoteId): Note {
+  const idStr = id as unknown as string;
+  return {
+    id,
+    directoryId: `dir-${idStr.slice(-4)}`,
+    slug: `slug-${idStr.slice(-4)}`,
+    updatedAt: new Date(
+      `2026-05-01T0${(Number(idStr.slice(-1)) || 0) % 10}:00:00.000Z`,
+    ),
+  } as unknown as Note;
+}
+
+type FindByIdsFn = (ids: readonly NoteId[]) => Promise<readonly Note[]>;
+
 function makeContainer(parts: {
   searchIndex: SearchIndex;
   directoryRepository?: UnitOfWorkContext["directoryRepository"];
+  findByIds?: FindByIdsFn;
 }): RequestContainer {
+  const findByIds: FindByIdsFn =
+    parts.findByIds ?? (async (ids) => ids.map(makeFakeNoteForId));
   const uowCtx = {
     directoryRepository: parts.directoryRepository,
+    noteRepository: { findByIds: vi.fn(findByIds) },
   } as unknown as UnitOfWorkContext;
   return {
     unitOfWorkProvider: {
@@ -325,5 +350,104 @@ describe("searchOwnNotes", () => {
         input: { actorUserId: userId(1), keyword: "k", limit: 5 },
       }),
     ).rejects.toBeInstanceOf(SearchIndexUnavailableError);
+  });
+
+  it("projects directoryId / slug / updatedAt onto each hit in hit order", async () => {
+    const searchIndex = makeIndex(async () => ({
+      hits: [
+        makeHit({ noteId: noteId(1) }),
+        makeHit({ noteId: noteId(2) }),
+        makeHit({ noteId: noteId(3) }),
+      ],
+      nextCursor: null,
+    }));
+    const container = makeContainer({ searchIndex });
+
+    const result = await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "hello", limit: 10 },
+    });
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      noteId(1),
+      noteId(2),
+      noteId(3),
+    ]);
+    for (const hit of result.hits) {
+      expect(hit.directoryId).toMatch(/^dir-/);
+      expect(hit.slug).toMatch(/^slug-/);
+      expect(hit.updatedAt).toMatch(/^2026-05-01T\d{2}:00:00\.000Z$/);
+    }
+  });
+
+  it("preserves hit order regardless of findByIds return order", async () => {
+    const searchIndex = makeIndex(async () => ({
+      hits: [
+        makeHit({ noteId: noteId(1) }),
+        makeHit({ noteId: noteId(2) }),
+        makeHit({ noteId: noteId(3) }),
+      ],
+      nextCursor: null,
+    }));
+    // Adapter contract: order is not guaranteed. Return notes reversed
+    // to ensure the usecase re-indexes via `Map` rather than zipping by
+    // position.
+    const container = makeContainer({
+      searchIndex,
+      findByIds: async (ids) => [...ids].reverse().map(makeFakeNoteForId),
+    });
+
+    const result = await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "hello", limit: 10 },
+    });
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      noteId(1),
+      noteId(2),
+      noteId(3),
+    ]);
+  });
+
+  it("drops hits whose note has vanished between index and DB", async () => {
+    const searchIndex = makeIndex(async () => ({
+      hits: [
+        makeHit({ noteId: noteId(1) }),
+        makeHit({ noteId: noteId(2) }),
+        makeHit({ noteId: noteId(3) }),
+      ],
+      nextCursor: "cur-after",
+    }));
+    // Simulate the index-vs-DB race window: id(2) was purged between
+    // the index hit and the projection lookup.
+    const container = makeContainer({
+      searchIndex,
+      findByIds: async (ids) =>
+        ids.filter((id) => id !== noteId(2)).map(makeFakeNoteForId),
+    });
+
+    const result = await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "hello", limit: 10 },
+    });
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([noteId(1), noteId(3)]);
+    // Cursor still reflects the index position so subsequent pages
+    // pick up correctly even when some rows were dropped.
+    expect(result.nextCursor).toBe("cur-after");
+  });
+
+  it("does not call findByIds when the index returns zero hits", async () => {
+    const findByIds = vi.fn(async () => [] as readonly Note[]);
+    const searchIndex = makeIndex(async () => ({ hits: [], nextCursor: null }));
+    const container = makeContainer({ searchIndex, findByIds });
+
+    const result = await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "nothing", limit: 10 },
+    });
+
+    expect(result.hits).toEqual([]);
+    expect(findByIds.mock.calls.length).toBe(0);
   });
 });

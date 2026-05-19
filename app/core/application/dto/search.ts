@@ -15,6 +15,29 @@ export type SearchHitDTO = Readonly<{
 }>;
 
 /**
+ * Owner-scope search hit projection. Extends `SearchHitDTO` with the
+ * per-note fields that the search index does not carry
+ * (`directoryId` / `slug` / `updatedAt`) so the home / note-list page
+ * can render visibility badges and `updatedAt` without falling back to
+ * sentinel values. Source of values:
+ * - `directoryId` / `slug` / `updatedAt`: latest DB row resolved via
+ *   `NoteRepository.findByIds`.
+ * - `noteId` / `ownerId` / `username` / `title` / `snippet` /
+ *   `tagNames` / `score` / `visibility`: search index (eventually
+ *   consistent).
+ *
+ * Branded value-object types (`DirectoryId`, `NoteSlug`) are intentionally
+ * flattened to plain `string` at the DTO boundary to match the existing
+ * `loaders.ts` convention. `updatedAt` is an ISO 8601 string.
+ */
+export type OwnedSearchHitDTO = SearchHitDTO &
+  Readonly<{
+    directoryId: string;
+    slug: string;
+    updatedAt: string;
+  }>;
+
+/**
  * Transport-shape query parameters accepted by the search usecase. The
  * domain `SearchQuery` value object is constructed from this DTO at the
  * usecase boundary so brands / length caps are enforced there.

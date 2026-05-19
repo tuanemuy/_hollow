@@ -31,11 +31,13 @@ type Props = {
  * controls / dialogs run on the client inside `<SelectionProvider>`.
  *
  * Display mode (list / tile / calendar) is URL-driven via
- * `search.display`. The visibility badge is shown on the filter path
- * (the listing usecase joins `publication_states` to project real
- * visibility) but suppressed on the search path, where
- * `NoteListItemDTO.visibility` is still a `'private'` placeholder
- * (see `.issue/1/adr.md` ADR-012 / `.issue/8/adr.md` ADR-010).
+ * `search.display`. Visibility badge / `updatedAt` are always real
+ * values since Issue #48 — `searchOwnNotes` materialises them via
+ * `NoteRepository.findByIds`, so the previous `showVisibilityBadge =
+ * kind === "filter"` guard (`.issue/1/adr.md` ADR-013) and the
+ * `CalendarView` search-mode fallback (ADR-014) are no longer needed.
+ * `kind` is still threaded through downstream as the pagination-mode
+ * discriminant (cursor vs page-offset).
  */
 export function NoteList({
   user: _user,
@@ -51,7 +53,6 @@ export function NoteList({
   const { notes, count, kind } = data;
   const display: DisplayMode = search.display ?? "list";
   const searchActive = kind === "search";
-  const showVisibilityBadge = kind === "filter";
 
   const hasAnyFilter =
     (search.tagNames !== undefined && search.tagNames.length > 0) ||
@@ -111,27 +112,11 @@ export function NoteList({
           </Link>
         </div>
       ) : display === "tile" ? (
-        <TileView notes={notes} showVisibilityBadge={showVisibilityBadge} />
+        <TileView notes={notes} showVisibilityBadge />
       ) : display === "calendar" ? (
-        // CalendarView only supports the filter kind; search hits don't
-        // carry `updatedAt`, so the calendar falls back to a message.
-        kind === "filter" ? (
-          <CalendarView notes={notes} kind="filter" />
-        ) : (
-          <CalendarView kind="search" />
-        )
-      ) : kind === "filter" ? (
-        <ListView
-          kind="filter"
-          notes={notes}
-          showVisibilityBadge={showVisibilityBadge}
-        />
+        <CalendarView notes={notes} />
       ) : (
-        <ListView
-          kind="search"
-          notes={notes}
-          showVisibilityBadge={showVisibilityBadge}
-        />
+        <ListView notes={notes} showVisibilityBadge />
       )}
     </SelectionProvider>
   );

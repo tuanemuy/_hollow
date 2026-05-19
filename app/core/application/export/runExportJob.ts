@@ -200,6 +200,9 @@ function buildAssemblyDeps(
       async findByDirectory() {
         return [];
       },
+      async findByIds() {
+        return [];
+      },
       async findByOwner() {
         return [];
       },

@@ -4,17 +4,10 @@ import { Link } from "@tanstack/react-router";
 import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
 import { useSelection } from "./SelectionContext";
 
-type Props =
-  | Readonly<{
-      kind: "filter";
-      notes: readonly OwnedNoteFilterItem[];
-      showVisibilityBadge: boolean;
-    }>
-  | Readonly<{
-      kind: "search";
-      notes: readonly OwnedNoteSearchItem[];
-      showVisibilityBadge: boolean;
-    }>;
+type Props = Readonly<{
+  notes: readonly (OwnedNoteFilterItem | OwnedNoteSearchItem)[];
+  showVisibilityBadge: boolean;
+}>;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -44,22 +37,20 @@ function visibilityLabel(v: Visibility): string {
 }
 
 /**
- * Shared row renderer for both the filter and search branches. Takes the
- * `updatedAtDisplay` as a pre-computed string so the discriminated-union
- * narrowing stays at the `ListView` level (search hits don't carry
- * `updatedAt`, so the caller substitutes `—`).
+ * Shared row renderer. Since Issue #48 both filter and search rows
+ * carry a real `updatedAt`, so the previous discriminated branch with
+ * an `—` substitute is gone.
  */
 function NoteListRow({
   note,
-  updatedAtDisplay,
   showVisibilityBadge,
 }: Readonly<{
   note: OwnedNoteFilterItem | OwnedNoteSearchItem;
-  updatedAtDisplay: string;
   showVisibilityBadge: boolean;
 }>) {
   const { state, dispatch } = useSelection();
   const checked = state.ids.has(note.id);
+  const updatedAtDisplay = formatDate(note.updatedAt);
   return (
     <li
       key={note.id}
@@ -117,33 +108,14 @@ function NoteListRow({
   );
 }
 
-export function ListView(props: Props) {
-  // Branch on the discriminant up front so each path renders a homogeneous
-  // list; the row renderer is shared but the `updatedAt` projection is
-  // resolved per-branch where the narrowing is tight.
-  if (props.kind === "search") {
-    return (
-      <ul className="mt-2 list-none p-0 m-0">
-        {props.notes.map((note) => (
-          <NoteListRow
-            key={note.id}
-            note={note}
-            updatedAtDisplay="—"
-            showVisibilityBadge={props.showVisibilityBadge}
-          />
-        ))}
-      </ul>
-    );
-  }
-
+export function ListView({ notes, showVisibilityBadge }: Props) {
   return (
     <ul className="mt-2 list-none p-0 m-0">
-      {props.notes.map((note) => (
+      {notes.map((note) => (
         <NoteListRow
           key={note.id}
           note={note}
-          updatedAtDisplay={formatDate(note.updatedAt)}
-          showVisibilityBadge={props.showVisibilityBadge}
+          showVisibilityBadge={showVisibilityBadge}
         />
       ))}
     </ul>

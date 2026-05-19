@@ -252,7 +252,7 @@ home page loader は `q` 有無で `searchOwnNotes`（`SearchHitDTO` を返す�
 ## ADR-013: Phase B では visibility バッジ / フィルタを search 経路にのみ出す
 
 ### Status
-Superseded by Issue #8: filter 経路で visibility 実値化済、`showVisibilityBadge = mode === "filter"` に切替。公開状態 select は両モード常時表示（`.issue/8/adr.md` ADR-008 / ADR-010 参照）
+Superseded by Issue #48: search 経路が `directoryId` / `slug` / `updatedAt` を実値化したことで、`showVisibilityBadge` の `kind === "filter"` ガードを撤廃。バッジは両モードで常時表示（`.issue/48/adr.md` ADR-001 〜 ADR-004 参照）。なお ADR-008 で導入された filter 経路の visibility 実値化（Issue #8）は維持。
 
 ### Context
 Phase B の表示モード（list / tile）で公開状態バッジを描画する設計だが、`listNotesByOwner` 経路では `NoteListItemDTO.visibility` が `'private'` 固定で返ってくる（ADR-001 / ADR-012）。filter 経路でバッジを出すと「すべて非公開と表示される」誤情報になる。
@@ -271,7 +271,7 @@ Phase B の表示モード（list / tile）で公開状態バッジを描画す�
 ## ADR-014: CalendarView は search 経路ではフォールバック文言を表示する
 
 ### Status
-Accepted
+Superseded by Issue #48: search 経路で `updatedAt` が実値化されたため、`CalendarView` の `mode === "search"` フォールバック分岐を撤廃し、両モードで `groupNotesByDay` を実行する単一フローに統合（`.issue/48/adr.md` 参照）。
 
 ### Context
 ADR-012 で search 経路の `updatedAt` を `new Date(0)` のエポック値プレースホルダで埋めた結果、`groupNotesByDay` がすべての検索ヒットを `1970-01-01` バケットに集約してしまう。これでは「カレンダー表示」として機能せず、誤った日付情報を提示することになる。

@@ -65,7 +65,7 @@ Issue #8 ADR-002 では「`[]` = いずれにも該当しない = マッチな�
 ## ADR-003: 本 Issue は `visibility` 単体の解消にスコープを限定する（`updatedAt` / `directoryId` / `slug` は対象外）
 
 ### Status
-Proposed
+Superseded by Issue #48: 残り 3 プレースホルダ（`updatedAt` / `directoryId` / `slug`）を `NoteRepository.findByIds` 経由で実値化し、フォロー Issue の主たるスコープを完了（`.issue/48/adr.md` 参照）。
 
 ### Context
 `.issue/1/adr.md` ADR-012 では search 経路の `OwnedNotesResult` で以下 4 つがプレースホルダで埋められている:
@@ -110,7 +110,7 @@ Proposed
 ## ADR-004: `NoteList.showVisibilityBadge = mode === "filter"` ガードの撤廃は本 Issue では行わない
 
 ### Status
-Proposed
+Superseded by Issue #48: `updatedAt` 実値化と同時にバッジ表示ガードを撤廃し、「公開 · 1970年1月1日」UX 破綻を回避しつつ両モードで等価な表示を実現（`.issue/48/adr.md` 参照）。
 
 ### Context
 本 Issue で `OwnedNotesResult.notes[].visibility` が実値化されるため、`.issue/1/adr.md` ADR-013 で導入された `showVisibilityBadge = mode === "filter"` ガードは技術的には撤廃可能になる。撤廃すべきかを検討。

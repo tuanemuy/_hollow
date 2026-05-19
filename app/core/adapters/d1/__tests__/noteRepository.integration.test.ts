@@ -1142,3 +1142,73 @@ describe("D1NoteRepository.findByOwnerAndSlug — active-only filter (integratio
     expect(hit?.status).toBe("active");
   });
 });
+
+describe("D1NoteRepository.findByIds (integration)", () => {
+  it("returns [] for an empty id list without touching the DB", async () => {
+    const container = createTestContainer();
+    // No seed at all — if the adapter dispatched a query against the
+    // empty bind list it would either throw or hit an unprepared
+    // schema; landing on [] is the contract.
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findByIds([]),
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("returns full Note aggregates for known ids, hydrating child tables", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTag(container, owner, "alpha");
+
+    const a = await seedNote(container, owner, dir, { title: "a" });
+    const b = await seedNote(container, owner, dir, { title: "b" });
+    const c = await seedNote(container, owner, dir, { title: "c" });
+    await tagNote(container, a, tag);
+    await seedInternalLink(container, b, c);
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findByIds([a, b, c]),
+    );
+
+    expect(found).toHaveLength(3);
+    // Order is not guaranteed; compare as a set.
+    const byId = new Map(found.map((n) => [n.id as NoteId, n]));
+    expect(byId.get(a)?.tagIds).toEqual([tag]);
+    expect(byId.get(b)?.internalLinkRefs).toHaveLength(1);
+    expect(byId.get(b)?.internalLinkRefs[0]?.resolvedNoteId).toBe(c);
+    expect(byId.get(c)?.tagIds).toEqual([]);
+  });
+
+  it("partial-results: unknown ids are silently absent (no throw)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const a = await seedNote(container, owner, dir, { title: "a" });
+    const b = await seedNote(container, owner, dir, { title: "b" });
+    const unknown = nextId(0x06) as NoteId;
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findByIds([a, unknown, b]),
+    );
+    const ids = new Set(found.map((n) => n.id as NoteId));
+    expect(ids.has(a)).toBe(true);
+    expect(ids.has(b)).toBe(true);
+    expect(ids.has(unknown)).toBe(false);
+  });
+
+  it("handles inputs that cross the SAFE_CHUNK_SIZE boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // 95 > SAFE_CHUNK_SIZE (90); the adapter must split the lookup
+    // into multiple chunks and concatenate the results.
+    const ids = await seedManyNotes(container, owner, dir, 95);
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findByIds(ids),
+    );
+    expect(found).toHaveLength(95);
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
+  });
+});
