@@ -301,6 +301,19 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
+  findByIds(ids: readonly NoteId[]): Promise<readonly Note[]> {
+    return mapDbError("Failed to find notes by ids", async () => {
+      if (ids.length === 0) return [];
+      const rows = await selectInChunks(ids, (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(inArray(notes.id, [...chunk])),
+      );
+      return this.hydrateMany(rows);
+    });
+  }
+
   findByOwnerAndSlug(ownerId: UserId, slug: NoteSlug): Promise<Note | null> {
     return mapDbError("Failed to find note by owner/slug", async () => {
       const rows = await this.db

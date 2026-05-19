@@ -165,6 +165,9 @@ class StubNoteRepository implements NoteRepository {
   findByDirectory(_d: DirectoryId, _o: NoteListOpts): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
+  findByIds(_ids: readonly NoteId[]): Promise<readonly Note[]> {
+    throw new Error("not implemented");
+  }
   findByOwner(_o: UserId, _opts: NoteOwnerListOpts): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }

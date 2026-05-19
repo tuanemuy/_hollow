@@ -1,20 +1,12 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { OwnedNoteFilterItem, OwnedNoteSearchItem } from "../loaders";
+import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
 import { useSelection } from "./SelectionContext";
 
-type Props =
-  | Readonly<{
-      kind: "filter";
-      notes: readonly OwnedNoteFilterItem[];
-      showVisibilityBadge: boolean;
-    }>
-  | Readonly<{
-      kind: "search";
-      notes: readonly OwnedNoteSearchItem[];
-      showVisibilityBadge: boolean;
-    }>;
+type Props = Readonly<{
+  notes: readonly DisplayedNote[];
+}>;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -44,22 +36,19 @@ function visibilityLabel(v: Visibility): string {
 }
 
 /**
- * Shared row renderer for both the filter and search branches. Takes the
- * `updatedAtDisplay` as a pre-computed string so the discriminated-union
- * narrowing stays at the `ListView` level (search hits don't carry
- * `updatedAt`, so the caller substitutes `—`).
+ * Shared row renderer. Since Issue #48 both filter and search rows
+ * carry a real `updatedAt` and the visibility chip is rendered
+ * unconditionally, so the previous discriminated branch with an `—`
+ * substitute and the `showVisibilityBadge` guard are gone.
  */
 function NoteListRow({
   note,
-  updatedAtDisplay,
-  showVisibilityBadge,
 }: Readonly<{
-  note: OwnedNoteFilterItem | OwnedNoteSearchItem;
-  updatedAtDisplay: string;
-  showVisibilityBadge: boolean;
+  note: DisplayedNote;
 }>) {
   const { state, dispatch } = useSelection();
   const checked = state.ids.has(note.id);
+  const updatedAtDisplay = formatDate(note.updatedAt);
   return (
     <li
       key={note.id}
@@ -99,14 +88,10 @@ function NoteListRow({
               <span className="text-hairline-strong">·</span>
             </>
           ) : null}
-          {showVisibilityBadge ? (
-            <>
-              <span className={visibilityChipClass(note.visibility)}>
-                {visibilityLabel(note.visibility)}
-              </span>
-              <span className="text-hairline-strong">·</span>
-            </>
-          ) : null}
+          <span className={visibilityChipClass(note.visibility)}>
+            {visibilityLabel(note.visibility)}
+          </span>
+          <span className="text-hairline-strong">·</span>
           <span>{updatedAtDisplay}</span>
         </div>
       </div>
@@ -117,34 +102,11 @@ function NoteListRow({
   );
 }
 
-export function ListView(props: Props) {
-  // Branch on the discriminant up front so each path renders a homogeneous
-  // list; the row renderer is shared but the `updatedAt` projection is
-  // resolved per-branch where the narrowing is tight.
-  if (props.kind === "search") {
-    return (
-      <ul className="mt-2 list-none p-0 m-0">
-        {props.notes.map((note) => (
-          <NoteListRow
-            key={note.id}
-            note={note}
-            updatedAtDisplay="—"
-            showVisibilityBadge={props.showVisibilityBadge}
-          />
-        ))}
-      </ul>
-    );
-  }
-
+export function ListView({ notes }: Props) {
   return (
     <ul className="mt-2 list-none p-0 m-0">
-      {props.notes.map((note) => (
-        <NoteListRow
-          key={note.id}
-          note={note}
-          updatedAtDisplay={formatDate(note.updatedAt)}
-          showVisibilityBadge={props.showVisibilityBadge}
-        />
+      {notes.map((note) => (
+        <NoteListRow key={note.id} note={note} />
       ))}
     </ul>
   );

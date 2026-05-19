@@ -61,25 +61,36 @@ export type OwnedNoteFilterItem = OwnedNoteCommon &
   }>;
 
 /**
- * Search-path note: the search index does not project `directoryId` /
- * `slug` / `updatedAt`, so these fields are intentionally absent in the
- * type. Consumers that need them must narrow on `kind === "filter"`.
- *
- * Note: this is currently identical to `OwnedNoteCommon` field-for-
- * field. TypeScript's structural typing means an `OwnedNoteFilterItem`
- * is also assignable to `OwnedNoteSearchItem` — discrimination at the
- * call site must always go through `OwnedNotesResult.kind`, not the
- * shape of the row alone. If the search projection ever picks up its
- * own fields, this alias should be widened in place rather than
- * re-introducing sentinel values.
+ * Search-path note. Since Issue #48, the search usecase fires a
+ * secondary `NoteRepository.findByIds` lookup to materialise
+ * `directoryId` / `slug` / `updatedAt` from the DB, so the row carries
+ * the same fields as `OwnedNoteFilterItem`. The `kind` discriminant on
+ * `OwnedNotesResult` is retained to convey the pagination semantics
+ * difference (cursor vs page-offset, `nextCursor` only meaningful on
+ * search), not the row shape. If a search-only field (score, snippet
+ * highlight) ever lands here, this declaration can grow without
+ * needing to widen `OwnedNoteFilterItem` in lockstep.
  */
-export type OwnedNoteSearchItem = OwnedNoteCommon;
+export type OwnedNoteSearchItem = OwnedNoteCommon &
+  Readonly<{
+    directoryId: string;
+    slug: string;
+    updatedAt: string;
+  }>;
 
 /**
- * Result of `loadOwnedNotes`. A discriminated union over `kind` makes
- * the search-path's missing projections (directoryId / slug / updatedAt)
- * a type-level fact instead of a sentinel-value gotcha — see Issue #13
- * ADR-003.
+ * Shared display shape across both filter and search paths. The two
+ * row types are structurally identical since Issue #48 — this alias
+ * lets view components depend on a single name without losing the
+ * `kind` discriminant on the surrounding `OwnedNotesResult`.
+ */
+export type DisplayedNote = OwnedNoteFilterItem | OwnedNoteSearchItem;
+
+/**
+ * Result of `loadOwnedNotes`. The discriminated union over `kind`
+ * encodes the pagination-semantics difference between the two paths
+ * (filter: page/offset, search: cursor-based); the row shape itself is
+ * intentionally aligned across both branches since Issue #48.
  */
 export type OwnedNotesResult =
   | Readonly<{
@@ -184,7 +195,14 @@ export const loadOwnedNotes = cache(
             thumbnailUrl: null,
             tagNames: hit.tagNames,
             visibility: hit.visibility,
+            directoryId: hit.directoryId,
+            slug: hit.slug,
+            updatedAt: hit.updatedAt,
           })),
+          // Reflects the post-drop hit count (see `.issue/48/adr.md`
+          // ADR-002): rows whose underlying note row vanished between
+          // the index hit and the secondary `findByIds` lookup are
+          // already absent from `result.hits` by the time we land here.
           count: result.hits.length,
           nextCursor: result.nextCursor,
         };
