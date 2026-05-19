@@ -1,17 +1,36 @@
 # Wrangler `.dev.vars` template — copy to `.dev.vars` for local development.
 #
+#   cp .dev.vars.example .dev.vars
+#
 # `wrangler dev` (including the workerd-backed `pnpm dev` via
 # `@cloudflare/vite-plugin`) auto-loads this file from the project root
 # and exposes each entry as a Worker binding, mirroring `wrangler secret
 # put` for production. Never commit the real `.dev.vars` — it is listed
 # in `.gitignore`.
 #
-# Non-secret config (e.g. `APP_URL`) belongs in the matching
-# `wrangler*.toml` `[vars]`, not here — `wrangler.toml` for local dev,
-# `wrangler.staging.toml` / `wrangler.production.toml` for remote
-# deploys. Reserve this file for credentials and tokens that must not
+# Non-secret config (e.g. `APP_URL`) belongs in `wrangler.toml` `[vars]`,
+# not here. Reserve this file for credentials and tokens that must not
 # be checked in.
 #
-# Example (uncomment and replace when you add a secret-backed feature):
-# AUTH_SECRET="replace-me"
-# SOME_THIRD_PARTY_API_KEY="replace-me"
+# Keep this key set in sync with `infra/src/secrets.ts`
+# (`workerSecretSpecs`). Adding a key there without adding it here will
+# break `pnpm dev` for the next contributor who pulls.
+
+# --- Better Auth ----------------------------------------------------------
+# Shared secret used to sign session / CSRF tokens. Generate with:
+#   openssl rand -base64 32
+# Any non-empty value works for local dev; just don't reuse production.
+BETTER_AUTH_SECRET="dev-only-replace-me-with-openssl-rand-base64-32"
+
+# --- Google OAuth ---------------------------------------------------------
+# OAuth 2.0 Web application credentials from Google Cloud Console:
+#   https://console.cloud.google.com/apis/credentials
+#
+# For local dev, create a dedicated OAuth client with:
+#   Authorized JavaScript origins: http://localhost:3000
+#   Authorized redirect URIs:      http://localhost:3000/api/auth/callback/google
+#
+# Production / staging credentials are managed via `sops` under
+# `infra/secrets/{stage}.enc.json`; do NOT paste those values here.
+GOOGLE_CLIENT_ID="your-local-dev-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-local-dev-client-secret"

@@ -1,0 +1,12 @@
+name: hollow
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm
+    typescript: true
+description: |
+  Hollow — Cloudflare infrastructure (D1, Queues, DNS, Worker Routes).
+  Worker scripts themselves are deployed by wrangler from CI; this stack
+  provisions everything Workers depend on and emits the IDs / names that
+  the wrangler config templates consume.
+main: src/index.ts

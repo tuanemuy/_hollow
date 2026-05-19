@@ -12,6 +12,16 @@
 /worker-configuration.d.ts
 /.dev.vars
 
+# Generated wrangler configs — rendered from infra/templates/*.tmpl + Pulumi outputs.
+# See infra/scripts/renderWrangler.ts and `.github/workflows/deploy-*.yml`.
+/wrangler.staging.toml
+/wrangler.production.toml
+
+# Pulumi local state / venv — Pulumi Cloud is the configured backend, but
+# leftover local artifacts can appear from `pulumi login --local` experiments.
+/infra/node_modules/
+/infra/.pulumi/
+
 .envrc
 .direnv
 

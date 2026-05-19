@@ -1,0 +1,27 @@
+{
+  "name": "@hollow/infra",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "preview:staging": "pulumi preview --stack staging",
+    "preview:production": "pulumi preview --stack production",
+    "up:staging": "pulumi up --stack staging",
+    "up:production": "pulumi up --stack production",
+    "destroy:staging": "pulumi destroy --stack staging",
+    "render:staging": "tsx scripts/renderWrangler.ts staging",
+    "render:production": "tsx scripts/renderWrangler.ts production",
+    "secrets:edit:staging": "sops infra/secrets/staging.enc.json",
+    "secrets:edit:production": "sops infra/secrets/production.enc.json"
+  },
+  "dependencies": {
+    "@pulumi/cloudflare": "^6.15.0",
+    "@pulumi/pulumi": "^3.140.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "tsx": "^4.19.2",
+    "typescript": "^6.0.3"
+  }
+}

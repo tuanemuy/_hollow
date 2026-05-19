@@ -1,0 +1,124 @@
+# GENERATED FILE — do not edit by hand.
+# Source template: infra/templates/wrangler.production.toml.tmpl
+# Renderer:        infra/scripts/renderWrangler.ts
+# Inputs:          Pulumi stack output (production)
+#
+# Wrangler does NOT inherit `d1_databases` / `vars` from top level into
+# named environments — every `[env.*]` block re-declares them. Keep
+# `database_id`, queue names, and `APP_URL` in sync across every block.
+name = "${WORKER_WEB}"
+main = "app/server.cloudflare.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist/client"
+binding = "ASSETS"
+
+[vars]
+APP_URL = "${APP_URL}"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[[services]]
+binding = "RELAY"
+service = "${WORKER_RELAY}"
+
+
+# === Relay (Service Binding fetch + safety-net cron) ====================
+[env.relay]
+name = "${WORKER_RELAY}"
+main = "app/worker/cloudflare/relay.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.relay.vars]
+APP_URL = "${APP_URL}"
+OUTBOX_BATCH_SIZE = "100"
+OUTBOX_LEASE_MS = "300000"   # 5 min — covers worst-case single-batch dispatch
+OUTBOX_MAX_ATTEMPTS = "2"    # multiplied by [env.consumer] max_retries — keep low
+
+[[env.relay.d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[[env.relay.queues.producers]]
+binding = "EVENTS_QUEUE"
+queue = "${EVENTS_QUEUE}"
+
+[env.relay.triggers]
+crons = ["*/5 * * * *"]
+
+
+# === Consumer ===========================================================
+[env.consumer]
+name = "${WORKER_CONSUMER}"
+main = "app/worker/cloudflare/consumer.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.consumer.vars]
+APP_URL = "${APP_URL}"
+
+[[env.consumer.d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[[env.consumer.queues.consumers]]
+queue = "${EVENTS_QUEUE}"
+max_batch_size = 25
+max_batch_timeout = 30 # seconds
+max_retries = 3
+dead_letter_queue = "${EVENTS_DLQ_QUEUE}"
+
+
+# === Pruner =============================================================
+[env.pruner]
+name = "${WORKER_PRUNER}"
+main = "app/worker/cloudflare/pruner.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.pruner.vars]
+APP_URL = "${APP_URL}"
+OUTBOX_RETENTION_MS = "604800000"   # 7 days
+
+[[env.pruner.d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[env.pruner.triggers]
+crons = ["0 3 * * *"] # 03:00 UTC daily
+
+
+# === DLQ ================================================================
+[env.dlq]
+name = "${WORKER_DLQ}"
+main = "app/worker/cloudflare/dlq.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.dlq.vars]
+APP_URL = "${APP_URL}"
+
+[[env.dlq.d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[[env.dlq.queues.consumers]]
+queue = "${EVENTS_DLQ_QUEUE}"
+max_batch_size = 25
+max_batch_timeout = 30 # seconds
+max_retries = 1
