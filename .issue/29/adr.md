@@ -192,7 +192,7 @@ const filterClauses = [sql`sd.rowid = fts.rowid`];
 ## ADR-006: CJK FTS トークナイズ問題は別 Issue として切り出す
 
 ### Status
-Accepted
+Superseded by Issue #50: FTS5 トークナイザを `tokenize='trigram'` に切り替えて CJK 部分一致を解消（`.issue/50/adr.md` ADR-001 参照）。adapter 内に 3 codepoint 未満トークンの吸収ガードも追加（同 ADR-003）。
 
 ### Context
 ADR-005 の FTS join 修正後の検証で、SQLite FTS5 のデフォルト `unicode61` トークナイザが連続する CJK 文字を単一トークン化する制約を確認した:
@@ -215,5 +215,6 @@ CJK キーワード単独では本文内の CJK 文字列にマッチしない�
 ### Consequences
 - 良い点: 本 Issue のスコープが膨張しない
 - トレードオフ: CJK 検索の UX 問題は残存。フォロー Issue で対応
+- 解消: Issue #50 (`.issue/50/adr.md` ADR-001) で `tokenize='trigram'` 採用により解消
 
 ---

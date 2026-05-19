@@ -41,17 +41,21 @@ CREATE VIRTUAL TABLE IF NOT EXISTS `search_documents_fts` USING fts5(
         tokenize='trigram'
 );
 
-CREATE TRIGGER `search_documents_ai` AFTER INSERT ON `search_documents` BEGIN
+-- `IF NOT EXISTS` mirrors the `IF NOT EXISTS` on the virtual table above:
+-- the preceding `DROP TRIGGER IF EXISTS` makes re-creation safe in the
+-- happy path, and these clauses keep the migration uniformly idempotent.
+-- Trigger bodies are copied verbatim from `0001_hollow_schema.sql:391-406`.
+CREATE TRIGGER IF NOT EXISTS `search_documents_ai` AFTER INSERT ON `search_documents` BEGIN
         INSERT INTO `search_documents_fts`(`rowid`, `title`, `body_plain`, `tag_names_json`)
                 VALUES (NEW.rowid, NEW.`title`, NEW.`body_plain`, NEW.`tag_names_json`);
 END;
 
-CREATE TRIGGER `search_documents_ad` AFTER DELETE ON `search_documents` BEGIN
+CREATE TRIGGER IF NOT EXISTS `search_documents_ad` AFTER DELETE ON `search_documents` BEGIN
         INSERT INTO `search_documents_fts`(`search_documents_fts`, `rowid`, `title`, `body_plain`, `tag_names_json`)
                 VALUES ('delete', OLD.rowid, OLD.`title`, OLD.`body_plain`, OLD.`tag_names_json`);
 END;
 
-CREATE TRIGGER `search_documents_au` AFTER UPDATE ON `search_documents` BEGIN
+CREATE TRIGGER IF NOT EXISTS `search_documents_au` AFTER UPDATE ON `search_documents` BEGIN
         INSERT INTO `search_documents_fts`(`search_documents_fts`, `rowid`, `title`, `body_plain`, `tag_names_json`)
                 VALUES ('delete', OLD.rowid, OLD.`title`, OLD.`body_plain`, OLD.`tag_names_json`);
         INSERT INTO `search_documents_fts`(`rowid`, `title`, `body_plain`, `tag_names_json`)

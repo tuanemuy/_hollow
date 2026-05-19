@@ -79,6 +79,7 @@ trigram への切り替えで既存 `search_documents` の内容を新しい FTS
   - migration 自体が DDL + DML を混在させる構造になる（既存 migration では類似パターンが乏しい）が、FTS5 external content の性質上避けられない
   - **D1 のステートメント実行上限（30s 程度）にあたった場合のフォールバック**: migration を `LIMIT/OFFSET` ベースのバッチ INSERT に分割するか、FTS5 special command `INSERT INTO search_documents_fts(search_documents_fts) VALUES('rebuild')` に切替（external content モードの公式リビルド方法で SELECT 版と等価。可読性は劣るが実行効率は同等以上）
   - **trigger ボディの管理**: `0001_hollow_schema.sql:391-406` の SQL リテラルを機械的に同一でコピーする。差分を入れる必要が生じた時点で別 migration として切り出す（trigger だけが変わる migration なら DDL のみで完結し副作用が小さい）
+  - **`bulkRebuildFromSnapshots` を将来 production 経路に繋ぐ場合は本 ADR を再評価**: 現状 `bulkRebuildFromSnapshots` を呼ぶ admin operation / worker は未配線で「port 契約だけ確保しておく smoke」状態。将来この経路を実配線する場合、migration 内のリビルドと運用経路のリビルドの責務分担を本 ADR の判断（migration で完結）と照らし直す
 
 ---
 

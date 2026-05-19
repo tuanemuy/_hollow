@@ -284,12 +284,32 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
       }),
     );
 
-    const result = await container.searchIndex.query(
+    // Filter to `public` only — verifies the private row is excluded.
+    const publicOnly = await container.searchIndex.query(
       makeQuery({ keyword: "デザイン", visibilityFilter: ["public"] }),
     );
+    expect(publicOnly.hits).toHaveLength(1);
+    expect(publicOnly.hits[0]?.visibility).toBe("public");
 
-    expect(result.hits).toHaveLength(1);
-    expect(result.hits[0]?.visibility).toBe("public");
+    // Filter to `private` only — verifies the public row is excluded.
+    const privateOnly = await container.searchIndex.query(
+      makeQuery({ keyword: "デザイン", visibilityFilter: ["private"] }),
+    );
+    expect(privateOnly.hits).toHaveLength(1);
+    expect(privateOnly.hits[0]?.visibility).toBe("private");
+
+    // Multi-visibility filter — both rows should come back, proving the
+    // filter is structurally honoured (not always returning all rows
+    // regardless of the input array).
+    const both = await container.searchIndex.query(
+      makeQuery({
+        keyword: "デザイン",
+        visibilityFilter: ["public", "private"],
+      }),
+    );
+    expect(both.hits).toHaveLength(2);
+    const visibilities = both.hits.map((h) => h.visibility).sort();
+    expect(visibilities).toEqual(["private", "public"]);
   });
 
   it("finds CJK matches after bulkRebuildFromSnapshots (port contract smoke)", async () => {
@@ -301,14 +321,17 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     const ownerId = await seedUser(container);
     const directoryId = await seedDirectory(container, ownerId);
 
-    await container.searchIndex.upsert(
-      await makeDoc(container, {
-        ownerId,
-        directoryId,
-        title: "Old",
-        body: "古い内容",
-      }),
-    );
+    // Seed an existing doc whose body also matches the trigram query.
+    // This makes the wipe-then-insert semantics observable: if rebuild
+    // somehow skipped the wipe, the assertion below would surface two
+    // hits instead of one.
+    const stale = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Stale",
+      body: "古いデザインの覚書",
+    });
+    await container.searchIndex.upsert(stale);
 
     const rebuilt = await makeDoc(container, {
       ownerId,
@@ -327,5 +350,7 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     );
     expect(result.hits).toHaveLength(1);
     expect(result.hits[0]?.noteId).toBe(rebuilt.noteId);
+    // Explicit negative: the pre-rebuild doc must be gone from the index.
+    expect(result.hits.find((h) => h.noteId === stale.noteId)).toBeUndefined();
   });
 });
