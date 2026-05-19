@@ -67,9 +67,8 @@ export async function downloadMedia({
     asset,
     viewerOwnerId: input.viewerUserId,
     relatedNoteVisibility: relatedVisibility,
+    hasShareLink: input.viaShareLinkId !== null,
   });
-
-  void input.viaShareLinkId;
 
   const redirectUrl = await safePresign(() =>
     container.objectStorage.presignDownload(asset.storageKey, DOWNLOAD_TTL_SEC),

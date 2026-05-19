@@ -80,7 +80,6 @@
 |---|---|---|
 | 50 件のノート | ListNotesByOwner(limit=20) | 20 件 + nextCursor |
 | 全件 trashed | ListNotesByOwner(status='active') | 0 件 |
-| keyword 指定 | ListNotesByOwner | Search ドメインへ委譲 |
 | tag フィルタ複数 | ListNotesByOwner | AND 結果 |
 | ディレクトリ別 | ListNotesInDirectory | 配下のみ |
 

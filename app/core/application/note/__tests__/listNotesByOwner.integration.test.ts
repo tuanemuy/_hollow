@@ -337,15 +337,6 @@ describe("listNotesByOwner — spec table cases (integration)", () => {
     expect(notes).toHaveLength(0);
   });
 
-  // ADR-004 #18: spec lists "keyword 指定 → Search ドメインへ委譲" but
-  // `listNotesByOwner` does not accept a `keyword` parameter; full-text
-  // search is the Search domain's responsibility (`searchOwnNotes`).
-  // Recorded as a spec drift to reconcile in Phase 4 by moving the row to
-  // searchOwnNotes' test table.
-  it.todo(
-    "keyword filtering is delegated to the Search domain (covered by searchOwnNotes integration)",
-  );
-
   it("combines multiple tagIds with AND semantics — only notes carrying every tag are returned", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);

@@ -80,7 +80,12 @@ export type NoteOwnerCountOpts = Pick<
  * around `(ownerId, slug)`.
  */
 export interface NoteRepository extends TransactionalRepository<Note> {
-  /** Lookup by `(ownerId, slug)`. Returns `null` when no match. */
+  /**
+   * Lookup by `(ownerId, slug)`. Returns `null` when no match. Returns
+   * active notes only; trashed notes are excluded. Pairs with the
+   * partial unique index `uniq_notes_owner_slug WHERE status='active'`
+   * so the API and the DB constraint share the same scope.
+   */
   findByOwnerAndSlug(ownerId: UserId, slug: NoteSlug): Promise<Note | null>;
 
   /** Active notes directly under `directoryId`. */

@@ -6,7 +6,9 @@ import {
   type TestContainer,
 } from "@/core/application/__tests__/helpers";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
+import { isBusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { duplicateNote } from "../duplicateNote";
 
@@ -144,12 +146,37 @@ describe("duplicateNote (integration)", () => {
     expect(rows).toHaveLength(2);
   });
 
-  // Spec: trashed → "動作対象外（仕様: 拒否）". The implementation does NOT
-  // raise an error today — the trashed status check is absent from
-  // `duplicateNote`, so the duplication proceeds. Marked as todo + ADR-004.
-  it.todo(
-    "should reject duplicating a trashed note (implementation does not enforce this — see ADR-004)",
-  );
+  // Spec: trashed → "動作対象外（仕様: 拒否）". Issue #42 added the status
+  // check to `duplicateNote`; trashed source notes now raise
+  // `AlreadyTrashed` (reused for symmetry with `deleteNote`/`renameNote`).
+  it("rejects duplicating a trashed note with BusinessRuleError(AlreadyTrashed)", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir, {
+      title: "Trashed source",
+      slug: "trashed-source",
+      status: "trashed",
+    });
+
+    const before = await container.db.select().from(schema.notes);
+
+    try {
+      await duplicateNote({
+        container,
+        input: { actorUserId: owner, noteId },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(NoteErrorCode.AlreadyTrashed);
+    }
+
+    const after = await container.db.select().from(schema.notes);
+    expect(after).toHaveLength(before.length);
+  });
 
   it("bumps the ref count of every media asset referenced by the source note", async () => {
     const container = getContainer();

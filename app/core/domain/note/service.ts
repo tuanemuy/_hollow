@@ -72,13 +72,17 @@ export const NoteService = {
   /**
    * Reject creating / renaming a note with a slug already taken by
    * another note of the same owner. `exceptId` is non-null for rename
-   * flows so the note being mutated does not match itself.
+   * flows so the note being mutated does not match itself. `code`
+   * defaults to `InvalidSlug` (the create / rename contract); restore
+   * flows pass `SlugConflict` to match the spec wording for the
+   * restoration collision case.
    */
   async assertSlugUnique(
     ownerId: UserId,
     slug: NoteSlug,
     exceptId: NoteId | null,
     repo: NoteRepository,
+    code: NoteErrorCode = NoteErrorCode.InvalidSlug,
   ): Promise<void> {
     const existing = await repo.findByOwnerAndSlug(ownerId, slug);
     if (existing === null) {
@@ -87,10 +91,7 @@ export const NoteService = {
     if (exceptId !== null && existing.id === exceptId) {
       return;
     }
-    throw new BusinessRuleError(
-      NoteErrorCode.InvalidSlug,
-      `Slug already in use: ${slug}`,
-    );
+    throw new BusinessRuleError(code, `Slug already in use: ${slug}`);
   },
 
   /**

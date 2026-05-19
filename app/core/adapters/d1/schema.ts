@@ -258,7 +258,16 @@ export const notes = sqliteTable(
     version: integer("version").notNull().default(0),
   },
   (table) => [
-    uniqueIndex("uniq_notes_owner_slug").on(table.ownerId, table.slug),
+    // Partial unique index: only `status = 'active'` rows participate, so
+    // a trashed row can share `(owner_id, slug)` with an active row.
+    // The predicate text MUST stay byte-identical to migration
+    // `0007_notes_slug_partial_unique.sql` — switching to a parameter
+    // binding (e.g. `sql\`status = ${"active"}\``) makes SQLite's
+    // partial-index matcher fail to align with the query plan and
+    // queries that should use this index fall back to a seq scan.
+    uniqueIndex("uniq_notes_owner_slug")
+      .on(table.ownerId, table.slug)
+      .where(sql`status = 'active'`),
     index("idx_notes_owner_status_updated").on(
       table.ownerId,
       table.status,

@@ -1,7 +1,7 @@
 import type { BatchItem } from "drizzle-orm/batch";
 import { describe, expect, it } from "vitest";
 import type { UserId } from "@/core/domain/identity/valueObject";
-import type { NoteId } from "@/core/domain/note/valueObject";
+import type { NoteId, NoteSlug } from "@/core/domain/note/valueObject";
 import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import * as schema from "../schema";
@@ -1071,5 +1071,74 @@ describe("D1NoteRepository.searchByTitlePrefix (integration)", () => {
         noteRepository.searchByTitlePrefix(owner, "   ", 10),
     );
     expect(rows).toEqual([]);
+  });
+});
+
+// Pins Issue #42 / ADR-007: `findByOwnerAndSlug` is narrowed to
+// `status='active'` so a trashed note cannot be resolved by slug. If
+// the WHERE clause is ever loosened, `restoreNote`'s `assertSlugUnique`
+// guard would silently return the self-row and the SlugConflict path
+// would stop firing.
+describe("D1NoteRepository.findByOwnerAndSlug — active-only filter (integration)", () => {
+  async function insertNoteWithSlug(
+    container: TestContainer,
+    ownerId: UserId,
+    directoryId: string,
+    slug: string,
+    status: "active" | "trashed",
+  ): Promise<NoteId> {
+    const id = nextId(0x07);
+    await container.db.insert(schema.notes).values({
+      id,
+      ownerId,
+      directoryId,
+      slug,
+      title: `t-${slug}`,
+      contentHtml: "<p>body</p>",
+      frontMatterJson: "{}",
+      status,
+      trashedAt: status === "trashed" ? TZ : null,
+      createdAt: TZ,
+      updatedAt: TZ,
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+    return id as NoteId;
+  }
+
+  it("returns null when the only note with that slug is trashed", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await insertNoteWithSlug(container, owner, dir, "shared", "trashed");
+
+    const hit = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwnerAndSlug(owner, "shared" as NoteSlug),
+    );
+    expect(hit).toBeNull();
+  });
+
+  it("returns the active row when an active and a trashed note share the same slug", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await insertNoteWithSlug(container, owner, dir, "shared", "trashed");
+    const activeId = await insertNoteWithSlug(
+      container,
+      owner,
+      dir,
+      "shared",
+      "active",
+    );
+
+    const hit = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwnerAndSlug(owner, "shared" as NoteSlug),
+    );
+    expect(hit?.id).toBe(activeId);
+    expect(hit?.status).toBe("active");
   });
 });

@@ -347,6 +347,7 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: userId(1),
         relatedNoteVisibility: null,
+        hasShareLink: false,
       }),
     ).not.toThrow();
     expect(() =>
@@ -354,6 +355,7 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: userId(1),
         relatedNoteVisibility: "private",
+        hasShareLink: false,
       }),
     ).not.toThrow();
   });
@@ -364,18 +366,37 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: userId(2),
         relatedNoteVisibility: "public",
+        hasShareLink: false,
       }),
     ).not.toThrow();
   });
 
-  it("other viewer, related note unlisted (caller validated share link out of band): passes", () => {
+  it("other viewer, related note unlisted with hasShareLink=true: passes", () => {
     expect(() =>
       MediaService.assertViewableBy({
         asset: ownerAsset,
         viewerOwnerId: userId(2),
         relatedNoteVisibility: "unlisted",
+        hasShareLink: true,
       }),
     ).not.toThrow();
+  });
+
+  it("other viewer, related note unlisted with hasShareLink=false: throws NotViewable", () => {
+    try {
+      MediaService.assertViewableBy({
+        asset: ownerAsset,
+        viewerOwnerId: userId(2),
+        relatedNoteVisibility: "unlisted",
+        hasShareLink: false,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(MediaErrorCode.NotViewable);
+      }
+    }
   });
 
   it("other viewer, related note private: throws NotViewable", () => {
@@ -384,6 +405,7 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: userId(2),
         relatedNoteVisibility: "private",
+        hasShareLink: false,
       });
       expect.fail("should have thrown");
     } catch (error) {
@@ -400,6 +422,7 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: null,
         relatedNoteVisibility: null,
+        hasShareLink: false,
       });
       expect.fail("should have thrown");
     } catch (error) {
@@ -416,8 +439,37 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
         asset: ownerAsset,
         viewerOwnerId: null,
         relatedNoteVisibility: "public",
+        hasShareLink: false,
       }),
     ).not.toThrow();
+  });
+
+  it("anonymous viewer with unlisted related note and a share link passes", () => {
+    expect(() =>
+      MediaService.assertViewableBy({
+        asset: ownerAsset,
+        viewerOwnerId: null,
+        relatedNoteVisibility: "unlisted",
+        hasShareLink: true,
+      }),
+    ).not.toThrow();
+  });
+
+  it("anonymous viewer with unlisted related note without share link is rejected", () => {
+    try {
+      MediaService.assertViewableBy({
+        asset: ownerAsset,
+        viewerOwnerId: null,
+        relatedNoteVisibility: "unlisted",
+        hasShareLink: false,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(MediaErrorCode.NotViewable);
+      }
+    }
   });
 });
 

@@ -596,9 +596,41 @@ describe("downloadMedia (integration)", () => {
     expect(redirectUrl).toBeInstanceOf(URL);
   });
 
-  it.todo(
-    "throws BusinessRuleError(media_not_viewable) for another viewer when the related note is unlisted and viaShareLinkId was not supplied (ADR-004 #1: downloadMedia ignores viaShareLinkId; tracked in a follow-up Issue)",
-  );
+  // Issue #42: downloadMedia now enforces that unlisted notes require a
+  // share-link out-of-band. Mirror of the previous "unlisted +
+  // viaShareLinkId 有" case but with viaShareLinkId=null.
+  it("throws BusinessRuleError(media_not_viewable) for another viewer when the related note is unlisted and viaShareLinkId was not supplied", async () => {
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const viewerId = await seedUser(container);
+    const dir = await seedDirectory(container, ownerId);
+    const noteId = await seedNote(container, ownerId, dir);
+    await seedPublicationState(container, noteId, ownerId, "unlisted");
+    const mediaId = await seedMedia(container, {
+      ownerId,
+      status: "attached",
+      refCount: 1,
+    });
+
+    try {
+      await downloadMedia({
+        container,
+        input: {
+          viewerUserId: viewerId,
+          mediaId,
+          viaShareLinkId: null,
+          relatedNoteId: noteId,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(MediaErrorCode.NotViewable);
+      } else {
+        throw error;
+      }
+    }
+  });
 });
 
 describe("handleNotePurgedEvent (integration)", () => {

@@ -213,15 +213,50 @@ describe("restoreNote (integration)", () => {
     }
   });
 
-  // ADR-004: spec says RestoreNote should reject when the trashed note's
-  // slug now collides with another active note (`slug_conflict`). The
-  // `uniqueIndex("uniq_notes_owner_slug")` already blocks the precondition
-  // at DB level — two rows with the same `(ownerId, slug)` cannot coexist
-  // even when one is trashed — so the fixture this branch needs is
-  // unreachable from the test harness. Recorded for Phase 4 follow-up.
-  it.todo(
-    "rejects restoration when the slug now collides with another active note (fixture unreachable due to uniqueIndex(owner_id, slug))",
-  );
+  // Issue #42: with `uniq_notes_owner_slug` narrowed to `WHERE
+  // status='active'`, an active note and a trashed note can share the
+  // same `(ownerId, slug)`. `RestoreNote` now pre-checks slug collisions
+  // via `assertSlugUnique` and surfaces them as `SlugConflict`.
+  it("rejects restoration when the slug collides with another active note", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const trashedId = await seedNote(container, owner, dir, {
+      slug: "shared",
+      status: "trashed",
+    });
+    await seedNote(container, owner, dir, {
+      slug: "shared",
+      status: "active",
+    });
+
+    try {
+      await restoreNote({
+        container,
+        input: {
+          actorUserId: owner,
+          noteId: trashedId,
+          restoreDirectoryId: dir,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(NoteErrorCode.SlugConflict);
+    }
+
+    // The transaction must have rolled back — the trashed note should
+    // still be trashed (symmetrical to the count-based assertion in
+    // `duplicateNote.integration.test.ts`).
+    const rows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, trashedId as unknown as string));
+    expect(rows[0]?.status).toBe("trashed");
+    expect(rows[0]?.trashedAt).not.toBeNull();
+  });
 });
 
 describe("purgeNote (integration)", () => {
