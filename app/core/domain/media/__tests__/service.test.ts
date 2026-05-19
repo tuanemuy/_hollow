@@ -443,6 +443,34 @@ describe("MediaService.assertViewableBy (DownloadMedia access matrix)", () => {
       }),
     ).not.toThrow();
   });
+
+  it("anonymous viewer with unlisted related note and a share link passes", () => {
+    expect(() =>
+      MediaService.assertViewableBy({
+        asset: ownerAsset,
+        viewerOwnerId: null,
+        relatedNoteVisibility: "unlisted",
+        hasShareLink: true,
+      }),
+    ).not.toThrow();
+  });
+
+  it("anonymous viewer with unlisted related note without share link is rejected", () => {
+    try {
+      MediaService.assertViewableBy({
+        asset: ownerAsset,
+        viewerOwnerId: null,
+        relatedNoteVisibility: "unlisted",
+        hasShareLink: false,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(MediaErrorCode.NotViewable);
+      }
+    }
+  });
 });
 
 describe("HandleNotePurgedEvent semantics via reconcileRefs", () => {

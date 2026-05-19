@@ -246,6 +246,16 @@ describe("restoreNote (integration)", () => {
       }
       expect(error.code).toBe(NoteErrorCode.SlugConflict);
     }
+
+    // The transaction must have rolled back — the trashed note should
+    // still be trashed (symmetrical to the count-based assertion in
+    // `duplicateNote.integration.test.ts`).
+    const rows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, trashedId as unknown as string));
+    expect(rows[0]?.status).toBe("trashed");
+    expect(rows[0]?.trashedAt).not.toBeNull();
   });
 });
 

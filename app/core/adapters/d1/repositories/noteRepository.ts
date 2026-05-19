@@ -632,7 +632,12 @@ export class D1NoteRepository implements NoteRepository {
   // First-time persistence. Buffered like `save`; conflicts on the
   // primary key (rare — `Note.create` mints a fresh id) or the
   // `(owner_id, slug)` UNIQUE index surface as `ConflictError` through
-  // `mapDbError` at flush time.
+  // `mapDbError` at flush time. The slug UNIQUE constraint is a partial
+  // index scoped to `status = 'active'` (see migration
+  // `0007_notes_slug_partial_unique.sql` and `schema.ts`
+  // `uniq_notes_owner_slug`), so trashed rows can share an `(owner_id,
+  // slug)` with an active row — only collisions among `active` rows
+  // surface here.
   async insert(note: Note): Promise<void> {
     this.pending.add(this.db.insert(notes).values(this.noteValues(note)));
     this.bufferChildInserts(note);

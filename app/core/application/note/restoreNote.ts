@@ -46,6 +46,21 @@ export async function restoreNote({
       );
     }
 
+    // Fail-fast before directory resolution: `DirectoryService.ensureRoot`
+    // creates a new root directory as a side effect when none exists, and
+    // a slug collision raised after that would force the transaction to
+    // roll back the newly-created root unnecessarily. `findByOwnerAndSlug`
+    // is narrowed to `status='active'` (see ADR-007), so the trashed note
+    // we are restoring never matches itself — `exceptId: null` makes that
+    // intent explicit.
+    await NoteService.assertSlugUnique(
+      found.entity.ownerId,
+      found.entity.slug,
+      null,
+      ctx.noteRepository,
+      NoteErrorCode.SlugConflict,
+    );
+
     let targetDirectoryId: DirectoryId;
     if (input.restoreDirectoryId === null) {
       const root = await DirectoryService.ensureRoot(
@@ -73,14 +88,6 @@ export async function restoreNote({
         targetDirectoryId = dir.entity.id;
       }
     }
-
-    await NoteService.assertSlugUnique(
-      found.entity.ownerId,
-      found.entity.slug,
-      found.entity.id,
-      ctx.noteRepository,
-      NoteErrorCode.SlugConflict,
-    );
 
     const { entity: next, eventDrafts } = Note.restore(
       found.entity,

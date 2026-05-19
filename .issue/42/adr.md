@@ -141,9 +141,11 @@ Issue #42 本文 #4 は「spec/testcases/note/index.md の ListNotesByOwner 表�
 - `spec/testcases/note/index.md` の keyword 行を**削除のみ**実施（search 表への追加は不要）
 - `searchOwnNotes` 側の追加 integration test は実施しない
 
+`searchOwnNotes.test.ts` の unit test は `SearchIndex` を mock しているため、 `keyword → SearchQuery` の委譲ロジック（9 ケース）を網羅しているという主張は keyword 整形・委譲ロジックに限定したものである。実 `D1SearchIndex` の検索結果検証（adapter level の挙動）は本 Issue スコープ外であり、必要なら別 Issue で検討推奨。
+
 ### Consequences
-- 良い点: spec 文書のカバレッジは search 表で維持され、note 表は重複なくなる。新規 integration test を追加してもテスト対象（SearchIndex は fake）が unit と同じになり情報量が増えないため、コスト無駄なし。
-- トレードオフ: Issue 本文の「対応する integration test を search ドメイン側に追加」を文字通り実施しない判断。本 ADR で根拠を明示することで「漏れ」と誤読されないようにする。
+- 良い点: spec 文書のカバレッジは search 表で維持され、note 表は重複なくなる。`keyword → SearchQuery` の委譲ロジックは unit test で網羅済み。新規 integration test を追加してもテスト対象（SearchIndex は fake）が unit と同じになり情報量が増えないため、コスト無駄なし。
+- トレードオフ: Issue 本文の「対応する integration test を search ドメイン側に追加」を文字通り実施しない判断。本 ADR で根拠を明示することで「漏れ」と誤読されないようにする。実 D1SearchIndex の挙動検証は別途検討推奨。
 
 ---
 
@@ -167,6 +169,7 @@ ADR-004 で `findByOwnerAndSlug` を active 限定化することを決定した
 - 良い点:
   - 全呼び出し元（`getPublicNote`, `generateUniqueSlug`, `assertSlugUnique` 経由の restoreNote）が「active のみで衝突回避 / 公開対象を見たい」という意図と一致するため、リネームせず内部実装の変更で十分。
   - partial unique index と意味的に対称（DB 制約は active のみ、API も active のみ）。
+  - `resolveInternalLinks`（`app/core/domain/note/service.ts:183` 付近）も `findByOwnerAndSlug` の利用箇所であり、`[[trashed-slug]]` 形式の内部リンクは unresolved（broken link）として描画されるようになる。意味的にも望ましい挙動変化（trashed なノートは編集者向けにも「壊れたリンク」として可視化される方が望ましい）。
 - トレードオフ:
   - 既存利用者は API 名から「全 status を見る」と誤読する可能性がある。JSDoc で明示し、レビューラウンドで全呼び出し元を再確認することでカバーする。
   - 将来「trashed を含めて検索したい」要件が出た場合は新しいメソッド (`findAnyByOwnerAndSlug` 等) を追加する想定。本 Issue ではそのような要件はない（YAGNI）。
