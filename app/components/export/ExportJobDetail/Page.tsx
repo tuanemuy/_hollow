@@ -9,8 +9,14 @@ import { loadExportJob } from "./loader";
 /**
  * `getExportJob` が投げる `NotFoundError` と
  * `BusinessRuleError(ExportErrorCode.Unauthorized)` を区別せず、
- * 同一の中立メッセージで返す。両者を画面で識別不能にすることで他人の
- * ジョブの存在有無を漏らさない。詳細は `.issue/12/adr.md` の ADR-004。
+ * 同一の中立メッセージ JSX を直接返す。両者を画面で識別不能にすることで
+ * 他人のジョブの存在有無を漏らさない。詳細は `.issue/12/adr.md` の ADR-004。
+ *
+ * 注: TanStack Start の現バージョンでは、`renderServerComponent` 経由で
+ * 実行される RSC コンポーネント内で `throw notFound()` を投げても
+ * route の `notFoundComponent` に届かず、通常の error として errorComponent
+ * に流れる挙動が確認されている。そのためここでは notFound() を経由せず
+ * JSX を直接返す形を取る。
  */
 export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
   const user = await requireCurrentUser();
