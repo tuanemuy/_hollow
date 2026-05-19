@@ -9,6 +9,14 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { HOME_SEARCH } from "../links";
+import {
+  AUTH_BODY,
+  AUTH_TITLE,
+  BTN_PRIMARY_INLINE,
+  STATUS_ICON,
+  STATUS_ICON_ERROR,
+  STATUS_ICON_SUCCESS,
+} from "../styles";
 import { verifyEmailChangeFn } from "./action";
 
 type Status =
@@ -57,8 +65,8 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   if (status.kind === "loading") {
     return (
       <div role="status" aria-live="polite">
-        <h1 className="auth-title">アドレス変更を確認中...</h1>
-        <p className="auth-body">少々お待ちください。</p>
+        <h1 className={AUTH_TITLE}>アドレス変更を確認中...</h1>
+        <p className={AUTH_BODY}>少々お待ちください。</p>
       </div>
     );
   }
@@ -66,7 +74,10 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   if (status.kind === "success") {
     return (
       <>
-        <div className="status-icon success" aria-hidden="true">
+        <div
+          className={`${STATUS_ICON} ${STATUS_ICON_SUCCESS}`}
+          aria-hidden="true"
+        >
           <svg
             width="36"
             height="36"
@@ -81,13 +92,16 @@ export function EmailChangeConfirm({ token }: { token: string }) {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
-        <h1 className="auth-title">メールアドレスを変更しました</h1>
-        <p className="auth-body">
+        <h1 className={AUTH_TITLE}>メールアドレスを変更しました</h1>
+        <p className={AUTH_BODY}>
           新しいメールアドレスでの本人確認が完了しました。今後のログインや通知は新しいアドレスに切り替わります。
         </p>
 
-        <div className="alert" role="status">
-          <span className="alert-icon" aria-hidden="true">
+        <div
+          className="flex items-start gap-3 p-4 rounded-lg bg-warning-surface text-ink text-sm leading-normal text-left mb-8"
+          role="status"
+        >
+          <span className="text-warning shrink-0 mt-0.5" aria-hidden="true">
             <svg
               width="18"
               height="18"
@@ -109,11 +123,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           </div>
         </div>
 
-        <Link
-          to="/"
-          search={HOME_SEARCH}
-          className="btn-primary btn-primary--inline"
-        >
+        <Link to="/" search={HOME_SEARCH} className={BTN_PRIMARY_INLINE}>
           ホームへ進む
         </Link>
       </>
@@ -123,7 +133,10 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   if (status.kind === "expired") {
     return (
       <>
-        <div className="status-icon error" aria-hidden="true">
+        <div
+          className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
+          aria-hidden="true"
+        >
           <svg
             width="36"
             height="36"
@@ -139,11 +152,11 @@ export function EmailChangeConfirm({ token }: { token: string }) {
             <polyline points="12 7 12 12 15 14" />
           </svg>
         </div>
-        <h1 className="auth-title">リンクの期限が切れています</h1>
-        <p className="auth-body">
+        <h1 className={AUTH_TITLE}>リンクの期限が切れています</h1>
+        <p className={AUTH_BODY}>
           設定画面からもう一度メールアドレス変更をリクエストしてください。
         </p>
-        <Link to="/login" className="btn-primary btn-primary--inline">
+        <Link to="/login" className={BTN_PRIMARY_INLINE}>
           ログインへ
         </Link>
       </>
@@ -153,7 +166,10 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   if (status.kind === "used") {
     return (
       <>
-        <div className="status-icon error" aria-hidden="true">
+        <div
+          className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
+          aria-hidden="true"
+        >
           <svg
             width="36"
             height="36"
@@ -170,9 +186,9 @@ export function EmailChangeConfirm({ token }: { token: string }) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h1 className="auth-title">このリンクは使用済みです</h1>
-        <p className="auth-body">このリンクは既に使用されています。</p>
-        <Link to="/login" className="btn-primary btn-primary--inline">
+        <h1 className={AUTH_TITLE}>このリンクは使用済みです</h1>
+        <p className={AUTH_BODY}>このリンクは既に使用されています。</p>
+        <Link to="/login" className={BTN_PRIMARY_INLINE}>
           ログインへ
         </Link>
       </>
@@ -182,7 +198,10 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   if (status.kind === "not_found") {
     return (
       <>
-        <div className="status-icon error" aria-hidden="true">
+        <div
+          className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
+          aria-hidden="true"
+        >
           <svg
             width="36"
             height="36"
@@ -199,11 +218,11 @@ export function EmailChangeConfirm({ token }: { token: string }) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h1 className="auth-title">無効なリンクです</h1>
-        <p className="auth-body">
+        <h1 className={AUTH_TITLE}>無効なリンクです</h1>
+        <p className={AUTH_BODY}>
           リンクが正しくありません。設定画面からやり直してください。
         </p>
-        <Link to="/login" className="btn-primary btn-primary--inline">
+        <Link to="/login" className={BTN_PRIMARY_INLINE}>
           ログインへ
         </Link>
       </>
@@ -212,7 +231,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
 
   return (
     <>
-      <div className="status-icon error" aria-hidden="true">
+      <div className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`} aria-hidden="true">
         <svg
           width="36"
           height="36"
@@ -229,9 +248,9 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <h1 className="auth-title">確認に失敗しました</h1>
-      <p className="auth-body">{status.message}</p>
-      <Link to="/login" className="btn-primary btn-primary--inline">
+      <h1 className={AUTH_TITLE}>確認に失敗しました</h1>
+      <p className={AUTH_BODY}>{status.message}</p>
+      <Link to="/login" className={BTN_PRIMARY_INLINE}>
         ログインへ
       </Link>
     </>

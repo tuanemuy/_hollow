@@ -15,6 +15,23 @@ import {
   PASSWORD_MIN_LENGTH,
   USERNAME_MAX_LENGTH,
 } from "../schema";
+import {
+  AUTH_FOOTER,
+  AUTH_FOOTER_LINK,
+  AUTH_SUBTITLE,
+  AUTH_TITLE,
+  BTN_PRIMARY,
+  CHECKBOX_INPUT,
+  CHECKBOX_ROW,
+  FIELD,
+  FIELD_HINT,
+  FIELD_HINT_ERROR,
+  FIELD_LABEL,
+  FIELD_OPTIONAL,
+  FORM,
+  FORM_ERROR,
+  INPUT,
+} from "../styles";
 import { signUpFn } from "./action";
 
 type FormState = { error: SerializedError | null; success: boolean };
@@ -79,12 +96,12 @@ export function SignUpForm() {
   if (state.success) {
     return (
       <div role="status">
-        <h1 className="auth-title">確認メールを送信しました</h1>
-        <p className="auth-subtitle">
+        <h1 className={AUTH_TITLE}>確認メールを送信しました</h1>
+        <p className={AUTH_SUBTITLE}>
           ご登録のメールアドレス宛に確認リンクをお送りしました。
           受信したリンクをクリックして、アカウントを有効化してください。
         </p>
-        <Link to="/login" className="btn-primary">
+        <Link to="/login" className={BTN_PRIMARY}>
           ログインへ
         </Link>
       </div>
@@ -93,18 +110,18 @@ export function SignUpForm() {
 
   return (
     <>
-      <h1 className="auth-title">アカウント作成</h1>
-      <p className="auth-subtitle">
+      <h1 className={AUTH_TITLE}>アカウント作成</h1>
+      <p className={AUTH_SUBTITLE}>
         頭の中にある言葉を、静かな場所に置いていきましょう。
       </p>
 
-      <form className="form" action={formAction} noValidate>
-        <div className={`field${usernameError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={usernameId}>
+      <form className={FORM} action={formAction} noValidate>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={usernameId}>
             ユーザー名
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={usernameId}
             name="username"
             type="text"
@@ -114,18 +131,19 @@ export function SignUpForm() {
             required
             disabled={isPending}
             aria-invalid={usernameError !== undefined}
+            data-error={usernameError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {usernameError ?? "英数字とハイフン。後から変更できません。"}
           </span>
         </div>
 
-        <div className={`field${emailError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={emailId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={emailId}>
             メールアドレス
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={emailId}
             name="email"
             type="email"
@@ -134,16 +152,19 @@ export function SignUpForm() {
             required
             disabled={isPending}
             aria-invalid={emailError !== undefined}
+            data-error={emailError ? "" : undefined}
           />
-          {emailError ? <span className="field-hint">{emailError}</span> : null}
+          {emailError ? (
+            <span className={FIELD_HINT_ERROR}>{emailError}</span>
+          ) : null}
         </div>
 
-        <div className={`field${passwordError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={passwordId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={passwordId}>
             パスワード
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={passwordId}
             name="password"
             type="password"
@@ -154,19 +175,20 @@ export function SignUpForm() {
             required
             disabled={isPending}
             aria-invalid={passwordError !== undefined}
+            data-error={passwordError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {passwordError ??
               `${PASSWORD_MIN_LENGTH}文字以上。英数字と記号を組み合わせると安全です。`}
           </span>
         </div>
 
-        <div className={`field${displayNameError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={displayNameId}>
-            表示名 <span className="optional">(任意)</span>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={displayNameId}>
+            表示名 <span className={FIELD_OPTIONAL}>(任意)</span>
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={displayNameId}
             name="displayName"
             type="text"
@@ -175,13 +197,14 @@ export function SignUpForm() {
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             disabled={isPending}
             aria-invalid={displayNameError !== undefined}
+            data-error={displayNameError ? "" : undefined}
           />
           {displayNameError ? (
-            <span className="field-hint">{displayNameError}</span>
+            <span className={FIELD_HINT_ERROR}>{displayNameError}</span>
           ) : null}
         </div>
 
-        <label className="checkbox-row" htmlFor={acceptTermsId}>
+        <label className={CHECKBOX_ROW} htmlFor={acceptTermsId}>
           <input
             id={acceptTermsId}
             type="checkbox"
@@ -189,39 +212,50 @@ export function SignUpForm() {
             required
             disabled={isPending}
             aria-invalid={acceptTermsError !== undefined}
+            className={CHECKBOX_INPUT}
           />
           <span>
-            <Link to="/" search={HOME_SEARCH}>
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className="text-accent hover:underline hover:[text-underline-offset:3px]"
+            >
               利用規約
             </Link>{" "}
             と{" "}
-            <Link to="/" search={HOME_SEARCH}>
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className="text-accent hover:underline hover:[text-underline-offset:3px]"
+            >
               プライバシーポリシー
             </Link>{" "}
             に同意します
           </span>
         </label>
         {acceptTermsError ? (
-          <span className="field-hint" style={{ color: "var(--color-error)" }}>
-            {acceptTermsError}
-          </span>
+          <span className={FIELD_HINT_ERROR}>{acceptTermsError}</span>
         ) : null}
 
         {summary !== null ? (
-          <div className="form-error" role="alert" id={summaryId}>
+          <div className={FORM_ERROR} role="alert" id={summaryId}>
             <span>
-              <strong>登録に失敗しました。</strong> {summary}
+              <strong className="font-semibold">登録に失敗しました。</strong>{" "}
+              {summary}
             </span>
           </div>
         ) : null}
 
-        <button type="submit" className="btn-primary" disabled={isPending}>
+        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
           {isPending ? "送信中..." : "アカウントを作成"}
         </button>
       </form>
 
-      <div className="auth-footer">
-        すでにアカウントをお持ちですか? <Link to="/login">ログイン</Link>
+      <div className={AUTH_FOOTER}>
+        すでにアカウントをお持ちですか?{" "}
+        <Link to="/login" className={AUTH_FOOTER_LINK}>
+          ログイン
+        </Link>
       </div>
     </>
   );

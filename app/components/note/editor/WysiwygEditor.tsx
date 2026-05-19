@@ -17,6 +17,7 @@ import type {
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { searchInternalLinkTargetsFn } from "@/components/note/actions";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
+import { pillBtn, pillBtnPrimary } from "../styles";
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";
@@ -461,15 +462,14 @@ export function WysiwygEditor({
       </Fragment>
     ));
 
+  const linkActive = editor?.isActive("link") === true;
+
   return (
-    <div className="wysiwyg-editor">
+    <div className="mt-4 flex flex-col gap-3">
       {hasUnsupported ? (
         <div
-          className={
-            isAcked
-              ? "wysiwyg-unsupported-notice"
-              : "wysiwyg-unsupported-banner"
-          }
+          data-acked={isAcked || undefined}
+          className="flex flex-col gap-2 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink data-[acked]:bg-surface data-[acked]:text-ink-secondary"
           role={isAcked ? "note" : "alert"}
         >
           {isAcked ? (
@@ -483,21 +483,28 @@ export function WysiwygEditor({
                 ) が含まれています。WYSIWYG
                 モードで編集を加えると失われます。確認するまで自動保存は一時停止します。
               </p>
-              <button
-                type="button"
-                className="pill-btn primary"
-                onClick={() => {
-                  onAcknowledge?.();
-                  editor?.commands.focus();
-                }}
-              >
-                了解した
-              </button>
+              <div>
+                <button
+                  type="button"
+                  data-primary
+                  className={`${pillBtn} ${pillBtnPrimary}`}
+                  onClick={() => {
+                    onAcknowledge?.();
+                    editor?.commands.focus();
+                  }}
+                >
+                  了解した
+                </button>
+              </div>
             </>
           )}
         </div>
       ) : null}
-      <div className="wysiwyg-toolbar" role="toolbar" aria-label="書式">
+      <div
+        className="flex flex-wrap gap-1 rounded-md border border-hairline bg-surface-elevated p-2"
+        role="toolbar"
+        aria-label="書式"
+      >
         {buttons.map((btn) => {
           const active = btn.isActive();
           return (
@@ -506,7 +513,8 @@ export function WysiwygEditor({
               type="button"
               aria-label={btn.ariaLabel}
               aria-pressed={active}
-              className={`pill-btn${active ? " primary" : ""}`}
+              data-primary={active || undefined}
+              className={`${pillBtn} ${pillBtnPrimary}`}
               disabled={isDisabled}
               onClick={btn.onClick}
             >
@@ -517,15 +525,19 @@ export function WysiwygEditor({
         <button
           type="button"
           aria-label="リンク"
-          aria-pressed={editor?.isActive("link") ?? false}
-          className={`pill-btn${editor?.isActive("link") === true ? " primary" : ""}`}
+          aria-pressed={linkActive}
+          data-primary={linkActive || undefined}
+          className={`${pillBtn} ${pillBtnPrimary}`}
           disabled={isDisabled}
           onClick={onAddLink}
         >
           Link
         </button>
       </div>
-      <EditorContent editor={editor} />
+      <EditorContent
+        editor={editor}
+        className="min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed focus-within:border-accent [&_.ProseMirror]:min-h-[280px] [&_.ProseMirror]:outline-none [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-hairline-strong [&_blockquote]:pl-4 [&_blockquote]:text-ink-secondary [&_code]:rounded-xs [&_code]:bg-surface [&_code]:px-[6px] [&_code]:py-[2px] [&_code]:font-mono [&_code]:text-sm [&_pre]:rounded-md [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-sm [&_a]:text-accent [&_a]:underline [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
+      />
     </div>
   );
 }

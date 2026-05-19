@@ -9,6 +9,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
 
 type Props = {
   noteId: string;
@@ -49,10 +50,10 @@ export function TrashRowActions({ noteId }: Props) {
   };
 
   return (
-    <div className="row-actions">
+    <div className={ROW_ACTIONS}>
       <button
         type="button"
-        className="pill-btn"
+        className={PILL_BTN}
         onClick={onRestore}
         disabled={isPending}
       >
@@ -60,14 +61,15 @@ export function TrashRowActions({ noteId }: Props) {
       </button>
       <button
         type="button"
-        className="pill-btn danger"
+        className={PILL_BTN}
+        data-danger=""
         onClick={onPurge}
         disabled={isPending}
       >
         完全削除
       </button>
       {error !== null ? (
-        <span className="form-error" role="alert">
+        <span className={FORM_ERROR} role="alert">
           {displayError(error)}
         </span>
       ) : null}

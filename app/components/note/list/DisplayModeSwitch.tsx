@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useTransition } from "react";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
+import { pillBtn, pillBtnPrimary } from "../styles";
 
 type Props = {
   current: DisplayMode;
@@ -33,7 +34,7 @@ export function DisplayModeSwitch({ current }: Props) {
     <div
       role="tablist"
       aria-label="表示形式"
-      className="display-mode-switch"
+      className="inline-flex gap-1"
       aria-busy={isPending}
     >
       {DISPLAY_MODES.map((mode) => {
@@ -44,7 +45,8 @@ export function DisplayModeSwitch({ current }: Props) {
             role="tab"
             type="button"
             aria-selected={active}
-            className={`pill-btn${active ? " primary" : ""}`}
+            data-primary={active || undefined}
+            className={`${pillBtn} ${pillBtnPrimary}`}
             onClick={() => select(mode)}
             disabled={isPending}
           >

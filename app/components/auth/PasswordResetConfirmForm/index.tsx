@@ -10,6 +10,20 @@ import {
 } from "@/core/presentation/errorResponse";
 import { HOME_SEARCH } from "../links";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "../schema";
+import {
+  AUTH_FOOTER,
+  AUTH_FOOTER_LINK,
+  AUTH_SUBTITLE,
+  AUTH_TITLE,
+  BTN_PRIMARY,
+  FIELD,
+  FIELD_HINT,
+  FIELD_HINT_ERROR,
+  FIELD_LABEL,
+  FORM,
+  FORM_ERROR,
+  INPUT,
+} from "../styles";
 import { resetPasswordFn } from "./action";
 
 type FormState = { error: SerializedError | null };
@@ -44,6 +58,20 @@ const STRENGTH_LABEL: Record<StrengthLevel, string> = {
   3: "強い",
   4: "とても強い",
 };
+
+function segmentColor(level: StrengthLevel, index: number): string {
+  if (index >= level) return "bg-surface";
+  if (level === 1) return "bg-error";
+  if (level === 2) return "bg-warning";
+  if (level === 3) return "bg-accent";
+  return "bg-success";
+}
+
+function labelColor(level: StrengthLevel): string {
+  if (level === 3) return "text-accent-ink";
+  if (level === 4) return "text-success";
+  return "text-ink-secondary";
+}
 
 export function PasswordResetConfirmForm({ token }: { token: string }) {
   const router = useRouter();
@@ -86,18 +114,18 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
 
   return (
     <>
-      <h1 className="auth-title">新しいパスワードを設定</h1>
-      <p className="auth-subtitle">
+      <h1 className={AUTH_TITLE}>新しいパスワードを設定</h1>
+      <p className={AUTH_SUBTITLE}>
         強固なパスワードを設定してください。完了するとログイン状態になります。
       </p>
 
-      <form className="form" action={formAction} noValidate>
-        <div className={`field${newPasswordError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={newPasswordId}>
+      <form className={FORM} action={formAction} noValidate>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={newPasswordId}>
             新しいパスワード
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={newPasswordId}
             name="newPassword"
             type="password"
@@ -110,30 +138,35 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             aria-invalid={newPasswordError !== undefined}
+            data-error={newPasswordError ? "" : undefined}
           />
-          <div className="strength" data-level={strength} aria-live="polite">
-            <div className="strength-track">
-              <span className="strength-segment" />
-              <span className="strength-segment" />
-              <span className="strength-segment" />
-              <span className="strength-segment" />
+          <div className="flex flex-col gap-2 mt-1" aria-live="polite">
+            <div className="grid grid-cols-4 gap-1 h-1">
+              {[0, 1, 2, 3].map((i) => (
+                <span
+                  key={i}
+                  className={`rounded-pill transition-colors ${segmentColor(strength, i)}`}
+                />
+              ))}
             </div>
-            <div className="strength-label">
+            <div className="text-xs text-ink-tertiary flex items-center justify-between">
               <span>パスワードの強度</span>
-              <strong>{STRENGTH_LABEL[strength]}</strong>
+              <strong className={`font-medium ${labelColor(strength)}`}>
+                {STRENGTH_LABEL[strength]}
+              </strong>
             </div>
           </div>
           {newPasswordError ? (
-            <span className="field-hint">{newPasswordError}</span>
+            <span className={FIELD_HINT_ERROR}>{newPasswordError}</span>
           ) : null}
         </div>
 
-        <div className={`field${confirmPasswordError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={confirmPasswordId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={confirmPasswordId}>
             新しいパスワード(確認)
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={confirmPasswordId}
             name="confirmPassword"
             type="password"
@@ -144,26 +177,31 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
             required
             disabled={isPending}
             aria-invalid={confirmPasswordError !== undefined}
+            data-error={confirmPasswordError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span
+            className={confirmPasswordError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {confirmPasswordError ??
               "2つのパスワードが一致しているか確認してください。"}
           </span>
         </div>
 
         {summary !== undefined && summary !== null ? (
-          <div className="form-error" role="alert">
+          <div className={FORM_ERROR} role="alert">
             <span>{summary}</span>
           </div>
         ) : null}
 
-        <button type="submit" className="btn-primary" disabled={isPending}>
+        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
           {isPending ? "更新中..." : "パスワードを決定"}
         </button>
       </form>
 
-      <div className="auth-footer">
-        <Link to="/login">ログインに戻る</Link>
+      <div className={AUTH_FOOTER}>
+        <Link to="/login" className={AUTH_FOOTER_LINK}>
+          ログインに戻る
+        </Link>
       </div>
     </>
   );

@@ -3,6 +3,16 @@ import { cache } from "react";
 import { isNotFoundError } from "@/core/application/errors";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
+import {
+  AUTHOR_AVATAR,
+  AUTHOR_MINI,
+  DOC_TITLE,
+  NOTE_DETAIL_BREADCRUMB,
+  NOTE_DETAIL_WRAP,
+  NOTE_META_INLINE,
+  PUB_PILL,
+  PUB_PILL_DOT,
+} from "./styles";
 
 type LookupArgs =
   | { kind: "bySlug"; username: string; slug: string }
@@ -27,55 +37,66 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
 
   return (
     <PublicLayout>
-      <div className="note-detail-wrap">
-        <nav className="note-detail-breadcrumb" aria-label="パンくず">
+      <div className={NOTE_DETAIL_WRAP}>
+        <nav className={NOTE_DETAIL_BREADCRUMB} aria-label="パンくず">
           <Link
             to="/u/$username"
             params={{ username: owner.username }}
             search={{ page: 1, limit: 20 }}
+            className="text-ink-secondary hover:text-ink"
           >
             {owner.displayName} (@{owner.username})
           </Link>
           <span aria-hidden="true">›</span>
-          <span className="current">{note.title}</span>
+          <span className="text-ink font-medium overflow-hidden text-ellipsis whitespace-nowrap max-w-[60ch]">
+            {note.title}
+          </span>
         </nav>
 
         <Link
           to="/u/$username"
           params={{ username: owner.username }}
           search={{ page: 1, limit: 20 }}
-          className="author-mini"
+          className={AUTHOR_MINI}
         >
-          <span className="author-avatar" aria-hidden="true">
+          <span className={AUTHOR_AVATAR} aria-hidden="true">
             {avatarInitials(owner.displayName || owner.username)}
           </span>
           <span>
-            <span className="author-mini-name">{owner.displayName}</span>
-            <span className="author-mini-username">@{owner.username}</span>
+            <span className="text-[13px] font-medium text-ink">
+              {owner.displayName}
+            </span>
+            <span className="text-xs text-ink-tertiary ml-0.5">
+              @{owner.username}
+            </span>
           </span>
         </Link>
 
-        <h1 className="doc-title">{note.title}</h1>
+        <h1 className={DOC_TITLE}>{note.title}</h1>
 
-        <div className="note-meta-inline">
+        <div className={NOTE_META_INLINE}>
           {publishedAt !== null ? (
             <span>公開 {formatJaDate(publishedAt)}</span>
           ) : null}
-          {publishedAt !== null ? <span className="dot">·</span> : null}
+          {publishedAt !== null ? (
+            <span className="text-hairline-strong">·</span>
+          ) : null}
           <span>更新 {formatJaDate(new Date(note.updatedAt))}</span>
-          {tagNames.length > 0 ? <span className="dot">·</span> : null}
+          {tagNames.length > 0 ? (
+            <span className="text-hairline-strong">·</span>
+          ) : null}
           {tagNames.length > 0 ? (
             <span>
               {tagNames.map((t) => (
-                <span key={t} className="tag">
+                <span key={t} className="text-accent mr-1">
                   #{t}
                 </span>
               ))}
             </span>
           ) : null}
-          <span className="dot">·</span>
-          <span className="pub-pill">
-            <span className="pub-pill-dot" aria-hidden="true" />
+          <span className="text-hairline-strong">·</span>
+          <span className={PUB_PILL}>
+            <span className={PUB_PILL_DOT} aria-hidden="true" />
             公開中
           </span>
         </div>

@@ -9,6 +9,20 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { bulkExportNotesFn } from "../actions";
+import {
+  checkboxRow,
+  dialog,
+  dialogActions,
+  dialogBackdrop,
+  dialogTitle,
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+  radioRow,
+} from "../styles";
 import { useSelection } from "./SelectionContext";
 
 type Props = {
@@ -73,17 +87,17 @@ export function BulkExportDialog({ open, onClose }: Props) {
 
   return (
     <div
-      className="dialog-backdrop"
+      className={dialogBackdrop}
       role="dialog"
       aria-modal="true"
       aria-label="一括エクスポート"
     >
-      <form className="dialog" onSubmit={submit}>
-        <h2 className="dialog-title">{ids.length} 件のノートをエクスポート</h2>
-        <fieldset className="field">
-          <legend>形式</legend>
+      <form className={dialog} onSubmit={submit}>
+        <h2 className={dialogTitle}>{ids.length} 件のノートをエクスポート</h2>
+        <fieldset className={field}>
+          <legend className={fieldLabel}>形式</legend>
           {(["html", "markdown", "pdf"] as const).map((f) => (
-            <label key={f} className="radio-row">
+            <label key={f} className={radioRow}>
               <input
                 type="radio"
                 name={radioName}
@@ -97,7 +111,7 @@ export function BulkExportDialog({ open, onClose }: Props) {
             </label>
           ))}
         </fieldset>
-        <label className="checkbox-row">
+        <label className={checkboxRow}>
           <input
             type="checkbox"
             checked={includeFrontMatter}
@@ -105,7 +119,7 @@ export function BulkExportDialog({ open, onClose }: Props) {
           />
           FrontMatter を含める
         </label>
-        <label className="checkbox-row">
+        <label className={checkboxRow}>
           <input
             type="checkbox"
             checked={embedMedia}
@@ -114,13 +128,16 @@ export function BulkExportDialog({ open, onClose }: Props) {
           メディアを埋め込む
         </label>
         {format === "pdf" ? (
-          <div className="field">
-            <span className="filter-bar-label">用紙</span>
+          <div className={field}>
+            <span className="text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]">
+              用紙
+            </span>
             <select
               value={pdfPaperSize}
               onChange={(e) =>
                 setPdfPaperSize(e.target.value as "A4" | "Letter")
               }
+              className={fieldControl}
             >
               <option value="A4">A4</option>
               <option value="Letter">Letter</option>
@@ -128,19 +145,19 @@ export function BulkExportDialog({ open, onClose }: Props) {
           </div>
         ) : null}
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
         {batchError !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {batchError}
           </p>
         ) : null}
-        <div className="dialog-actions">
+        <div className={dialogActions}>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -148,7 +165,8 @@ export function BulkExportDialog({ open, onClose }: Props) {
           </button>
           <button
             type="submit"
-            className="pill-btn primary"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
             disabled={isPending}
           >
             {isPending ? "実行中..." : "実行"}

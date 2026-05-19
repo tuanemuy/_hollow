@@ -40,7 +40,7 @@ export function CalendarView({ notes, mode }: Props) {
 
   if (mode === "search") {
     return (
-      <div className="calendar-fallback">
+      <div className="mt-3 rounded-md bg-surface p-4 text-sm text-ink-secondary">
         <p>
           検索結果はカレンダー表示に対応していません。リスト表示で結果をご確認ください。
         </p>
@@ -49,30 +49,34 @@ export function CalendarView({ notes, mode }: Props) {
   }
 
   return (
-    <div className="calendar-grid">
+    <div className="mt-3 flex flex-col gap-5">
       {grouped.map((bucket) => (
-        <section key={bucket.dateKey} className="calendar-bucket">
-          <h2 className="calendar-bucket-head">{formatDay(bucket.dateKey)}</h2>
-          <ul className="calendar-bucket-notes">
+        <section key={bucket.dateKey}>
+          <h2 className="mb-2 pb-2 border-b border-hairline text-[13px] font-medium text-ink-secondary">
+            {formatDay(bucket.dateKey)}
+          </h2>
+          <ul className="flex flex-col gap-1 list-none p-0 m-0">
             {bucket.notes.map((note) => {
               const checked = state.ids.has(note.id);
               return (
                 <li
                   key={note.id}
-                  className={`calendar-note${checked ? " is-selected" : ""}`}
+                  data-selected={checked || undefined}
+                  className="grid grid-cols-[auto_1fr] gap-2 px-2 py-[6px] rounded-sm transition-colors hover:bg-surface data-[selected]:bg-accent-surface"
                 >
-                  <label className="calendar-note-select">
+                  <label>
                     <input
                       type="checkbox"
                       aria-label={`${note.title} を選択`}
                       checked={checked}
                       onChange={() => dispatch({ type: "toggle", id: note.id })}
+                      className="w-[14px] h-[14px] accent-accent"
                     />
                   </label>
                   <Link
                     to="/notes/$noteId"
                     params={{ noteId: note.id }}
-                    className="calendar-note-title"
+                    className="text-sm text-ink hover:text-accent"
                   >
                     {note.title}
                   </Link>

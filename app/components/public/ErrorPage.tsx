@@ -1,5 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { PublicLayout, SearchIcon } from "./PublicLayout";
+import {
+  ERR_ACTIONS,
+  ERR_CODE,
+  ERR_DESC,
+  ERR_INNER,
+  ERR_META,
+  ERR_PAGE,
+  ERR_TITLE,
+  PILL_BTN,
+  USER_SEARCH_INPUT,
+} from "./styles";
 
 export type ErrorPageKind = "notFound" | "forbidden" | "gone" | "system";
 
@@ -43,22 +54,22 @@ export function ErrorPage({ kind, message }: Props) {
   const showSearch = kind === "notFound" || kind === "gone";
   return (
     <PublicLayout hideHeaderSearch>
-      <section className="err-page">
-        <div className="err-inner">
-          <div className="err-code" aria-hidden="true">
+      <section className={ERR_PAGE}>
+        <div className={ERR_INNER}>
+          <div className={ERR_CODE} aria-hidden="true">
             {copy.code}
           </div>
-          <h1 className="err-title">{copy.title}</h1>
-          <p className="err-desc">{message ?? copy.desc}</p>
+          <h1 className={ERR_TITLE}>{copy.title}</h1>
+          <p className={ERR_DESC}>{message ?? copy.desc}</p>
 
           {showSearch ? (
-            <search
-              className="user-search"
-              style={{ margin: "0 auto 24px", maxWidth: 440 }}
-            >
+            <search className="relative max-w-[440px] mx-auto mb-6">
               <form method="get" action="/search">
                 <SearchIcon />
-                <label htmlFor="err-search" className="visually-hidden">
+                <label
+                  htmlFor="err-search"
+                  className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
+                >
                   ノートを検索
                 </label>
                 <input
@@ -66,29 +77,31 @@ export function ErrorPage({ kind, message }: Props) {
                   type="search"
                   name="q"
                   placeholder="公開ノートを検索…"
+                  className={USER_SEARCH_INPUT}
                 />
               </form>
             </search>
           ) : null}
 
-          <div className="err-actions">
+          <div className={ERR_ACTIONS}>
             <Link
               to="/"
               search={{ page: 1, limit: 20 }}
-              className="pill-btn primary"
+              className={PILL_BTN}
+              data-primary=""
             >
               ホームへ戻る
             </Link>
             <Link
               to="/search"
               search={{ q: "", limit: 20 }}
-              className="pill-btn"
+              className={PILL_BTN}
             >
               検索ページを開く
             </Link>
           </div>
 
-          <div className="err-meta">{copy.meta}</div>
+          <div className={ERR_META}>{copy.meta}</div>
         </div>
       </section>
     </PublicLayout>

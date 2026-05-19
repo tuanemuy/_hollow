@@ -32,15 +32,17 @@ export const Route = createFileRoute("/setup")({
   },
   component: SetupPage,
   errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+    <div role="alert" className="p-6">
+      <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
+      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
+        {sanitizeRouteError(error)}
+      </pre>
     </div>
   ),
   notFoundComponent: () => (
-    <div role="alert">
-      <h1>404 Not Found</h1>
-      <p>このページは利用できません。</p>
+    <div role="alert" className="p-6">
+      <h1 className="text-xl font-semibold mb-2">404 Not Found</h1>
+      <p className="text-sm text-ink-secondary">このページは利用できません。</p>
     </div>
   ),
 });
@@ -49,8 +51,8 @@ function SetupPage() {
   return (
     <>
       <AuthHeader />
-      <main className="auth-shell">
-        <div className="auth-card">
+      <main className="min-h-[calc(100vh-var(--header-height))] flex items-start justify-center px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-20 lg:pt-20">
+        <div className="w-full max-w-[440px] mx-auto">
           <AdminSignUpForm />
         </div>
       </main>

@@ -8,7 +8,11 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { FORM_ERROR } from "../layout/styles";
 import { uploadFileFn } from "./actions";
+
+const DROPZONE =
+  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
 
 export function UploadForm() {
   const router = useRouter();
@@ -47,7 +51,8 @@ export function UploadForm() {
     <>
       <label
         htmlFor={inputId}
-        className={`dropzone${isDragOver ? " dragover" : ""}`}
+        className={DROPZONE}
+        data-dragover={isDragOver ? "" : undefined}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragOver(true);
@@ -60,15 +65,10 @@ export function UploadForm() {
         }}
       >
         <p>
-          <strong>ファイルをドラッグ&ドロップ</strong> またはクリックして選択
+          <strong className="text-ink">ファイルをドラッグ&ドロップ</strong>{" "}
+          またはクリックして選択
         </p>
-        <p
-          style={{
-            fontSize: 13,
-            marginTop: "var(--space-2)",
-            color: "var(--color-ink-tertiary)",
-          }}
-        >
+        <p className="text-[13px] mt-2 text-ink-tertiary">
           {isPending ? "アップロード中..." : "複数選択にも対応"}
         </p>
         <input
@@ -81,7 +81,7 @@ export function UploadForm() {
         />
       </label>
       {error !== null ? (
-        <p className="form-error" role="alert">
+        <p className={FORM_ERROR} role="alert">
           {displayError(error)}
         </p>
       ) : null}

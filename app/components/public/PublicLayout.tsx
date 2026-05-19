@@ -1,5 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import {
+  PILL_BTN,
+  PUBLIC_FOOTER,
+  PUBLIC_FOOTER_INNER,
+  PUBLIC_FOOTER_LINK,
+  PUBLIC_FOOTER_LINKS,
+  PUBLIC_HEADER,
+  PUBLIC_HEADER_LEFT,
+  PUBLIC_HEADER_RIGHT,
+  PUBLIC_HEADER_SEARCH,
+  PUBLIC_HEADER_SEARCH_INPUT,
+  PUBLIC_LOGO,
+  PUBLIC_TEXT_LINK,
+  PUBLIC_TEXT_LINK_SIGNUP,
+  SEARCH_ICON,
+} from "./styles";
 
 type PublicLayoutProps = {
   children: ReactNode;
@@ -13,10 +29,10 @@ export function PublicLayout({
   hideHeaderSearch = false,
 }: PublicLayoutProps) {
   return (
-    <div className="public-shell">
-      <header className="public-header">
-        <div className="public-header-left">
-          <Link to="/" search={{ page: 1, limit: 20 }} className="public-logo">
+    <div className="flex flex-col min-h-screen">
+      <header className={PUBLIC_HEADER}>
+        <div className={PUBLIC_HEADER_LEFT}>
+          <Link to="/" search={{ page: 1, limit: 20 }} className={PUBLIC_LOGO}>
             Hollow
           </Link>
         </div>
@@ -24,12 +40,12 @@ export function PublicLayout({
         {hideHeaderSearch ? (
           <div />
         ) : (
-          <search className="public-header-search">
+          <search className={PUBLIC_HEADER_SEARCH}>
             <form method="get" action="/search">
               <SearchIcon />
               <label
                 htmlFor="public-header-keyword"
-                className="visually-hidden"
+                className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
               >
                 公開ノートを検索
               </label>
@@ -39,20 +55,21 @@ export function PublicLayout({
                 name="q"
                 defaultValue={searchKeyword}
                 placeholder="公開ノートを検索"
+                className={PUBLIC_HEADER_SEARCH_INPUT}
               />
             </form>
           </search>
         )}
 
-        <div className="public-header-right">
+        <div className={PUBLIC_HEADER_RIGHT}>
           <Link
             to="/"
             search={{ page: 1, limit: 20 }}
-            className="public-text-link signup"
+            className={PUBLIC_TEXT_LINK_SIGNUP}
           >
             サインアップ
           </Link>
-          <Link to="/" search={{ page: 1, limit: 20 }} className="pill-btn">
+          <Link to="/" search={{ page: 1, limit: 20 }} className={PILL_BTN}>
             ログイン
           </Link>
         </div>
@@ -60,17 +77,29 @@ export function PublicLayout({
 
       {children}
 
-      <footer className="public-footer">
-        <div className="public-footer-inner">
+      <footer className={PUBLIC_FOOTER}>
+        <div className={PUBLIC_FOOTER_INNER}>
           <div>Hollow</div>
-          <div className="public-footer-links">
-            <Link to="/" search={{ page: 1, limit: 20 }}>
+          <div className={PUBLIC_FOOTER_LINKS}>
+            <Link
+              to="/"
+              search={{ page: 1, limit: 20 }}
+              className={PUBLIC_FOOTER_LINK}
+            >
               利用規約
             </Link>
-            <Link to="/" search={{ page: 1, limit: 20 }}>
+            <Link
+              to="/"
+              search={{ page: 1, limit: 20 }}
+              className={PUBLIC_FOOTER_LINK}
+            >
               プライバシー
             </Link>
-            <Link to="/" search={{ page: 1, limit: 20 }}>
+            <Link
+              to="/"
+              search={{ page: 1, limit: 20 }}
+              className={PUBLIC_FOOTER_LINK}
+            >
               このインスタンスについて
             </Link>
           </div>
@@ -83,7 +112,7 @@ export function PublicLayout({
 export function SearchIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <svg
-      className="search-icon"
+      className={SEARCH_ICON}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -98,6 +127,9 @@ export function SearchIcon({ size = 16 }: { size?: number } = {}) {
     </svg>
   );
 }
+
+// Re-export for direct usage by sibling components that need the same look-up.
+export { PUBLIC_TEXT_LINK };
 
 export function avatarInitials(value: string): string {
   const trimmed = value.trim();

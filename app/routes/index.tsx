@@ -143,9 +143,11 @@ export const Route = createFileRoute("/")({
   },
   component: HomeRoute,
   errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+    <div role="alert" className="p-6">
+      <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
+      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
+        {sanitizeRouteError(error)}
+      </pre>
     </div>
   ),
 });

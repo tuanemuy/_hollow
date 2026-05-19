@@ -39,6 +39,14 @@ Hexagonal architecture with DDD. Dependencies point inward: presentation → app
 
 TanStack Start with React 19 / RSC, TanStack Router (file-based routes), Tailwind v4. Components live under `app/components/`, routes under `app/routes/`. Default to async server components for data fetching and usecase invocation; use server functions (via the presentation-layer entry point) for mutations and loader bridges; drive client mutations through React 19 primitives directly rather than custom wrappers.
 
+### Styling
+
+- **Utility-first only.** Write Tailwind utilities directly in `className`. Do not introduce new handwritten CSS files or `@apply`-based component classes.
+- **Design tokens** live in `app/styles/tokens.css` (single source of truth, mirrored in `spec/design/tokens.md`). The token CSS variables are bridged into Tailwind utilities via `@theme inline` in `app/styles/index.css` — adding a new token means adding it to `tokens.css` and, if you want a utility for it, extending the `@theme inline` block.
+- **State styles** use `data-*` attributes plus Tailwind's `data-[name]:` variants, not conditional class strings. Render the attribute as `data-active={isActive || undefined}` so it disappears when falsy.
+- **Repeated utility strings** can be hoisted into a module-scoped string constant (see `app/components/note/styles.ts`, `auth/styles.ts`, `layout/styles.ts`, `public/styles.ts`). Tailwind's JIT scans those literals, so behavior is identical to inline.
+- **Documented exception:** `.note-detail-content` lives in `app/styles/index.css` under `@layer components` because its descendant elements come from `dangerouslySetInnerHTML` and cannot carry utility classes. See `.issue/70/adr.md` ADR-002 before adding more exceptions.
+
 ## Key concepts
 
 Each of these is enforced in code and documented in library-level JSDoc at the relevant module — read there for the details.

@@ -16,6 +16,28 @@ import {
   SETUP_TOKEN_MAX_LENGTH,
   USERNAME_MAX_LENGTH,
 } from "../schema";
+import {
+  ADMIN_EYEBROW,
+  AUTH_FOOTER,
+  AUTH_FOOTER_LINK,
+  AUTH_SUBTITLE,
+  AUTH_TITLE,
+  BTN_PRIMARY,
+  CALLOUT,
+  CHECKBOX_INPUT,
+  CHECKBOX_ROW,
+  FIELD,
+  FIELD_HINT,
+  FIELD_HINT_ERROR,
+  FIELD_LABEL,
+  FIELD_OPTIONAL,
+  FORM,
+  FORM_ERROR,
+  INPUT,
+  INPUT_MONO,
+  INPUT_WITH_ACTION,
+  REVEAL_BTN,
+} from "../styles";
 import { adminSignUpFn } from "./action";
 
 type FormState = { error: SerializedError | null; success: boolean };
@@ -90,11 +112,11 @@ export function AdminSignUpForm() {
   if (state.success) {
     return (
       <div role="status">
-        <h1 className="auth-title">管理者アカウントを作成しました</h1>
-        <p className="auth-subtitle">
+        <h1 className={AUTH_TITLE}>管理者アカウントを作成しました</h1>
+        <p className={AUTH_SUBTITLE}>
           確認メールを送信しました。受信したリンクをクリックしてアカウントを有効化してください。
         </p>
-        <Link to="/login" className="btn-primary">
+        <Link to="/login" className={BTN_PRIMARY}>
           ログインへ
         </Link>
       </div>
@@ -103,14 +125,14 @@ export function AdminSignUpForm() {
 
   return (
     <>
-      <span className="admin-eyebrow">管理者セットアップ</span>
-      <h1 className="auth-title">初期管理者を作成</h1>
-      <p className="auth-subtitle">
+      <span className={ADMIN_EYEBROW}>管理者セットアップ</span>
+      <h1 className={AUTH_TITLE}>初期管理者を作成</h1>
+      <p className={AUTH_SUBTITLE}>
         このインスタンスを管理する最初のアカウントを登録します。Setup Token
         は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
       </p>
 
-      <div className="callout">
+      <div className={CALLOUT}>
         <svg
           width="20"
           height="20"
@@ -121,26 +143,34 @@ export function AdminSignUpForm() {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
+          className="shrink-0 text-ink-tertiary mt-0.5"
         >
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span>
-          <strong>このページは特権操作です。</strong> Setup Token
-          を知る運用者のみ作成できます。通常のサインアップは{" "}
-          <Link to="/signup">こちら</Link>{" "}
+          <strong className="text-ink font-semibold">
+            このページは特権操作です。
+          </strong>{" "}
+          Setup Token を知る運用者のみ作成できます。通常のサインアップは{" "}
+          <Link
+            to="/signup"
+            className="text-accent underline [text-underline-offset:3px]"
+          >
+            こちら
+          </Link>{" "}
           から。新規登録が停止中でもこのフォームは機能します。
         </span>
       </div>
 
-      <form className="form" action={formAction} noValidate>
-        <div className={`field${usernameError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={usernameId}>
+      <form className={FORM} action={formAction} noValidate>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={usernameId}>
             ユーザー名
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={usernameId}
             name="username"
             type="text"
@@ -150,18 +180,19 @@ export function AdminSignUpForm() {
             required
             disabled={isPending}
             aria-invalid={usernameError !== undefined}
+            data-error={usernameError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {usernameError ?? "英数字とハイフン。後から変更できません。"}
           </span>
         </div>
 
-        <div className={`field${emailError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={emailId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={emailId}>
             メールアドレス
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={emailId}
             name="email"
             type="email"
@@ -170,19 +201,20 @@ export function AdminSignUpForm() {
             required
             disabled={isPending}
             aria-invalid={emailError !== undefined}
+            data-error={emailError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={emailError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {emailError ??
               "確認メールを送信します。受信できるアドレスを指定してください。"}
           </span>
         </div>
 
-        <div className={`field${passwordError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={passwordId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={passwordId}>
             パスワード
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={passwordId}
             name="password"
             type="password"
@@ -193,18 +225,19 @@ export function AdminSignUpForm() {
             required
             disabled={isPending}
             aria-invalid={passwordError !== undefined}
+            data-error={passwordError ? "" : undefined}
           />
-          <span className="field-hint">
+          <span className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}>
             {passwordError ?? "英数字と記号を組み合わせてください。"}
           </span>
         </div>
 
-        <div className={`field${displayNameError ? " has-error" : ""}`}>
-          <label className="field-label" htmlFor={displayNameId}>
-            表示名 <span className="optional">(任意)</span>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={displayNameId}>
+            表示名 <span className={FIELD_OPTIONAL}>(任意)</span>
           </label>
           <input
-            className="input"
+            className={INPUT}
             id={displayNameId}
             name="displayName"
             type="text"
@@ -213,21 +246,20 @@ export function AdminSignUpForm() {
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             disabled={isPending}
             aria-invalid={displayNameError !== undefined}
+            data-error={displayNameError ? "" : undefined}
           />
           {displayNameError ? (
-            <span className="field-hint">{displayNameError}</span>
+            <span className={FIELD_HINT_ERROR}>{displayNameError}</span>
           ) : null}
         </div>
 
-        <div
-          className={`field${isSetupTokenError || setupTokenValidationError ? " has-error" : ""}`}
-        >
-          <label className="field-label" htmlFor={setupTokenId}>
+        <div className={FIELD}>
+          <label className={FIELD_LABEL} htmlFor={setupTokenId}>
             Setup Token
           </label>
-          <div className="input-with-action">
+          <div className={INPUT_WITH_ACTION}>
             <input
-              className="input input-mono"
+              className={`${INPUT} ${INPUT_MONO} pr-11`}
               id={setupTokenId}
               name="setupToken"
               type={showToken ? "text" : "password"}
@@ -240,10 +272,13 @@ export function AdminSignUpForm() {
               aria-invalid={
                 isSetupTokenError || setupTokenValidationError !== undefined
               }
+              data-error={
+                isSetupTokenError || setupTokenValidationError ? "" : undefined
+              }
             />
             <button
               type="button"
-              className="reveal-btn"
+              className={REVEAL_BTN}
               onClick={() => setShowToken((v) => !v)}
               aria-label={showToken ? "トークンを隠す" : "トークンを表示"}
             >
@@ -263,13 +298,15 @@ export function AdminSignUpForm() {
               </svg>
             </button>
           </div>
-          <span className="field-hint">
+          <span
+            className={
+              setupTokenValidationError ? FIELD_HINT_ERROR : FIELD_HINT
+            }
+          >
             {setupTokenValidationError ?? (
               <>
                 サーバー側の{" "}
-                <code style={{ fontFamily: "var(--font-mono)" }}>
-                  ADMIN_SETUP_TOKEN
-                </code>{" "}
+                <code className="font-mono">ADMIN_SETUP_TOKEN</code>{" "}
                 と完全一致が必要です。
               </>
             )}
@@ -277,7 +314,7 @@ export function AdminSignUpForm() {
         </div>
 
         {isSetupTokenError ? (
-          <div className="form-error" role="alert">
+          <div className={FORM_ERROR} role="alert">
             <svg
               width="18"
               height="18"
@@ -288,13 +325,14 @@ export function AdminSignUpForm() {
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
+              className="shrink-0 mt-0.5"
             >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <span>
-              <strong>
+              <strong className="font-semibold">
                 {state.error?.code === "setup_token_disabled"
                   ? "Setup Token が設定されていません。"
                   : "Setup Token が正しくありません。"}
@@ -305,40 +343,53 @@ export function AdminSignUpForm() {
         ) : null}
 
         {summary !== null ? (
-          <div className="form-error" role="alert">
+          <div className={FORM_ERROR} role="alert">
             <span>
-              <strong>登録に失敗しました。</strong> {summary}
+              <strong className="font-semibold">登録に失敗しました。</strong>{" "}
+              {summary}
             </span>
           </div>
         ) : null}
 
-        <label className="checkbox-row" htmlFor={acceptTermsId}>
+        <label className={CHECKBOX_ROW} htmlFor={acceptTermsId}>
           <input
             id={acceptTermsId}
             type="checkbox"
             name="acceptTerms"
             required
             disabled={isPending}
+            className={CHECKBOX_INPUT}
           />
           <span>
-            <Link to="/" search={HOME_SEARCH}>
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className="text-accent hover:underline hover:[text-underline-offset:3px]"
+            >
               利用規約
             </Link>{" "}
             と{" "}
-            <Link to="/" search={HOME_SEARCH}>
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className="text-accent hover:underline hover:[text-underline-offset:3px]"
+            >
               プライバシーポリシー
             </Link>{" "}
             に同意します
           </span>
         </label>
 
-        <button type="submit" className="btn-primary" disabled={isPending}>
+        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
           {isPending ? "送信中..." : "管理者アカウントを作成"}
         </button>
       </form>
 
-      <div className="auth-footer">
-        管理者ではないですか? <Link to="/signup">通常のサインアップへ</Link>
+      <div className={AUTH_FOOTER}>
+        管理者ではないですか?{" "}
+        <Link to="/signup" className={AUTH_FOOTER_LINK}>
+          通常のサインアップへ
+        </Link>
       </div>
     </>
   );

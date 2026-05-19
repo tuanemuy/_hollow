@@ -10,6 +10,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import { bulkTrashNotesFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
+import { formError, pillBtn, pillBtnDanger } from "../styles";
 import { BulkExportDialog } from "./BulkExportDialog";
 import { BulkVisibilityDialog } from "./BulkVisibilityDialog";
 import { MoveNoteDialog } from "./MoveNoteDialog";
@@ -64,12 +65,17 @@ export function BulkActionBar({ tree }: Props) {
 
   return (
     <>
-      <section className="bulk-bar" aria-label="一括操作">
-        <span className="bulk-bar-count">{state.ids.size} 件選択中</span>
-        <div className="bulk-bar-actions">
+      <section
+        className="sticky top-[var(--header-height)] z-[5] flex flex-wrap items-center gap-3 px-4 py-3 mb-3 bg-accent-surface rounded-md"
+        aria-label="一括操作"
+      >
+        <span className="text-[13px] font-medium text-ink">
+          {state.ids.size} 件選択中
+        </span>
+        <div className="inline-flex gap-[6px] flex-wrap ml-auto">
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("move")}
             disabled={isPending}
           >
@@ -77,7 +83,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("visibility")}
             disabled={isPending}
           >
@@ -85,7 +91,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => setOpen("export")}
             disabled={isPending}
           >
@@ -93,7 +99,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn danger"
+            className={pillBtnDanger}
             onClick={onTrash}
             disabled={isPending}
           >
@@ -101,7 +107,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className={pillBtn}
             onClick={() => dispatch({ type: "clear" })}
             disabled={isPending}
           >
@@ -109,12 +115,12 @@ export function BulkActionBar({ tree }: Props) {
           </button>
         </div>
         {error !== null ? (
-          <p className="form-error" role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
         {batchMessage !== null ? (
-          <p className="form-error" role="status">
+          <p className={formError} role="status">
             {batchMessage}
           </p>
         ) : null}

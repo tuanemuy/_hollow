@@ -52,7 +52,7 @@ describe("InternalLinkSuggestPopup", () => {
         />,
       );
     });
-    expect(container.querySelector(".suggest-empty")?.textContent).toBe(
+    expect(container.querySelector('[role="listbox"]')?.textContent).toContain(
       "候補なし",
     );
     expect(container.querySelectorAll('[role="option"]').length).toBe(0);
@@ -139,9 +139,7 @@ describe("InternalLinkSuggestPopup", () => {
         />,
       );
     });
-    const popup = container.querySelector<HTMLDivElement>(
-      ".internal-link-suggest-popup",
-    );
+    const popup = container.querySelector<HTMLDivElement>('[role="listbox"]');
     expect(popup).not.toBeNull();
     expect(popup?.style.position).toBe("absolute");
     expect(popup?.style.left).toBe("42px");

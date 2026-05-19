@@ -1,5 +1,292 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "./theme.css";
-@import "./app.css";
-@import "../components/public/public.css";
+
+@theme inline {
+  /* Colors — brand */
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-pressed: var(--color-accent-pressed);
+  --color-accent-surface: var(--color-accent-surface);
+  --color-accent-surface-hover: var(--color-accent-surface-hover);
+  --color-accent-ink: var(--color-accent-ink);
+
+  /* Colors — neutral */
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-ink: var(--color-ink);
+  --color-ink-secondary: var(--color-ink-secondary);
+  --color-ink-tertiary: var(--color-ink-tertiary);
+  --color-hairline: var(--color-hairline);
+  --color-hairline-strong: var(--color-hairline-strong);
+
+  /* Colors — semantic */
+  --color-success: var(--color-success);
+  --color-success-surface: var(--color-success-surface);
+  --color-warning: var(--color-warning);
+  --color-warning-surface: var(--color-warning-surface);
+  --color-error: var(--color-error);
+  --color-error-surface: var(--color-error-surface);
+  --color-info: var(--color-info);
+
+  /* Colors — publish status */
+  --color-status-private: var(--color-status-private);
+  --color-status-link: var(--color-status-link);
+  --color-status-public: var(--color-status-public);
+
+  /* Fonts */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+
+  /* Text sizes (clamp-based) */
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md: var(--text-md);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  --text-3xl: var(--text-3xl);
+  --text-mono: var(--text-mono);
+
+  /* Font weights */
+  --font-weight-light: var(--weight-light);
+  --font-weight-regular: var(--weight-regular);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-semibold: var(--weight-semibold);
+
+  /* Leading */
+  --leading-tight: var(--leading-tight);
+  --leading-snug: var(--leading-snug);
+  --leading-normal: var(--leading-normal);
+  --leading-relaxed: var(--leading-relaxed);
+
+  /* Tracking */
+  --tracking-tightest: var(--tracking-tightest);
+  --tracking-tighter: var(--tracking-tighter);
+  --tracking-tight: var(--tracking-tight);
+  --tracking-normal: var(--tracking-normal);
+
+  /* Spacing (drives p-*, gap-*, m-*) */
+  --spacing-0: var(--space-0);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  --spacing-20: var(--space-20);
+
+  /* Radius */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-pill: var(--radius-pill);
+  --radius-full: var(--radius-full);
+
+  /* Shadow */
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-focus: var(--shadow-focus);
+
+  /* Easing */
+  --ease-standard: var(--ease-standard);
+  --ease-decel: var(--ease-decel);
+  --ease-accel: var(--ease-accel);
+
+  /* Duration */
+  --duration-fast: var(--duration-fast);
+  --duration-base: var(--duration-base);
+  --duration-slow: var(--duration-slow);
+
+  /*
+   * Breakpoints must be literal values — lightningcss rejects `var()` inside
+   * `@media (width >= ...)` during minify. Keep these in sync with
+   * `--bp-*` in tokens.css.
+   */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* Container */
+  --container-max: var(--container-max);
+  --container-padding: var(--container-padding);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+
+  body {
+    margin: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+}
+
+/*
+ * Server-rendered note body styles.
+ *
+ * NoteDetail / HtmlEditor inject sanitized HTML via
+ * dangerouslySetInnerHTML, so descendant elements can't carry Tailwind
+ * utility classes. These rules are the documented exception to the
+ * utility-first policy (see .issue/70/adr.md ADR-002).
+ */
+@layer components {
+  .note-detail-content {
+    color: var(--color-ink);
+    max-width: var(--content-max);
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
+  }
+
+  .note-detail-content > * + * {
+    margin-top: 1.1em;
+  }
+
+  .note-detail-content p {
+    font-size: 16px;
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-4);
+  }
+
+  .note-detail-content h1,
+  .note-detail-content h2,
+  .note-detail-content h3 {
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-3);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .note-detail-content h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    margin-top: 2em;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid var(--color-hairline);
+    line-height: var(--leading-snug);
+  }
+
+  .note-detail-content h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    margin-top: 1.6em;
+  }
+
+  .note-detail-content a {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+
+  .note-detail-content a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .note-detail-content code {
+    font-family: var(--font-mono);
+    background: var(--color-surface);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 0.88em;
+  }
+
+  .note-detail-content pre {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  .note-detail-content pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  .note-detail-content blockquote {
+    border-left: 3px solid var(--color-hairline-strong);
+    padding: 2px 0 2px 18px;
+    color: var(--color-ink-secondary);
+  }
+
+  .note-detail-content ul,
+  .note-detail-content ol {
+    padding-left: 1.8em;
+    line-height: var(--leading-relaxed);
+    font-size: 16px;
+  }
+
+  .note-detail-content ul {
+    list-style: disc;
+  }
+
+  .note-detail-content ol {
+    list-style: decimal;
+  }
+
+  .note-detail-content li {
+    margin-top: 0.4em;
+  }
+
+  .note-detail-content li::marker {
+    color: var(--color-ink-tertiary);
+  }
+
+  .note-detail-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-lg);
+  }
+}

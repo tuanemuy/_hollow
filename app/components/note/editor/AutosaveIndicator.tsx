@@ -10,36 +10,38 @@ export type AutosaveIndicatorProps = Readonly<{
   status: AutosaveStatus;
 }>;
 
+const BASE = "inline-flex items-center text-xs";
+
 export function AutosaveIndicator({ status }: AutosaveIndicatorProps) {
   switch (status.kind) {
     case "idle":
       return (
-        <span className="autosave-indicator autosave-idle" aria-live="polite">
+        <span className={`${BASE} text-ink-tertiary`} aria-live="polite">
           自動保存はオフ
         </span>
       );
     case "dirty":
       return (
-        <span className="autosave-indicator autosave-dirty" aria-live="polite">
+        <span className={`${BASE} text-warning`} aria-live="polite">
           未保存の変更があります
         </span>
       );
     case "saving":
       return (
-        <span className="autosave-indicator autosave-saving" aria-live="polite">
+        <span className={`${BASE} text-ink-secondary`} aria-live="polite">
           保存中…
         </span>
       );
     case "saved":
       return (
-        <span className="autosave-indicator autosave-saved" aria-live="polite">
+        <span className={`${BASE} text-success`} aria-live="polite">
           保存しました
         </span>
       );
     case "error":
       return (
         <span
-          className="autosave-indicator autosave-error"
+          className={`${BASE} text-error`}
           aria-live="assertive"
           role="alert"
         >

@@ -1,3 +1,4 @@
+import { pillBtn, pillBtnPrimary } from "../styles";
 import type { EditorMode } from "./editorState";
 
 /**
@@ -23,19 +24,27 @@ const TABS: readonly Tab[] = [
 
 export function EditorModeSwitch({ mode, onChange }: EditorModeSwitchProps) {
   return (
-    <div className="editor-mode-switch" role="tablist" aria-label="編集モード">
-      {TABS.map((tab) => (
-        <button
-          key={tab.mode}
-          type="button"
-          role="tab"
-          aria-selected={mode === tab.mode}
-          className={`pill-btn${mode === tab.mode ? " primary" : ""}`}
-          onClick={() => onChange(tab.mode)}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div
+      className="inline-flex flex-wrap gap-1"
+      role="tablist"
+      aria-label="編集モード"
+    >
+      {TABS.map((tab) => {
+        const isActive = mode === tab.mode;
+        return (
+          <button
+            key={tab.mode}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            data-primary={isActive || undefined}
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            onClick={() => onChange(tab.mode)}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
