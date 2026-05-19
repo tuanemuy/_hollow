@@ -74,6 +74,11 @@ export function isAutosaveExhausted(attempt: number): boolean {
  *   acknowledged the warning. HTML mode is *not* gated — see ADR-002
  *   for why we let the HTML tab keep saving while the warning is up.
  *
+ * `wysiwygUnsupportedAck` is intentionally retained across WYSIWYG
+ * editor unmount/remount; the reducer's `setsEqual` latch combined with
+ * the `onCreate`-only detection in `WysiwygEditor.tsx` keeps the ack
+ * state consistent with the originally-detected tag set (ADR-003 / -005).
+ *
  * Exported as a pure function so the gating ladder is unit-testable
  * without mounting the hook (Issue #37).
  */
