@@ -13,7 +13,7 @@ concurrency:
 env:
   STAGE: production
   NODE_VERSION: "22"
-  PNPM_VERSION: "10"
+  PNPM_VERSION: "11"
 
 jobs:
   deploy:
