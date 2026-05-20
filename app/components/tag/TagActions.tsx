@@ -148,7 +148,10 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
       <ConfirmDialog
         open={confirmDeleteOpen}
         title={`タグ "#${name}" を削除`}
-        description={renderDeleteDescription({ isPending, noteCount })}
+        description={renderDeleteDescription({
+          isPending: isPending && confirmDeleteOpen,
+          noteCount,
+        })}
         confirmLabel="削除"
         isPending={isPending}
         onConfirm={runDelete}
@@ -174,7 +177,7 @@ function renderDeleteDescription({
           </span>
           <div
             role="progressbar"
-            aria-busy="true"
+            aria-busy={true}
             aria-valuemin={0}
             aria-valuemax={noteCount}
             // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002

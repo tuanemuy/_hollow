@@ -100,14 +100,15 @@ export function MergeTagDialog({
         </div>
         {targetTag !== undefined ? (
           <p className={DIALOG_DESCRIPTION}>
-            #{sourceName}
+            #{sourceName} を #{targetTag.name} に統合します。
             {sourceNoteCount > 0 ? (
               <>
-                （<strong>対象ノート: {sourceNoteCount} 件</strong>）
+                {" "}
+                <strong>対象ノート: {sourceNoteCount} 件</strong>。
               </>
             ) : null}{" "}
-            を #{targetTag.name} に統合します。#{sourceName}{" "}
-            は削除され、参照ノートは #{targetTag.name} を持つよう更新されます。
+            #{sourceName} は削除され、参照ノートは #{targetTag.name}{" "}
+            を持つよう更新されます。
           </p>
         ) : null}
         {error !== null ? (
@@ -122,7 +123,7 @@ export function MergeTagDialog({
             </span>
             <div
               role="progressbar"
-              aria-busy="true"
+              aria-busy={true}
               aria-valuemin={0}
               aria-valuemax={sourceNoteCount}
               // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002
