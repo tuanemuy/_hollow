@@ -22,6 +22,7 @@ import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
 import { ConsoleLogger } from "../ports/logger";
 import { NoopRelayTrigger, type RelayTrigger } from "../ports/relayTrigger";
+import { NullUsageMetricsProvider } from "../ports/usageMetricsProvider";
 import type { TuningEnv } from "./env";
 import {
   type PruneTuning,
@@ -180,6 +181,7 @@ export function createRequestContainer(
     archiveBuilder: new InMemoryZipArchiveBuilder(),
     exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
+    usageMetricsProvider: NullUsageMetricsProvider,
   } as unknown as RequestContainer;
 }
 
