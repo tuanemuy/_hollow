@@ -295,9 +295,9 @@ INSERT OR IGNORE INTO instance_settings (
   'env',
   NULL,
   '{}',
-  '{}',
+  '{"tokens":{}}',
   1, NULL,
-  '{"perUserMaxNotes":10000,"perUserMaxMediaBytes":1073741824,"perFileMaxBytes":52428800,"bulkSelectionMax":100}',
+  '{"maxUploadBytesPerDay":1073741824,"maxIngestionBytes":33554432,"maxNoteBytes":1048576,"maxExportArtifactBytes":268435456,"maxShareLinksPerNote":16,"editLockTtlSec":300,"trashRetentionDays":30}',
   0,
   '2026-05-01T00:00:00.000Z'
 );
