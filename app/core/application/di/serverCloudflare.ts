@@ -2,8 +2,11 @@ import type { D1Database, Fetcher } from "@cloudflare/workers-types";
 import { content } from "@/config";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
+import { StubObjectStorage } from "@/core/adapters/cloudflare/r2ObjectStorage";
+import { StubTempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
 import { getDatabase } from "@/core/adapters/d1/client";
+import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
@@ -14,9 +17,19 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
+import { HttpLLMConnectionTester } from "@/core/adapters/llm/llmConnectionTester";
+import { StubLLMProvider } from "@/core/adapters/llm/llmProvider";
+import { StubOCRProvider } from "@/core/adapters/llm/ocrProvider";
+import { StubOfficeExtractor } from "@/core/adapters/llm/officeExtractor";
+import { StubPDFExtractor } from "@/core/adapters/llm/pdfExtractor";
+import { StubSpeechRecognitionProvider } from "@/core/adapters/llm/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
+import {
+  NullSecretBox,
+  WebCryptoSecretBox,
+} from "@/core/adapters/security/secretBox";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
@@ -67,6 +80,17 @@ export type RequestServerConfig = AppConfig &
     // returns `AuthenticationError('setup_token_disabled')`. See
     // `EnvSetupTokenVerifier` and ADR 007.
     adminSetupToken?: string;
+    // Optional `SECRET_BOX_MASTER_KEY` secret — base64-encoded 32-byte
+    // AES-256 key consumed by `WebCryptoSecretBox`. When unset the DI
+    // layer wires `NullSecretBox` so the admin UI still renders;
+    // operations that actually need encryption (saving a DB-sourced
+    // LLM api key) surface `SecretBoxError(KeyUnavailable)` on call.
+    secretBoxMasterKey?: string;
+    // Optional `ADMIN_LLM_API_KEY` env override. When set, admin
+    // settings resolution prefers this over any DB-stored ciphertext
+    // (`AdminSettingsService.assertEnvOverride`); `null` here means
+    // "no env override".
+    adminLlmApiKey?: string;
   }>;
 
 /**
@@ -80,6 +104,11 @@ export type ServerEnv = Readonly<{
   // Optional admin-bootstrap secret (see ADR 007 / `EnvSetupTokenVerifier`).
   // When absent, `AdminSignUp` is disabled at the usecase boundary.
   ADMIN_SETUP_TOKEN?: string;
+  // Optional base64-encoded 32-byte master key for `WebCryptoSecretBox`.
+  // Absent → DI falls back to `NullSecretBox` (operation-time fail).
+  SECRET_BOX_MASTER_KEY?: string;
+  // Optional admin-side LLM api key override. Absent → no env override.
+  ADMIN_LLM_API_KEY?: string;
   // Worker tuning knobs. Wrangler `[vars]` deliver strings — parse +
   // default via `readRelayTuning` / `readPruneTuning` at the worker
   // entry boundary. Missing values fall back to the application-layer
@@ -119,6 +148,10 @@ export function readRequestServerConfig(
     ...(env.ADMIN_SETUP_TOKEN
       ? { adminSetupToken: env.ADMIN_SETUP_TOKEN }
       : {}),
+    ...(env.SECRET_BOX_MASTER_KEY
+      ? { secretBoxMasterKey: env.SECRET_BOX_MASTER_KEY }
+      : {}),
+    ...(env.ADMIN_LLM_API_KEY ? { adminLlmApiKey: env.ADMIN_LLM_API_KEY } : {}),
     ...(ctx
       ? {
           waitUntil: (promise: Promise<unknown>) => ctx.waitUntil(promise),
@@ -149,6 +182,8 @@ export function createRequestContainer(
     relay,
     waitUntil,
     adminSetupToken,
+    secretBoxMasterKey,
+    adminLlmApiKey,
     ...appConfig
   } = config;
   const relayTrigger: RelayTrigger =
@@ -167,6 +202,7 @@ export function createRequestContainer(
     htmlSanitizer: new SanitizeHtmlSanitizer(),
     markdownConverter: new MarkdownItConverter(),
     passwordHasher: new Argon2idPasswordHasher(),
+    objectStorage: new StubObjectStorage(),
     searchIndex: new D1SearchIndex(db, UuidV7Generator),
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
     emailSender: new ConsoleEmailSender(ConsoleLogger),
@@ -181,8 +217,20 @@ export function createRequestContainer(
     archiveBuilder: new InMemoryZipArchiveBuilder(),
     exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
+    llmProvider: new StubLLMProvider(),
+    ocrProvider: new StubOCRProvider(),
+    speechRecognitionProvider: new StubSpeechRecognitionProvider(),
+    officeExtractor: new StubOfficeExtractor(),
+    pdfExtractor: new StubPDFExtractor(),
+    tempFileStorage: new StubTempFileStorage(),
+    promptResolver: new D1PromptResolver(db),
+    secretBox: secretBoxMasterKey
+      ? new WebCryptoSecretBox(secretBoxMasterKey)
+      : new NullSecretBox(),
+    llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
-  } as unknown as RequestContainer;
+    adminSettingsEnv: { apiKey: adminLlmApiKey ?? null },
+  } satisfies RequestContainer;
 }
 
 /**
