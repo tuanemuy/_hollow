@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
-import { useId, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import type { NoteListSearch } from "../schema";
 import { pillBtn } from "../styles";
 import { formatReferencingNoteChipLabel } from "./listSelectors";
+import { NotePickerDialog } from "./NotePickerDialog";
 
 const CHIP =
   "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-surface text-xs text-ink transition-colors data-[active]:bg-accent data-[active]:text-white disabled:opacity-55 disabled:cursor-not-allowed";
@@ -38,6 +39,7 @@ export function FilterBar({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fromId = useId();
   const toId = useId();
 
@@ -101,6 +103,20 @@ export function FilterBar({
         search: (prev) => ({
           ...withDefaults(prev as Partial<NoteListSearch>),
           referencingNoteId: undefined,
+        }),
+      });
+    });
+  };
+
+  const handlePick = (noteId: string) => {
+    setPickerOpen(false);
+    startTransition(() => {
+      router.navigate({
+        to: "/",
+        search: (prev) => ({
+          ...withDefaults(prev as Partial<NoteListSearch>),
+          referencingNoteId: noteId,
+          page: 1,
         }),
       });
     });
@@ -217,9 +233,9 @@ export function FilterBar({
         </select>
       </div>
 
-      {referencingNoteId !== undefined ? (
-        <div className="inline-flex items-center gap-2 flex-wrap">
-          <span className={FILTER_LABEL}>内部リンク参照</span>
+      <div className="inline-flex items-center gap-2 flex-wrap">
+        <span className={FILTER_LABEL}>内部リンク参照</span>
+        {referencingNoteId !== undefined ? (
           <span data-active className={CHIP}>
             参照中:{" "}
             {formatReferencingNoteChipLabel(
@@ -236,8 +252,19 @@ export function FilterBar({
               ×
             </button>
           </span>
-        </div>
-      ) : null}
+        ) : (
+          <button
+            type="button"
+            className={pillBtn}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen(true)}
+            disabled={isPending}
+          >
+            ノートを選ぶ…
+          </button>
+        )}
+      </div>
 
       {hasAnyFilter ? (
         <button
@@ -249,6 +276,12 @@ export function FilterBar({
           クリア
         </button>
       ) : null}
+
+      <NotePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePick}
+      />
     </div>
   );
 }
