@@ -21,7 +21,12 @@ import type { InternalLinkSuggestion } from "@/core/application/note/searchInter
 // itself returns `mockedFn` directly.
 const mockedFn = vi.fn();
 vi.mock("@tanstack/react-start", () => {
-  const chain = () => new Proxy(() => chain(), { get: () => chain() });
+  // Exclude `then` so an accidental `await` on a chain leaf does not turn
+  // the Proxy into a thenable (which would hang the awaiter).
+  const chain = () =>
+    new Proxy(() => chain(), {
+      get: (_, prop) => (prop === "then" ? undefined : chain()),
+    });
   return {
     useServerFn: () => mockedFn,
     createMiddleware: () => chain(),
@@ -121,10 +126,16 @@ describe("NotePickerDialog", () => {
     });
     expect(mockedFn).not.toHaveBeenCalled();
 
+    // Pin the boundary: at 99ms the timer has not fired yet.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(99);
     });
+    expect(mockedFn).not.toHaveBeenCalled();
 
+    // The remaining 1ms crosses the 100ms threshold and fires the call.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(mockedFn).toHaveBeenCalledTimes(1);
   });
 
@@ -151,8 +162,14 @@ describe("NotePickerDialog", () => {
     act(() => {
       typeQuery("abc");
     });
+    // Pin the boundary: only at 99ms past the last keystroke the timer
+    // has still not fired — no call should have leaked through.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(99);
+    });
+    expect(mockedFn).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
 
     expect(mockedFn).toHaveBeenCalledTimes(1);
@@ -190,6 +207,14 @@ describe("NotePickerDialog", () => {
       );
     expect(options().length).toBe(3);
     expect(options()[0].getAttribute("aria-selected")).toBe("true");
+
+    // Make focus explicit: happy-dom delivers synthetic keydowns regardless
+    // of focus, but a real browser only routes arrow keys to the combobox
+    // when it owns focus. Pinning this here protects against future
+    // regressions if a refactor accidentally moves focus elsewhere.
+    act(() => {
+      getInput().focus();
+    });
 
     act(() => {
       pressKey("ArrowDown");
@@ -272,11 +297,12 @@ describe("NotePickerDialog", () => {
     act(() => {
       typeQuery("a");
     });
+    // `runAllTimersAsync` fires the debounce timer and then keeps awaiting
+    // any chained promises (including the rejected one inside the catch)
+    // until the queue drains. That's stronger than a fixed number of
+    // `await Promise.resolve()` flushes which can miss late microtasks.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100);
-      // Allow the rejected promise to settle.
-      await Promise.resolve();
-      await Promise.resolve();
+      await vi.runAllTimersAsync();
     });
 
     const alert = document.body.querySelector('[role="alert"]');

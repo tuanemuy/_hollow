@@ -281,6 +281,7 @@ export function FilterBar({
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={handlePick}
+        isPending={isPending}
       />
     </div>
   );
