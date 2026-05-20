@@ -308,3 +308,49 @@ function toHex(bytes: Uint8Array): string {
   }
   return out;
 }
+
+/**
+ * MVP {@link ObjectStorage} placeholder.
+ *
+ * The Cloudflare reference runtime does not yet declare an R2 binding
+ * for media object storage, so {@link R2ObjectStorage} cannot be
+ * instantiated. Every operation rejects with
+ * {@link StorageUnavailableError} so media / export usecases fail
+ * explicitly when reached rather than blowing up with a `TypeError` on
+ * an undefined adapter slot. Once the R2 binding is added to
+ * `wrangler.toml` and threaded through `ServerEnv`, the DI layer swaps
+ * this stub for {@link R2ObjectStorage}.
+ */
+export class StubObjectStorage implements ObjectStorage {
+  async put(
+    _key: string,
+    _bytes: ArrayBuffer,
+    _contentType: string,
+  ): Promise<void> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+
+  async get(_key: string): Promise<ArrayBuffer> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+
+  async stat(_key: string): Promise<ObjectMetadata> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+
+  async delete(_key: string): Promise<void> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+
+  async presignDownload(_key: string, _ttlSec: number): Promise<URL> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+
+  async presignUpload(
+    _key: string,
+    _contentType: string,
+    _ttlSec: number,
+  ): Promise<URL> {
+    throw new StorageUnavailableError("object_storage_not_configured");
+  }
+}

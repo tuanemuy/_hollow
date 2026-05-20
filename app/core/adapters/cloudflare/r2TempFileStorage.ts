@@ -68,3 +68,35 @@ function mapBackendError(
 ): TempFileStorageUnavailableError {
   return new TempFileStorageUnavailableError(message, cause);
 }
+
+/**
+ * MVP {@link TempFileStorage} placeholder.
+ *
+ * The Cloudflare reference runtime does not yet declare an R2 binding
+ * for ingestion temp storage, so {@link R2TempFileStorage} cannot be
+ * instantiated. Every operation rejects with
+ * {@link TempFileStorageUnavailableError} so ingestion usecases fail
+ * explicitly when reached rather than blowing up on an undefined
+ * adapter slot. Once the R2 binding is added to `wrangler.toml` and
+ * threaded through `ServerEnv`, the DI layer swaps this stub for
+ * {@link R2TempFileStorage}.
+ */
+export class StubTempFileStorage implements TempFileStorage {
+  async put(_key: string, _bytes: ArrayBuffer): Promise<void> {
+    throw new TempFileStorageUnavailableError(
+      "temp_file_storage_not_configured",
+    );
+  }
+
+  async get(_key: string): Promise<ArrayBuffer> {
+    throw new TempFileStorageUnavailableError(
+      "temp_file_storage_not_configured",
+    );
+  }
+
+  async delete(_key: string): Promise<void> {
+    throw new TempFileStorageUnavailableError(
+      "temp_file_storage_not_configured",
+    );
+  }
+}

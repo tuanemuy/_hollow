@@ -209,3 +209,27 @@ export class WebCryptoSecretBox implements SecretBox {
     return new TextDecoder().decode(plainBuf);
   }
 }
+
+/**
+ * MVP {@link SecretBox} placeholder used when `SECRET_BOX_MASTER_KEY`
+ * is not configured. Both operations reject with `KeyUnavailable` so
+ * the admin UI can still render — the failure only surfaces when an
+ * operator actually tries to encrypt / decrypt a secret (e.g. saving
+ * a DB-sourced LLM api key). The DI layer swaps this for
+ * {@link WebCryptoSecretBox} once the master key is supplied.
+ */
+export class NullSecretBox implements SecretBox {
+  async encrypt(_plain: string): Promise<string> {
+    throw new SecretBoxError(
+      SecretBoxErrorCode.KeyUnavailable,
+      "SECRET_BOX_MASTER_KEY is not configured",
+    );
+  }
+
+  async decrypt(_cipher: string): Promise<string> {
+    throw new SecretBoxError(
+      SecretBoxErrorCode.KeyUnavailable,
+      "SECRET_BOX_MASTER_KEY is not configured",
+    );
+  }
+}
