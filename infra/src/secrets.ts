@@ -1,5 +1,5 @@
-import { workerNames } from "./config.ts";
 import type { Config } from "./config.ts";
+import { workerNames } from "./config.ts";
 
 /**
  * Required secrets per Worker. The CI deploy step decrypts the SOPS-encrypted

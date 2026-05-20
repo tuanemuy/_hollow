@@ -49,6 +49,18 @@ type SearchRow = Readonly<{
  * and `users` (for the hit's `username`). `bm25()` ranks results and
  * `snippet()` produces the highlighted excerpt.
  *
+ * `search_documents_fts` uses `tokenize='trigram'` (migration 0008) so
+ * CJK and ASCII free-text queries share one substring-match path — the
+ * default `unicode61` tokenizer collapses contiguous CJK runs into one
+ * token and breaks partial-match for keywords like `デザイン`.
+ *
+ * Trigram has one essential constraint: query tokens shorter than 3
+ * Unicode codepoints cannot match anything. The domain's `SearchKeyword`
+ * still accepts 1+ chars; the gap is absorbed inside
+ * `buildMatchExpression` (short tokens are filtered out, an empty result
+ * is returned via the `'""'` literal fallback) rather than leaking into
+ * the domain contract.
+ *
  * Cursor encoding is opaque: the adapter stores a base64 offset because
  * BM25 ranks ties cannot be split deterministically by `rowid` without
  * exposing the host's `rowid` to the cursor — offset pagination is
@@ -307,15 +319,28 @@ export class D1SearchIndex implements SearchIndex {
 // remaining tokens as a phrase query. Without this, a keyword like `foo:`
 // or `bar"baz` would be interpreted as an FTS column filter or quoted
 // phrase boundary and surface as a parser error from D1.
+//
+// `tokenize='trigram'` (see class JSDoc) cannot match query tokens shorter
+// than 3 Unicode codepoints. We absorb that constraint here rather than in
+// the domain by dropping short tokens after metacharacter normalisation.
+// The length check uses `Array.from(tok).length` to count Unicode
+// codepoints — `tok.length` returns UTF-16 code units, which would count
+// a surrogate-pair emoji (1 codepoint) as 2 and misclassify it as a valid
+// trigram token. When every token is dropped (or the original input
+// normalised to nothing), the function returns `'""'` so the query
+// surfaces as zero hits rather than a parser error.
 function buildMatchExpression(keyword: string): string {
   const tokens = keyword
     .split(/\s+/)
     .map((tok) => tok.replace(/["\\]/g, ""))
-    .filter((tok) => tok.length > 0);
+    .filter((tok) => tok.length > 0)
+    .filter((tok) => Array.from(tok).length >= 3);
   if (tokens.length === 0) {
     // Domain guarantees keyword.length >= 1 via `SearchKeyword.create`,
-    // but normalisation may strip the entire input (e.g. a single `"`).
-    // Fall back to a literal that matches nothing rather than throwing.
+    // but normalisation may strip the entire input (e.g. a single `"`),
+    // or every token may be shorter than the trigram minimum (3
+    // codepoints). Fall back to a literal that matches nothing rather
+    // than throwing.
     return '""';
   }
   return tokens.map((tok) => `"${tok}"`).join(" ");

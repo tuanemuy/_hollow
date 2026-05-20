@@ -630,9 +630,11 @@ export const searchDocuments = sqliteTable(
 );
 
 // FTS5 virtual table `search_documents_fts` cannot be expressed via
-// drizzle's `sqliteTable`. The CREATE statement lives in the migration
-// SQL alongside the supporting sync triggers; the adapter accesses it
-// through raw SQL when needed.
+// drizzle's `sqliteTable`. The current definition (with `tokenize='trigram'`)
+// lives in `migrations/0008_search_documents_fts_trigram.sql`; the initial
+// `unicode61` definition in `0001_hollow_schema.sql` is dropped and
+// recreated by `0008` as part of the Issue #50 CJK partial-match fix.
+// The adapter accesses the virtual table through raw SQL when needed.
 
 export const indexJobs = sqliteTable(
   "index_jobs",

@@ -66,6 +66,7 @@ NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が 
 ### SearchQuery
 - フィールド: `keyword: string`, `ownerIdFilter: UserId | null`, `visibilityFilter: Visibility[]`, `tagNames: string[]`, `dateRange: DateRange | null`, `limit: number`, `cursor: string | null`
 - バリデーション: `keyword` 長さ 1..200、`limit` 1..50
+- 注記: ドメイン契約は `keyword` 長さ 1..200 で不変。ただし D1 adapter は FTS5 `tokenize='trigram'` の制約により 3 Unicode codepoint 未満のクエリトークンを内部的に除外する（`spec/database/index.md` の `search_documents_fts` 節、`.issue/50/adr.md` ADR-003 参照）
 
 ### SearchHit
 - フィールド: `noteId: NoteId`, `ownerId: UserId`, `username: Username`, `title: string`, `snippet: string`, `tagNames: string[]`, `score: number`
