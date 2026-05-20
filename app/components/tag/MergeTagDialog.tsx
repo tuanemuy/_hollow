@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { dialogActions, dialogTitle } from "@/components/note/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -16,10 +17,12 @@ import {
   PILL_BTN,
 } from "../layout/styles";
 import { mergeTagsFn } from "./actions";
+import { progressBarIndeterminate, progressTrack } from "./styles";
 
 type Props = {
   sourceTagId: string;
   sourceName: string;
+  sourceNoteCount: number;
   candidates: readonly { id: string; name: string }[];
   open: boolean;
   onClose: () => void;
@@ -30,6 +33,7 @@ const DIALOG_DESCRIPTION = "text-[13px] text-ink-secondary mt-2";
 export function MergeTagDialog({
   sourceTagId,
   sourceName,
+  sourceNoteCount,
   candidates,
   open,
   onClose,
@@ -67,8 +71,8 @@ export function MergeTagDialog({
       ariaLabel="タグを統合"
       closable={!isPending}
     >
-      <form onSubmit={submit}>
-        <h2 className="text-lg font-medium mb-4">タグを統合</h2>
+      <form onSubmit={submit} aria-busy={isPending}>
+        <h2 className={dialogTitle}>タグを統合</h2>
         <div className="flex flex-col gap-2 mb-4">
           <label htmlFor={targetId} className={FIELD_LABEL}>
             統合先タグ
@@ -90,8 +94,15 @@ export function MergeTagDialog({
         </div>
         {targetTag !== undefined ? (
           <p className={DIALOG_DESCRIPTION}>
-            #{sourceName} を #{targetTag.name} に統合します。#{sourceName}{" "}
-            は削除され、参照ノートは #{targetTag.name} を持つよう更新されます。
+            #{sourceName} を #{targetTag.name} に統合します。
+            {sourceNoteCount > 0 ? (
+              <>
+                {" "}
+                <strong>対象ノート: {sourceNoteCount} 件</strong>。
+              </>
+            ) : null}{" "}
+            #{sourceName} は削除され、参照ノートは #{targetTag.name}{" "}
+            を持つよう更新されます。
           </p>
         ) : null}
         {error !== null ? (
@@ -99,7 +110,26 @@ export function MergeTagDialog({
             {displayError(error)}
           </p>
         ) : null}
-        <div className="inline-flex gap-2 mt-4 justify-end w-full">
+        {isPending && sourceNoteCount > 0 ? (
+          <div className="mt-3">
+            <span aria-live="polite" className="text-[13px] text-ink-secondary">
+              <strong>{sourceNoteCount} 件のノートを更新中…</strong>
+            </span>
+            <div
+              role="progressbar"
+              aria-busy={true}
+              aria-valuemin={0}
+              aria-valuemax={sourceNoteCount}
+              // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002
+              aria-valuenow={undefined}
+              aria-label={`${sourceNoteCount} 件のノートを更新中`}
+              className={progressTrack}
+            >
+              <div className={progressBarIndeterminate} />
+            </div>
+          </div>
+        ) : null}
+        <div className={dialogActions}>
           <button
             type="button"
             className={PILL_BTN}
