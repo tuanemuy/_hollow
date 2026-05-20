@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { bulkChangeVisibilityFn } from "@/components/publication/PublishSettings/action";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -10,9 +11,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import {
-  dialog,
   dialogActions,
-  dialogBackdrop,
   dialogTitle,
   field,
   fieldLabel,
@@ -40,8 +39,6 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
   const [progress, setProgress] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const radioName = useId();
-
-  if (!open) return null;
 
   const ids = [...state.ids];
 
@@ -81,13 +78,13 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
   };
 
   return (
-    <div
-      className={dialogBackdrop}
-      role="dialog"
-      aria-modal="true"
-      aria-label="公開設定を一括変更"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="公開設定を一括変更"
+      closable={!isPending}
     >
-      <form className={dialog} onSubmit={submit}>
+      <form onSubmit={submit}>
         <h2 className={dialogTitle}>{ids.length} 件のノートの公開設定を変更</h2>
         <fieldset className={field}>
           <legend className={fieldLabel}>新しい公開状態</legend>
@@ -144,6 +141,6 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -11,9 +12,7 @@ import {
 import { bulkExportNotesFn } from "../actions";
 import {
   checkboxRow,
-  dialog,
   dialogActions,
-  dialogBackdrop,
   dialogTitle,
   field,
   fieldControl,
@@ -44,8 +43,6 @@ export function BulkExportDialog({ open, onClose }: Props) {
   const [batchError, setBatchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const radioName = useId();
-
-  if (!open) return null;
 
   const ids = [...state.ids];
 
@@ -88,13 +85,13 @@ export function BulkExportDialog({ open, onClose }: Props) {
   };
 
   return (
-    <div
-      className={dialogBackdrop}
-      role="dialog"
-      aria-modal="true"
-      aria-label="一括エクスポート"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="一括エクスポート"
+      closable={!isPending}
     >
-      <form className={dialog} onSubmit={submit}>
+      <form onSubmit={submit}>
         <h2 className={dialogTitle}>{ids.length} 件のノートをエクスポート</h2>
         <fieldset className={field}>
           <legend className={fieldLabel}>形式</legend>
@@ -175,6 +172,6 @@ export function BulkExportDialog({ open, onClose }: Props) {
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

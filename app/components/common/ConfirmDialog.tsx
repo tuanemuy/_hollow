@@ -2,13 +2,12 @@
 
 import { useId } from "react";
 import {
-  dialog,
   dialogActions,
-  dialogBackdrop,
   dialogTitle,
   pillBtn,
   pillBtnDanger,
 } from "@/components/note/styles";
+import { Dialog } from "./Dialog";
 
 export type ConfirmDialogProps = Readonly<{
   open: boolean;
@@ -44,8 +43,6 @@ export function ConfirmDialog({
   const titleId = useId();
   const descId = useId();
 
-  if (!open) return null;
-
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isPending) return;
@@ -53,14 +50,15 @@ export function ConfirmDialog({
   };
 
   return (
-    <div
-      className={dialogBackdrop}
+    <Dialog
+      open={open}
+      onClose={onClose}
       role="alertdialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={description !== undefined ? descId : undefined}
+      ariaLabelledBy={titleId}
+      ariaDescribedBy={description !== undefined ? descId : undefined}
+      closable={!isPending}
     >
-      <form className={dialog} onSubmit={submit}>
+      <form onSubmit={submit}>
         <h2 id={titleId} className={dialogTitle}>
           {title}
         </h2>
@@ -83,6 +81,6 @@ export function ConfirmDialog({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
