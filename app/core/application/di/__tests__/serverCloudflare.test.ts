@@ -7,7 +7,10 @@ import {
   DEFAULT_MAX_ATTEMPTS,
 } from "@/core/application/workers/eventRelayWorker";
 import { DEFAULT_OUTBOX_RETENTION_MS } from "@/core/application/workers/outboxPrune";
-import { SecretBoxError } from "@/core/domain/adminSettings/ports/secretBox";
+import {
+  SecretBoxError,
+  SecretBoxErrorCode,
+} from "@/core/domain/adminSettings/ports/secretBox";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import { TempFileStorageUnavailableError } from "@/core/domain/ingestion/ports/tempFileStorage";
@@ -146,8 +149,8 @@ describe("createRequestContainer", () => {
 
   it("falls back to NullSecretBox when SECRET_BOX_MASTER_KEY is unset", async () => {
     const container = createRequestContainer(configWith());
-    await expect(container.secretBox.encrypt("payload")).rejects.toBeInstanceOf(
-      SecretBoxError,
+    await expect(container.secretBox.encrypt("payload")).rejects.toSatisfy(
+      (e) => e instanceof SecretBoxError && e.code === SecretBoxErrorCode.KeyUnavailable,
     );
   });
 
@@ -180,6 +183,50 @@ describe("createRequestContainer", () => {
     ).rejects.toBeInstanceOf(TempFileStorageUnavailableError);
     await expect(
       container.llmProvider.suggestMetadata({ html: "<p/>", prompt: "" }),
+    ).rejects.toSatisfy(
+      (e) =>
+        e instanceof BusinessRuleError &&
+        e.code === IngestionErrorCode.UnsupportedFormat,
+    );
+  });
+
+  it("surfaces explicit BusinessRuleError from existing Stub providers", async () => {
+    const container = createRequestContainer(configWith());
+    await expect(
+      container.ocrProvider.extractText({
+        imageBytes: new ArrayBuffer(100),
+        mime: "image/png",
+      }),
+    ).rejects.toSatisfy(
+      (e) =>
+        e instanceof BusinessRuleError &&
+        e.code === IngestionErrorCode.UnsupportedFormat,
+    );
+    await expect(
+      container.speechRecognitionProvider.transcribe({
+        audioBytes: new ArrayBuffer(100),
+        mime: "audio/wav",
+        locale: "en-US",
+      }),
+    ).rejects.toSatisfy(
+      (e) =>
+        e instanceof BusinessRuleError &&
+        e.code === IngestionErrorCode.UnsupportedFormat,
+    );
+    await expect(
+      container.officeExtractor.extractText({
+        bytes: new ArrayBuffer(100),
+        mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      }),
+    ).rejects.toSatisfy(
+      (e) =>
+        e instanceof BusinessRuleError &&
+        e.code === IngestionErrorCode.UnsupportedFormat,
+    );
+    await expect(
+      container.pdfExtractor.extract({
+        bytes: new ArrayBuffer(100),
+      }),
     ).rejects.toSatisfy(
       (e) =>
         e instanceof BusinessRuleError &&
