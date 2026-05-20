@@ -12,14 +12,16 @@ import {
 import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
 import { MergeTagDialog } from "./MergeTagDialog";
+import { progressBarIndeterminate, progressTrack } from "./styles";
 
 type Props = {
   tagId: string;
   name: string;
+  noteCount: number;
   candidates: readonly { id: string; name: string }[];
 };
 
-export function TagActions({ tagId, name, candidates }: Props) {
+export function TagActions({ tagId, name, noteCount, candidates }: Props) {
   const router = useRouter();
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
@@ -54,8 +56,10 @@ export function TagActions({ tagId, name, candidates }: Props) {
       try {
         await removeTag({ data: { tagId } });
         await router.invalidate();
+        setConfirmDeleteOpen(false);
         setError(null);
       } catch (e) {
+        setConfirmDeleteOpen(false);
         setError(extractSerializedError(e));
       }
     });
@@ -135,6 +139,7 @@ export function TagActions({ tagId, name, candidates }: Props) {
         <MergeTagDialog
           sourceTagId={tagId}
           sourceName={name}
+          sourceNoteCount={noteCount}
           candidates={candidates}
           open={isMergeOpen}
           onClose={() => setIsMergeOpen(false)}
@@ -143,15 +148,56 @@ export function TagActions({ tagId, name, candidates }: Props) {
       <ConfirmDialog
         open={confirmDeleteOpen}
         title={`タグ "#${name}" を削除`}
-        description="参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？"
+        description={renderDeleteDescription({ isPending, noteCount })}
         confirmLabel="削除"
         isPending={isPending}
-        onConfirm={() => {
-          setConfirmDeleteOpen(false);
-          runDelete();
-        }}
+        onConfirm={runDelete}
         onClose={() => setConfirmDeleteOpen(false)}
       />
     </div>
   );
+}
+
+function renderDeleteDescription({
+  isPending,
+  noteCount,
+}: {
+  isPending: boolean;
+  noteCount: number;
+}): React.ReactNode {
+  if (isPending) {
+    if (noteCount > 0) {
+      return (
+        <>
+          <span aria-live="polite">
+            <strong>{noteCount} 件のノートを更新中…</strong>
+          </span>
+          <div
+            role="progressbar"
+            aria-busy="true"
+            aria-valuemin={0}
+            aria-valuemax={noteCount}
+            // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002
+            aria-valuenow={undefined}
+            aria-label={`${noteCount} 件のノートを更新中`}
+            className={progressTrack}
+          >
+            <div className={progressBarIndeterminate} />
+          </div>
+        </>
+      );
+    }
+    return <span aria-live="polite">削除中…</span>;
+  }
+
+  if (noteCount > 0) {
+    return (
+      <>
+        参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。
+        <strong>対象ノート: {noteCount} 件</strong>。続行しますか？
+      </>
+    );
+  }
+
+  return "参照ノートからも除去され、同名タグは今後自動抽出されなくなります（再追加するには手動で再作成が必要）。続行しますか？";
 }

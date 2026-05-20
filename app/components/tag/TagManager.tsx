@@ -54,6 +54,7 @@ export async function TagManager({ user }: Props) {
                   <TagActions
                     tagId={self.id}
                     name={tag.name}
+                    noteCount={tag.noteCount}
                     candidates={candidates}
                   />
                 </li>
