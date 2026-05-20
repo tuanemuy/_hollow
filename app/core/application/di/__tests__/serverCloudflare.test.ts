@@ -150,7 +150,9 @@ describe("createRequestContainer", () => {
   it("falls back to NullSecretBox when SECRET_BOX_MASTER_KEY is unset", async () => {
     const container = createRequestContainer(configWith());
     await expect(container.secretBox.encrypt("payload")).rejects.toSatisfy(
-      (e) => e instanceof SecretBoxError && e.code === SecretBoxErrorCode.KeyUnavailable,
+      (e) =>
+        e instanceof SecretBoxError &&
+        e.code === SecretBoxErrorCode.KeyUnavailable,
     );
   });
 
