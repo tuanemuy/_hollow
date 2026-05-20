@@ -233,8 +233,10 @@ INSERT INTO search_documents (note_id, owner_id, visibility, title, body_plain, 
   ('01938f00-0000-7000-8000-00000000b07a', '01938f00-0000-7000-8000-000000000001', 'private',  '今日のタスク',               'テストデータ整備 動作確認 レビュー',                                                  '["todo","personal"]',  'Inbox',              '2026-05-16', '2026-05-16T08:00:00.000Z', '2026-05-16T08:00:00.000Z');
 
 -- ---------- saved_views ---------------------------------------------------
--- One personal saved view: "work タグ + リスト表示" を保存した状態。
--- queryJson の形は domain.view.valueObject.SavedViewQuery に準拠 (タグ名ベース)。
+-- One personal saved view: "work / todo タグ + リスト表示" を保存した状態。
+-- query_json の形は domain/view/valueObject.ts の ViewQuery に準拠
+-- (フラット構造、tagIds は TagId 配列)。
+-- sort_json は { by, direction } 形式 (ViewSort)。
 INSERT INTO saved_views (
   id, owner_id, name, kind, query_json, display_mode, calendar_date_key, sort_json,
   is_default, broken_conditions_json, version, created_at, updated_at
@@ -243,10 +245,10 @@ INSERT INTO saved_views (
   '01938f00-0000-7000-8000-000000000001',
   '作業中のタスク',
   'personal',
-  '{"filters":{"tagNames":["work","todo"],"directoryId":null,"visibility":null,"from":null,"to":null,"q":null}}',
+  '{"directoryId":null,"tagIds":["01938f00-0000-7000-8000-00000000a071","01938f00-0000-7000-8000-00000000a075"],"dateRange":null,"keyword":null,"referencingNoteId":null,"visibilityFilter":[]}',
   'list',
   'updated',
-  '{"field":"updatedAt","order":"desc"}',
+  '{"by":"updatedAt","direction":"desc"}',
   0,
   '[]',
   0,
