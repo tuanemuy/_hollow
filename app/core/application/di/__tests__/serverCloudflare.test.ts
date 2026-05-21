@@ -15,6 +15,14 @@ import {
   StubLLMProvider,
 } from "@/core/adapters/llm/llmProvider";
 import {
+  AnthropicOCRProvider,
+  StubOCRProvider,
+} from "@/core/adapters/llm/ocrProvider";
+import {
+  AnthropicPDFExtractor,
+  StubPDFExtractor,
+} from "@/core/adapters/llm/pdfExtractor";
+import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_LEASE_MS,
   DEFAULT_MAX_ATTEMPTS,
@@ -31,6 +39,8 @@ import { StorageUnavailableError } from "@/core/domain/media/ports/objectStorage
 import { ConsoleLogger } from "../../ports/logger";
 import { NoopRelayTrigger } from "../../ports/relayTrigger";
 import {
+  buildOcrProvider,
+  buildPdfExtractor,
   buildRelayTrigger,
   createConsumerContainer,
   createRequestContainer,
@@ -332,6 +342,66 @@ describe("createRequestContainer — env → adapter mapping", () => {
     const container = createRequestContainer(configWith());
     expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
   });
+
+  // ----- ocrProvider ------------------------------------------------------
+  it("wires AnthropicOCRProvider when both adminLlmApiKey and adminLlmModel are present", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.ocrProvider).toBeInstanceOf(AnthropicOCRProvider);
+  });
+
+  it("falls back to StubOCRProvider when adminLlmModel is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmApiKey: "sk-ant-test" }),
+    );
+    expect(container.ocrProvider).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("falls back to StubOCRProvider when adminLlmApiKey is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmModel: "claude-3-5-sonnet-latest" }),
+    );
+    expect(container.ocrProvider).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("falls back to StubOCRProvider when both are missing", () => {
+    const container = createRequestContainer(configWith());
+    expect(container.ocrProvider).toBeInstanceOf(StubOCRProvider);
+  });
+
+  // ----- pdfExtractor -----------------------------------------------------
+  it("wires AnthropicPDFExtractor when both adminLlmApiKey and adminLlmModel are present", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
+
+  it("falls back to StubPDFExtractor when adminLlmModel is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmApiKey: "sk-ant-test" }),
+    );
+    expect(container.pdfExtractor).toBeInstanceOf(StubPDFExtractor);
+  });
+
+  it("falls back to StubPDFExtractor when adminLlmApiKey is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmModel: "claude-3-5-sonnet-latest" }),
+    );
+    expect(container.pdfExtractor).toBeInstanceOf(StubPDFExtractor);
+  });
+
+  it("falls back to StubPDFExtractor when both are missing", () => {
+    const container = createRequestContainer(configWith());
+    expect(container.pdfExtractor).toBeInstanceOf(StubPDFExtractor);
+  });
 });
 
 // Helper: build a minimal `ServerEnv` for `createConsumerContainer` tests.
@@ -376,6 +446,54 @@ describe("buildRelayTrigger", () => {
   });
 });
 
+describe("buildOcrProvider", () => {
+  // Direct helper assertion mirrors the `buildRelayTrigger` pattern —
+  // verifies the three-way wiring contract without reaching through
+  // a container.
+
+  it("returns AnthropicOCRProvider when both apiKey and model are truthy", () => {
+    const provider = buildOcrProvider("sk-ant-test", "claude-3-5-sonnet");
+    expect(provider).toBeInstanceOf(AnthropicOCRProvider);
+  });
+
+  it("returns StubOCRProvider when model is missing", () => {
+    const provider = buildOcrProvider("sk-ant-test", undefined);
+    expect(provider).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("returns StubOCRProvider when apiKey is missing", () => {
+    const provider = buildOcrProvider(undefined, "claude-3-5-sonnet");
+    expect(provider).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("returns StubOCRProvider when both are missing", () => {
+    const provider = buildOcrProvider(undefined, undefined);
+    expect(provider).toBeInstanceOf(StubOCRProvider);
+  });
+});
+
+describe("buildPdfExtractor", () => {
+  it("returns AnthropicPDFExtractor when both apiKey and model are truthy", () => {
+    const extractor = buildPdfExtractor("sk-ant-test", "claude-3-5-sonnet");
+    expect(extractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
+
+  it("returns StubPDFExtractor when model is missing", () => {
+    const extractor = buildPdfExtractor("sk-ant-test", undefined);
+    expect(extractor).toBeInstanceOf(StubPDFExtractor);
+  });
+
+  it("returns StubPDFExtractor when apiKey is missing", () => {
+    const extractor = buildPdfExtractor(undefined, "claude-3-5-sonnet");
+    expect(extractor).toBeInstanceOf(StubPDFExtractor);
+  });
+
+  it("returns StubPDFExtractor when both are missing", () => {
+    const extractor = buildPdfExtractor(undefined, undefined);
+    expect(extractor).toBeInstanceOf(StubPDFExtractor);
+  });
+});
+
 describe("createConsumerContainer — env / ctx → adapter mapping", () => {
   it("returns all RequestContainer fields plus the worker-only ports", () => {
     const container = createConsumerContainer(envWithBindings());
@@ -415,6 +533,8 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.tempFileStorage).toBeInstanceOf(R2TempFileStorage);
     expect(container.objectStorage).toBeInstanceOf(R2ObjectStorage);
     expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(container.ocrProvider).toBeInstanceOf(AnthropicOCRProvider);
+    expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
   });
 
   it.each([
