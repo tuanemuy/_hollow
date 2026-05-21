@@ -61,7 +61,14 @@
 
 testing.md チェックリストの「(ops)」プレフィックス項目に対応。
 
-### フォローアップ Issue 候補 (review-002 由来)
+### Phase 4 で起票した別 Issue
+
+- **#113**: feat(llm): real OCR / Office / PDF / SpeechRecognition adapters (本 Issue ADR-003 deferred)
+- **#114**: feat(infra): per-worker filtering for wrangler secret bulk push (本 Issue ADR-007 deferred)
+- **#115**: chore(infra): .sops.yaml で _comment フィールドを暗号化対象から除外 (review-001 Infra W-004/W-005)
+- **既存 #101**: feat(llm): wire real LLM providers (Anthropic + extensible) with admin-settings-driven resolution — 本 Issue ADR-002 (DB 経由動的解決層) は #101 でカバー済のため再起票不要
+
+### フォローアップ Issue 候補 (review-002 由来、本 PR scope 外)
 
 - **Infra W-002**: `pnpm infra:preview:staging` / `pnpm infra:up:staging` 実行時に `cloudflare:R2Bucket` の location 未指定挙動を smoke 確認 (ops)
 - **Infra W-004 / W-005**: `.sops.yaml` で `unencrypted_suffix: _comment` を宣言し、平文コメントを暗号化対象から除外。あわせて `.json.example` の `_comment` を doc link に書き換える (本 PR では scope 拡大回避)
