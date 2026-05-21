@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrayBufferToBase64 } from "../anthropicMessagesClient";
+import { arrayBufferToBase64 } from "../messagesClient";
 
 function roundTrip(buffer: ArrayBuffer): Uint8Array {
   const base64 = arrayBufferToBase64(buffer);

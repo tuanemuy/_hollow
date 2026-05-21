@@ -145,7 +145,7 @@ export type RequestContainer = SharedDeps &
      * orchestrates these adapters from inside the application layer so
      * the request and worker invocation paths share a single container
      * shape. The stub-friendly default impls live under
-     * `app/core/adapters/llm/`; production deployments swap in the
+     * `app/core/adapters/stub/`; production deployments swap in the
      * hosted variants without changing the usecase signatures.
      */
     llmProvider: LLMProvider;

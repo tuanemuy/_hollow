@@ -1,5 +1,3 @@
-import { BusinessRuleError } from "@/core/domain/error";
-import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import {
   type LLMMetadataInput,
   type LLMMetadataResult,
@@ -15,7 +13,7 @@ import {
   type AnthropicErrorMapper,
   type AnthropicSharedConfig,
   callAnthropicMessages,
-} from "./anthropicMessagesClient";
+} from "./messagesClient";
 
 /**
  * Label type for LLM-mode Anthropic adapter config. Structurally
@@ -52,7 +50,7 @@ const llmErrorMapper: AnthropicErrorMapper = {
  * Empty-response semantics differ from OCR / PDF: the LLM port's JSON
  * envelope contract cannot accept an empty body, so `invoke()`
  * re-introduces the empty-string check after the helper call. See
- * `anthropicMessagesClient.ts` JSDoc ("Empty-response contract") and
+ * `messagesClient.ts` JSDoc ("Empty-response contract") and
  * Issue #113 ADR-002 for the cross-port reasoning.
  *
  * Response shape contract:
@@ -152,7 +150,7 @@ export class AnthropicLLMProvider implements LLMProvider {
     );
     // LLM port's JSON envelope contract cannot accept an empty body.
     // The helper returns "" to satisfy OCR / PDF's "empty OK" contract
-    // (anthropicMessagesClient.ts JSDoc "Empty-response contract" /
+    // (messagesClient.ts JSDoc "Empty-response contract" /
     // Issue #113 ADR-002), so we re-introduce the empty-string check
     // here. The helper's extractTextContent() is already trim()-ed, but
     // this length check is still required to reject `content: []` and
@@ -216,37 +214,5 @@ export class AnthropicLLMProvider implements LLMProvider {
       );
     }
     return value.filter((v): v is string => typeof v === "string");
-  }
-}
-
-/**
- * MVP LLM adapter.
- *
- * Real LLM-backed structuring (`structureToHtml` / `suggestMetadata`)
- * requires admin-supplied credentials and a chosen model — both come
- * from the persisted `LLMConfig` which is not yet wired through the
- * container at construction time. The usecase layer surfaces the
- * resulting `BusinessRuleError` as a non-retryable "feature not
- * available yet" so the ingestion job transitions to `failed` with a
- * clear error code rather than burning worker retries.
- *
- * MVP 内では LLM 経由の構造化は未対応。実 adapter を投入する場合は
- * 本クラスを `AnthropicLLMProvider` に差し替える。
- */
-export class StubLLMProvider implements LLMProvider {
-  async structureToHtml(
-    _input: LLMStructureInput,
-  ): Promise<LLMStructureResult> {
-    throw new BusinessRuleError(
-      IngestionErrorCode.UnsupportedFormat,
-      "llm_not_implemented_in_mvp",
-    );
-  }
-
-  async suggestMetadata(_input: LLMMetadataInput): Promise<LLMMetadataResult> {
-    throw new BusinessRuleError(
-      IngestionErrorCode.UnsupportedFormat,
-      "llm_not_implemented_in_mvp",
-    );
   }
 }

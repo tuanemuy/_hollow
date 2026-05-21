@@ -1,5 +1,6 @@
 import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
 import { content } from "@/config";
+import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import {
@@ -24,21 +25,6 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { HttpLLMConnectionTester } from "@/core/adapters/llm/llmConnectionTester";
-import {
-  AnthropicLLMProvider,
-  StubLLMProvider,
-} from "@/core/adapters/llm/llmProvider";
-import {
-  AnthropicOCRProvider,
-  StubOCRProvider,
-} from "@/core/adapters/llm/ocrProvider";
-import { StubOfficeExtractor } from "@/core/adapters/llm/officeExtractor";
-import {
-  AnthropicPDFExtractor,
-  StubPDFExtractor,
-} from "@/core/adapters/llm/pdfExtractor";
-import { StubSpeechRecognitionProvider } from "@/core/adapters/llm/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
@@ -46,6 +32,11 @@ import {
   NullSecretBox,
   WebCryptoSecretBox,
 } from "@/core/adapters/security/secretBox";
+import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
+import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
+import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
+import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
+import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
@@ -62,6 +53,11 @@ import {
   readPruneTuning as readPruneTuningShared,
   readRelayTuning as readRelayTuningShared,
 } from "./env";
+import {
+  createLLMProvider,
+  createOCRProvider,
+  createPDFExtractor,
+} from "./llmProviderFactory";
 import type {
   AppConfig,
   ConsumerContainer,
@@ -117,6 +113,12 @@ export type RequestServerConfig = AppConfig &
     // → DI keeps `StubLLMProvider`. Public information (model id), so
     // delivered via `wrangler.toml [vars]` rather than a secret.
     adminLlmModel?: string;
+    // Optional `ADMIN_LLM_PROVIDER` var. Selects which provider the
+    // LLM / OCR / PDF factories instantiate when `adminLlmApiKey` and
+    // `adminLlmModel` are present. Unset → factories default to
+    // `"anthropic"` (current sole supported provider). Public
+    // information delivered via `wrangler.toml [vars]`.
+    adminLlmProvider?: string;
     // R2 binding for ingestion-temp storage. When present DI wires
     // `R2TempFileStorage`; absent → `StubTempFileStorage`. Data-plane
     // only, no credentials needed.
@@ -165,6 +167,11 @@ export type ServerEnv = Readonly<{
   // DI wires the real adapter; either missing → DI keeps
   // `StubLLMProvider`. Public information so it ships via vars.
   ADMIN_LLM_MODEL?: string;
+  // Optional provider id for the LLM / OCR / PDF factories. Wrangler
+  // `[vars]` entry — when unset the factories default to `"anthropic"`,
+  // matching the pre-#122 behaviour. Public information (no secret) so
+  // it ships via vars.
+  ADMIN_LLM_PROVIDER?: string;
   // R2 binding for ingestion-temp storage. Optional so the DI fallback
   // (`StubTempFileStorage`) covers worker entries that do not bind it.
   TEMP_FILES?: R2Bucket;
@@ -236,6 +243,9 @@ export function readRequestServerConfig(
       : {}),
     ...(env.ADMIN_LLM_API_KEY ? { adminLlmApiKey: env.ADMIN_LLM_API_KEY } : {}),
     ...(env.ADMIN_LLM_MODEL ? { adminLlmModel: env.ADMIN_LLM_MODEL } : {}),
+    ...(env.ADMIN_LLM_PROVIDER
+      ? { adminLlmProvider: env.ADMIN_LLM_PROVIDER }
+      : {}),
     ...(env.TEMP_FILES ? { tempFilesBucket: env.TEMP_FILES } : {}),
     ...(r2PresignReady
       ? {
@@ -286,68 +296,71 @@ export function buildRelayTrigger(
 }
 
 /**
- * Build the request-time {@link OCRProvider}. Wires
- * `AnthropicOCRProvider` only when both `ADMIN_LLM_API_KEY` (secret)
- * and `ADMIN_LLM_MODEL` (var) are present; either missing → fall back
- * to `StubOCRProvider`. Shares the env pair with `llmProvider` /
- * `pdfExtractor` per ADR-003 of Issue #113.
+ * Build the request-time {@link OCRProvider}. Delegates to
+ * {@link createOCRProvider} when both `ADMIN_LLM_API_KEY` (secret) and
+ * `ADMIN_LLM_MODEL` (var) are present; either missing → fall back to
+ * `StubOCRProvider`. `provider` defaults to `"anthropic"` when
+ * `ADMIN_LLM_PROVIDER` is unset, preserving the pre-#122 behaviour.
  *
  * Pure helper extracted from `createRequestContainer` so the wiring
  * can be verified directly in unit tests via `instanceof` without
  * threading container internals through the test harness.
  */
 export function buildOcrProvider(
+  provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
 ): OCRProvider {
-  return adminLlmApiKey && adminLlmModel
-    ? new AnthropicOCRProvider({
-        apiKey: adminLlmApiKey,
-        model: adminLlmModel,
-      })
-    : new StubOCRProvider();
+  if (!adminLlmApiKey || !adminLlmModel) return new StubOCRProvider();
+  return createOCRProvider({
+    provider: provider ?? "anthropic",
+    apiKey: adminLlmApiKey,
+    model: adminLlmModel,
+  });
 }
 
 /**
- * Build the request-time {@link PDFExtractor}. Wires
- * `AnthropicPDFExtractor` only when both `ADMIN_LLM_API_KEY` and
+ * Build the request-time {@link PDFExtractor}. Delegates to
+ * {@link createPDFExtractor} when both `ADMIN_LLM_API_KEY` and
  * `ADMIN_LLM_MODEL` are present; either missing → fall back to
- * `StubPDFExtractor`. Shares the env pair with `llmProvider` /
- * `ocrProvider` per ADR-003 of Issue #113.
+ * `StubPDFExtractor`. `provider` defaults to `"anthropic"` when
+ * `ADMIN_LLM_PROVIDER` is unset.
  */
 export function buildPdfExtractor(
+  provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
 ): PDFExtractor {
-  return adminLlmApiKey && adminLlmModel
-    ? new AnthropicPDFExtractor({
-        apiKey: adminLlmApiKey,
-        model: adminLlmModel,
-      })
-    : new StubPDFExtractor();
+  if (!adminLlmApiKey || !adminLlmModel) return new StubPDFExtractor();
+  return createPDFExtractor({
+    provider: provider ?? "anthropic",
+    apiKey: adminLlmApiKey,
+    model: adminLlmModel,
+  });
 }
 
 /**
- * Build the request-time {@link LLMProvider}. Wires
- * `AnthropicLLMProvider` only when both `ADMIN_LLM_API_KEY` (secret)
- * and `ADMIN_LLM_MODEL` (var) are present; either missing → fall back
- * to `StubLLMProvider`. Shares the env pair with `ocrProvider` /
- * `pdfExtractor` per ADR-003 of Issue #113.
+ * Build the request-time {@link LLMProvider}. Delegates to
+ * {@link createLLMProvider} when both `ADMIN_LLM_API_KEY` (secret) and
+ * `ADMIN_LLM_MODEL` (var) are present; either missing → fall back to
+ * `StubLLMProvider`. `provider` defaults to `"anthropic"` when
+ * `ADMIN_LLM_PROVIDER` is unset, preserving the pre-#122 behaviour.
  *
  * Pure helper extracted from `createRequestContainer` so the wiring
  * can be verified directly in unit tests via `instanceof` without
  * threading container internals through the test harness.
  */
 export function buildLlmProvider(
+  provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
 ): LLMProvider {
-  return adminLlmApiKey && adminLlmModel
-    ? new AnthropicLLMProvider({
-        apiKey: adminLlmApiKey,
-        model: adminLlmModel,
-      })
-    : new StubLLMProvider();
+  if (!adminLlmApiKey || !adminLlmModel) return new StubLLMProvider();
+  return createLLMProvider({
+    provider: provider ?? "anthropic",
+    apiKey: adminLlmApiKey,
+    model: adminLlmModel,
+  });
 }
 
 /**
@@ -367,6 +380,7 @@ export function createRequestContainer(
     secretBoxMasterKey,
     adminLlmApiKey,
     adminLlmModel,
+    adminLlmProvider,
     tempFilesBucket,
     objectStorageBucket,
     r2PresignConfig,
@@ -405,11 +419,23 @@ export function createRequestContainer(
     archiveBuilder: new InMemoryZipArchiveBuilder(),
     exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
-    llmProvider: buildLlmProvider(adminLlmApiKey, adminLlmModel),
-    ocrProvider: buildOcrProvider(adminLlmApiKey, adminLlmModel),
+    llmProvider: buildLlmProvider(
+      adminLlmProvider,
+      adminLlmApiKey,
+      adminLlmModel,
+    ),
+    ocrProvider: buildOcrProvider(
+      adminLlmProvider,
+      adminLlmApiKey,
+      adminLlmModel,
+    ),
     speechRecognitionProvider: new StubSpeechRecognitionProvider(),
     officeExtractor: new StubOfficeExtractor(),
-    pdfExtractor: buildPdfExtractor(adminLlmApiKey, adminLlmModel),
+    pdfExtractor: buildPdfExtractor(
+      adminLlmProvider,
+      adminLlmApiKey,
+      adminLlmModel,
+    ),
     tempFileStorage: tempFilesBucket
       ? new R2TempFileStorage(tempFilesBucket)
       : new StubTempFileStorage(),
