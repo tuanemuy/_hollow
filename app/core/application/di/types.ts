@@ -210,3 +210,22 @@ export type WorkerContainer = SharedDeps &
      */
     indexJobRepository: IndexJobRepository;
   }>;
+
+/**
+ * Queue consumer container. The consumer dispatches `DomainEvent`s to
+ * application usecases that mutate aggregates (e.g. `runIngestionJob`,
+ * `runExportJob`), so it needs the full `RequestContainer` surface for
+ * UoW + ports — *plus* the worker-only ports (`outboxRepository`,
+ * `idempotencyStore`, `indexJobRepository`) used by handler glue and
+ * downstream consumers.
+ *
+ * `Pick<WorkerContainer, ...>` picks only the three worker-exclusive
+ * ports rather than spreading the whole `WorkerContainer` so the
+ * `searchIndex` port (present on both `RequestContainer` and
+ * `WorkerContainer`) is not duplicated / shadowed.
+ */
+export type ConsumerContainer = RequestContainer &
+  Pick<
+    WorkerContainer,
+    "outboxRepository" | "idempotencyStore" | "indexJobRepository"
+  >;

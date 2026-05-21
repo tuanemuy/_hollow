@@ -45,6 +45,7 @@ import {
 } from "./env";
 import type {
   AppConfig,
+  ConsumerContainer,
   RequestContainer,
   SharedDeps,
   WorkerContainer,
@@ -56,6 +57,7 @@ export {
 } from "./containerStore";
 export type {
   AppConfig,
+  ConsumerContainer,
   RequestContainer,
   SharedDeps,
   WorkerContainer,
@@ -246,6 +248,53 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
   maxConcurrentJobs: 3,
   maxJobsPerDay: 50,
 });
+
+/**
+ * Build the queue-consumer container. The consumer dispatches domain
+ * events back into request-shaped usecases (`runIngestionJob` /
+ * `runExportJob`), so it needs the full `RequestContainer` surface
+ * (UoW + all aggregate-touching ports) *plus* the worker-only ports
+ * (`outboxRepository` / `idempotencyStore` / `indexJobRepository`)
+ * used by handler glue.
+ *
+ * `searchIndex` exists on both halves, so we explicitly pick the
+ * worker-only ports rather than spreading `createWorkerContainer(env)`
+ * wholesale — otherwise the spread would shadow the request-side
+ * `searchIndex` (identical implementation, but the shadowing is a
+ * code-smell that obscures the type contract).
+ *
+ * Implementation notes:
+ * - The `RequestContainer.config` field is SSR-only and **never read**
+ *   in the consumer path. It's filled from `readRequestServerConfig`
+ *   to satisfy the type, accepting the dead weight rather than splitting
+ *   `RequestContainer` into "aggregate-mutation" + "SSR config" halves
+ *   (out of scope for Issue #57).
+ * - `RELAY` is not bound on `[env.consumer]` in `wrangler.toml`, so the
+ *   internal `relayTrigger` falls back to `NoopRelayTrigger`. Secondary
+ *   events emitted by `runIngestionJob` / `runExportJob` (e.g.
+ *   `ingestion.previewAttached`) wait for the relay cron tick rather
+ *   than being published immediately. This is acceptable for the
+ *   reference runtime; adding `RELAY` to `[env.consumer]` is a separate
+ *   operational decision.
+ * - The two sub-builders (`createRequestContainer` /
+ *   `createWorkerContainer`) each call `getDatabase(env.DB)` internally,
+ *   yielding two `drizzle()` handles over the **same** D1 binding.
+ *   Drizzle holds no per-handle connection state and D1 has no
+ *   connection pool, so the request- and worker-side ports see the
+ *   same store. Keeping the sub-builders self-contained beats
+ *   threading a shared handle through their signatures for a cost we
+ *   can't measure.
+ */
+export function createConsumerContainer(env: ServerEnv): ConsumerContainer {
+  const requestContainer = createRequestContainer(readRequestServerConfig(env));
+  const workerContainer = createWorkerContainer(env);
+  return {
+    ...requestContainer,
+    outboxRepository: workerContainer.outboxRepository,
+    idempotencyStore: workerContainer.idempotencyStore,
+    indexJobRepository: workerContainer.indexJobRepository,
+  } satisfies ConsumerContainer;
+}
 
 /**
  * Build the worker-scoped container. Workers don't render HTML

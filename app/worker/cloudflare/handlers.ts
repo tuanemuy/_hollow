@@ -4,11 +4,13 @@ import type {
   Queue,
 } from "@cloudflare/workers-types";
 import {
+  createConsumerContainer,
   createWorkerContainer,
   readPruneTuning,
   readRelayTuning,
   type ServerEnv,
 } from "@/core/application/di/serverCloudflare";
+import { dispatchDomainEvent } from "@/core/application/workers/dispatchDomainEvent";
 import {
   type EventDispatcher,
   type ProcessOutboxEventsOptions,
@@ -79,33 +81,66 @@ export async function runPruneTick(
   return pruneOutbox(container, { ...readPruneTuning(env), ...override });
 }
 
+/**
+ * Queue consumer flow: `hasProcessed` → dispatch → success-only stamp.
+ *
+ * Stamp ordering: post-dispatch only. Transient errors that throw out
+ * of dispatch (D1 timeouts, `hasProcessed` itself failing, an unhandled
+ * domain throw) leave the `processed_events` row absent, so the queue's
+ * redelivery re-enters dispatch. If the stamp ran first, the redelivery
+ * would always be skipped and retry would be silently broken — Issue
+ * #57 ADR-003. The outer try/catch covers the entire `hasProcessed →
+ * dispatch → markProcessed` sequence so a throw anywhere in that span
+ * routes the message to `retry()`.
+ *
+ * Double-execution after a worker crash between dispatch success and
+ * the stamp is bounded by the aggregate-side defences in
+ * `runIngestionJob` / `runExportJob`: an `isPending` guard plus an OCC
+ * `expectedVersion` check converge to a no-op on the second run.
+ *
+ * Known limitation: the aggregate-side `isPending` guard means that
+ * `LLMRateLimitError` rethrown after the usecase has committed
+ * `pending → processing` cannot be auto-recovered. The next redelivery
+ * no-ops, and after `max_retries` the message lands in the DLQ.
+ * Operator recovery is the admin manual-retry button (Issue #3 —
+ * `retryIngestionJob` / `retryExportJob` re-emit `*.retryRequested`).
+ */
 export async function handleQueue(
   batch: MessageBatch<DomainEvent>,
   env: ConsumerEnv,
   _ctx: ExecutionContext,
 ): Promise<void> {
-  const container = createWorkerContainer(env);
+  const container = createConsumerContainer(env);
   for (const message of batch.messages) {
+    const eventId = message.body.id;
+    const eventType = message.body.type;
     try {
-      const { alreadyProcessed } =
-        await container.idempotencyStore.markProcessed(message.body.id);
-      if (alreadyProcessed) {
+      if (await container.idempotencyStore.hasProcessed(eventId)) {
         container.logger.info(
-          `[queue] skipping redelivery of ${message.body.type} ${message.body.id}`,
-          { eventId: message.body.id },
+          `[queue] skipping redelivery of ${eventType} ${eventId}`,
+          { eventId },
         );
         message.ack();
         continue;
       }
-      container.logger.info(
-        `[queue] received ${message.body.type} ${message.body.id}`,
-        { event: message.body },
-      );
+      container.logger.info(`[queue] received ${eventType} ${eventId}`, {
+        event: message.body,
+      });
+      const outcome = await dispatchDomainEvent(container, message.body);
+      if (outcome.kind === "retry") {
+        container.logger.warn(`[queue] dispatch retry for ${eventType}`, {
+          eventId,
+          cause: outcome.error,
+        });
+        message.retry();
+        continue;
+      }
+      await container.idempotencyStore.markProcessed(eventId);
       message.ack();
     } catch (error) {
       container.logger.error(
-        `[queue] handler failed for ${message.body.type} ${message.body.id}`,
-        { eventId: message.body.id, cause: error },
+        `[queue] handler failed for ${eventType} ${eventId}`,
+        { eventId, cause: error },
       );
       message.retry();
     }
