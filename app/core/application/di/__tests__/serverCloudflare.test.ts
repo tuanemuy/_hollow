@@ -415,6 +415,65 @@ function envWithBindings(overrides: Partial<ServerEnv> = {}): ServerEnv {
   };
 }
 
+describe("createRequestContainer — relayTrigger wiring", () => {
+  // The UoW provider holds the relay trigger as a `private readonly`
+  // field; access it through a structural cast so the test can verify
+  // wiring without smuggling the trigger out through a side channel.
+  function relayTriggerOf(
+    container: ReturnType<typeof createRequestContainer>,
+  ) {
+    return (
+      container.unitOfWorkProvider as unknown as {
+        readonly relayTrigger: unknown;
+      }
+    ).relayTrigger;
+  }
+
+  it("uses relayTriggerOverride verbatim when provided (skips buildRelayTrigger)", () => {
+    // A custom trigger that is neither `ServiceBindingRelayTrigger` nor
+    // the `NoopRelayTrigger` singleton — proves the override path takes
+    // precedence over both env-derived branches.
+    const customKick = vi.fn();
+    const customTrigger = { kick: customKick };
+    const container = createRequestContainer(
+      configWith({
+        relay: fakeFetcher(),
+        waitUntil: () => undefined,
+        relayTriggerOverride: customTrigger,
+      }),
+    );
+    expect(relayTriggerOf(container)).toBe(customTrigger);
+  });
+
+  it("falls back to buildRelayTrigger when relayTriggerOverride is unset (production zero-impact regression)", () => {
+    const container = createRequestContainer(
+      configWith({ relay: fakeFetcher(), waitUntil: () => undefined }),
+    );
+    expect(relayTriggerOf(container)).toBeInstanceOf(
+      ServiceBindingRelayTrigger,
+    );
+  });
+
+  it("falls back to NoopRelayTrigger when neither override nor relay+waitUntil are provided", () => {
+    const container = createRequestContainer(configWith());
+    expect(relayTriggerOf(container)).toBe(NoopRelayTrigger);
+  });
+
+  it("does not leak relayTriggerOverride into the SSR AppConfig surface", () => {
+    // `appConfig` is the destructure remainder fed to SSR head/meta; the
+    // override must be stripped so callers can't accidentally read it
+    // off the container's `config` field.
+    const customTrigger = { kick: () => {} };
+    const container = createRequestContainer(
+      configWith({ relayTriggerOverride: customTrigger }),
+    );
+    expect(
+      (container.config as unknown as Record<string, unknown>)
+        .relayTriggerOverride,
+    ).toBeUndefined();
+  });
+});
+
 describe("buildRelayTrigger", () => {
   // `buildRelayTrigger` is the pure helper that `createRequestContainer`
   // delegates to. Verifying it directly avoids the tautology of
@@ -586,5 +645,20 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     delete partial[missingKey];
     const container = createConsumerContainer(envWithBindings(partial));
     expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+  });
+
+  it("does not honour relayTriggerOverride — consumer path always builds its own RelayTrigger from env (Issue #66 ADR-003)", () => {
+    // The override seam is request-path-only. `createConsumerContainer`
+    // calls `readRequestServerConfig(env, ctx)` internally, and that
+    // reader does not surface any `relayTriggerOverride` — even if the
+    // entry tried to inject one, it would be dropped before reaching
+    // the UoW provider. This anchors the production zero-impact claim.
+    const container = createConsumerContainer(envWithBindings());
+    const trigger = (
+      container.unitOfWorkProvider as unknown as {
+        readonly relayTrigger: unknown;
+      }
+    ).relayTrigger;
+    expect(trigger).toBe(NoopRelayTrigger);
   });
 });

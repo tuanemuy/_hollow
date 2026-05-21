@@ -6,6 +6,7 @@ Multi-Worker, edge-distributed runtime. The main app runs in the `app` Worker; o
 
 - [Quick start](#quick-start)
 - [Worker matrix](#worker-matrix)
+- [Local dev outbox dispatch](#local-dev-outbox-dispatch)
 - [Wrangler config layout](#wrangler-config-layout)
 - [One-time Cloudflare resource creation](#one-time-cloudflare-resource-creation)
 - [Secrets and vars](#secrets-and-vars)
@@ -40,6 +41,17 @@ The main app and four sibling Workers ship from a **per-stage `wrangler.<stage>.
 | DLQ         | Surface events that exhausted the consumer's retry budget                                              | `--env dlq`      | `DB`                                                                                                                                              | Queue consumer (`events-dlq`)                        |
 
 Trigger model: the request path kicks the relay through the `RELAY` Service Binding right after a UoW commit, so newly-persisted events publish without waiting on cron. The relay also runs on a 5-minute safety-net cron in case the Service Binding path fails. Inside a tick, `processOutboxEvents` drains up to `maxIterations` consecutive batches so a backlog is flushed in one trigger rather than 1 batch per minute.
+
+## Local dev outbox dispatch
+
+`pnpm dev` (Vite + `@cloudflare/vite-plugin`) boots only the main app Worker. The sibling `relay` / `consumer` / `pruner` / `dlq` Workers and Cloudflare Queues are **not** running, so the default Service Binding → Queue → consumer chain has no producer or consumer attached. To keep UoW-emitted events visible in local dev, the request entry detects `import.meta.env.DEV === true` and injects `InlineRelayTrigger` (`app/core/adapters/cloudflare/inlineRelayTrigger.ts`) via `RequestServerConfig.relayTriggerOverride`:
+
+- Every UoW commit fires `kick()`, which schedules `processOutboxEvents` against the **same isolate** via `ExecutionContext.waitUntil`. The drain calls `dispatchDomainEvent` directly (no queue, no Service Binding), then `markProcessed` per event, mirroring the production `handleQueue` contract.
+- One kick drains **one batch** (`maxIterations: 1`, `batchSize: 25`, `workerId: "inline-dev"`). Secondary events emitted during dispatch are picked up on the next UoW commit's kick. This is intentional — see ADR-002 of Issue #66 for the no-cascade rationale.
+- Inside the dispatch loop the inner `ConsumerContainer` is built with `env.RELAY` blanked out, so its UoW provider gets `NoopRelayTrigger`. This both avoids recursing into another Service Binding kick and silences "service binding kick failed" log spam when no relay Worker is up.
+- Production / staging deploys (`pnpm build` → `wrangler deploy`) take the **unchanged** Service Binding path. `vite build` inlines `import.meta.env.DEV` to `false`, so the entire `InlineRelayTrigger` branch — including the `import` — is dead-code-eliminated from the deployed bundle. Verify with `grep -r "import.meta.env" dist/` after `pnpm build`.
+- Behavioural difference vs. production: dev sees projections update with effectively zero latency; production hops through the Queue and pays a few hundred ms per event. Code that assumes synchronous side effects in dev may surprise you when the Queue is in front of the consumer in production.
+- `pnpm start` (`wrangler dev` without Vite) does not propagate `import.meta.env.DEV`, so the inline path stays disabled. Without a sibling relay/consumer running, outbox rows will sit there until the next deploy's safety-net cron picks them up — for full-loop checks under `pnpm start`, run the relay/consumer Workers manually.
 
 ## Wrangler config layout
 
