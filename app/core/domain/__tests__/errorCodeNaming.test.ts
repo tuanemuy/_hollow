@@ -26,7 +26,8 @@ function pickErrorCodeMap(mod: Record<string, unknown>): {
       continue;
     }
     const map = value as Record<string, unknown>;
-    if (Object.values(map).every((v) => typeof v === "string")) {
+    const entries = Object.values(map);
+    if (entries.length > 0 && entries.every((v) => typeof v === "string")) {
       return { name: exportName, map: map as ErrorCodeRecord };
     }
   }
@@ -44,9 +45,27 @@ const errorCodeMaps = Object.entries(errorCodeModules)
     } => entry.picked !== null,
   );
 
+// Pinning the expected set guards against glob mis-resolution or accidental
+// removal of a domain's errorCode module. Update this list deliberately when a
+// new domain is added — that is exactly the point.
+const EXPECTED_ERROR_CODE_NAMES = new Set([
+  "AdminSettingsErrorCode",
+  "DirectoryErrorCode",
+  "ExportErrorCode",
+  "IdentityErrorCode",
+  "IngestionErrorCode",
+  "MediaErrorCode",
+  "NoteErrorCode",
+  "PublicationErrorCode",
+  "SearchErrorCode",
+  "TagErrorCode",
+  "ViewErrorCode",
+]);
+
 describe("ErrorCode naming convention", () => {
-  it("discovered at least one *ErrorCode module via glob", () => {
-    expect(errorCodeMaps.length).toBeGreaterThan(0);
+  it("discovers every expected *ErrorCode module via glob", () => {
+    const found = new Set(errorCodeMaps.map((e) => e.picked.name));
+    expect(found).toEqual(EXPECTED_ERROR_CODE_NAMES);
   });
 
   it("validates the value regex itself", () => {
