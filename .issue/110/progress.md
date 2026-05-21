@@ -66,3 +66,4 @@ testing.md チェックリストの「(ops)」プレフィックス項目に対�
 - **Infra W-002**: `pnpm infra:preview:staging` / `pnpm infra:up:staging` 実行時に `cloudflare:R2Bucket` の location 未指定挙動を smoke 確認 (ops)
 - **Infra W-004 / W-005**: `.sops.yaml` で `unencrypted_suffix: _comment` を宣言し、平文コメントを暗号化対象から除外。あわせて `.json.example` の `_comment` を doc link に書き換える (本 PR では scope 拡大回避)
 - **DI W-003**: `toAppConfig(config): AppConfig` ヘルパー導入で `createRequestContainer` 内の SSR fields 取り出しを構造化 (現在の手動 destructuring は将来の `RequestServerConfig` 拡張で漏れやすい)
+- **Infra W-003 (review-003)**: `ADMIN_LLM_MODEL` の default リテラルが `renderWrangler.ts` (render default) と `wrangler.toml` (local) の 2 箇所に残存。Pulumi `config` (`hollow:adminLlmModel`) → `StackOutput` 経由で配り render default を撤廃する別 Issue 候補。当面は両者を手動同期

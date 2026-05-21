@@ -88,7 +88,9 @@ const vars: Record<string, string> = {
   // default lives here rather than in Pulumi StackOutput because the
   // model id is a deploy-time choice, not a provisioned resource.
   // Stage-specific override (e.g. claude-3-5-haiku for staging) ships
-  // in a follow-up Issue.
+  // in a follow-up Issue — until then, **keep this value in sync with
+  // `wrangler.toml`** (`[vars]` and `[env.consumer.vars]`); they are the
+  // local-dev counterpart of the staging/production defaults.
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
 };
 

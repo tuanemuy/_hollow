@@ -33,7 +33,7 @@ The main app and four sibling Workers ship from a **per-stage `wrangler.<stage>.
 
 | Worker      | Responsibility                                                                                         | Wrangler env     | Bindings                                                                                                                                          | Trigger                                              |
 | ----------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| App (fetch) | TanStack Start HTTP request handling                                                                   | _(top level)_    | `DB` (D1), `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding), `ASSETS` — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*` | HTTP                                                 |
+| App (fetch) | TanStack Start HTTP request handling                                                                   | _(top level)_    | `DB` (D1), `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding), `ASSETS` — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*`; web-only `ADMIN_SETUP_TOKEN` | HTTP                                                 |
 | Relay       | Publish outbox rows — Service Binding kick + safety-net cron                                           | `--env relay`    | `DB`, `EVENTS_QUEUE`                                                                                                                              | `fetch` (Service Binding) + 5-minute Cron Trigger    |
 | Consumer    | Consume the Queue, dispatch into `runIngestionJob` / `runExportJob`, write projections / idempotency  | `--env consumer` | `DB`, `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding) — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*` | Queue consumer (`events`)                            |
 | Pruner      | Daily cron that prunes processed outbox rows                                                           | `--env pruner`   | `DB`                                                                                                                                              | Daily Cron Trigger                                   |
@@ -112,6 +112,14 @@ Required on the **web** and **consumer** workers for the ingestion / export disp
 | `R2_SECRET_ACCESS_KEY`    | The matching secret key. Both `R2_*` keys plus `OBJECT_STORAGE` binding plus `R2_OBJECT_BUCKET_NAME` var (`[vars]`) must all be present for DI to wire `R2ObjectStorage`. Any missing → `StubObjectStorage`.                                                                                                                                                  |
 
 > The CI deploy step (`pnpm deploy:<stage>:all`) currently pushes the single SOPS-decrypted secrets file to every Worker (`wrangler secret bulk`). ADR-007 (Issue #110) deferred per-worker filtering — until that lands, relay / pruner / dlq receive these secrets even though they do not consume them. `workerSecretSpecs()` in `infra/src/secrets.ts` is the spec source-of-truth for what each Worker actually needs.
+
+### Web-only secrets
+
+In addition to the dispatch-side secrets above, the **web** worker needs:
+
+| Key                  | Purpose                                                                                                                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_SETUP_TOKEN`  | Optional bearer that gates `AdminSignUp` (admin-bootstrap flow). Generate with `openssl rand -hex 32`. Unset → `AdminSignUp` surfaces `AuthenticationError("setup_token_disabled")`. Consumer/relay/pruner/dlq do not consume this token. |
 
 ### Local dev (R2 / LLM bindings)
 

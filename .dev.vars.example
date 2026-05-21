@@ -35,6 +35,15 @@ BETTER_AUTH_SECRET="dev-only-replace-me-with-openssl-rand-base64-32"
 GOOGLE_CLIENT_ID="your-local-dev-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-local-dev-client-secret"
 
+# --- Admin sign-up bootstrap token (web only) ----------------------------
+# Optional bearer that gates `AdminSignUp`. When unset, admin sign-up
+# returns `AuthenticationError("setup_token_disabled")` — useful in
+# local dev where you don't need bootstrap protection. Generate with:
+#   openssl rand -hex 32
+# Production / staging values live in `infra/secrets/{stage}.enc.json`
+# under the same key.
+ADMIN_SETUP_TOKEN=""
+
 # --- SecretBox master key ------------------------------------------------
 # Base64-encoded 32-byte AES-256 key consumed by `WebCryptoSecretBox`.
 # Required for the admin UI to round-trip a saved LLM api key through
