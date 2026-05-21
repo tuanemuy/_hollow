@@ -117,7 +117,7 @@ export async function signUp({
 }
 
 export function buildVerificationLink(appUrl: string, token: string): URL {
-  const url = new URL("/auth/verify", appUrl);
+  const url = new URL("/verify-email", appUrl);
   url.searchParams.set("token", token);
   return url;
 }
