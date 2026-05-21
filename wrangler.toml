@@ -23,6 +23,14 @@ binding = "ASSETS"
 
 [vars]
 APP_URL = "http://localhost:8787"
+# Bucket name used by `R2ObjectStorage` to mint SigV4 presigned URLs.
+# Public information (S3 endpoint URL is exposed in presigned links
+# anyway), so it lives in `[vars]` rather than `.dev.vars`. See ADR-006.
+R2_OBJECT_BUCKET_NAME = "tanstack-start-template-objects"
+# Model id consumed by `AnthropicLLMProvider`. Public information.
+# DI wires `AnthropicLLMProvider` only when this AND
+# `ADMIN_LLM_API_KEY` (secret) are both present.
+ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 
 # D1: read/write for the request path. Outbox writes happen here
 # transactionally with aggregate writes — see app/core/adapters/d1/.
@@ -31,6 +39,17 @@ binding = "DB"
 database_name = "tanstack-start-template-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
+
+# R2 buckets — DI swaps in `R2TempFileStorage` / `R2ObjectStorage` when
+# the bindings are present, otherwise the Stub adapters short-circuit
+# every call with the appropriate Unavailable error.
+[[r2_buckets]]
+binding = "TEMP_FILES"
+bucket_name = "tanstack-start-template-temp-files"
+
+[[r2_buckets]]
+binding = "OBJECT_STORAGE"
+bucket_name = "tanstack-start-template-objects"
 
 # Service Binding to the relay Worker — kicked from usecases right
 # after a UoW commit so newly-persisted outbox rows publish without
@@ -86,6 +105,10 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.consumer.vars]
 APP_URL = "http://localhost:8787"
+# Wrangler does NOT inherit `vars` / `r2_buckets` / `services` from the
+# top level into named environments — these are duplicated on purpose.
+R2_OBJECT_BUCKET_NAME = "tanstack-start-template-objects"
+ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 
 # D1 is bound for subscribers that write projections / idempotency
 # stamps. Drop if your consumers are stateless.
@@ -94,6 +117,25 @@ binding = "DB"
 database_name = "tanstack-start-template-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
+
+# R2 buckets — the consumer dispatches into `runIngestionJob` /
+# `runExportJob` which touch temp file storage and object storage
+# directly. Bindings are duplicated from the top level because wrangler
+# does not inherit them into named environments.
+[[env.consumer.r2_buckets]]
+binding = "TEMP_FILES"
+bucket_name = "tanstack-start-template-temp-files"
+
+[[env.consumer.r2_buckets]]
+binding = "OBJECT_STORAGE"
+bucket_name = "tanstack-start-template-objects"
+
+# Service Binding to relay — enables `ServiceBindingRelayTrigger` so
+# secondary domain events emitted by `runIngestionJob` / `runExportJob`
+# publish immediately rather than waiting for the 5-min cron.
+[[env.consumer.services]]
+binding = "RELAY"
+service = "tanstack-start-template-relay"
 
 [[env.consumer.queues.consumers]]
 queue = "tanstack-start-template-events"

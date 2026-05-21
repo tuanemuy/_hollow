@@ -58,6 +58,8 @@ type StackOutput = {
   d1DatabaseName: string;
   eventsQueueName: string;
   eventsDlqQueueName: string;
+  tempFilesBucketName: string;
+  objectsBucketName: string;
   workerNamesOut: {
     web: string;
     relay: string;
@@ -75,11 +77,21 @@ const vars: Record<string, string> = {
   D1_NAME: stack.d1DatabaseName,
   EVENTS_QUEUE: stack.eventsQueueName,
   EVENTS_DLQ_QUEUE: stack.eventsDlqQueueName,
+  R2_TEMP_FILES_BUCKET: stack.tempFilesBucketName,
+  R2_OBJECTS_BUCKET: stack.objectsBucketName,
   WORKER_WEB: stack.workerNamesOut.web,
   WORKER_RELAY: stack.workerNamesOut.relay,
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
+  // Public LLM model id delivered via `wrangler.toml [vars]`. Literal
+  // default lives here rather than in Pulumi StackOutput because the
+  // model id is a deploy-time choice, not a provisioned resource.
+  // Stage-specific override (e.g. claude-3-5-haiku for staging) ships
+  // in a follow-up Issue — until then, **keep this value in sync with
+  // `wrangler.toml`** (`[vars]` and `[env.consumer.vars]`); they are the
+  // local-dev counterpart of the staging/production defaults.
+  ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
 };
 
 const template = readFileSync(templatePath, "utf8");

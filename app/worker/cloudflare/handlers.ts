@@ -108,9 +108,9 @@ export async function runPruneTick(
 export async function handleQueue(
   batch: MessageBatch<DomainEvent>,
   env: ConsumerEnv,
-  _ctx: ExecutionContext,
+  ctx: ExecutionContext,
 ): Promise<void> {
-  const container = createConsumerContainer(env);
+  const container = createConsumerContainer(env, ctx);
   for (const message of batch.messages) {
     const eventId = message.body.id;
     const eventType = message.body.type;

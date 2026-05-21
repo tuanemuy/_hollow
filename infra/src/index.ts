@@ -2,12 +2,14 @@ import { readConfig, resourceNames, workerNames } from "./config.ts";
 import { createD1 } from "./d1.ts";
 import { createDnsAndRoutes } from "./dns.ts";
 import { createQueues } from "./queues.ts";
+import { createR2Buckets } from "./r2.ts";
 import { workerSecretSpecs } from "./secrets.ts";
 
 const cfg = readConfig();
 
 const d1 = createD1(cfg);
 const queues = createQueues(cfg);
+const r2 = createR2Buckets(cfg);
 const dns = createDnsAndRoutes(cfg);
 
 const names = resourceNames(cfg);
@@ -25,6 +27,11 @@ export const eventsQueueName = names.eventsQueue;
 export const eventsDlqQueueName = names.eventsDlqQueue;
 export const eventsQueueId = queues.events.id;
 export const eventsDlqQueueId = queues.dlq.id;
+
+export const tempFilesBucketName = names.tempFilesBucket;
+export const objectsBucketName = names.objectsBucket;
+export const tempFilesBucketId = r2.tempFiles.id;
+export const objectsBucketId = r2.objects.id;
 
 export const workerNamesOut = workers;
 

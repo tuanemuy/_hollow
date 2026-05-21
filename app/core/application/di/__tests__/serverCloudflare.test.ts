@@ -1,6 +1,19 @@
-import type { D1Database } from "@cloudflare/workers-types";
-import { describe, expect, it } from "vitest";
+import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
+import { describe, expect, it, vi } from "vitest";
 import { content } from "@/config";
+import {
+  R2ObjectStorage,
+  StubObjectStorage,
+} from "@/core/adapters/cloudflare/r2ObjectStorage";
+import {
+  R2TempFileStorage,
+  StubTempFileStorage,
+} from "@/core/adapters/cloudflare/r2TempFileStorage";
+import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
+import {
+  AnthropicLLMProvider,
+  StubLLMProvider,
+} from "@/core/adapters/llm/llmProvider";
 import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_LEASE_MS,
@@ -15,7 +28,11 @@ import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import { TempFileStorageUnavailableError } from "@/core/domain/ingestion/ports/tempFileStorage";
 import { StorageUnavailableError } from "@/core/domain/media/ports/objectStorage";
+import { ConsoleLogger } from "../../ports/logger";
+import { NoopRelayTrigger } from "../../ports/relayTrigger";
 import {
+  buildRelayTrigger,
+  createConsumerContainer,
   createRequestContainer,
   type RequestServerConfig,
   readPruneTuning,
@@ -234,5 +251,188 @@ describe("createRequestContainer", () => {
         e instanceof BusinessRuleError &&
         e.code === IngestionErrorCode.UnsupportedFormat,
     );
+  });
+});
+
+// Test bindings — minimal objects with the right shape; tests only
+// inspect `instanceof` of the adapter built around them, not behavior.
+const fakeBucket = (): R2Bucket => ({}) as R2Bucket;
+const fakeFetcher = (): Fetcher => ({}) as Fetcher;
+
+describe("createRequestContainer — env → adapter mapping", () => {
+  // ----- tempFileStorage --------------------------------------------------
+  it("wires R2TempFileStorage when TEMP_FILES binding is present", () => {
+    const container = createRequestContainer(
+      configWith({ tempFilesBucket: fakeBucket() }),
+    );
+    expect(container.tempFileStorage).toBeInstanceOf(R2TempFileStorage);
+  });
+
+  it("falls back to StubTempFileStorage when TEMP_FILES is absent", () => {
+    const container = createRequestContainer(configWith());
+    expect(container.tempFileStorage).toBeInstanceOf(StubTempFileStorage);
+  });
+
+  // ----- objectStorage ----------------------------------------------------
+  const fullR2Config = {
+    objectStorageBucket: fakeBucket(),
+    r2PresignConfig: {
+      accountId: "acc",
+      bucketName: "buck",
+      accessKeyId: "key",
+      secretAccessKey: "sec",
+    },
+  } satisfies Partial<RequestServerConfig>;
+
+  it("wires R2ObjectStorage when bucket + presign config are all present", () => {
+    const container = createRequestContainer(configWith(fullR2Config));
+    expect(container.objectStorage).toBeInstanceOf(R2ObjectStorage);
+  });
+
+  it("falls back to StubObjectStorage when r2PresignConfig is absent", () => {
+    const container = createRequestContainer(
+      configWith({ objectStorageBucket: fakeBucket() }),
+    );
+    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+  });
+
+  it("falls back to StubObjectStorage when objectStorageBucket is absent (presign config alone is not enough)", () => {
+    const container = createRequestContainer(
+      configWith({ r2PresignConfig: fullR2Config.r2PresignConfig }),
+    );
+    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+  });
+
+  // ----- llmProvider ------------------------------------------------------
+  it("wires AnthropicLLMProvider when both adminLlmApiKey and adminLlmModel are present", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+  });
+
+  it("falls back to StubLLMProvider when adminLlmModel is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmApiKey: "sk-ant-test" }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("falls back to StubLLMProvider when adminLlmApiKey is missing", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmModel: "claude-3-5-sonnet-latest" }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("falls back to StubLLMProvider when both are missing", () => {
+    const container = createRequestContainer(configWith());
+    expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
+  });
+});
+
+// Helper: build a minimal `ServerEnv` for `createConsumerContainer` tests.
+// Repositories under the consumer container are lazy over the D1 binding
+// (see `getDatabase`), so a stub binding suffices for instanceof checks.
+function envWithBindings(overrides: Partial<ServerEnv> = {}): ServerEnv {
+  return {
+    DB: {} as D1Database,
+    APP_URL: "http://localhost:8787",
+    ...overrides,
+  };
+}
+
+describe("buildRelayTrigger", () => {
+  // `buildRelayTrigger` is the pure helper that `createRequestContainer`
+  // delegates to. Verifying it directly avoids the tautology of
+  // re-constructing a `ServiceBindingRelayTrigger` inside the test and
+  // asserting `instanceof` against that fresh instance — here the
+  // assertion exercises the helper's three-way wiring contract.
+
+  it("returns ServiceBindingRelayTrigger when relay + waitUntil are both present", () => {
+    const trigger = buildRelayTrigger(
+      fakeFetcher(),
+      () => undefined,
+      ConsoleLogger,
+    );
+    expect(trigger).toBeInstanceOf(ServiceBindingRelayTrigger);
+  });
+
+  it("returns the NoopRelayTrigger singleton when relay is absent", () => {
+    const trigger = buildRelayTrigger(
+      undefined,
+      () => undefined,
+      ConsoleLogger,
+    );
+    expect(trigger).toBe(NoopRelayTrigger);
+  });
+
+  it("returns the NoopRelayTrigger singleton when waitUntil is absent", () => {
+    const trigger = buildRelayTrigger(fakeFetcher(), undefined, ConsoleLogger);
+    expect(trigger).toBe(NoopRelayTrigger);
+  });
+});
+
+describe("createConsumerContainer — env / ctx → adapter mapping", () => {
+  it("returns all RequestContainer fields plus the worker-only ports", () => {
+    const container = createConsumerContainer(envWithBindings());
+    expect(container.outboxRepository).toBeDefined();
+    expect(container.idempotencyStore).toBeDefined();
+    expect(container.indexJobRepository).toBeDefined();
+    expect(container.unitOfWorkProvider).toBeDefined();
+    expect(container.tempFileStorage).toBeDefined();
+    expect(container.objectStorage).toBeDefined();
+    expect(container.llmProvider).toBeDefined();
+    expect(container.secretBox).toBeDefined();
+  });
+
+  it("does not invoke ctx.waitUntil during container construction", () => {
+    // Container build itself must be side-effect-free with respect to
+    // `waitUntil` — the kick only fires when a UoW commit publishes an
+    // event. Guards against accidental eager-fetch wiring.
+    const ctx = { waitUntil: vi.fn() };
+    const container = createConsumerContainer(envWithBindings(), ctx);
+    expect(container).toBeDefined();
+    expect(ctx.waitUntil).not.toHaveBeenCalled();
+  });
+
+  it("threads ServerEnv R2 + LLM bindings through to the right adapters", () => {
+    const container = createConsumerContainer(
+      envWithBindings({
+        TEMP_FILES: fakeBucket(),
+        OBJECT_STORAGE: fakeBucket(),
+        R2_ACCOUNT_ID: "acc",
+        R2_ACCESS_KEY_ID: "key",
+        R2_SECRET_ACCESS_KEY: "sec",
+        R2_OBJECT_BUCKET_NAME: "buck",
+        ADMIN_LLM_API_KEY: "sk-ant-test",
+        ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.tempFileStorage).toBeInstanceOf(R2TempFileStorage);
+    expect(container.objectStorage).toBeInstanceOf(R2ObjectStorage);
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+  });
+
+  it.each([
+    ["R2_ACCOUNT_ID"],
+    ["R2_ACCESS_KEY_ID"],
+    ["R2_SECRET_ACCESS_KEY"],
+    ["R2_OBJECT_BUCKET_NAME"],
+    ["OBJECT_STORAGE"],
+  ] as const)("downgrades to StubObjectStorage when %s is missing", (missingKey) => {
+    const partial: Partial<ServerEnv> = {
+      OBJECT_STORAGE: fakeBucket(),
+      R2_ACCOUNT_ID: "acc",
+      R2_ACCESS_KEY_ID: "key",
+      R2_SECRET_ACCESS_KEY: "sec",
+      R2_OBJECT_BUCKET_NAME: "buck",
+    };
+    delete partial[missingKey];
+    const container = createConsumerContainer(envWithBindings(partial));
+    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
   });
 });

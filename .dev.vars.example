@@ -35,11 +35,25 @@ BETTER_AUTH_SECRET="dev-only-replace-me-with-openssl-rand-base64-32"
 GOOGLE_CLIENT_ID="your-local-dev-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-local-dev-client-secret"
 
-# --- SecretBox (at-rest encryption) ---------------------------------------
+# --- Admin sign-up bootstrap token (web only) ----------------------------
+# Optional bearer that gates `AdminSignUp`. When unset, admin sign-up
+# returns `AuthenticationError("setup_token_disabled")` — useful in
+# local dev where you don't need bootstrap protection. Generate with:
+#   openssl rand -hex 32
+# Production / staging values live in `infra/secrets/{stage}.enc.json`
+# under the same key.
+ADMIN_SETUP_TOKEN=""
+
+# --- SecretBox master key (at-rest encryption) ----------------------------
 # AES-256 master key for encrypting at-rest secrets such as DB-sourced LLM
 # api keys (e.g. saving `apiKeySource = 'db'` from `/admin/llm`). MUST be a
 # base64-encoded 32-byte value — the worker rejects malformed keys at boot.
 # See `app/core/adapters/security/secretBox.ts` for the wire format.
+#
+# Required for the admin UI to round-trip a saved LLM api key through the
+# encrypted DB row. When empty, DI falls back to `NullSecretBox` and every
+# encrypt/decrypt surfaces `SecretBoxError(KeyUnavailable)` — the admin UI
+# still renders, but saving a DB-sourced api key fails at call time.
 #
 # Generate a fresh value with:
 #   openssl rand -base64 32
@@ -47,10 +61,30 @@ GOOGLE_CLIENT_SECRET="your-local-dev-client-secret"
 # The default below is a valid base64 32-byte placeholder so a fresh
 # `cp .dev.vars.example .dev.vars` is immediately usable for local dev.
 # *** LOCAL DEV ONLY — never reuse this value in staging or production. ***
-# Production / staging keys MUST be provisioned via `wrangler secret`
-# (managed by `infra/secrets/{stage}.enc.json` + `wrangler secret bulk`),
-# independently of this file. As of this commit, `SECRET_BOX_MASTER_KEY`
-# is NOT yet listed in `infra/src/secrets.ts` (`workerSecretSpecs`) — see
-# #102 for the production rollout (promotion to `workerSecretSpecs`,
-# rotation policy, fail-fast vs fail-soft decision).
+# Production / staging keys are provisioned via `wrangler secret bulk` from
+# `infra/secrets/{stage}.enc.json` (listed in `infra/src/secrets.ts`
+# `workerSecretSpecs` as of Issue #110).
 SECRET_BOX_MASTER_KEY="ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE="
+
+# --- LLM (Anthropic) env override ----------------------------------------
+# Anthropic API key. DI wires `AnthropicLLMProvider` only when this AND
+# `ADMIN_LLM_MODEL` (the `wrangler.toml [vars]` entry) are BOTH present.
+# Either one empty → falls back to `StubLLMProvider`, which rejects
+# every call with `BusinessRuleError("unsupported_format")`. Leave
+# empty for purely local dev; calls to Anthropic are billed.
+ADMIN_LLM_API_KEY=""
+
+# --- R2 SigV4 presign credentials ---------------------------------------
+# Required by `R2ObjectStorage` to mint short-lived presigned URLs for
+# export downloads. Issue via Cloudflare dashboard → R2 → "Manage R2
+# API Tokens"; for local dev, scope a read/write token to the dev
+# `tanstack-start-template-objects` bucket only.
+#
+# All three (plus the `OBJECT_STORAGE` binding from `wrangler.toml` and
+# the `R2_OBJECT_BUCKET_NAME` var) must be set together for DI to wire
+# `R2ObjectStorage`. Any one empty → falls back to `StubObjectStorage`,
+# which rejects every call with `StorageUnavailableError`. The
+# data-plane `TEMP_FILES` binding still works without these credentials.
+R2_ACCOUNT_ID=""
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""

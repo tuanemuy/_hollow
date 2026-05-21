@@ -50,5 +50,7 @@ export const resourceNames = (cfg: Pick<Config, "appName" | "stage">) => {
     d1: `${prefix}-d1`,
     eventsQueue: `${prefix}-events`,
     eventsDlqQueue: `${prefix}-events-dlq`,
+    tempFilesBucket: `${prefix}-temp-files`,
+    objectsBucket: `${prefix}-objects`,
   } as const;
 };
