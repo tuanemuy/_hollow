@@ -40,6 +40,11 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
   //   URLs are minted against the S3-compatible endpoint and need a
   //   manually-issued R2 access token. See ADR-005 (#110) — issue per
   //   stage, never share keys across staging/production.
+  // - `ADMIN_SETUP_TOKEN`: admin sign-up bootstrap secret. Required
+  //   only on web — consumer / relay / pruner / dlq never run the
+  //   `AdminSignUp` usecase. Absent on web → DI keeps the unset
+  //   `EnvSetupTokenVerifier` and `AdminSignUp` returns
+  //   `AuthenticationError('setup_token_disabled')`.
   //
   // ADR-007 (#110): the CI `wrangler secret bulk` step pushes the
   // single SOPS-decrypted file to every worker. This spec is therefore
@@ -53,8 +58,9 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
   ] as const;
+  const webOnly = ["ADMIN_SETUP_TOKEN"] as const;
   return [
-    { worker: names.web, secrets: [...shared, ...dispatchExtras] },
+    { worker: names.web, secrets: [...shared, ...dispatchExtras, ...webOnly] },
     { worker: names.relay, secrets: shared },
     { worker: names.consumer, secrets: [...shared, ...dispatchExtras] },
     { worker: names.pruner, secrets: shared },

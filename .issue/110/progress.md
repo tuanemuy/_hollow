@@ -31,6 +31,7 @@
 ## 設計判断 (adr.md 追記)
 
 - **ADR-008**: 統合テストで `env.TEMP_FILES` を narrow するための `tempFilesBinding()` ヘルパー導入と、`@cloudflare/workers-types` の `R2Bucket` 型を import しない理由
+- **ADR-009** (review-002 対応): RELAY 三項分岐を `buildRelayTrigger` pure 関数として切り出し、`instanceof` 検証を直接実行可能にする (トートロジー解消)
 
 ## 既知の制限・フォローアップ
 
@@ -59,3 +60,9 @@
 - `wrangler tail --env consumer` での RELAY 即時 publish ログ確認
 
 testing.md チェックリストの「(ops)」プレフィックス項目に対応。
+
+### フォローアップ Issue 候補 (review-002 由来)
+
+- **Infra W-002**: `pnpm infra:preview:staging` / `pnpm infra:up:staging` 実行時に `cloudflare:R2Bucket` の location 未指定挙動を smoke 確認 (ops)
+- **Infra W-004 / W-005**: `.sops.yaml` で `unencrypted_suffix: _comment` を宣言し、平文コメントを暗号化対象から除外。あわせて `.json.example` の `_comment` を doc link に書き換える (本 PR では scope 拡大回避)
+- **DI W-003**: `toAppConfig(config): AppConfig` ヘルパー導入で `createRequestContainer` 内の SSR fields 取り出しを構造化 (現在の手動 destructuring は将来の `RequestServerConfig` 拡張で漏れやすい)

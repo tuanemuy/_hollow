@@ -43,7 +43,7 @@ import {
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
-import { ConsoleLogger } from "../ports/logger";
+import { ConsoleLogger, type Logger } from "../ports/logger";
 import { NoopRelayTrigger, type RelayTrigger } from "../ports/relayTrigger";
 import { NullUsageMetricsProvider } from "../ports/usageMetricsProvider";
 import type { TuningEnv } from "./env";
@@ -245,6 +245,27 @@ function buildSharedDeps(): SharedDeps {
 }
 
 /**
+ * Build the request-time `RelayTrigger`. Wires
+ * `ServiceBindingRelayTrigger` only when both a `relay` Service Binding
+ * and a `waitUntil` bridge are available; any missing input degrades to
+ * the singleton `NoopRelayTrigger` (the relay safety-net cron then picks
+ * the row up on the next tick).
+ *
+ * Pure helper extracted from `createRequestContainer` so the
+ * three-way wiring can be verified directly in unit tests via
+ * `instanceof` without smuggling the trigger out of the UoW provider.
+ */
+export function buildRelayTrigger(
+  relay: Fetcher | undefined,
+  waitUntil: ((promise: Promise<unknown>) => void) | undefined,
+  logger: Logger,
+): RelayTrigger {
+  return relay && waitUntil
+    ? new ServiceBindingRelayTrigger(relay, waitUntil, logger)
+    : NoopRelayTrigger;
+}
+
+/**
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
@@ -266,10 +287,7 @@ export function createRequestContainer(
     r2PresignConfig,
     ...appConfig
   } = config;
-  const relayTrigger: RelayTrigger =
-    relay && waitUntil
-      ? new ServiceBindingRelayTrigger(relay, waitUntil, ConsoleLogger)
-      : NoopRelayTrigger;
+  const relayTrigger = buildRelayTrigger(relay, waitUntil, ConsoleLogger);
   return {
     ...buildSharedDeps(),
     config: appConfig satisfies AppConfig,
@@ -363,9 +381,9 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
  *   argument, the inner `relayTrigger` is `ServiceBindingRelayTrigger`,
  *   so secondary events emitted by `runIngestionJob` / `runExportJob`
  *   (e.g. `ingestion.previewAttached`) publish immediately. The kick is
- *   best-effort: queue handlers may `ack()` before the `waitUntil`
- *   subrequest completes, in which case the relay safety-net cron
- *   (5 min) picks the row up — a documented safety-net structure. The
+ *   best-effort: if `waitUntil` is dropped (CPU limit, worker crash
+ *   before the kick fetch completes), the relay safety-net cron (5 min)
+ *   picks the row up — a documented safety-net structure. The
  *   `ctx` parameter is optional so callers that have no execution
  *   context (synthetic test harnesses, manual scripts) still get a
  *   container; they degrade to `NoopRelayTrigger` and the cron drives

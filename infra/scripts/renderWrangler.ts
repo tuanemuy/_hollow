@@ -84,6 +84,12 @@ const vars: Record<string, string> = {
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
+  // Public LLM model id delivered via `wrangler.toml [vars]`. Literal
+  // default lives here rather than in Pulumi StackOutput because the
+  // model id is a deploy-time choice, not a provisioned resource.
+  // Stage-specific override (e.g. claude-3-5-haiku for staging) ships
+  // in a follow-up Issue.
+  ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
 };
 
 const template = readFileSync(templatePath, "utf8");

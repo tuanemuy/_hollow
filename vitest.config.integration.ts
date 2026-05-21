@@ -65,6 +65,7 @@ export default defineConfig({
           // set alongside the `OBJECT_STORAGE` r2 binding, DI wires the
           // real adapter — useful for any test that exercises presign
           // URL minting. Data-plane R2 ops do not consult them.
+          // TODO: 別 Issue で R2ObjectStorage 経由 smoke を追加 (本 Issue は TEMP_FILES 経路のみ smoke)
           R2_ACCOUNT_ID: "test-account",
           R2_ACCESS_KEY_ID: "test-key-id",
           R2_SECRET_ACCESS_KEY: "test-secret",

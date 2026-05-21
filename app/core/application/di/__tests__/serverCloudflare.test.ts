@@ -28,8 +28,10 @@ import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import { TempFileStorageUnavailableError } from "@/core/domain/ingestion/ports/tempFileStorage";
 import { StorageUnavailableError } from "@/core/domain/media/ports/objectStorage";
+import { ConsoleLogger } from "../../ports/logger";
 import { NoopRelayTrigger } from "../../ports/relayTrigger";
 import {
+  buildRelayTrigger,
   createConsumerContainer,
   createRequestContainer,
   type RequestServerConfig,
@@ -343,6 +345,37 @@ function envWithBindings(overrides: Partial<ServerEnv> = {}): ServerEnv {
   };
 }
 
+describe("buildRelayTrigger", () => {
+  // `buildRelayTrigger` is the pure helper that `createRequestContainer`
+  // delegates to. Verifying it directly avoids the tautology of
+  // re-constructing a `ServiceBindingRelayTrigger` inside the test and
+  // asserting `instanceof` against that fresh instance — here the
+  // assertion exercises the helper's three-way wiring contract.
+
+  it("returns ServiceBindingRelayTrigger when relay + waitUntil are both present", () => {
+    const trigger = buildRelayTrigger(
+      fakeFetcher(),
+      () => undefined,
+      ConsoleLogger,
+    );
+    expect(trigger).toBeInstanceOf(ServiceBindingRelayTrigger);
+  });
+
+  it("returns the NoopRelayTrigger singleton when relay is absent", () => {
+    const trigger = buildRelayTrigger(
+      undefined,
+      () => undefined,
+      ConsoleLogger,
+    );
+    expect(trigger).toBe(NoopRelayTrigger);
+  });
+
+  it("returns the NoopRelayTrigger singleton when waitUntil is absent", () => {
+    const trigger = buildRelayTrigger(fakeFetcher(), undefined, ConsoleLogger);
+    expect(trigger).toBe(NoopRelayTrigger);
+  });
+});
+
 describe("createConsumerContainer — env / ctx → adapter mapping", () => {
   it("returns all RequestContainer fields plus the worker-only ports", () => {
     const container = createConsumerContainer(envWithBindings());
@@ -356,72 +389,13 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.secretBox).toBeDefined();
   });
 
-  it("wires ServiceBindingRelayTrigger when RELAY + ctx are both present", () => {
-    // Reach the internal relayTrigger via the UoW provider — it's the
-    // only public surface that holds the reference. UoW provider is
-    // constructed with the trigger in 4th positional arg; we assert
-    // via a spy on the trigger's `kick` instead by inspecting the
-    // unitOfWorkProvider's internal field would couple to private
-    // state. So: build with RELAY+ctx and verify that the *type* of
-    // adapter inside the UoW provider matches by triggering a
-    // round-trip through a stubbed Fetcher.
-    //
-    // Simpler: construct via `createRequestContainer` directly using
-    // the same code path (configWith) — `createConsumerContainer`
-    // composes it 1:1 — and assert the dispatched relay binding
-    // surfaces. We instead validate at the configuration level: with
-    // RELAY + waitUntil both set, `createRequestContainer`'s ternary
-    // hands back a `ServiceBindingRelayTrigger`. Build it directly to
-    // assert without leaking through internal state.
-    const trigger = new ServiceBindingRelayTrigger(
-      fakeFetcher(),
-      () => undefined,
-      { error: () => undefined, warn: () => undefined, info: () => undefined },
-    );
-    expect(trigger).toBeInstanceOf(ServiceBindingRelayTrigger);
-
-    // Behavioural assertion: `createConsumerContainer(env, ctx)` must
-    // forward `ctx.waitUntil` into the relay trigger so `kick()` runs
-    // the bound fetcher. Spy on the fetcher and trigger a UoW commit
-    // path indirectly by invoking the trigger as the DI would.
-    const waitUntilSpy = vi.fn<(p: Promise<unknown>) => void>();
-    const fetchSpy = vi
-      .fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
-      .mockResolvedValue(new Response("ok"));
-    const relay = { fetch: fetchSpy } as unknown as Fetcher;
-    const ctx = { waitUntil: waitUntilSpy };
-    const container = createConsumerContainer(
-      envWithBindings({ RELAY: relay }),
-      ctx,
-    );
-    // Container build does not eagerly kick — but we can verify the
-    // wiring by extracting the unit-of-work-provider and calling its
-    // public `run` with a no-op callback that publishes nothing.
-    // Skipped here; the instanceof of the trigger is the contract.
-    expect(container.unitOfWorkProvider).toBeDefined();
-  });
-
-  it("uses NoopRelayTrigger when ctx is omitted even if RELAY is bound", () => {
-    // Without `ctx.waitUntil`, the trigger ternary in
-    // `createRequestContainer` falls back to NoopRelayTrigger. Verify
-    // the well-known singleton is not replaced by something else when
-    // the consumer container is built without ctx.
-    const container = createConsumerContainer(
-      envWithBindings({ RELAY: fakeFetcher() }),
-    );
-    // No public getter for the trigger; assert NoopRelayTrigger
-    // identity is still a callable shape (kick is a no-op).
-    expect(typeof NoopRelayTrigger.kick).toBe("function");
-    expect(() => NoopRelayTrigger.kick()).not.toThrow();
-    expect(container).toBeDefined();
-  });
-
-  it("uses NoopRelayTrigger when RELAY is missing even if ctx is supplied", () => {
+  it("does not invoke ctx.waitUntil during container construction", () => {
+    // Container build itself must be side-effect-free with respect to
+    // `waitUntil` — the kick only fires when a UoW commit publishes an
+    // event. Guards against accidental eager-fetch wiring.
     const ctx = { waitUntil: vi.fn() };
     const container = createConsumerContainer(envWithBindings(), ctx);
     expect(container).toBeDefined();
-    // Indirect check: NoopRelayTrigger.kick is a no-op so ctx.waitUntil
-    // is never called during construction.
     expect(ctx.waitUntil).not.toHaveBeenCalled();
   });
 
@@ -443,17 +417,22 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
   });
 
-  it("downgrades partial R2 credentials to StubObjectStorage", () => {
-    const container = createConsumerContainer(
-      envWithBindings({
-        OBJECT_STORAGE: fakeBucket(),
-        // R2_ACCOUNT_ID intentionally missing — any single missing
-        // field must trigger the fallback per readRequestServerConfig.
-        R2_ACCESS_KEY_ID: "key",
-        R2_SECRET_ACCESS_KEY: "sec",
-        R2_OBJECT_BUCKET_NAME: "buck",
-      }),
-    );
+  it.each([
+    ["R2_ACCOUNT_ID"],
+    ["R2_ACCESS_KEY_ID"],
+    ["R2_SECRET_ACCESS_KEY"],
+    ["R2_OBJECT_BUCKET_NAME"],
+    ["OBJECT_STORAGE"],
+  ] as const)("downgrades to StubObjectStorage when %s is missing", (missingKey) => {
+    const partial: Partial<ServerEnv> = {
+      OBJECT_STORAGE: fakeBucket(),
+      R2_ACCOUNT_ID: "acc",
+      R2_ACCESS_KEY_ID: "key",
+      R2_SECRET_ACCESS_KEY: "sec",
+      R2_OBJECT_BUCKET_NAME: "buck",
+    };
+    delete partial[missingKey];
+    const container = createConsumerContainer(envWithBindings(partial));
     expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
   });
 });

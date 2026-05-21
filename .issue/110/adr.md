@@ -256,3 +256,54 @@ Proposed
 - トレードオフ:
   - 補助関数を 1 つ追加するコスト
   - `NonNullable<typeof env.TEMP_FILES>` は workerd の R2Bucket 型に依存するため、wrangler types を再生成するタイミングで型が変わる可能性 (実害は小さい — 仕様変更は workerd の API 仕様変更を意味する)
+
+---
+
+## ADR-009: `buildRelayTrigger` を pure 関数として切り出し instanceof 検証可能にする
+
+### Status
+Accepted
+
+### Context
+PR #112 review-002 で「`createConsumerContainer` 内の RELAY 三項分岐が unit テストで verify されていない」という指摘を受けた。元のテストは:
+
+```ts
+const trigger = new ServiceBindingRelayTrigger(fakeFetcher(), () => undefined, logger);
+expect(trigger).toBeInstanceOf(ServiceBindingRelayTrigger);
+```
+
+のように、テスト内で別途 `new ServiceBindingRelayTrigger(...)` を構築して `instanceof` 確認しているだけで、`createRequestContainer` 内の三項分岐 (`relay && waitUntil ? ... : NoopRelayTrigger`) は一切実行されていない。`relay && waitUntil` を `relay || waitUntil` に書き換えても通ってしまうトートロジーだった。
+
+`relayTrigger` は `D1UnitOfWorkProvider` の 4 つ目のコンストラクタ引数として渡され private に閉じ込められるため、container 経由で直接覗くことができない。
+
+選択肢:
+1. `D1UnitOfWorkProvider` に `getRelayTrigger()` getter を生やしてテスト用にリーク (テスト都合での API 拡張)
+2. 三項分岐を pure 関数として切り出し、`createRequestContainer` 内では関数呼び出しに置換 (関数自体を直接テストできる)
+3. 統合テストで `RELAY.fetch` 呼び出しを spy する (重い & 既存ユニットテスト範疇外)
+
+### Decision
+選択肢 2 を採用。`buildRelayTrigger(relay, waitUntil, logger): RelayTrigger` を `serverCloudflare.ts` から `export` し、`createRequestContainer` 内の三項分岐ロジックを 1:1 置換する。
+
+```ts
+export function buildRelayTrigger(
+  relay: Fetcher | undefined,
+  waitUntil: ((promise: Promise<unknown>) => void) | undefined,
+  logger: Logger,
+): RelayTrigger {
+  return relay && waitUntil
+    ? new ServiceBindingRelayTrigger(relay, waitUntil, logger)
+    : NoopRelayTrigger;
+}
+```
+
+テスト側は `buildRelayTrigger(...)` の direct call に対して `instanceof ServiceBindingRelayTrigger` / `=== NoopRelayTrigger` を assert する 3 ケースで三項分岐を網羅する。
+
+### Consequences
+- 良い点:
+  - 三項分岐ロジックが直接テストされる (トートロジー解消)
+  - `D1UnitOfWorkProvider` の private state にテストが結合しない
+  - `createRequestContainer` は関数呼び出し 1 行になり読みやすくなる
+  - `ServiceBindingRelayTrigger` を直接 import / 構築しているテストロジック (Test W-004 misleading な `fakeFetcher` 利用) も自然解消
+- トレードオフ:
+  - public export を 1 つ増やすコスト (DI helper として小さな API surface 拡張)
+  - `createConsumerContainer(env, ctx)` 経由の wiring は依然として「`buildRelayTrigger` を呼んでいることが前提」だが、関数の存在自体は容易に grep 可能
