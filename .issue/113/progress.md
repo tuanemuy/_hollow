@@ -13,7 +13,7 @@
 
 ## スキップしたステップ
 
-- **Step 8 (helper 単体テスト)**: plan.md の判断基準どおり省略。`arrayBufferToBase64` の chunked encoding は Step 6 (OCR / PDF adapter テスト) の happy path で base64 が non-empty string として返ることを `toBe(typeof "string") + length > 0` で間接検証済み。error mapper の切り替えは port 別エラー型 (`OCRFailureError` / `PDFParseError`) の `instanceof` 検証で結果として verify されている。将来 chunked encoding の境界 (8191 / 8192 / 8193 byte) を直接テストしたくなった場合に追加で十分 (YAGNI)。
+- なし — Step 0 〜 Step 8 まで全て対応済み (Step 8 は review-001 T-W-003 への対応として有効化、`anthropicMessagesClient.test.ts` を新規追加)。
 
 ## 設計判断の追加
 
