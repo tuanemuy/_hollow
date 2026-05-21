@@ -6,6 +6,7 @@ import {
 } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { StubTempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { PendingBatch } from "@/core/adapters/d1/pendingBatch";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
@@ -17,7 +18,6 @@ import {
   processedEvents,
   users,
 } from "@/core/adapters/d1/schema";
-import { StubTempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { StubLLMProvider } from "@/core/adapters/llm/llmProvider";
 import {
   type DomainEvent,
@@ -561,7 +561,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(stamped).toHaveLength(1);
   });
 
-  it("does NOT stamp when runIngestionJob throws LLMRateLimitError; redelivery can re-enter dispatch", async () => {
+  it("does NOT stamp when runIngestionJob throws LLMRateLimitError; redelivery re-enters dispatch but no-ops via isPending guard (ADR-003 既知の限界)", async () => {
     const ownerId = nextOwnerId();
     const jobId = nextIngestionJobId();
     await seedOwner(ownerId);
@@ -579,12 +579,16 @@ describe("consumer Worker — handleQueue dispatch", () => {
     // `failed` markFailedSafely path before the LLM is ever touched.
     // Patch it to return inline bytes so the pipeline reaches the
     // metadata step where the rate-limit injection lives.
+    // TODO(Issue #57 follow-up): this Stub-specific override goes away
+    // once `[env.consumer]` gets a real R2 binding.
     vi.spyOn(StubTempFileStorage.prototype, "get").mockResolvedValue(
       new TextEncoder().encode("<p>hello</p>").buffer as ArrayBuffer,
     );
-    vi.spyOn(StubLLMProvider.prototype, "suggestMetadata").mockRejectedValue(
-      new LLMRateLimitError("rate limited"),
+    const suggestMetadataSpy = vi.spyOn(
+      StubLLMProvider.prototype,
+      "suggestMetadata",
     );
+    suggestMetadataSpy.mockRejectedValue(new LLMRateLimitError("rate limited"));
 
     const event: DomainEvent = {
       id: nextEventId(),
@@ -613,6 +617,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(
       result.retryMessages.map((m: { msgId: string }) => m.msgId),
     ).toContain("msg-ingestion-retry");
+    expect(suggestMetadataSpy).toHaveBeenCalledTimes(1);
 
     const db = getDatabase(env.DB);
     const stamped = await db
@@ -620,6 +625,50 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .from(processedEvents)
       .where(eq(processedEvents.id, event.id));
     expect(stamped).toHaveLength(0);
+
+    // The usecase committed `pending → processing` before the LLM call
+    // rethrew. ADR-003 "既知の限界": the row is now in `processing`,
+    // and the next redelivery will hit `runIngestionJob`'s `isPending`
+    // guard and no-op. The queue retry path is intentionally documented
+    // here so a future change to `runIngestionJob`'s entry guard
+    // (re-entry from `processing`) would fail this assertion.
+    const jobAfterRetry = await db
+      .select()
+      .from(ingestionJobs)
+      .where(eq(ingestionJobs.id, jobId));
+    expect(jobAfterRetry[0]?.status).toBe("processing");
+
+    // Redelivery: hasProcessed=false (no stamp), so handleQueue enters
+    // dispatch again. runIngestionJob's `isPending` guard short-circuits
+    // (job is `processing` now), so the LLM is NOT called a second
+    // time. Stamp + ack regardless — the message is finally drained.
+    suggestMetadataSpy.mockClear();
+    const redeliverBatch = createMessageBatch<DomainEvent>(
+      "tanstack-start-template-events",
+      [
+        {
+          id: "msg-ingestion-retry-2",
+          timestamp: new Date(),
+          body: event,
+          attempts: 2,
+        },
+      ],
+    );
+    const redeliverCtx = createExecutionContext();
+    await handleQueue(redeliverBatch, consumerEnv(), redeliverCtx);
+    const redeliverResult = await getQueueResult(redeliverBatch, redeliverCtx);
+    expect(redeliverResult.explicitAcks).toContain("msg-ingestion-retry-2");
+    expect(suggestMetadataSpy).not.toHaveBeenCalled();
+    const stampedAfterRedeliver = await db
+      .select()
+      .from(processedEvents)
+      .where(eq(processedEvents.id, event.id));
+    expect(stampedAfterRedeliver).toHaveLength(1);
+    const jobAfterRedeliver = await db
+      .select()
+      .from(ingestionJobs)
+      .where(eq(ingestionJobs.id, jobId));
+    expect(jobAfterRedeliver[0]?.status).toBe("processing");
   });
 
   it("skips already-processed events via hasProcessed (no re-dispatch)", async () => {
@@ -665,8 +714,18 @@ describe("consumer Worker — handleQueue dispatch", () => {
     const firstStatus = firstJobAfter[0]?.status;
     const firstUpdatedAt = firstJobAfter[0]?.updatedAt;
 
-    // Second delivery — `hasProcessed` short-circuits dispatch so
-    // the ingestion job row must not change.
+    // Second delivery — `hasProcessed` short-circuits dispatch.
+    // Spy on `hasProcessed` to prove we actually traverse that branch
+    // (the observable behavior of "row unchanged" could also be produced
+    // by the dispatch running again and hitting `isPending=false`).
+    const hasProcessedSpy = vi.spyOn(
+      D1IdempotencyStore.prototype,
+      "hasProcessed",
+    );
+    const markProcessedSpy = vi.spyOn(
+      D1IdempotencyStore.prototype,
+      "markProcessed",
+    );
     const secondBatch = createMessageBatch<DomainEvent>(
       "tanstack-start-template-events",
       [
@@ -682,6 +741,11 @@ describe("consumer Worker — handleQueue dispatch", () => {
     await handleQueue(secondBatch, consumerEnv(), secondCtx);
     const secondResult = await getQueueResult(secondBatch, secondCtx);
     expect(secondResult.explicitAcks).toContain("msg-dedup-2");
+
+    // `hasProcessed` was consulted, dispatch was skipped (no
+    // `markProcessed` call) — the row is left untouched.
+    expect(hasProcessedSpy).toHaveBeenCalledWith(event.id);
+    expect(markProcessedSpy).not.toHaveBeenCalled();
 
     const secondJobAfter = await db
       .select()

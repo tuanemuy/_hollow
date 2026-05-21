@@ -84,23 +84,26 @@ export async function runPruneTick(
 /**
  * Queue consumer flow: `hasProcessed` → dispatch → success-only stamp.
  *
- * The stamp is post-dispatch so a transient failure inside the usecase
- * (e.g. `LLMRateLimitError` rethrown by `runIngestionJob`) leaves the
- * `processed_events` row absent, letting Cloudflare Queues redeliver
- * and re-enter dispatch. If the stamp ran first, the redelivery would
- * be skipped and the retry path would be silently broken (Issue #57
- * ADR-003).
+ * Stamp ordering: post-dispatch only. Transient errors that throw out
+ * of dispatch (D1 timeouts, `hasProcessed` itself failing, an unhandled
+ * domain throw) leave the `processed_events` row absent, so the queue's
+ * redelivery re-enters dispatch. If the stamp ran first, the redelivery
+ * would always be skipped and retry would be silently broken — Issue
+ * #57 ADR-003. The outer try/catch covers the entire `hasProcessed →
+ * dispatch → markProcessed` sequence so a throw anywhere in that span
+ * routes the message to `retry()`.
  *
  * Double-execution after a worker crash between dispatch success and
- * the stamp is bounded by the aggregate-side defences: `isPending`
- * (or `isProcessing`) guards in `runIngestionJob` / `runExportJob`
- * plus the OCC `expectedVersion` on aggregate save converge to a
- * no-op on the second run.
+ * the stamp is bounded by the aggregate-side defences in
+ * `runIngestionJob` / `runExportJob`: an `isPending` guard plus an OCC
+ * `expectedVersion` check converge to a no-op on the second run.
  *
- * Operator safety net: a job permanently stuck in `pending` (e.g.
- * because every retry hit a rate limit and exhausted `max_retries`
- * into the DLQ) is recoverable via the admin manual-retry button
- * (Issue #3 — `retryIngestionJob` / `retryExportJob`).
+ * Known limitation: the aggregate-side `isPending` guard means that
+ * `LLMRateLimitError` rethrown after the usecase has committed
+ * `pending → processing` cannot be auto-recovered. The next redelivery
+ * no-ops, and after `max_retries` the message lands in the DLQ.
+ * Operator recovery is the admin manual-retry button (Issue #3 —
+ * `retryIngestionJob` / `retryExportJob` re-emit `*.retryRequested`).
  */
 export async function handleQueue(
   batch: MessageBatch<DomainEvent>,

@@ -14,6 +14,7 @@ import type { IngestionJobId as IngestionJobIdDTO } from "../../dto/ingestion";
 import { NotFoundError } from "../../errors";
 import { runExportJob } from "../../export/runExportJob";
 import { runIngestionJob } from "../../ingestion/runIngestionJob";
+import type { Logger } from "../../ports/logger";
 import { dispatchDomainEvent } from "../dispatchDomainEvent";
 
 vi.mock("../../ingestion/runIngestionJob", () => ({
@@ -26,7 +27,15 @@ vi.mock("../../export/runExportJob", () => ({
 const mockedRunIngestionJob = vi.mocked(runIngestionJob);
 const mockedRunExportJob = vi.mocked(runExportJob);
 
-const STUB_CONTAINER = {} as unknown as RequestContainer;
+const stubLogger: Logger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+};
+
+// Container穴埋め: mocked usecases never read it; only the BusinessRuleError
+// branch reads container.logger, hence the stub above.
+const STUB_CONTAINER = { logger: stubLogger } as unknown as RequestContainer;
 
 const EVENT_ID = "01938f00-0000-7000-8000-aaaaaaaaaaaa" as EventId;
 const INGESTION_JOB_ID = "01938f00-0001-7000-8000-aaaaaaaaaaaa";
@@ -124,6 +133,7 @@ beforeEach(() => {
   mockedRunExportJob.mockReset();
   mockedRunIngestionJob.mockResolvedValue(undefined);
   mockedRunExportJob.mockResolvedValue({ job: null });
+  vi.mocked(stubLogger.warn).mockClear();
 });
 
 describe("dispatchDomainEvent — routing", () => {
@@ -260,5 +270,57 @@ describe("dispatchDomainEvent — error classification", () => {
       exportRetryRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "retry", error });
+  });
+
+  it("returns retry when runExportJob throws LLMRateLimitError (symmetric with ingestion)", async () => {
+    const error = new LLMRateLimitError("rate limited");
+    mockedRunExportJob.mockRejectedValueOnce(error);
+    const outcome = await dispatchDomainEvent(
+      STUB_CONTAINER,
+      exportRequestedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "retry", error });
+  });
+
+  it("returns handled and logs.warn when payload jobId is an empty string (BusinessRuleError from VO factory)", async () => {
+    // payload schema drift: relay published an event with an empty
+    // jobId. The VO factory throws BusinessRuleError before runIngestionJob
+    // is even called.
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "ingestion.created",
+      payload: {
+        jobId: "" as unknown as IngestionJobIdBrand,
+        kind: "plain" as SourceFileKind,
+      },
+      occurredAt: new Date(0),
+      aggregateId: INGESTION_JOB_ID,
+    };
+    const outcome = await dispatchDomainEvent(STUB_CONTAINER, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedRunIngestionJob).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(stubLogger.warn).mock.calls[0]?.[0]).toContain(
+      "ingestion.created",
+    );
+  });
+
+  it("returns handled when export payload exportJobId is empty (BusinessRuleError)", async () => {
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "export.job.requested",
+      payload: {
+        exportJobId: "" as unknown as ExportJobId,
+        ownerId: OWNER_ID,
+        format: "html",
+        scope: "single",
+      },
+      occurredAt: new Date(0),
+      aggregateId: EXPORT_JOB_ID,
+    };
+    const outcome = await dispatchDomainEvent(STUB_CONTAINER, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedRunExportJob).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
   });
 });

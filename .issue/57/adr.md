@@ -88,7 +88,7 @@ read-only check と atomic claim の間に race window は理論上存在する�
 
 ### Consequences
 - 良い点:
-  - `LLMRateLimitError → retry` が正しく機能する（retry 経路が stamp で遮断されない）
+  - **stamp が retry path を遮断する**構造的バグの解消（transient な D1 一時障害 / `hasProcessed` 自体の throw / dispatch 内側からの想定外 throw が、redelivery で再 dispatch されるようになる）
   - 既存の at-least-once + idempotent 契約を維持
   - usecase 側の冪等性（domain entity の状態遷移ガード + 楽観ロック）に依拠した二重防御を活用できる
   - DLQ への到達経路が壊れない（retry が `max_retries` に達したら DLQ）
@@ -96,6 +96,10 @@ read-only check と atomic claim の間に race window は理論上存在する�
   - `IdempotencyStore` port に method が 1 つ増える（adapter 全箇所の追従が必要 — 現状 `D1IdempotencyStore` のみ）
   - 「dispatch 中に worker crash」「stamp 前に crash」の組み合わせでは、次回 redelivery で再度 dispatch される。usecase 側の `isPending` ガードで no-op に縮退するが、UoW を 1 回多く開く軽微なオーバーヘッドはある
   - 既存テスト「acks redelivered without re-running」の assertion を `hasProcessed` 経路に合わせて更新する必要がある（observable behavior は不変）
+- **既知の限界（重要）**:
+  - `runIngestionJob` の entry guard は `IngestionJob.isPending` 固定で、1 回目の配信は `pending → processing` を **commit してから** pipeline 内で `LLMRateLimitError` を rethrow する。stamp は確かに残らないが、redelivery 時に `isPending` ガードで no-op に縮退するため、ingestion job は `processing` のまま固定化される。**この path は `max_retries → DLQ → admin 手動 retry`（Issue #3 の retry ボタン）に倒れる**。
+  - 別 Issue で「`runIngestionJob` の再エントリ可能化（`processing` 中断状態からの再開、または `processing → pending` への自動 rollback）」を検討する。本 PR の責務は queue dispatch の配線 + stamp 順序の構造的バグ解消であり、usecase semantic 変更はスコープ外。
+  - **transient エラー（`hasProcessed` 自体の throw、`markProcessed` 失敗、export 側の D1 一時障害）の retry は本 PR の post-dispatch stamp で正しく機能する** — ingestion path の `processing` 後 rate limit だけが上記の limitation を持つ。
 
 ---
 
@@ -124,7 +128,7 @@ unit test には `ingestion.regenerated → kind: "skipped"` を明示的なケ�
 
 ---
 
-## ADR-005: `NotFoundError` は `handled`（ack）、`LLMRateLimitError` のみ `retry`、D1 UoW 自体の throw も `retry`
+## ADR-005: dispatch エラーの分類 — `NotFoundError` / `BusinessRuleError` は `handled`、`LLMRateLimitError` + 想定外 throw は `retry`
 
 ### Status
 Proposed
@@ -133,27 +137,30 @@ Proposed
 dispatch 中に usecase が throw する可能性のある例外をどう扱うか:
 
 - `runIngestionJob` は `LLMRateLimitError` のみ再 throw し、他の pipeline 失敗は `markFailedSafely` で `failed` に畳む
-- `runExportJob` は通常 `failJob` に畳む（内部 catch あり）が、最初の `transitionPendingToProcessing` を呼ぶ `unitOfWorkProvider.run` 自体は try/catch されていない。D1 一時障害で `run` が throw すると `runExportJob` 全体を抜ける可能性がある
+- `runExportJob` は通常 `failJob` に畳む（内部 catch あり）が、`unitOfWorkProvider.run` 自体は try/catch されていない。D1 一時障害で throw する可能性がある（防御的扱いとして `EXPORT_JOB_NOT_FOUND` 経路も維持）
 - 両者とも対象 job 行が見つからない場合 `NotFoundError` を throw する
+- 加えて、relay 側の event payload schema drift などで `IngestionJobId.create("")` / `ExportJobId.create("")` の VO factory が `BusinessRuleError` を throw するケースが起き得る
 
 選択肢:
 1. すべての throw を `retry` 扱い
-2. `LLMRateLimitError` のみ `retry`、`NotFoundError` は `handled`、その他の throw は `retry`（D1 throw 含む）
+2. `LLMRateLimitError` のみ `retry`、`NotFoundError` / `BusinessRuleError` は `handled`、その他の throw は `retry`
 
 ### Decision
 選択肢 2。
-- `LLMRateLimitError` → `retry`（rate limit が解消されたら自然回復するため）
+- `LLMRateLimitError` → `retry`（rate limit が解消されたら queue retry で吸収。**ただし ingestion path は ADR-003 の "既知の限界" を参照** — `runIngestionJob` の `isPending` ガードにより `processing` 状態からは再走できない）
 - `NotFoundError` → `handled`（消えた job 行を redelivery で復活させる手段はない、queue 上は完了扱いで良い）
+- `BusinessRuleError`（VO 構築失敗 = payload schema drift） → `handled`（永続的な不整合は retry で直らないため queue を汚さない。運用観測は `logger.warn` で記録）
 - その他の想定外 throw（D1 接続不可、UoW commit 失敗など）→ `retry`（一時障害として queue retry の backoff で吸収。最終的に `max_retries` 超過で DLQ に隔離される）
 
 ### Consequences
 - 良い点:
-  - 復活不能なエラー（NotFoundError）を redelivery ループに乗せず queue 効率が良い
-  - 一時障害（LLMRateLimitError / D1 一時停止）は queue retry の backoff で吸収される
-  - ADR-003 の post-dispatch stamp 順序と組み合わさることで、retry 経路が stamp で遮断されず正しく機能する
+  - 復活不能なエラー（NotFoundError / BusinessRuleError）を redelivery ループに乗せず queue 効率が良い
+  - 一時障害（D1 一時停止、`hasProcessed` 自体の throw など）は queue retry の backoff で吸収される
+  - ADR-003 の post-dispatch stamp 順序と組み合わさることで、上記 transient エラー path は stamp で遮断されず正しく機能する
 - トレードオフ:
-  - 「job 行が消えた」事象の運用観測には別途ログ / メトリクスが必要（本 Issue では `logger.info` で記録するに留める）
+  - 「job 行が消えた」事象 / payload schema drift の運用観測には別途ログ / メトリクスが必要（本 Issue では `logger.warn` で記録するに留める）
   - `runIngestionJob` 内の「内部 markFailedSafely で `failed` に畳んだ後で stamp」と「外部 throw → retry → 後で再走で再 markFailedSafely」の二重実行が起きる場合があるが、`isPending` ガードと楽観ロックで二重実行は防がれる
+  - **`runExportJob` の `EXPORT_JOB_NOT_FOUND` 経路は実用上ほぼ通らない**（usecase 内部 catch で吸収される）が、防御コードとして残す。`runIngestionJob` 側の `INGESTION_JOB_NOT_FOUND` は実際に throw されうるため意味がある
 
 ---
 
