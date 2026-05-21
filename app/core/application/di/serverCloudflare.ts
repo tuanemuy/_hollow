@@ -131,6 +131,17 @@ export type RequestServerConfig = AppConfig &
     // dashboard (ADR-005 of Issue #110) and delivered via SOPS
     // secrets + the public `R2_OBJECT_BUCKET_NAME` var.
     r2PresignConfig?: R2PresignConfig;
+    // Optional `RelayTrigger` injected by the entry point to bypass the
+    // default Service Binding wiring. Used by `pnpm dev` to route kicks
+    // through `InlineRelayTrigger` (Issue #66 / ADR-003); unset on every
+    // production / staging code path. When set, `createRequestContainer`
+    // uses this instance verbatim and skips `buildRelayTrigger`.
+    //
+    // Note: `readRequestServerConfig` never populates this field, so
+    // worker entry points that read their config from there (consumer /
+    // relay / pruner / dlq) always observe it as `undefined`. The field
+    // is type-level optional in those paths but effectively dead code.
+    relayTriggerOverride?: RelayTrigger;
   }>;
 
 /**
@@ -359,9 +370,11 @@ export function createRequestContainer(
     tempFilesBucket,
     objectStorageBucket,
     r2PresignConfig,
+    relayTriggerOverride,
     ...appConfig
   } = config;
-  const relayTrigger = buildRelayTrigger(relay, waitUntil, ConsoleLogger);
+  const relayTrigger =
+    relayTriggerOverride ?? buildRelayTrigger(relay, waitUntil, ConsoleLogger);
   return {
     ...buildSharedDeps(),
     config: appConfig satisfies AppConfig,
