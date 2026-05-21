@@ -147,6 +147,9 @@ describe("AnthropicPDFExtractor", () => {
       await expect(
         extractor.extract({ bytes: pdfBytes() }),
       ).rejects.toBeInstanceOf(PDFParseError);
+      await expect(
+        extractor.extract({ bytes: pdfBytes() }),
+      ).rejects.toMatchObject({ cause: expect.any(TypeError) });
     });
 
     it("maps abort/timeout to PDFParseError", async () => {
@@ -188,7 +191,7 @@ describe("AnthropicPDFExtractor", () => {
             apiKey: "",
             model: "claude-3-5-sonnet-latest",
           }),
-      ).toThrow();
+      ).toThrow(/apiKey is empty/);
     });
 
     it("rejects empty model", () => {
@@ -198,7 +201,7 @@ describe("AnthropicPDFExtractor", () => {
             apiKey: "sk-ant-test",
             model: "",
           }),
-      ).toThrow();
+      ).toThrow(/model is empty/);
     });
   });
 });

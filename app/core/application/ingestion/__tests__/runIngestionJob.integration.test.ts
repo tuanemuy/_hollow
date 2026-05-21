@@ -601,6 +601,9 @@ describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
     // Three sequential Anthropic POSTs: OCR extract, structureToHtml,
     // suggestMetadata. The mock returns each in order regardless of
     // request body (the adapters route to the same endpoint URL).
+    // Order matches the pipeline call sequence for `image` kind:
+    // ocr.extractText → llm.structureToHtml → llm.suggestMetadata.
+    // If the pipeline order changes, update this array.
     const responses: unknown[] = [
       textEnvelope("captured text from image"),
       structureEnvelope("<p>structured from ocr</p>"),
@@ -668,6 +671,9 @@ describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
   });
 
   it("runs Anthropic PDF extraction → Anthropic LLM structuring → sanitiser for a textual PDF", async () => {
+    // Order matches the pipeline call sequence for `pdfTextual` kind:
+    // pdf.extract → llm.structureToHtml → llm.suggestMetadata.
+    // If the pipeline order changes, update this array.
     const responses: unknown[] = [
       textEnvelope("extracted PDF body text"),
       structureEnvelope("<p>structured from pdf</p>"),

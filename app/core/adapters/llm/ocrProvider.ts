@@ -20,7 +20,8 @@ const SUPPORTED_IMAGE_MIMES: ReadonlySet<string> = new Set([
 
 // Anthropic Vision rejects images larger than ~5MB per image. Enforced
 // here so an oversized upload fails fast with a port-native error
-// instead of waiting for a 4xx round-trip.
+// instead of waiting for a 4xx round-trip. Limit applies to raw file
+// bytes (not the base64-encoded payload).
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 // Allow OCR responses to fully expand without hitting the LLM-default

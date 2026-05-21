@@ -147,6 +147,9 @@ describe("AnthropicOCRProvider", () => {
       await expect(
         provider.extractText({ imageBytes: pngBytes(), mime: "image/png" }),
       ).rejects.toBeInstanceOf(OCRFailureError);
+      await expect(
+        provider.extractText({ imageBytes: pngBytes(), mime: "image/png" }),
+      ).rejects.toMatchObject({ cause: expect.any(TypeError) });
     });
 
     it("maps abort/timeout to OCRFailureError", async () => {
@@ -214,7 +217,7 @@ describe("AnthropicOCRProvider", () => {
             apiKey: "",
             model: "claude-3-5-sonnet-latest",
           }),
-      ).toThrow();
+      ).toThrow(/apiKey is empty/);
     });
 
     it("rejects empty model", () => {
@@ -224,7 +227,7 @@ describe("AnthropicOCRProvider", () => {
             apiKey: "sk-ant-test",
             model: "",
           }),
-      ).toThrow();
+      ).toThrow(/model is empty/);
     });
   });
 });

@@ -14,7 +14,8 @@ import {
 
 // Anthropic document content blocks cap each request body at ~32MB.
 // Reject larger PDFs up front so the worker does not waste a round-trip
-// on an Anthropic-side 413.
+// on an Anthropic-side 413. Limit applies to raw file bytes (not the
+// base64-encoded payload).
 const MAX_PDF_BYTES = 32 * 1024 * 1024;
 
 // PDF transcription can be much longer than typical LLM completions —

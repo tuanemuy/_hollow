@@ -470,6 +470,20 @@ describe("buildOcrProvider", () => {
     const provider = buildOcrProvider(undefined, undefined);
     expect(provider).toBeInstanceOf(StubOCRProvider);
   });
+
+  it("returns StubOCRProvider when apiKey is empty string", () => {
+    expect(buildOcrProvider("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
+      StubOCRProvider,
+    );
+  });
+
+  it("returns StubOCRProvider when model is empty string", () => {
+    expect(buildOcrProvider("sk-ant-test", "")).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("returns StubOCRProvider when both are empty strings", () => {
+    expect(buildOcrProvider("", "")).toBeInstanceOf(StubOCRProvider);
+  });
 });
 
 describe("buildPdfExtractor", () => {
@@ -492,6 +506,22 @@ describe("buildPdfExtractor", () => {
     const extractor = buildPdfExtractor(undefined, undefined);
     expect(extractor).toBeInstanceOf(StubPDFExtractor);
   });
+
+  it("returns StubPDFExtractor when apiKey is empty string", () => {
+    expect(buildPdfExtractor("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
+      StubPDFExtractor,
+    );
+  });
+
+  it("returns StubPDFExtractor when model is empty string", () => {
+    expect(buildPdfExtractor("sk-ant-test", "")).toBeInstanceOf(
+      StubPDFExtractor,
+    );
+  });
+
+  it("returns StubPDFExtractor when both are empty strings", () => {
+    expect(buildPdfExtractor("", "")).toBeInstanceOf(StubPDFExtractor);
+  });
 });
 
 describe("createConsumerContainer — env / ctx → adapter mapping", () => {
@@ -504,6 +534,8 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.tempFileStorage).toBeDefined();
     expect(container.objectStorage).toBeDefined();
     expect(container.llmProvider).toBeDefined();
+    expect(container.ocrProvider).toBeDefined();
+    expect(container.pdfExtractor).toBeDefined();
     expect(container.secretBox).toBeDefined();
   });
 

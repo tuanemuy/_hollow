@@ -50,6 +50,8 @@ export type AnthropicSharedConfig = Readonly<{
 export const DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages";
 export const DEFAULT_API_VERSION = "2023-06-01";
 export const DEFAULT_TIMEOUT_MS = 60_000;
+// Conservative default for LLM-mode callers. OCR / PDF intentionally override
+// via their constructor (16384) — text-heavy outputs would otherwise truncate.
 export const DEFAULT_MAX_TOKENS = 4096;
 
 export type AnthropicContentBlock =
@@ -137,6 +139,10 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * The provided `mapper` decides which concrete `Error` subclass is
  * thrown for each failure category, letting OCR / PDF / future callers
  * stay inside their respective port contracts.
+ *
+ * The joined text content is `String.trim()`-ed before return —
+ * leading/trailing whitespace and newlines are dropped. Matches existing
+ * `AnthropicLLMProvider` behavior.
  */
 export async function callAnthropicMessages(
   config: AnthropicSharedConfig,
