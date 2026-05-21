@@ -1,5 +1,6 @@
 import type { SearchHit } from "@/core/domain/search/valueObject";
 import type { DateRange } from "./common";
+import type { DirectoryId } from "./directory";
 import type { UserId } from "./identity";
 import type { NoteId } from "./note";
 
@@ -26,13 +27,17 @@ export type SearchHitDTO = Readonly<{
  *   `tagNames` / `score` / `visibility`: search index (eventually
  *   consistent).
  *
- * Branded value-object types (`DirectoryId`, `NoteSlug`) are intentionally
- * flattened to plain `string` at the DTO boundary to match the existing
- * `loaders.ts` convention. `updatedAt` is an ISO 8601 string.
+ * `directoryId` carries the DTO `DirectoryId` brand, matching the
+ * convention documented in `./index.ts` (id brands preserved on DTOs;
+ * `to{Entity}DTO` helpers are the single bridge between domain and DTO
+ * brand schemes). `slug` is a plain `string` here for the same reason
+ * `NoteListItemDTO.slug` / `DirectoryDTO.slug` are — `NoteSlug` is
+ * structurally a subtype of `string` and the DTO layer does not carry
+ * its brand. `updatedAt` is an ISO 8601 string.
  */
 export type OwnedSearchHitDTO = SearchHitDTO &
   Readonly<{
-    directoryId: string;
+    directoryId: DirectoryId;
     slug: string;
     updatedAt: string;
   }>;

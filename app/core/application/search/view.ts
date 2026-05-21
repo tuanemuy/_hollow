@@ -1,5 +1,6 @@
 import type { Note } from "@/core/domain/note/entity";
 import type { SearchHit } from "@/core/domain/search/valueObject";
+import type { DirectoryId } from "../dto/directory";
 import {
   type OwnedSearchHitDTO,
   type SearchHitDTO,
@@ -31,8 +32,8 @@ export function toOwnedSearchHitView(
 ): OwnedSearchHitDTO {
   return {
     ...toSearchHitDTO(hit),
-    directoryId: note.directoryId as unknown as string,
-    slug: note.slug as unknown as string,
+    directoryId: note.directoryId as unknown as DirectoryId,
+    slug: note.slug,
     updatedAt: note.updatedAt.toISOString(),
   };
 }
