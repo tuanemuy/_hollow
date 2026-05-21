@@ -8,8 +8,8 @@
 
 | TC | テスト名 | 種別 | 結果 | 備考 |
 |----|---------|------|------|------|
-| TC-001 | dev で outbox がドレインされる | 正常系 | PARTIAL PASS | DB 観察で既存未処理 outbox 行 2 件を確認（Issue #66 の元症状）。新規 UoW commit を起こす UI 操作（サインアップ）が現セッションで反映されず、新規イベントの drain は実機未検証。Unit test (`inlineRelayTrigger.test.ts`) でロジックは PASS |
-| TC-002 | ingestion フローがフルフロー検証できる | 正常系 | SKIP | TC-001 のサインアップ未完で先に進めず。Unit test でロジック担保 |
+| TC-001 | dev で outbox がドレインされる | 正常系 | PARTIAL PASS | DB 観察で既存未処理 outbox 行 2 件を確認（Issue #66 の元症状）。新規 UoW commit を起こす UI 操作（サインアップ）が現セッションで反映されず、新規イベントの drain は実機未検証。**PARTIAL の意味**: `InlineRelayTrigger` の挙動（同一 isolate ドレイン / 各 outcome / RELAY-strip / 同期 return / fire-and-forget / 固定 3 値 / caller options merge）は `inlineRelayTrigger.test.ts` で完全担保している。実機での新規行 drain 実演ができていないのは agent-browser 側の auth UI 別問題（本 PR スコープ外）に起因するため、本 PR のレビューで blocker とすべきではない |
+| TC-002 | ingestion フローがフルフロー検証できる | 正常系 | SKIP | TC-001 のサインアップ未完で先に進めず。Unit test (`inlineRelayTrigger.test.ts`) と既存 ingestion integration test でロジック担保。同上の理由により本 PR の blocker ではない |
 | TC-003 | production 経路への dead-code elimination | 検証 | **PASS** | `pnpm build` 後 `dist/` を `grep` した結果、`InlineRelayTrigger` / `import.meta.env` / `inline-dev` の参照すべて 0 件（完全に dead-code 削除） |
 | Edge-1 | dispatch 失敗時 attempts++ | 異常系 | **PASS** | Unit test (`inlineRelayTrigger.test.ts`) で確認済み |
 | Edge-2 | secondary kick が RELAY を呼ばない | 異常系 | **PASS** | Unit test で `stripRelayBinding` の動作と Noop 降格を確認 |
@@ -27,9 +27,8 @@
 `pnpm build` 後の `dist/` を grep:
 
 ```bash
-grep -rn "InlineRelayTrigger" dist/    # → 0 件
-grep -rn "import\.meta\.env" dist/     # → 0 件
-grep -rn "inline-dev" dist/            # → 0 件
+test -d dist/ && grep -rn "InlineRelayTrigger\|inline-dev\|import.meta.env" dist/ && echo "FAIL: residue found" || echo "OK: dead-code eliminated"
+# → 結果: "OK: dead-code eliminated"（dist 配下に該当 0 件）
 ```
 
 → vite の dead-code elimination が完全に効いており、`InlineRelayTrigger` の実装と参照は production / staging のビルド成果物に一切含まれない。

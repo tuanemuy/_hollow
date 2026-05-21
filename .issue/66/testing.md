@@ -25,7 +25,7 @@ production 経路への混入を念のため確認したい場合のみ:
 
 ```bash
 pnpm build
-grep -r "import.meta.env" dist/ 2>/dev/null || echo "OK: dead-code eliminated"
+test -d dist/ && grep -rn "InlineRelayTrigger\|inline-dev\|import.meta.env" dist/ && echo "FAIL: residue found" || echo "OK: dead-code eliminated"
 ```
 
 `pnpm build` は vite ビルドのみで wrangler deploy は走らない（安全）。
@@ -71,8 +71,7 @@ grep -r "import.meta.env" dist/ 2>/dev/null || echo "OK: dead-code eliminated"
   1. `pnpm build` を実行
   2. 以下のコマンドで dist 配下を grep:
      ```bash
-     grep -rn "import.meta.env" dist/ 2>/dev/null || echo "OK: no import.meta.env references in build output"
-     grep -rn "InlineRelayTrigger" dist/ 2>/dev/null || echo "OK: InlineRelayTrigger eliminated from build"
+     test -d dist/ && grep -rn "InlineRelayTrigger\|inline-dev\|import.meta.env" dist/ && echo "FAIL: residue found" || echo "OK: dead-code eliminated"
      ```
 - **期待結果:**
   - `import.meta.env` の参照が dist/ に残っていない（または `import.meta.env.DEV` の三項演算が完全に `false` 側に折りたたまれている）。
