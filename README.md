@@ -60,6 +60,18 @@ pnpm db:migrate                    # apply SQL migrations to local D1
 pnpm dev                           # vite dev (workerd) on http://localhost:3000
 ```
 
+`.dev.vars.example` ships with a valid base64 32-byte placeholder for
+`SECRET_BOX_MASTER_KEY` so that admin flows depending on at-rest
+encryption (e.g. saving an LLM api key from `/admin/llm` with
+`apiKeySource = 'db'`) work out of the box. To use your own local-only
+value, regenerate it with `openssl rand -base64 32` and replace the line
+in `.dev.vars`. Never reuse the shipped placeholder outside local
+development — staging and production keys MUST be provisioned via
+`wrangler secret` (see [`infra/secrets/README.md`](infra/secrets/README.md)).
+Note: as of this commit, `SECRET_BOX_MASTER_KEY` is not yet wired into
+`infra/src/secrets.ts` (`workerSecretSpecs`); production rollout is
+tracked in issue #102.
+
 For a production build:
 
 ```bash
