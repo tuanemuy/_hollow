@@ -1,6 +1,9 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
+import { AnthropicLLMProvider } from "@/core/adapters/llm/llmProvider";
+import { AnthropicOCRProvider } from "@/core/adapters/llm/ocrProvider";
+import { AnthropicPDFExtractor } from "@/core/adapters/llm/pdfExtractor";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import {
@@ -540,6 +543,199 @@ describe("runIngestionJob", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("failed");
     expect(rows[0]?.errorCode).toBe("sanitize_failure");
+  });
+});
+
+describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
+  // End-to-end smoke for the real Anthropic OCR / PDF / LLM adapters
+  // wired together through `runIngestionJob`. The Anthropic Messages
+  // API is mocked via `vi.stubGlobal('fetch', ...)`; we never hit the
+  // network. Each test installs its own mock and the `afterEach` hook
+  // restores the global so adjacent suites are unaffected.
+  const getContainer = setupTestContainer();
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function structureEnvelope(html: string): unknown {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            html,
+            titleSuggestion: "Generated title",
+            directorySuggestion: null,
+          }),
+        },
+      ],
+    };
+  }
+
+  function metadataEnvelope(): unknown {
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ tags: [], aliases: [] }),
+        },
+      ],
+    };
+  }
+
+  function textEnvelope(text: string): unknown {
+    return {
+      content: [{ type: "text", text }],
+    };
+  }
+
+  function jsonResponse(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("runs Anthropic OCR → Anthropic LLM structuring → sanitiser for an image upload", async () => {
+    // Three sequential Anthropic POSTs: OCR extract, structureToHtml,
+    // suggestMetadata. The mock returns each in order regardless of
+    // request body (the adapters route to the same endpoint URL).
+    // Order matches the pipeline call sequence for `image` kind:
+    // ocr.extractText → llm.structureToHtml → llm.suggestMetadata.
+    // If the pipeline order changes, update this array.
+    const responses: unknown[] = [
+      textEnvelope("captured text from image"),
+      structureEnvelope("<p>structured from ocr</p>"),
+      metadataEnvelope(),
+    ];
+    const fetchMock = vi.fn(async () => {
+      const next = responses.shift();
+      if (next === undefined) {
+        throw new Error("fetch called more times than expected");
+      }
+      return jsonResponse(200, next);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const baseContainer = getContainer();
+    const container: TestContainer = {
+      ...baseContainer,
+      ocrProvider: new AnthropicOCRProvider({
+        apiKey: "sk-ant-test",
+        model: "claude-3-5-sonnet-latest",
+      }),
+      llmProvider: new AnthropicLLMProvider({
+        apiKey: "sk-ant-test",
+        model: "claude-3-5-sonnet-latest",
+      }),
+    };
+
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "image",
+      mimeType: "image/png",
+      originalFileName: "diagram.png",
+      bodyBytes: utf8("png-bytes"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("structured from ocr");
+    // All three Anthropic round-trips consumed; the OCR adapter is the
+    // first call so we verify its content-block shape pointedly.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const firstCall = fetchMock.mock.calls[0] as unknown as [
+      unknown,
+      RequestInit,
+    ];
+    const firstBody = JSON.parse(firstCall[1].body as string);
+    expect(firstBody.messages[0].content[0]).toMatchObject({
+      type: "image",
+      source: { type: "base64", media_type: "image/png" },
+    });
+  });
+
+  it("runs Anthropic PDF extraction → Anthropic LLM structuring → sanitiser for a textual PDF", async () => {
+    // Order matches the pipeline call sequence for `pdfTextual` kind:
+    // pdf.extract → llm.structureToHtml → llm.suggestMetadata.
+    // If the pipeline order changes, update this array.
+    const responses: unknown[] = [
+      textEnvelope("extracted PDF body text"),
+      structureEnvelope("<p>structured from pdf</p>"),
+      metadataEnvelope(),
+    ];
+    const fetchMock = vi.fn(async () => {
+      const next = responses.shift();
+      if (next === undefined) {
+        throw new Error("fetch called more times than expected");
+      }
+      return jsonResponse(200, next);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const baseContainer = getContainer();
+    const container: TestContainer = {
+      ...baseContainer,
+      pdfExtractor: new AnthropicPDFExtractor({
+        apiKey: "sk-ant-test",
+        model: "claude-3-5-sonnet-latest",
+      }),
+      llmProvider: new AnthropicLLMProvider({
+        apiKey: "sk-ant-test",
+        model: "claude-3-5-sonnet-latest",
+      }),
+    };
+
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "pdfTextual",
+      mimeType: "application/pdf",
+      originalFileName: "doc.pdf",
+      bodyBytes: utf8("%PDF-fake"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain("structured from pdf");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const firstCall = fetchMock.mock.calls[0] as unknown as [
+      unknown,
+      RequestInit,
+    ];
+    const firstBody = JSON.parse(firstCall[1].body as string);
+    expect(firstBody.messages[0].content[0]).toMatchObject({
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf" },
+    });
   });
 });
 

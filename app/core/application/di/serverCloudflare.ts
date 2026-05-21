@@ -29,9 +29,15 @@ import {
   AnthropicLLMProvider,
   StubLLMProvider,
 } from "@/core/adapters/llm/llmProvider";
-import { StubOCRProvider } from "@/core/adapters/llm/ocrProvider";
+import {
+  AnthropicOCRProvider,
+  StubOCRProvider,
+} from "@/core/adapters/llm/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/llm/officeExtractor";
-import { StubPDFExtractor } from "@/core/adapters/llm/pdfExtractor";
+import {
+  AnthropicPDFExtractor,
+  StubPDFExtractor,
+} from "@/core/adapters/llm/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/llm/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
@@ -41,6 +47,8 @@ import {
   WebCryptoSecretBox,
 } from "@/core/adapters/security/secretBox";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
+import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
+import type { PDFExtractor } from "@/core/domain/ingestion/ports/pdfExtractor";
 import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
 import { ConsoleLogger, type Logger } from "../ports/logger";
@@ -266,6 +274,48 @@ export function buildRelayTrigger(
 }
 
 /**
+ * Build the request-time {@link OCRProvider}. Wires
+ * `AnthropicOCRProvider` only when both `ADMIN_LLM_API_KEY` (secret)
+ * and `ADMIN_LLM_MODEL` (var) are present; either missing → fall back
+ * to `StubOCRProvider`. Shares the env pair with `llmProvider` /
+ * `pdfExtractor` per ADR-003 of Issue #113.
+ *
+ * Pure helper extracted from `createRequestContainer` so the wiring
+ * can be verified directly in unit tests via `instanceof` without
+ * threading container internals through the test harness.
+ */
+export function buildOcrProvider(
+  adminLlmApiKey: string | undefined,
+  adminLlmModel: string | undefined,
+): OCRProvider {
+  return adminLlmApiKey && adminLlmModel
+    ? new AnthropicOCRProvider({
+        apiKey: adminLlmApiKey,
+        model: adminLlmModel,
+      })
+    : new StubOCRProvider();
+}
+
+/**
+ * Build the request-time {@link PDFExtractor}. Wires
+ * `AnthropicPDFExtractor` only when both `ADMIN_LLM_API_KEY` and
+ * `ADMIN_LLM_MODEL` are present; either missing → fall back to
+ * `StubPDFExtractor`. Shares the env pair with `llmProvider` /
+ * `ocrProvider` per ADR-003 of Issue #113.
+ */
+export function buildPdfExtractor(
+  adminLlmApiKey: string | undefined,
+  adminLlmModel: string | undefined,
+): PDFExtractor {
+  return adminLlmApiKey && adminLlmModel
+    ? new AnthropicPDFExtractor({
+        apiKey: adminLlmApiKey,
+        model: adminLlmModel,
+      })
+    : new StubPDFExtractor();
+}
+
+/**
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
@@ -325,10 +375,10 @@ export function createRequestContainer(
             model: adminLlmModel,
           })
         : new StubLLMProvider(),
-    ocrProvider: new StubOCRProvider(),
+    ocrProvider: buildOcrProvider(adminLlmApiKey, adminLlmModel),
     speechRecognitionProvider: new StubSpeechRecognitionProvider(),
     officeExtractor: new StubOfficeExtractor(),
-    pdfExtractor: new StubPDFExtractor(),
+    pdfExtractor: buildPdfExtractor(adminLlmApiKey, adminLlmModel),
     tempFileStorage: tempFilesBucket
       ? new R2TempFileStorage(tempFilesBucket)
       : new StubTempFileStorage(),
@@ -398,8 +448,11 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
  *   Admin DB-stored ciphertext is NOT consulted at dispatch time —
  *   the DB-backed dynamic-resolution layer (per-call decrypt + cache)
  *   is intentionally out of scope and will land in a follow-up Issue.
- *   OCR / Office / PDF / SpeechRecognition remain `Stub*` because no
- *   real adapters exist yet (ADR-003 of Issue #110).
+ *   OCR / PDF (Issue #113): the same `ADMIN_LLM_*` env pair drives
+ *   `AnthropicOCRProvider` / `AnthropicPDFExtractor` — both present →
+ *   real adapter, either missing → `Stub*`. Office / SpeechRecognition
+ *   remain `Stub*`; follow-up Issues will introduce dedicated
+ *   providers (Anthropic does not cover those modalities).
  * - The two sub-builders (`createRequestContainer` /
  *   `createWorkerContainer`) each call `getDatabase(env.DB)` internally,
  *   yielding two `drizzle()` handles over the **same** D1 binding.
