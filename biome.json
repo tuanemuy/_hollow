@@ -8,10 +8,13 @@
   "files": {
     "ignoreUnknown": false,
     "includes": [
-      "**",
-      "!spec",
+      "app/**",
+      "infra/**",
+      "*.ts",
+      "*.json",
       "!**/routeTree.gen.ts",
-      "!infra/secrets/*.enc.json"
+      "!infra/secrets/*.enc.json",
+      "!worker-configuration.d.ts"
     ]
   },
   "formatter": {
