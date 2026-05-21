@@ -20,8 +20,6 @@ import { InlineRelayTrigger } from "../inlineRelayTrigger";
 // boundary is what we're verifying — the inner worker pipeline has its
 // own integration coverage.
 
-type CapturedRelay = Parameters<typeof buildRelayTrigger>[0];
-
 const mocks = vi.hoisted(() => {
   return {
     dispatchDomainEvent:
@@ -39,10 +37,6 @@ const mocks = vi.hoisted(() => {
       vi.fn<(id: EventId) => Promise<{ alreadyProcessed: boolean }>>(),
     createWorkerContainer: vi.fn<(env: ServerEnv) => unknown>(),
     createConsumerContainer: vi.fn<(env: ServerEnv) => unknown>(),
-    // Captured `relay` argument that `createConsumerContainer` saw via
-    // the `buildRelayTrigger` call inside the inner DI wiring. Used by
-    // the RELAY-stripping assertion (ADR-002).
-    capturedConsumerRelay: { value: undefined as CapturedRelay | "unset" },
   };
 });
 
@@ -77,24 +71,11 @@ vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
     },
     createConsumerContainer: (env: ServerEnv) => {
       mocks.createConsumerContainer(env);
-      // Mirror the production wiring decision: ConsumerContainer's UoW
-      // provider receives `buildRelayTrigger(env.RELAY, ...)`. Capture
-      // the resulting trigger so the test can assert RELAY-stripping
-      // (ADR-002) via `instanceof`.
-      const innerTrigger = actual.buildRelayTrigger(
-        env.RELAY,
-        (promise) => {
-          void promise;
-        },
-        { info: () => {}, warn: () => {}, error: () => {} },
-      );
-      mocks.capturedConsumerRelay.value = env.RELAY;
       return {
         idempotencyStore: {
           hasProcessed: mocks.hasProcessed,
           markProcessed: mocks.markProcessed,
         },
-        _innerRelayTrigger: innerTrigger,
       };
     },
   };
@@ -134,7 +115,6 @@ beforeEach(() => {
   mocks.markProcessed.mockReset();
   mocks.createWorkerContainer.mockReset();
   mocks.createConsumerContainer.mockReset();
-  mocks.capturedConsumerRelay.value = "unset";
   // Default: hasProcessed false (force dispatch path).
   mocks.hasProcessed.mockResolvedValue(false);
   mocks.markProcessed.mockResolvedValue({ alreadyProcessed: false });
@@ -145,24 +125,56 @@ afterEach(() => {
 });
 
 describe("InlineRelayTrigger.kick", () => {
-  it("schedules the drain via waitUntil and returns synchronously", () => {
-    mocks.processOutboxEvents.mockResolvedValue({ processed: 0 });
+  it("schedules the drain via waitUntil and returns synchronously without invoking dispatch", () => {
+    // Hold the inner promise so we can verify "nothing has run yet" at
+    // kick-return time without flushing the queue.
+    let resolveProcess: (value: { processed: number }) => void = () => {
+      throw new Error("resolveProcess not initialized");
+    };
+    mocks.processOutboxEvents.mockReturnValue(
+      new Promise<{ processed: number }>((resolve) => {
+        resolveProcess = resolve;
+      }),
+    );
+
     const logger = new FakeLogger();
-    const waitUntil = vi.fn<(p: Promise<unknown>) => void>();
+    const captured: Promise<unknown>[] = [];
+    const waitUntil = vi.fn<(p: Promise<unknown>) => void>((p) => {
+      captured.push(p);
+    });
     const trigger = new InlineRelayTrigger(ENV, waitUntil, logger);
 
     trigger.kick();
 
+    // Synchronous contract: waitUntil received exactly one promise and
+    // dispatch / markProcessed have not been touched (the drain is
+    // still queued behind the unresolved processOutboxEvents).
     expect(waitUntil).toHaveBeenCalledTimes(1);
-    const arg = waitUntil.mock.calls[0]?.[0];
-    expect(arg).toBeInstanceOf(Promise);
+    expect(captured[0]).toBeInstanceOf(Promise);
+    expect(mocks.dispatchDomainEvent).not.toHaveBeenCalled();
+    expect(mocks.markProcessed).not.toHaveBeenCalled();
+
+    // Resolve and flush so the test does not leak an unsettled promise
+    // into adjacent cases.
+    resolveProcess({ processed: 0 });
+    return flushWaitUntil(captured);
   });
 
-  it("calls dispatchDomainEvent and markProcessed for each event when dispatch handles it", async () => {
-    mocks.dispatchDomainEvent.mockResolvedValue({ kind: "handled" });
+  // W-T-001: dev mostly emits `note.*` events whose dispatchers return
+  // `skipped`, so parametrize both outcome shapes to guarantee both
+  // paths route through markProcessed → success.
+  it.each<{ outcome: DispatchOutcome }>([
+    { outcome: { kind: "handled" } },
+    { outcome: { kind: "skipped" } },
+  ])("calls markProcessed and reports success when dispatch outcome is $outcome.kind", async ({
+    outcome,
+  }) => {
+    mocks.dispatchDomainEvent.mockResolvedValue(outcome);
     mocks.processOutboxEvents.mockImplementation(async (_c, dispatch) => {
       const outcomes = await dispatch([EVENT_A, EVENT_B]);
-      return { processed: outcomes.filter((o) => o.kind === "success").length };
+      return {
+        processed: outcomes.filter((o) => o.kind === "success").length,
+      };
     });
 
     const pending: Promise<unknown>[] = [];
@@ -181,9 +193,21 @@ describe("InlineRelayTrigger.kick", () => {
     expect(mocks.markProcessed).toHaveBeenCalledTimes(2);
     expect(mocks.markProcessed).toHaveBeenCalledWith(EVENT_A.id);
     expect(mocks.markProcessed).toHaveBeenCalledWith(EVENT_B.id);
+
+    // W-T-008: assert the dispatch debug log fires so a regression
+    // that silently drops observability is caught.
+    const infos = logger.byLevel("info");
+    expect(infos).toHaveLength(1);
+    expect(infos[0]?.message).toBe("[relay-trigger] inline dispatch drained 2");
+    expect(infos[0]?.meta).toEqual({ processed: 2 });
   });
 
   it("returns failure (no markProcessed) when dispatch outcome is retry", async () => {
+    // W-T-006: this case verifies only the dispatch contract — the
+    // outer `failure` outcome and the absence of `markProcessed`. The
+    // claim "attempts gets incremented when dispatch returns retry"
+    // belongs to `processOutboxEvents`' own tests; here `processOutboxEvents`
+    // is mocked, so we cannot (and should not) re-assert that.
     const cause = new Error("boom");
     mocks.dispatchDomainEvent.mockResolvedValue({
       kind: "retry",
@@ -328,19 +352,23 @@ describe("InlineRelayTrigger.kick", () => {
     trigger.kick();
     await flushWaitUntil(pending);
 
-    // The captured ConsumerContainer build saw `RELAY === undefined`,
-    // forcing `buildRelayTrigger` to return `NoopRelayTrigger` instead
-    // of `ServiceBindingRelayTrigger`. Without the strip, the outer
-    // `ENV_WITH_RELAY.RELAY` would have been threaded through.
+    // Direct assertion on `createConsumerContainer`'s first call: the
+    // `RELAY` key must be absent / undefined so the inner UoW provider
+    // sees no Service Binding and `buildRelayTrigger` returns
+    // `NoopRelayTrigger` instead of `ServiceBindingRelayTrigger`.
     expect(mocks.createConsumerContainer).toHaveBeenCalledTimes(1);
-    expect(mocks.capturedConsumerRelay.value).toBeUndefined();
+    const consumerEnv = mocks.createConsumerContainer.mock.calls[0]?.[0] as
+      | ServerEnv
+      | undefined;
+    expect(consumerEnv?.RELAY).toBeUndefined();
   });
 
-  it("when env.RELAY is set on the outer env, the outer wiring would have used ServiceBindingRelayTrigger — regression baseline for the strip above", () => {
-    // Sanity check: without the strip, `buildRelayTrigger` would have
-    // built a `ServiceBindingRelayTrigger` from the same env. This
-    // anchors the previous test's assertion as meaningful rather than
-    // vacuous.
+  // W-T-005: kept intentionally as an ADR-002 anchor. Without this
+  // baseline, the "strips env.RELAY" assertion could become vacuous if
+  // `buildRelayTrigger`'s contract ever flips (e.g. defaulting to Noop
+  // even for a non-undefined RELAY). DRY against `serverCloudflare.test.ts`
+  // is acceptable because this lives next to the strip assertion.
+  it("regression baseline: buildRelayTrigger returns ServiceBindingRelayTrigger for a non-undefined RELAY, Noop otherwise (ADR-002 precondition anchor)", () => {
     const outerTrigger = buildRelayTrigger(
       ENV_WITH_RELAY.RELAY,
       () => undefined,
@@ -367,6 +395,41 @@ describe("InlineRelayTrigger.kick", () => {
       },
       new FakeLogger(),
       { leaseMs: 1000 },
+    );
+    trigger.kick();
+    await flushWaitUntil(pending);
+
+    const passedOptions = mocks.processOutboxEvents.mock.calls[0]?.[2];
+    expect(passedOptions).toMatchObject({
+      maxIterations: 1,
+      batchSize: 25,
+      workerId: "inline-dev",
+      leaseMs: 1000,
+    });
+  });
+
+  // W-DA-002 / W-PE-002 regression: even when the caller explicitly
+  // passes the fixed-3 values, they must be overridden by the
+  // hardcoded dev defaults (spread-order guard). Without this, a
+  // misconfigured caller could turn a one-batch dev drain into an
+  // unbounded loop, or shadow the `inline-dev` workerId used to
+  // distinguish dev-claimed leases.
+  it("ignores caller-supplied maxIterations/batchSize/workerId — dev fixed-3 always win", async () => {
+    mocks.processOutboxEvents.mockResolvedValue({ processed: 0 });
+
+    const pending: Promise<unknown>[] = [];
+    const trigger = new InlineRelayTrigger(
+      ENV,
+      (p) => {
+        pending.push(p);
+      },
+      new FakeLogger(),
+      {
+        maxIterations: 999,
+        batchSize: 1,
+        workerId: "rogue-caller",
+        leaseMs: 1000,
+      },
     );
     trigger.kick();
     await flushWaitUntil(pending);

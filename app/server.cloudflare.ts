@@ -46,9 +46,14 @@ export default {
     // `import.meta.env.DEV` is inlined to `false` by `vite build`, so the
     // entire `InlineRelayTrigger` branch — including the import above —
     // is dead-code-eliminated from staging / production bundles
-    // (Issue #66 / ADR-003).
+    // (Issue #66 / ADR-003). Under `pnpm start` (`wrangler dev` without
+    // Vite) `import.meta.env` itself is `undefined`, so guard with
+    // optional chaining to avoid `TypeError: Cannot read properties of
+    // undefined` at boot.
     const baseConfig = readRequestServerConfig(env, ctx);
-    const config: RequestServerConfig = import.meta.env.DEV
+    const isDev =
+      (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+    const config: RequestServerConfig = isDev
       ? {
           ...baseConfig,
           relayTriggerOverride: new InlineRelayTrigger(

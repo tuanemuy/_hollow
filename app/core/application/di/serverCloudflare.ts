@@ -135,6 +135,11 @@ export type RequestServerConfig = AppConfig &
     // through `InlineRelayTrigger` (Issue #66 / ADR-003); unset on every
     // production / staging code path. When set, `createRequestContainer`
     // uses this instance verbatim and skips `buildRelayTrigger`.
+    //
+    // Note: `readRequestServerConfig` never populates this field, so
+    // worker entry points that read their config from there (consumer /
+    // relay / pruner / dlq) always observe it as `undefined`. The field
+    // is type-level optional in those paths but effectively dead code.
     relayTriggerOverride?: RelayTrigger;
   }>;
 

@@ -71,6 +71,11 @@ export class InlineRelayTrigger implements RelayTrigger {
   }
 
   private async runOnce(): Promise<void> {
+    // Dev-only adapter: rebuild both containers on every `kick()`. This
+    // mirrors production's `handleQueue`, which calls
+    // `createConsumerContainer` per batch — the cost is acceptable
+    // because `pnpm dev` runs in a single isolate and dispatch frequency
+    // is low.
     const workerContainer = createWorkerContainer(this.env);
     // Blank out `RELAY` so the consumer container's UoW provider gets a
     // `NoopRelayTrigger`. ADR-002 of Issue #66: secondary outbox rows
@@ -110,10 +115,10 @@ export class InlineRelayTrigger implements RelayTrigger {
     };
 
     const { processed } = await processOutboxEvents(workerContainer, dispatch, {
+      ...this.options,
       maxIterations: 1,
       batchSize: 25,
       workerId: "inline-dev",
-      ...this.options,
     });
     this.logger.info(`[relay-trigger] inline dispatch drained ${processed}`, {
       processed,
@@ -121,9 +126,11 @@ export class InlineRelayTrigger implements RelayTrigger {
   }
 }
 
-// `exactOptionalPropertyTypes` forbids `RELAY: undefined` on a key that
-// is declared optional, so build the consumer env via destructure +
-// re-spread instead of overwriting the property in place.
+// Under `exactOptionalPropertyTypes`, assigning `RELAY: undefined` to
+// an optional key is rejected by TS. So instead of overwriting in
+// place, destructure `RELAY` out and re-spread the rest — this removes
+// the key itself, which `buildRelayTrigger` treats as
+// "no Service Binding → NoopRelayTrigger".
 function stripRelayBinding(env: ServerEnv): ServerEnv {
   const { RELAY: _RELAY, ...rest } = env;
   return rest;
