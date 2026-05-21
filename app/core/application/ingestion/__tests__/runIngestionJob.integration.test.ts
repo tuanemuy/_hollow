@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
-import { AnthropicLLMProvider } from "@/core/adapters/llm/llmProvider";
-import { AnthropicOCRProvider } from "@/core/adapters/llm/ocrProvider";
-import { AnthropicPDFExtractor } from "@/core/adapters/llm/pdfExtractor";
+import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
+import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
+import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import {

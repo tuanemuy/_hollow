@@ -24,11 +24,11 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { HttpLLMConnectionTester } from "@/core/adapters/llm/llmConnectionTester";
-import { StubOCRProvider } from "@/core/adapters/llm/ocrProvider";
-import { StubOfficeExtractor } from "@/core/adapters/llm/officeExtractor";
-import { StubPDFExtractor } from "@/core/adapters/llm/pdfExtractor";
-import { StubSpeechRecognitionProvider } from "@/core/adapters/llm/speechRecognitionProvider";
+import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
+import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
+import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
+import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
+import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";

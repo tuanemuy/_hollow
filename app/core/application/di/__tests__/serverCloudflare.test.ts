@@ -10,18 +10,12 @@ import {
   StubTempFileStorage,
 } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
-import {
-  AnthropicLLMProvider,
-  StubLLMProvider,
-} from "@/core/adapters/llm/llmProvider";
-import {
-  AnthropicOCRProvider,
-  StubOCRProvider,
-} from "@/core/adapters/llm/ocrProvider";
-import {
-  AnthropicPDFExtractor,
-  StubPDFExtractor,
-} from "@/core/adapters/llm/pdfExtractor";
+import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
+import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
+import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
+import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
+import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
+import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_LEASE_MS,

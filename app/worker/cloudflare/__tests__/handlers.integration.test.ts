@@ -21,7 +21,7 @@ import {
   processedEvents,
   users,
 } from "@/core/adapters/d1/schema";
-import { StubLLMProvider } from "@/core/adapters/llm/llmProvider";
+import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import {
   type DomainEvent,
   type EventDraft,
