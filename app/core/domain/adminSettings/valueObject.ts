@@ -116,6 +116,9 @@ export const PromptTemplate = {
 // ---------- LLMConfig ----------
 
 const LLM_MODEL_MAX_LENGTH = 120;
+// Extension guide: add new providers here (e.g. "openai", "gemini",
+// "azure-openai") and pair each with a `case` branch in the factories
+// at `app/core/application/di/llmProviderFactory.ts`.
 const LLM_PROVIDERS = ["anthropic"] as const;
 const LLM_API_KEY_SOURCES = ["env", "db"] as const;
 
