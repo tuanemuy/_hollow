@@ -10,6 +10,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach } from "vitest";
 import { content } from "@/config";
+import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import { type Database, getDatabase } from "@/core/adapters/d1/client";
@@ -24,15 +25,14 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
-import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
-import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
-import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
-import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
+import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
+import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
+import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
+import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import type {
   RequestContainer,
   WorkerContainer,

@@ -1,6 +1,9 @@
 import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
 import { describe, expect, it, vi } from "vitest";
 import { content } from "@/config";
+import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
+import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
+import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
 import {
   R2ObjectStorage,
   StubObjectStorage,
@@ -10,9 +13,6 @@ import {
   StubTempFileStorage,
 } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
-import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
-import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
-import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
@@ -555,7 +555,11 @@ describe("buildOcrProvider", () => {
   });
 
   it("returns StubOCRProvider when apiKey is missing", () => {
-    const provider = buildOcrProvider("anthropic", undefined, "claude-3-5-sonnet");
+    const provider = buildOcrProvider(
+      "anthropic",
+      undefined,
+      "claude-3-5-sonnet",
+    );
     expect(provider).toBeInstanceOf(StubOCRProvider);
   });
 

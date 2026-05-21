@@ -1,5 +1,6 @@
 import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
 import { content } from "@/config";
+import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import {
@@ -24,12 +25,6 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
-import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
-import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
-import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
-import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
-import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
@@ -37,6 +32,11 @@ import {
   NullSecretBox,
   WebCryptoSecretBox,
 } from "@/core/adapters/security/secretBox";
+import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
+import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
+import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
+import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
+import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
