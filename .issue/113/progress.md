@@ -31,5 +31,11 @@ $ pnpm test:integration  # 31 files / 352 tests passed
 
 ## 既知の制限
 
-- 既存 `AnthropicLLMProvider` は helper に移行していない (ADR-002 に明示済み、フォロー Issue 候補)。
-- Speech / Office は Stub のまま据え置き (ADR-005)、Phase 4 のフォロー Issue 起票対象。
+- 既存 `AnthropicLLMProvider` は helper に移行していない (ADR-002 に明示済み)。
+- Speech / Office は Stub のまま据え置き (ADR-005)。
+
+## Phase 4 フォロー Issue (起票済み)
+
+- **#118** feat(llm): real SpeechRecognitionProvider adapter (Whisper / Workers AI)
+- **#119** feat(llm): real OfficeExtractor adapter (docx / xlsx / pptx)
+- **#120** refactor(llm): migrate AnthropicLLMProvider to anthropicMessagesClient helper
