@@ -39,6 +39,7 @@ import { StorageUnavailableError } from "@/core/domain/media/ports/objectStorage
 import { ConsoleLogger } from "../../ports/logger";
 import { NoopRelayTrigger } from "../../ports/relayTrigger";
 import {
+  buildLlmProvider,
   buildOcrProvider,
   buildPdfExtractor,
   buildRelayTrigger,
@@ -483,6 +484,42 @@ describe("buildOcrProvider", () => {
 
   it("returns StubOCRProvider when both are empty strings", () => {
     expect(buildOcrProvider("", "")).toBeInstanceOf(StubOCRProvider);
+  });
+});
+
+describe("buildLlmProvider", () => {
+  it("returns AnthropicLLMProvider when both apiKey and model are truthy", () => {
+    const provider = buildLlmProvider("sk-ant-test", "claude-3-5-sonnet");
+    expect(provider).toBeInstanceOf(AnthropicLLMProvider);
+  });
+
+  it("returns StubLLMProvider when model is missing", () => {
+    const provider = buildLlmProvider("sk-ant-test", undefined);
+    expect(provider).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("returns StubLLMProvider when apiKey is missing", () => {
+    const provider = buildLlmProvider(undefined, "claude-3-5-sonnet");
+    expect(provider).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("returns StubLLMProvider when both are missing", () => {
+    const provider = buildLlmProvider(undefined, undefined);
+    expect(provider).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("returns StubLLMProvider when apiKey is empty string", () => {
+    expect(buildLlmProvider("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
+      StubLLMProvider,
+    );
+  });
+
+  it("returns StubLLMProvider when model is empty string", () => {
+    expect(buildLlmProvider("sk-ant-test", "")).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("returns StubLLMProvider when both are empty strings", () => {
+    expect(buildLlmProvider("", "")).toBeInstanceOf(StubLLMProvider);
   });
 });
 

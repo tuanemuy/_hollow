@@ -11,101 +11,47 @@ import {
   LLMTimeoutError,
   LLMUnavailableError,
 } from "@/core/domain/ingestion/ports/llmProvider";
+import {
+  type AnthropicErrorMapper,
+  type AnthropicSharedConfig,
+  callAnthropicMessages,
+} from "./anthropicMessagesClient";
 
 /**
- * Resolved configuration for the Anthropic adapter. Captured up-front so
- * the adapter does not have to reach into the environment on every call —
- * lets the DI layer fail fast at boot if the api key is missing.
+ * Label type for LLM-mode Anthropic adapter config. Structurally
+ * identical to {@link AnthropicSharedConfig} — see that type for
+ * field-level documentation. Retained as a named alias so existing
+ * callers (`new AnthropicLLMProvider({ apiKey, model })`) and LLM-mode
+ * grep hits stay stable, and so future LLM-only fields (e.g.
+ * `temperature?`) can be layered on without churning every call site.
  */
-export type AnthropicLLMConfig = Readonly<{
-  /** Anthropic API key. Sourced from env (preferred) or DB ciphertext. */
-  apiKey: string;
-  /** Messages-API model id (e.g. `claude-3-5-sonnet-latest`). */
-  model: string;
-  /** Optional override for the Messages API endpoint (defaults to public Anthropic). */
-  endpoint?: string;
-  /** Anthropic API version header. Defaults to the value used at template-write time. */
-  apiVersion?: string;
-  /**
-   * Wall-clock budget per request in milliseconds. Translates to
-   * `AbortController.signal`; the adapter surfaces a deadline hit as
-   * `LLMTimeoutError`.
-   */
-  timeoutMs?: number;
-  /**
-   * Maximum tokens the model may produce per call. Conservative default
-   * keeps cost predictable; ingestion usecases can override via DI.
-   */
-  maxTokens?: number;
-}>;
+export type AnthropicLLMConfig = AnthropicSharedConfig;
 
-const DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages";
-const DEFAULT_API_VERSION = "2023-06-01";
-const DEFAULT_TIMEOUT_MS = 60_000;
-const DEFAULT_MAX_TOKENS = 4096;
-
-type AnthropicContentBlock =
-  | Readonly<{ type: "text"; text: string }>
-  // Anthropic forwards additional block types (tool_use / image / etc.)
-  // that the ingestion pipeline does not request. Tagged here for
-  // structural narrowing — the deserialiser skips anything that is not
-  // a `text` block rather than failing.
-  | Readonly<{ type: string }>;
-
-type AnthropicMessageResponse = Readonly<{
-  content?: readonly AnthropicContentBlock[];
-}>;
-
-type AnthropicErrorBody = Readonly<{
-  error?: Readonly<{ type?: string; message?: string }>;
-}>;
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === "AbortError") return true;
-  if (error instanceof Error && error.name === "AbortError") return true;
-  return false;
-}
-
-function isTransientNetworkError(error: unknown): boolean {
-  // `fetch` failures inside the Workers runtime surface as `TypeError`
-  // with a "fetch failed" / "network" style message. Treating them as
-  // unavailable lets the worker retry rather than failing the job
-  // permanently. AbortError is handled separately upstream of this.
-  if (error instanceof TypeError) return true;
-  return false;
-}
-
-function extractTextContent(body: AnthropicMessageResponse): string {
-  if (!body.content) return "";
-  const parts: string[] = [];
-  for (const block of body.content) {
-    if (
-      block.type === "text" &&
-      typeof (block as { text?: unknown }).text === "string"
-    ) {
-      parts.push((block as { text: string }).text);
-    }
-  }
-  return parts.join("\n").trim();
-}
+const llmErrorMapper: AnthropicErrorMapper = {
+  rateLimit: (message, cause) => new LLMRateLimitError(message, cause),
+  unavailable: (message, cause) => new LLMUnavailableError(message, cause),
+  timeout: (message, cause) => new LLMTimeoutError(message, cause),
+  quota: (message, cause) => new LLMQuotaExceededError(message, cause),
+} as const;
 
 /**
  * Anthropic Messages API adapter for {@link LLMProvider}.
  *
- * `fetch`-based by design — no SDK dependency keeps the adapter
- * compatible with the Cloudflare Workers runtime where the global
- * `fetch` is the canonical HTTP client. The implementation is the only
- * production target per `spec/adr/004-llm-provider-single-fixed.md`
- * (MVP fixes the provider to Anthropic). Adding a second provider
- * lands as a sibling file under `app/core/adapters/llm/`.
- *
- * Error mapping (per the port contract in
- * `app/core/domain/ingestion/ports/llmProvider.ts`):
+ * Delegates the HTTP / timeout / status-mapping mechanics to
+ * {@link callAnthropicMessages}, supplying an
+ * {@link AnthropicErrorMapper} that translates each provider failure
+ * into the LLM-port error class:
  * - HTTP 429 → `LLMRateLimitError`
  * - HTTP 5xx → `LLMUnavailableError`
  * - HTTP 403 with quota / billing wording → `LLMQuotaExceededError`
  * - `AbortError` (deadline lapsed) → `LLMTimeoutError`
- * - Network `TypeError` → `LLMUnavailableError`
+ * - Network `TypeError` / other unexpected throws → `LLMUnavailableError`
+ *
+ * Empty-response semantics differ from OCR / PDF: the LLM port's JSON
+ * envelope contract cannot accept an empty body, so `invoke()`
+ * re-introduces the empty-string check after the helper call. See
+ * `anthropicMessagesClient.ts` JSDoc ("Empty-response contract") and
+ * Issue #113 ADR-002 for the cross-port reasoning.
  *
  * Response shape contract:
  * - `structureToHtml` asks the model to emit a strict JSON envelope
@@ -120,22 +66,16 @@ function extractTextContent(body: AnthropicMessageResponse): string {
  *   filtered out at the boundary.
  */
 export class AnthropicLLMProvider implements LLMProvider {
-  private readonly endpoint: string;
-  private readonly apiVersion: string;
-  private readonly timeoutMs: number;
-  private readonly maxTokens: number;
+  private readonly config: AnthropicSharedConfig;
 
-  constructor(private readonly config: AnthropicLLMConfig) {
+  constructor(config: AnthropicLLMConfig) {
     if (config.apiKey.length === 0) {
       throw new Error("AnthropicLLMProvider: apiKey is empty");
     }
     if (config.model.length === 0) {
       throw new Error("AnthropicLLMProvider: model is empty");
     }
-    this.endpoint = config.endpoint ?? DEFAULT_ENDPOINT;
-    this.apiVersion = config.apiVersion ?? DEFAULT_API_VERSION;
-    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.maxTokens = config.maxTokens ?? DEFAULT_MAX_TOKENS;
+    this.config = config;
   }
 
   async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
@@ -202,121 +142,25 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   private async invoke(system: string, user: string): Promise<string> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, this.timeoutMs);
-    let response: Response;
-    try {
-      response = await fetch(this.endpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": this.config.apiKey,
-          "anthropic-version": this.apiVersion,
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          max_tokens: this.maxTokens,
-          system,
-          messages: [
-            {
-              role: "user",
-              content: [{ type: "text", text: user }],
-            },
-          ],
-        }),
-        signal: controller.signal,
-      });
-    } catch (cause) {
-      if (isAbortError(cause)) {
-        throw new LLMTimeoutError(
-          `Anthropic request aborted after ${this.timeoutMs}ms`,
-          cause,
-        );
-      }
-      if (isTransientNetworkError(cause)) {
-        throw new LLMUnavailableError(
-          "Network error while calling Anthropic Messages API",
-          cause,
-        );
-      }
-      throw new LLMUnavailableError(
-        "Unexpected error while calling Anthropic Messages API",
-        cause,
-      );
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!response.ok) {
-      await this.throwForStatus(response);
-    }
-
-    let body: AnthropicMessageResponse;
-    try {
-      body = (await response.json()) as AnthropicMessageResponse;
-    } catch (cause) {
-      throw new LLMUnavailableError(
-        "Anthropic response was not valid JSON",
-        cause,
-      );
-    }
-    const text = extractTextContent(body);
+    const text = await callAnthropicMessages(
+      this.config,
+      system,
+      [{ type: "text", text: user }],
+      llmErrorMapper,
+    );
+    // OCR / PDF と異なり、LLM port の JSON envelope contract は
+    // 空文字を許容しない。helper は OCR / PDF の「空 OK」契約に合わせて
+    // "" を返す (anthropicMessagesClient.ts JSDoc "Empty-response
+    // contract" / Issue #113 ADR-002) ため、LLM 側で再導入する。
+    // helper 側 `extractTextContent` が `.trim()` 済みでも、この length
+    // check は冗長ではない (`content: []` / `tool_use` のみのケースで
+    // "" が返るのを弾くため恒久的に必要)。
     if (text.length === 0) {
       throw new LLMUnavailableError(
         "Anthropic response did not contain any text content",
       );
     }
     return text;
-  }
-
-  private async throwForStatus(response: Response): Promise<never> {
-    const status = response.status;
-    let detail = "";
-    let errorType: string | undefined;
-    try {
-      const body = (await response.json()) as AnthropicErrorBody;
-      if (body.error) {
-        errorType = body.error.type;
-        detail = body.error.message ?? "";
-      }
-    } catch {
-      // Body might be plain text or empty; fall back to status text below.
-    }
-    const detailSuffix = detail.length > 0 ? `: ${detail}` : "";
-    if (status === 429) {
-      throw new LLMRateLimitError(
-        `Anthropic rate limit (HTTP 429)${detailSuffix}`,
-      );
-    }
-    if (status === 403) {
-      // Anthropic's billing / quota responses arrive as 403 with a
-      // tagged `error.type`. Anything else 403 is treated as a permanent
-      // unavailability so the worker does not retry forever.
-      if (
-        errorType === "permission_error" ||
-        /quota|credit|billing/i.test(detail)
-      ) {
-        throw new LLMQuotaExceededError(
-          `Anthropic quota / billing failure (HTTP 403)${detailSuffix}`,
-        );
-      }
-      throw new LLMUnavailableError(
-        `Anthropic permission failure (HTTP 403)${detailSuffix}`,
-      );
-    }
-    if (status >= 500 && status < 600) {
-      throw new LLMUnavailableError(
-        `Anthropic upstream failure (HTTP ${status})${detailSuffix}`,
-      );
-    }
-    // 4xx (other than the special cases) typically indicate a malformed
-    // request — surface as unavailable so the worker quarantines the
-    // job rather than burning retries on an unrecoverable shape.
-    throw new LLMUnavailableError(
-      `Anthropic request failed (HTTP ${status})${detailSuffix}`,
-    );
   }
 
   private parseJsonEnvelope(text: string): Record<string, unknown> {
