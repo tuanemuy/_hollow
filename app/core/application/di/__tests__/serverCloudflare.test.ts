@@ -397,6 +397,32 @@ describe("createRequestContainer — env → adapter mapping", () => {
     const container = createRequestContainer(configWith());
     expect(container.pdfExtractor).toBeInstanceOf(StubPDFExtractor);
   });
+
+  // ----- adminLlmProvider routing ----------------------------------------
+  it("threads adminLlmProvider='anthropic' through to all three adapters", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmProvider: "anthropic",
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(container.ocrProvider).toBeInstanceOf(AnthropicOCRProvider);
+    expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
+
+  it("defaults to anthropic when adminLlmProvider is unset and credentials are present", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(container.ocrProvider).toBeInstanceOf(AnthropicOCRProvider);
+    expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
 });
 
 // Helper: build a minimal `ServerEnv` for `createConsumerContainer` tests.
@@ -506,111 +532,186 @@ describe("buildOcrProvider", () => {
   // a container.
 
   it("returns AnthropicOCRProvider when both apiKey and model are truthy", () => {
-    const provider = buildOcrProvider("sk-ant-test", "claude-3-5-sonnet");
+    const provider = buildOcrProvider(
+      "anthropic",
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
+    expect(provider).toBeInstanceOf(AnthropicOCRProvider);
+  });
+
+  it("defaults provider to 'anthropic' when ADMIN_LLM_PROVIDER is unset", () => {
+    const provider = buildOcrProvider(
+      undefined,
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
     expect(provider).toBeInstanceOf(AnthropicOCRProvider);
   });
 
   it("returns StubOCRProvider when model is missing", () => {
-    const provider = buildOcrProvider("sk-ant-test", undefined);
+    const provider = buildOcrProvider("anthropic", "sk-ant-test", undefined);
     expect(provider).toBeInstanceOf(StubOCRProvider);
   });
 
   it("returns StubOCRProvider when apiKey is missing", () => {
-    const provider = buildOcrProvider(undefined, "claude-3-5-sonnet");
+    const provider = buildOcrProvider("anthropic", undefined, "claude-3-5-sonnet");
     expect(provider).toBeInstanceOf(StubOCRProvider);
   });
 
   it("returns StubOCRProvider when both are missing", () => {
-    const provider = buildOcrProvider(undefined, undefined);
+    const provider = buildOcrProvider("anthropic", undefined, undefined);
     expect(provider).toBeInstanceOf(StubOCRProvider);
   });
 
   it("returns StubOCRProvider when apiKey is empty string", () => {
-    expect(buildOcrProvider("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
+    expect(
+      buildOcrProvider("anthropic", "", "claude-3-5-sonnet-latest"),
+    ).toBeInstanceOf(StubOCRProvider);
+  });
+
+  it("returns StubOCRProvider when model is empty string", () => {
+    expect(buildOcrProvider("anthropic", "sk-ant-test", "")).toBeInstanceOf(
       StubOCRProvider,
     );
   });
 
-  it("returns StubOCRProvider when model is empty string", () => {
-    expect(buildOcrProvider("sk-ant-test", "")).toBeInstanceOf(StubOCRProvider);
+  it("returns StubOCRProvider when both are empty strings", () => {
+    expect(buildOcrProvider("anthropic", "", "")).toBeInstanceOf(
+      StubOCRProvider,
+    );
   });
 
-  it("returns StubOCRProvider when both are empty strings", () => {
-    expect(buildOcrProvider("", "")).toBeInstanceOf(StubOCRProvider);
+  it("throws for an unsupported provider", () => {
+    expect(() =>
+      buildOcrProvider("openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported LLM provider: openai/);
   });
 });
 
 describe("buildLlmProvider", () => {
   it("returns AnthropicLLMProvider when both apiKey and model are truthy", () => {
-    const provider = buildLlmProvider("sk-ant-test", "claude-3-5-sonnet");
+    const provider = buildLlmProvider(
+      "anthropic",
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
+    expect(provider).toBeInstanceOf(AnthropicLLMProvider);
+  });
+
+  it("defaults provider to 'anthropic' when ADMIN_LLM_PROVIDER is unset", () => {
+    const provider = buildLlmProvider(
+      undefined,
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
     expect(provider).toBeInstanceOf(AnthropicLLMProvider);
   });
 
   it("returns StubLLMProvider when model is missing", () => {
-    const provider = buildLlmProvider("sk-ant-test", undefined);
+    const provider = buildLlmProvider("anthropic", "sk-ant-test", undefined);
     expect(provider).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when apiKey is missing", () => {
-    const provider = buildLlmProvider(undefined, "claude-3-5-sonnet");
+    const provider = buildLlmProvider(
+      "anthropic",
+      undefined,
+      "claude-3-5-sonnet",
+    );
     expect(provider).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when both are missing", () => {
-    const provider = buildLlmProvider(undefined, undefined);
+    const provider = buildLlmProvider("anthropic", undefined, undefined);
     expect(provider).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when apiKey is empty string", () => {
-    expect(buildLlmProvider("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
+    expect(
+      buildLlmProvider("anthropic", "", "claude-3-5-sonnet-latest"),
+    ).toBeInstanceOf(StubLLMProvider);
+  });
+
+  it("returns StubLLMProvider when model is empty string", () => {
+    expect(buildLlmProvider("anthropic", "sk-ant-test", "")).toBeInstanceOf(
       StubLLMProvider,
     );
   });
 
-  it("returns StubLLMProvider when model is empty string", () => {
-    expect(buildLlmProvider("sk-ant-test", "")).toBeInstanceOf(StubLLMProvider);
+  it("returns StubLLMProvider when both are empty strings", () => {
+    expect(buildLlmProvider("anthropic", "", "")).toBeInstanceOf(
+      StubLLMProvider,
+    );
   });
 
-  it("returns StubLLMProvider when both are empty strings", () => {
-    expect(buildLlmProvider("", "")).toBeInstanceOf(StubLLMProvider);
+  it("throws for an unsupported provider", () => {
+    expect(() =>
+      buildLlmProvider("openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported LLM provider: openai/);
   });
 });
 
 describe("buildPdfExtractor", () => {
   it("returns AnthropicPDFExtractor when both apiKey and model are truthy", () => {
-    const extractor = buildPdfExtractor("sk-ant-test", "claude-3-5-sonnet");
+    const extractor = buildPdfExtractor(
+      "anthropic",
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
+    expect(extractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
+
+  it("defaults provider to 'anthropic' when ADMIN_LLM_PROVIDER is unset", () => {
+    const extractor = buildPdfExtractor(
+      undefined,
+      "sk-ant-test",
+      "claude-3-5-sonnet",
+    );
     expect(extractor).toBeInstanceOf(AnthropicPDFExtractor);
   });
 
   it("returns StubPDFExtractor when model is missing", () => {
-    const extractor = buildPdfExtractor("sk-ant-test", undefined);
+    const extractor = buildPdfExtractor("anthropic", "sk-ant-test", undefined);
     expect(extractor).toBeInstanceOf(StubPDFExtractor);
   });
 
   it("returns StubPDFExtractor when apiKey is missing", () => {
-    const extractor = buildPdfExtractor(undefined, "claude-3-5-sonnet");
+    const extractor = buildPdfExtractor(
+      "anthropic",
+      undefined,
+      "claude-3-5-sonnet",
+    );
     expect(extractor).toBeInstanceOf(StubPDFExtractor);
   });
 
   it("returns StubPDFExtractor when both are missing", () => {
-    const extractor = buildPdfExtractor(undefined, undefined);
+    const extractor = buildPdfExtractor("anthropic", undefined, undefined);
     expect(extractor).toBeInstanceOf(StubPDFExtractor);
   });
 
   it("returns StubPDFExtractor when apiKey is empty string", () => {
-    expect(buildPdfExtractor("", "claude-3-5-sonnet-latest")).toBeInstanceOf(
-      StubPDFExtractor,
-    );
+    expect(
+      buildPdfExtractor("anthropic", "", "claude-3-5-sonnet-latest"),
+    ).toBeInstanceOf(StubPDFExtractor);
   });
 
   it("returns StubPDFExtractor when model is empty string", () => {
-    expect(buildPdfExtractor("sk-ant-test", "")).toBeInstanceOf(
+    expect(buildPdfExtractor("anthropic", "sk-ant-test", "")).toBeInstanceOf(
       StubPDFExtractor,
     );
   });
 
   it("returns StubPDFExtractor when both are empty strings", () => {
-    expect(buildPdfExtractor("", "")).toBeInstanceOf(StubPDFExtractor);
+    expect(buildPdfExtractor("anthropic", "", "")).toBeInstanceOf(
+      StubPDFExtractor,
+    );
+  });
+
+  it("throws for an unsupported provider", () => {
+    expect(() =>
+      buildPdfExtractor("openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported LLM provider: openai/);
   });
 });
 
