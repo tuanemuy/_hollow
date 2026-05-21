@@ -39,7 +39,7 @@ const ADMIN_PAGE_TITLE_CLASS =
 const ADMIN_PAGE_SUBTITLE_CLASS = "text-md text-ink-secondary m-0 mb-8";
 
 const ADMIN_BTN_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -142,7 +142,7 @@ function AdminLayout() {
                 key={item.to}
                 to={item.to}
                 data-active={active || undefined}
-                className="inline-flex items-center h-8 px-3 rounded-md text-sm text-ink-secondary no-underline transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none hover:bg-surface hover:text-ink data-[active]:bg-surface data-[active]:text-ink data-[active]:font-medium"
+                className="inline-flex items-center h-8 px-3 rounded-md text-sm text-ink-secondary no-underline transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-surface hover:text-ink data-[active]:bg-surface data-[active]:text-ink data-[active]:font-medium"
               >
                 {item.label}
               </Link>

@@ -89,7 +89,7 @@ Issue #70 で utility-first 移行した際、UI 全域に増えた `transition-
   - `app/components/admin/LLMSettingsForm/index.tsx` L35, L38, L40
   - `app/components/admin/Jobs/index.tsx` L29
   - `app/components/admin/RegistrationForm/index.tsx` L18, L21, L80
-- **変更内容:** `transition-colors` の直後に `motion-reduce:transition-none` を追記。L80 のトグルスイッチは `after:transition-transform` も対象で、`after:motion-reduce:transition-none` を併用（つまみが reduce motion 時に即座に位置切替する挙動になる）
+- **変更内容:** `transition-colors` の直後に `motion-reduce:transition-none` を追記。L80 のトグルスイッチは `after:transition-transform` も対象で、`motion-reduce:after:transition-none` を併用（`motion-reduce:` を先頭にする慣用 — ADR-007 / CLAUDE.md 参照。つまみが reduce motion 時に即座に位置切替する挙動になる）
 - **理由:** admin 系コンポーネントの inline スタイル
 
 ### 8. その他コンポーネントの inline utility 修正

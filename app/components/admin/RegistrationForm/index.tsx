@@ -15,10 +15,10 @@ type Props = {
 };
 
 const BTN_PRIMARY_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-50 disabled:cursor-not-allowed";
 
 const TEXTAREA_CLASS =
-  "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none focus:bg-bg focus:border-hairline-strong";
+  "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
 
 export function RegistrationForm({ initial }: Props) {
   const router = useRouter();
@@ -77,7 +77,7 @@ export function RegistrationForm({ initial }: Props) {
         </div>
         <button
           type="button"
-          className="relative w-12 h-7 shrink-0 rounded-pill bg-surface transition-colors duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none aria-checked:bg-accent after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-[22px] after:h-[22px] after:rounded-full after:bg-white after:shadow-xs after:transition-transform after:duration-[var(--duration-base)] after:ease-[var(--ease-standard)] motion-reduce:after:transition-none aria-checked:after:translate-x-5"
+          className="relative w-12 h-7 shrink-0 rounded-pill bg-surface transition-colors motion-reduce:transition-none duration-[var(--duration-base)] ease-[var(--ease-standard)] aria-checked:bg-accent after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-[22px] after:h-[22px] after:rounded-full after:bg-white after:shadow-xs after:transition-transform motion-reduce:after:transition-none after:duration-[var(--duration-base)] after:ease-[var(--ease-standard)] aria-checked:after:translate-x-5"
           role="switch"
           aria-checked={open}
           aria-label="サインアップ公開を切り替え"

@@ -20,18 +20,18 @@ type FormState = {
 const initialState: FormState = { error: null, success: false };
 
 const BTN_BASE =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-50 disabled:cursor-not-allowed";
 
 const BTN_CLASS = `${BTN_BASE} bg-surface text-ink hover:not-disabled:bg-surface-hover`;
 const BTN_PRIMARY_CLASS = `${BTN_BASE} bg-accent text-white hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed`;
 const BTN_DESTRUCTIVE_CLASS = `${BTN_BASE} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
 
 const BTN_SM_CLASS =
-  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs font-medium whitespace-nowrap transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-50 disabled:cursor-not-allowed";
 const BTN_SM_DESTRUCTIVE_CLASS = `${BTN_SM_CLASS} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
 
 const INPUT_CLASS =
-  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none focus:bg-bg focus:border-hairline-strong";
+  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
 
 const CARD_CLASS = "border border-hairline rounded-lg p-5 bg-bg mb-5";
 
