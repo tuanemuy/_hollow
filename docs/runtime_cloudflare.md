@@ -31,13 +31,13 @@ pnpm dev                               # vite dev backed by workerd (@cloudflare
 
 The main app and four sibling Workers ship from a **per-stage `wrangler.<stage>.toml`** as named environments. Each is deployed independently with `wrangler deploy --config wrangler.<stage>.toml --env <role>`, exposed as `pnpm deploy:<stage>:<role>` scripts.
 
-| Worker      | Responsibility                                                | Wrangler env     | Trigger                                              |
-| ----------- | ------------------------------------------------------------- | ---------------- | ---------------------------------------------------- |
-| App (fetch) | TanStack Start HTTP request handling                          | _(top level)_    | HTTP                                                 |
-| Relay       | Publish outbox rows — Service Binding kick + safety-net cron  | `--env relay`    | `fetch` (Service Binding) + 5-minute Cron Trigger    |
-| Consumer    | Consume the Queue (projections / notifications)               | `--env consumer` | Queue consumer (`events`)                            |
-| Pruner      | Daily cron that prunes processed outbox rows                  | `--env pruner`   | Daily Cron Trigger                                   |
-| DLQ         | Surface events that exhausted the consumer's retry budget     | `--env dlq`      | Queue consumer (`events-dlq`)                        |
+| Worker      | Responsibility                                                                                         | Wrangler env     | Bindings                                                                                                                                          | Trigger                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| App (fetch) | TanStack Start HTTP request handling                                                                   | _(top level)_    | `DB` (D1), `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding), `ASSETS`                                                              | HTTP                                                 |
+| Relay       | Publish outbox rows — Service Binding kick + safety-net cron                                           | `--env relay`    | `DB`, `EVENTS_QUEUE`                                                                                                                              | `fetch` (Service Binding) + 5-minute Cron Trigger    |
+| Consumer    | Consume the Queue, dispatch into `runIngestionJob` / `runExportJob`, write projections / idempotency  | `--env consumer` | `DB`, `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding) — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*` | Queue consumer (`events`)                            |
+| Pruner      | Daily cron that prunes processed outbox rows                                                           | `--env pruner`   | `DB`                                                                                                                                              | Daily Cron Trigger                                   |
+| DLQ         | Surface events that exhausted the consumer's retry budget                                              | `--env dlq`      | `DB`                                                                                                                                              | Queue consumer (`events-dlq`)                        |
 
 Trigger model: the request path kicks the relay through the `RELAY` Service Binding right after a UoW commit, so newly-persisted events publish without waiting on cron. The relay also runs on a 5-minute safety-net cron in case the Service Binding path fails. Inside a tick, `processOutboxEvents` drains up to `maxIterations` consecutive batches so a backlog is flushed in one trigger rather than 1 batch per minute.
 
@@ -51,7 +51,13 @@ Trigger model: the request path kicks the relay through the `RELAY` Service Bind
 
 Each stage file is a self-contained mirror of `wrangler.toml` with `-staging` / `-production` suffixed on every Cloudflare resource name (Worker name, D1 `database_name`, queue names) so the two stages never collide inside one Cloudflare account.
 
-**Wrangler env caveat**: top-level `d1_databases` / `vars` are **not** inherited into named environments. Each `[env.*]` block re-declares them — keep `database_id`, queue names, and `APP_URL` in sync across every block of every stage config. `pnpm cf:types` (re)generates `worker-configuration.d.ts` from `wrangler.toml` only; this also runs automatically on `postinstall` and `predev`.
+**Wrangler env caveat**: top-level `d1_databases` / `vars` / `r2_buckets` / `services` are **not** inherited into named environments. Each `[env.*]` block re-declares them — keep `database_id`, queue names, bucket names, Service Binding targets, and `APP_URL` in sync across every block of every stage config. `pnpm cf:types` (re)generates `worker-configuration.d.ts` from `wrangler.toml` only; this also runs automatically on `postinstall` and `predev`.
+
+Bindings duplicated into `[env.consumer]` so dispatch reaches real adapters (Issue #110):
+
+- `TEMP_FILES` / `OBJECT_STORAGE` (R2) — `runIngestionJob` reads ingestion bytes from `TEMP_FILES`; `runExportJob` writes artifacts to `OBJECT_STORAGE`. Absent → DI falls back to `Stub*Storage` which throws `*UnavailableError` on call.
+- `RELAY` (Service Binding) — when bound, secondary events emitted by the dispatched usecases publish immediately via `ServiceBindingRelayTrigger`; absent → fall back to `NoopRelayTrigger` and the 5-minute relay cron picks them up.
+- `R2_OBJECT_BUCKET_NAME` / `ADMIN_LLM_MODEL` (vars) — public configuration that complements the secrets listed below.
 
 ## One-time Cloudflare resource creation
 
@@ -62,12 +68,18 @@ Cloudflare Queues and D1 databases are not auto-created by `wrangler deploy` —
 wrangler d1 create tanstack-start-template-d1-staging
 wrangler queues create tanstack-start-template-events-staging
 wrangler queues create tanstack-start-template-events-dlq-staging
+wrangler r2 bucket create tanstack-start-template-temp-files-staging
+wrangler r2 bucket create tanstack-start-template-objects-staging
 
 # production
 wrangler d1 create tanstack-start-template-d1-production
 wrangler queues create tanstack-start-template-events-production
 wrangler queues create tanstack-start-template-events-dlq-production
+wrangler r2 bucket create tanstack-start-template-temp-files-production
+wrangler r2 bucket create tanstack-start-template-objects-production
 ```
+
+When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, and both R2 buckets in one step — these `wrangler create` commands are the manual fallback.
 
 Paste the `database_id` printed by each `wrangler d1 create` into every `[[d1_databases]]` block of the matching `wrangler.<stage>.toml`. Replace the `[vars] APP_URL` placeholders in each stage file before the first deploy — leaving `https://example.com` breaks `buildHead()`'s canonical / OG image URLs.
 
@@ -84,6 +96,37 @@ wrangler secret put MY_SECRET --config wrangler.production.toml
 For local dev, drop them into `.dev.vars` (copied from `.dev.vars.example`).
 
 The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`.
+
+### Dispatch-side secrets (Issue #110)
+
+Required on the **web** and **consumer** workers for the ingestion / export dispatch paths to wire real adapters:
+
+| Key                       | Purpose                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SECRET_BOX_MASTER_KEY`   | Base64-encoded 32-byte AES-256 key for `WebCryptoSecretBox`. Required to decrypt the DB-stored LLM api key. Generate with `openssl rand -base64 32` **per stage** — sharing keys between staging and production makes encrypted DB rows interchangeable. Unset → DI falls back to `NullSecretBox` and operations needing decryption fail at call time.        |
+| `ADMIN_LLM_API_KEY`       | Env override for the Anthropic api key. **LLM adapter wire condition**: DI wires `AnthropicLLMProvider` only when this **and** `ADMIN_LLM_MODEL` (the `[vars]` entry, public) are **both** present. Either one missing → DI keeps `StubLLMProvider`. At this stage the DB-stored ciphertext is not consulted at dispatch time — the dynamic-resolution layer ships in a follow-up Issue. |
+| `R2_ACCOUNT_ID`           | Cloudflare account id (also visible in dashboard URL). Used by `R2ObjectStorage` SigV4 presign path.                                                                                                                                                                                                                                                          |
+| `R2_ACCESS_KEY_ID`        | R2 API token access key id. Issue via Cloudflare dashboard → R2 → "Manage R2 API Tokens"; scope read/write to the `objects` bucket only and **issue a separate token per stage** (ADR-005, Issue #110).                                                                                                                                                       |
+| `R2_SECRET_ACCESS_KEY`    | The matching secret key. Both `R2_*` keys plus `OBJECT_STORAGE` binding plus `R2_OBJECT_BUCKET_NAME` var (`[vars]`) must all be present for DI to wire `R2ObjectStorage`. Any missing → `StubObjectStorage`.                                                                                                                                                  |
+
+> The CI deploy step (`pnpm deploy:<stage>:all`) currently pushes the single SOPS-decrypted secrets file to every Worker (`wrangler secret bulk`). ADR-007 (Issue #110) deferred per-worker filtering — until that lands, relay / pruner / dlq receive these secrets even though they do not consume them. `workerSecretSpecs()` in `infra/src/secrets.ts` is the spec source-of-truth for what each Worker actually needs.
+
+### Local dev (R2 / LLM bindings)
+
+`pnpm dev` always provisions the `TEMP_FILES` / `OBJECT_STORAGE` R2 bindings via miniflare's in-memory R2 simulator. The bindings exist even when `.dev.vars` is empty:
+
+- Leaving `R2_*` empty → DI keeps `StubObjectStorage` (presign / put / get all reject). The `TEMP_FILES` binding itself still works because data-plane R2 ops do not consult the SigV4 credentials.
+- Leaving `ADMIN_LLM_API_KEY` empty (or omitting `ADMIN_LLM_MODEL` in `wrangler.toml [vars]`) → DI keeps `StubLLMProvider`. Ingestion jobs fail at the metadata step with `BusinessRuleError("unsupported_format")` so the failure mode is observable.
+- Setting the full set → DI wires the real adapters. Hitting Anthropic from local dev incurs real cost — issue a low-quota api key for development.
+
+### Deployment SOPS workflow
+
+`infra/secrets/{stage}.enc.json` is SOPS-encrypted; the CI deploy step decrypts it and feeds it to `wrangler secret bulk`. To add a new key:
+
+1. Update `infra/secrets/{stage}.json.example` with the placeholder.
+2. Update `infra/src/secrets.ts` so `workerSecretSpecs()` lists the new key for the relevant workers.
+3. Manually edit the encrypted file: `pnpm --filter @hollow/infra secrets:edit:{stage}` (opens `sops` in your editor).
+4. Commit only the `.json.example` change and the `.enc.json` change. Never commit the plaintext.
 
 ## Deployment
 

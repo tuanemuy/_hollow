@@ -6,7 +6,10 @@ import {
 } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StubTempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
+import {
+  R2TempFileStorage,
+  StubTempFileStorage,
+} from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { PendingBatch } from "@/core/adapters/d1/pendingBatch";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
@@ -201,6 +204,25 @@ const relayEnv = (): RelayEnv => env as unknown as RelayEnv;
 const prunerEnv = (): PrunerEnv => env as unknown as PrunerEnv;
 const consumerEnv = (): ConsumerEnv => env as unknown as ConsumerEnv;
 const dlqEnv = (): DlqEnv => env as unknown as DlqEnv;
+
+// `vitest.config.integration.ts` registers `TEMP_FILES` via
+// `miniflare.r2Buckets`, so it is always present at runtime. The
+// generated `Cloudflare.Env` types it as optional (wrangler treats
+// top-level `[[r2_buckets]]` as optional in the worker env shape),
+// so this thin accessor narrows the type for tests without leaning
+// on a non-null assertion at every call site. Return type is inferred
+// from the global `Cloudflare.Env.TEMP_FILES` binding type rather than
+// imported from `@cloudflare/workers-types` — the two have a known
+// surface-level skew (workerd vs npm types) that breaks assignment.
+type TempFilesBucket = NonNullable<typeof env.TEMP_FILES>;
+function tempFilesBinding(): TempFilesBucket {
+  if (!env.TEMP_FILES) {
+    throw new Error(
+      "TEMP_FILES binding missing — check vitest.config.integration.ts",
+    );
+  }
+  return env.TEMP_FILES;
+}
 
 describe("relay producer Worker — runRelayTick", () => {
   it("claims pending outbox rows, sends them to the queue, and marks processed", async () => {
@@ -574,15 +596,15 @@ describe("consumer Worker — handleQueue dispatch", () => {
     // redelivery would be skipped by `hasProcessed` and the retry
     // would be silently dropped (ADR-003).
     //
-    // The default `StubTempFileStorage.get` throws (no R2 binding in
-    // tests), which would short-circuit `runIngestionJob` to a
-    // `failed` markFailedSafely path before the LLM is ever touched.
-    // Patch it to return inline bytes so the pipeline reaches the
-    // metadata step where the rate-limit injection lives.
-    // TODO(Issue #57 follow-up): this Stub-specific override goes away
-    // once `[env.consumer]` gets a real R2 binding.
-    vi.spyOn(StubTempFileStorage.prototype, "get").mockResolvedValue(
-      new TextEncoder().encode("<p>hello</p>").buffer as ArrayBuffer,
+    // The R2 `TEMP_FILES` binding is wired in the miniflare config
+    // (Issue #110), so seed bytes directly via the binding — the
+    // dispatcher's `tempFileStorage.get` will read them through
+    // `R2TempFileStorage` and the pipeline reaches the metadata step
+    // where the rate-limit injection lives.
+    const tempStorageKey = `${ownerId}/ingestion/${jobId}`;
+    await tempFilesBinding().put(
+      tempStorageKey,
+      new TextEncoder().encode("<p>hello</p>"),
     );
     const suggestMetadataSpy = vi.spyOn(
       StubLLMProvider.prototype,
@@ -753,6 +775,72 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .where(eq(ingestionJobs.id, jobId));
     expect(secondJobAfter[0]?.status).toBe(firstStatus);
     expect(secondJobAfter[0]?.updatedAt).toBe(firstUpdatedAt);
+  });
+
+  it("reads ingestion bytes via R2 binding (R2TempFileStorage path) — Stub spy is never invoked", async () => {
+    const ownerId = nextOwnerId();
+    const jobId = nextIngestionJobId();
+    await seedOwner(ownerId);
+    await seedPendingIngestionJob({ ownerId, jobId, kind: "html" });
+
+    // Seed bytes into the real R2 binding under the same temp-storage
+    // key the seeded job points at. With `[env.consumer]` now binding
+    // `TEMP_FILES` (Issue #110) and `vitest.config.integration.ts`
+    // exposing an in-memory R2 bucket, `tempFileStorage.get` must
+    // route through `R2TempFileStorage` and find these bytes.
+    const tempStorageKey = `${ownerId}/ingestion/${jobId}`;
+    await tempFilesBinding().put(
+      tempStorageKey,
+      new TextEncoder().encode("<p>hello R2</p>"),
+    );
+
+    // Direct proof: spy on both adapters' `get` and confirm only the
+    // R2-backed one is invoked. The Stub spy MUST stay clean — its
+    // invocation would mean DI is still wiring `StubTempFileStorage`
+    // despite the R2 binding being present (regression on Step 7).
+    const r2GetSpy = vi.spyOn(R2TempFileStorage.prototype, "get");
+    const stubGetSpy = vi.spyOn(StubTempFileStorage.prototype, "get");
+
+    const event: DomainEvent = {
+      id: nextEventId(),
+      type: "ingestion.created",
+      payload: { jobId, kind: "html" },
+      occurredAt: new Date(),
+      aggregateId: jobId,
+    };
+
+    const batch = createMessageBatch<DomainEvent>(
+      "tanstack-start-template-events",
+      [
+        {
+          id: "msg-ingestion-r2-smoke",
+          timestamp: new Date(),
+          body: event,
+          attempts: 1,
+        },
+      ],
+    );
+    const ctx = createExecutionContext();
+    await handleQueue(batch, consumerEnv(), ctx);
+    const result = await getQueueResult(batch, ctx);
+
+    expect(result.explicitAcks).toContain("msg-ingestion-r2-smoke");
+
+    // R2 path was exercised; Stub path was not.
+    expect(r2GetSpy).toHaveBeenCalledWith(tempStorageKey);
+    expect(stubGetSpy).not.toHaveBeenCalled();
+
+    // Job moved off `pending` — the dispatch reached the downstream
+    // LLM step. With `ADMIN_LLM_API_KEY` / `ADMIN_LLM_MODEL` unset,
+    // `StubLLMProvider` rejects metadata extraction, so the
+    // `markFailedSafely` path lands the job in `failed`. Either way,
+    // leaving `pending` proves the R2-backed read succeeded.
+    const db = getDatabase(env.DB);
+    const jobRows = await db
+      .select()
+      .from(ingestionJobs)
+      .where(eq(ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).not.toBe("pending");
   });
 });
 

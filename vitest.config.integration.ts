@@ -26,6 +26,10 @@ export default defineConfig({
         compatibilityDate: "2026-05-01",
         compatibilityFlags: ["nodejs_compat"],
         d1Databases: ["DB"],
+        // R2 simulator (in-memory). DI wires `R2TempFileStorage` /
+        // `R2ObjectStorage` against these bindings; tests can seed via
+        // `env.TEMP_FILES.put(...)` / `env.OBJECT_STORAGE.put(...)`.
+        r2Buckets: ["TEMP_FILES", "OBJECT_STORAGE"],
         queueProducers: {
           EVENTS_QUEUE: "tanstack-start-template-events",
           // Registered so `createMessageBatch("…-events-dlq", …)` is
@@ -57,6 +61,19 @@ export default defineConfig({
         bindings: {
           MIGRATIONS: migrations,
           APP_URL: "http://localhost:8787",
+          // SigV4 presign credentials for `R2ObjectStorage`. With these
+          // set alongside the `OBJECT_STORAGE` r2 binding, DI wires the
+          // real adapter — useful for any test that exercises presign
+          // URL minting. Data-plane R2 ops do not consult them.
+          R2_ACCOUNT_ID: "test-account",
+          R2_ACCESS_KEY_ID: "test-key-id",
+          R2_SECRET_ACCESS_KEY: "test-secret",
+          R2_OBJECT_BUCKET_NAME: "test-objects",
+          // `ADMIN_LLM_API_KEY` / `ADMIN_LLM_MODEL` are intentionally
+          // unset so DI keeps `StubLLMProvider`; the env→adapter
+          // mapping for the real Anthropic adapter is covered by the
+          // serverCloudflare unit tests, and not wiring it here keeps
+          // integration tests from accidentally calling the real API.
         },
       },
     }),

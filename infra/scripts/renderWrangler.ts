@@ -58,6 +58,8 @@ type StackOutput = {
   d1DatabaseName: string;
   eventsQueueName: string;
   eventsDlqQueueName: string;
+  tempFilesBucketName: string;
+  objectsBucketName: string;
   workerNamesOut: {
     web: string;
     relay: string;
@@ -75,6 +77,8 @@ const vars: Record<string, string> = {
   D1_NAME: stack.d1DatabaseName,
   EVENTS_QUEUE: stack.eventsQueueName,
   EVENTS_DLQ_QUEUE: stack.eventsDlqQueueName,
+  R2_TEMP_FILES_BUCKET: stack.tempFilesBucketName,
+  R2_OBJECTS_BUCKET: stack.objectsBucketName,
   WORKER_WEB: stack.workerNamesOut.web,
   WORKER_RELAY: stack.workerNamesOut.relay,
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
