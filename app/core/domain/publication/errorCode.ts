@@ -1,15 +1,15 @@
 export const PublicationErrorCode = {
-  InvalidShareLinkId: "PUBLICATION_INVALID_SHARE_LINK_ID",
-  InvalidVisibility: "PUBLICATION_INVALID_VISIBILITY",
-  InvalidShareLinkStatus: "PUBLICATION_INVALID_SHARE_LINK_STATUS",
-  InvalidTokenHash: "PUBLICATION_INVALID_TOKEN_HASH",
-  ShareLinkPasswordTooShort: "PUBLICATION_SHARE_LINK_PASSWORD_TOO_SHORT",
-  ShareLinkPasswordTooLong: "PUBLICATION_SHARE_LINK_PASSWORD_TOO_LONG",
-  InvalidFailedAttempts: "PUBLICATION_INVALID_FAILED_ATTEMPTS",
-  InvariantPrivatePublishedAt: "PUBLICATION_INVARIANT_PRIVATE_PUBLISHED_AT",
-  ShareLinkRevoked: "PUBLICATION_SHARE_LINK_REVOKED",
-  ShareLinkQuotaExceeded: "PUBLICATION_SHARE_LINK_QUOTA_EXCEEDED",
-  MediaNotOwned: "PUBLICATION_MEDIA_NOT_OWNED",
+  InvalidShareLinkId: "publication_invalid_share_link_id",
+  InvalidVisibility: "publication_invalid_visibility",
+  InvalidShareLinkStatus: "publication_invalid_share_link_status",
+  InvalidTokenHash: "publication_invalid_token_hash",
+  ShareLinkPasswordTooShort: "share_link_password_too_short",
+  ShareLinkPasswordTooLong: "share_link_password_too_long",
+  InvalidFailedAttempts: "publication_invalid_failed_attempts",
+  InvariantPrivatePublishedAt: "publication_invariant_private_published_at",
+  ShareLinkRevoked: "share_link_revoked",
+  ShareLinkQuotaExceeded: "share_link_quota_exceeded",
+  MediaNotOwned: "media_not_owned",
 } as const;
 
 export type PublicationErrorCode =
