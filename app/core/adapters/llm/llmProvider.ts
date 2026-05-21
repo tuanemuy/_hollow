@@ -21,9 +21,11 @@ import {
  * Label type for LLM-mode Anthropic adapter config. Structurally
  * identical to {@link AnthropicSharedConfig} — see that type for
  * field-level documentation. Retained as a named alias so existing
- * callers (`new AnthropicLLMProvider({ apiKey, model })`) and LLM-mode
- * grep hits stay stable, and so future LLM-only fields (e.g.
- * `temperature?`) can be layered on without churning every call site.
+ * callers (`new AnthropicLLMProvider({ apiKey, model })`) stay stable
+ * and LLM-mode grep hits remain meaningful. If LLM-only fields become
+ * necessary in the future, this alias should be promoted to an
+ * intersection (`AnthropicSharedConfig & { ... }`) or an interface at
+ * that time — the alias-as-is cannot carry extra fields.
  */
 export type AnthropicLLMConfig = AnthropicSharedConfig;
 
@@ -148,13 +150,13 @@ export class AnthropicLLMProvider implements LLMProvider {
       [{ type: "text", text: user }],
       llmErrorMapper,
     );
-    // OCR / PDF と異なり、LLM port の JSON envelope contract は
-    // 空文字を許容しない。helper は OCR / PDF の「空 OK」契約に合わせて
-    // "" を返す (anthropicMessagesClient.ts JSDoc "Empty-response
-    // contract" / Issue #113 ADR-002) ため、LLM 側で再導入する。
-    // helper 側 `extractTextContent` が `.trim()` 済みでも、この length
-    // check は冗長ではない (`content: []` / `tool_use` のみのケースで
-    // "" が返るのを弾くため恒久的に必要)。
+    // LLM port's JSON envelope contract cannot accept an empty body.
+    // The helper returns "" to satisfy OCR / PDF's "empty OK" contract
+    // (anthropicMessagesClient.ts JSDoc "Empty-response contract" /
+    // Issue #113 ADR-002), so we re-introduce the empty-string check
+    // here. The helper's extractTextContent() is already trim()-ed, but
+    // this length check is still required to reject `content: []` and
+    // tool_use-only responses that legitimately yield "".
     if (text.length === 0) {
       throw new LLMUnavailableError(
         "Anthropic response did not contain any text content",

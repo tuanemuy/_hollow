@@ -129,6 +129,12 @@ describe("AnthropicLLMProvider", () => {
           },
         ],
       });
+      expect(call[0]).toBe("https://api.anthropic.com/v1/messages");
+      expect(init.headers).toMatchObject({
+        "content-type": "application/json",
+        "x-api-key": "sk-ant-test",
+        "anthropic-version": "2023-06-01",
+      });
     });
 
     it("suggestMetadata: returns parsed envelope with tags / aliases", async () => {
@@ -183,6 +189,21 @@ describe("AnthropicLLMProvider", () => {
             html: "<p/>",
             titleSuggestion: "T",
             directorySuggestion: "   ",
+          }),
+        ),
+      );
+      const provider = makeProvider();
+      const result = await provider.structureToHtml(STRUCTURE_INPUT);
+      expect(result.directorySuggestion).toBeNull();
+    });
+
+    it("structureToHtml: normalises non-string directorySuggestion (e.g. number) to null", async () => {
+      setFetch(
+        vi.fn(async () =>
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: 42,
           }),
         ),
       );
@@ -377,23 +398,25 @@ describe("AnthropicLLMProvider", () => {
   });
 
   describe("JSON envelope / response body failures", () => {
-    it("throws LLMUnavailableError('Anthropic response was not valid JSON') when the HTTP body is non-JSON", async () => {
+    it("throws LLMUnavailableError('Anthropic response was not valid JSON') with cause when the HTTP body is non-JSON", async () => {
       setFetch(vi.fn(async () => textResponse(200, "<<not json>>")));
       const provider = makeProvider();
       await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "Anthropic response was not valid JSON",
+          e.message === "Anthropic response was not valid JSON" &&
+          e.cause instanceof Error,
       );
     });
 
-    it("throws LLMUnavailableError when the text block is not parseable JSON", async () => {
+    it("throws LLMUnavailableError with cause when the text block is not parseable JSON", async () => {
       setFetch(vi.fn(async () => rawTextResponse("not json at all")));
       const provider = makeProvider();
       await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "Anthropic response was not a JSON envelope",
+          e.message === "Anthropic response was not a JSON envelope" &&
+          e.cause instanceof Error,
       );
     });
 
