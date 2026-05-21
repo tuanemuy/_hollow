@@ -33,6 +33,11 @@ export const IdentityErrorCode = {
   CannotRemoveLastCredential: "cannot_remove_last_credential",
   PasswordAlreadySet: "password_already_set",
   ProviderAlreadyLinked: "provider_already_linked",
+  TokenNotFound: "token_not_found",
+  TokenExpired: "token_expired",
+  TokenConsumed: "token_consumed",
+  TokenPurposeMismatch: "token_purpose_mismatch",
+  MediaNotOwned: "media_not_owned",
 } as const;
 
 export type IdentityErrorCode =

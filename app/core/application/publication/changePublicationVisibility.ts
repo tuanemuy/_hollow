@@ -5,6 +5,7 @@ import type {
 } from "@/core/domain/identity/valueObject";
 import type { MediaAssetRepository } from "@/core/domain/media/ports/mediaAssetRepository";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { PublicationState } from "@/core/domain/publication/entity";
 import type { PublicationStateRepository } from "@/core/domain/publication/ports/publicationStateRepository";
@@ -60,7 +61,7 @@ export async function changePublicationVisibility({
       );
       if (note.status !== "active") {
         throw new BusinessRuleError(
-          "note_trashed",
+          NoteErrorCode.Trashed,
           `Note ${input.noteId} is trashed; cannot change publication visibility`,
         );
       }

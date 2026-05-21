@@ -1,4 +1,5 @@
 import { BusinessRuleError } from "@/core/domain/error";
+import { CommonErrorCode } from "./errorCode";
 
 declare const eventIdBrand: unique symbol;
 
@@ -10,7 +11,10 @@ export type EventId = string & { readonly [eventIdBrand]: true };
 export const EventId = {
   create: (id: string): EventId => {
     if (id.trim().length === 0) {
-      throw new BusinessRuleError("INVALID_EVENT_ID", "Invalid event id");
+      throw new BusinessRuleError(
+        CommonErrorCode.InvalidEventId,
+        "Invalid event id",
+      );
     }
     return id as EventId;
   },
