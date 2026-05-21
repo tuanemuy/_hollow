@@ -47,6 +47,7 @@ import {
   WebCryptoSecretBox,
 } from "@/core/adapters/security/secretBox";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
+import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
 import type { PDFExtractor } from "@/core/domain/ingestion/ports/pdfExtractor";
 import { SystemClock } from "../ports/clock";
@@ -316,6 +317,29 @@ export function buildPdfExtractor(
 }
 
 /**
+ * Build the request-time {@link LLMProvider}. Wires
+ * `AnthropicLLMProvider` only when both `ADMIN_LLM_API_KEY` (secret)
+ * and `ADMIN_LLM_MODEL` (var) are present; either missing → fall back
+ * to `StubLLMProvider`. Shares the env pair with `ocrProvider` /
+ * `pdfExtractor` per ADR-003 of Issue #113.
+ *
+ * Pure helper extracted from `createRequestContainer` so the wiring
+ * can be verified directly in unit tests via `instanceof` without
+ * threading container internals through the test harness.
+ */
+export function buildLlmProvider(
+  adminLlmApiKey: string | undefined,
+  adminLlmModel: string | undefined,
+): LLMProvider {
+  return adminLlmApiKey && adminLlmModel
+    ? new AnthropicLLMProvider({
+        apiKey: adminLlmApiKey,
+        model: adminLlmModel,
+      })
+    : new StubLLMProvider();
+}
+
+/**
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
@@ -368,13 +392,7 @@ export function createRequestContainer(
     archiveBuilder: new InMemoryZipArchiveBuilder(),
     exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
-    llmProvider:
-      adminLlmApiKey && adminLlmModel
-        ? new AnthropicLLMProvider({
-            apiKey: adminLlmApiKey,
-            model: adminLlmModel,
-          })
-        : new StubLLMProvider(),
+    llmProvider: buildLlmProvider(adminLlmApiKey, adminLlmModel),
     ocrProvider: buildOcrProvider(adminLlmApiKey, adminLlmModel),
     speechRecognitionProvider: new StubSpeechRecognitionProvider(),
     officeExtractor: new StubOfficeExtractor(),
