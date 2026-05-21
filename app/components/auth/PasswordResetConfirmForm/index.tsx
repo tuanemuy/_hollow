@@ -145,7 +145,7 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
               {[0, 1, 2, 3].map((i) => (
                 <span
                   key={i}
-                  className={`rounded-pill transition-colors ${segmentColor(strength, i)}`}
+                  className={`rounded-pill transition-colors motion-reduce:transition-none ${segmentColor(strength, i)}`}
                 />
               ))}
             </div>

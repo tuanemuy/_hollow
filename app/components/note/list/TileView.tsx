@@ -35,7 +35,7 @@ export function TileView({ notes }: Props) {
           <li
             key={note.id}
             data-selected={checked || undefined}
-            className="relative rounded-lg border border-hairline overflow-hidden bg-bg transition-colors hover:bg-surface data-[selected]:outline data-[selected]:outline-2 data-[selected]:outline-accent data-[selected]:-outline-offset-2"
+            className="relative rounded-lg border border-hairline overflow-hidden bg-bg transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:outline data-[selected]:outline-2 data-[selected]:outline-accent data-[selected]:-outline-offset-2"
           >
             <label className="absolute top-2 left-2 z-[1] rounded-xs bg-white/85 p-[2px]">
               <input

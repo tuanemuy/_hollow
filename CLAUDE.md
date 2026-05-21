@@ -49,6 +49,7 @@ TanStack Start with React 19 / RSC, TanStack Router (file-based routes), Tailwin
 - **Breakpoints are duplicated on purpose.** `tokens.css` defines `--bp-sm/md/lg/xl/2xl` as the SSOT, but `index.css` re-declares `--breakpoint-*` as literal `px` values inside `@theme inline`. lightningcss rejects `var()` inside `@media (width >= ...)` during minify, so the bridge cannot be a `var()` reference. When you change a `--bp-*` value, update the corresponding `--breakpoint-*` literal too.
 - **backdrop-filter** uses the "always-on base + `supports-[backdrop-filter]:` for blur" pattern (see ADR-005). `not-supports-[backdrop-filter:blur(1px)]:` is unreliable on Safari/Chrome.
 - **`data-*` attribute conventions** (ADR-003): `data-x={value || undefined}` for dynamic state, `data-x=""` for statically-on attributes. Tailwind's `data-[x]:` variant tests for attribute presence, not value, so both work.
+- **Motion**: モーション系 utility（`transition-*` / `active:scale-*` 等）を新規追加する際は `motion-reduce:` バリアントを同位置に併用すること。疑似要素対象では `motion-reduce:after:transition-none` のように `motion-reduce:` を先頭に置く（動作条件 → 対象セレクタの順）。`@layer base` での一括抑制は採用していない（ADR-007 参照）。
 
 ## Key concepts
 

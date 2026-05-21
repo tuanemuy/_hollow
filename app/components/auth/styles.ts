@@ -31,14 +31,14 @@ export const FIELD_HINT = "text-xs text-ink-tertiary";
 export const FIELD_HINT_ERROR = "text-xs text-error";
 
 export const INPUT =
-  "w-full h-11 border-0 bg-surface rounded-md px-4 text-md text-ink outline-none transition-colors placeholder:text-ink-tertiary hover:bg-surface-hover focus-visible:bg-bg data-[error]:bg-error-surface data-[error]:shadow-[inset_0_0_0_1px_var(--color-error)] data-[error]:focus-visible:shadow-[inset_0_0_0_1px_var(--color-error),0_0_0_4px_oklch(37.1%_0_0_/_0.28)]";
+  "w-full h-11 border-0 bg-surface rounded-md px-4 text-md text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus-visible:bg-bg data-[error]:bg-error-surface data-[error]:shadow-[inset_0_0_0_1px_var(--color-error)] data-[error]:focus-visible:shadow-[inset_0_0_0_1px_var(--color-error),0_0_0_4px_oklch(37.1%_0_0_/_0.28)]";
 
 export const INPUT_MONO = "font-mono";
 
 export const INPUT_WITH_ACTION = "relative flex items-center";
 
 export const REVEAL_BTN =
-  "absolute right-1 w-9 h-9 inline-flex items-center justify-center text-ink-tertiary rounded-md transition-colors hover:text-ink hover:bg-surface-hover";
+  "absolute right-1 w-9 h-9 inline-flex items-center justify-center text-ink-tertiary rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface-hover";
 
 export const CHECKBOX_ROW =
   "flex items-start gap-3 text-sm text-ink-secondary leading-normal cursor-pointer";
@@ -50,16 +50,16 @@ export const FORM_ERROR =
   "flex gap-3 bg-error-surface text-error rounded-md px-4 py-3 text-sm leading-normal items-start";
 
 export const BTN_PRIMARY =
-  "w-full h-12 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full h-12 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const BTN_PRIMARY_INLINE =
-  "h-12 min-w-[200px] px-8 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
+  "h-12 min-w-[200px] px-8 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const BTN_SECONDARY =
-  "inline-flex items-center justify-center h-11 px-6 rounded-pill bg-surface text-ink text-sm font-medium transition-colors hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center h-11 px-6 rounded-pill bg-surface text-ink text-sm font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const BTN_SECONDARY_TALL =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const CALLOUT =
   "flex gap-3 px-4 py-3 rounded-md bg-surface text-ink-secondary text-sm leading-normal items-start mb-6";
