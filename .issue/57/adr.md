@@ -154,3 +154,30 @@ dispatch 中に usecase が throw する可能性のある例外をどう扱う�
 - トレードオフ:
   - 「job 行が消えた」事象の運用観測には別途ログ / メトリクスが必要（本 Issue では `logger.info` で記録するに留める）
   - `runIngestionJob` 内の「内部 markFailedSafely で `failed` に畳んだ後で stamp」と「外部 throw → retry → 後で再走で再 markFailedSafely」の二重実行が起きる場合があるが、`isPending` ガードと楽観ロックで二重実行は防がれる
+
+---
+
+## ADR-006: 統合テストの fixture 実装方針（実装時の判断記録）
+
+### Status
+Accepted（実装時）
+
+### Context
+`app/worker/cloudflare/__tests__/handlers.integration.test.ts` の dispatch path をテストするにあたり、いくつかの非自明な fixture 上の制約を踏む必要があった:
+
+1. **UUIDv7 strict validator**: `D1IngestionJobRepository` / `D1ExportJobRepository` の `toEntity` はリハイドレーション時に `IdGenerator.validate` を強制する。pattern は `^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`。テスト fixture の id 生成器は 4 group 目を `[89ab]` 始まりに固定しないと `SystemError(DATA_INTEGRITY_ERROR)` で吹き飛ぶ。
+2. **ExportJob `scope` 不変条件**: `assertScopeTargetShape` で `scope='single'` は exactly 1 target、`scope='multiple'` は >=1 target、`scope='view'` は viewQuery 必須。seed ヘルパで `scope='single'` + 空 targetNoteIds は invariant 違反になる。
+3. **StubTempFileStorage の挙動**: `createConsumerContainer` 経由で wired される `StubTempFileStorage.get` は常に `TempFileStorageUnavailableError` を throw する。これが `runIngestionJob` の最初の I/O ステップなので、ここで failure path に入ると LLM 呼び出しまで到達しない — `LLMRateLimitError → retry` テストでは `vi.spyOn` でこの stub を bytes を返すように override する必要がある。
+
+### Decision
+- 統合テスト内に local helpers (`nextOwnerId` / `nextIngestionJobId` / `nextExportJobId` / `seedOwner` / `seedPendingIngestionJob` / `seedPendingExportJob`) を追加し、UUIDv7 pattern を満たす id を組み立てる。
+- export seed は `scope='multiple'` + 1 件の placeholder noteId にして、リハイドレーション通過 + `resolveTargetNotes` で 0 件返却 → `failed` 遷移という観察可能な dispatch エビデンスにする。
+- LLM rate limit テストは `vi.spyOn(StubTempFileStorage.prototype, "get")` で bytes を return させ、その後 `vi.spyOn(StubLLMProvider.prototype, "suggestMetadata")` で `LLMRateLimitError` を throw させる。
+
+### Consequences
+- 良い点:
+  - dispatch path 全体（D1 リハイドレーション → UoW → usecase → 結果観測）を E2E で確認できる
+  - 本番 binding 差し替え時に Stub の制約が観察される箇所が `vi.spyOn` 1 行で済んでいるため、binding 切替時の追従コストが低い
+- トレードオフ:
+  - テストが Stub アダプタの内部挙動（`TempFileStorageUnavailableError` を throw する事実）に依存する。本番 R2 binding を consumer に配る Issue でこの spy は不要になる
+  - export job の seed が `scope='multiple'` 固定。`scope='single'` / `scope='view'` の dispatch 経路も同様に動くはずだが、本 Issue のスコープでは確認していない（dispatch 表の routing は usecase に閉じており、scope は usecase 内部の `resolveTargetNotes` 経路の分岐に過ぎないため、ケース追加は別 Issue で十分）
