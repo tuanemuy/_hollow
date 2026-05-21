@@ -49,8 +49,8 @@ Issue #70 の utility-first 移行で UI 全域に `transition-colors` / `active
 
 B のメリット（漏れ可能性ゼロ、新規 utility 追加時の対応不要）は認める。これらは:
 
-- `CLAUDE.md` の Styling セクションに「モーション系 utility 追加時は `motion-reduce:` バリアントを併用する」を運用ルールとして明文化することで、構造的にはカバーしないが運用上の漏れ防止策とする。
-- CI ガード（grep ベース等）の導入は YAGNI として見送る。漏れが顕在化したタイミングで別途検討する。
+- 運用ルールのドキュメント化（CLAUDE.md 等）も検討したが、SSOT の肥大化を避けるため不採用とした。漏れが顕在化したタイミングで別途検討する。
+- CI ガード（grep ベース等）の導入も YAGNI として見送る。同上の判断。
 
 ### Consequences
 
@@ -61,8 +61,7 @@ B のメリット（漏れ可能性ゼロ、新規 utility 追加時の対応不
   - `dangerouslySetInnerHTML` 例外（`.note-detail-content`）を増やさずに済む
 - **トレードオフ:**
   - 約 59 箇所への併用追加が必要で、各 utility 定数の文字列が長くなる（`styles.ts` への集約と Tailwind 慣用の `motion-reduce:` 直後配置で可読性は維持）
-  - 将来のモーション utility 追加時に対応漏れが起き得る → `CLAUDE.md` 運用ルールで担保
-  - CI レベルの構造的な保証はない（YAGNI 判断、将来必要になれば別 Issue で対応）
+  - 将来のモーション utility 追加時に対応漏れが起き得る。CLAUDE.md への運用ルール追記 / CI ガード導入はどちらも見送り（SSOT 肥大化回避 + YAGNI 判断、将来必要になれば別 Issue で対応）
 
 ### Related
 

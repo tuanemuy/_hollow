@@ -109,13 +109,7 @@ Issue #70 で utility-first 移行した際、UI 全域に増えた `transition-
 - **変更内容:** `transition-colors` の直後に `motion-reduce:transition-none` を追記
 - **理由:** 完全網羅。漏れがあるとレビューで再指摘される
 
-### 9. `CLAUDE.md` の運用ルール追記
-
-- **対象ファイル:** `CLAUDE.md`
-- **変更内容:** Styling セクションに「**Motion**: モーション系 utility（`transition-*` / `active:scale-*` 等）を新規追加する際は `motion-reduce:` バリアントを同位置に併用すること。疑似要素対象では `motion-reduce:after:transition-none` のように `motion-reduce:` を先頭に置く（動作条件 → 対象セレクタの順）。`@layer base` での一括抑制は採用していない（ADR-007 参照）」を追記
-- **理由:** 将来の漏れ防止と variant ordering の慣用化（grep 検知も容易になる）。CI ガードは入れず、運用ルールとしてドキュメントに残す（SSOT 集約）。Issue 本文に明記はないが ADR-007 の派生決定として位置付け、PR 説明文にもその旨を記す
-
-### 10. 検証
+### 9. 検証
 
 - `pnpm typecheck && pnpm lint:fix && pnpm format`
 - `pnpm build` でビルドが通り、生成 CSS に `@media (prefers-reduced-motion: reduce)` ブロックが含まれることを確認
@@ -164,7 +158,7 @@ Issue #70 で utility-first 移行した際、UI 全域に増えた `transition-
 
 - **P-001 (実現可能性)**: 「約 48 箇所」→ 「約 59 箇所」へ実測値に修正
 - **P-002 (実現可能性)**: ADR-007 の Decision 理由 1 を「ADR-002 の射程内かは議論の余地あり。ただし A 案には別の独立した利点が複数あるため A 案を採用」と表現を緩和（adr.md 側）
-- **P-003 (実現可能性)**: ステップ 10 に `active:scale-*` の specificity 順検証ステップを追加、Plan B（`motion-reduce:active:scale-100!`）も明記
+- **P-003 (実現可能性)**: ステップ 9 に `active:scale-*` の specificity 順検証ステップを追加、Plan B（`motion-reduce:active:scale-100!`）も明記
 
 ### 取り込んだ改善提案
 
@@ -176,5 +170,5 @@ Issue #70 で utility-first 移行した際、UI 全域に増えた `transition-
 
 ### 見送った提案とその理由
 
-- **S-003 (要件カバレッジ)**: arbitrary value バリアントのフォールバック詳細記述 — ステップ 10 の CSS 検証で実機確認するため重複
+- **S-003 (要件カバレッジ)**: arbitrary value バリアントのフォールバック詳細記述 — ステップ 9 の CSS 検証で実機確認するため重複
 - **S-004 (実現可能性)**: `transition-all` を `transition-colors` 等に絞り込む改善 — スコープ外（Issue 本文「機能変更スコープ外」に該当する可能性）。本 Issue では `motion-reduce:` 追加のみに留める
