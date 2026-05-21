@@ -10,6 +10,7 @@ export const PublicationErrorCode = {
   ShareLinkRevoked: "share_link_revoked",
   ShareLinkQuotaExceeded: "share_link_quota_exceeded",
   MediaNotOwned: "media_not_owned",
+  VisibilityPrivate: "visibility_private",
 } as const;
 
 export type PublicationErrorCode =

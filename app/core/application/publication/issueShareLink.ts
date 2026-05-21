@@ -3,6 +3,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ShareLink } from "@/core/domain/publication/entity";
+import { PublicationErrorCode } from "@/core/domain/publication/errorCode";
 import { PublicationService } from "@/core/domain/publication/service";
 import { ShareLinkPassword } from "@/core/domain/publication/valueObject";
 import type { ServiceArgs } from "../types";
@@ -72,7 +73,7 @@ export async function issueShareLink({
       const state = await publicationStateRepository.findById(note.id);
       if (state === null || state.entity.visibility === "private") {
         throw new BusinessRuleError(
-          "visibility_private",
+          PublicationErrorCode.VisibilityPrivate,
           `Cannot issue share link for note ${input.noteId} while visibility is private`,
         );
       }

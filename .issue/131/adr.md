@@ -141,3 +141,46 @@ Proposed
   - 既存 frontend 比較（`error.code === "token_not_found"` 等）が value 不変で動作継続
 - **トレードオフ:**
   - `IdentityErrorCode` のサイズが 4 property 増える（35 → 40 property）。可読性の観点では受容範囲
+
+---
+
+## ADR-005: `PublicationErrorCode.VisibilityPrivate` を本 Issue で追加対応する
+
+### Status
+Proposed
+
+### Context
+
+Phase 4（スコープ外Issue起票検討）の grep 確認で、`app/core/application/publication/issueShareLink.ts:75` に `BusinessRuleError("visibility_private", ...)` のリテラル直書きが残存していることを確認。
+
+経緯:
+- Issue #82 ADR-001 Scope clarification で `visibility_private` は「対象外: spec に存在するが `*ErrorCode` 定数として未登録の文言」の代表例として「別 Issue で扱う」と punt されていた
+- Issue #131 本文「対象（既知の直書き箇所）」リストには含まれていない
+- PR #135 のレビュー（review-001.md）でも「スコープ違反ではない」と確認
+
+選択肢:
+1. その場で修正（#131 に追加コミット）
+2. 別 Issue として起票
+3. 何もしない（#82 ADR の punt をそのまま受容）
+
+### Decision
+
+案 1（その場で修正）を採用する。
+
+理由:
+- `issueShareLink.ts` は #131 で既に touch しているファイル。SKILL.md の「同じファイル・同じ機能・同じ動線の中で気づいた問題は、原則としてその場で修正する」原則に従う
+- 修正は機械的（`PublicationErrorCode.VisibilityPrivate = "visibility_private"` を追加 + 直書きを定数経由に置換）で 2 ファイル・5 行程度の小変更
+- spec 文言（`spec/usecases/publication.md:55` / `spec/testcases/publication/index.md:20`）が既に確定しており、value 命名の判断コストがゼロ
+- 別 Issue にすると追加の PR レビューサイクルが発生し、cost > benefit
+
+`PublicationErrorCode` への追加位置は末尾（`MediaNotOwned` の次）、命名は `VisibilityPrivate: "visibility_private"`（spec verbatim、prefix 無し）。
+
+### Consequences
+
+- **良い点:**
+  - #82 ADR-001 Scope clarification で予告された未対応項目を 1 件解消
+  - `issueShareLink.ts` 内のリテラル直書きが完全にゼロになり、ファイル単位での整合性が向上
+  - `errorCodeNaming.test.ts` の自動検証対象に加わる
+- **トレードオフ:**
+  - #131 のスコープを 1 件分拡張する形になる（ただし本 Issue の意図「リテラル直書きを定数化」の延長線上であり、意図外ではない）
+  - レビューはクリーン済みだったが、追加コミット分の差分が小さく機械的なため再レビューは要しない判断
