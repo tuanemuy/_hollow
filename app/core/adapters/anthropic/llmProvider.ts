@@ -50,7 +50,7 @@ const llmErrorMapper: AnthropicErrorMapper = {
  * Empty-response semantics differ from OCR / PDF: the LLM port's JSON
  * envelope contract cannot accept an empty body, so `invoke()`
  * re-introduces the empty-string check after the helper call. See
- * `anthropicMessagesClient.ts` JSDoc ("Empty-response contract") and
+ * `messagesClient.ts` JSDoc ("Empty-response contract") and
  * Issue #113 ADR-002 for the cross-port reasoning.
  *
  * Response shape contract:
@@ -150,7 +150,7 @@ export class AnthropicLLMProvider implements LLMProvider {
     );
     // LLM port's JSON envelope contract cannot accept an empty body.
     // The helper returns "" to satisfy OCR / PDF's "empty OK" contract
-    // (anthropicMessagesClient.ts JSDoc "Empty-response contract" /
+    // (messagesClient.ts JSDoc "Empty-response contract" /
     // Issue #113 ADR-002), so we re-introduce the empty-string check
     // here. The helper's extractTextContent() is already trim()-ed, but
     // this length check is still required to reject `content: []` and

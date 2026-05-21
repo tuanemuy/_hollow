@@ -84,14 +84,20 @@ const vars: Record<string, string> = {
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
-  // Public LLM model id delivered via `wrangler.toml [vars]`. Literal
-  // default lives here rather than in Pulumi StackOutput because the
-  // model id is a deploy-time choice, not a provisioned resource.
-  // Stage-specific override (e.g. claude-3-5-haiku for staging) ships
-  // in a follow-up Issue — until then, **keep this value in sync with
-  // `wrangler.toml`** (`[vars]` and `[env.consumer.vars]`); they are the
-  // local-dev counterpart of the staging/production defaults.
+  // Public LLM model id + provider id delivered via `wrangler.toml [vars]`.
+  // Literal defaults live here rather than in Pulumi StackOutput because
+  // they are deploy-time choices, not provisioned resources. Stage-specific
+  // overrides (e.g. claude-3-5-haiku for staging) ship in a follow-up
+  // Issue — until then, **keep these values in sync with `wrangler.toml`**
+  // (`[vars]` and `[env.consumer.vars]`); they are the local-dev
+  // counterpart of the staging/production defaults. Adding a new provider
+  // requires (1) appending to `LLM_PROVIDERS` in
+  // `app/core/domain/adminSettings/valueObject.ts`, (2) extending the
+  // factories in `app/core/application/di/llmProviderFactory.ts`, and
+  // (3) updating these defaults if the new provider should be the stage
+  // default.
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
+  ADMIN_LLM_PROVIDER: "anthropic",
 };
 
 const template = readFileSync(templatePath, "utf8");

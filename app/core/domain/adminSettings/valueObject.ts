@@ -116,9 +116,11 @@ export const PromptTemplate = {
 // ---------- LLMConfig ----------
 
 const LLM_MODEL_MAX_LENGTH = 120;
-// Extension guide: add new providers here (e.g. "openai", "gemini",
-// "azure-openai") and pair each with a `case` branch in the factories
-// at `app/core/application/di/llmProviderFactory.ts`.
+// INVARIANT: every value here must have a matching `case` in the
+// LLM/OCR/PDF factories — otherwise DI throws at runtime when that
+// provider is selected. Add new providers (e.g. "openai", "gemini",
+// "azure-openai") atomically together with adapter implementations
+// under `app/core/adapters/<provider>/`.
 const LLM_PROVIDERS = ["anthropic"] as const;
 const LLM_API_KEY_SOURCES = ["env", "db"] as const;
 

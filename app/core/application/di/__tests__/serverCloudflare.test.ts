@@ -42,6 +42,7 @@ import {
   type RequestServerConfig,
   readPruneTuning,
   readRelayTuning,
+  readRequestServerConfig,
   type ServerEnv,
 } from "../serverCloudflare";
 
@@ -160,6 +161,25 @@ function configWith(
     ...overrides,
   };
 }
+
+describe("readRequestServerConfig", () => {
+  // Guards the `exactOptionalPropertyTypes`-driven conditional spread in
+  // `readRequestServerConfig`. The factory's `default: throw` is a
+  // runtime guard; the *config* shape must never carry an explicit
+  // `undefined` for `adminLlmProvider` because that value would reach
+  // the factory and be reported as `Unsupported LLM provider: undefined`.
+  it("omits adminLlmProvider when ADMIN_LLM_PROVIDER env is unset", () => {
+    const config = readRequestServerConfig(envWith());
+    expect(Object.hasOwn(config, "adminLlmProvider")).toBe(false);
+  });
+
+  it("populates adminLlmProvider when ADMIN_LLM_PROVIDER env is set", () => {
+    const config = readRequestServerConfig(
+      envWith({ ADMIN_LLM_PROVIDER: "anthropic" }),
+    );
+    expect(config.adminLlmProvider).toBe("anthropic");
+  });
+});
 
 describe("createRequestContainer", () => {
   it("wires every RequestContainer field with a non-undefined adapter", () => {
@@ -589,7 +609,7 @@ describe("buildOcrProvider", () => {
   it("throws for an unsupported provider", () => {
     expect(() =>
       buildOcrProvider("openai", "sk-ant-test", "claude-3-5-sonnet"),
-    ).toThrow(/Unsupported LLM provider: openai/);
+    ).toThrow(/Unsupported OCR provider: openai/);
   });
 });
 
@@ -715,7 +735,7 @@ describe("buildPdfExtractor", () => {
   it("throws for an unsupported provider", () => {
     expect(() =>
       buildPdfExtractor("openai", "sk-ant-test", "claude-3-5-sonnet"),
-    ).toThrow(/Unsupported LLM provider: openai/);
+    ).toThrow(/Unsupported PDF provider: openai/);
   });
 });
 
@@ -755,6 +775,7 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
         R2_OBJECT_BUCKET_NAME: "buck",
         ADMIN_LLM_API_KEY: "sk-ant-test",
         ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
+        ADMIN_LLM_PROVIDER: "anthropic",
       }),
     );
     expect(container.tempFileStorage).toBeInstanceOf(R2TempFileStorage);
@@ -762,6 +783,22 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
     expect(container.ocrProvider).toBeInstanceOf(AnthropicOCRProvider);
     expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
+  });
+
+  it("propagates ADMIN_LLM_PROVIDER env to the factory: throws on unsupported value", () => {
+    // Guards the env → readRequestServerConfig → buildXxxProvider chain
+    // for the consumer worker. If the conditional spread of
+    // `adminLlmProvider` regresses, this test catches it because the
+    // factory's `default: throw` only fires when the value reaches it.
+    expect(() =>
+      createConsumerContainer(
+        envWithBindings({
+          ADMIN_LLM_API_KEY: "sk-ant-test",
+          ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
+          ADMIN_LLM_PROVIDER: "unsupported-x",
+        }),
+      ),
+    ).toThrow(/Unsupported LLM provider: unsupported-x/);
   });
 
   it.each([

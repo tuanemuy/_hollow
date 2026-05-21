@@ -42,7 +42,7 @@ describe("createOCRProvider", () => {
   it("throws an Error for unsupported providers", () => {
     expect(() =>
       createOCRProvider({ ...ANTHROPIC_CONFIG, provider: "gemini" }),
-    ).toThrow(/Unsupported LLM provider: gemini/);
+    ).toThrow(/Unsupported OCR provider: gemini/);
   });
 });
 
@@ -55,6 +55,6 @@ describe("createPDFExtractor", () => {
   it("throws an Error for unsupported providers", () => {
     expect(() =>
       createPDFExtractor({ ...ANTHROPIC_CONFIG, provider: "azure-openai" }),
-    ).toThrow(/Unsupported LLM provider: azure-openai/);
+    ).toThrow(/Unsupported PDF provider: azure-openai/);
   });
 });

@@ -54,7 +54,7 @@ export function createOCRProvider(config: LLMFactoryConfig): OCRProvider {
         model: config.model,
       });
     default:
-      throw new Error(`Unsupported LLM provider: ${config.provider}`);
+      throw new Error(`Unsupported OCR provider: ${config.provider}`);
   }
 }
 
@@ -72,6 +72,6 @@ export function createPDFExtractor(config: LLMFactoryConfig): PDFExtractor {
         model: config.model,
       });
     default:
-      throw new Error(`Unsupported LLM provider: ${config.provider}`);
+      throw new Error(`Unsupported PDF provider: ${config.provider}`);
   }
 }
