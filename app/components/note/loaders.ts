@@ -195,7 +195,7 @@ export const loadOwnedNotes = cache(
             thumbnailUrl: null,
             tagNames: hit.tagNames,
             visibility: hit.visibility,
-            directoryId: hit.directoryId,
+            directoryId: hit.directoryId as unknown as string,
             slug: hit.slug,
             updatedAt: hit.updatedAt,
           })),
