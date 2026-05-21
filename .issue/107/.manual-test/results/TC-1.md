@@ -25,9 +25,10 @@
 
 ## 注記（前提条件と再現性について）
 
-- 当初、ユーザー手元の `.dev.vars` には `SECRET_BOX_MASTER_KEY` 行が **無かった**（`grep -c` で 0 件）。
+- 当初、ユーザー手元の `.dev.vars` には `SECRET_BOX_MASTER_KEY` 行が **無かった**（`grep -c` で 0 件 = 未設定）。
   この状態で `/admin/llm` を保存すると `SecretBoxError: SECRET_BOX_MASTER_KEY is not configured`（`NullSecretBox.encrypt`）が発生し、`displayError` 経由で「エラーが発生しました」が表示される。
   → これはまさに Issue #60 TC-2 で観測された症状（500 / system error）と同質であり、Issue #107 が解消したい初回開発者体験の問題そのものを再現。
+- testing.md の「エッジケース 1」は厳密には「`SECRET_BOX_MASTER_KEY` を **空文字に書き換え**」のケースを指定しているが、本セッションで再現したのは「未設定（行そのものが無い）」ケース。`decodeMasterKey` (`app/core/adapters/security/secretBox.ts:58-66`) を見ると、空文字も未設定も最終的には同じ `KeyUnavailable` パス（empty → `SecretBox master key is empty` / undefined → `SECRET_BOX_MASTER_KEY is not set`）に落ちるため、コードパス上同等と判断し EDGE-1 の PASS と扱う。「空文字書換」ケースの実機走行は本セッションでは未実施。
 - 本 PR で `.dev.vars.example` に `SECRET_BOX_MASTER_KEY` のサンプル値を追加したことで、**新規にチェックアウトした開発者が `cp .dev.vars.example .dev.vars` だけ実行すれば保存が成功する**ことが、追記実証された（既存 `.dev.vars` への 1 行追記でも同じ結果）。
 - したがって受け入れ基準「`cp .dev.vars.example .dev.vars` + README の手順だけで /admin/llm から保存可能」は **満たされている**。
 

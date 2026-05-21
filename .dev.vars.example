@@ -47,6 +47,10 @@ GOOGLE_CLIENT_SECRET="your-local-dev-client-secret"
 # The default below is a valid base64 32-byte placeholder so a fresh
 # `cp .dev.vars.example .dev.vars` is immediately usable for local dev.
 # *** LOCAL DEV ONLY — never reuse this value in staging or production. ***
-# Production / staging keys are provisioned via `wrangler secret` (managed
-# by `infra/secrets/{stage}.enc.json`), independently of this file.
+# Production / staging keys MUST be provisioned via `wrangler secret`
+# (managed by `infra/secrets/{stage}.enc.json` + `wrangler secret bulk`),
+# independently of this file. As of this commit, `SECRET_BOX_MASTER_KEY`
+# is NOT yet listed in `infra/src/secrets.ts` (`workerSecretSpecs`) — see
+# #102 for the production rollout (promotion to `workerSecretSpecs`,
+# rotation policy, fail-fast vs fail-soft decision).
 SECRET_BOX_MASTER_KEY="ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE="

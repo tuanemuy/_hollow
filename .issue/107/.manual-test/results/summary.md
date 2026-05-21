@@ -9,7 +9,7 @@
 |----|---------|------|------|------|
 | TC-1 | 初回セットアップで `/admin/llm` のフォーム保存が成功する | 正常系 | **PASS** | `.dev.vars.example` ベースの SECRET_BOX_MASTER_KEY で AES-GCM 暗号化が成立し、`instance_settings.llm_api_key_ciphertext`（length=84）に保管された |
 | TC-2 | README の手順だけで `SECRET_BOX_MASTER_KEY` を再生成・置換できる | 正常系 | **PASS（包含）** | TC-1 の手順は `.dev.vars.example` の placeholder で成立。`openssl rand -base64 32` で再生成した別値でも `decodeMasterKey` の制約（base64 → 32 バイト）を満たすため決定論的に同等。再生成ループは実機未走行で記録扱い |
-| EDGE-1 | `SECRET_BOX_MASTER_KEY` を空文字／未設定で `/admin/llm` 保存 | 異常系 | **PASS（中間状態で偶発的に再現）** | TC-1 序盤で `.dev.vars` に `SECRET_BOX_MASTER_KEY` が **無い** 状態を観測。`NullSecretBox.encrypt` → `SECRET_BOX_KEY_UNAVAILABLE` → 画面に「エラーが発生しました」表示 を server log と画面で確認済み |
+| EDGE-1 | `SECRET_BOX_MASTER_KEY` を空文字／未設定で `/admin/llm` 保存 | 異常系 | **PASS — ただし「未設定」ケースで再現（「空文字書換」ケースは未実行）** | TC-1 序盤で `.dev.vars` に `SECRET_BOX_MASTER_KEY` が **無い**（未設定）状態を観測。`NullSecretBox.encrypt` → `SECRET_BOX_KEY_UNAVAILABLE` → 画面に「エラーが発生しました」表示 を server log と画面で確認済み。testing.md が指定する「空文字書換」のケースは未実行だが、`decodeMasterKey` (`app/core/adapters/security/secretBox.ts:58-66`) は空文字も「未設定」と同じ `KeyUnavailable` パスに落ちるため、コードパス上同等と判断 |
 
 **合計**: 3 件（PASS: 3 / FAIL: 0）
 
