@@ -45,6 +45,7 @@ import {
 } from "./env";
 import type {
   AppConfig,
+  ConsumerContainer,
   RequestContainer,
   SharedDeps,
   WorkerContainer,
@@ -56,6 +57,7 @@ export {
 } from "./containerStore";
 export type {
   AppConfig,
+  ConsumerContainer,
   RequestContainer,
   SharedDeps,
   WorkerContainer,
@@ -246,6 +248,31 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
   maxConcurrentJobs: 3,
   maxJobsPerDay: 50,
 });
+
+/**
+ * Build the queue-consumer container. The consumer dispatches domain
+ * events back into request-shaped usecases (`runIngestionJob` /
+ * `runExportJob`), so it needs the full `RequestContainer` surface
+ * (UoW + all aggregate-touching ports) *plus* the worker-only ports
+ * (`outboxRepository` / `idempotencyStore` / `indexJobRepository`)
+ * used by handler glue.
+ *
+ * `searchIndex` exists on both halves, so we explicitly pick the
+ * worker-only ports rather than spreading `createWorkerContainer(env)`
+ * wholesale — otherwise the spread would shadow the request-side
+ * `searchIndex` (identical implementation, but the shadowing is a
+ * code-smell that obscures the type contract).
+ */
+export function createConsumerContainer(env: ServerEnv): ConsumerContainer {
+  const requestContainer = createRequestContainer(readRequestServerConfig(env));
+  const workerContainer = createWorkerContainer(env);
+  return {
+    ...requestContainer,
+    outboxRepository: workerContainer.outboxRepository,
+    idempotencyStore: workerContainer.idempotencyStore,
+    indexJobRepository: workerContainer.indexJobRepository,
+  } satisfies ConsumerContainer;
+}
 
 /**
  * Build the worker-scoped container. Workers don't render HTML

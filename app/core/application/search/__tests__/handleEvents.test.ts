@@ -65,6 +65,7 @@ function makeContainer(
       pruneProcessed: vi.fn(async () => ({ deleted: 0 })),
     },
     idempotencyStore: {
+      hasProcessed: vi.fn(async () => false),
       markProcessed: vi.fn(async () => ({ alreadyProcessed: false })),
     },
     searchIndex: {

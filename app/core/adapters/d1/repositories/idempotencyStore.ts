@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdempotencyStore } from "@/core/application/ports/idempotencyStore";
 import type { EventId } from "@/core/domain/common/event";
@@ -12,6 +13,17 @@ export class D1IdempotencyStore implements IdempotencyStore {
     private readonly db: Database,
     private readonly clock: Clock,
   ) {}
+
+  async hasProcessed(id: EventId): Promise<boolean> {
+    return mapDbError("Failed to check processed event", async () => {
+      const rows = await this.db
+        .select({ id: processedEvents.id })
+        .from(processedEvents)
+        .where(eq(processedEvents.id, id))
+        .limit(1);
+      return rows.length > 0;
+    });
+  }
 
   async markProcessed(id: EventId): Promise<{ alreadyProcessed: boolean }> {
     return mapDbError("Failed to record processed event", async () => {
