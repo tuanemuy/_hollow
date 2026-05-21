@@ -49,7 +49,7 @@ function LoginPage() {
         rightSlot={
           <Link
             to="/signup"
-            className="text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors hover:text-ink hover:bg-surface"
+            className="text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface"
           >
             アカウント作成
           </Link>

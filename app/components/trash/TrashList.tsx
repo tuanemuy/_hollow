@@ -62,7 +62,7 @@ export async function TrashList({ user, page, limit }: Props) {
           {notes.map((note) => (
             <li
               key={note.id}
-              className="grid grid-cols-[1fr_auto] gap-4 px-3 py-5 border-t border-hairline transition-colors items-start hover:bg-surface"
+              className="grid grid-cols-[1fr_auto] gap-4 px-3 py-5 border-t border-hairline transition-colors motion-reduce:transition-none items-start hover:bg-surface"
             >
               <div className="min-w-0">
                 <div className="text-base font-medium text-ink tracking-[-0.01em] mb-1 overflow-hidden text-ellipsis whitespace-nowrap">

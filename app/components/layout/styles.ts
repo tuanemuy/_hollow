@@ -11,16 +11,16 @@ export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 
 // Renders a left magnifier glyph via mask-image — same SVG the legacy CSS used.
 export const SEARCH_BOX_INPUT =
-  "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover";
+  "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover";
 
 export const SEARCH_BOX_ICON =
   "absolute left-[13px] top-1/2 -translate-y-1/2 w-[14px] h-[14px] bg-ink-tertiary pointer-events-none [mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>\")] [mask-size:contain] [mask-repeat:no-repeat] [-webkit-mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>\")] [-webkit-mask-size:contain] [-webkit-mask-repeat:no-repeat]";
 
 export const PILL_BTN =
-  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors whitespace-nowrap hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed data-[danger]:bg-error-surface data-[danger]:text-error aria-disabled:opacity-55 aria-disabled:cursor-not-allowed disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none whitespace-nowrap hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] motion-reduce:active:scale-100 data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed data-[danger]:bg-error-surface data-[danger]:text-error aria-disabled:opacity-55 aria-disabled:cursor-not-allowed disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 export const ICON_BTN =
-  "w-9 h-9 rounded-full bg-surface inline-flex items-center justify-center text-ink transition-colors hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+  "w-9 h-9 rounded-full bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline";
@@ -39,7 +39,7 @@ export const SIDEBAR_SECTION_TITLE =
   "text-[11px] font-medium text-ink-tertiary uppercase tracking-[0.06em] px-3 mb-1.5";
 
 export const NAV_ITEM =
-  "relative flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors select-none no-underline hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium data-[active]:bg-surface data-[active]:font-medium";
+  "relative flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium data-[active]:bg-surface data-[active]:font-medium";
 
 export const APP_MAIN = "px-6 pt-8 pb-20 max-w-[1100px] mx-auto w-full min-w-0";
 
@@ -58,10 +58,10 @@ export const FIELD = "flex flex-col gap-2 mb-4";
 export const FIELD_LABEL = "text-[13px] font-medium text-ink-secondary";
 
 export const FIELD_INPUT =
-  "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all focus:bg-bg focus:border-accent";
+  "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all motion-reduce:transition-none focus:bg-bg focus:border-accent";
 
 export const FIELD_TEXTAREA =
-  "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all focus:bg-bg focus:border-accent min-h-[320px] font-mono text-mono resize-y";
+  "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all motion-reduce:transition-none focus:bg-bg focus:border-accent min-h-[320px] font-mono text-mono resize-y";
 
 export const FIELD_ROW = "grid gap-4 md:grid-cols-2";
 
@@ -84,4 +84,4 @@ export const DATA_ROW =
 export const ROW_ACTIONS = "inline-flex gap-2";
 
 export const ROW_ACTIONS_SMALL_PILL =
-  "h-[30px] px-3 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 transition-colors whitespace-nowrap hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[danger]:bg-error-surface data-[danger]:text-error";
+  "h-[30px] px-3 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none whitespace-nowrap hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[danger]:bg-error-surface data-[danger]:text-error";

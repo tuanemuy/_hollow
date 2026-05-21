@@ -6,9 +6,9 @@ const HEADER =
 const LOGO = "text-[21px] font-light tracking-tightest text-ink";
 const HEADER_NAV = "flex items-center gap-2";
 const HEADER_LINK =
-  "text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors hover:text-ink hover:bg-surface";
+  "text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";
 const HEADER_CTA =
-  "h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium inline-flex items-center transition-colors hover:bg-accent-hover";
+  "h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium inline-flex items-center transition-colors motion-reduce:transition-none hover:bg-accent-hover";
 
 const CONTAINER =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
@@ -22,9 +22,9 @@ const HERO_SUBTITLE =
 const HERO_ACTIONS =
   "flex flex-col gap-3 items-center justify-center sm:flex-row";
 const HERO_BTN_PRIMARY =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-accent text-white text-md font-medium transition-colors hover:bg-accent-hover active:bg-accent-pressed";
+  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-accent text-white text-md font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover active:bg-accent-pressed";
 const HERO_BTN_SECONDARY =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors hover:bg-surface-hover";
+  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors motion-reduce:transition-none hover:bg-surface-hover";
 
 const HERO_PREVIEW =
   "mt-12 mx-auto max-w-[980px] rounded-xl bg-surface-elevated shadow-md overflow-hidden text-left";
@@ -59,7 +59,7 @@ const SECTION_LEAD =
 const FEATURES =
   "grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-4";
 const FEATURE_CARD =
-  "py-8 px-6 rounded-xl bg-surface transition-colors hover:bg-surface-hover";
+  "py-8 px-6 rounded-xl bg-surface transition-colors motion-reduce:transition-none hover:bg-surface-hover";
 const FEATURE_ICON =
   "w-12 h-12 rounded-lg bg-bg text-accent inline-flex items-center justify-center mb-5";
 const FEATURE_TITLE =
@@ -71,7 +71,7 @@ const TEASER_TITLE = "text-xl font-semibold tracking-tighter text-ink mb-2";
 const TEASER_BODY =
   "text-sm text-ink-secondary leading-relaxed mx-auto mb-5 max-w-[44ch]";
 const TEASER_LINK =
-  "inline-flex items-center gap-2 px-5 py-3 rounded-pill bg-bg text-accent text-sm font-medium transition-colors hover:bg-surface";
+  "inline-flex items-center gap-2 px-5 py-3 rounded-pill bg-bg text-accent text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-surface";
 
 const SITE_FOOTER = "border-t border-hairline pt-12 pb-10 mt-16";
 const FOOTER_GRID =
@@ -82,7 +82,7 @@ const FOOTER_COL_TITLE =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em] mb-3";
 const FOOTER_LIST = "flex flex-col gap-2 list-none m-0 p-0";
 const FOOTER_LIST_LINK =
-  "text-sm text-ink-secondary transition-colors hover:text-ink";
+  "text-sm text-ink-secondary transition-colors motion-reduce:transition-none hover:text-ink";
 const FOOTER_BOTTOM =
   "mt-10 pt-6 border-t border-hairline flex flex-col gap-2 items-start justify-between text-xs text-ink-tertiary sm:flex-row sm:items-center";
 

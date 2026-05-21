@@ -56,7 +56,7 @@ export function CalendarView({ notes }: Props) {
                 <li
                   key={note.id}
                   data-selected={checked || undefined}
-                  className="grid grid-cols-[auto_1fr] gap-2 px-2 py-[6px] rounded-sm transition-colors hover:bg-surface data-[selected]:bg-accent-surface"
+                  className="grid grid-cols-[auto_1fr] gap-2 px-2 py-[6px] rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
                 >
                   <label>
                     <input

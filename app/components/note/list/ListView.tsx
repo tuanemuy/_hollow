@@ -53,7 +53,7 @@ function NoteListRow({
     <li
       key={note.id}
       data-selected={checked || undefined}
-      className="grid grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors hover:bg-surface data-[selected]:bg-accent-surface"
+      className="grid grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
     >
       <div className="self-start pt-1">
         <input

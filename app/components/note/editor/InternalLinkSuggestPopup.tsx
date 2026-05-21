@@ -48,7 +48,7 @@ export function InternalLinkSuggestPopup({
               role="option"
               aria-selected={isActive}
               data-active={isActive || undefined}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-surface data-[active]:bg-surface"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-surface"
               onMouseDown={(e) => {
                 e.preventDefault();
                 onSelect(item);

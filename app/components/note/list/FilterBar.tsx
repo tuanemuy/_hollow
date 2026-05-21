@@ -9,7 +9,7 @@ import { formatReferencingNoteChipLabel } from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
 
 const CHIP =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-surface text-xs text-ink transition-colors data-[active]:bg-accent data-[active]:text-white disabled:opacity-55 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-surface text-xs text-ink transition-colors motion-reduce:transition-none data-[active]:bg-accent data-[active]:text-white disabled:opacity-55 disabled:cursor-not-allowed";
 
 const FILTER_LABEL =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";

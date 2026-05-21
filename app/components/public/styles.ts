@@ -11,17 +11,17 @@ export const PUBLIC_HEADER_SEARCH =
   "max-w-[380px] w-full mx-auto relative max-sm:hidden";
 
 export const PUBLIC_HEADER_SEARCH_INPUT =
-  "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm font-inherit text-ink outline-none transition-colors placeholder:text-ink-tertiary focus:bg-surface-hover";
+  "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm font-inherit text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:bg-surface-hover";
 
 export const PUBLIC_HEADER_RIGHT = "flex items-center gap-2";
 
 export const PUBLIC_TEXT_LINK =
-  "text-sm font-medium text-ink px-2.5 h-9 inline-flex items-center rounded-md transition-colors hover:bg-surface";
+  "text-sm font-medium text-ink px-2.5 h-9 inline-flex items-center rounded-md transition-colors motion-reduce:transition-none hover:bg-surface";
 
 export const PUBLIC_TEXT_LINK_SIGNUP = `${PUBLIC_TEXT_LINK} max-sm:hidden`;
 
 export const PILL_BTN =
-  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover whitespace-nowrap max-sm:min-h-[44px]";
+  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover whitespace-nowrap max-sm:min-h-[44px]";
 
 export const PUBLIC_MAIN =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
@@ -33,7 +33,8 @@ export const PUBLIC_FOOTER_INNER =
 
 export const PUBLIC_FOOTER_LINKS = "flex gap-4.5 flex-wrap";
 
-export const PUBLIC_FOOTER_LINK = "transition-colors hover:text-ink";
+export const PUBLIC_FOOTER_LINK =
+  "transition-colors motion-reduce:transition-none hover:text-ink";
 
 export const SEARCH_ICON =
   "absolute left-[13px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
@@ -41,7 +42,7 @@ export const SEARCH_ICON =
 // ===== Note row / list (P30) =====
 export const NOTE_LIST = "mt-2 pb-16";
 export const NOTE_ROW =
-  "grid grid-cols-[1fr_auto] gap-6 px-3 py-5 border-t border-hairline transition-[background] duration-[120ms] items-center text-inherit hover:bg-surface";
+  "grid grid-cols-[1fr_auto] gap-6 px-3 py-5 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none items-center text-inherit hover:bg-surface";
 export const NOTE_MAIN = "min-w-0";
 export const NOTE_TITLE_ROW = "flex items-center gap-2 mb-1";
 export const NOTE_TITLE =
@@ -71,7 +72,7 @@ export const PROFILE_STATS =
 export const USER_TOOLS = "py-7 pb-3.5 flex flex-col gap-4";
 export const USER_SEARCH = "relative max-w-[560px]";
 export const USER_SEARCH_INPUT =
-  "w-full h-10 border-0 bg-surface rounded-pill pl-10 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink-tertiary focus:bg-surface-hover";
+  "w-full h-10 border-0 bg-surface rounded-pill pl-10 pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:bg-surface-hover";
 export const USER_SEARCH_ICON =
   "absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
@@ -99,9 +100,9 @@ export const SEARCH_HERO_H1 =
   "text-2xl font-normal tracking-tightest text-ink mb-4";
 export const SEARCH_FORM = "relative max-w-[640px]";
 export const SEARCH_FORM_INPUT =
-  "w-full h-12 border border-hairline bg-bg rounded-pill pl-12 pr-14 text-[15px] text-ink outline-none transition-colors focus:border-hairline-strong focus:shadow-focus";
+  "w-full h-12 border border-hairline bg-bg rounded-pill pl-12 pr-14 text-[15px] text-ink outline-none transition-colors motion-reduce:transition-none focus:border-hairline-strong focus:shadow-focus";
 export const SEARCH_FORM_BUTTON =
-  "absolute right-1.5 top-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium transition-colors hover:bg-accent-hover";
+  "absolute right-1.5 top-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover";
 export const SEARCH_FORM_ICON =
   "absolute left-[18px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
@@ -109,7 +110,7 @@ export const SEARCH_SUMMARY =
   "py-4 pb-2 text-sm text-ink-secondary flex gap-3 items-center flex-wrap";
 export const SEARCH_HIT_LIST = "mt-2 pb-16";
 export const SEARCH_HIT_ROW =
-  "block py-5 px-3 border-t border-hairline transition-[background] duration-[120ms] text-inherit hover:bg-surface";
+  "block py-5 px-3 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface";
 export const SEARCH_HIT_AUTHOR =
   "inline-flex items-center gap-1.5 text-xs text-ink-tertiary mb-1.5";
 export const SEARCH_HIT_TITLE =
@@ -135,11 +136,11 @@ export const GATE_SUB =
 export const GATE_FORM = "flex flex-col gap-3";
 export const GATE_LABEL = "text-[13px] text-ink-secondary font-medium";
 export const GATE_INPUT =
-  "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] focus:border-accent focus:shadow-focus data-[error]:border-error";
+  "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus:border-accent focus:shadow-focus data-[error]:border-error";
 export const GATE_ERROR =
   "text-[13px] text-error -mt-1 flex items-center gap-1.5";
 export const GATE_SUBMIT =
-  "w-full h-11 mt-2 rounded-pill bg-accent text-white text-[15px] font-medium transition-colors hover:not-disabled:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full h-11 mt-2 rounded-pill bg-accent text-white text-[15px] font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed";
 export const GATE_FOOT =
   "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
 export const LOCKOUT =
