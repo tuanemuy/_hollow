@@ -276,6 +276,14 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
  *   than being published immediately. This is acceptable for the
  *   reference runtime; adding `RELAY` to `[env.consumer]` is a separate
  *   operational decision.
+ * - The two sub-builders (`createRequestContainer` /
+ *   `createWorkerContainer`) each call `getDatabase(env.DB)` internally,
+ *   yielding two `drizzle()` handles over the **same** D1 binding.
+ *   Drizzle holds no per-handle connection state and D1 has no
+ *   connection pool, so the request- and worker-side ports see the
+ *   same store. Keeping the sub-builders self-contained beats
+ *   threading a shared handle through their signatures for a cost we
+ *   can't measure.
  */
 export function createConsumerContainer(env: ServerEnv): ConsumerContainer {
   const requestContainer = createRequestContainer(readRequestServerConfig(env));
