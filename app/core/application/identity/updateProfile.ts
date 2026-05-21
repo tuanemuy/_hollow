@@ -1,5 +1,6 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import { User } from "@/core/domain/identity/entity";
+import { IdentityErrorCode } from "@/core/domain/identity/errorCode";
 import {
   MediaAssetId as IdentityMediaAssetId,
   UserId,
@@ -75,19 +76,19 @@ export async function updateProfile({
           const asset = await mediaAssetRepository.findById(nextAvatarIdMedia);
           if (asset === null) {
             throw new BusinessRuleError(
-              "media_not_owned",
+              IdentityErrorCode.MediaNotOwned,
               "Avatar media asset not found",
             );
           }
           if (asset.ownerId !== actor) {
             throw new BusinessRuleError(
-              "media_not_owned",
+              IdentityErrorCode.MediaNotOwned,
               "Avatar media asset is not owned by actor",
             );
           }
           if (!MediaAsset.isPending(asset) && !MediaAsset.isAttached(asset)) {
             throw new BusinessRuleError(
-              "media_not_owned",
+              IdentityErrorCode.MediaNotOwned,
               "Avatar media asset is no longer usable",
             );
           }

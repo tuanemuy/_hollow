@@ -1,4 +1,5 @@
 import { BusinessRuleError } from "@/core/domain/error";
+import { IdentityErrorCode } from "@/core/domain/identity/errorCode";
 import type { ChallengeError } from "@/core/domain/identity/ports/verificationChallenge";
 
 /**
@@ -11,24 +12,30 @@ import type { ChallengeError } from "@/core/domain/identity/ports/verificationCh
 export function challengeErrorToBusinessRule(
   err: ChallengeError,
 ): BusinessRuleError<
-  | "token_not_found"
-  | "token_expired"
-  | "token_consumed"
-  | "token_purpose_mismatch"
+  | typeof IdentityErrorCode.TokenNotFound
+  | typeof IdentityErrorCode.TokenExpired
+  | typeof IdentityErrorCode.TokenConsumed
+  | typeof IdentityErrorCode.TokenPurposeMismatch
 > {
   switch (err) {
     case "not_found":
-      return new BusinessRuleError("token_not_found", "Token not found");
+      return new BusinessRuleError(
+        IdentityErrorCode.TokenNotFound,
+        "Token not found",
+      );
     case "expired":
-      return new BusinessRuleError("token_expired", "Token has expired");
+      return new BusinessRuleError(
+        IdentityErrorCode.TokenExpired,
+        "Token has expired",
+      );
     case "consumed":
       return new BusinessRuleError(
-        "token_consumed",
+        IdentityErrorCode.TokenConsumed,
         "Token has already been consumed",
       );
     case "purpose_mismatch":
       return new BusinessRuleError(
-        "token_purpose_mismatch",
+        IdentityErrorCode.TokenPurposeMismatch,
         "Token was issued for a different purpose",
       );
   }

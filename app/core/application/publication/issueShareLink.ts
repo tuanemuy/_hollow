@@ -1,5 +1,6 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ShareLink } from "@/core/domain/publication/entity";
 import { PublicationService } from "@/core/domain/publication/service";
@@ -63,7 +64,7 @@ export async function issueShareLink({
       );
       if (note.status !== "active") {
         throw new BusinessRuleError(
-          "note_trashed",
+          NoteErrorCode.Trashed,
           `Note ${input.noteId} is trashed; cannot issue share link`,
         );
       }

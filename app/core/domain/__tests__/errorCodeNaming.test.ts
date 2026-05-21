@@ -50,6 +50,7 @@ const errorCodeMaps = Object.entries(errorCodeModules)
 // new domain is added — that is exactly the point.
 const EXPECTED_ERROR_CODE_NAMES = new Set([
   "AdminSettingsErrorCode",
+  "CommonErrorCode",
   "DirectoryErrorCode",
   "ExportErrorCode",
   "IdentityErrorCode",
