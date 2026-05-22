@@ -217,6 +217,64 @@ describe("createRequestContainer", () => {
     expect(withoutKey.adminSettingsEnv.apiKey).toBeNull();
   });
 
+  it("threads all four ADMIN_LLM_* env vars into adminSettingsEnv", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-test",
+        adminLlmProvider: "openai",
+        adminLlmModel: "gpt-4o",
+        adminLlmBaseUrl: "https://api.groq.com/openai/v1",
+      }),
+    );
+    expect(container.adminSettingsEnv).toEqual({
+      apiKey: "sk-test",
+      provider: "openai",
+      model: "gpt-4o",
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+  });
+
+  it("partial env config leaves the missing fields null on adminSettingsEnv", () => {
+    const container = createRequestContainer(
+      configWith({ adminLlmProvider: "anthropic" }),
+    );
+    expect(container.adminSettingsEnv).toEqual({
+      apiKey: null,
+      provider: "anthropic",
+      model: null,
+      baseURL: null,
+    });
+  });
+
+  it("empty-string env values are normalised to null on adminSettingsEnv (length > 0 rule)", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "",
+        adminLlmProvider: "",
+        adminLlmModel: "",
+        adminLlmBaseUrl: "",
+      }),
+    );
+    expect(container.adminSettingsEnv).toEqual({
+      apiKey: null,
+      provider: null,
+      model: null,
+      baseURL: null,
+    });
+  });
+
+  it("readRequestServerConfig threads ADMIN_LLM_BASE_URL into adminLlmBaseUrl", () => {
+    const config = readRequestServerConfig(
+      envWith({ ADMIN_LLM_BASE_URL: "https://api.groq.com/openai/v1" }),
+    );
+    expect(config.adminLlmBaseUrl).toBe("https://api.groq.com/openai/v1");
+  });
+
+  it("readRequestServerConfig omits adminLlmBaseUrl when ADMIN_LLM_BASE_URL is unset", () => {
+    const config = readRequestServerConfig(envWith());
+    expect(Object.hasOwn(config, "adminLlmBaseUrl")).toBe(false);
+  });
+
   it("surfaces explicit unavailable errors from production Stubs", async () => {
     const container = createRequestContainer(configWith());
     await expect(

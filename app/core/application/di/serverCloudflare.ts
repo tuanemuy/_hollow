@@ -125,6 +125,12 @@ export type RequestServerConfig = AppConfig &
     // `"anthropic"` (current sole supported provider). Public
     // information delivered via `wrangler.toml [vars]`.
     adminLlmProvider?: string;
+    // Optional `ADMIN_LLM_BASE_URL` var. Threaded into `adminSettingsEnv`
+    // so the admin UI surfaces env-locked state and the `updateLLMConfig`
+    // usecase silent-skips writes to this field. The consumer worker
+    // reads `ADMIN_LLM_BASE_URL` directly from `env` (no threading) —
+    // see `resolveConsumerLlmConfig`.
+    adminLlmBaseUrl?: string;
     // R2 binding for ingestion-temp storage. When present DI wires
     // `R2TempFileStorage`; absent → `StubTempFileStorage`. Data-plane
     // only, no credentials needed.
@@ -256,6 +262,9 @@ export function readRequestServerConfig(
     ...(env.ADMIN_LLM_MODEL ? { adminLlmModel: env.ADMIN_LLM_MODEL } : {}),
     ...(env.ADMIN_LLM_PROVIDER
       ? { adminLlmProvider: env.ADMIN_LLM_PROVIDER }
+      : {}),
+    ...(env.ADMIN_LLM_BASE_URL
+      ? { adminLlmBaseUrl: env.ADMIN_LLM_BASE_URL }
       : {}),
     ...(env.TEMP_FILES ? { tempFilesBucket: env.TEMP_FILES } : {}),
     ...(r2PresignReady
@@ -408,6 +417,7 @@ export function createRequestContainer(
     adminLlmApiKey,
     adminLlmModel,
     adminLlmProvider,
+    adminLlmBaseUrl,
     tempFilesBucket,
     objectStorageBucket,
     r2PresignConfig,
@@ -472,7 +482,24 @@ export function createRequestContainer(
       : new NullSecretBox(),
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
-    adminSettingsEnv: { apiKey: adminLlmApiKey ?? null },
+    adminSettingsEnv: {
+      apiKey:
+        adminLlmApiKey !== undefined && adminLlmApiKey.length > 0
+          ? adminLlmApiKey
+          : null,
+      provider:
+        adminLlmProvider !== undefined && adminLlmProvider.length > 0
+          ? adminLlmProvider
+          : null,
+      model:
+        adminLlmModel !== undefined && adminLlmModel.length > 0
+          ? adminLlmModel
+          : null,
+      baseURL:
+        adminLlmBaseUrl !== undefined && adminLlmBaseUrl.length > 0
+          ? adminLlmBaseUrl
+          : null,
+    },
   } satisfies RequestContainer;
 }
 

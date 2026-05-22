@@ -213,7 +213,12 @@ describe("updateLLMConfig", () => {
     const baseContainer = createTestContainer();
     const container = {
       ...baseContainer,
-      adminSettingsEnv: { apiKey: "sk-from-env" },
+      adminSettingsEnv: {
+        apiKey: "sk-from-env",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
     };
 
     await updateLLMConfig({
@@ -366,6 +371,115 @@ describe("updateLLMConfig", () => {
     expect(rows[0]?.llmApiKeyCiphertext).not.toBe("sk-openai");
   });
 
+  it("silent-skips provider/model/baseURL writes when those fields are env-overridden", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    // Seed the persisted aggregate with provider=openai + a DB-source key
+    // and a custom base URL — these are the values the silent-skip path
+    // must preserve.
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: "sk-openai-original",
+      },
+    });
+    const before = await baseContainer.db
+      .select()
+      .from(schema.instanceSettings);
+    const beforeCiphertext = before[0]?.llmApiKeyCiphertext;
+    expect(before[0]?.llmProvider).toBe("openai");
+    expect(before[0]?.llmModel).toBe("gpt-4o");
+    expect(before[0]?.llmBaseUrl).toBe("https://api.openai.com/v1");
+
+    // Now flip on env overrides for all three "silent-skip" fields and
+    // attempt to overwrite each with a different value. The DB must stay
+    // pinned to the original values.
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: {
+        apiKey: null,
+        provider: "anthropic",
+        model: "claude-sonnet-4-5",
+        baseURL: "https://example.invalid/v1",
+      },
+    };
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "gemini",
+        model: "gemini-1.5-pro",
+        baseURL: null,
+        apiKeyPlain: null,
+      },
+    });
+
+    const after = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(after[0]?.llmProvider).toBe("openai");
+    expect(after[0]?.llmModel).toBe("gpt-4o");
+    expect(after[0]?.llmBaseUrl).toBe("https://api.openai.com/v1");
+    // The unchanged ciphertext anchors the broader "no-op on env-pinned
+    // fields" claim — the encrypt → drop path inside the usecase does not
+    // perturb the persisted column.
+    expect(after[0]?.llmApiKeyCiphertext).toBe(beforeCiphertext);
+  });
+
+  it("env-pinned provider suppresses ProviderChangedRequiresApiKey on input that would otherwise change provider", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+
+    // With provider env-pinned, an input attempting to switch to a
+    // different provider without apiKeyPlain must succeed (the input
+    // provider field is silent-skipped, so the "provider changed" guard
+    // never fires).
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: {
+        apiKey: null,
+        provider: "anthropic",
+        model: null,
+        baseURL: null,
+      },
+    };
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: null,
+      },
+    });
+
+    const rows = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.llmProvider).toBe("anthropic");
+  });
+
   it("preserves the existing ciphertext when provider is unchanged and apiKeyPlain is null", async () => {
     await seedUser({
       id: ADMIN_ID,
@@ -419,7 +533,12 @@ describe("testLLMConnection", () => {
     const baseContainer = createTestContainer();
     const container = {
       ...baseContainer,
-      adminSettingsEnv: { apiKey: "sk-env" },
+      adminSettingsEnv: {
+        apiKey: "sk-env",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
       llmConnectionTester: new StubLLMConnectionTester({
         ok: true,
         latencyMs: 42,
@@ -445,7 +564,12 @@ describe("testLLMConnection", () => {
     const baseContainer = createTestContainer();
     const container = {
       ...baseContainer,
-      adminSettingsEnv: { apiKey: "sk-env" },
+      adminSettingsEnv: {
+        apiKey: "sk-env",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
       llmConnectionTester: new StubLLMConnectionTester({
         ok: false,
         latencyMs: 12,
@@ -472,7 +596,12 @@ describe("testLLMConnection", () => {
     const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 7 });
     const container = {
       ...baseContainer,
-      adminSettingsEnv: { apiKey: "sk-env" },
+      adminSettingsEnv: {
+        apiKey: "sk-env",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
       llmConnectionTester: stub,
     };
 
@@ -512,7 +641,12 @@ describe("testLLMConnection", () => {
     const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 0 });
     const container = {
       ...baseContainer,
-      adminSettingsEnv: { apiKey: "sk-env" },
+      adminSettingsEnv: {
+        apiKey: "sk-env",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
       llmConnectionTester: stub,
     };
 
