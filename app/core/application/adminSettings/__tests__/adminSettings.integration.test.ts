@@ -7,6 +7,7 @@ import type {
   UsageMetricsSnapshot,
 } from "@/core/application/ports/usageMetricsProvider";
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsErrorCode } from "@/core/domain/adminSettings/errorCode";
 import type {
   LLMConnectionPingResult,
   LLMConnectionTester,
@@ -189,7 +190,9 @@ describe("updateLLMConfig", () => {
       container,
       input: {
         actorUserId: ADMIN_ID,
+        provider: "anthropic",
         model: "claude-3-5-sonnet-latest",
+        baseURL: null,
         apiKeyPlain: "sk-secret",
       },
     });
@@ -218,7 +221,9 @@ describe("updateLLMConfig", () => {
       container,
       input: {
         actorUserId: ADMIN_ID,
+        provider: "anthropic",
         model: "claude-3-5-sonnet-latest",
+        baseURL: null,
         apiKeyPlain: "sk-ignored",
       },
     });
@@ -242,7 +247,9 @@ describe("updateLLMConfig", () => {
         container,
         input: {
           actorUserId: ADMIN_ID,
+          provider: "anthropic",
           model: "   ",
+          baseURL: null,
           apiKeyPlain: "sk-secret",
         },
       });
@@ -267,7 +274,9 @@ describe("updateLLMConfig", () => {
         container,
         input: {
           actorUserId: MEMBER_ID,
+          provider: "anthropic",
           model: "claude-3-5-sonnet-latest",
+          baseURL: null,
           apiKeyPlain: "sk-secret",
         },
       });
@@ -276,6 +285,125 @@ describe("updateLLMConfig", () => {
       caught = error;
     }
     expect(isForbiddenError(caught)).toBe(true);
+  });
+
+  it("changing provider requires apiKeyPlain (ADR-008)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    // Seed the persisted aggregate with provider=anthropic + a DB-source key.
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+
+    let caught: unknown;
+    try {
+      await updateLLMConfig({
+        container,
+        input: {
+          actorUserId: ADMIN_ID,
+          provider: "openai",
+          model: "gpt-4o",
+          baseURL: null,
+          apiKeyPlain: null,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isBusinessRuleError(caught)).toBe(true);
+    expect((caught as { code?: string }).code).toBe(
+      AdminSettingsErrorCode.ProviderChangedRequiresApiKey,
+    );
+  });
+
+  it("changing provider with a fresh apiKeyPlain succeeds and re-encrypts (ADR-008)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: "sk-openai",
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.llmProvider).toBe("openai");
+    expect(rows[0]?.llmBaseUrl).toBe("https://api.openai.com/v1");
+    expect(rows[0]?.llmApiKeySource).toBe("db");
+    expect(rows[0]?.llmApiKeyCiphertext).not.toBeNull();
+    expect(rows[0]?.llmApiKeyCiphertext).not.toBe("sk-openai");
+  });
+
+  it("preserves the existing ciphertext when provider is unchanged and apiKeyPlain is null", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+    const initial = await container.db.select().from(schema.instanceSettings);
+    const initialCiphertext = initial[0]?.llmApiKeyCiphertext;
+    expect(initialCiphertext).not.toBeNull();
+
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-7-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: null,
+      },
+    });
+
+    const after = await container.db.select().from(schema.instanceSettings);
+    expect(after[0]?.llmModel).toBe("claude-3-7-sonnet-latest");
+    expect(after[0]?.llmApiKeySource).toBe("db");
+    expect(after[0]?.llmApiKeyCiphertext).toBe(initialCiphertext);
   });
 });
 
