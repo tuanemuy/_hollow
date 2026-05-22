@@ -65,7 +65,7 @@ export async function uploadFile({
       );
       if (sumSoFar + input.byteSize > settings.limits.maxUploadBytesPerDay) {
         throw new BusinessRuleError(
-          "daily_upload_quota_exceeded",
+          IngestionErrorCode.DailyUploadQuotaExceeded,
           `Daily upload quota exceeded (used=${sumSoFar} new=${input.byteSize} cap=${settings.limits.maxUploadBytesPerDay})`,
         );
       }

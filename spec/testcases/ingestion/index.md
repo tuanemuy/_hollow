@@ -4,9 +4,9 @@
 
 | 前提条件 | 操作 | 期待結果 |
 |---|---|---|
-| 対応形式、サイズ内 | Upload(html) | Job 作成、temp 保存、Queue enqueue |
+| 対応形式、サイズ内 | Upload(html) | Job 作成、temp 保存、outbox に ingestion job 作成イベント発火（Queue 直接 enqueue ではなく outbox 経由） |
 | 対応外形式 | Upload(zip) | `BusinessRuleError('unsupported_format')` |
-| サイズ超過 | Upload(50MB+1) | `BusinessRuleError('size_exceeded')` |
+| サイズ超過 | Upload(50MB+1) | `BusinessRuleError('ingestion_byte_size_exceeds_limit')` |
 | 当日上限到達 | Upload | `BusinessRuleError('daily_upload_quota_exceeded')` |
 | MIME 偽装（実際は対応外） | Upload | RunIngestionJob でエラー、`job.markFailed` |
 
@@ -55,7 +55,7 @@
 | 前提条件 | 操作 | 期待結果 |
 |---|---|---|
 | 自分のジョブ | Get | DTO |
-| 他人のジョブ | Get | `AuthorizationError` |
+| 他人のジョブ | Get | `ForbiddenError('INGESTION_JOB_FORBIDDEN')` |
 
 ## BulkUpload
 
