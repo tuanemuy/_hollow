@@ -33,6 +33,8 @@ pnpm deploy:staging:dry
 
 # 4. Pulumi state から既存 WorkersRoute を削除（pulumi up 前に必須）
 cd infra
+# URN は事前に確認（state の構造が将来変わっても破綻しないように）
+pulumi state list --stack staging 2>&1 | grep workersRoute
 pulumi state delete --stack staging \
   'urn:pulumi:staging::hollow::cloudflare:index/workersRoute:WorkersRoute::route-staging'
 cd ..

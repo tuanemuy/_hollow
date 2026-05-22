@@ -93,7 +93,7 @@ wrangler r2 bucket create tanstack-start-template-temp-files-production
 wrangler r2 bucket create tanstack-start-template-objects-production
 ```
 
-When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, both R2 buckets, **and a placeholder AAAA record (`100::`, proxied) at the route hostname** in one step — these `wrangler create` commands are the manual fallback. The placeholder AAAA is required for Cloudflare's proxied edge to engage the Worker route declared in `wrangler.<stage>.toml`; do **not** delete it manually. The Worker Route itself is **not** a Pulumi resource — wrangler creates and updates it during `wrangler deploy` from the per-stage `routes = [...]` block.
+When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, both R2 buckets, **and a placeholder AAAA record (`100::`, proxied) at the route hostname** in one step — these `wrangler create` commands are the manual fallback. The placeholder AAAA is required for Cloudflare's proxied edge to engage the Worker route declared in `wrangler.<stage>.toml`; do **not** delete it manually. If the AAAA placeholder is accidentally deleted, run `pnpm infra:up:<stage>` to recreate it. The Worker Route itself is **not** a Pulumi resource — wrangler creates and updates it during `wrangler deploy` from the per-stage `routes = [...]` block.
 
 Paste the `database_id` printed by each `wrangler d1 create` into every `[[d1_databases]]` block of the matching `wrangler.<stage>.toml`. Replace the `[vars] APP_URL` placeholders in each stage file before the first deploy — leaving `https://example.com` breaks `buildHead()`'s canonical / OG image URLs.
 
