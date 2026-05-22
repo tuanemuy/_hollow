@@ -1,3 +1,5 @@
+import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
+
 /**
  * Shared HTTP client for Google Gemini `generateContent` API.
  *
@@ -232,7 +234,7 @@ async function throwForStatus(
   } catch {
     // Body might be plain text or empty; fall back to status text below.
   }
-  const detailSuffix = detail.length > 0 ? `: ${detail}` : "";
+  const detailSuffix = detail.length > 0 ? `: ${maskSecrets(detail)}` : "";
   if (status === 429) {
     throw mapper.rateLimit(`Gemini rate limit (HTTP 429)${detailSuffix}`);
   }

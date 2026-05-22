@@ -1,3 +1,5 @@
+import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
+
 /**
  * Shared HTTP client for OpenAI-compatible Chat Completions endpoints.
  *
@@ -263,7 +265,7 @@ async function throwForStatus(
   } catch {
     // Body might be plain text or empty; fall back to status text below.
   }
-  const detailSuffix = detail.length > 0 ? `: ${detail}` : "";
+  const detailSuffix = detail.length > 0 ? `: ${maskSecrets(detail)}` : "";
   if (status === 429) {
     // OpenAI returns 429 for both rate-limit and quota-exhaustion
     // (`insufficient_quota`) cases. Surface the quota-exhausted variant

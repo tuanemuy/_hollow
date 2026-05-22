@@ -1,4 +1,9 @@
 import {
+  maskSecrets,
+  sanitizeErrorReason,
+  toReasonString,
+} from "@/core/application/llm/sanitizeErrorReason";
+import {
   buildChatCompletionsURL,
   type OpenAISharedConfig,
 } from "./messagesClient";
@@ -66,7 +71,8 @@ export async function pingOpenAI(
       const message = body.error?.message;
       const type = body.error?.type;
       if (typeof message === "string" && message.length > 0) {
-        detail = type ? `${type}: ${message}` : message;
+        const masked = maskSecrets(message);
+        detail = type ? `${type}: ${masked}` : masked;
       }
     } catch {
       // Body might be plain text or empty; fall through to HTTP-status-only detail.
@@ -79,10 +85,7 @@ export async function pingOpenAI(
         reason: `Request timed out after ${timeoutMs}ms`,
       };
     }
-    return {
-      ok: false,
-      reason: error instanceof Error ? error.message : String(error),
-    };
+    return { ok: false, reason: toReasonString(sanitizeErrorReason(error)) };
   } finally {
     clearTimeout(timer);
   }

@@ -128,7 +128,7 @@ describe("pingGemini", () => {
     });
   });
 
-  it("never throws on network TypeError; returns the error message as the reason", async () => {
+  it("never throws on network TypeError; returns a sanitized network category", async () => {
     setFetch(
       vi.fn(async () => {
         throw new TypeError("fetch failed");
@@ -138,6 +138,46 @@ describe("pingGemini", () => {
       apiKey: "k",
       model: "gemini-1.5-flash",
     });
-    expect(result).toEqual({ ok: false, reason: "fetch failed" });
+    expect(result).toEqual({ ok: false, reason: "network: fetch failed" });
+  });
+
+  it("masks AIza keys leaked into a TypeError message", async () => {
+    setFetch(
+      vi.fn(async () => {
+        throw new TypeError(
+          "fetch failed at https://generativelanguage.googleapis.com/v1beta?key=AIzaSyFAKESECRET123",
+        );
+      }),
+    );
+    const result = await pingGemini({
+      apiKey: "k",
+      model: "gemini-1.5-flash",
+    });
+    expect(result.ok).toBe(false);
+    const reason = (result as { reason: string }).reason;
+    expect(reason).toContain("network:");
+    expect(reason).not.toContain("AIzaSyFAKESECRET123");
+  });
+
+  it("masks secrets in the 4xx error body message", async () => {
+    setFetch(
+      vi.fn(async () =>
+        jsonResponse(403, {
+          error: {
+            status: "PERMISSION_DENIED",
+            message: "key AIzaSyLEAKEDKEY1234 not allowed",
+          },
+        }),
+      ),
+    );
+    const result = await pingGemini({
+      apiKey: "k",
+      model: "gemini-1.5-flash",
+    });
+    expect(result.ok).toBe(false);
+    const reason = (result as { reason: string }).reason;
+    expect(reason).toContain("PERMISSION_DENIED:");
+    expect(reason).not.toContain("AIzaSyLEAKEDKEY1234");
+    expect(reason).toContain("***");
   });
 });

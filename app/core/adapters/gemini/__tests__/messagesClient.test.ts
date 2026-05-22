@@ -298,6 +298,33 @@ describe("callGeminiGenerate", () => {
     );
   });
 
+  it("masks secrets in the provider 4xx error body before embedding it into the thrown message", async () => {
+    setFetch(
+      vi.fn(async () =>
+        jsonResponse(403, {
+          error: {
+            status: "PERMISSION_DENIED",
+            message: "key AIzaSyLEAKEDKEY1234 not allowed",
+          },
+        }),
+      ),
+    );
+    try {
+      await callGeminiGenerate(
+        { apiKey: "k", model: "gemini-1.5-flash" },
+        "sys",
+        [{ text: "u" }],
+        mapper,
+      );
+      throw new Error("expected to throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(QuotaTestError);
+      const message = (e as Error).message;
+      expect(message).not.toContain("AIzaSyLEAKEDKEY1234");
+      expect(message).toContain("***");
+    }
+  });
+
   it("maps non-JSON HTTP 200 bodies to the unavailable mapper branch with cause", async () => {
     setFetch(
       vi.fn(
