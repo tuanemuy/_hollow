@@ -5,8 +5,8 @@
 | 前提条件 | 操作 | 期待結果 |
 |---|---|---|
 | 正常画像 | UploadMedia | MediaAsset(pending) + R2 put、DL URL 返却 |
-| サイズ超過 | UploadMedia | `ValidationError` |
-| storage 失敗 | UploadMedia | `StorageUnavailableError`、DB に Asset を残さない |
+| サイズ超過 | UploadMedia | `BusinessRuleError('media_byte_size_exceeded')` |
+| storage 失敗 | UploadMedia | `SystemError(ExternalApiError)`、DB に Asset を残さない |
 
 ## UploadMediaPresigned / FinalizeUpload
 
@@ -45,7 +45,7 @@
 |---|---|---|
 | 24h 以上前の orphan | Purge | status=deleting → R2 削除 → DB 削除 |
 | 24h 未満 | Purge | スキップ |
-| R2 削除失敗 | Purge | リトライ対象として記録 |
+| R2 削除失敗 | Purge | `status=deleting` で停止、failed カウントに計上（現状は次の sweep で再試行されない。リトライ強化は別 Issue で追跡） |
 
 ## HandleNotePurgedEvent
 

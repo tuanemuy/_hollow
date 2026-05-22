@@ -56,7 +56,7 @@ spec 表の全ケースを 1:1 で実装する。`it` の名前は spec 表の�
 ## ADR-004: spec ⇔ 実装の乖離記録
 
 ### Status
-Proposed
+Resolved by #43 — #2〜#7, #9, #12〜#17 は spec 文言を実装に合わせて修正。#14 は `IngestionErrorCode.DailyUploadQuotaExceeded` を追加して enum 化。#1（DownloadMedia unlisted）/ #10（RestoreNote slug 衝突）/ #11（DuplicateNote trashed 拒否）/ #18（ListNotesByOwner keyword）/ #15 のリトライ強化は本 Issue 範囲外で別 Issue として継続追跡。#8（RunIngestionJob errorCode）は乖離なしで対応不要。
 
 ### Context
 spec/testcases/{media,ingestion}/index.md の一部期待結果が現状実装と一致しない箇所が計画レビューで判明した。テストを実装に合わせて書けば green になるが、spec 表現と実装挙動の差分を放置すると次回 spec-sync で同じ乖離が再検出される。

@@ -24,6 +24,7 @@ export const IngestionErrorCode = {
   RegenerationLimitExceeded: "regeneration_limit_exceeded",
   ByteSizeExceedsLimit: "ingestion_byte_size_exceeds_limit",
   UnsupportedFormat: "unsupported_format",
+  DailyUploadQuotaExceeded: "daily_upload_quota_exceeded",
 
   MissingSavedNoteId: "ingestion_missing_saved_note_id",
 } as const;
