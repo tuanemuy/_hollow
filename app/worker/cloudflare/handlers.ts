@@ -110,7 +110,7 @@ export async function handleQueue(
   env: ConsumerEnv,
   ctx: ExecutionContext,
 ): Promise<void> {
-  const container = createConsumerContainer(env, ctx);
+  const container = await createConsumerContainer(env, ctx);
   for (const message of batch.messages) {
     const eventId = message.body.id;
     const eventType = message.body.type;

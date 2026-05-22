@@ -1,0 +1,188 @@
+import {
+  type LLMMetadataInput,
+  type LLMMetadataResult,
+  type LLMProvider,
+  LLMQuotaExceededError,
+  LLMRateLimitError,
+  type LLMStructureInput,
+  type LLMStructureResult,
+  LLMTimeoutError,
+  LLMUnavailableError,
+} from "@/core/domain/ingestion/ports/llmProvider";
+import {
+  callOpenAIMessages,
+  type OpenAIErrorMapper,
+  type OpenAISharedConfig,
+} from "./messagesClient";
+
+/**
+ * Label type for LLM-mode OpenAI adapter config. Structurally identical
+ * to {@link OpenAISharedConfig}.
+ */
+export type OpenAILLMConfig = OpenAISharedConfig;
+
+const llmErrorMapper: OpenAIErrorMapper = {
+  rateLimit: (message, cause) => new LLMRateLimitError(message, cause),
+  unavailable: (message, cause) => new LLMUnavailableError(message, cause),
+  timeout: (message, cause) => new LLMTimeoutError(message, cause),
+  quota: (message, cause) => new LLMQuotaExceededError(message, cause),
+} as const;
+
+/**
+ * OpenAI-compatible Chat Completions adapter for {@link LLMProvider}.
+ *
+ * Delegates the HTTP / timeout / status-mapping mechanics to
+ * {@link callOpenAIMessages}, supplying an {@link OpenAIErrorMapper}
+ * that translates each provider failure into the LLM-port error class:
+ * - HTTP 429 → `LLMRateLimitError` (or `LLMQuotaExceededError` for
+ *   `insufficient_quota`)
+ * - HTTP 5xx → `LLMUnavailableError`
+ * - HTTP 401 / 403 → `LLMQuotaExceededError`
+ * - `AbortError` (deadline lapsed) → `LLMTimeoutError`
+ * - Network `TypeError` / other unexpected throws → `LLMUnavailableError`
+ *
+ * Response shape contract mirrors the Anthropic adapter: the model is
+ * asked for a single-line JSON envelope. Empty assistant content is
+ * rejected here because the JSON envelope contract cannot accept it.
+ */
+export class OpenAILLMProvider implements LLMProvider {
+  private readonly config: OpenAISharedConfig;
+
+  constructor(config: OpenAILLMConfig) {
+    if (config.apiKey.length === 0) {
+      throw new Error("OpenAILLMProvider: apiKey is empty");
+    }
+    if (config.model.length === 0) {
+      throw new Error("OpenAILLMProvider: model is empty");
+    }
+    this.config = config;
+  }
+
+  async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
+    const system = this.buildStructureSystemPrompt(input);
+    const userMessage = this.buildStructureUserMessage(input);
+    const text = await this.invoke(system, userMessage);
+    const envelope = this.parseJsonEnvelope(text);
+    const html = this.requireString(envelope, "html");
+    const titleSuggestion = this.requireString(envelope, "titleSuggestion");
+    const directorySuggestionRaw = envelope.directorySuggestion;
+    const directorySuggestion =
+      typeof directorySuggestionRaw === "string" &&
+      directorySuggestionRaw.trim().length > 0
+        ? directorySuggestionRaw
+        : null;
+    return {
+      html,
+      titleSuggestion,
+      directorySuggestion,
+    };
+  }
+
+  async suggestMetadata(input: LLMMetadataInput): Promise<LLMMetadataResult> {
+    const system = this.buildMetadataSystemPrompt(input);
+    const userMessage = this.buildMetadataUserMessage(input);
+    const text = await this.invoke(system, userMessage);
+    const envelope = this.parseJsonEnvelope(text);
+    const tags = this.requireStringArray(envelope, "tags");
+    const aliases = this.requireStringArray(envelope, "aliases");
+    return { tags, aliases };
+  }
+
+  private buildStructureSystemPrompt(input: LLMStructureInput): string {
+    const base =
+      input.prompt.trim().length > 0
+        ? input.prompt
+        : "You convert raw note material into a sanitised HTML draft.";
+    return [
+      base,
+      `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,
+      `Locale for natural-language output: ${input.locale}.`,
+      "Do not include code fences. Do not include any text before or after the JSON object.",
+    ].join("\n");
+  }
+
+  private buildStructureUserMessage(input: LLMStructureInput): string {
+    return `Source text:\n${input.rawText}`;
+  }
+
+  private buildMetadataSystemPrompt(input: LLMMetadataInput): string {
+    const base =
+      input.prompt.trim().length > 0
+        ? input.prompt
+        : "You extract tag names and aliases from an HTML note body.";
+    return [
+      base,
+      `Respond with a single JSON object on one line with the keys "tags" (string[]) and "aliases" (string[]).`,
+      "Do not include code fences. Do not include any text before or after the JSON object.",
+    ].join("\n");
+  }
+
+  private buildMetadataUserMessage(input: LLMMetadataInput): string {
+    return `HTML body:\n${input.html}`;
+  }
+
+  private async invoke(system: string, user: string): Promise<string> {
+    const text = await callOpenAIMessages(
+      this.config,
+      system,
+      [{ type: "text", text: user }],
+      llmErrorMapper,
+    );
+    if (text.length === 0) {
+      throw new LLMUnavailableError(
+        "OpenAI response did not contain any text content",
+      );
+    }
+    return text;
+  }
+
+  private parseJsonEnvelope(text: string): Record<string, unknown> {
+    const trimmed = text.trim();
+    const fenced = trimmed
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    try {
+      const parsed = JSON.parse(fenced) as unknown;
+      if (
+        parsed === null ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error("envelope is not a JSON object");
+      }
+      return parsed as Record<string, unknown>;
+    } catch (cause) {
+      throw new LLMUnavailableError(
+        "OpenAI response was not a JSON envelope",
+        cause,
+      );
+    }
+  }
+
+  private requireString(
+    envelope: Record<string, unknown>,
+    key: string,
+  ): string {
+    const value = envelope[key];
+    if (typeof value !== "string") {
+      throw new LLMUnavailableError(
+        `OpenAI response missing required string field "${key}"`,
+      );
+    }
+    return value;
+  }
+
+  private requireStringArray(
+    envelope: Record<string, unknown>,
+    key: string,
+  ): readonly string[] {
+    const value = envelope[key];
+    if (!Array.isArray(value)) {
+      throw new LLMUnavailableError(
+        `OpenAI response field "${key}" must be an array`,
+      );
+    }
+    return value.filter((v): v is string => typeof v === "string");
+  }
+}

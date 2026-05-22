@@ -711,6 +711,7 @@ export const instanceSettings = sqliteTable(
     id: text("id").primaryKey(),
     llmProvider: text("llm_provider").notNull().default("anthropic"),
     llmModel: text("llm_model").notNull(),
+    llmBaseUrl: text("llm_base_url"),
     llmApiKeySource: text("llm_api_key_source").notNull(),
     llmApiKeyCiphertext: text("llm_api_key_ciphertext"),
     promptsJson: text("prompts_json").notNull().default("{}"),

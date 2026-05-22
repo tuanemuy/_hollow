@@ -1,4 +1,5 @@
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
 
 /**
  * Per-purpose prompt template projection. `expectedVariables` is mirrored
@@ -12,8 +13,16 @@ export type PromptDTO = Readonly<{
 
 export type InstanceSettingsDTO = Readonly<{
   llm: Readonly<{
-    provider: "anthropic";
+    provider: LLMProviderName;
     model: string;
+    /**
+     * OpenAI-compatible endpoint base URL (path up to but not including
+     * `/chat/completions`). Always `null` for `anthropic` / `gemini`;
+     * for `openai` it is `null` when the default (`https://api.openai.com/v1`)
+     * is used, or a custom URL for Azure / Groq / vLLM etc. The provider
+     * × baseURL invariant is enforced by `LLMConfig.create`.
+     */
+    baseURL: string | null;
     apiKeySource: "env" | "db";
     /**
      * Masked representation of the configured API key (e.g. `••••abc1`).
@@ -61,6 +70,7 @@ export function toInstanceSettingsDTO(
     llm: {
       provider: settings.llm.provider,
       model: settings.llm.model,
+      baseURL: settings.llm.baseURL,
       apiKeySource: settings.llm.apiKeySource,
       apiKeyMasked,
     },

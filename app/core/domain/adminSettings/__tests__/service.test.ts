@@ -123,4 +123,20 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     });
     expect(next).toBe(cfg);
   });
+
+  it("carries over baseURL when forcing env override on an openai db-sourced config", () => {
+    const cfg = LLMConfig.create({
+      provider: "openai",
+      model: "gpt-4o",
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKeySource: "db",
+      apiKeyCiphertext: "ENCRYPTED",
+    });
+    const next = AdminSettingsService.assertEnvOverride(cfg, {
+      apiKey: "sk-env",
+    });
+    expect(next.apiKeySource).toBe("env");
+    expect(next.apiKeyCiphertext).toBeNull();
+    expect(next.baseURL).toBe("https://api.groq.com/openai/v1");
+  });
 });

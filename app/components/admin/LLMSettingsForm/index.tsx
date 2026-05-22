@@ -9,6 +9,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { LLM_PROVIDERS_TRANSPORT } from "../schema";
 import { testLLMConnectionFn, updateLLMConfigFn } from "./action";
 
 type ConnectionResult = {
@@ -22,7 +23,15 @@ type FormState = {
   success: boolean;
 };
 
+type ProviderId = (typeof LLM_PROVIDERS_TRANSPORT)[number];
+
 const initialState: FormState = { error: null, success: false };
+
+const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
+  anthropic: "Anthropic Claude",
+  openai: "OpenAI-compatible",
+  gemini: "Google Gemini",
+};
 
 const SECTION_CLASS = "py-8 border-b border-hairline last:border-b-0";
 const SECTION_TITLE_CLASS = "text-xl font-semibold tracking-tight m-0 mb-2";
@@ -34,6 +43,7 @@ const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 const INPUT_CLASS =
   "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
 const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
+const SELECT_CLASS = INPUT_CLASS;
 const BTN_CLASS =
   "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
 const BTN_PRIMARY_CLASS =
@@ -44,6 +54,12 @@ const BANNER_BASE =
   "flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink";
 const CODE_INLINE_CLASS =
   "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
+const REQUIRED_BADGE_CLASS =
+  "inline-flex items-center h-5 px-2 ml-2 rounded-pill bg-error-surface text-error text-[11px] font-semibold align-middle";
+
+function isProviderId(value: string): value is ProviderId {
+  return (LLM_PROVIDERS_TRANSPORT as readonly string[]).includes(value);
+}
 
 export function LLMSettingsForm({
   settings,
@@ -54,23 +70,50 @@ export function LLMSettingsForm({
   const updateLLMConfig = useServerFn(updateLLMConfigFn);
   const testLLMConnection = useServerFn(testLLMConnectionFn);
 
+  const providerId = useId();
   const modelId = useId();
+  const baseURLId = useId();
   const apiKeyId = useId();
 
+  // Defensive narrowing: the DTO's `provider` is typed as `string` and
+  // could drift away from `LLM_PROVIDERS_TRANSPORT` if the domain adds a
+  // provider before the transport list is updated (or vice versa). Fall
+  // back to the first transport literal so the UI keeps rendering rather
+  // than blowing up on a missing label / select option.
+  const persistedProvider: ProviderId = isProviderId(settings.llm.provider)
+    ? settings.llm.provider
+    : LLM_PROVIDERS_TRANSPORT[0];
+  const [provider, setProvider] = useState<ProviderId>(persistedProvider);
   const [model, setModel] = useState(settings.llm.model);
+  const [baseURL, setBaseURL] = useState(settings.llm.baseURL ?? "");
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [testResult, setTestResult] = useState<ConnectionResult | null>(null);
   const [testError, setTestError] = useState<SerializedError | null>(null);
   const [isTesting, startTestTransition] = useTransition();
 
+  const providerChanged = provider !== persistedProvider;
+  const apiKeyRequired = providerChanged;
+  const showBaseURL = provider === "openai";
+
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
+      const nextProviderRaw = String(formData.get("provider") ?? "");
+      const nextProvider = isProviderId(nextProviderRaw)
+        ? nextProviderRaw
+        : persistedProvider;
       const nextModel = String(formData.get("model") ?? "").trim();
+      const nextBaseURLRaw = String(formData.get("baseURL") ?? "");
+      const nextBaseURL =
+        nextProvider === "openai" && nextBaseURLRaw.trim().length > 0
+          ? nextBaseURLRaw
+          : null;
       const nextApiKey = String(formData.get("apiKey") ?? "");
       try {
         await updateLLMConfig({
           data: {
+            provider: nextProvider,
             model: nextModel,
+            baseURL: nextBaseURL,
             apiKeyPlain: nextApiKey.length > 0 ? nextApiKey : null,
           },
         });
@@ -88,8 +131,27 @@ export function LLMSettingsForm({
     startTestTransition(async () => {
       setTestError(null);
       try {
+        // Draft test previews the form's pending provider / model / baseURL
+        // against the env-provided api key. Per the locked transport
+        // schema, the draft cannot carry the form's typed-in plain api
+        // key (ciphertext never leaves the adapter boundary), so the
+        // draft hardcodes `apiKeySource: "env"` and relies on the
+        // operator having `ADMIN_LLM_API_KEY` set during preview.
+        const draftBaseURL =
+          provider === "openai" && baseURL.trim().length > 0
+            ? baseURL.trim()
+            : null;
         const result = await testLLMConnection({
-          data: { useDraft: false, draftConfig: null },
+          data: {
+            useDraft: true,
+            draftConfig: {
+              provider,
+              model,
+              baseURL: draftBaseURL,
+              apiKeySource: "env",
+              apiKeyCiphertext: null,
+            },
+          },
         });
         setTestResult(result);
       } catch (error) {
@@ -101,43 +163,133 @@ export function LLMSettingsForm({
 
   const summaryMessage = state.error !== null ? displayError(state.error) : "";
   const testErrorMessage = testError !== null ? displayError(testError) : "";
+  // Field-level mapping for the "provider changed but no api key supplied"
+  // server-side rejection. The transport returns a `business`-kind error
+  // with this code; surfacing it on the api-key input lets assistive tech
+  // jump straight to the offending field instead of hunting the summary
+  // for context.
+  const apiKeyServerError =
+    state.error !== null &&
+    state.error.kind === "business" &&
+    state.error.code === "admin_settings_provider_changed_requires_api_key"
+      ? "プロバイダ変更には新しい API キーが必要です。"
+      : null;
 
   return (
     <form action={formAction}>
       <section className={SECTION_CLASS}>
-        <h2 className={SECTION_TITLE_CLASS}>プロバイダ</h2>
+        <h2 className={SECTION_TITLE_CLASS}>LLM プロバイダ</h2>
         <p className={SECTION_DESC_CLASS}>
-          Hollow は MVP では Anthropic Claude のみをサポートします。
+          対応プロバイダ: Anthropic / OpenAI-compatible / Google Gemini。
+          切り替えると API キーの再入力が必要です。
         </p>
-        <div className="flex items-center gap-3 p-4 bg-surface rounded-md text-sm">
-          <div>
-            <div className="font-medium">Anthropic Claude</div>
-            <div className="text-xs text-ink-tertiary">
-              {settings.llm.provider}
+        <div className={FIELD_CLASS}>
+          <label className={FIELD_LABEL_CLASS} htmlFor={providerId}>
+            プロバイダ
+          </label>
+          <select
+            id={providerId}
+            name="provider"
+            className={SELECT_CLASS}
+            value={provider}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (isProviderId(next)) {
+                setProvider(next);
+              }
+            }}
+            disabled={isPending}
+          >
+            {LLM_PROVIDERS_TRANSPORT.map((id) => (
+              <option key={id} value={id}>
+                {PROVIDER_LABEL[id]}
+              </option>
+            ))}
+          </select>
+          <p className={FIELD_HINT_CLASS}>
+            現在の保存値: {PROVIDER_LABEL[persistedProvider]}
+          </p>
+        </div>
+        {providerChanged ? (
+          <div
+            className={`${BANNER_BASE} bg-warning-surface text-warning`}
+            role="alert"
+            data-provider-changed=""
+          >
+            <div className="flex-1">
+              <strong className="block mb-[2px] font-semibold">
+                プロバイダの変更
+              </strong>
+              プロバイダを変更すると API キーの再入力が必要です。 下の「新しい
+              API キー」欄に新しい鍵を入力してください。
             </div>
           </div>
-        </div>
+        ) : null}
+        {showBaseURL ? (
+          <div className={FIELD_CLASS}>
+            <label className={FIELD_LABEL_CLASS} htmlFor={baseURLId}>
+              Base URL（任意）
+            </label>
+            <input
+              id={baseURLId}
+              name="baseURL"
+              type="url"
+              maxLength={500}
+              className={INPUT_MONO_CLASS}
+              value={baseURL}
+              onChange={(event) => setBaseURL(event.target.value)}
+              placeholder="https://api.openai.com/v1"
+              disabled={isPending}
+              autoComplete="off"
+            />
+            <p className={FIELD_HINT_CLASS}>
+              OpenAI 本家を使う場合は空欄で OK。Azure / Groq / vLLM 等の場合は
+              base URL（
+              <code className={CODE_INLINE_CLASS}>/chat/completions</code>{" "}
+              を含まないパスまで）を入力。Azure は{" "}
+              <code className={CODE_INLINE_CLASS}>?api-version=...</code>{" "}
+              を含めて保存してください。
+            </p>
+            <p className={FIELD_HINT_CLASS}>
+              PDF 取り込みには <code className={CODE_INLINE_CLASS}>gpt-4o</code>{" "}
+              系のモデル指定が必要です。
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>API キー</h2>
         <p className={SECTION_DESC_CLASS}>
-          環境変数 <code className={CODE_INLINE_CLASS}>ANTHROPIC_API_KEY</code>{" "}
+          環境変数 <code className={CODE_INLINE_CLASS}>ADMIN_LLM_API_KEY</code>{" "}
           が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。
         </p>
-        <div className={`${BANNER_BASE} bg-accent-surface`} role="status">
-          <div className="flex-1 text-ink">
-            <strong className="block mb-[2px] font-semibold">現在の状態</strong>
-            {settings.llm.apiKeySource === "env"
-              ? "環境変数から読み込み中"
-              : settings.llm.apiKeyMasked !== null
-                ? `DB に保管されたキーを使用中 (${settings.llm.apiKeyMasked})`
-                : "API キーは未設定です"}
+        {!providerChanged ? (
+          // Hide the persisted-state announcement while the provider-change
+          // alert above is live — otherwise screen readers announce two
+          // competing aria-live regions on the same render and the
+          // user-actionable warning loses priority.
+          <div className={`${BANNER_BASE} bg-accent-surface`} role="status">
+            <div className="flex-1 text-ink">
+              <strong className="block mb-[2px] font-semibold">
+                現在の状態
+              </strong>
+              {settings.llm.apiKeySource === "env"
+                ? "環境変数から読み込み中"
+                : settings.llm.apiKeyMasked !== null
+                  ? `DB に保管されたキーを使用中 (${settings.llm.apiKeyMasked})`
+                  : "API キーは未設定です"}
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={apiKeyId}>
             新しい API キー
+            {apiKeyRequired ? (
+              <span className={REQUIRED_BADGE_CLASS} aria-hidden="true">
+                必須
+              </span>
+            ) : null}
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -145,11 +297,19 @@ export function LLMSettingsForm({
               name="apiKey"
               type="password"
               className={`${INPUT_MONO_CLASS} flex-1 min-w-0`}
-              placeholder="sk-ant-..."
+              placeholder={
+                provider === "anthropic"
+                  ? "sk-ant-..."
+                  : provider === "openai"
+                    ? "sk-..."
+                    : "AIza..."
+              }
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
               autoComplete="off"
               disabled={isPending}
+              required={apiKeyRequired || undefined}
+              aria-invalid={apiKeyServerError !== null || undefined}
             />
             <button
               type="button"
@@ -161,8 +321,13 @@ export function LLMSettingsForm({
             </button>
           </div>
           <p className={FIELD_HINT_CLASS}>
-            未入力で保存すると現在のキーが維持されます。
+            {apiKeyRequired
+              ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
+              : "未入力で保存すると現在のキーが維持されます。"}
           </p>
+          {apiKeyServerError !== null ? (
+            <p className={FIELD_ERROR_CLASS}>{apiKeyServerError}</p>
+          ) : null}
           {testResult !== null ? (
             <div
               className={`${BANNER_BASE} mt-3 ${
@@ -202,7 +367,14 @@ export function LLMSettingsForm({
             required
             disabled={isPending}
           />
-          <p className={FIELD_HINT_CLASS}>例: claude-sonnet-4-6</p>
+          <p className={FIELD_HINT_CLASS}>
+            例:{" "}
+            {provider === "anthropic"
+              ? "claude-sonnet-4-6"
+              : provider === "openai"
+                ? "gpt-4o"
+                : "gemini-1.5-pro"}
+          </p>
         </div>
       </section>
 

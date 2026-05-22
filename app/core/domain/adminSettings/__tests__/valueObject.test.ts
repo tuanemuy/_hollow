@@ -170,7 +170,7 @@ describe("LLMConfig", () => {
   it("rejects an unknown provider", () => {
     try {
       LLMConfig.create({
-        provider: "openai",
+        provider: "unknown-provider",
         model: "gpt-4",
         apiKeySource: "env",
         apiKeyCiphertext: null,
@@ -179,6 +179,116 @@ describe("LLMConfig", () => {
     } catch (error) {
       expectBusinessRule(error, AdminSettingsErrorCode.InvalidLLMProvider);
     }
+  });
+
+  it("creates an openai config with a valid baseURL", () => {
+    const cfg = LLMConfig.create({
+      provider: "openai",
+      model: "gpt-4o",
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.provider).toBe("openai");
+    expect(cfg.baseURL).toBe("https://api.groq.com/openai/v1");
+  });
+
+  it("creates an openai config with baseURL omitted (defaults to null)", () => {
+    const cfg = LLMConfig.create({
+      provider: "openai",
+      model: "gpt-4o",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.baseURL).toBeNull();
+  });
+
+  it("creates an openai config with explicit null baseURL", () => {
+    const cfg = LLMConfig.create({
+      provider: "openai",
+      model: "gpt-4o",
+      baseURL: null,
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.baseURL).toBeNull();
+  });
+
+  it("rejects an openai config with a non-http baseURL", () => {
+    try {
+      LLMConfig.create({
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "not-a-url",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidLLMBaseURL);
+    }
+  });
+
+  it("rejects an openai config with a baseURL exceeding 500 characters", () => {
+    try {
+      LLMConfig.create({
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: `https://example.com/${"a".repeat(500)}`,
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidLLMBaseURL);
+    }
+  });
+
+  it("rejects an anthropic config with a non-null baseURL", () => {
+    try {
+      LLMConfig.create({
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: "https://api.anthropic.com",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidLLMBaseURL);
+    }
+  });
+
+  it("rejects a gemini config with a non-null baseURL", () => {
+    try {
+      LLMConfig.create({
+        provider: "gemini",
+        model: "gemini-1.5-pro",
+        baseURL: "https://generativelanguage.googleapis.com",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidLLMBaseURL);
+    }
+  });
+
+  it("accepts anthropic / gemini with baseURL omitted", () => {
+    const a = LLMConfig.create({
+      provider: "anthropic",
+      model: "claude-3-5-sonnet-latest",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(a.baseURL).toBeNull();
+    const g = LLMConfig.create({
+      provider: "gemini",
+      model: "gemini-1.5-pro",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(g.baseURL).toBeNull();
   });
 
   it("rejects an empty model string (ValidationError on unsafe model)", () => {
@@ -247,6 +357,40 @@ describe("LLMConfig", () => {
         model: "m",
         apiKeySource: "env",
         apiKeyCiphertext: "leftover",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects env-sourced config with empty-string ciphertext (symmetric with db branch)", () => {
+    try {
+      LLMConfig.create({
+        provider: "anthropic",
+        model: "m",
+        apiKeySource: "env",
+        apiKeyCiphertext: "",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects env-sourced config with whitespace-only ciphertext", () => {
+    try {
+      LLMConfig.create({
+        provider: "anthropic",
+        model: "m",
+        apiKeySource: "env",
+        apiKeyCiphertext: "   ",
       });
       expect.fail("should have thrown");
     } catch (error) {

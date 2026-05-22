@@ -82,7 +82,7 @@ export class InlineRelayTrigger implements RelayTrigger {
     // wait for the next kick rather than recursing through a Service
     // Binding fetch that nothing answers under `pnpm dev`.
     const consumerEnv: ServerEnv = stripRelayBinding(this.env);
-    const consumerContainer = createConsumerContainer(consumerEnv);
+    const consumerContainer = await createConsumerContainer(consumerEnv);
 
     const dispatch: EventDispatcher = async (events) => {
       const outcomes = [];

@@ -35,6 +35,12 @@ ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 # (`app/core/application/di/llmProviderFactory.ts`). When unset the
 # factories default to `"anthropic"`, matching the pre-#122 behaviour.
 ADMIN_LLM_PROVIDER = "anthropic"
+# Optional base URL override consumed by the OpenAI-compatible adapter
+# (`app/core/adapters/openai/*`). Only meaningful when
+# `ADMIN_LLM_PROVIDER = "openai"`; empty string → use the provider's
+# default endpoint. Anthropic / Gemini providers ignore this value
+# (ADR-001). Public information so it ships via `[vars]`.
+ADMIN_LLM_BASE_URL = ""
 
 # D1: read/write for the request path. Outbox writes happen here
 # transactionally with aggregate writes — see app/core/adapters/d1/.
@@ -114,6 +120,7 @@ APP_URL = "http://localhost:8787"
 R2_OBJECT_BUCKET_NAME = "tanstack-start-template-objects"
 ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 ADMIN_LLM_PROVIDER = "anthropic"
+ADMIN_LLM_BASE_URL = ""
 
 # D1 is bound for subscribers that write projections / idempotency
 # stamps. Drop if your consumers are stateless.
