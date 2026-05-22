@@ -464,6 +464,126 @@ describe("rebuildSearchIndex", () => {
     expect(findByOwner).toHaveBeenCalled();
   });
 
+  it("paginates findByOwner across multiple pages when active notes exceed REBUILD_PAGE_SIZE", async () => {
+    const admin = fakeUser(userId(1), { role: "admin" });
+    const dir = fakeDirectory(directoryId(1), admin.id);
+    // 51 active notes → forces a second findByOwner call (offset=50 → 1 row).
+    const notes: Note[] = [];
+    for (let i = 0; i < 51; i++) {
+      notes.push(
+        fakeNote({
+          id: noteId(100 + i),
+          ownerId: admin.id,
+          directoryId: dir.id,
+        }),
+      );
+    }
+    const userRepo = makeUserRepo([admin]);
+    const noteRepo = makeNoteRepo(
+      new Map<string, readonly Note[]>([[admin.id, notes]]),
+    );
+    const ctx = {
+      userRepository: userRepo,
+      noteRepository: noteRepo,
+      directoryRepository: makeDirRepo([dir]),
+      tagRepository: makeTagRepo([]),
+      publicationStateRepository: makePubStateRepo([]),
+      collectEvents: () => {},
+    } as unknown as UnitOfWorkContext;
+    const captured: SearchDocument[] = [];
+    const searchIndex = makeSearchIndex({
+      bulkRebuildFromSnapshots: vi.fn(
+        async (docs: AsyncIterable<SearchDocument>) => {
+          for await (const doc of docs) captured.push(doc);
+        },
+      ) as unknown as SearchIndex["bulkRebuildFromSnapshots"],
+    });
+    const container = buildContainer({ ctx, searchIndex });
+
+    const result = await rebuildSearchIndex({
+      container,
+      input: { actorUserId: admin.id as unknown as string },
+    });
+
+    expect(result.processedCount).toBe(51);
+    expect(captured).toHaveLength(51);
+    expect(noteRepo.findByOwner).toHaveBeenCalledTimes(2);
+    expect(noteRepo.findByOwner.mock.calls[0]?.[1]).toMatchObject({
+      offset: 0,
+      sort: "createdAt",
+      order: "asc",
+    });
+    expect(noteRepo.findByOwner.mock.calls[1]?.[1]).toMatchObject({
+      offset: 50,
+    });
+  });
+
+  it("paginates userRepository.listAll across multiple cursor pages", async () => {
+    // 51 admin users → forces a second listAll call.
+    const admins: UserEntity[] = [];
+    for (let i = 0; i < 51; i++) {
+      admins.push(fakeUser(userId(200 + i), { role: "admin" }));
+    }
+    const userRepo = makeUserRepo(admins);
+    const ctx = {
+      userRepository: userRepo,
+      noteRepository: makeNoteRepo(new Map()),
+      directoryRepository: makeDirRepo([]),
+      tagRepository: makeTagRepo([]),
+      publicationStateRepository: makePubStateRepo([]),
+      collectEvents: () => {},
+    } as unknown as UnitOfWorkContext;
+    const searchIndex = makeSearchIndex();
+    const container = buildContainer({ ctx, searchIndex });
+
+    const actor = admins[0];
+    const fiftiethAdmin = admins[49];
+    if (actor === undefined || fiftiethAdmin === undefined) {
+      throw new Error("seed shape changed");
+    }
+
+    await rebuildSearchIndex({
+      container,
+      input: { actorUserId: actor.id as unknown as string },
+    });
+
+    // assertAdmin uses findById, so listAll fires only for the owner walk:
+    // page 1 (no cursor) + page 2 (cursor = 50th user.id).
+    expect(userRepo.listAll).toHaveBeenCalledTimes(2);
+    expect(userRepo.listAll.mock.calls[0]?.[0]).toEqual({ limit: 50 });
+    expect(userRepo.listAll.mock.calls[1]?.[0]).toEqual({
+      limit: 50,
+      cursor: fiftiethAdmin.id,
+    });
+  });
+
+  it("propagates a database-level error raised by noteRepository.findByOwner", async () => {
+    const admin = fakeUser(userId(1), { role: "admin" });
+    const userRepo = makeUserRepo([admin]);
+    const boom = new Error("D1 transient failure");
+    const noteRepo = makeNoteRepo(new Map());
+    noteRepo.findByOwner = vi.fn(async () => {
+      throw boom;
+    });
+    const ctx = {
+      userRepository: userRepo,
+      noteRepository: noteRepo,
+      directoryRepository: makeDirRepo([]),
+      tagRepository: makeTagRepo([]),
+      publicationStateRepository: makePubStateRepo([]),
+      collectEvents: () => {},
+    } as unknown as UnitOfWorkContext;
+    const searchIndex = makeSearchIndex();
+    const container = buildContainer({ ctx, searchIndex });
+
+    await expect(
+      rebuildSearchIndex({
+        container,
+        input: { actorUserId: admin.id as unknown as string },
+      }),
+    ).rejects.toBe(boom);
+  });
+
   it("propagates SearchIndexUnavailableError raised by the adapter", async () => {
     const admin = fakeUser(userId(1), { role: "admin" });
     const userRepo = makeUserRepo([admin]);
@@ -565,5 +685,53 @@ describe("parseFrontMatterDate (via NoteSnapshot projection)", () => {
     expect(t1.toISOString()).toBe(updatedAt.toISOString());
     const { dateForCalendar: t2 } = await project([2026, 1, 1]);
     expect(t2.toISOString()).toBe(updatedAt.toISOString());
+  });
+
+  it("falls back to updatedAt when the frontMatter has no 'date' key", async () => {
+    // `frontMatter['date']` is `undefined` — the most common real-world
+    // case, distinct from the explicit `null` projection above.
+    const admin = fakeUser(userId(1), { role: "admin" });
+    const dir = fakeDirectory(directoryId(1), admin.id);
+    const note = fakeNote({
+      id: noteId(1),
+      ownerId: admin.id,
+      directoryId: dir.id,
+      frontMatter: {},
+      updatedAt,
+    });
+    const userRepo = makeUserRepo([admin]);
+    const ctx = {
+      userRepository: userRepo,
+      noteRepository: makeNoteRepo(
+        new Map<string, readonly Note[]>([[admin.id, [note]]]),
+      ),
+      directoryRepository: makeDirRepo([dir]),
+      tagRepository: makeTagRepo([]),
+      publicationStateRepository: makePubStateRepo([]),
+      collectEvents: () => {},
+    } as unknown as UnitOfWorkContext;
+    const captured: SearchDocument[] = [];
+    const searchIndex = makeSearchIndex({
+      bulkRebuildFromSnapshots: vi.fn(
+        async (docs: AsyncIterable<SearchDocument>) => {
+          for await (const doc of docs) captured.push(doc);
+        },
+      ) as unknown as SearchIndex["bulkRebuildFromSnapshots"],
+    });
+    const container = buildContainer({ ctx, searchIndex });
+
+    await rebuildSearchIndex({
+      container,
+      input: { actorUserId: admin.id as unknown as string },
+    });
+    expect(captured[0]?.dateForCalendar.toISOString()).toBe(
+      updatedAt.toISOString(),
+    );
+  });
+
+  it("accepts a finite epoch number", async () => {
+    const epoch = Date.UTC(2026, 2, 14);
+    const { dateForCalendar } = await project(epoch);
+    expect(dateForCalendar.toISOString()).toBe("2026-03-14T00:00:00.000Z");
   });
 });

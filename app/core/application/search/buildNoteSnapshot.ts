@@ -1,4 +1,3 @@
-import type { Directory } from "@/core/domain/directory/entity";
 import type { DirectoryRepository } from "@/core/domain/directory/ports/directoryRepository";
 import { DirectoryService } from "@/core/domain/directory/service";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
@@ -83,7 +82,7 @@ export async function buildNoteSnapshots(
       continue;
     }
     const path = await DirectoryService.computePath(
-      found.entity satisfies Directory,
+      found.entity,
       deps.directoryRepository,
     );
     directoryPathByDirectoryId.set(directoryId, path as string);

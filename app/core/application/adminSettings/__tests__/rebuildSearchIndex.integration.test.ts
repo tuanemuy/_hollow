@@ -42,15 +42,21 @@ async function seedUser(
 async function seedDirectory(
   container: TestContainer,
   ownerId: UserId,
+  over: Partial<{
+    parentId: DirectoryId | null;
+    name: string;
+    slug: string;
+    depth: number;
+  }> = {},
 ): Promise<DirectoryId> {
   const id = nextId(0x0b);
   await container.db.insert(schema.directories).values({
     id,
     ownerId,
-    parentId: null,
-    name: "",
-    slug: "",
-    depth: 0,
+    parentId: over.parentId ?? null,
+    name: over.name ?? "",
+    slug: over.slug ?? "",
+    depth: over.depth ?? 0,
     version: 0,
     createdAt: TZ,
     updatedAt: TZ,
@@ -195,6 +201,15 @@ describe("rebuildSearchIndex (integration)", () => {
     expect(byNoteId.get(memberPublic)?.visibility).toBe("public");
     expect(byNoteId.get(memberPrivate)?.visibility).toBe("private");
 
+    // Snapshot projection content (per review T-W-003): tag_names_json,
+    // directory_path, body_plain and title must all flow through the
+    // batched `buildNoteSnapshots`.
+    const memberPublicRow = byNoteId.get(memberPublic);
+    expect(memberPublicRow?.title).toBe("Public note");
+    expect(memberPublicRow?.bodyPlain).toBe("body");
+    expect(memberPublicRow?.tagNamesJson).toBe("[]");
+    expect(memberPublicRow?.directoryPath).toBe("/");
+
     // Smoke the FTS index by querying for a known term.
     const queryResult = await container.searchIndex.query(
       SearchQuery.create({
@@ -209,6 +224,45 @@ describe("rebuildSearchIndex (integration)", () => {
       }),
     );
     expect(queryResult.hits.some((h) => h.noteId === adminActive)).toBe(true);
+  });
+
+  it("projects nested directory paths via DirectoryService.computePath", async () => {
+    const container = getContainer();
+    const admin = await seedUser(container, { role: "admin" });
+    const root = await seedDirectory(container, admin);
+    const parent = await seedDirectory(container, admin, {
+      parentId: root,
+      name: "parent",
+      slug: "parent",
+      depth: 1,
+    });
+    const child = await seedDirectory(container, admin, {
+      parentId: parent,
+      name: "child",
+      slug: "child",
+      depth: 2,
+    });
+
+    const rootNote = await seedNote(container, {
+      ownerId: admin,
+      directoryId: root,
+      title: "at-root",
+    });
+    const childNote = await seedNote(container, {
+      ownerId: admin,
+      directoryId: child,
+      title: "in-child",
+    });
+
+    await rebuildSearchIndex({
+      container,
+      input: { actorUserId: admin as unknown as string },
+    });
+
+    const rows = await container.db.select().from(schema.searchDocuments);
+    const byId = new Map(rows.map((r) => [r.noteId, r]));
+    expect(byId.get(rootNote)?.directoryPath).toBe("/");
+    expect(byId.get(childNote)?.directoryPath).toBe("/parent/child");
   });
 
   it("treats frontMatter['date'] as the calendar date when valid", async () => {

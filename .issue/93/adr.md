@@ -230,3 +230,39 @@ Accepted（実装時に確定）
 ### Consequences
 - 良い点: 不正値で例外が出ず、UI / 検索が degrade せずに動く
 - トレードオフ: 「不正な date 値」を運用者に通知する仕組みは無い（surface するなら logger 経由が候補だが、本 Issue では実装しない）
+
+---
+
+## ADR-007: rebuild の `findByOwner` は `sort: 'createdAt', order: 'asc'` で固定化する
+
+### Status
+Accepted（review-001 を受けて確定）
+
+### Context
+当初実装は `noteRepository.findByOwner` を sort 未指定で呼んでおり、adapter の既定は `updatedAt desc`（`adapters/d1/repositories/noteRepository.ts:392,401-404`）。rebuild は秒〜分単位の長尺操作で、その間に Note の `save` が走ると `updatedAt` が移動し、offset ベース walk は同一行を 2 回 yield する／別行を skip する可能性がある。これは ADR-003 の "eventual consistency" 想定の範囲外（並走 upsert で index に重複 noteId が一時的に残ると `bulkRebuildFromSnapshots` 内部の chunked INSERT が PK 衝突を起こすリスクがある）。
+
+選択肢:
+- **A**: `findByOwner` 呼び出しで `{ sort: 'createdAt', order: 'asc' }` を明示し、immutable 列を offset 基準にする
+- **B**: ID-cursor 化（user 列挙と同形）— port シグネチャ拡張が必要
+- **C**: 既定のまま受け入れる（実害は稀）
+
+### Decision
+**A** を採用。
+
+### B 不採用の理由
+- `noteRepository.findByOwner` は現状 offset/limit ベースで、cursor 経路への切り替えは本 Issue スコープを越える
+- `createdAt` で sort 固定するだけで実質的な安定性は得られる
+
+### C 不採用の理由
+- 並走 upsert は production で起きる現実的なシナリオで、PK 衝突は admin に "失敗した rebuild" として可視化される
+- `sort` 明示は 2 行の変更で済むため、コスト < リスク
+
+### A 採用の理由
+- `createdAt` はドメイン契約上 immutable（spec/domains/note.md にも renumber / 書き換え経路は無い）
+- 既存 port シグネチャ内で完結
+- offset の意味が「createdAt 昇順 N 行目以降」に固定され、並走 upsert と完全に独立
+
+### Consequences
+- 良い点: 並走 upsert に対して offset walk が安定し、PK 衝突リスクが消える
+- トレードオフ: rebuild 中に新規 INSERT された note は途中ページの末尾以降に新たに現れるため、`createdAt > 開始時刻` のものはその run でカバーされない可能性がある（次回 rebuild または event consume で同期される。eventual consistency の範疇）
+

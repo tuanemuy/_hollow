@@ -25,6 +25,13 @@ export type RebuildSearchIndexInput = Readonly<{
   actorUserId: string;
 }>;
 
+/**
+ * `processedCount` reflects the number of snapshots yielded into
+ * `bulkRebuildFromSnapshots`. On success it equals the number of rows
+ * written to `search_documents`. If the adapter throws partway through,
+ * the counter captures snapshots yielded up to the failure point — the
+ * value is only meaningful when the usecase returns without throwing.
+ */
 export type RebuildSearchIndexOutput = Readonly<{
   processedCount: number;
   startedAt: Date;
@@ -102,6 +109,13 @@ export async function rebuildSearchIndex({
                 status: "active",
                 limit: REBUILD_PAGE_SIZE,
                 offset,
+                // Offset pagination needs an immutable sort column —
+                // the default `updatedAt desc` shifts under concurrent
+                // upserts during the rebuild window and would yield
+                // duplicates / skip rows. `createdAt asc` is stable.
+                // See `.issue/93/adr.md` ADR-007.
+                sort: "createdAt",
+                order: "asc",
               });
               if (notes.length === 0) {
                 return {

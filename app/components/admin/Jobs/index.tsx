@@ -410,19 +410,24 @@ function SearchIndexSection() {
           className={BTN_SM_CLASS}
           onClick={runRebuild}
           disabled={isPending}
+          aria-busy={isPending || undefined}
           data-pending={isPending || undefined}
         >
           {isPending ? "再構築中…" : "再構築を実行"}
         </button>
         {result !== null ? (
-          <p className="text-xs text-ink-secondary m-0">
+          <p
+            className="text-xs text-ink-secondary m-0"
+            role="status"
+            aria-live="polite"
+          >
             {result.processedCount} 件を {formatDateTime(result.finishedAt)}{" "}
             に再投入しました
           </p>
         ) : null}
       </div>
       {summary !== "" ? (
-        <p className={FIELD_ERROR_CLASS} style={{ marginTop: 6 }}>
+        <p className={`${FIELD_ERROR_CLASS} mt-1.5`} role="alert">
           {summary}
         </p>
       ) : null}
