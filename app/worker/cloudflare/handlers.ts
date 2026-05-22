@@ -108,7 +108,7 @@ export async function runIndexJobTick(
   const tuning = readIndexerTuning(env);
   const result = await processIndexJobs(container, { ...tuning, ...override });
   container.logger.info(
-    `[indexer] tick complete: completed=${result.completed} retried=${result.retried} dlq=${result.dlq}`,
+    `[indexer] tick complete: completed=${result.completed} retried=${result.retried} dlq=${result.dlq} unexpectedFailures=${result.unexpectedFailures}`,
     { result },
   );
   return result;

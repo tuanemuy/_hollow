@@ -30,7 +30,7 @@ pnpm dev                               # vite dev backed by workerd (@cloudflare
 
 ## Worker matrix
 
-The main app and four sibling Workers ship from a **per-stage `wrangler.<stage>.toml`** as named environments. Each is deployed independently with `wrangler deploy --config wrangler.<stage>.toml --env <role>`, exposed as `pnpm deploy:<stage>:<role>` scripts.
+The main app and five sibling Workers ship from a **per-stage `wrangler.<stage>.toml`** as named environments. Each is deployed independently with `wrangler deploy --config wrangler.<stage>.toml --env <role>`, exposed as `pnpm deploy:<stage>:<role>` scripts.
 
 | Worker      | Responsibility                                                                                         | Wrangler env     | Bindings                                                                                                                                          | Trigger                                              |
 | ----------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -112,6 +112,8 @@ For local dev, drop them into `.dev.vars` (copied from `.dev.vars.example`).
 
 The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`.
 
+The indexer tuning variables (`INDEXER_BATCH_SIZE`, `INDEXER_MAX_BATCHES`) follow the same pattern: declared in `[env.indexer.vars]`, parsed by `readIndexerTuning` (`app/core/application/di/env.ts`), and fall back to the defaults exported from `app/core/application/workers/processIndexJobs.ts` (`DEFAULT_INDEXER_BATCH_SIZE = 50`, `DEFAULT_INDEXER_MAX_BATCHES = 20`).
+
 ### Dispatch-side secrets (Issue #110)
 
 Required on the **web** and **consumer** workers for the ingestion / export dispatch paths to wire real adapters:
@@ -192,13 +194,15 @@ The reverse ordering is not destructive (indexer deployed late just means a brie
 
 Recovery is operator-driven:
 
+`<d1-database-name>` below is the Pulumi-generated `${appName}-${stage}-d1` (e.g. `hollow-staging-d1`); confirm with `pulumi stack output` if unsure.
+
 ```bash
 # Inspect dlq rows
-pnpm wrangler d1 execute hollow-staging-d1 --remote --config wrangler.staging.toml \
+pnpm wrangler d1 execute <d1-database-name> --remote --config wrangler.<stage>.toml \
   --command "SELECT id, note_id, op, attempts, last_error FROM index_jobs WHERE attempts >= 3 ORDER BY enqueued_at DESC LIMIT 50;"
 
 # Re-drive after the upstream cause is fixed (clears the dlq filter on next tick)
-pnpm wrangler d1 execute hollow-staging-d1 --remote --config wrangler.staging.toml \
+pnpm wrangler d1 execute <d1-database-name> --remote --config wrangler.<stage>.toml \
   --command "UPDATE index_jobs SET attempts = 0, last_error = NULL WHERE id = '<id>';"
 ```
 

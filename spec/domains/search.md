@@ -47,7 +47,7 @@ type NoteSnapshot = {
 };
 ```
 
-NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が Outbox イベントとして発火し、Search ドメインのワーカーが受け取って `SearchDocument.fromSnapshot` を呼ぶ。Search ドメインから Note の他リポジトリを参照しない。
+NoteSnapshot は application 層の dispatcher（`dispatchDomainEvent`）が、Note ドメインの Outbox イベント（`note.*` / `publication.*`）受信時に `noteRepository.findById` + `buildNoteSnapshots` で再構築し、Search ドメインのワーカーに渡される。Search ドメインから Note の他リポジトリを参照することはなく、aggregate 集約は dispatcher の責務として application 層に閉じる（詳細は本ファイル末尾と Issue #145 ADR-001 を参照）。
 
 ### IndexJob
 
@@ -94,7 +94,7 @@ NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が 
 
 ### IndexJobRepository
 - `enqueue(job: IndexJob): Promise<void>`
-- `nextBatch(limit: number, now: Instant): Promise<IndexJob[]>`
+- `nextBatch(limit: number, now: Instant, maxAttempts: number): Promise<IndexJob[]>` — `attempts >= maxAttempts` の行は DLQ 行として SQL レベルで除外する（Issue #145 ADR-006）。
 - `complete(id: IndexJobId): Promise<void>`
 - `fail(id: IndexJobId, error: string, now: Instant): Promise<void>`
 

@@ -10,8 +10,21 @@ import {
   SearchIndexUnavailableError,
 } from "@/core/domain/search/ports/searchIndex";
 import { FakeIdGenerator, FakeLogger } from "../../__tests__/fakes";
-import { CONSUME_INDEX_JOB_MAX_ATTEMPTS } from "../../search/consumeIndexJob";
+import {
+  CONSUME_INDEX_JOB_MAX_ATTEMPTS,
+  consumeIndexJob,
+} from "../../search/consumeIndexJob";
 import { processIndexJobs } from "../processIndexJobs";
+
+vi.mock("../../search/consumeIndexJob", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../search/consumeIndexJob")
+  >("../../search/consumeIndexJob");
+  return {
+    ...actual,
+    consumeIndexJob: vi.fn(actual.consumeIndexJob),
+  };
+});
 
 const T0 = new Date(0);
 
@@ -118,7 +131,12 @@ describe("processIndexJobs — drain loop", () => {
     const container = makeContainer({ indexJobRepository: repo });
 
     const result = await processIndexJobs(container, { batchSize: 10 });
-    expect(result).toEqual({ completed: 0, retried: 0, dlq: 0 });
+    expect(result).toEqual({
+      completed: 0,
+      retried: 0,
+      dlq: 0,
+      unexpectedFailures: 0,
+    });
     expect(repo.nextBatch).toHaveBeenCalledTimes(1);
     expect(repo.nextBatch).toHaveBeenCalledWith(
       10,
@@ -199,7 +217,75 @@ describe("processIndexJobs — drain loop", () => {
     const container = makeContainer({ indexJobRepository: repo });
 
     const result = await processIndexJobs(container, { batchSize: 0 });
-    expect(result).toEqual({ completed: 0, retried: 0, dlq: 0 });
+    expect(result).toEqual({
+      completed: 0,
+      retried: 0,
+      dlq: 0,
+      unexpectedFailures: 0,
+    });
     expect(repo.nextBatch).not.toHaveBeenCalled();
+  });
+
+  it("counts dlq when consumeIndexJob returns { kind: 'dlq' } on a non-retryable error", async () => {
+    const repo = makeRepo();
+    // attempts = max - 1 means `consumeIndexJob` sees nextAttempts === max
+    // even for a retryable failure → falls into the dlq branch.
+    const exhaustedJob = IndexJob.reconstruct({
+      id: "dlq-job",
+      noteId: noteId(3),
+      op: "upsert",
+      snapshot: snapshot({ noteId: noteId(3) }),
+      attempts: CONSUME_INDEX_JOB_MAX_ATTEMPTS - 1,
+      lastError: "previously failed",
+      enqueuedAt: T0,
+    });
+    repo.nextBatch
+      .mockResolvedValueOnce([exhaustedJob])
+      .mockResolvedValueOnce([]);
+    const flakyIndex = makeIndex({
+      upsert: vi
+        .fn()
+        .mockRejectedValueOnce(new SearchIndexUnavailableError("down")),
+    });
+    const container = makeContainer({
+      indexJobRepository: repo,
+      searchIndex: flakyIndex,
+    });
+
+    const result = await processIndexJobs(container, { batchSize: 10 });
+    expect(result.completed).toBe(0);
+    expect(result.retried).toBe(0);
+    expect(result.dlq).toBe(1);
+    expect(result.unexpectedFailures).toBe(0);
+    expect(repo.fail).toHaveBeenCalledTimes(1);
+  });
+
+  it("isolates one failing row in a batch when consumeIndexJob throws unexpectedly, continues draining, and counts unexpectedFailures", async () => {
+    const repo = makeRepo();
+    const j1 = makeUpsertJob("boom");
+    const j2 = makeUpsertJob("ok");
+    repo.nextBatch.mockResolvedValueOnce([j1, j2]).mockResolvedValueOnce([]);
+    const container = makeContainer({ indexJobRepository: repo });
+
+    const mocked = vi.mocked(consumeIndexJob);
+    mocked.mockImplementationOnce(async () => {
+      throw new Error("unexpected");
+    });
+    mocked.mockImplementationOnce(async () => ({ kind: "completed" }));
+
+    const result = await processIndexJobs(container, { batchSize: 10 });
+    expect(result.completed).toBe(1);
+    expect(result.retried).toBe(0);
+    expect(result.dlq).toBe(0);
+    expect(result.unexpectedFailures).toBe(1);
+
+    const logger = container.logger as FakeLogger;
+    const errors = logger.byLevel("error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain(j1.id);
+    expect(errors[0]?.meta).toMatchObject({
+      jobId: j1.id,
+      outcome: "unexpected",
+    });
   });
 });

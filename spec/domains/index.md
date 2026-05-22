@@ -63,7 +63,7 @@ identity, adminSettings は他から参照されるが、自身は他のドメ�
 | `note.deleted` | `note.trashed` / `note.purged` | Note.DeleteNote/BulkTrashNotes、Directory.DeleteDirectory（配下分） | Search.HandleNoteTrashedEvent、Publication.HandleNoteTrashedEvent（trash のみ）、View.HandleNotePurgedEvent（部分） |
 | `note.purged` | `note.purged` | Note.PurgeNote/PurgeTrashOlderThan | Media.HandleNotePurgedEvent、Publication.HandleNotePurgedEvent、View.HandleNotePurgedEvent |
 | `note.publish_changed` | `note.publish_changed` | Publication.ChangePublicationVisibility/BulkChangePublicationVisibility、Publication.HandleNoteTrashedEvent | Search.HandlePublicationChangedEvent |
-| `media.uploaded` | Media.UploadMedia/FinalizeUpload | Media 自身の TTL ベース孤児監視 |
-| `user.deleted` | Identity.DeleteAccount/SuspendUser（永続停止のとき） | Publication.HandleUserDeletedEvent、Export.HandleUserDeletedEvent、他ドメインのクリーンアップ |
-| `tag.deleted` | Tag.DeleteTag | View.HandleTagDeletedEvent |
-| `directory.deleted` | Directory.DeleteDirectory | View.HandleDirectoryDeletedEvent |
+| `media.uploaded` | `media.uploaded` | Media.UploadMedia/FinalizeUpload | Media 自身の TTL ベース孤児監視 |
+| `user.deleted` | `user.deleted` | Identity.DeleteAccount/SuspendUser（永続停止のとき） | Publication.HandleUserDeletedEvent、Export.HandleUserDeletedEvent、他ドメインのクリーンアップ |
+| `tag.deleted` | `tag.deleted` | Tag.DeleteTag | View.HandleTagDeletedEvent |
+| `directory.deleted` | `directory.deleted` | Directory.DeleteDirectory | View.HandleDirectoryDeletedEvent |

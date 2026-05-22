@@ -560,7 +560,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(stamped).toHaveLength(1);
   });
 
-  it("skips note.trashed dispatch (regression guard) — stamp is still recorded", async () => {
+  it("handles note.trashed dispatch (search delete + publication cascade) — stamp is recorded", async () => {
     const noteId = nextNoteId();
     const event = withId(makeTrashedDraft(noteId));
 
