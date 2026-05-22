@@ -32,7 +32,7 @@ const S3_SERVICE = "s3";
 const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 
 /**
- * Cloudflare R2 implementation of {@link ObjectStorage}.
+ * Cloudflare R2 implementation of the {@link ObjectStorage} port.
  *
  * Data-plane operations (`put` / `get` / `delete`) go through the R2
  * Worker binding so they incur no S3-API egress and need no credentials.
@@ -44,6 +44,11 @@ const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
  * Errors are translated into the shared {@link ObjectStorage} contract:
  * lookup misses become {@link StorageNotFoundError}; transient binding
  * or signing failures become {@link StorageUnavailableError}.
+ *
+ * Production-runtime fallback for missing R2 bindings lives in the DI
+ * module (`serverCloudflare.ts`) as a private inline factory — see
+ * `.issue/100/adr.md` ADR-001. This file intentionally exports only
+ * the real adapter so the API surface stays focused.
  */
 export class R2ObjectStorage implements ObjectStorage {
   private readonly endpoint: string;
@@ -307,50 +312,4 @@ function toHex(bytes: Uint8Array): string {
     out += (bytes[i] as number).toString(16).padStart(2, "0");
   }
   return out;
-}
-
-/**
- * MVP {@link ObjectStorage} placeholder.
- *
- * The Cloudflare reference runtime does not yet declare an R2 binding
- * for media object storage, so {@link R2ObjectStorage} cannot be
- * instantiated. Every operation rejects with
- * {@link StorageUnavailableError} so media / export usecases fail
- * explicitly when reached rather than blowing up with a `TypeError` on
- * an undefined adapter slot. Once the R2 binding is added to
- * `wrangler.toml` and threaded through `ServerEnv`, the DI layer swaps
- * this stub for {@link R2ObjectStorage}.
- */
-export class StubObjectStorage implements ObjectStorage {
-  async put(
-    _key: string,
-    _bytes: ArrayBuffer,
-    _contentType: string,
-  ): Promise<void> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async get(_key: string): Promise<ArrayBuffer> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async stat(_key: string): Promise<ObjectMetadata> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async delete(_key: string): Promise<void> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async presignDownload(_key: string, _ttlSec: number): Promise<URL> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async presignUpload(
-    _key: string,
-    _contentType: string,
-    _ttlSec: number,
-  ): Promise<URL> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
 }

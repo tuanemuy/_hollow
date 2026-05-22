@@ -124,7 +124,7 @@ Issue 本文の「推奨アプローチ #3」では `RequestContainer` を「本
 ## ADR-005: production runtime の Stub と test harness の Fake は意図的に挙動差を許容する
 
 ### Status
-Proposed
+Superseded by Issue #100 ADR-001
 
 ### Context
 
@@ -145,3 +145,7 @@ Proposed
 - トレードオフ:
   - 同じポートに対して 2 種類の MVP 実装が存在することになる（既存 `StubOCRProvider` 等と同じ構造）
   - 将来 R2 binding を投入する PR で production Stub を削除する必要がある（test Fake は維持）
+
+### Supersede note (Issue #100)
+
+Issue #100 ADR-001 で本 ADR の方針を更新した。R2 binding が `wrangler.toml` に配備された現在、`StubObjectStorage` / `StubTempFileStorage` クラスは `app/core/adapters/cloudflare/` から削除し、DI ファイル (`serverCloudflare.ts`) 内に閉じた inline unavailable-adapter factory に置換した。挙動（binding 欠落時に operation 時 `*UnavailableError` を throw）は維持される。「production と test で挙動差を許容する」という本 ADR の判断自体は引き続き有効で、test fake (`app/core/application/__tests__/fakes/`) は本 Issue のスコープ外。
