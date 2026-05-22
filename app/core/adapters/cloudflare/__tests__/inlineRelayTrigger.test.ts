@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => {
     markProcessed:
       vi.fn<(id: EventId) => Promise<{ alreadyProcessed: boolean }>>(),
     createWorkerContainer: vi.fn<(env: ServerEnv) => unknown>(),
-    createConsumerContainer: vi.fn<(env: ServerEnv) => unknown>(),
+    createConsumerContainer: vi.fn<(env: ServerEnv) => Promise<unknown>>(),
   };
 });
 
@@ -69,8 +69,8 @@ vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
       mocks.createWorkerContainer(env);
       return { logger: actual };
     },
-    createConsumerContainer: (env: ServerEnv) => {
-      mocks.createConsumerContainer(env);
+    createConsumerContainer: async (env: ServerEnv) => {
+      await mocks.createConsumerContainer(env);
       return {
         idempotencyStore: {
           hasProcessed: mocks.hasProcessed,
