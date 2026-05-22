@@ -52,6 +52,7 @@ export const AdminSettingsService = {
     return LLMConfig.create({
       provider: cfg.provider,
       model: cfg.model,
+      baseURL: cfg.baseURL,
       apiKeySource: "env",
       apiKeyCiphertext: null,
     });

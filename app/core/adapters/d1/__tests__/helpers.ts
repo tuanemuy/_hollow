@@ -1,6 +1,5 @@
 import { env } from "cloudflare:test";
 import { content } from "@/config";
-import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder";
@@ -17,6 +16,7 @@ import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { FakeLLMProvider } from "@/core/application/__tests__/fakes/fakeLLMProvider";
 import { FakeTempFileStorage } from "@/core/application/__tests__/fakes/fakeTempFileStorage";
+import { HttpLLMConnectionTester } from "@/core/application/di/llmConnectionTester";
 import type {
   RequestContainer,
   WorkerContainer,

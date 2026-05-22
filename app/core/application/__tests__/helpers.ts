@@ -10,7 +10,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach } from "vitest";
 import { content } from "@/config";
-import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import { type Database, getDatabase } from "@/core/adapters/d1/client";
@@ -33,6 +32,7 @@ import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
+import { HttpLLMConnectionTester } from "@/core/application/di/llmConnectionTester";
 import type {
   RequestContainer,
   WorkerContainer,

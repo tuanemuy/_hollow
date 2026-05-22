@@ -89,6 +89,7 @@ export class D1InstanceSettingsRepository
         llm: {
           provider: row.llmProvider,
           model: row.llmModel,
+          baseURL: row.llmBaseUrl,
           apiKeySource: row.llmApiKeySource,
           apiKeyCiphertext: row.llmApiKeyCiphertext,
         },
@@ -182,6 +183,7 @@ export class D1InstanceSettingsRepository
             id: INSTANCE_SETTINGS_ID,
             llmProvider: entity.llm.provider,
             llmModel: entity.llm.model,
+            llmBaseUrl: entity.llm.baseURL,
             llmApiKeySource: entity.llm.apiKeySource,
             llmApiKeyCiphertext: entity.llm.apiKeyCiphertext,
             promptsJson: JSON.stringify(promptsJson),
@@ -202,6 +204,7 @@ export class D1InstanceSettingsRepository
         .set({
           llmProvider: entity.llm.provider,
           llmModel: entity.llm.model,
+          llmBaseUrl: entity.llm.baseURL,
           llmApiKeySource: entity.llm.apiKeySource,
           llmApiKeyCiphertext: entity.llm.apiKeyCiphertext,
           promptsJson: JSON.stringify(promptsJson),

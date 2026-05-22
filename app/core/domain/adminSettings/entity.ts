@@ -57,6 +57,7 @@ function defaultLLM(): LLMConfig {
   return LLMConfig.create({
     provider: "anthropic",
     model: "claude-3-5-sonnet-latest",
+    baseURL: null,
     apiKeySource: "env",
     apiKeyCiphertext: null,
   });
@@ -83,6 +84,7 @@ type InstanceSettingsReconstructInput = Readonly<{
   llm: {
     provider: string;
     model: string;
+    baseURL?: string | null;
     apiKeySource: string;
     apiKeyCiphertext: string | null;
   };

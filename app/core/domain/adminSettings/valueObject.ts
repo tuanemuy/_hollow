@@ -116,12 +116,13 @@ export const PromptTemplate = {
 // ---------- LLMConfig ----------
 
 const LLM_MODEL_MAX_LENGTH = 120;
+export const LLM_BASE_URL_MAX_LENGTH = 500;
 // INVARIANT: every value here must have a matching `case` in the
 // LLM/OCR/PDF factories — otherwise DI throws at runtime when that
-// provider is selected. Add new providers (e.g. "openai", "gemini",
-// "azure-openai") atomically together with adapter implementations
-// under `app/core/adapters/<provider>/`.
-const LLM_PROVIDERS = ["anthropic"] as const;
+// provider is selected. Add new providers (e.g. "azure-openai")
+// atomically together with adapter implementations under
+// `app/core/adapters/<provider>/`.
+const LLM_PROVIDERS = ["anthropic", "openai", "gemini"] as const;
 const LLM_API_KEY_SOURCES = ["env", "db"] as const;
 
 export type LLMProvider = (typeof LLM_PROVIDERS)[number];
@@ -132,6 +133,11 @@ declare const llmConfigBrand: unique symbol;
 export type LLMConfig = Readonly<{
   provider: LLMProvider;
   model: string;
+  // OpenAI-compatible endpoint base URL (path up to but not including
+  // `/chat/completions`). Always `null` for `anthropic` / `gemini`; see
+  // ADR-004 in `.issue/101/adr.md`. The provider × baseURL invariant is
+  // enforced by `LLMConfig.create`.
+  baseURL: string | null;
   apiKeySource: LLMApiKeySource;
   apiKeyCiphertext: string | null;
 }> & { readonly [llmConfigBrand]: true };
@@ -142,6 +148,7 @@ export const LLMConfig = {
   create: (params: {
     provider: string;
     model: string;
+    baseURL?: string | null;
     apiKeySource: string;
     apiKeyCiphertext: string | null;
   }): LLMConfig => {
@@ -163,6 +170,41 @@ export const LLMConfig = {
         AdminSettingsErrorCode.InvalidLLMModelTooLong,
         `LLM model exceeds maximum length (${LLM_MODEL_MAX_LENGTH})`,
       );
+    }
+    const provider = params.provider as LLMProvider;
+    const rawBaseURL = params.baseURL ?? null;
+    let baseURL: string | null;
+    if (provider === "openai") {
+      if (rawBaseURL === null) {
+        baseURL = null;
+      } else {
+        const trimmed = rawBaseURL.trim();
+        if (trimmed.length === 0) {
+          baseURL = null;
+        } else {
+          if (trimmed.length > LLM_BASE_URL_MAX_LENGTH) {
+            throw new BusinessRuleError(
+              AdminSettingsErrorCode.InvalidLLMBaseURL,
+              `LLM baseURL exceeds maximum length (${LLM_BASE_URL_MAX_LENGTH})`,
+            );
+          }
+          if (!/^https?:\/\//.test(trimmed)) {
+            throw new BusinessRuleError(
+              AdminSettingsErrorCode.InvalidLLMBaseURL,
+              "LLM baseURL must start with http:// or https://",
+            );
+          }
+          baseURL = trimmed;
+        }
+      }
+    } else {
+      if (rawBaseURL !== null && rawBaseURL.trim().length > 0) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidLLMBaseURL,
+          `LLM baseURL must be null for provider '${provider}'`,
+        );
+      }
+      baseURL = null;
     }
     if (
       !(LLM_API_KEY_SOURCES as readonly string[]).includes(params.apiKeySource)
@@ -195,8 +237,9 @@ export const LLMConfig = {
       ciphertext = null;
     }
     return {
-      provider: params.provider as LLMProvider,
+      provider,
       model,
+      baseURL,
       apiKeySource: source,
       apiKeyCiphertext: ciphertext,
     } as unknown as LLMConfig;
