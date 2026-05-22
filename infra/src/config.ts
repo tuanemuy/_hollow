@@ -41,6 +41,7 @@ export const workerNames = (cfg: Pick<Config, "appName" | "stage">) => {
     consumer: `${prefix}-consumer`,
     pruner: `${prefix}-pruner`,
     dlq: `${prefix}-dlq`,
+    indexer: `${prefix}-indexer`,
   } as const;
 };
 

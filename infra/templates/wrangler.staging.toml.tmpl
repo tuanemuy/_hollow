@@ -116,6 +116,28 @@ max_retries = 3
 dead_letter_queue = "${EVENTS_DLQ_QUEUE}"
 
 
+# === Indexer ============================================================
+[env.indexer]
+name = "${WORKER_INDEXER}"
+main = "app/worker/cloudflare/indexer.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.indexer.vars]
+APP_URL = "${APP_URL}"
+INDEXER_BATCH_SIZE = "50"
+INDEXER_MAX_BATCHES = "20"
+
+[[env.indexer.d1_databases]]
+binding = "DB"
+database_name = "${D1_NAME}"
+database_id = "${D1_ID}"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+[env.indexer.triggers]
+crons = ["*/5 * * * *"]
+
+
 # === Pruner =============================================================
 [env.pruner]
 name = "${WORKER_PRUNER}"

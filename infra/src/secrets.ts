@@ -71,5 +71,12 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
     { worker: names.consumer, secrets: [...shared, ...dispatchExtras] },
     { worker: names.pruner, secrets: shared },
     { worker: names.dlq, secrets: shared },
+    // Indexer (Issue #145) drains `index_jobs` against D1 + SearchIndex.
+    // No LLM / R2 secrets are actually consumed; only the `shared`
+    // BETTER_AUTH / GOOGLE_* are listed here for parity with relay /
+    // pruner / dlq under the bulk-push constraint described above
+    // (ADR-007 #110). Once per-worker filtering lands, this list can
+    // shrink to the actually-used subset (currently empty).
+    { worker: names.indexer, secrets: shared },
   ];
 };

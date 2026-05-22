@@ -30,13 +30,14 @@ pnpm dev                               # vite dev backed by workerd (@cloudflare
 
 ## Worker matrix
 
-The main app and four sibling Workers ship from a **per-stage `wrangler.<stage>.toml`** as named environments. Each is deployed independently with `wrangler deploy --config wrangler.<stage>.toml --env <role>`, exposed as `pnpm deploy:<stage>:<role>` scripts.
+The main app and five sibling Workers ship from a **per-stage `wrangler.<stage>.toml`** as named environments. Each is deployed independently with `wrangler deploy --config wrangler.<stage>.toml --env <role>`, exposed as `pnpm deploy:<stage>:<role>` scripts.
 
 | Worker      | Responsibility                                                                                         | Wrangler env     | Bindings                                                                                                                                          | Trigger                                              |
 | ----------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | App (fetch) | TanStack Start HTTP request handling                                                                   | _(top level)_    | `DB` (D1), `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding), `ASSETS` — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*`; web-only `ADMIN_SETUP_TOKEN` | HTTP                                                 |
 | Relay       | Publish outbox rows — Service Binding kick + safety-net cron                                           | `--env relay`    | `DB`, `EVENTS_QUEUE`                                                                                                                              | `fetch` (Service Binding) + 5-minute Cron Trigger    |
-| Consumer    | Consume the Queue, dispatch into `runIngestionJob` / `runExportJob`, write projections / idempotency  | `--env consumer` | `DB`, `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding) — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*` | Queue consumer (`events`)                            |
+| Consumer    | Consume the Queue, dispatch into `runIngestionJob` / `runExportJob` / search & publication note handlers, write projections / idempotency  | `--env consumer` | `DB`, `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding) — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `R2_*` | Queue consumer (`events`)                            |
+| Indexer     | Drain `index_jobs` rows through `consumeIndexJob` (search-document upsert / delete)                    | `--env indexer`  | `DB`                                                                                                                                              | 5-minute Cron Trigger                                |
 | Pruner      | Daily cron that prunes processed outbox rows                                                           | `--env pruner`   | `DB`                                                                                                                                              | Daily Cron Trigger                                   |
 | DLQ         | Surface events that exhausted the consumer's retry budget                                              | `--env dlq`      | `DB`                                                                                                                                              | Queue consumer (`events-dlq`)                        |
 
@@ -113,6 +114,8 @@ For local dev, drop them into `.dev.vars` (copied from `.dev.vars.example`).
 
 The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`.
 
+The indexer tuning variables (`INDEXER_BATCH_SIZE`, `INDEXER_MAX_BATCHES`) follow the same pattern: declared in `[env.indexer.vars]`, parsed by `readIndexerTuning` (`app/core/application/di/env.ts`), and fall back to the defaults exported from `app/core/application/workers/processIndexJobs.ts` (`DEFAULT_INDEXER_BATCH_SIZE = 50`, `DEFAULT_INDEXER_MAX_BATCHES = 20`).
+
 ### Dispatch-side secrets (Issue #110)
 
 Required on the **web** and **consumer** workers for the ingestion / export dispatch paths to wire real adapters:
@@ -159,6 +162,7 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 pnpm deploy:staging                  # app only
 pnpm deploy:staging:relay
 pnpm deploy:staging:consumer
+pnpm deploy:staging:indexer
 pnpm deploy:staging:pruner
 pnpm deploy:staging:dlq
 pnpm deploy:staging:all              # all of the above
@@ -168,11 +172,43 @@ pnpm deploy:staging:all:dry          # dry run
 pnpm deploy:production               # app only
 pnpm deploy:production:relay
 pnpm deploy:production:consumer
+pnpm deploy:production:indexer
 pnpm deploy:production:pruner
 pnpm deploy:production:dlq
 pnpm deploy:production:all           # all of the above
 pnpm deploy:production:all:dry       # dry run
 ```
+
+### Deployment ordering (Issue #145)
+
+When the consumer's note.* / publication.* dispatch routing changes (or any other change that produces `index_jobs` rows under a new path), prefer this order so the producer side never runs without a matching drainer:
+
+1. **consumer** — picks up the new dispatch routing and starts enqueueing `index_jobs` rows.
+2. **indexer** — must be deployed before the consumer accumulates a backlog; otherwise rows sit in `index_jobs` until the next deploy.
+3. **relay** — re-deploy if the relay-visible event schema changed.
+4. **app** — last, so any new UoW-emitted events have somewhere to land.
+
+The reverse ordering is not destructive (indexer deployed late just means a brief delay; rows are picked up on its next cron tick), but the explicit order matches the "producer-then-consumer-then-app" recovery flow and avoids surprising the operator.
+
+### DLQ rows in `index_jobs`
+
+`consumeIndexJob` marks a row as DLQ when `attempts >= CONSUME_INDEX_JOB_MAX_ATTEMPTS` (3). The queue-less drainer design means dlq rows stay in the `index_jobs` table — they are filtered out of subsequent `nextBatch` calls by the `attempts < maxAttempts` guard (Issue #145 ADR-006), so they never re-enter the dispatch loop on their own.
+
+Recovery is operator-driven:
+
+`<d1-database-name>` below is the Pulumi-generated `${appName}-${stage}-d1` (e.g. `hollow-staging-d1`); confirm with `pulumi stack output` if unsure.
+
+```bash
+# Inspect dlq rows
+pnpm wrangler d1 execute <d1-database-name> --remote --config wrangler.<stage>.toml \
+  --command "SELECT id, note_id, op, attempts, last_error FROM index_jobs WHERE attempts >= 3 ORDER BY enqueued_at DESC LIMIT 50;"
+
+# Re-drive after the upstream cause is fixed (clears the dlq filter on next tick)
+pnpm wrangler d1 execute <d1-database-name> --remote --config wrangler.<stage>.toml \
+  --command "UPDATE index_jobs SET attempts = 0, last_error = NULL WHERE id = '<id>';"
+```
+
+The admin UI's `AdminSettings.RebuildSearchIndex` is the broader recovery path — it rebuilds `search_documents` from upstream Note aggregates and is idempotent with the event-driven updates.
 
 ## D1 migrations
 
@@ -201,11 +237,12 @@ Queue parameters (visibility timeout, `max_retries`, `max_batch_size`, `max_batc
 
 ## Cron triggers
 
-Two cron triggers ship in `wrangler.<stage>.toml`:
+Three cron triggers ship in `wrangler.<stage>.toml`:
 
 | Worker  | Schedule       | Purpose                                                              |
 | ------- | -------------- | -------------------------------------------------------------------- |
 | Relay   | every 5 min    | Safety-net publish loop — kicks in when the Service Binding fails.   |
+| Indexer | every 5 min    | Drains `index_jobs` rows produced by note.* / publication.* dispatch.|
 | Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows beyond retention. |
 
 ## Retry budget

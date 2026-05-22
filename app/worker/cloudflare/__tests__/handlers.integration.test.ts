@@ -12,13 +12,20 @@ import { PendingBatch } from "@/core/adapters/d1/pendingBatch";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import {
+  directories,
   exportJobs,
+  indexJobs,
   ingestionJobs,
+  notes,
   outboxEvents,
   processedEvents,
+  publicationStates,
+  searchDocuments,
   users,
 } from "@/core/adapters/d1/schema";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
+import { createWorkerContainer } from "@/core/application/di/serverCloudflare";
+import { processIndexJobs } from "@/core/application/workers/processIndexJobs";
 import {
   type DomainEvent,
   type EventDraft,
@@ -28,6 +35,7 @@ import { UserId } from "@/core/domain/identity/valueObject";
 import { LLMRateLimitError } from "@/core/domain/ingestion/ports/llmProvider";
 import { NoteEvents } from "@/core/domain/note/events";
 import { NoteId } from "@/core/domain/note/valueObject";
+import { PublicationEvents } from "@/core/domain/publication/events";
 import {
   type ConsumerEnv,
   type DlqEnv,
@@ -552,7 +560,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(stamped).toHaveLength(1);
   });
 
-  it("skips note.trashed dispatch (regression guard) — stamp is still recorded", async () => {
+  it("handles note.trashed dispatch (search delete + publication cascade) — stamp is recorded", async () => {
     const noteId = nextNoteId();
     const event = withId(makeTrashedDraft(noteId));
 
@@ -849,6 +857,214 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .from(ingestionJobs)
       .where(eq(ingestionJobs.id, jobId));
     expect(jobRows[0]?.status).not.toBe("pending");
+  });
+});
+
+describe("consumer Worker — note.* / publication.* dispatch (#145)", () => {
+  type SeedResult = Readonly<{
+    ownerId: string;
+    directoryId: string;
+    noteId: NoteId;
+  }>;
+
+  // Reuse a deterministic id band for these tests so the rows do not
+  // collide with the ones seeded by earlier `describe` blocks in this
+  // file (each block uses its own band via `nextOwnerId` / `nextNoteId`).
+  let searchSeedSeq = 0;
+  const nextSearchId = (suffix: string): string => {
+    searchSeedSeq += 1;
+    // UUIDv7 shape: third group starts with `7`, fourth group's first
+    // nibble in `[89ab]`. Last group is exactly 12 hex chars; we pack
+    // the per-call suffix tag (1 char) + sequence + zero-padding.
+    const block = searchSeedSeq.toString(16).padStart(4, "0");
+    return `0193e7d0-${block}-7000-a000-${suffix}${block}0000000`;
+  };
+
+  async function seedActiveNote(params: {
+    title?: string;
+    visibility?: "private" | "unlisted" | "public";
+    status?: "active" | "trashed";
+  }): Promise<SeedResult> {
+    const db = getDatabase(env.DB);
+    const ownerId = nextSearchId("a");
+    const directoryId = nextSearchId("b");
+    const noteId = NoteId.create(nextSearchId("c"));
+    const tz = new Date(0).toISOString();
+    const suffix = ownerId.slice(-6);
+    await db.insert(users).values({
+      id: ownerId,
+      name: `note-owner-${suffix}`,
+      email: `note-${suffix}@example.test`,
+      emailVerified: 1,
+      username: `note_${suffix}`,
+      role: "member",
+      banned: 0,
+      createdAt: tz,
+      updatedAt: tz,
+    });
+    await db.insert(directories).values({
+      id: directoryId,
+      ownerId,
+      parentId: null,
+      name: "root",
+      slug: `dir-${directoryId.slice(9, 13)}`,
+      depth: 0,
+      version: 0,
+      createdAt: tz,
+      updatedAt: tz,
+    });
+    const status = params.status ?? "active";
+    await db.insert(notes).values({
+      id: noteId as string,
+      ownerId,
+      directoryId,
+      slug: `note-${noteId.slice(9, 13)}`,
+      title: params.title ?? "Initial title",
+      contentHtml: "<p>body</p>",
+      frontMatterJson: "{}",
+      status,
+      trashedAt: status === "trashed" ? tz : null,
+      createdAt: tz,
+      updatedAt: tz,
+      version: 0,
+    });
+    await db.insert(publicationStates).values({
+      noteId: noteId as string,
+      ownerId,
+      visibility: params.visibility ?? "private",
+      publishedAt: null,
+      updatedAt: tz,
+      version: 0,
+    });
+    return { ownerId, directoryId, noteId };
+  }
+
+  async function pushEvent(
+    msgId: string,
+    event: DomainEvent,
+  ): Promise<ReturnType<typeof getQueueResult>> {
+    const batch = createMessageBatch<DomainEvent>(
+      "tanstack-start-template-events",
+      [
+        {
+          id: msgId,
+          timestamp: new Date(),
+          body: event,
+          attempts: 1,
+        },
+      ],
+    );
+    const ctx = createExecutionContext();
+    await handleQueue(batch, consumerEnv(), ctx);
+    return getQueueResult(batch, ctx);
+  }
+
+  it("note.created → enqueues upsert in index_jobs and reflects to search_documents on drainer tick", async () => {
+    const seeded = await seedActiveNote({ title: "Hello 145" });
+    const event = withId(
+      NoteEvents.created(
+        {
+          noteId: seeded.noteId,
+          ownerId: seeded.ownerId as UserId,
+          directoryId: seeded.directoryId as never,
+          slug: `note-${seeded.noteId.slice(9, 13)}` as never,
+          title: "Hello 145" as never,
+          tagIds: [],
+          mediaRefs: [],
+        },
+        new Date(),
+      ),
+    );
+    const result = await pushEvent(`msg-145-created-${seeded.noteId}`, event);
+    expect(result.retryBatch.retry).toBe(false);
+
+    const db = getDatabase(env.DB);
+    const jobs = await db
+      .select()
+      .from(indexJobs)
+      .where(eq(indexJobs.noteId, seeded.noteId as string));
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.op).toBe("upsert");
+
+    // Drain via the application-layer tick and verify SearchIndex applied
+    // the upsert.
+    const container = createWorkerContainer(consumerEnv());
+    await processIndexJobs(container, { batchSize: 10 });
+
+    const docs = await db
+      .select()
+      .from(searchDocuments)
+      .where(eq(searchDocuments.noteId, seeded.noteId as string));
+    expect(docs).toHaveLength(1);
+    expect(docs[0]?.title).toBe("Hello 145");
+  });
+
+  it("note.trashed → enqueues delete and cascades publication visibility to private (fan-out)", async () => {
+    const seeded = await seedActiveNote({
+      title: "Trash target",
+      visibility: "public",
+    });
+    const event = withId(
+      NoteEvents.trashed(
+        {
+          noteId: seeded.noteId,
+          ownerId: seeded.ownerId as UserId,
+          mediaRefs: [],
+        },
+        new Date(),
+      ),
+    );
+    const result = await pushEvent(`msg-145-trashed-${seeded.noteId}`, event);
+    expect(result.retryBatch.retry).toBe(false);
+
+    const db = getDatabase(env.DB);
+    const jobs = await db
+      .select()
+      .from(indexJobs)
+      .where(eq(indexJobs.noteId, seeded.noteId as string));
+    // search-side delete enqueue. publication.handleNoteTrashedEvent
+    // does its work inline (no IndexJob enqueue) but mutates
+    // publication_states.
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.op).toBe("delete");
+
+    const pubRows = await db
+      .select()
+      .from(publicationStates)
+      .where(eq(publicationStates.noteId, seeded.noteId as string));
+    expect(pubRows[0]?.visibility).toBe("private");
+  });
+
+  it("note.publish_changed against a trashed note → no IndexJob enqueued (ADR-007 status guard E2E)", async () => {
+    const seeded = await seedActiveNote({
+      title: "Trashed ghost",
+      status: "trashed",
+    });
+    const event = withId(
+      PublicationEvents.notePublishChanged(
+        {
+          noteId: seeded.noteId,
+          ownerId: seeded.ownerId as UserId,
+          previous: "private" as never,
+          next: "public" as never,
+        },
+        new Date(),
+      ),
+    );
+    const result = await pushEvent(
+      `msg-145-publish-trashed-${seeded.noteId}`,
+      event,
+    );
+    expect(result.retryBatch.retry).toBe(false);
+
+    const db = getDatabase(env.DB);
+    const jobs = await db
+      .select()
+      .from(indexJobs)
+      .where(eq(indexJobs.noteId, seeded.noteId as string));
+    // The dispatcher's trashed-status guard short-circuits before
+    // `handlePublicationChangedEvent` runs, so no row is enqueued.
+    expect(jobs).toHaveLength(0);
   });
 });
 

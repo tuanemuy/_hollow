@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
@@ -61,8 +61,13 @@ export class D1IndexJobRepository implements IndexJobRepository {
     });
   }
 
-  async nextBatch(limit: number, now: Date): Promise<readonly IndexJob[]> {
+  async nextBatch(
+    limit: number,
+    now: Date,
+    maxAttempts: number,
+  ): Promise<readonly IndexJob[]> {
     if (!Number.isInteger(limit) || limit <= 0) return [];
+    if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) return [];
     return mapDbError("Failed to fetch next index job batch", async () => {
       // Inner SELECT picks the oldest pending rows; the outer UPDATE
       // increments `attempts` and returns the full row in one
@@ -71,15 +76,26 @@ export class D1IndexJobRepository implements IndexJobRepository {
       // committed and its inner SELECT still returns the same rows
       // (the filter is `processed_at IS NULL`, which neither worker
       // changed). Duplicate dispatches are accepted; consumers are
-      // expected to be idempotent. `now` is on the port signature so
-      // the adapter has a deterministic clock available if a future
-      // schema adds a `claimed_at` column, but the current rows have
-      // no per-claim timestamp.
+      // expected to be idempotent.
+      //
+      // `attempts < maxAttempts` is repeated on the outer UPDATE WHERE
+      // for defense in depth: if a concurrent worker raced the inner
+      // SELECT and bumped a row past the DLQ threshold between the
+      // SELECT and the UPDATE, the outer guard still excludes it from
+      // the RETURNING set. `now` is on the port signature so the
+      // adapter has a deterministic clock available if a future schema
+      // adds a `claimed_at` column, but the current rows have no
+      // per-claim timestamp.
       void now;
       const eligibleIds = this.db
         .select({ id: indexJobs.id })
         .from(indexJobs)
-        .where(isNull(indexJobs.processedAt))
+        .where(
+          and(
+            isNull(indexJobs.processedAt),
+            lt(indexJobs.attempts, maxAttempts),
+          ),
+        )
         .orderBy(asc(indexJobs.enqueuedAt), asc(indexJobs.id))
         .limit(limit);
 
@@ -89,6 +105,7 @@ export class D1IndexJobRepository implements IndexJobRepository {
         .where(
           and(
             isNull(indexJobs.processedAt),
+            lt(indexJobs.attempts, maxAttempts),
             sql`${indexJobs.id} IN ${eligibleIds}`,
           ),
         )
