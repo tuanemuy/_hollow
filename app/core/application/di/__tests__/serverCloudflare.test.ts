@@ -263,6 +263,17 @@ describe("createRequestContainer", () => {
     });
   });
 
+  it("whitespace-only baseURL bypasses length>0 normalisation (ADR-002: trim しない) (W-T-003)", () => {
+    // ADR-002 / Issue #143: env presence is `length > 0`, *not* `trim().length > 0`.
+    // A single-space `" "` env var must be treated as "set" and flow through to
+    // `adminSettingsEnv.baseURL` verbatim so admin UI and consumer agree on
+    // which fields are env-locked.
+    const container = createRequestContainer(
+      configWith({ adminLlmBaseUrl: " " }),
+    );
+    expect(container.adminSettingsEnv.baseURL).toBe(" ");
+  });
+
   it("readRequestServerConfig threads ADMIN_LLM_BASE_URL into adminLlmBaseUrl", () => {
     const config = readRequestServerConfig(
       envWith({ ADMIN_LLM_BASE_URL: "https://api.groq.com/openai/v1" }),

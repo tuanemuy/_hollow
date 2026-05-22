@@ -263,6 +263,9 @@ export function readRequestServerConfig(
     ...(env.ADMIN_LLM_PROVIDER
       ? { adminLlmProvider: env.ADMIN_LLM_PROVIDER }
       : {}),
+    // container 側 (`createRequestContainer`) で `length > 0` の最終正規化を
+    // 行うため、こちらは truthy（空文字を脱落させる）で十分。両側を同じ条件
+    // に揃える必要はなく、threading 漏れさえ起きなければ semantics は一致。
     ...(env.ADMIN_LLM_BASE_URL
       ? { adminLlmBaseUrl: env.ADMIN_LLM_BASE_URL }
       : {}),

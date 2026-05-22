@@ -191,9 +191,9 @@ export type RequestContainer = SharedDeps &
      */
     usageMetricsProvider: UsageMetricsProvider;
     /**
-     * Operator-controlled env values consulted by admin usecases.
-     * Currently only the LLM api-key env override (see
-     * `AdminSettingsService.assertEnvOverride`).
+     * Operator-controlled env values consulted by admin usecases. See
+     * {@link AdminSettingsEnv} for field semantics and the env-override
+     * contract shared with the consumer-side resolver.
      */
     adminSettingsEnv: AdminSettingsEnv;
   }>;

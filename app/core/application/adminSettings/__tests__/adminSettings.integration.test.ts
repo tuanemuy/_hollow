@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import { signUp } from "@/core/application/identity/signUp";
 import type {
@@ -431,6 +431,169 @@ describe("updateLLMConfig", () => {
     // fields" claim — the encrypt → drop path inside the usecase does not
     // perturb the persisted column.
     expect(after[0]?.llmApiKeyCiphertext).toBe(beforeCiphertext);
+  });
+
+  it("logger.warn is invoked with { fields } when silent-skip fires (W-T-004)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: "sk-openai",
+      },
+    });
+
+    const warnSpy = vi.fn();
+    const container = {
+      ...baseContainer,
+      logger: {
+        info: () => {},
+        warn: warnSpy,
+        error: () => {},
+      },
+      adminSettingsEnv: {
+        apiKey: null,
+        provider: "anthropic",
+        model: "claude-sonnet-4-5",
+        baseURL: "https://example.invalid/v1",
+      },
+    };
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "gemini",
+        model: "gemini-1.5-pro",
+        baseURL: null,
+        apiKeyPlain: null,
+      },
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith("admin_llm_env_override_skip", {
+      fields: ["provider", "model", "baseURL"],
+    });
+  });
+
+  it("composite silent-skip: env.provider + env.apiKey set, input carries apiKeyPlain + different provider (W-T-005)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic-original",
+      },
+    });
+    const before = await baseContainer.db
+      .select()
+      .from(schema.instanceSettings);
+    const beforeCiphertext = before[0]?.llmApiKeyCiphertext;
+
+    // env locks both provider and apiKey; input tries to switch provider AND
+    // supplies a new apiKeyPlain. Both must be silent-skipped: provider stays
+    // anthropic, ciphertext stays at the original (env.apiKey wins via
+    // assertEnvOverride, dropping the freshly-encrypted ciphertext).
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: {
+        apiKey: "sk-env-active",
+        provider: "anthropic",
+        model: null,
+        baseURL: null,
+      },
+    };
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: "sk-openai-new",
+      },
+    });
+
+    const after = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(after[0]?.llmProvider).toBe("anthropic");
+    // env.apiKey is set so the persisted ciphertext must be cleared by
+    // `assertEnvOverride` (apiKeySource → "env", ciphertext → null).
+    expect(after[0]?.llmApiKeySource).toBe("env");
+    expect(after[0]?.llmApiKeyCiphertext).toBeNull();
+    // Sanity: the input ciphertext-equivalent must never have been persisted.
+    expect(after[0]?.llmApiKeyCiphertext).not.toBe(beforeCiphertext);
+  });
+
+  it("silent-skip reconciles provider × baseURL invariant (B-UC-001)", async () => {
+    // Regression for B-UC-001: env pins provider=anthropic (baseURL must be
+    // null per LLMConfig.create invariant) while the DB still holds
+    // provider=anthropic + baseURL=null. A direct POST with provider=openai +
+    // baseURL=https://... must NOT trip BusinessRuleError(InvalidLLMBaseURL):
+    // silent skip forces effectiveProvider=anthropic, and the reconcile step
+    // forces baseURL → null before LLMConfig.create.
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+    const before = await baseContainer.db
+      .select()
+      .from(schema.instanceSettings);
+    expect(before[0]?.llmProvider).toBe("anthropic");
+    expect(before[0]?.llmBaseUrl).toBeNull();
+
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: {
+        apiKey: null,
+        provider: "anthropic",
+        model: null,
+        baseURL: null,
+      },
+    };
+    // Must NOT throw — silent skip + reconcile keeps the persisted invariant.
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: null,
+      },
+    });
+
+    const after = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(after[0]?.llmProvider).toBe("anthropic");
+    expect(after[0]?.llmBaseUrl).toBeNull();
   });
 
   it("env-pinned provider suppresses ProviderChangedRequiresApiKey on input that would otherwise change provider", async () => {

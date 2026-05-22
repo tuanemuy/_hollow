@@ -41,7 +41,7 @@ const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
 const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 const INPUT_CLASS =
-  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
+  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-surface";
 const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const SELECT_CLASS = INPUT_CLASS;
 const BTN_CLASS =
@@ -77,6 +77,10 @@ export function LLMSettingsForm({
   const modelId = useId();
   const baseURLId = useId();
   const apiKeyId = useId();
+  const providerLockHintId = useId();
+  const modelLockHintId = useId();
+  const baseURLLockHintId = useId();
+  const apiKeyLockHintId = useId();
 
   // Defensive narrowing: the DTO's `provider` is typed as `string` and
   // could drift away from `LLM_PROVIDERS_TRANSPORT` if the domain adds a
@@ -110,7 +114,10 @@ export function LLMSettingsForm({
   const providerChanged =
     !envOverrides.provider && provider !== persistedProvider;
   const apiKeyRequired = providerChanged && !envOverrides.apiKey;
-  const showBaseURL = provider === "openai";
+  // Render the baseURL field when the provider is openai (semantics: only
+  // openai consumes a base URL) OR when env has set a baseURL (so the lock
+  // UI surfaces even with `ADMIN_LLM_PROVIDER=anthropic + ADMIN_LLM_BASE_URL=...`).
+  const showBaseURL = provider === "openai" || envOverrides.baseURL;
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -240,6 +247,9 @@ export function LLMSettingsForm({
             }}
             disabled={isPending || envOverrides.provider}
             data-env-locked={envOverrides.provider || undefined}
+            aria-describedby={
+              envOverrides.provider ? providerLockHintId : undefined
+            }
           >
             {LLM_PROVIDERS_TRANSPORT.map((id) => (
               <option key={id} value={id}>
@@ -251,7 +261,7 @@ export function LLMSettingsForm({
             現在の保存値: {PROVIDER_LABEL[persistedProvider]}
           </p>
           {envOverrides.provider ? (
-            <p className={LOCK_HINT_CLASS}>
+            <p className={LOCK_HINT_CLASS} id={providerLockHintId}>
               環境変数{" "}
               <code className={CODE_INLINE_CLASS}>ADMIN_LLM_PROVIDER</code>{" "}
               で固定されているため変更できません。
@@ -295,6 +305,9 @@ export function LLMSettingsForm({
               disabled={isPending || envOverrides.baseURL}
               data-env-locked={envOverrides.baseURL || undefined}
               autoComplete="off"
+              aria-describedby={
+                envOverrides.baseURL ? baseURLLockHintId : undefined
+              }
             />
             <p className={FIELD_HINT_CLASS}>
               OpenAI 本家を使う場合は空欄で OK。Azure / Groq / vLLM 等の場合は
@@ -309,7 +322,7 @@ export function LLMSettingsForm({
               系のモデル指定が必要です。
             </p>
             {envOverrides.baseURL ? (
-              <p className={LOCK_HINT_CLASS}>
+              <p className={LOCK_HINT_CLASS} id={baseURLLockHintId}>
                 環境変数{" "}
                 <code className={CODE_INLINE_CLASS}>ADMIN_LLM_BASE_URL</code>{" "}
                 で固定されているため変更できません。
@@ -377,6 +390,9 @@ export function LLMSettingsForm({
               data-env-locked={envOverrides.apiKey || undefined}
               required={apiKeyRequired || undefined}
               aria-invalid={apiKeyServerError !== null || undefined}
+              aria-describedby={
+                envOverrides.apiKey ? apiKeyLockHintId : undefined
+              }
             />
             <button
               type="button"
@@ -387,7 +403,10 @@ export function LLMSettingsForm({
               {isTesting ? "テスト中..." : "接続テスト"}
             </button>
           </div>
-          <p className={FIELD_HINT_CLASS}>
+          <p
+            className={FIELD_HINT_CLASS}
+            id={envOverrides.apiKey ? apiKeyLockHintId : undefined}
+          >
             {envOverrides.apiKey
               ? "環境変数 ADMIN_LLM_API_KEY で固定されているため変更できません。"
               : apiKeyRequired
@@ -438,9 +457,10 @@ export function LLMSettingsForm({
             className={INPUT_CLASS}
             value={model}
             onChange={(event) => setModel(event.target.value)}
-            required={!envOverrides.model}
+            required={!envOverrides.model || undefined}
             disabled={isPending || envOverrides.model}
             data-env-locked={envOverrides.model || undefined}
+            aria-describedby={envOverrides.model ? modelLockHintId : undefined}
           />
           <p className={FIELD_HINT_CLASS}>
             例:{" "}
@@ -451,7 +471,7 @@ export function LLMSettingsForm({
                 : "gemini-1.5-pro"}
           </p>
           {envOverrides.model ? (
-            <p className={LOCK_HINT_CLASS}>
+            <p className={LOCK_HINT_CLASS} id={modelLockHintId}>
               環境変数{" "}
               <code className={CODE_INLINE_CLASS}>ADMIN_LLM_MODEL</code>{" "}
               で固定されているため変更できません。

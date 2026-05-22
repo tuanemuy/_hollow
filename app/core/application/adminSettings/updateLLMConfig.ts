@@ -81,7 +81,8 @@ export async function updateLLMConfig({
   // value rather than rewritten with the input. The encrypted apiKey is
   // a separate axis — `AdminSettingsService.assertEnvOverride` drops it
   // downstream when `env.apiKey` is set, so the upstream encrypt → drop
-  // is intentional (cheap web-crypto call, simpler code structure).
+  // is intentional: admin-gated so DoS surface is irrelevant, and a
+  // cheap web-crypto call keeps the control flow simpler than branching.
   const apiKeyCiphertext =
     input.apiKeyPlain === null
       ? null
@@ -100,6 +101,12 @@ export async function updateLLMConfig({
         env.model !== null ? current.llm.model : input.model;
       const effectiveBaseURL =
         env.baseURL !== null ? current.llm.baseURL : input.baseURL;
+      // Reconcile silent-skip + LLMConfig invariant: when the effective
+      // provider lands on a non-openai value (env-pinned or otherwise), a
+      // lingering `input.baseURL` would trip `LLMConfig.create`'s provider
+      // × baseURL guard. Force baseURL to null so silent skip never throws.
+      const safeBaseURL =
+        effectiveProvider === "openai" ? effectiveBaseURL : null;
 
       // `providerChanged` flips to false when env locks the provider —
       // the operator cannot change a provider that env has pinned, so the
@@ -119,14 +126,14 @@ export async function updateLLMConfig({
           ? LLMConfig.create({
               provider: effectiveProvider,
               model: effectiveModel,
-              baseURL: effectiveBaseURL,
+              baseURL: safeBaseURL,
               apiKeySource: "db",
               apiKeyCiphertext,
             })
           : LLMConfig.create({
               provider: effectiveProvider,
               model: effectiveModel,
-              baseURL: effectiveBaseURL,
+              baseURL: safeBaseURL,
               apiKeySource: current.llm.apiKeySource,
               apiKeyCiphertext: current.llm.apiKeyCiphertext,
             });
@@ -138,8 +145,10 @@ export async function updateLLMConfig({
       if (env.model !== null) skippedFields.push("model");
       if (env.baseURL !== null) skippedFields.push("baseURL");
       if (skippedFields.length > 0) {
+        // payload は env 値 / input 値 / ciphertext を含めない（field 名のみ）。
+        // 監査としては「どの field が silent skip されたか」だけが必要であり、
+        // 実値を流すと secret hygiene が崩れる。
         container.logger.warn("admin_llm_env_override_skip", {
-          event: "admin_llm_env_override_skip",
           fields: skippedFields,
         });
       }

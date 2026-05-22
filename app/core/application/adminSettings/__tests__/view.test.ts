@@ -146,6 +146,109 @@ describe("toInstanceSettingsView", () => {
     expect(dto.llm.baseURL).toBe("https://api.groq.com/openai/v1");
   });
 
+  it("env.provider single-set: only provider is overlaid, model/baseURL retain DB values (W-T-001)", () => {
+    const base = InstanceSettings.default(T0);
+    const llm = LLMConfig.create({
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      baseURL: null,
+      apiKeySource: "db",
+      apiKeyCiphertext: "ciphertext",
+    });
+    const next = InstanceSettings.updateLLM(base, llm, T0);
+    const dto = toInstanceSettingsView(next, {
+      apiKey: null,
+      provider: "openai",
+      model: null,
+      baseURL: null,
+    });
+    expect(dto.llm.envOverrides).toEqual({
+      provider: true,
+      model: false,
+      apiKey: false,
+      baseURL: false,
+    });
+    expect(dto.llm.provider).toBe("openai");
+    expect(dto.llm.model).toBe("claude-sonnet-4-6");
+    expect(dto.llm.baseURL).toBeNull();
+  });
+
+  it("env.model single-set: only model is overlaid, provider/baseURL retain DB values (W-T-001)", () => {
+    const base = InstanceSettings.default(T0);
+    const llm = LLMConfig.create({
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      baseURL: null,
+      apiKeySource: "db",
+      apiKeyCiphertext: "ciphertext",
+    });
+    const next = InstanceSettings.updateLLM(base, llm, T0);
+    const dto = toInstanceSettingsView(next, {
+      apiKey: null,
+      provider: null,
+      model: "claude-3-opus",
+      baseURL: null,
+    });
+    expect(dto.llm.envOverrides).toEqual({
+      provider: false,
+      model: true,
+      apiKey: false,
+      baseURL: false,
+    });
+    expect(dto.llm.provider).toBe("anthropic");
+    expect(dto.llm.model).toBe("claude-3-opus");
+    expect(dto.llm.baseURL).toBeNull();
+  });
+
+  it("env.baseURL single-set: only baseURL is overlaid, provider/model retain DB values (W-T-001)", () => {
+    const base = InstanceSettings.default(T0);
+    const llm = LLMConfig.create({
+      provider: "openai",
+      model: "gpt-4o",
+      baseURL: "https://api.openai.com/v1",
+      apiKeySource: "db",
+      apiKeyCiphertext: "ciphertext",
+    });
+    const next = InstanceSettings.updateLLM(base, llm, T0);
+    const dto = toInstanceSettingsView(next, {
+      apiKey: null,
+      provider: null,
+      model: null,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+    expect(dto.llm.envOverrides).toEqual({
+      provider: false,
+      model: false,
+      apiKey: false,
+      baseURL: true,
+    });
+    expect(dto.llm.provider).toBe("openai");
+    expect(dto.llm.model).toBe("gpt-4o");
+    expect(dto.llm.baseURL).toBe("https://api.groq.com/openai/v1");
+  });
+
+  it("env.apiKey null + DB ciphertext exists: apiKeyMasked is `••••XXXX`, ciphertext never leaks (W-T-002)", () => {
+    const base = InstanceSettings.default(T0);
+    const ciphertext = "ENCRYPTEDxyzAB123456";
+    const llm = LLMConfig.create({
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      apiKeySource: "db",
+      apiKeyCiphertext: ciphertext,
+    });
+    const next = InstanceSettings.updateLLM(base, llm, T0);
+    const dto = toInstanceSettingsView(next, {
+      apiKey: null,
+      provider: null,
+      model: null,
+      baseURL: null,
+    });
+    // Mask shape: `••••` + last 4 chars (3456 here).
+    expect(dto.llm.apiKeyMasked).toMatch(/^••••.{4}$/);
+    expect(dto.llm.apiKeyMasked).toBe(`••••${ciphertext.slice(-4)}`);
+    expect(JSON.stringify(dto)).not.toContain(ciphertext);
+  });
+
   it("flips all four envOverrides when every ADMIN_LLM_* env is set", () => {
     // Use an openai-shaped persisted config so the baseURL invariant on
     // `LLMConfig.create` is satisfied when the env baseURL is overlaid.

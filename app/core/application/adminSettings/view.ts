@@ -45,5 +45,11 @@ export function toInstanceSettingsView(
   settings: InstanceSettings,
   env: AdminSettingsEnv | null = null,
 ): InstanceSettingsDTO {
-  return toInstanceSettingsDTO(settings, maskApiKey(settings.llm), env);
+  // Defense-in-depth: when env.apiKey is set, the env value wins at runtime
+  // and the persisted ciphertext is irrelevant to the UI. Skip masking
+  // entirely so a stale DB cipher never makes the round-trip into the DTO
+  // (`toInstanceSettingsDTO` also nulls `apiKeyMasked` when envOverrides.apiKey,
+  // this is the upstream belt to that suspenders).
+  const apiKeyMasked = env?.apiKey ? null : maskApiKey(settings.llm);
+  return toInstanceSettingsDTO(settings, apiKeyMasked, env);
 }

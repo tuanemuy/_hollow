@@ -105,9 +105,9 @@ export function toInstanceSettingsDTO(
   };
   // env-locked fields surface the runtime-effective value rather than the
   // stale DB value (Issue #143 ADR-003). `provider` is narrowed back to
-  // `LLMProviderName` defensively — env validation lives at the transport
-  // boundary (wrangler vars), so by the time the value reaches the DTO
-  // it has already been screened by the factory's `default: throw`.
+  // `LLMProviderName` defensively — validated by `createLLMProvider`'s
+  // `default: throw` at DI bootstrap, so any unrecognized value would have
+  // already aborted container construction before reaching this DTO.
   const provider = (
     envOverrides.provider && llmEnv !== null && llmEnv.provider !== null
       ? llmEnv.provider
