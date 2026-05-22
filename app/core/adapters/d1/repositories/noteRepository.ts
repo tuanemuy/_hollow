@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   gte,
@@ -55,7 +56,7 @@ type NoteTagRow = typeof noteTags.$inferSelect;
 type NoteInternalLinkRow = typeof noteInternalLinks.$inferSelect;
 type NoteMediaRefRow = typeof noteMediaRefs.$inferSelect;
 
-type SortColumn = "updatedAt" | "createdAt" | "title";
+type SortColumn = Extract<keyof NoteRow, "updatedAt" | "createdAt" | "title">;
 
 // Aggregate-shaped bundle of the per-note ancillary rows the reconstruct
 // path consumes. Built once per multi-row read and indexed by note id so
@@ -391,20 +392,38 @@ export class D1NoteRepository implements NoteRepository {
       const sortCol = pickSortColumn(opts.sort);
       const order = opts.order ?? "desc";
 
-      const where = await this.buildOwnerListWhere(ownerId, opts);
-      if (where === null) return [];
+      const built = await this.buildOwnerListWhere(ownerId, opts);
+      if (built === null) return [];
+      const { where, idScope } = built;
 
-      const rows = await this.db
-        .select()
-        .from(notes)
-        .where(where)
-        .orderBy(
-          order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
-          desc(notes.id),
-        )
-        .limit(opts.limit)
-        .offset(opts.offset);
-      return this.hydrateMany(rows);
+      // `idScope === null` keeps the single-query path: the DB executes
+      // ORDER BY / LIMIT / OFFSET in one round trip. When `idScope` is
+      // present the filter chain depends on `notes.id IN (...)`, which
+      // would blow past the D1 host-var cap once `idScope.size > ~90`,
+      // so we chunk the lookup and re-apply sort/slice in JS.
+      if (idScope === null) {
+        const rows = await this.db
+          .select()
+          .from(notes)
+          .where(where)
+          .orderBy(
+            order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
+            desc(notes.id),
+          )
+          .limit(opts.limit)
+          .offset(opts.offset);
+        return this.hydrateMany(rows);
+      }
+
+      const rows = await selectInChunks(Array.from(idScope), (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(and(where, inArray(notes.id, [...chunk]))),
+      );
+      const sorted = sortNoteRowsBy(rows, sortCol, order);
+      const page = sorted.slice(opts.offset, opts.offset + opts.limit);
+      return this.hydrateMany(page);
     });
   }
 
@@ -414,10 +433,25 @@ export class D1NoteRepository implements NoteRepository {
   // `visibility` array, or any candidate-set intersection that is
   // empty); callers short-circuit to `[]` / `0` in that case without
   // hitting the database again.
+  //
+  // The returned `idScope` carries the candidate-set intersection (when
+  // one exists) so callers can chunk the `notes.id IN (...)` predicate
+  // themselves and stay under the D1 host-var cap. Embedding the IN
+  // here would have caused unbounded bind explosion on filter mixes
+  // like `visibility=['public']` × `tagIds=[...]` over high-volume
+  // owners. See `.issue/165/adr.md` ADR-001.
   private async buildOwnerListWhere(
     ownerId: UserId,
     opts: NoteOwnerCountOpts,
-  ): Promise<SQL | null> {
+  ): Promise<{
+    where: SQL;
+    idScope: ReadonlySet<string> | null;
+  } | null> {
+    // `conditions` is seeded with `eq(notes.ownerId, ownerId)`, so
+    // `and(...conditions)` always produces a non-null `SQL` — drizzle
+    // returns `undefined` only for an empty argument list. The cast
+    // keeps the return type free of a vestigial null branch that
+    // callers would otherwise have to defend against.
     const conditions = [eq(notes.ownerId, ownerId)];
     if (opts.status) {
       conditions.push(eq(notes.status, opts.status));
@@ -468,10 +502,13 @@ export class D1NoteRepository implements NoteRepository {
     if (candidateSets.length > 0) {
       const intersected = intersectIdSets(candidateSets);
       if (intersected.size === 0) return null;
-      conditions.push(inArray(notes.id, [...intersected]));
+      return {
+        where: and(...conditions) as SQL,
+        idScope: intersected,
+      };
     }
 
-    return and(...conditions) ?? null;
+    return { where: and(...conditions) as SQL, idScope: null };
   }
 
   // Tag AND-filter: a note matches when it carries *every* supplied tag.
@@ -615,28 +652,34 @@ export class D1NoteRepository implements NoteRepository {
           .from(notes)
           .where(inArray(notes.id, [...chunk])),
       );
-      const sorted = [...rows].sort((a, b) => {
-        if (a.updatedAt !== b.updatedAt) {
-          return a.updatedAt < b.updatedAt ? 1 : -1;
-        }
-        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
-      });
+      const sorted = sortNoteRowsBy(rows, "updatedAt", "desc");
       return this.hydrateMany(sorted);
     });
   }
 
   countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number> {
     return mapDbError("Failed to count notes", async () => {
-      const where = await this.buildOwnerListWhere(ownerId, opts ?? {});
-      if (where === null) return 0;
-      // `count(*)` would be faster but Drizzle's typed builder needs
-      // the projection to spell out a column; pulling the id only is
-      // cheap in SQLite (no row body materialisation).
-      const rows = await this.db
-        .select({ id: notes.id })
-        .from(notes)
-        .where(where);
-      return rows.length;
+      const built = await this.buildOwnerListWhere(ownerId, opts ?? {});
+      if (built === null) return 0;
+      const { where, idScope } = built;
+      if (idScope === null) {
+        const rows = await this.db
+          .select({ c: count() })
+          .from(notes)
+          .where(where);
+        return rows[0]?.c ?? 0;
+      }
+      // Same chunk-and-fold strategy as `findByOwner`: the additional
+      // predicates in `where` may strip ids from `idScope`, so we have
+      // to ask the DB which ids actually pass the full filter rather
+      // than returning `idScope.size`. See ADR-001 §補足.
+      const rows = await selectInChunks(Array.from(idScope), (chunk) =>
+        this.db
+          .select({ c: count() })
+          .from(notes)
+          .where(and(where, inArray(notes.id, [...chunk]))),
+      );
+      return rows.reduce((acc, r) => acc + r.c, 0);
     });
   }
 
@@ -860,6 +903,31 @@ function intersectIdSets(
     out.add(id);
   }
   return out;
+}
+
+// Cross-chunk JS-side re-sort for the `findByOwner` / `findReferrers`
+// chunk paths. SQL ORDER BY can only sort within a single chunk's
+// result set, so we re-apply the listing's primary sort here with
+// `desc(id)` as the tie-break (matches the in-DB query). `updatedAt`
+// / `createdAt` are ISO-8601 ms text and `id` is UUIDv7 — both are
+// ASCII, so SQLite BINARY collation and JS string compare agree.
+// `title` is application-supplied text; for BMP-range characters the
+// two collations agree too. See `.issue/165/adr.md` for the analysis.
+function sortNoteRowsBy(
+  rows: readonly NoteRow[],
+  sortCol: SortColumn,
+  order: "asc" | "desc",
+): NoteRow[] {
+  const dir = order === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = a[sortCol];
+    const bv = b[sortCol];
+    if (av !== bv) {
+      return av < bv ? -dir : dir;
+    }
+    // Tie-break: id desc (matches `desc(notes.id)` in the SQL path).
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
 }
 
 function pickSortColumn(sort: NoteListOpts["sort"]): SortColumn {
