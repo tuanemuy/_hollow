@@ -28,10 +28,11 @@ PR #170 (Issue #165) で `buildOwnerListWhere` を `(where, idScope)` 構造に�
 
 **良い点:**
 
-- メモリ展開が `idScope.size × NoteRow (~50KB)` から `idScope.size × {id, sortCol} (~64 bytes)` + `limit × NoteRow` に削減
+- メモリ展開が `idScope.size × NoteRow (~50KB)` から `idScope.size × {id, updatedAt, createdAt, title} (~150 bytes)` + `limit × NoteRow` に削減
   - 例: `idScope.size = 5000`, `limit = 50`, `contentHtml = 50KB` のケース
     - 旧: 5000 × 50KB = **250MB**（Workers OOM 確実）
-    - 新: 5000 × 64B + 50 × 50KB = 320KB + 2.5MB ≈ **2.8MB**（許容範囲）
+    - 新: 5000 × 150B + 50 × 50KB = 750KB + 2.5MB ≈ **3.25MB**（許容範囲）
+  - Pass 1 projection は `pickSortColumn` が返す 3 列（`updatedAt / createdAt / title`）すべてに加え `id` を含む静的形（`sortCol` 別の動的 projection を避けて drizzle の型推論を保つため）。`title` を `sort='title'` 以外で含めるのは ~100B/row × idScope.size の上振れだが、`contentHtml` を含めた旧実装比で 2 桁のメモリ削減は維持される
 - I/O ラウンドトリップは Pass 2 の chunk 並列分（最大 `ceil(500/90) = 6 chunks`）増えるが、`Promise.all` で累積レイテンシは ~1 ラウンドトリップ増加に留まる
 - `where` 述語の重複適用は不要（Pass 1 で適用済み → 結果 id を Pass 2 で IN するだけ）
 - `idScope === null` 経路（DB 側 LIMIT/OFFSET 一発）は変更なし。filter 未使用時の性能特性は維持
@@ -91,5 +92,8 @@ Issue #165 が「JS 側 intersection を chunk で適用する」戦略を確立
 ### Follow-up（本 Issue で扱わない）
 
 - `findReferrers` の chunk 経路（`select()` 全カラム）も同じパターンで 2-pass 化できる余地がある。`.issue/165/adr.md` ADR-002 範囲だが backlink 件数の現実的な上限を考えると優先度低
-- `countByOwner` chunk 経路の最適化は review-001.md P-W-003 で既に `count()` 集計に修正済み
-- chunk 並列度上限ガード（review-001.md A-W-003）は別 Issue
+- `countByOwner` chunk 経路の最適化は `.issue/165/review/review-001.md` P-W-003 で既に `count()` 集計に修正済み
+- chunk 並列度上限ガード（`.issue/165/review/review-001.md` A-W-003）は別 Issue
+- 本 PR Round 1 レビュー P-W-001: `sortCol` 別の動的 Pass 1 projection で `title` を `sort='title'` 以外から外せば ~100B/row × idScope.size の追加削減が可能。drizzle の computed key 型推論が緩む懸念があり、`pickSortColumn` の switch を Pass 1 builder に拡張する 3 分岐展開 or sort key を accessor 関数で渡す方式の二択。優先度低
+- 本 PR Round 1 レビュー P-W-002: Pass 1 sort が `O(N log N)` で `idScope.size = 5000` でも数 ms 範疇だが、`offset + limit` で partial-sort（top-k = `O(N log k)`）に落とす余地。JS 標準には partial sort が無いため heap 実装の追加が必要で割に合わない可能性が高い。優先度最低
+- 本 PR Round 1 レビュー A-W-001: `noteRepository.ts` 全 chunk runner で `inArray(col, [...chunk])` の不要な spread を `inArray(col, chunk)` に揃える機械的整理。本 Issue の Pass 2 でも踏襲しているが、5 箇所まとめて別 PR で扱うべき

@@ -959,7 +959,9 @@ function intersectIdSets(
 // Generic over the row shape so the same helper sorts both the Pass-1
 // `{ id, [sortCol] }` projection (Issue #171) and the full `NoteRow`
 // fetched by `findReferrers`. The `T` constraint pins down only the
-// columns the comparator actually reads.
+// columns the comparator actually reads — `id` plus every `SortColumn`
+// (all three are `string` in the current schema: ISO-8601 for
+// `updatedAt`/`createdAt`, application text for `title`).
 function sortNoteRowsBy<
   T extends { readonly id: string } & { readonly [K in SortColumn]: string },
 >(rows: readonly T[], sortCol: SortColumn, order: "asc" | "desc"): T[] {
