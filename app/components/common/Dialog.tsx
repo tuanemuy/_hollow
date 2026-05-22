@@ -53,6 +53,16 @@ export type DialogProps = Readonly<{
    *
    * Whether to also keep an in-body Cancel button is a consumer decision —
    * this primitive only provides the close path, not the layout policy.
+   *
+   * Touch target size: the rendered button is 32×32px to stay consistent with
+   * other pill-style controls (e.g. `pillBtn`); ensure dialog body content
+   * (e.g. title) reserves right-padding (`pr-10` or similar) so it does not
+   * visually collide with the absolute-positioned button.
+   *
+   * `showCloseButton` is also valid when `role="alertdialog"`. The button
+   * stays in the Tab cycle but the initial focus still lands on the panel
+   * itself (the alertdialog branch); whether to surface a × on alertdialog is
+   * a consumer UX call.
    */
   showCloseButton?: boolean;
   children: React.ReactNode;
@@ -283,6 +293,12 @@ function DialogInner({
         mousedownTargetRef.current = e.target;
       }}
       onClick={(e) => {
+        // Snapshot then clear the ref up-front so every return path leaves
+        // it null. Without this, a script-driven `element.click()` on the
+        // backdrop with no preceding mousedown could observe a stale value
+        // from an earlier interaction.
+        const mousedownTarget = mousedownTargetRef.current;
+        mousedownTargetRef.current = null;
         if (!closeOnBackdropClick) return;
         if (!closableRef.current) return;
         // Both the press and the release must have happened on the backdrop
@@ -292,7 +308,7 @@ function DialogInner({
         // stops propagation so the ref never sees panel-originated presses.
         if (
           e.target !== e.currentTarget ||
-          mousedownTargetRef.current !== e.currentTarget
+          mousedownTarget !== e.currentTarget
         ) {
           return;
         }
