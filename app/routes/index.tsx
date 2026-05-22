@@ -53,12 +53,19 @@ const renderHome = createServerFn({ method: "GET" })
     // call. Explicit URL fields still win over the SavedView snapshot.
     let baseSearch = search;
     if (search.viewId !== undefined) {
-      const { view } = await loadSavedViewById({
-        actorUserId: user.id,
-        viewId: search.viewId,
-      });
+      const [{ view }, { byId: tagNameById }] = await Promise.all([
+        loadSavedViewById({
+          actorUserId: user.id,
+          viewId: search.viewId,
+        }),
+        loadAllTags({ actorUserId: user.id }),
+      ]);
       if (view !== null) {
-        const restored = viewQueryToSearch(view);
+        const restored = viewQueryToSearch(view, (tagIds) =>
+          tagIds
+            .map((id) => tagNameById.get(id))
+            .filter((name): name is string => name !== undefined),
+        );
         baseSearch = {
           ...restored,
           ...search,

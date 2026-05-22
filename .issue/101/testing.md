@@ -139,7 +139,7 @@ pnpm deploy:production:consumer:dry
   1. 5 で OpenAI を保存した状態から、provider dropdown を anthropic に変更
   2. apiKey フィールドを空欄のまま「保存」ボタン押下
 - **期待結果:**
-  - サーバ validation で `BusinessRuleError(ADMIN_SETTINGS_PROVIDER_CHANGED_REQUIRES_API_KEY)` がエラー表示
+  - サーバ validation で `BusinessRuleError(admin_settings_provider_changed_requires_api_key)` がエラー表示
   - UI 上で apiKey 欄が必須マーク（`required` attribute）付きでハイライト
   - 警告文「プロバイダを変更すると API キーの再入力が必要です」が表示
 

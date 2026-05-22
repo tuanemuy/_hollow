@@ -106,7 +106,7 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     } catch (error) {
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("ADMIN_SETTINGS_ENV_OVERRIDE_MISSING_KEY");
+        expect(error.code).toBe("admin_settings_env_override_missing_key");
       }
     }
   });

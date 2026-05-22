@@ -64,6 +64,7 @@ Each of these is enforced in code and documented in library-level JSDoc at the r
 - Errors are class hierarchies that each carry their own `kind`-tagged serialized form (`toSerialized()`). The presentation layer serializes structurally — no `instanceof` enumeration of concrete classes.
 - HTTP status mapping is presentation-only, driven by the serialized `kind`. Errors themselves do not carry transport concerns.
 - Avoid broad `try / catch` in ordinary application logic. Use it only at explicit boundaries (server-function serialization, per-row tolerance in workers).
+- **`*ErrorCode` naming convention** — the value (right-hand string literal) of each `*ErrorCode` constant is `lower_snake_case` and must match the corresponding `BusinessRuleError('...')` spec文言 verbatim. The property key (left-hand identifier) is `PascalCase`. `SystemErrorCode` is the sole exception and stays `UPPER_SNAKE` because it represents driver-level conflict codes, not business codes. Enforced by `app/core/domain/__tests__/errorCodeNaming.test.ts`.
 
 ### Cross-layer catch policy
 

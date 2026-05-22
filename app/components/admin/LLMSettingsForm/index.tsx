@@ -171,7 +171,7 @@ export function LLMSettingsForm({
   const apiKeyServerError =
     state.error !== null &&
     state.error.kind === "business" &&
-    state.error.code === "ADMIN_SETTINGS_PROVIDER_CHANGED_REQUIRES_API_KEY"
+    state.error.code === "admin_settings_provider_changed_requires_api_key"
       ? "プロバイダ変更には新しい API キーが必要です。"
       : null;
 

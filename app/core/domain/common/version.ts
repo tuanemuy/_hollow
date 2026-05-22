@@ -1,4 +1,5 @@
 import { BusinessRuleError } from "@/core/domain/error";
+import { CommonErrorCode } from "./errorCode";
 
 declare const versionBrand: unique symbol;
 
@@ -14,7 +15,10 @@ export const Version = {
   initial: (): Version => 0 as Version,
   create: (raw: number): Version => {
     if (!Number.isInteger(raw) || raw < 0) {
-      throw new BusinessRuleError("INVALID_VERSION", `Invalid version: ${raw}`);
+      throw new BusinessRuleError(
+        CommonErrorCode.InvalidVersion,
+        `Invalid version: ${raw}`,
+      );
     }
     return raw as Version;
   },

@@ -154,7 +154,7 @@ describe("createDirectory (integration)", () => {
     } catch (error) {
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("DIRECTORY_NAME_FORBIDDEN_CHARACTER");
+        expect(error.code).toBe("directory_name_forbidden_character");
       }
     }
   });

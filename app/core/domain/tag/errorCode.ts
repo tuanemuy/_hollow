@@ -1,12 +1,12 @@
 export const TagErrorCode = {
-  InvalidId: "TAG_INVALID_ID",
-  NameEmpty: "TAG_NAME_EMPTY",
-  NameTooLong: "TAG_NAME_TOO_LONG",
-  NameInvalidChars: "TAG_NAME_INVALID_CHARS",
-  NoteCountNegative: "TAG_NOTE_COUNT_NEGATIVE",
-  NameNotUnique: "TAG_NAME_NOT_UNIQUE",
-  MergeOwnerMismatch: "TAG_MERGE_OWNER_MISMATCH",
-  MergeSameTag: "TAG_MERGE_SAME_TAG",
+  InvalidId: "tag_invalid_id",
+  NameEmpty: "tag_name_empty",
+  NameTooLong: "tag_name_too_long",
+  NameInvalidChars: "tag_name_invalid_chars",
+  NoteCountNegative: "tag_note_count_negative",
+  NameNotUnique: "tag_name_conflict",
+  MergeOwnerMismatch: "tag_owner_mismatch",
+  MergeSameTag: "tag_merge_same",
 } as const;
 
 export type TagErrorCode = (typeof TagErrorCode)[keyof typeof TagErrorCode];

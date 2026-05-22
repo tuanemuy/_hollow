@@ -37,3 +37,8 @@
 
 # Manual test screenshots under .issue/
 .issue/**/screenshots/
+.issue/**/.manual-test/**/*.png
+.issue/**/.manual-test/**/*.jpg
+.issue/**/.manual-test/**/*.jpeg
+.issue/**/.manual-test/**/*.gif
+.issue/**/.manual-test/**/*.webp
