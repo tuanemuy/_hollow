@@ -5,12 +5,9 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "@/core/application/__tests__/helpers";
+import { isForbiddenError, isNotFoundError } from "@/core/application/errors";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
-import {
-  isForbiddenError,
-  isNotFoundError,
-} from "@/core/application/errors";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId, NoteRevisionId } from "@/core/domain/note/valueObject";
@@ -322,15 +319,15 @@ describe("restoreNoteRevision (integration)", () => {
     });
     const oldest = await oldestRevisionId(container, noteId);
 
-    // Forge an active edit lock held by a different user. `expiresAt`
-    // must be strictly after `acquiredAt` and within the domain TTL
-    // ceiling (`EDIT_LOCK_MAX_TTL_SECONDS = 30min`), so we pin both ends
-    // to `TZ` + a few minutes — well inside the bound and beyond the
-    // test container's clock.
-    const acquiredAt = TZ;
-    const expiresAt = new Date(
-      new Date(TZ).getTime() + 10 * 60 * 1000,
-    ).toISOString();
+    // Forge an active edit lock held by a different user. The container's
+    // `SystemClock` reads the wall clock at execution time, so we anchor
+    // `acquiredAt` / `expiresAt` to `Date.now()` (not the fixed `TZ`
+    // constant — that would expire if the test ran after `TZ`). `expiresAt`
+    // stays inside `EDIT_LOCK_MAX_TTL_SECONDS` (= 30min) per the domain
+    // invariant. Mirrors `editLock.integration.test.ts`.
+    const nowMs = Date.now();
+    const acquiredAt = new Date(nowMs - 1_000).toISOString();
+    const expiresAt = new Date(nowMs + 25 * 60 * 1000).toISOString();
     await container.db
       .update(schema.notes)
       .set({
