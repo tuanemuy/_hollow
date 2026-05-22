@@ -65,6 +65,8 @@ Each stage file is a self-contained mirror of `wrangler.toml` with `-staging` / 
 
 **Wrangler env caveat**: top-level `d1_databases` / `vars` / `r2_buckets` / `services` are **not** inherited into named environments. Each `[env.*]` block re-declares them — keep `database_id`, queue names, bucket names, Service Binding targets, and `APP_URL` in sync across every block of every stage config. `pnpm cf:types` (re)generates `worker-configuration.d.ts` from `wrangler.toml` only; this also runs automatically on `postinstall` and `predev`.
 
+**Worker Routes** live in the top-level `routes = [...]` block of each stage's wrangler template (`infra/templates/wrangler.<stage>.toml.tmpl`), not in Pulumi. wrangler applies the Worker code and its routes atomically, which avoids the chicken-and-egg where the route is created before the Worker exists (see Issue #139). The `pattern` and `zone_name` values must stay in sync with `infra/Pulumi.<stage>.yaml` (`hollow:hostname` / `hollow:zoneName`).
+
 Bindings duplicated into `[env.consumer]` so dispatch reaches real adapters (Issue #110):
 
 - `TEMP_FILES` / `OBJECT_STORAGE` (R2) — `runIngestionJob` reads ingestion bytes from `TEMP_FILES`; `runExportJob` writes artifacts to `OBJECT_STORAGE`. Absent → DI installs an inline unavailable adapter that rejects every call with `TempFileStorageUnavailableError` / `StorageUnavailableError` (Issue #100 ADR-001).
@@ -91,7 +93,7 @@ wrangler r2 bucket create tanstack-start-template-temp-files-production
 wrangler r2 bucket create tanstack-start-template-objects-production
 ```
 
-When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, and both R2 buckets in one step — these `wrangler create` commands are the manual fallback.
+When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, both R2 buckets, **and a placeholder AAAA record (`100::`, proxied) at the route hostname** in one step — these `wrangler create` commands are the manual fallback. The placeholder AAAA is required for Cloudflare's proxied edge to engage the Worker route declared in `wrangler.<stage>.toml`; do **not** delete it manually. The Worker Route itself is **not** a Pulumi resource — wrangler creates and updates it during `wrangler deploy` from the per-stage `routes = [...]` block.
 
 Paste the `database_id` printed by each `wrangler d1 create` into every `[[d1_databases]]` block of the matching `wrangler.<stage>.toml`. Replace the `[vars] APP_URL` placeholders in each stage file before the first deploy — leaving `https://example.com` breaks `buildHead()`'s canonical / OG image URLs.
 

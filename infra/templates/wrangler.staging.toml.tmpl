@@ -12,6 +12,12 @@ main = "app/server.cloudflare.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Route — keep in sync with infra/Pulumi.staging.yaml (hollow:hostname + hollow:zoneName).
+# Managed by wrangler (not Pulumi) so Worker code + route apply atomically; see Issue #139.
+routes = [
+  { pattern = "staging.hollow.maku-ja.com/*", zone_name = "maku-ja.com" }
+]
+
 [assets]
 directory = "./dist/client"
 binding = "ASSETS"
