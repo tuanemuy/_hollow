@@ -35,8 +35,11 @@ export type RestoreNoteRevisionOutput = Readonly<{ note: NoteDTO }>;
  *    references are re-derived against current ownership rules.
  * 3. `Note.updateContent` writes the assembled state back to the
  *    aggregate (bumping `version`, emitting `note.contentUpdated`).
- * 4. The retention ceiling is enforced after both inserts so the worst
- *    case is `+2` rows before pruning.
+ * 4. The retention ceiling is enforced after the safety-net insert.
+ *    Only step 1 appends a `note_revisions` row (we intentionally do NOT
+ *    snapshot the restored body — that body is already in the existing
+ *    revision and re-snapshotting would duplicate history), so the
+ *    worst-case pre-prune state is `+1` row.
  *
  * `requireLock=false` because the restore is initiated from the history
  * view, not the editor. If another user holds a live lock,
@@ -78,6 +81,11 @@ export async function restoreNoteRevision({
         `Note revision not found: ${input.revisionId}`,
       );
     }
+    // Defensive: `revision.ownerId` should always equal `note.ownerId` under
+    // the current single-owner model, but we re-check here so a future owner
+    // transfer feature cannot let a stale revision restore data the actor
+    // never owned. Treated as `REVISION_NOT_FOUND` (not `FORBIDDEN`) to avoid
+    // leaking the existence of cross-note revision IDs.
     if (
       revision.noteId !== input.noteId ||
       revision.ownerId !== input.actorUserId

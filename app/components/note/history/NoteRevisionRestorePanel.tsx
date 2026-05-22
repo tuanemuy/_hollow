@@ -61,7 +61,7 @@ export function NoteRevisionRestorePanel({
   };
 
   return (
-    <div className="my-4 mb-6 inline-flex flex-wrap gap-2 items-center">
+    <div className="mt-4 mb-6 flex flex-wrap gap-2 items-center">
       <Link
         to="/notes/$noteId/history"
         params={{ noteId: noteIdStr }}

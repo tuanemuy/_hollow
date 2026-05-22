@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { NOTE_HISTORY_SEARCH } from "@/components/auth/links";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
@@ -113,7 +112,6 @@ export async function NoteHistoryList({
                   noteId: noteIdStr,
                   revisionId: rev.id as unknown as string,
                 }}
-                search={NOTE_HISTORY_SEARCH}
                 className={pillBtn}
               >
                 閲覧

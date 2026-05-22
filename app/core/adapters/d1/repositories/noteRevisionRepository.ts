@@ -171,7 +171,7 @@ export class D1NoteRevisionRepository implements NoteRevisionRepository {
         .from(noteRevisions)
         .where(eq(noteRevisions.noteId, noteId))
         .orderBy(asc(noteRevisions.createdAt), asc(noteRevisions.id))
-        .limit(1_000_000)
+        .limit(Number.MAX_SAFE_INTEGER)
         .offset(0);
       if (stale.length <= keepCount) {
         return 0;

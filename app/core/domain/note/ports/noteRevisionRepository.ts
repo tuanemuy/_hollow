@@ -49,6 +49,12 @@ export interface NoteRevisionRepository {
    * — callers may use it for diagnostics but otherwise ignore the value.
    * Idempotent: if the stored count is already at-or-below `keepCount`,
    * the call is a no-op and returns `0`.
+   *
+   * `keepCount` is a non-negative integer; passing `0` is legal and
+   * means "delete every revision for this note". This case arises in
+   * practice when an operator sets `maxNoteRevisionsPerNote = 1`
+   * because the pruner is called with `cap - 1` to account for the
+   * pending insert in the same UoW batch.
    */
   deleteOldestForNote(noteId: NoteId, keepCount: number): Promise<number>;
 }

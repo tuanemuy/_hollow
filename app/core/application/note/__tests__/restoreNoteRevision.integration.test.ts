@@ -7,6 +7,10 @@ import {
 } from "@/core/application/__tests__/helpers";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
+import {
+  isForbiddenError,
+  isNotFoundError,
+} from "@/core/application/errors";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId, NoteRevisionId } from "@/core/domain/note/valueObject";
@@ -235,6 +239,116 @@ describe("restoreNoteRevision (integration)", () => {
     } catch (error) {
       if (!isBusinessRuleError(error)) throw error;
       expect(error.code).toBe(NoteErrorCode.MediaNotOwned);
+    }
+  });
+
+  it("refuses to restore a note owned by another user (Forbidden)", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        contentHtml: "<p>v1</p>",
+        requireLock: false,
+      },
+    });
+    const oldest = await oldestRevisionId(container, noteId);
+
+    try {
+      await restoreNoteRevision({
+        container,
+        input: { actorUserId: stranger, noteId, revisionId: oldest },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isForbiddenError(error)).toBe(true);
+    }
+  });
+
+  it("refuses to restore when the revision id belongs to a different note", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteA = await seedNote(container, owner, dir);
+    const noteB = await seedNote(container, owner, dir);
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId: noteA,
+        contentHtml: "<p>belongs to A</p>",
+        requireLock: false,
+      },
+    });
+    const revisionFromA = await oldestRevisionId(container, noteA);
+
+    try {
+      await restoreNoteRevision({
+        container,
+        input: {
+          actorUserId: owner,
+          noteId: noteB,
+          revisionId: revisionFromA,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isNotFoundError(error)).toBe(true);
+    }
+  });
+
+  it("refuses to restore while another user holds a live edit lock", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        contentHtml: "<p>v1</p>",
+        requireLock: false,
+      },
+    });
+    const oldest = await oldestRevisionId(container, noteId);
+
+    // Forge an active edit lock held by a different user. `expiresAt`
+    // must be strictly after `acquiredAt` and within the domain TTL
+    // ceiling (`EDIT_LOCK_MAX_TTL_SECONDS = 30min`), so we pin both ends
+    // to `TZ` + a few minutes — well inside the bound and beyond the
+    // test container's clock.
+    const acquiredAt = TZ;
+    const expiresAt = new Date(
+      new Date(TZ).getTime() + 10 * 60 * 1000,
+    ).toISOString();
+    await container.db
+      .update(schema.notes)
+      .set({
+        editLockUserId: stranger,
+        editLockAcquiredAt: acquiredAt,
+        editLockExpiresAt: expiresAt,
+      })
+      .where(eq(schema.notes.id, noteId as unknown as string));
+
+    try {
+      await restoreNoteRevision({
+        container,
+        input: { actorUserId: owner, noteId, revisionId: oldest },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) throw error;
+      expect(error.code).toBe(NoteErrorCode.EditLockedByOther);
     }
   });
 });

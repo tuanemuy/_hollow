@@ -14,6 +14,14 @@
 -- `ON DELETE CASCADE` on `note_id` ensures `PurgeNote` (physical delete
 -- of a trashed note after retention) wipes the history with no extra
 -- application bookkeeping.
+--
+-- `created_by_user_id` is denormalised here for future collaborator
+-- support (plan E-2 reserves the column even though MVP UI hides it).
+-- Under MVP the value always equals `owner_id`, so the CASCADE on
+-- `users` is redundant with the `owner_id` CASCADE. When collaborator
+-- editing lands, this FK should switch to `ON DELETE SET NULL` so a
+-- coauthor's account removal does not wipe the owner's history (see
+-- W-D-001 in `.issue/158/review/review-001.md`). Tracked for follow-up.
 
 CREATE TABLE note_revisions (
   id TEXT PRIMARY KEY,
