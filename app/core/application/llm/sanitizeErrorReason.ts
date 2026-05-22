@@ -23,7 +23,7 @@
  *
  * The category enum (`SanitizedErrorReason`) is a UI-display prefix and
  * intentionally lives outside the `*ErrorCode` / `kind`-tagged
- * serialized-form system documented in CLAUDE.md. It is not exempt from
+ * serialized-form system documented in CLAUDE.md. It is exempt from
  * `errorCodeNaming.test.ts` because it is not an `*ErrorCode`.
  *
  * Idempotency contract:
@@ -108,7 +108,16 @@ export function maskSecrets(text: string): string {
     (_full, prefix: string, name: string) => `${prefix}${name}=***`,
   );
 
-  // 4. Known provider prefixes appearing standalone in the message text.
+  // 4. JSON-shape `"key":"value"` segments for known secret-bearing names.
+  //    Covers the `JSON.stringify(input)` path in `extractMessage` when an
+  //    arbitrary object is passed in and the inline `key=value` regex does
+  //    not match (e.g. `{"apiKey":"abc123"}`).
+  out = out.replace(
+    /"(key|api[_-]?key|access[_-]?token|token|password|secret|authorization)"\s*:\s*"([^"]*)"/gi,
+    (_full, name: string) => `"${name}":"***"`,
+  );
+
+  // 5. Known provider prefixes appearing standalone in the message text.
   //    - `sk-` family: OpenAI, Anthropic (`sk-ant-...`), and many
   //      OpenAI-compatible providers all use this prefix.
   //    - `AIza`: Google AI Studio / Gemini.

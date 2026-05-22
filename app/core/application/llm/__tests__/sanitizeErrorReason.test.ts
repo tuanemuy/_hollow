@@ -86,6 +86,33 @@ describe("maskSecrets", () => {
     });
   });
 
+  describe("JSON-shape secret-bearing key masking", () => {
+    it('masks `"key":"value"` JSON pairs for known secret names', () => {
+      const out = maskSecrets('error body {"apiKey":"abc123","baseURL":"x"}');
+      expect(out).toContain('"apiKey":"***"');
+      expect(out).toContain('"baseURL":"x"');
+      expect(out).not.toContain("abc123");
+    });
+
+    it("masks JSON `token` / `password` / `secret` / `authorization` fields", () => {
+      const out = maskSecrets(
+        '{"token":"a","password":"b","secret":"c","authorization":"d"}',
+      );
+      expect(out).toBe(
+        '{"token":"***","password":"***","secret":"***","authorization":"***"}',
+      );
+    });
+
+    it("masks JSON `api_key` and `access_token` variants", () => {
+      const out = maskSecrets(
+        '{"api_key":"a","api-key":"b","access_token":"c","access-token":"d"}',
+      );
+      expect(out).toBe(
+        '{"api_key":"***","api-key":"***","access_token":"***","access-token":"***"}',
+      );
+    });
+  });
+
   describe("known provider token prefixes", () => {
     it("replaces standalone `sk-ant-...` tokens with ***", () => {
       const out = maskSecrets("invalid key sk-ant-abcdef01234 supplied");
@@ -127,6 +154,7 @@ describe("maskSecrets", () => {
       "Authorization: Bearer sk-ant-xxx",
       "key=fake-secret api_key=other token=last",
       "sk-ant-abcdef01234 and AIzaSyABCDEF12345",
+      'error body {"apiKey":"abc123","secret":"xyz"}',
       "plain text without anything secret",
       "",
     ];
@@ -172,10 +200,13 @@ describe("sanitizeErrorReason", () => {
       ).toBe("quota");
     });
 
-    it("returns auth_failed for an HTTP 401 message", () => {
+    it("returns quota for an HTTP 401 message mentioning quota / billing", () => {
       expect(
         sanitizeErrorReason("OpenAI auth / quota failure (HTTP 401)").category,
       ).toBe("quota");
+    });
+
+    it("returns auth_failed for an HTTP 401 message without quota wording", () => {
       expect(
         sanitizeErrorReason("Unauthorized request (HTTP 401)").category,
       ).toBe("auth_failed");
@@ -249,14 +280,51 @@ describe("sanitizeErrorReason", () => {
   });
 
   describe("idempotency", () => {
-    it("re-applying sanitize on the same string yields the same message", () => {
-      const e = new TypeError(
-        "fetch failed at https://example.com/api?key=abcd&v=1",
-      );
-      const first = sanitizeErrorReason(e);
-      const second = sanitizeErrorReason(first.message);
-      expect(second.message).toBe(first.message);
-    });
+    // Only `message` is idempotent across the second pass: when re-fed,
+    // the second-pass input is a string (no longer an Error instance) so
+    // the second pass's `category` may collapse to `unknown`. The masked
+    // message text, by contrast, must be stable — see the contract in
+    // `sanitizeErrorReason.ts`.
+    const cases: Array<{ name: string; input: unknown }> = [
+      {
+        name: "TypeError with URL secret",
+        input: new TypeError(
+          "fetch failed at https://example.com/api?key=abcd&v=1",
+        ),
+      },
+      {
+        name: "AbortError",
+        input: Object.assign(new Error("aborted"), { name: "AbortError" }),
+      },
+      {
+        name: "string with Bearer token",
+        input: "Authorization: Bearer sk-ant-xxx",
+      },
+      {
+        name: "string with inline key=",
+        input: "config key=fake-secret-xxx, foo=bar",
+      },
+      {
+        name: "string with provider prefix token",
+        input: "rejected key sk-ant-abcdef01234",
+      },
+      {
+        name: "plain unknown string",
+        input: "something happened",
+      },
+      {
+        name: "object with apiKey JSON field",
+        input: { apiKey: "abc123def456ghi", baseURL: "https://x" },
+      },
+    ];
+
+    for (const { name, input } of cases) {
+      it(`sanitizeErrorReason message is idempotent for: ${name}`, () => {
+        const first = sanitizeErrorReason(input);
+        const second = sanitizeErrorReason(first.message);
+        expect(second.message).toBe(first.message);
+      });
+    }
   });
 });
 
