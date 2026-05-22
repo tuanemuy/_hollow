@@ -24,6 +24,8 @@
 | タグ追加 | SaveNote | note_tags 更新、Tag.noteCount inc |
 | タグ削除 | SaveNote | note_tags から除去、Tag.noteCount dec |
 | メディア追加 | SaveNote | reconcileRefs で MediaAsset.refCount inc |
+| 任意の保存 | SaveNote | note_revisions に 1 件追加（Issue #158 ADR-002） |
+| 上限件数を超えた保存 | SaveNote | 最古の note_revisions が同 UoW で削除され、件数が cap に維持される |
 
 ## SaveNoteDraft
 
@@ -59,7 +61,7 @@
 | trashed ノート | RestoreNote | active、`note.saved` 発火 |
 | active を Restore | RestoreNote | `BusinessRuleError('note_not_trashed')` |
 | 復元先 slug 衝突 | RestoreNote | `BusinessRuleError('slug_conflict')` |
-| trashed を Purge | PurgeNote | 物理削除、Outbox `note.purged` |
+| trashed を Purge | PurgeNote | 物理削除、Outbox `note.purged`、`note_revisions` も CASCADE で消える |
 | 30 日経過 trashed あり | PurgeTrashOlderThan | 該当ノートを purge、それ未満は残す |
 
 ## AcquireEditLock / ExtendEditLock / ReleaseEditLock
@@ -100,3 +102,32 @@
 | 通常ノート | DuplicateNote | 新 Note、title に "(コピー)"、新 slug |
 | trashed | DuplicateNote | 動作対象外（仕様: 拒否） |
 | メディア参照あり | DuplicateNote | 参照 inc される（reconcileRefs） |
+
+## ListNoteRevisions（Issue #158）
+
+| 前提条件 | 操作 | 期待結果 |
+|---|---|---|
+| 履歴 0 件のノート | ListNoteRevisions | `revisions: []`, `totalCount: 0` |
+| 履歴 2 件のノート | ListNoteRevisions | 新しい順に 2 件、`totalCount: 2` |
+| 他人のノート | ListNoteRevisions | `ForbiddenError('NOTE_FORBIDDEN')` |
+| 存在しない noteId | ListNoteRevisions | `NotFoundError('NOTE_NOT_FOUND')` |
+| 上限 3 件設定で 5 回保存 | ListNoteRevisions | `totalCount: 3`（最古 2 件は自動削除） |
+
+## GetNoteRevision（Issue #158）
+
+| 前提条件 | 操作 | 期待結果 |
+|---|---|---|
+| 自分の note + 自分の revision | GetNoteRevision | `{ revision, note }` を返す |
+| 他人の note | GetNoteRevision | `ForbiddenError('NOTE_FORBIDDEN')` |
+| 存在しない revisionId | GetNoteRevision | `NotFoundError('REVISION_NOT_FOUND')` |
+| クロスノートな revisionId（別 note の履歴 ID） | GetNoteRevision | `NotFoundError('REVISION_NOT_FOUND')` |
+
+## RestoreNoteRevision（Issue #158）
+
+| 前提条件 | 操作 | 期待結果 |
+|---|---|---|
+| active note + 過去 revision | RestoreNoteRevision | Note 本文が過去版に書き戻る、復元前状態が新 revision として残る、`note.contentUpdated` 発火 |
+| trashed note | RestoreNoteRevision | `BusinessRuleError('note_already_trashed')` |
+| 他人が live lock 保有 | RestoreNoteRevision | `BusinessRuleError('edit_locked_by_other')` |
+| 復元元 revision が他人メディア参照 | RestoreNoteRevision | `BusinessRuleError('media_not_owned')`、UoW ロールバック |
+| 復元中に他者編集で OCC 衝突 | RestoreNoteRevision | `ConflictError('OPTIMISTIC_LOCK_FAILURE')` |

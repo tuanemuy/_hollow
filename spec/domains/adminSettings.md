@@ -57,7 +57,7 @@
 - フィールド: `open: boolean`, `closedReason: string | null`
 
 ### InstanceLimits
-- フィールド: `maxUploadBytesPerDay: number`, `maxIngestionBytes: number`, `maxNoteBytes: number`, `maxExportArtifactBytes: number`, `maxShareLinksPerNote: number`, `editLockTtlSec: number`, `trashRetentionDays: number`
+- フィールド: `maxUploadBytesPerDay: number`, `maxIngestionBytes: number`, `maxNoteBytes: number`, `maxExportArtifactBytes: number`, `maxShareLinksPerNote: number`, `editLockTtlSec: number`, `trashRetentionDays: number`, `maxNoteRevisionsPerNote: 整数 (1..1000)、既定 50`（Issue #158 ADR-004 — `SaveNote` / `RestoreNoteRevision` のたびに `note_revisions` が増えるノート単位の保持上限）
 
 ## ドメインサービス
 

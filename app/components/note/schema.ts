@@ -131,6 +131,36 @@ export const releaseLockSchema = z.object({
   noteId: z.string().min(1),
 });
 
+/**
+ * Issue #158: input contract for the `restoreNoteRevision` server fn.
+ * Both ids travel as opaque strings — the usecase layer brands them to
+ * `NoteId` / `NoteRevisionId` after the schema accepts them.
+ */
+export const restoreNoteRevisionSchema = z.object({
+  noteId: z.string().min(1),
+  revisionId: z.string().min(1),
+});
+
+/**
+ * Issue #158: URL search shape for `/notes/$noteId/history`. `page` is
+ * 1-based to mirror the home / note-list route; `limit` is clamped on
+ * the server side too. Both fields fall back to safe defaults when
+ * absent or malformed.
+ */
+export const noteHistorySearchSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().catch(undefined).default(1),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .catch(undefined)
+    .default(20),
+});
+
+export type NoteHistorySearch = z.infer<typeof noteHistorySearchSchema>;
+
 // `query.max(NOTE_TITLE_MAX_LENGTH)` is sized so a user can prefix-match
 // a full note title without the transport layer rejecting the request.
 // `limit` is clamped server-side as well, but the schema cap is a cheap

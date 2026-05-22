@@ -37,6 +37,10 @@ type LimitsJson = Readonly<{
   maxShareLinksPerNote: number;
   editLockTtlSec: number;
   trashRetentionDays: number;
+  // Issue #158: optional on the wire so rows persisted before the field
+  // was added still parse. `InstanceSettings.reconstruct` substitutes
+  // the shared default when the field is missing.
+  maxNoteRevisionsPerNote?: number;
 }>;
 
 function parseJson<T>(field: string, raw: string): T {
@@ -168,6 +172,7 @@ export class D1InstanceSettingsRepository
       maxShareLinksPerNote: entity.limits.maxShareLinksPerNote,
       editLockTtlSec: entity.limits.editLockTtlSec,
       trashRetentionDays: entity.limits.trashRetentionDays,
+      maxNoteRevisionsPerNote: entity.limits.maxNoteRevisionsPerNote,
     };
     const updatedAtIso = entity.updatedAt.toISOString();
 

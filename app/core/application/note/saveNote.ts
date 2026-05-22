@@ -4,6 +4,7 @@ import { MediaService } from "@/core/domain/media/service";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
+import { NoteRevision } from "@/core/domain/note/revision";
 import { NoteService } from "@/core/domain/note/service";
 import {
   ContentHtml,
@@ -154,6 +155,36 @@ export async function saveNote({
       now,
       ctx.mediaAssetRepository,
     );
+
+    // Issue #158 ADR-002: every successful SaveNote appends a fresh
+    // immutable snapshot to `note_revisions`. The retention ceiling
+    // (ADR-004) is enforced inside the same UoW so an over-quota state
+    // never persists.
+    const revision = NoteRevision.create(
+      {
+        id: container.idGenerator.next(),
+        noteId: next.id,
+        ownerId: next.ownerId,
+        title: next.title,
+        contentHtml: next.contentHtml,
+        frontMatter: next.frontMatter,
+        createdByUserId: input.actorUserId,
+      },
+      now,
+    );
+    await ctx.noteRevisionRepository.insert(revision);
+
+    const { entity: settings } = await ctx.instanceSettingsRepository.get();
+    const cap = settings.limits.maxNoteRevisionsPerNote;
+    // The freshly-inserted revision above is buffered on the pending
+    // batch; the count + prune queries below see only committed rows.
+    // Once the batch flushes we will have `committed + 1` rows total —
+    // we want at most `cap`, so the prune must leave `cap - 1` rows of
+    // committed history behind.
+    const count = await ctx.noteRevisionRepository.countByNoteId(next.id);
+    if (count + 1 > cap) {
+      await ctx.noteRevisionRepository.deleteOldestForNote(next.id, cap - 1);
+    }
 
     return next;
   });

@@ -3,10 +3,13 @@ import {
   resolveTagNamesToIds,
   TAG_RESOLVE_LIMIT,
 } from "@/components/tag/loaders";
-import type { NoteId } from "@/core/application/dto/note";
+import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
-import { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
+import {
+  NoteId as DomainNoteId,
+  type NoteRevisionId as DomainNoteRevisionId,
+} from "@/core/domain/note/valueObject";
 import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
@@ -457,6 +460,58 @@ export const loadReferencingNoteTitle = cache(
         return { title: found.entity.title };
       });
     },
+  ),
+);
+
+/**
+ * Issue #158: paginated revision listing for `/notes/$noteId/history`.
+ */
+export const loadNoteRevisions = cache(
+  serverData(
+    () => import("@/core/application/note/listNoteRevisions"),
+    (
+      { container },
+      { listNoteRevisions },
+      args: {
+        actorUserId: string;
+        noteId: NoteId;
+        limit: number;
+        offset: number;
+      },
+    ) =>
+      listNoteRevisions({
+        container,
+        input: {
+          actorUserId: args.actorUserId as unknown as DomainUserId,
+          noteId: args.noteId as unknown as DomainNoteId,
+          limit: args.limit,
+          offset: args.offset,
+        },
+      }),
+  ),
+);
+
+/** Issue #158: single revision + current note for the history detail page. */
+export const loadNoteRevisionDetail = cache(
+  serverData(
+    () => import("@/core/application/note/getNoteRevision"),
+    (
+      { container },
+      { getNoteRevision },
+      args: {
+        actorUserId: string;
+        noteId: NoteId;
+        revisionId: NoteRevisionId;
+      },
+    ) =>
+      getNoteRevision({
+        container,
+        input: {
+          actorUserId: args.actorUserId as unknown as DomainUserId,
+          noteId: args.noteId as unknown as DomainNoteId,
+          revisionId: args.revisionId as unknown as DomainNoteRevisionId,
+        },
+      }),
   ),
 );
 

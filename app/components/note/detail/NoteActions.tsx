@@ -3,7 +3,11 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
-import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
+import {
+  HOME_SEARCH,
+  NOTE_HISTORY_SEARCH,
+  TRASH_SEARCH,
+} from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import type { NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
@@ -136,15 +140,14 @@ export function NoteActions({
         >
           エクスポート
         </Link>
-        <button
-          type="button"
+        <Link
+          to="/notes/$noteId/history"
+          params={{ noteId: noteIdStr }}
+          search={NOTE_HISTORY_SEARCH}
           className={pillBtn}
-          disabled
-          aria-disabled="true"
-          title="履歴は今後実装予定です"
         >
           履歴
-        </button>
+        </Link>
         <button
           type="button"
           className={pillBtnDanger}

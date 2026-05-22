@@ -8,6 +8,8 @@
 |---|---|---|
 | Note | ノート | 1 つの記事に相当する集約ルート |
 | NoteId | ノートID | UUID v7 |
+| NoteRevision | ノート過去版 | `Note.save` 時に蓄積される不変スナップショット（子エンティティ） |
+| NoteRevisionId | ノート過去版ID | UUID v7 |
 | NoteSlug | ノートスラッグ | 公開 URL に使う識別子（ユーザー内一意） |
 | ContentHtml | 本文HTML | サニタイズ済みの HTML 本文 |
 | FrontMatter | フロントマター | キー値ペアのメタデータ集合 |
@@ -80,6 +82,24 @@
 - ルール: `kind === 'id'` なら `target` は UUID v7。`kind === 'title'` なら 1..200 字
 - 等価性: `(kind, target)` の組み合わせ
 
+### NoteRevision（子エンティティ）
+
+- フィールド:
+  - `id: NoteRevisionId`
+  - `noteId: NoteId`
+  - `ownerId: UserId`
+  - `title: NoteTitle`
+  - `contentHtml: ContentHtml`
+  - `frontMatter: FrontMatter`
+  - `createdByUserId: UserId` — 編集者（MVP では `ownerId` と一致）
+  - `createdAt: Instant`
+- 振る舞い: 不変。`NoteRevision.create({ ... }, now)` ファクトリと `NoteRevision.reconstruct(row)` のみ。
+- 不変条件:
+  - 親 Note (`noteId`) と同一 `ownerId`
+  - 子集約として扱い、`tagIds` / `internalLinkRefs` / `mediaRefs` は保存しない（復元時は `NoteService.assembleFromInputs` で本文から再抽出）
+- ライフサイクル: append-only。`SaveNote` / `RestoreNoteRevision` の UoW 内で挿入。`AdminSettings.limits.maxNoteRevisionsPerNote` を超過した古い行は同 UoW で削除（ADR-004 of Issue #158）。親 Note の物理削除（PurgeNote）に伴い `ON DELETE CASCADE` で消える。
+- 参照: `.issue/158/adr.md` ADR-001。
+
 ### EditLock
 - フィールド: `userId: UserId`, `acquiredAt: Instant`, `expiresAt: Instant`
 - ルール: `expiresAt > acquiredAt`、`ttl <= 30 分`
@@ -99,6 +119,17 @@
   - `assembleFromInputs(input: { ownerId: UserId; rawContent: ContentHtml; declaredTagNames: TagName[]; declaredInternalLinkRefs: InternalLinkRef[] }, deps: { sanitizer: HtmlSanitizer; tagSvc: TagService; tagRepo: TagRepository; blacklistRepo: TagBlacklistRepository; noteRepo: NoteRepository; mediaRepo: MediaAssetRepository; idGen: IdGenerator; clock: Clock; }): Promise<{ html: ContentHtml; tagIds: TagId[]; internalLinkRefs: InternalLinkRef[]; mediaRefs: MediaAssetId[] }>` — `Note.create` / `Note.updateContent` を呼ぶ前段で常にこのヘルパを通す。処理順: HtmlSanitizer 適用 → 本文中タグ/メディア/リンク抽出 → 宣言値とマージ → TagService.resolveOrCreate → resolveInternalLinks → assertMediaOwnership
 
 ## ポート
+
+### NoteRevisionRepository
+
+- メソッド:
+  - `findById(id: NoteRevisionId): Promise<NoteRevision | null>`
+  - `findByNoteId(noteId: NoteId, opts: { limit: number; offset: number }): Promise<NoteRevision[]>` — `created_at DESC, id DESC` 順
+  - `countByNoteId(noteId: NoteId): Promise<number>`
+  - `insert(revision: NoteRevision): Promise<void>`
+  - `deleteOldestForNote(noteId: NoteId, keepCount: number): Promise<number>`
+- OCC: なし（append-only、`TransactionalRepository` を継承しない）
+- エラーケース: 一般的な `RepositoryConflictError`（PK 衝突など）。
 
 ### NoteRepository
 - メソッド:
@@ -130,3 +161,4 @@
 - GetNoteDetail / GetBacklinks
 - DuplicateNote（複製）
 - BulkMoveNotes / BulkTrashNotes
+- ListNoteRevisions / GetNoteRevision / RestoreNoteRevision（履歴: Issue #158）

@@ -379,6 +379,38 @@ export const noteMediaRefs = sqliteTable(
   ],
 );
 
+// Issue #158: append-only history snapshots of `notes`. See migration
+// `0011_note_revisions.sql` for index / FK rationale. Pruning is driven
+// from the application layer using the per-note ceiling exposed by
+// `AdminSettings.limits.maxNoteRevisionsPerNote`.
+export const noteRevisions = sqliteTable(
+  "note_revisions",
+  {
+    id: text("id").primaryKey(),
+    noteId: text("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    contentHtml: text("content_html").notNull(),
+    frontMatterJson: text("front_matter_json").notNull().default("{}"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_note_revisions_note_created").on(
+      table.noteId,
+      desc(table.createdAt),
+      desc(table.id),
+    ),
+    index("idx_note_revisions_owner").on(table.ownerId),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // Publication
 // ---------------------------------------------------------------------------

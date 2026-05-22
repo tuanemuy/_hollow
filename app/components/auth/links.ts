@@ -41,3 +41,17 @@ export const TRASH_SEARCH = {
   page: PAGINATION_DEFAULT_PAGE,
   limit: PAGINATION_DEFAULT_LIMIT,
 } as const;
+
+/**
+ * Shared `search` payload for `<Link to="/notes/$noteId/history">` and
+ * navigation to the note-history listing route. Mirrors {@link HOME_SEARCH}
+ * /  {@link TRASH_SEARCH}: a single source of truth for the schema
+ * defaults so links and the route's `.default()` cannot drift.
+ *
+ * Numbers are kept aligned with `noteHistorySearchSchema` in
+ * `@/components/note/schema` (page=1, limit=20).
+ */
+export const NOTE_HISTORY_SEARCH = {
+  page: 1,
+  limit: 20,
+} as const;

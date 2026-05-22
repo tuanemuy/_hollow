@@ -1,6 +1,7 @@
 import { Version } from "@/core/domain/common/version";
 import { RehydrationError } from "@/core/domain/error";
 import {
+  DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
   DesignTokens,
   InstanceLimits,
   LLMConfig,
@@ -72,6 +73,7 @@ function defaultLimits(): InstanceLimits {
     maxShareLinksPerNote: 16,
     editLockTtlSec: 300, // 5 min
     trashRetentionDays: 30,
+    maxNoteRevisionsPerNote: DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
   });
 }
 
@@ -101,10 +103,30 @@ type InstanceSettingsReconstructInput = Readonly<{
     maxShareLinksPerNote: number;
     editLockTtlSec: number;
     trashRetentionDays: number;
+    // Issue #158: optional on the rehydrate input so DB rows written
+    // before the field was introduced still parse. Falls back to the
+    // shared default below via `coerceLimits`.
+    maxNoteRevisionsPerNote?: number;
   };
   version: number;
   updatedAt: Date;
 }>;
+
+function coerceLimits(
+  input: InstanceSettingsReconstructInput["limits"],
+): Parameters<typeof InstanceLimits.create>[0] {
+  return {
+    maxUploadBytesPerDay: input.maxUploadBytesPerDay,
+    maxIngestionBytes: input.maxIngestionBytes,
+    maxNoteBytes: input.maxNoteBytes,
+    maxExportArtifactBytes: input.maxExportArtifactBytes,
+    maxShareLinksPerNote: input.maxShareLinksPerNote,
+    editLockTtlSec: input.editLockTtlSec,
+    trashRetentionDays: input.trashRetentionDays,
+    maxNoteRevisionsPerNote:
+      input.maxNoteRevisionsPerNote ?? DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
+  };
+}
 
 function rehydratePrompts(
   raw: Readonly<
@@ -221,7 +243,7 @@ export const InstanceSettings = {
         prompts: rehydratePrompts(input.prompts),
         designTokens: DesignTokens.create(input.designTokens),
         registration: RegistrationPolicy.create(input.registration),
-        limits: InstanceLimits.create(input.limits),
+        limits: InstanceLimits.create(coerceLimits(input.limits)),
         version: Version.create(input.version),
         updatedAt: input.updatedAt,
       };

@@ -13,6 +13,8 @@ export type UpdateInstanceLimitsInput = {
     maxShareLinksPerNote: number;
     editLockTtlSec: number;
     trashRetentionDays: number;
+    /** Issue #158: per-note retention ceiling for `NoteRevision` rows. */
+    maxNoteRevisionsPerNote: number;
   };
 };
 

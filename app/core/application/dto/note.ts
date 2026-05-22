@@ -1,4 +1,5 @@
 import type { Note } from "@/core/domain/note/entity";
+import type { NoteRevision } from "@/core/domain/note/revision";
 import type { InternalLinkRef } from "@/core/domain/note/valueObject";
 import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
@@ -7,6 +8,7 @@ import type { MediaAssetId, UserId } from "./identity";
 import type { TagId } from "./tag";
 
 export type NoteId = string & { readonly __brand: "NoteId" };
+export type NoteRevisionId = string & { readonly __brand: "NoteRevisionId" };
 
 /** Plain-record projection of the domain `FrontMatter` value object. */
 export type FrontMatterDTO = Record<string, unknown>;
@@ -59,6 +61,56 @@ export type BacklinkDTO = Readonly<{
   title: string;
   slug: string;
 }>;
+
+/**
+ * List-projection of a `NoteRevision`. Drops the body to keep the listing
+ * payload small — the detail page fetches the full revision separately
+ * via `GetNoteRevision`.
+ */
+export type NoteRevisionSummaryDTO = Readonly<{
+  id: NoteRevisionId;
+  noteId: NoteId;
+  title: string;
+  createdAt: Instant;
+  createdByUserId: UserId;
+}>;
+
+/** Detail projection of a `NoteRevision` — carries the full snapshot. */
+export type NoteRevisionDTO = Readonly<{
+  id: NoteRevisionId;
+  noteId: NoteId;
+  ownerId: UserId;
+  title: string;
+  contentHtml: string;
+  frontMatter: FrontMatterDTO;
+  createdByUserId: UserId;
+  createdAt: Instant;
+}>;
+
+export function toNoteRevisionSummaryDTO(
+  revision: NoteRevision,
+): NoteRevisionSummaryDTO {
+  return {
+    id: revision.id as unknown as NoteRevisionId,
+    noteId: revision.noteId as unknown as NoteId,
+    title: revision.title,
+    createdAt: toInstant(revision.createdAt),
+    createdByUserId: revision.createdByUserId as unknown as UserId,
+  };
+}
+
+export function toNoteRevisionDTO(revision: NoteRevision): NoteRevisionDTO {
+  return {
+    id: revision.id as unknown as NoteRevisionId,
+    noteId: revision.noteId as unknown as NoteId,
+    ownerId: revision.ownerId as unknown as UserId,
+    title: revision.title,
+    contentHtml: revision.contentHtml,
+    frontMatter: { ...revision.frontMatter } as FrontMatterDTO,
+    createdByUserId: revision.createdByUserId as unknown as UserId,
+    createdAt: toInstant(revision.createdAt),
+  };
+}
 
 export function toInternalLinkRefDTO(ref: InternalLinkRef): InternalLinkRefDTO {
   if (ref.kind === "id") {

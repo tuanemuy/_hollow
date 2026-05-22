@@ -63,6 +63,8 @@ export type InstanceSettingsDTO = Readonly<{
     maxShareLinksPerNote: number;
     editLockTtlSec: number;
     trashRetentionDays: number;
+    /** Issue #158: per-note retention ceiling for `NoteRevision` rows. */
+    maxNoteRevisionsPerNote: number;
   }>;
 }>;
 
@@ -170,6 +172,7 @@ export function toInstanceSettingsDTO(
       maxShareLinksPerNote: settings.limits.maxShareLinksPerNote,
       editLockTtlSec: settings.limits.editLockTtlSec,
       trashRetentionDays: settings.limits.trashRetentionDays,
+      maxNoteRevisionsPerNote: settings.limits.maxNoteRevisionsPerNote,
     },
   };
 }

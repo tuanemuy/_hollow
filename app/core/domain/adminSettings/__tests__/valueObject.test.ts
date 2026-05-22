@@ -526,11 +526,13 @@ describe("InstanceLimits", () => {
     maxShareLinksPerNote: 16,
     editLockTtlSec: 300,
     trashRetentionDays: 30,
+    maxNoteRevisionsPerNote: 50,
   };
 
   it("accepts a valid limits set", () => {
     const limits = InstanceLimits.create(VALID);
     expect(limits.maxUploadBytesPerDay).toBe(VALID.maxUploadBytesPerDay);
+    expect(limits.maxNoteRevisionsPerNote).toBe(VALID.maxNoteRevisionsPerNote);
   });
 
   it("rejects a negative value (ValidationError on negative limits)", () => {
@@ -558,5 +560,31 @@ describe("InstanceLimits", () => {
     } catch (error) {
       expectBusinessRule(error, AdminSettingsErrorCode.InvalidInstanceLimit);
     }
+  });
+
+  it("rejects maxNoteRevisionsPerNote above 1000", () => {
+    try {
+      InstanceLimits.create({ ...VALID, maxNoteRevisionsPerNote: 1001 });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidInstanceLimit);
+    }
+  });
+
+  it("rejects maxNoteRevisionsPerNote of 0", () => {
+    try {
+      InstanceLimits.create({ ...VALID, maxNoteRevisionsPerNote: 0 });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidInstanceLimit);
+    }
+  });
+
+  it("accepts maxNoteRevisionsPerNote at the 1000 ceiling", () => {
+    const limits = InstanceLimits.create({
+      ...VALID,
+      maxNoteRevisionsPerNote: 1000,
+    });
+    expect(limits.maxNoteRevisionsPerNote).toBe(1000);
   });
 });

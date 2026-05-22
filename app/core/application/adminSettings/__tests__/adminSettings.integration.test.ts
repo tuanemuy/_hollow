@@ -1183,6 +1183,7 @@ describe("updateInstanceLimits", () => {
             maxShareLinksPerNote: 1,
             editLockTtlSec: 1,
             trashRetentionDays: 1,
+            maxNoteRevisionsPerNote: 1,
           },
         },
       });
