@@ -55,12 +55,14 @@ identity, adminSettings は他から参照されるが、自身は他のドメ�
 
 ### イベント購読対応表
 
-| イベント | 発火元 usecase | 購読する usecase / ドメイン |
-|---|---|---|
-| `note.saved` | Note.CreateNote/SaveNote/SaveNoteDraft/RenameNote/MoveNote/RestoreNote/DuplicateNote、Ingestion.CommitIngestionPreview、Tag.RenameTag/MergeTags/DeleteTag | Search.HandleNoteSavedEvent |
-| `note.deleted` | Note.DeleteNote/BulkTrashNotes、Directory.DeleteDirectory（配下分） | Search.HandleNoteTrashedEvent、Publication.HandleNoteTrashedEvent、View.HandleNotePurgedEvent（部分） |
-| `note.purged` | Note.PurgeNote/PurgeTrashOlderThan | Media.HandleNotePurgedEvent、Publication.HandleNotePurgedEvent、View.HandleNotePurgedEvent |
-| `note.publish_changed` | Publication.ChangePublicationVisibility/BulkChangePublicationVisibility、Publication.HandleNoteTrashedEvent | Search.HandlePublicationChangedEvent |
+`note.saved` / `note.deleted` は**論理 event 名**で、実装の物理 event 群（`note.created` / `note.content_updated` / `note.renamed` / `note.moved` / `note.restored` / `note.tags_replaced` を `note.saved`、`note.trashed` / `note.purged` を `note.deleted` として集約）に対応する。dispatcher は物理 event の `type` を見て論理ハンドラに routing する（spec/usecases/search.md のマッピング表参照）。
+
+| イベント | 物理 event 名 | 発火元 usecase | 購読する usecase / ドメイン |
+|---|---|---|---|
+| `note.saved` | `note.created` / `note.content_updated` / `note.renamed` / `note.moved` / `note.restored` / `note.tags_replaced` | Note.CreateNote/SaveNote/SaveNoteDraft/RenameNote/MoveNote/RestoreNote/DuplicateNote、Ingestion.CommitIngestionPreview、Tag.RenameTag/MergeTags/DeleteTag | Search.HandleNoteSavedEvent |
+| `note.deleted` | `note.trashed` / `note.purged` | Note.DeleteNote/BulkTrashNotes、Directory.DeleteDirectory（配下分） | Search.HandleNoteTrashedEvent、Publication.HandleNoteTrashedEvent（trash のみ）、View.HandleNotePurgedEvent（部分） |
+| `note.purged` | `note.purged` | Note.PurgeNote/PurgeTrashOlderThan | Media.HandleNotePurgedEvent、Publication.HandleNotePurgedEvent、View.HandleNotePurgedEvent |
+| `note.publish_changed` | `note.publish_changed` | Publication.ChangePublicationVisibility/BulkChangePublicationVisibility、Publication.HandleNoteTrashedEvent | Search.HandlePublicationChangedEvent |
 | `media.uploaded` | Media.UploadMedia/FinalizeUpload | Media 自身の TTL ベース孤児監視 |
 | `user.deleted` | Identity.DeleteAccount/SuspendUser（永続停止のとき） | Publication.HandleUserDeletedEvent、Export.HandleUserDeletedEvent、他ドメインのクリーンアップ |
 | `tag.deleted` | Tag.DeleteTag | View.HandleTagDeletedEvent |

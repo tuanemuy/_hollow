@@ -105,3 +105,5 @@ NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が 
 - HandlePublicationChangedEvent（再インデックス用 IndexJob）
 - ConsumeIndexJob（worker。SearchService.applyUpsert / applyDelete を呼ぶ）
 - SearchOwnNotes / SearchPublicNotes / SearchUserPublicNotes
+
+`NoteSnapshot` は dispatcher（`dispatchDomainEvent`）が UoW を開設して `noteRepository.findById` + `buildNoteSnapshots` で event 受信時に再構築する。event payload には NoteSnapshot を含めず `noteId` だけを保持することで、outbox の serialization 負荷を抑え、最新スナップショットでインデックスを更新できる（Issue #145 ADR-001）。trashed note を検知した場合は dispatcher 側で skip して index に乗せない（ADR-007 trashed status guard）。

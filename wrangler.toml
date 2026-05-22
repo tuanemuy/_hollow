@@ -163,6 +163,40 @@ max_retries = 3
 dead_letter_queue = "tanstack-start-template-events-dlq"
 
 
+# === Indexer ============================================================
+# Drains the `index_jobs` table through `consumeIndexJob`, applying
+# upsert / delete ops to `search_documents`. Producer side is the queue
+# consumer's note.* / publication.* dispatch (Issue #145). DLQ rows
+# (`attempts >= 3`) are excluded by `nextBatch`'s `maxAttempts` filter
+# and stay in `index_jobs` for admin re-drive.
+[env.indexer]
+name = "tanstack-start-template-indexer"
+main = "app/worker/cloudflare/indexer.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.indexer.vars]
+APP_URL = "http://localhost:8787"
+# Indexer tuning. Parsed at the worker entry boundary by
+# `readIndexerTuning(env)`. Defaults declared in
+# `app/core/application/workers/processIndexJobs.ts`.
+INDEXER_BATCH_SIZE = "50"
+INDEXER_MAX_BATCHES = "20"
+
+[[env.indexer.d1_databases]]
+binding = "DB"
+database_name = "tanstack-start-template-d1"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "app/core/adapters/d1/migrations"
+
+# Same 5-minute cadence as the relay's safety-net cron. Per-row idempotency
+# (`SearchIndex.upsert` keyed on noteId, `SearchIndex.delete` no-op on
+# missing row) absorbs the at-least-once `nextBatch` semantics if a tick
+# overlaps with the previous one.
+[env.indexer.triggers]
+crons = ["*/5 * * * *"]
+
+
 # === Pruner =============================================================
 # Quarantined outbox rows (`failed_at IS NOT NULL`) are intentionally
 # preserved for operator inspection — the pruner only sweeps processed

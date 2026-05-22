@@ -71,5 +71,10 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
     { worker: names.consumer, secrets: [...shared, ...dispatchExtras] },
     { worker: names.pruner, secrets: shared },
     { worker: names.dlq, secrets: shared },
+    // Indexer (Issue #145) drains `index_jobs` against D1 + SearchIndex.
+    // No LLM / R2 secrets needed; only the `shared` BETTER_AUTH /
+    // GOOGLE_* are pushed for parity with the other workers via the
+    // bulk-push step.
+    { worker: names.indexer, secrets: shared },
   ];
 };

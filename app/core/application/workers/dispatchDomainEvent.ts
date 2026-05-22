@@ -3,11 +3,18 @@ import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportJobId as ExportJobIdVO } from "@/core/domain/export/valueObject";
 import { isLLMRateLimitError } from "@/core/domain/ingestion/ports/llmProvider";
 import { IngestionJobId as IngestionJobIdVO } from "@/core/domain/ingestion/valueObject";
-import type { RequestContainer } from "../di/types";
+import { NoteId } from "@/core/domain/note/valueObject";
+import type { NoteSnapshot } from "@/core/domain/search/entity";
+import type { ConsumerContainer } from "../di/types";
 import type { IngestionJobId as IngestionJobIdDTO } from "../dto/ingestion";
 import { NotFoundError } from "../errors";
 import { runExportJob } from "../export/runExportJob";
 import { runIngestionJob } from "../ingestion/runIngestionJob";
+import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../publication/handleNoteTrashedEvent";
+import { buildNoteSnapshots } from "../search/buildNoteSnapshot";
+import { handleNoteSavedEvent } from "../search/handleNoteSavedEvent";
+import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../search/handleNoteTrashedEvent";
+import { handlePublicationChangedEvent } from "../search/handlePublicationChangedEvent";
 
 /**
  * Outcome returned by `dispatchDomainEvent` to the queue handler glue.
@@ -34,12 +41,32 @@ export type DispatchOutcome =
  * Routing:
  * - `ingestion.created` / `ingestion.retryRequested` → `runIngestionJob`
  * - `export.job.requested` / `export.job.retryRequested` → `runExportJob`
- * - Everything else → `skipped` (`note.*`, `publication.*`,
- *   `ingestion.previewAttached`, ...)
+ * - `note.created` / `note.content_updated` / `note.renamed` /
+ *   `note.moved` / `note.restored` / `note.tags_replaced` →
+ *   `search.handleNoteSavedEvent` (re-build snapshot from `noteId` first)
+ * - `note.trashed` → fan-out to `search.handleNoteTrashedEvent` then
+ *   `publication.handleNoteTrashedEvent` (search-first so the delete
+ *   index op is settled before publication emits `note.publish_changed`)
+ * - `note.purged` → `search.handleNoteTrashedEvent` only. Publication /
+ *   Media / View side handlers are intentionally NOT wired here — they
+ *   live in separate Issues (see `.issue/145/plan.md` "含まれないもの")
+ * - `note.publish_changed` → `handlePublicationChangedEvent` (re-build
+ *   snapshot first)
+ * - Everything else → `skipped` (`share_link.*`, `tag.*`,
+ *   `directory.*`, `media.*`, `user.*`, `ingestion.previewAttached`, ...)
  *
  * `ingestion.regenerated` is intentionally NOT routed: `regenerate`
  * transitions `previewing → processing` directly, so `runIngestionJob`'s
  * `isPending` guard would no-op the call (see ADR-004 on Issue #57).
+ *
+ * Snapshot re-build is performed dispatcher-side (Issue #145 ADR-001)
+ * because event payloads carry only `noteId` and the search handlers
+ * require a full `NoteSnapshot`. `buildSnapshotByNoteId` opens a UoW,
+ * calls `noteRepository.findById`, and returns `null` for three
+ * skip-paths: row absent (purge race), `status === 'trashed'` (ADR-007
+ * trashed status guard — prevents resurrection when `note.publish_changed`
+ * is dispatched after `note.trashed`), and any rehydration failure
+ * (propagated as a thrown error to the outer catch).
  *
  * Error classification (see ADR-005):
  * - `LLMRateLimitError` → `retry`. Note: in the ingestion path this only
@@ -59,12 +86,13 @@ export type DispatchOutcome =
  * - Anything else (D1 transient, UoW commit failure, etc.) → `retry`
  *   (queue backoff → eventually DLQ after `max_retries`).
  *
- * The container type is the minimal `RequestContainer`: dispatch does
- * not touch worker-only ports, so by LSP a `ConsumerContainer` subtype
- * passed in by the queue handler is accepted.
+ * The container type is `ConsumerContainer` because the note.* /
+ * publication.* routing needs `unitOfWorkProvider` (for snapshot rebuild)
+ * plus the worker-only `indexJobRepository`. See ADR-001 (Issue #145)
+ * for the responsibility-expansion boundary rationale.
  */
 export async function dispatchDomainEvent(
-  container: RequestContainer,
+  container: ConsumerContainer,
   event: DomainEvent,
 ): Promise<DispatchOutcome> {
   try {
@@ -90,6 +118,74 @@ export async function dispatchDomainEvent(
         await runExportJob({ container, input: { jobId } });
         return { kind: "handled" };
       }
+      case "note.created":
+      case "note.content_updated":
+      case "note.renamed":
+      case "note.moved":
+      case "note.restored":
+      case "note.tags_replaced": {
+        const payload = event.payload as Readonly<{ noteId: string }>;
+        const snapshot = await buildSnapshotByNoteId(container, payload.noteId);
+        if (snapshot === null) {
+          container.logger.info(
+            `[dispatch] skipping snapshot build for ${event.type} (note absent or trashed)`,
+            {
+              eventId: event.id,
+              eventType: event.type,
+              noteId: payload.noteId,
+            },
+          );
+          return { kind: "handled" };
+        }
+        await handleNoteSavedEvent({ container, input: { snapshot } });
+        return { kind: "handled" };
+      }
+      case "note.trashed": {
+        const payload = event.payload as Readonly<{ noteId: string }>;
+        const noteId = NoteId.create(payload.noteId);
+        // fan-out: search first, publication second. Both handlers are
+        // idempotent so a partial-failure retry replays cleanly. Order
+        // is fixed (not parallel) because publication.handleNoteTrashedEvent
+        // internally emits `note.publish_changed`, and finishing the
+        // search delete first keeps the index in a consistent "trashed
+        // notes are absent" state before the subsequent publish_changed
+        // dispatch arrives.
+        await searchHandleNoteTrashedEvent({ container, input: { noteId } });
+        await publicationHandleNoteTrashedEvent({
+          container,
+          input: { noteId },
+        });
+        return { kind: "handled" };
+      }
+      case "note.purged": {
+        const payload = event.payload as Readonly<{ noteId: string }>;
+        const noteId = NoteId.create(payload.noteId);
+        // search delete only. publication / media / view side purge
+        // handlers are out of scope for this Issue (#145) — they remain
+        // skipped to keep the dispatcher's behavioural change minimal.
+        await searchHandleNoteTrashedEvent({ container, input: { noteId } });
+        return { kind: "handled" };
+      }
+      case "note.publish_changed": {
+        const payload = event.payload as Readonly<{ noteId: string }>;
+        const snapshot = await buildSnapshotByNoteId(container, payload.noteId);
+        if (snapshot === null) {
+          container.logger.info(
+            "[dispatch] skipping snapshot build for note.publish_changed (note absent or trashed)",
+            {
+              eventId: event.id,
+              eventType: event.type,
+              noteId: payload.noteId,
+            },
+          );
+          return { kind: "handled" };
+        }
+        await handlePublicationChangedEvent({
+          container,
+          input: { snapshot },
+        });
+        return { kind: "handled" };
+      }
       default:
         return { kind: "skipped" };
     }
@@ -111,4 +207,40 @@ export async function dispatchDomainEvent(
     }
     return { kind: "retry", error };
   }
+}
+
+/**
+ * Re-build a `NoteSnapshot` from a raw `noteId` string for the search
+ * handlers. The snapshot is computed via `buildNoteSnapshots` against
+ * the live aggregate — so consume-time data (latest title / body / tags
+ * / publication visibility) flows into the index even when the event
+ * payload was captured earlier.
+ *
+ * Returns `null` when:
+ * - the note row is absent (e.g. trash → purge ran before this dispatch)
+ * - the note is `status === 'trashed'` (ADR-007 trashed status guard:
+ *   the search index must never carry trashed notes, even if a stale
+ *   `note.publish_changed` arrives after `note.trashed`)
+ *
+ * The caller treats `null` as a handled-and-skip outcome (with an
+ * `info` log) rather than a retry — neither condition recovers via
+ * queue redelivery.
+ */
+async function buildSnapshotByNoteId(
+  container: ConsumerContainer,
+  noteIdRaw: string,
+): Promise<NoteSnapshot | null> {
+  const noteId = NoteId.create(noteIdRaw);
+  return container.unitOfWorkProvider.run(async (ctx) => {
+    const versioned = await ctx.noteRepository.findById(noteId);
+    if (versioned === null) return null;
+    if (versioned.entity.status === "trashed") return null;
+    const snapshots = await buildNoteSnapshots([versioned.entity], {
+      directoryRepository: ctx.directoryRepository,
+      tagRepository: ctx.tagRepository,
+      publicationStateRepository: ctx.publicationStateRepository,
+      htmlSanitizer: container.htmlSanitizer,
+    });
+    return snapshots[0] ?? null;
+  });
 }

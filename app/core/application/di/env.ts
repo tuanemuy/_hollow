@@ -5,6 +5,10 @@ import {
   DEFAULT_MAX_ATTEMPTS,
 } from "../workers/eventRelayWorker";
 import { DEFAULT_OUTBOX_RETENTION_MS } from "../workers/outboxPrune";
+import {
+  DEFAULT_INDEXER_BATCH_SIZE,
+  DEFAULT_INDEXER_MAX_BATCHES,
+} from "../workers/processIndexJobs";
 
 /** Worker-tuning env variables shared by both runtimes. */
 export type TuningEnv = Readonly<{
@@ -12,6 +16,8 @@ export type TuningEnv = Readonly<{
   OUTBOX_LEASE_MS?: string | undefined;
   OUTBOX_MAX_ATTEMPTS?: string | undefined;
   OUTBOX_RETENTION_MS?: string | undefined;
+  INDEXER_BATCH_SIZE?: string | undefined;
+  INDEXER_MAX_BATCHES?: string | undefined;
 }>;
 
 const relayTuningSchema = z.object({
@@ -28,8 +34,22 @@ const pruneTuningSchema = z.object({
     .default(DEFAULT_OUTBOX_RETENTION_MS),
 });
 
+const indexerTuningSchema = z.object({
+  batchSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_INDEXER_BATCH_SIZE),
+  maxBatches: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_INDEXER_MAX_BATCHES),
+});
+
 export type RelayTuning = z.infer<typeof relayTuningSchema>;
 export type PruneTuning = z.infer<typeof pruneTuningSchema>;
+export type IndexerTuning = z.infer<typeof indexerTuningSchema>;
 
 export function readRelayTuning(env: TuningEnv): RelayTuning {
   return relayTuningSchema.parse({
@@ -42,5 +62,12 @@ export function readRelayTuning(env: TuningEnv): RelayTuning {
 export function readPruneTuning(env: TuningEnv): PruneTuning {
   return pruneTuningSchema.parse({
     retentionMs: env.OUTBOX_RETENTION_MS,
+  });
+}
+
+export function readIndexerTuning(env: TuningEnv): IndexerTuning {
+  return indexerTuningSchema.parse({
+    batchSize: env.INDEXER_BATCH_SIZE,
+    maxBatches: env.INDEXER_MAX_BATCHES,
   });
 }

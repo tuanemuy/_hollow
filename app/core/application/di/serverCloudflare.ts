@@ -58,8 +58,10 @@ import { NoopRelayTrigger, type RelayTrigger } from "../ports/relayTrigger";
 import { NullUsageMetricsProvider } from "../ports/usageMetricsProvider";
 import type { TuningEnv } from "./env";
 import {
+  type IndexerTuning,
   type PruneTuning,
   type RelayTuning,
+  readIndexerTuning as readIndexerTuningShared,
   readPruneTuning as readPruneTuningShared,
   readRelayTuning as readRelayTuningShared,
 } from "./env";
@@ -226,9 +228,14 @@ export type ServerEnv = Readonly<{
   OUTBOX_LEASE_MS?: string;
   OUTBOX_MAX_ATTEMPTS?: string;
   OUTBOX_RETENTION_MS?: string;
+  // Indexer tuning. Parsed by `readIndexerTuning` at the worker entry
+  // boundary; missing values fall back to defaults exported from
+  // `processIndexJobs.ts`.
+  INDEXER_BATCH_SIZE?: string;
+  INDEXER_MAX_BATCHES?: string;
 }>;
 
-export type { PruneTuning, RelayTuning } from "./env";
+export type { IndexerTuning, PruneTuning, RelayTuning } from "./env";
 
 // Re-export the shared readers under the original names so wrangler
 // worker entries that import from this module keep working unchanged.
@@ -240,6 +247,10 @@ export function readRelayTuning(env: ServerEnv): RelayTuning {
 
 export function readPruneTuning(env: ServerEnv): PruneTuning {
   return readPruneTuningShared(env as TuningEnv);
+}
+
+export function readIndexerTuning(env: ServerEnv): IndexerTuning {
+  return readIndexerTuningShared(env as TuningEnv);
 }
 
 export function readRequestServerConfig(

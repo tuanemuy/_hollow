@@ -6,6 +6,7 @@ import type {
 import {
   createConsumerContainer,
   createWorkerContainer,
+  readIndexerTuning,
   readPruneTuning,
   readRelayTuning,
   type ServerEnv,
@@ -20,6 +21,11 @@ import {
   type PruneOutboxOptions,
   pruneOutbox,
 } from "@/core/application/workers/outboxPrune";
+import {
+  type ProcessIndexJobsOptions,
+  type ProcessIndexJobsResult,
+  processIndexJobs,
+} from "@/core/application/workers/processIndexJobs";
 import type { DomainEvent } from "@/core/domain/common/event";
 
 export type RelayEnv = ServerEnv &
@@ -32,6 +38,8 @@ export type PrunerEnv = ServerEnv;
 export type ConsumerEnv = ServerEnv;
 
 export type DlqEnv = ServerEnv;
+
+export type IndexerEnv = ServerEnv;
 
 /**
  * `sendBatch` is all-or-nothing — on rejection every event is reported
@@ -79,6 +87,31 @@ export async function runPruneTick(
 ): Promise<{ deleted: number }> {
   const container = createWorkerContainer(env);
   return pruneOutbox(container, { ...readPruneTuning(env), ...override });
+}
+
+/**
+ * Drain pending `index_jobs` rows through `consumeIndexJob`. Wired as
+ * the indexer worker's `scheduled` trigger; also callable inline from
+ * integration tests that want to verify the dispatcher → drainer pipe.
+ *
+ * Logs the per-tick outcome so an operator watching tail can see when
+ * dlq counters trend upward. Rows with `attempts >=
+ * CONSUME_INDEX_JOB_MAX_ATTEMPTS` are filtered out of `nextBatch` so
+ * dlq rows do not get re-selected — admin re-drive remains the recovery
+ * path (`bulkRebuildFromSnapshots` or direct `attempts` reset).
+ */
+export async function runIndexJobTick(
+  env: IndexerEnv,
+  override?: Partial<ProcessIndexJobsOptions>,
+): Promise<ProcessIndexJobsResult> {
+  const container = createWorkerContainer(env);
+  const tuning = readIndexerTuning(env);
+  const result = await processIndexJobs(container, { ...tuning, ...override });
+  container.logger.info(
+    `[indexer] tick complete: completed=${result.completed} retried=${result.retried} dlq=${result.dlq}`,
+    { result },
+  );
+  return result;
 }
 
 /**

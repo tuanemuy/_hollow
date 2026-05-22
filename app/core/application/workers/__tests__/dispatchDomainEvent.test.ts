@@ -8,13 +8,25 @@ import type {
   SourceFileKind,
 } from "@/core/domain/ingestion/valueObject";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
-import type { NoteId } from "@/core/domain/note/valueObject";
-import type { RequestContainer } from "../../di/types";
+import type { Note } from "@/core/domain/note/entity";
+import type { NoteId, NoteTitle } from "@/core/domain/note/valueObject";
+import type {
+  PublicationVisibility,
+  ShareLinkId,
+} from "@/core/domain/publication/valueObject";
+import type { NoteSnapshot } from "@/core/domain/search/entity";
+import type { TagId } from "@/core/domain/tag/valueObject";
+import type { ConsumerContainer } from "../../di/types";
 import type { IngestionJobId as IngestionJobIdDTO } from "../../dto/ingestion";
 import { NotFoundError } from "../../errors";
 import { runExportJob } from "../../export/runExportJob";
 import { runIngestionJob } from "../../ingestion/runIngestionJob";
 import type { Logger } from "../../ports/logger";
+import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../../publication/handleNoteTrashedEvent";
+import { buildNoteSnapshots } from "../../search/buildNoteSnapshot";
+import { handleNoteSavedEvent } from "../../search/handleNoteSavedEvent";
+import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../../search/handleNoteTrashedEvent";
+import { handlePublicationChangedEvent } from "../../search/handlePublicationChangedEvent";
 import { dispatchDomainEvent } from "../dispatchDomainEvent";
 
 vi.mock("../../ingestion/runIngestionJob", () => ({
@@ -23,9 +35,31 @@ vi.mock("../../ingestion/runIngestionJob", () => ({
 vi.mock("../../export/runExportJob", () => ({
   runExportJob: vi.fn(async () => ({ job: null })),
 }));
+vi.mock("../../search/handleNoteSavedEvent", () => ({
+  handleNoteSavedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../search/handleNoteTrashedEvent", () => ({
+  handleNoteTrashedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../search/handlePublicationChangedEvent", () => ({
+  handlePublicationChangedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../publication/handleNoteTrashedEvent", () => ({
+  handleNoteTrashedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../search/buildNoteSnapshot", () => ({
+  buildNoteSnapshots: vi.fn(async () => []),
+}));
 
 const mockedRunIngestionJob = vi.mocked(runIngestionJob);
 const mockedRunExportJob = vi.mocked(runExportJob);
+const mockedHandleNoteSavedEvent = vi.mocked(handleNoteSavedEvent);
+const mockedSearchHandleNoteTrashed = vi.mocked(searchHandleNoteTrashedEvent);
+const mockedHandlePublicationChanged = vi.mocked(handlePublicationChangedEvent);
+const mockedPublicationHandleNoteTrashed = vi.mocked(
+  publicationHandleNoteTrashedEvent,
+);
+const mockedBuildNoteSnapshots = vi.mocked(buildNoteSnapshots);
 
 const stubLogger: Logger = {
   info: vi.fn(),
@@ -33,9 +67,78 @@ const stubLogger: Logger = {
   error: vi.fn(),
 };
 
-// Container穴埋め: mocked usecases never read it; only the BusinessRuleError
-// branch reads container.logger, hence the stub above.
-const STUB_CONTAINER = { logger: stubLogger } as unknown as RequestContainer;
+// Fake note returned by `noteRepository.findById`. The dispatcher only
+// reads `status` and forwards the entity to `buildNoteSnapshots`, which
+// is mocked — so a minimal partial cast suffices.
+function fakeActiveNote(noteId: string): Note {
+  return {
+    id: noteId as NoteId,
+    status: "active" as const,
+    trashedAt: null,
+    title: "fake" as NoteTitle,
+  } as unknown as Note;
+}
+
+function fakeTrashedNote(noteId: string): Note {
+  return {
+    id: noteId as NoteId,
+    status: "trashed" as const,
+    trashedAt: new Date(0),
+    title: "fake" as NoteTitle,
+  } as unknown as Note;
+}
+
+// Sentinel snapshot used to assert the dispatcher forwards the
+// `buildNoteSnapshots` output verbatim into the search handler.
+function fakeSnapshot(noteId: string): NoteSnapshot {
+  return {
+    noteId: noteId as NoteId,
+    ownerId: OWNER_ID,
+    visibility: "public",
+    title: "fake",
+    plainBody: "",
+    tagNames: [],
+    directoryPath: "/",
+    frontMatterDate: null,
+    updatedAt: new Date(0),
+  };
+}
+
+type FindByIdResult = { entity: Note; expectedVersion: never } | null;
+
+function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
+  container: ConsumerContainer;
+  uowFindById: ReturnType<typeof vi.fn>;
+} {
+  const uowFindById = vi.fn(async () =>
+    opts.findByIdResult === undefined ? null : opts.findByIdResult,
+  );
+  const unitOfWorkProvider = {
+    run: async <T>(
+      fn: (ctx: {
+        noteRepository: { findById: typeof uowFindById };
+        directoryRepository: object;
+        tagRepository: object;
+        publicationStateRepository: object;
+      }) => Promise<T>,
+    ): Promise<T> =>
+      fn({
+        noteRepository: { findById: uowFindById },
+        directoryRepository: {},
+        tagRepository: {},
+        publicationStateRepository: {},
+      }),
+  };
+  const container = {
+    logger: stubLogger,
+    htmlSanitizer: {
+      sanitize: vi.fn(),
+      toPlainText: vi.fn(),
+    },
+    unitOfWorkProvider,
+  } as unknown as ConsumerContainer;
+  return { container, uowFindById };
+}
 
 const EVENT_ID = "01938f00-0000-7000-8000-aaaaaaaaaaaa" as EventId;
 const INGESTION_JOB_ID = "01938f00-0001-7000-8000-aaaaaaaaaaaa";
@@ -114,6 +217,99 @@ function exportRetryRequestedEvent(): DomainEvent {
   };
 }
 
+function noteCreatedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.created",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      directoryId: "01938f00-dddd-7000-8000-000000000001",
+      slug: "slug",
+      title: "title",
+      tagIds: [] as readonly TagId[],
+      mediaRefs: [] as readonly MediaAssetId[],
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function noteContentUpdatedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.content_updated",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      title: "title",
+      tagIds: [] as readonly TagId[],
+      mediaRefs: [] as readonly MediaAssetId[],
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function noteRenamedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.renamed",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      title: "title",
+      slug: "slug",
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function noteMovedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.moved",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      fromDirectoryId: "01938f00-dddd-7000-8000-000000000001",
+      toDirectoryId: "01938f00-dddd-7000-8000-000000000002",
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function noteRestoredEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.restored",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      directoryId: "01938f00-dddd-7000-8000-000000000001",
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function noteTagsReplacedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.tags_replaced",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      previousTagIds: [] as readonly TagId[],
+      tagIds: [] as readonly TagId[],
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
 function noteTrashedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
@@ -128,70 +324,190 @@ function noteTrashedEvent(): DomainEvent {
   };
 }
 
+function notePurgedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.purged",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      mediaRefs: [] as readonly MediaAssetId[],
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function notePublishChangedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "note.publish_changed",
+    payload: {
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+      previous: "private" as PublicationVisibility,
+      next: "public" as PublicationVisibility,
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function shareLinkIssuedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "share_link.issued",
+    payload: {
+      shareLinkId: "01938f00-eeee-7000-8000-000000000001" as ShareLinkId,
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function shareLinkRevokedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "share_link.revoked",
+    payload: {
+      shareLinkId: "01938f00-eeee-7000-8000-000000000001" as ShareLinkId,
+      noteId: NOTE_ID,
+      ownerId: OWNER_ID,
+    },
+    occurredAt: new Date(0),
+    aggregateId: NOTE_ID,
+  };
+}
+
+function tagDeletedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "tag.deleted" as never,
+    payload: { tagId: "01938f00-fff0-7000-8000-000000000001" } as never,
+    occurredAt: new Date(0),
+    aggregateId: "01938f00-fff0-7000-8000-000000000001",
+  } as DomainEvent;
+}
+
+function directoryDeletedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "directory.deleted" as never,
+    payload: { directoryId: "01938f00-fff1-7000-8000-000000000001" } as never,
+    occurredAt: new Date(0),
+    aggregateId: "01938f00-fff1-7000-8000-000000000001",
+  } as DomainEvent;
+}
+
+function mediaUploadedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "media.uploaded" as never,
+    payload: {
+      mediaId: "01938f00-fff2-7000-8000-000000000001",
+    } as never,
+    occurredAt: new Date(0),
+    aggregateId: "01938f00-fff2-7000-8000-000000000001",
+  } as DomainEvent;
+}
+
+function userDeletedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "user.deleted" as never,
+    payload: { userId: OWNER_ID } as never,
+    occurredAt: new Date(0),
+    aggregateId: OWNER_ID,
+  } as DomainEvent;
+}
+
 beforeEach(() => {
   mockedRunIngestionJob.mockReset();
   mockedRunExportJob.mockReset();
+  mockedHandleNoteSavedEvent.mockReset();
+  mockedSearchHandleNoteTrashed.mockReset();
+  mockedHandlePublicationChanged.mockReset();
+  mockedPublicationHandleNoteTrashed.mockReset();
+  mockedBuildNoteSnapshots.mockReset();
+
   mockedRunIngestionJob.mockResolvedValue(undefined);
   mockedRunExportJob.mockResolvedValue({ job: null });
+  mockedHandleNoteSavedEvent.mockResolvedValue(undefined);
+  mockedSearchHandleNoteTrashed.mockResolvedValue(undefined);
+  mockedHandlePublicationChanged.mockResolvedValue(undefined);
+  mockedPublicationHandleNoteTrashed.mockResolvedValue(undefined);
+  // Default: snapshot builder returns a single sentinel snapshot. Tests
+  // that care about the empty / multi-result case override per-test.
+  mockedBuildNoteSnapshots.mockResolvedValue([fakeSnapshot(NOTE_ID)]);
+
+  vi.mocked(stubLogger.info).mockClear();
   vi.mocked(stubLogger.warn).mockClear();
+  vi.mocked(stubLogger.error).mockClear();
 });
 
-describe("dispatchDomainEvent — routing", () => {
+describe("dispatchDomainEvent — ingestion / export routing", () => {
   it("routes ingestion.created to runIngestionJob and returns handled", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionCreatedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunIngestionJob).toHaveBeenCalledTimes(1);
     expect(mockedRunIngestionJob).toHaveBeenCalledWith({
-      container: STUB_CONTAINER,
+      container,
       input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
     });
     expect(mockedRunExportJob).not.toHaveBeenCalled();
   });
 
   it("routes ingestion.retryRequested to runIngestionJob and returns handled", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionRetryRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunIngestionJob).toHaveBeenCalledWith({
-      container: STUB_CONTAINER,
+      container,
       input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
     });
   });
 
   it("routes export.job.requested to runExportJob and returns handled", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       exportRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunExportJob).toHaveBeenCalledTimes(1);
     expect(mockedRunExportJob).toHaveBeenCalledWith({
-      container: STUB_CONTAINER,
+      container,
       input: { jobId: EXPORT_JOB_ID as unknown as ExportJobId },
     });
     expect(mockedRunIngestionJob).not.toHaveBeenCalled();
   });
 
   it("routes export.job.retryRequested to runExportJob and returns handled", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       exportRetryRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunExportJob).toHaveBeenCalledWith({
-      container: STUB_CONTAINER,
+      container,
       input: { jobId: EXPORT_JOB_ID as unknown as ExportJobId },
     });
   });
 
   it("skips ingestion.regenerated (regression guard: not in dispatch table per ADR-004)", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionRegeneratedEvent(),
     );
     expect(outcome).toEqual({ kind: "skipped" });
@@ -200,22 +516,272 @@ describe("dispatchDomainEvent — routing", () => {
   });
 
   it("skips ingestion.previewAttached", async () => {
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionPreviewAttachedEvent(),
     );
     expect(outcome).toEqual({ kind: "skipped" });
     expect(mockedRunIngestionJob).not.toHaveBeenCalled();
   });
+});
 
-  it("skips note.trashed", async () => {
+describe("dispatchDomainEvent — note save routing (#145)", () => {
+  const saveEvents: ReadonlyArray<[string, () => DomainEvent]> = [
+    ["note.created", noteCreatedEvent],
+    ["note.content_updated", noteContentUpdatedEvent],
+    ["note.renamed", noteRenamedEvent],
+    ["note.moved", noteMovedEvent],
+    ["note.restored", noteRestoredEvent],
+    ["note.tags_replaced", noteTagsReplacedEvent],
+  ];
+
+  for (const [name, factory] of saveEvents) {
+    it(`routes ${name} to handleNoteSavedEvent with the rebuilt snapshot`, async () => {
+      const { container, uowFindById } = makeStubContainer({
+        findByIdResult: {
+          entity: fakeActiveNote(NOTE_ID),
+          expectedVersion: 0 as never,
+        },
+      });
+      const outcome = await dispatchDomainEvent(container, factory());
+      expect(outcome).toEqual({ kind: "handled" });
+      expect(uowFindById).toHaveBeenCalledTimes(1);
+      expect(mockedBuildNoteSnapshots).toHaveBeenCalledTimes(1);
+      expect(mockedHandleNoteSavedEvent).toHaveBeenCalledTimes(1);
+      const callArg = mockedHandleNoteSavedEvent.mock.calls[0]?.[0];
+      expect(callArg?.input.snapshot.noteId).toBe(NOTE_ID);
+    });
+  }
+
+  it("handles save event with skip when noteRepository returns null (purge race)", async () => {
+    const { container } = makeStubContainer({
+      findByIdResult: null,
+    });
+    const outcome = await dispatchDomainEvent(container, noteCreatedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandleNoteSavedEvent).not.toHaveBeenCalled();
+    expect(stubLogger.info).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(stubLogger.info).mock.calls[0]?.[0]).toContain(
+      "note.created",
+    );
+  });
+
+  it("handles save event with skip when note is trashed (ADR-007 trashed status guard)", async () => {
+    const { container } = makeStubContainer({
+      findByIdResult: {
+        entity: fakeTrashedNote(NOTE_ID),
+        expectedVersion: 0 as never,
+      },
+    });
+    const outcome = await dispatchDomainEvent(container, noteRenamedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandleNoteSavedEvent).not.toHaveBeenCalled();
+    expect(mockedBuildNoteSnapshots).not.toHaveBeenCalled();
+    expect(stubLogger.info).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles save event with skip when buildNoteSnapshots returns empty", async () => {
+    mockedBuildNoteSnapshots.mockResolvedValueOnce([]);
+    const { container } = makeStubContainer({
+      findByIdResult: {
+        entity: fakeActiveNote(NOTE_ID),
+        expectedVersion: 0 as never,
+      },
+    });
+    const outcome = await dispatchDomainEvent(container, noteCreatedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandleNoteSavedEvent).not.toHaveBeenCalled();
+  });
+
+  it("returns handled+warn when payload noteId is empty (BusinessRuleError)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "note.created",
+      payload: {
+        noteId: "" as NoteId,
+        ownerId: OWNER_ID,
+        directoryId: "01938f00-dddd-7000-8000-000000000001",
+        slug: "slug",
+        title: "title",
+        tagIds: [] as readonly TagId[],
+        mediaRefs: [] as readonly MediaAssetId[],
+      },
+      occurredAt: new Date(0),
+      aggregateId: NOTE_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandleNoteSavedEvent).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(stubLogger.warn).mock.calls[0]?.[0]).toContain(
+      "note.created",
+    );
+  });
+
+  it("returns retry when handleNoteSavedEvent throws a transient error", async () => {
+    mockedHandleNoteSavedEvent.mockRejectedValueOnce(
+      new Error("d1 connection refused"),
+    );
+    const { container } = makeStubContainer({
+      findByIdResult: {
+        entity: fakeActiveNote(NOTE_ID),
+        expectedVersion: 0 as never,
+      },
+    });
+    const outcome = await dispatchDomainEvent(container, noteCreatedEvent());
+    expect(outcome.kind).toBe("retry");
+  });
+});
+
+describe("dispatchDomainEvent — note.trashed fan-out (#145)", () => {
+  it("calls search handler then publication handler in order", async () => {
+    const callOrder: string[] = [];
+    mockedSearchHandleNoteTrashed.mockImplementationOnce(async () => {
+      callOrder.push("search");
+    });
+    mockedPublicationHandleNoteTrashed.mockImplementationOnce(async () => {
+      callOrder.push("publication");
+    });
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, noteTrashedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(callOrder).toEqual(["search", "publication"]);
+  });
+
+  it("returns retry on fan-out partial failure (search ok, publication transient)", async () => {
+    mockedSearchHandleNoteTrashed.mockResolvedValueOnce(undefined);
+    mockedPublicationHandleNoteTrashed.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, noteTrashedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedPublicationHandleNoteTrashed).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns handled+warn when payload noteId is empty (BusinessRuleError)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "note.trashed",
+      payload: {
+        noteId: "" as NoteId,
+        ownerId: OWNER_ID,
+        mediaRefs: [] as readonly MediaAssetId[],
+      },
+      occurredAt: new Date(0),
+      aggregateId: NOTE_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedSearchHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("dispatchDomainEvent — note.purged routing (#145)", () => {
+  it("routes to search trash handler only (publication / media / view are out of scope)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, notePurgedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedPublicationHandleNoteTrashed).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatchDomainEvent — note.publish_changed routing (#145)", () => {
+  it("routes to handlePublicationChangedEvent with the rebuilt snapshot", async () => {
+    const { container, uowFindById } = makeStubContainer({
+      findByIdResult: {
+        entity: fakeActiveNote(NOTE_ID),
+        expectedVersion: 0 as never,
+      },
+    });
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
-      noteTrashedEvent(),
+      container,
+      notePublishChangedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(uowFindById).toHaveBeenCalledTimes(1);
+    expect(mockedHandlePublicationChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles publish_changed with skip when note is trashed (ADR-007 trashed status guard E2E)", async () => {
+    const { container } = makeStubContainer({
+      findByIdResult: {
+        entity: fakeTrashedNote(NOTE_ID),
+        expectedVersion: 0 as never,
+      },
+    });
+    const outcome = await dispatchDomainEvent(
+      container,
+      notePublishChangedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandlePublicationChanged).not.toHaveBeenCalled();
+    expect(stubLogger.info).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles publish_changed with skip when note is absent (purge race)", async () => {
+    const { container } = makeStubContainer({
+      findByIdResult: null,
+    });
+    const outcome = await dispatchDomainEvent(
+      container,
+      notePublishChangedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedHandlePublicationChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatchDomainEvent — skipped regression guards (#145)", () => {
+  it("skips share_link.issued (intentional — out of scope for #145)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      shareLinkIssuedEvent(),
     );
     expect(outcome).toEqual({ kind: "skipped" });
-    expect(mockedRunIngestionJob).not.toHaveBeenCalled();
-    expect(mockedRunExportJob).not.toHaveBeenCalled();
+  });
+
+  it("skips share_link.revoked", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      shareLinkRevokedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "skipped" });
+  });
+
+  it("skips tag.deleted (out of scope — separate Issue)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, tagDeletedEvent());
+    expect(outcome).toEqual({ kind: "skipped" });
+  });
+
+  it("skips directory.deleted (out of scope — separate Issue)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      directoryDeletedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "skipped" });
+  });
+
+  it("skips media.uploaded (out of scope — separate Issue)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, mediaUploadedEvent());
+    expect(outcome).toEqual({ kind: "skipped" });
+  });
+
+  it("skips user.deleted (out of scope — separate Issue)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
+    expect(outcome).toEqual({ kind: "skipped" });
   });
 });
 
@@ -223,8 +789,9 @@ describe("dispatchDomainEvent — error classification", () => {
   it("returns retry when runIngestionJob throws LLMRateLimitError", async () => {
     const error = new LLMRateLimitError("rate limited");
     mockedRunIngestionJob.mockRejectedValueOnce(error);
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionCreatedEvent(),
     );
     expect(outcome).toEqual({ kind: "retry", error });
@@ -234,8 +801,9 @@ describe("dispatchDomainEvent — error classification", () => {
     mockedRunIngestionJob.mockRejectedValueOnce(
       new NotFoundError("INGESTION_JOB_NOT_FOUND", "missing"),
     );
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionCreatedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
@@ -244,8 +812,9 @@ describe("dispatchDomainEvent — error classification", () => {
   it("returns retry when runIngestionJob throws a generic Error (D1 / transient)", async () => {
     const error = new Error("d1 connection refused");
     mockedRunIngestionJob.mockRejectedValueOnce(error);
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       ingestionCreatedEvent(),
     );
     expect(outcome).toEqual({ kind: "retry", error });
@@ -255,8 +824,9 @@ describe("dispatchDomainEvent — error classification", () => {
     mockedRunExportJob.mockRejectedValueOnce(
       new NotFoundError("EXPORT_JOB_NOT_FOUND", "missing"),
     );
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       exportRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "handled" });
@@ -265,8 +835,9 @@ describe("dispatchDomainEvent — error classification", () => {
   it("returns retry when runExportJob throws a generic Error", async () => {
     const error = new Error("uow commit failed");
     mockedRunExportJob.mockRejectedValueOnce(error);
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       exportRetryRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "retry", error });
@@ -275,8 +846,9 @@ describe("dispatchDomainEvent — error classification", () => {
   it("returns retry when runExportJob throws LLMRateLimitError (symmetric with ingestion)", async () => {
     const error = new LLMRateLimitError("rate limited");
     mockedRunExportJob.mockRejectedValueOnce(error);
+    const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
-      STUB_CONTAINER,
+      container,
       exportRequestedEvent(),
     );
     expect(outcome).toEqual({ kind: "retry", error });
@@ -286,6 +858,7 @@ describe("dispatchDomainEvent — error classification", () => {
     // payload schema drift: relay published an event with an empty
     // jobId. The VO factory throws BusinessRuleError before runIngestionJob
     // is even called.
+    const { container } = makeStubContainer({});
     const event: DomainEvent = {
       id: EVENT_ID,
       type: "ingestion.created",
@@ -296,7 +869,7 @@ describe("dispatchDomainEvent — error classification", () => {
       occurredAt: new Date(0),
       aggregateId: INGESTION_JOB_ID,
     };
-    const outcome = await dispatchDomainEvent(STUB_CONTAINER, event);
+    const outcome = await dispatchDomainEvent(container, event);
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunIngestionJob).not.toHaveBeenCalled();
     expect(stubLogger.warn).toHaveBeenCalledTimes(1);
@@ -306,6 +879,7 @@ describe("dispatchDomainEvent — error classification", () => {
   });
 
   it("returns handled when export payload exportJobId is empty (BusinessRuleError)", async () => {
+    const { container } = makeStubContainer({});
     const event: DomainEvent = {
       id: EVENT_ID,
       type: "export.job.requested",
@@ -318,7 +892,7 @@ describe("dispatchDomainEvent — error classification", () => {
       occurredAt: new Date(0),
       aggregateId: EXPORT_JOB_ID,
     };
-    const outcome = await dispatchDomainEvent(STUB_CONTAINER, event);
+    const outcome = await dispatchDomainEvent(container, event);
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunExportJob).not.toHaveBeenCalled();
     expect(stubLogger.warn).toHaveBeenCalledTimes(1);

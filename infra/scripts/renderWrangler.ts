@@ -66,6 +66,7 @@ type StackOutput = {
     consumer: string;
     pruner: string;
     dlq: string;
+    indexer: string;
   };
 };
 
@@ -84,6 +85,7 @@ const vars: Record<string, string> = {
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
+  WORKER_INDEXER: stack.workerNamesOut.indexer,
   // Public LLM model id + provider id + optional base URL override
   // delivered via `wrangler.toml [vars]`. Literal defaults live here
   // rather than in Pulumi StackOutput because they are deploy-time
