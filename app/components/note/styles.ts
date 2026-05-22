@@ -43,9 +43,27 @@ export const chip =
 export const dialogBackdrop =
   "fixed inset-0 z-[100] bg-black/35 flex items-center justify-center p-4";
 
-/** Modal dialog body. */
+/**
+ * Modal dialog body.
+ *
+ * `relative` establishes the position context required by the opt-in close
+ * button (`dialogCloseButton`, `absolute top-3 right-3`) in `Dialog`. It is
+ * inert for panels whose children do not use `absolute`; see `.issue/104/adr.md`
+ * (ADR-005) for the audit confirming no visual `absolute` descendants exist
+ * in current consumers (SR_ONLY clipped text is unaffected).
+ */
 export const dialog =
-  "bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-lg";
+  "relative bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-lg";
+
+/**
+ * Opt-in close ("×") button rendered at the top-right of the dialog panel
+ * when `Dialog` receives `showCloseButton`. Pairs with the `relative` token
+ * on `dialog` for the absolute positioning context. See `Dialog`'s JSDoc
+ * for the surrounding a11y contract (focus trap inclusion, initial-focus
+ * exclusion, `closable=false` disabling).
+ */
+export const dialogCloseButton =
+  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full text-ink-secondary text-xl leading-none hover:bg-surface hover:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Modal dialog title. */
 export const dialogTitle = "text-lg font-medium mb-4";

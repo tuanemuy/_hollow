@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { dialog, dialogBackdrop } from "@/components/note/styles";
+import {
+  dialog,
+  dialogBackdrop,
+  dialogCloseButton,
+} from "@/components/note/styles";
 
 export type DialogProps = Readonly<{
   open: boolean;
@@ -12,15 +16,74 @@ export type DialogProps = Readonly<{
   ariaLabelledBy?: string | undefined;
   ariaDescribedBy?: string | undefined;
   /**
-   * When false, Esc key is ignored. Use `closable={!isPending}` to prevent
-   * dismissing the dialog while an async operation is in flight.
+   * When false, Esc key is ignored. Also disables the opt-in close paths:
+   * the × button (`showCloseButton`) is rendered with `disabled`, and the
+   * backdrop click (`closeOnBackdropClick`) is a no-op. Use
+   * `closable={!isPending}` to prevent dismissing the dialog while an async
+   * operation is in flight.
    */
   closable?: boolean;
+  /**
+   * Opt-in: enable closing the dialog by clicking the backdrop. Defaults to
+   * `false` to preserve existing behavior — consumers wired before this prop
+   * existed continue to require Esc or an in-body Cancel button.
+   *
+   * When enabled, an "origin guard" runs: `onClose` only fires when *both*
+   * the `mousedown` and the `click` originate on the backdrop element
+   * itself. A drag that starts inside the panel (e.g. selecting text in a
+   * `<textarea>`) and releases over the backdrop will *not* close — the
+   * panel's own `mousedown` handler stops propagation to keep the origin
+   * marker on the panel. This matches Radix UI / Headless UI behavior and
+   * is the de-facto standard for modal dialogs.
+   *
+   * Ignored while `closable === false`.
+   */
+  closeOnBackdropClick?: boolean;
+  /**
+   * Opt-in: render an "×" close button at the top-right of the panel.
+   * Defaults to `false`. The button:
+   *   - carries `aria-label="閉じる"` and an `aria-hidden` glyph (U+00D7),
+   *     so screen readers announce only the label;
+   *   - is included in the Tab focus cycle when enabled (keyboard users can
+   *     reach it) but is excluded from *initial* focus per WAI-ARIA Dialog
+   *     guidance (initial focus should land on a meaningful control);
+   *   - renders with the native `disabled` attribute while
+   *     `closable === false`, so the browser blocks both pointer and
+   *     keyboard activation and removes it from the tab order automatically.
+   *
+   * Whether to also keep an in-body Cancel button is a consumer decision —
+   * this primitive only provides the close path, not the layout policy.
+   *
+   * Touch target size: the rendered button is 32×32px to stay consistent with
+   * other pill-style controls (e.g. `pillBtn`); ensure dialog body content
+   * (e.g. title) reserves right-padding (`pr-10` or similar) so it does not
+   * visually collide with the absolute-positioned button.
+   *
+   * `showCloseButton` is also valid when `role="alertdialog"`. The button
+   * stays in the Tab cycle but the initial focus still lands on the panel
+   * itself (the alertdialog branch); whether to surface a × on alertdialog is
+   * a consumer UX call.
+   */
+  showCloseButton?: boolean;
   children: React.ReactNode;
 }>;
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+
+// Variant used only when picking the *initial* focus target: the opt-in close
+// button (marked with `data-dialog-close`) is intentionally skipped so that
+// initial focus lands on a meaningful control even when the close button is
+// the first focusable child. The Tab cycle still uses the unfiltered
+// `FOCUSABLE_SELECTOR` so the close button remains reachable by keyboard.
+//
+// Implementation note: a comma-separated CSS selector list is *not*
+// distributive — appending `:not(...)` to the full string only attaches it
+// to the last selector. We therefore append the filter to every clause
+// individually so the close button is excluded across all focusable kinds.
+const INITIAL_FOCUS_SELECTOR = FOCUSABLE_SELECTOR.split(", ")
+  .map((s) => `${s}:not([data-dialog-close])`)
+  .join(", ");
 
 // Module-scope counter for body scroll lock. Multiple concurrent dialogs
 // (e.g. a Confirm rendered on top of another Dialog) share the lock so the
@@ -44,6 +107,25 @@ let bodyScrollLockPrevious = "";
  * only the dialog body (typically a `<form>`) as `children` without applying
  * the `dialog` / `dialogBackdrop` classes themselves. `aria-modal="true"` is
  * always set internally — this wrapper is modal by design.
+ *
+ * ### Opt-in close paths
+ *
+ * Both `closeOnBackdropClick` and `showCloseButton` default to `false`, so
+ * existing consumers see no behavioral change. When enabled:
+ *
+ * - `closeOnBackdropClick` only triggers `onClose` when the `mousedown` *and*
+ *   the `click` both originate on the backdrop element — panel-originated
+ *   drags that release over the backdrop are ignored.
+ * - `showCloseButton` adds an "×" button at the top-right. It participates
+ *   in the Tab focus cycle but is excluded from *initial* focus, so the
+ *   first meaningful control inside the panel still receives focus on open.
+ *
+ * Both paths honor `closable === false`: the × button is rendered with the
+ * native `disabled` attribute, and the backdrop click handler short-circuits.
+ * The runtime `closableRef` check inside the × button's `onClick` is defense
+ * in depth — the disabled attribute alone prevents the click in practice,
+ * but the ref guard covers the race where `closable` flips to `false`
+ * between the pointerdown and click events.
  */
 export function Dialog(props: DialogProps) {
   if (!props.open) return null;
@@ -60,11 +142,18 @@ function DialogInner({
   ariaLabelledBy,
   ariaDescribedBy,
   closable = true,
+  closeOnBackdropClick = false,
+  showCloseButton = false,
   children,
 }: DialogInnerProps) {
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
+  // Track which element received `mousedown` on the backdrop so the click
+  // handler can confirm the gesture started and ended on the backdrop. A
+  // drag that starts inside the panel never updates this ref because the
+  // panel stops propagation of its own `mousedown`.
+  const mousedownTargetRef = useRef<EventTarget | null>(null);
   // Read latest `closable` / `onClose` from a ref so the keydown listener can
   // be attached once and avoid churn when `isPending` toggles each render.
   const closableRef = useRef(closable);
@@ -176,8 +265,11 @@ function DialogInner({
         panel.focus();
         return;
       }
-      const focusables =
-        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      // Use the initial-focus variant so the opt-in × close button (when
+      // present) is skipped as the initial focus target.
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        INITIAL_FOCUS_SELECTOR,
+      );
       const first = focusables[0];
       if (first !== undefined) {
         first.focus();
@@ -193,8 +285,38 @@ function DialogInner({
   if (!mounted) return null;
 
   return createPortal(
-    <div className={dialogBackdrop}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop is intentionally a non-interactive div; the dialog itself owns the role and provides keyboard close via Esc handled in the document-level keydown listener
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard close is delivered via the document-level Esc handler — backdrop pointer interaction is an additional opt-in path for pointer users and has no keyboard equivalent by design (a backdrop is not focusable)
+    <div
+      className={dialogBackdrop}
+      onMouseDown={(e) => {
+        mousedownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        // Snapshot then clear the ref up-front so every return path leaves
+        // it null. Without this, a script-driven `element.click()` on the
+        // backdrop with no preceding mousedown could observe a stale value
+        // from an earlier interaction.
+        const mousedownTarget = mousedownTargetRef.current;
+        mousedownTargetRef.current = null;
+        if (!closeOnBackdropClick) return;
+        if (!closableRef.current) return;
+        // Both the press and the release must have happened on the backdrop
+        // itself. `e.target !== e.currentTarget` rejects clicks that bubbled
+        // from inside the panel; the mousedown check rejects panel-originated
+        // drags that release on the backdrop. The panel's own onMouseDown
+        // stops propagation so the ref never sees panel-originated presses.
+        if (
+          e.target !== e.currentTarget ||
+          mousedownTarget !== e.currentTarget
+        ) {
+          return;
+        }
+        onCloseRef.current();
+      }}
+    >
       {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is always "dialog" or "alertdialog", both of which support aria-modal; biome cannot infer this from a dynamic prop */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the dynamic `role` prop (dialog | alertdialog) makes both roles count as "static" to biome's analysis; the onMouseDown only stops propagation to keep the backdrop origin guard intact, it does not introduce a new user-facing interaction */}
       <div
         ref={panelRef}
         role={role}
@@ -204,7 +326,31 @@ function DialogInner({
         aria-describedby={ariaDescribedBy}
         tabIndex={-1}
         className={dialog}
+        onMouseDown={(e) => {
+          // Prevent panel-originated mousedown from reaching the backdrop,
+          // so the backdrop's origin guard cannot be tricked by a drag that
+          // starts inside the panel (e.g. text selection in a textarea).
+          e.stopPropagation();
+        }}
       >
+        {showCloseButton && (
+          <button
+            type="button"
+            aria-label="閉じる"
+            data-dialog-close=""
+            onClick={() => {
+              // Defense-in-depth: the `disabled` attribute already blocks
+              // the click in practice, but the ref guards against the race
+              // where `closable` flips to `false` between pointerdown and
+              // click.
+              if (closableRef.current) onCloseRef.current();
+            }}
+            disabled={!closable}
+            className={dialogCloseButton}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        )}
         {children}
       </div>
     </div>,
