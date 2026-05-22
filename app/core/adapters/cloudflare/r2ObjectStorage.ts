@@ -7,6 +7,15 @@ import {
 } from "@/core/domain/media/ports/objectStorage";
 
 /**
+ * Cloudflare R2 implementation of the {@link ObjectStorage} port.
+ *
+ * Production-runtime fallback for missing R2 bindings lives in the DI
+ * module (`serverCloudflare.ts`) as a private inline factory — see
+ * `.issue/100/adr.md` ADR-001. This file intentionally exports only
+ * the real adapter so the API surface stays focused.
+ */
+
+/**
  * Credentials and endpoint configuration required to presign R2 object
  * URLs. R2's Worker binding exposes data-plane methods (`put` / `get`
  * / `delete`) but does not natively mint presigned URLs — those are
@@ -307,50 +316,4 @@ function toHex(bytes: Uint8Array): string {
     out += (bytes[i] as number).toString(16).padStart(2, "0");
   }
   return out;
-}
-
-/**
- * MVP {@link ObjectStorage} placeholder.
- *
- * The Cloudflare reference runtime does not yet declare an R2 binding
- * for media object storage, so {@link R2ObjectStorage} cannot be
- * instantiated. Every operation rejects with
- * {@link StorageUnavailableError} so media / export usecases fail
- * explicitly when reached rather than blowing up with a `TypeError` on
- * an undefined adapter slot. Once the R2 binding is added to
- * `wrangler.toml` and threaded through `ServerEnv`, the DI layer swaps
- * this stub for {@link R2ObjectStorage}.
- */
-export class StubObjectStorage implements ObjectStorage {
-  async put(
-    _key: string,
-    _bytes: ArrayBuffer,
-    _contentType: string,
-  ): Promise<void> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async get(_key: string): Promise<ArrayBuffer> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async stat(_key: string): Promise<ObjectMetadata> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async delete(_key: string): Promise<void> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async presignDownload(_key: string, _ttlSec: number): Promise<URL> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
-
-  async presignUpload(
-    _key: string,
-    _contentType: string,
-    _ttlSec: number,
-  ): Promise<URL> {
-    throw new StorageUnavailableError("object_storage_not_configured");
-  }
 }

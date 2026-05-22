@@ -6,10 +6,7 @@ import {
 } from "cloudflare:test";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  R2TempFileStorage,
-  StubTempFileStorage,
-} from "@/core/adapters/cloudflare/r2TempFileStorage";
+import { R2TempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { PendingBatch } from "@/core/adapters/d1/pendingBatch";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
@@ -777,7 +774,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(secondJobAfter[0]?.updatedAt).toBe(firstUpdatedAt);
   });
 
-  it("reads ingestion bytes via R2 binding (R2TempFileStorage path) — Stub spy is never invoked", async () => {
+  it("reads ingestion bytes via R2 binding (R2TempFileStorage path)", async () => {
     const ownerId = nextOwnerId();
     const jobId = nextIngestionJobId();
     await seedOwner(ownerId);
@@ -794,12 +791,12 @@ describe("consumer Worker — handleQueue dispatch", () => {
       new TextEncoder().encode("<p>hello R2</p>"),
     );
 
-    // Direct proof: spy on both adapters' `get` and confirm only the
-    // R2-backed one is invoked. The Stub spy MUST stay clean — its
-    // invocation would mean DI is still wiring `StubTempFileStorage`
-    // despite the R2 binding being present (regression on Step 7).
+    // Direct proof: spy on the R2 adapter's `get` and confirm it is
+    // invoked with the expected key. Since the production Stub class
+    // was removed in Issue #100, the regression check is now phrased
+    // positively — "the R2 path was exercised" — rather than the
+    // double assertion "R2 invoked AND Stub not invoked".
     const r2GetSpy = vi.spyOn(R2TempFileStorage.prototype, "get");
-    const stubGetSpy = vi.spyOn(StubTempFileStorage.prototype, "get");
 
     const event: DomainEvent = {
       id: nextEventId(),
@@ -826,9 +823,8 @@ describe("consumer Worker — handleQueue dispatch", () => {
 
     expect(result.explicitAcks).toContain("msg-ingestion-r2-smoke");
 
-    // R2 path was exercised; Stub path was not.
+    // R2 path was exercised.
     expect(r2GetSpy).toHaveBeenCalledWith(tempStorageKey);
-    expect(stubGetSpy).not.toHaveBeenCalled();
 
     // Job moved off `pending` — the dispatch reached the downstream
     // LLM step. With `ADMIN_LLM_API_KEY` / `ADMIN_LLM_MODEL` unset,
