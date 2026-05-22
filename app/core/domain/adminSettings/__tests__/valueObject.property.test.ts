@@ -136,6 +136,7 @@ describe("InstanceLimits.create (property)", () => {
       "maxShareLinksPerNote",
       "editLockTtlSec",
       "trashRetentionDays",
+      "maxNoteRevisionsPerNote",
     ] as const;
     const baseValid = {
       maxUploadBytesPerDay: 1_073_741_824,
@@ -145,6 +146,7 @@ describe("InstanceLimits.create (property)", () => {
       maxShareLinksPerNote: 16,
       editLockTtlSec: 300,
       trashRetentionDays: 30,
+      maxNoteRevisionsPerNote: 50,
     };
 
     fc.assert(

@@ -24,6 +24,7 @@ import { D1IngestionJobRepository } from "./repositories/ingestionJobRepository"
 import { D1InstanceSettingsRepository } from "./repositories/instanceSettingsRepository";
 import { D1MediaAssetRepository } from "./repositories/mediaAssetRepository";
 import { D1NoteRepository } from "./repositories/noteRepository";
+import { D1NoteRevisionRepository } from "./repositories/noteRevisionRepository";
 import { D1OutboxRepository } from "./repositories/outboxRepository";
 import { D1PublicationStateRepository } from "./repositories/publicationStateRepository";
 import { D1SavedViewRepository } from "./repositories/savedViewRepository";
@@ -119,6 +120,10 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
       pending,
       this.idGenerator,
     );
+    const noteRevisionRepository = new D1NoteRevisionRepository(
+      this.db,
+      pending,
+    );
     const exportJobRepository = new D1ExportJobRepository(
       this.db,
       pending,
@@ -177,6 +182,7 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
       userRepository,
       directoryRepository,
       noteRepository,
+      noteRevisionRepository,
       exportJobRepository,
       savedViewRepository,
       instanceSettingsRepository,

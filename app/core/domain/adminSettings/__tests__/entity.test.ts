@@ -125,6 +125,7 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
       maxShareLinksPerNote: 1,
       editLockTtlSec: 1,
       trashRetentionDays: 1,
+      maxNoteRevisionsPerNote: 1,
     });
     const next = InstanceSettings.updateLimits(current, limits, at(3));
     expect(next.limits).toBe(limits);

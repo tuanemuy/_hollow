@@ -3,6 +3,7 @@ import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
 import type {
   NoteId as DomainNoteId,
+  NoteRevisionId as DomainNoteRevisionId,
   FrontMatterRecord,
 } from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -23,6 +24,7 @@ import {
   purgeNoteSchema,
   releaseLockSchema,
   renameNoteSchema,
+  restoreNoteRevisionSchema,
   restoreNoteSchema,
   saveDraftSchema,
   saveNoteSchema,
@@ -416,6 +418,30 @@ export const searchInternalLinkTargetsFn = createServerFn({ method: "POST" })
       },
     });
     return { suggestions: result.suggestions };
+  });
+
+/**
+ * Issue #158: restore a past `NoteRevision` into the live note. Returns
+ * the noteId so the client can navigate back to `/notes/<noteId>` once
+ * the mutation succeeds.
+ */
+export const restoreNoteRevisionFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(restoreNoteRevisionSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/note/restoreNoteRevision"),
+    );
+    const result = await module.restoreNoteRevision({
+      container,
+      input: {
+        actorUserId: user.id,
+        noteId: data.noteId as unknown as DomainNoteId,
+        revisionId: data.revisionId as unknown as DomainNoteRevisionId,
+      },
+    });
+    return { noteId: result.note.id as unknown as string };
   });
 
 export const releaseEditLockFn = createServerFn({ method: "POST" })

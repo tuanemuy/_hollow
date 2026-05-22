@@ -358,7 +358,16 @@ export type InstanceLimits = Readonly<{
   maxShareLinksPerNote: number;
   editLockTtlSec: number;
   trashRetentionDays: number;
+  /**
+   * Per-note retention ceiling for `NoteRevision` rows (Issue #158
+   * ADR-004). When a fresh `SaveNote` / `RestoreNoteRevision` insert
+   * would push the row count above this value, the same UoW deletes the
+   * oldest revisions. Range: `1..1000`, default `50`.
+   */
+  maxNoteRevisionsPerNote: number;
 }> & { readonly [instanceLimitsBrand]: true };
+
+const MAX_NOTE_REVISIONS_PER_NOTE_MAX = 1000;
 
 function ensurePositiveInteger(field: string, value: number): void {
   if (!Number.isInteger(value) || value <= 0) {
@@ -369,6 +378,19 @@ function ensurePositiveInteger(field: string, value: number): void {
   }
 }
 
+function ensureBoundedInteger(field: string, value: number, max: number): void {
+  ensurePositiveInteger(field, value);
+  if (value > max) {
+    throw new BusinessRuleError(
+      AdminSettingsErrorCode.InvalidInstanceLimit,
+      `Invalid instance limit ${field}: ${value} (max ${max})`,
+    );
+  }
+}
+
+/** Default value for `maxNoteRevisionsPerNote` (Issue #158 ADR-004). */
+export const DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE = 50;
+
 export const InstanceLimits = {
   create: (params: {
     maxUploadBytesPerDay: number;
@@ -378,6 +400,7 @@ export const InstanceLimits = {
     maxShareLinksPerNote: number;
     editLockTtlSec: number;
     trashRetentionDays: number;
+    maxNoteRevisionsPerNote: number;
   }): InstanceLimits => {
     ensurePositiveInteger("maxUploadBytesPerDay", params.maxUploadBytesPerDay);
     ensurePositiveInteger("maxIngestionBytes", params.maxIngestionBytes);
@@ -389,6 +412,11 @@ export const InstanceLimits = {
     ensurePositiveInteger("maxShareLinksPerNote", params.maxShareLinksPerNote);
     ensurePositiveInteger("editLockTtlSec", params.editLockTtlSec);
     ensurePositiveInteger("trashRetentionDays", params.trashRetentionDays);
+    ensureBoundedInteger(
+      "maxNoteRevisionsPerNote",
+      params.maxNoteRevisionsPerNote,
+      MAX_NOTE_REVISIONS_PER_NOTE_MAX,
+    );
     return { ...params } as unknown as InstanceLimits;
   },
 };

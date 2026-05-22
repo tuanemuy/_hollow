@@ -3,6 +3,7 @@ import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "./errorCode";
 
 declare const noteIdBrand: unique symbol;
+declare const noteRevisionIdBrand: unique symbol;
 declare const noteSlugBrand: unique symbol;
 declare const noteTitleBrand: unique symbol;
 declare const contentHtmlBrand: unique symbol;
@@ -35,6 +36,26 @@ export const NoteId = {
       throw new BusinessRuleError(NoteErrorCode.InvalidId, "Invalid note id");
     }
     return trimmed as NoteId;
+  },
+};
+
+/**
+ * Opaque, non-empty NoteRevision identifier. Mirrors `NoteId` — the id
+ * format (UUIDv7 in this template) is owned by `IdGenerator` and is
+ * re-validated by storage adapters on rehydration.
+ */
+export type NoteRevisionId = string & { readonly [noteRevisionIdBrand]: true };
+
+export const NoteRevisionId = {
+  create: (id: string): NoteRevisionId => {
+    const trimmed = id.trim();
+    if (trimmed.length === 0) {
+      throw new BusinessRuleError(
+        NoteErrorCode.InvalidRevisionId,
+        "Invalid note revision id",
+      );
+    }
+    return trimmed as NoteRevisionId;
   },
 };
 

@@ -47,6 +47,10 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
       label: "ゴミ箱保持日数",
       value: `${formatNumber(limits.trashRetentionDays)} 日`,
     },
+    {
+      label: "ノートあたり履歴保持件数",
+      value: `${formatNumber(limits.maxNoteRevisionsPerNote)} 件`,
+    },
   ];
   return (
     <div className="border border-hairline rounded-lg overflow-hidden">

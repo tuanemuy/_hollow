@@ -53,6 +53,9 @@ import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$no
 import { Route as NotesNoteIdPublishRouteImport } from './routes/notes/$noteId/publish'
 import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
 import { Route as NotesNoteIdEditRouteImport } from './routes/notes/$noteId/edit'
+import { Route as NotesNoteIdHistoryRouteRouteImport } from './routes/notes/$noteId/history/route'
+import { Route as NotesNoteIdHistoryIndexRouteImport } from './routes/notes/$noteId/history/index'
+import { Route as NotesNoteIdHistoryRevisionIdRouteImport } from './routes/notes/$noteId/history/$revisionId'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -274,6 +277,22 @@ const NotesNoteIdEditRoute = NotesNoteIdEditRouteImport.update({
   path: '/notes/$noteId/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotesNoteIdHistoryRouteRoute = NotesNoteIdHistoryRouteRouteImport.update({
+  id: '/notes/$noteId/history',
+  path: '/notes/$noteId/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesNoteIdHistoryIndexRoute = NotesNoteIdHistoryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NotesNoteIdHistoryRouteRoute,
+} as any)
+const NotesNoteIdHistoryRevisionIdRoute =
+  NotesNoteIdHistoryRevisionIdRouteImport.update({
+    id: '/$revisionId',
+    path: '/$revisionId',
+    getParentRoute: () => NotesNoteIdHistoryRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -313,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/trash/': typeof TrashIndexRoute
   '/upload/': typeof UploadIndexRoute
   '/views/': typeof ViewsIndexRoute
+  '/notes/$noteId/history': typeof NotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof NotesNoteIdEditRoute
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
@@ -320,6 +340,8 @@ export interface FileRoutesByFullPath {
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/notes/$noteId/': typeof NotesNoteIdIndexRoute
   '/u/$username/': typeof UUsernameIndexRoute
+  '/notes/$noteId/history/$revisionId': typeof NotesNoteIdHistoryRevisionIdRoute
+  '/notes/$noteId/history/': typeof NotesNoteIdHistoryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -363,6 +385,8 @@ export interface FileRoutesByTo {
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/notes/$noteId': typeof NotesNoteIdIndexRoute
   '/u/$username': typeof UUsernameIndexRoute
+  '/notes/$noteId/history/$revisionId': typeof NotesNoteIdHistoryRevisionIdRoute
+  '/notes/$noteId/history': typeof NotesNoteIdHistoryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -403,6 +427,7 @@ export interface FileRoutesById {
   '/trash/': typeof TrashIndexRoute
   '/upload/': typeof UploadIndexRoute
   '/views/': typeof ViewsIndexRoute
+  '/notes/$noteId/history': typeof NotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof NotesNoteIdEditRoute
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
@@ -410,6 +435,8 @@ export interface FileRoutesById {
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/notes/$noteId/': typeof NotesNoteIdIndexRoute
   '/u/$username/': typeof UUsernameIndexRoute
+  '/notes/$noteId/history/$revisionId': typeof NotesNoteIdHistoryRevisionIdRoute
+  '/notes/$noteId/history/': typeof NotesNoteIdHistoryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -451,6 +478,7 @@ export interface FileRouteTypes {
     | '/trash/'
     | '/upload/'
     | '/views/'
+    | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
     | '/notes/$noteId/export'
     | '/notes/$noteId/publish'
@@ -458,6 +486,8 @@ export interface FileRouteTypes {
     | '/u/$username/$noteSlug'
     | '/notes/$noteId/'
     | '/u/$username/'
+    | '/notes/$noteId/history/$revisionId'
+    | '/notes/$noteId/history/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -501,6 +531,8 @@ export interface FileRouteTypes {
     | '/u/$username/$noteSlug'
     | '/notes/$noteId'
     | '/u/$username'
+    | '/notes/$noteId/history/$revisionId'
+    | '/notes/$noteId/history'
   id:
     | '__root__'
     | '/'
@@ -540,6 +572,7 @@ export interface FileRouteTypes {
     | '/trash/'
     | '/upload/'
     | '/views/'
+    | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
     | '/notes/$noteId/export'
     | '/notes/$noteId/publish'
@@ -547,6 +580,8 @@ export interface FileRouteTypes {
     | '/u/$username/$noteSlug'
     | '/notes/$noteId/'
     | '/u/$username/'
+    | '/notes/$noteId/history/$revisionId'
+    | '/notes/$noteId/history/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -572,6 +607,7 @@ export interface RootRouteChildren {
   TagsIndexRoute: typeof TagsIndexRoute
   TrashIndexRoute: typeof TrashIndexRoute
   UploadIndexRoute: typeof UploadIndexRoute
+  NotesNoteIdHistoryRouteRoute: typeof NotesNoteIdHistoryRouteRouteWithChildren
   NotesNoteIdEditRoute: typeof NotesNoteIdEditRoute
   NotesNoteIdExportRoute: typeof NotesNoteIdExportRoute
   NotesNoteIdPublishRoute: typeof NotesNoteIdPublishRoute
@@ -889,6 +925,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesNoteIdEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notes/$noteId/history': {
+      id: '/notes/$noteId/history'
+      path: '/notes/$noteId/history'
+      fullPath: '/notes/$noteId/history'
+      preLoaderRoute: typeof NotesNoteIdHistoryRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes/$noteId/history/': {
+      id: '/notes/$noteId/history/'
+      path: '/'
+      fullPath: '/notes/$noteId/history/'
+      preLoaderRoute: typeof NotesNoteIdHistoryIndexRouteImport
+      parentRoute: typeof NotesNoteIdHistoryRouteRoute
+    }
+    '/notes/$noteId/history/$revisionId': {
+      id: '/notes/$noteId/history/$revisionId'
+      path: '/$revisionId'
+      fullPath: '/notes/$noteId/history/$revisionId'
+      preLoaderRoute: typeof NotesNoteIdHistoryRevisionIdRouteImport
+      parentRoute: typeof NotesNoteIdHistoryRouteRoute
+    }
   }
 }
 
@@ -975,6 +1032,22 @@ const ViewsRouteRouteWithChildren = ViewsRouteRoute._addFileChildren(
   ViewsRouteRouteChildren,
 )
 
+interface NotesNoteIdHistoryRouteRouteChildren {
+  NotesNoteIdHistoryRevisionIdRoute: typeof NotesNoteIdHistoryRevisionIdRoute
+  NotesNoteIdHistoryIndexRoute: typeof NotesNoteIdHistoryIndexRoute
+}
+
+const NotesNoteIdHistoryRouteRouteChildren: NotesNoteIdHistoryRouteRouteChildren =
+  {
+    NotesNoteIdHistoryRevisionIdRoute: NotesNoteIdHistoryRevisionIdRoute,
+    NotesNoteIdHistoryIndexRoute: NotesNoteIdHistoryIndexRoute,
+  }
+
+const NotesNoteIdHistoryRouteRouteWithChildren =
+  NotesNoteIdHistoryRouteRoute._addFileChildren(
+    NotesNoteIdHistoryRouteRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRouteRoute: AdminRouteRouteWithChildren,
@@ -998,6 +1071,7 @@ const rootRouteChildren: RootRouteChildren = {
   TagsIndexRoute: TagsIndexRoute,
   TrashIndexRoute: TrashIndexRoute,
   UploadIndexRoute: UploadIndexRoute,
+  NotesNoteIdHistoryRouteRoute: NotesNoteIdHistoryRouteRouteWithChildren,
   NotesNoteIdEditRoute: NotesNoteIdEditRoute,
   NotesNoteIdExportRoute: NotesNoteIdExportRoute,
   NotesNoteIdPublishRoute: NotesNoteIdPublishRoute,

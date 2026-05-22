@@ -9,6 +9,7 @@ import type { VerificationChallenge } from "@/core/domain/identity/ports/verific
 import type { IngestionJobRepository } from "@/core/domain/ingestion/ports/ingestionJobRepository";
 import type { MediaAssetRepository } from "@/core/domain/media/ports/mediaAssetRepository";
 import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
+import type { NoteRevisionRepository } from "@/core/domain/note/ports/noteRevisionRepository";
 import type { PublicationStateRepository } from "@/core/domain/publication/ports/publicationStateRepository";
 import type { ShareLinkRepository } from "@/core/domain/publication/ports/shareLinkRepository";
 import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepository";
@@ -40,6 +41,7 @@ export interface UnitOfWorkContext {
   userRepository: UserRepository;
   directoryRepository: DirectoryRepository;
   noteRepository: NoteRepository;
+  noteRevisionRepository: NoteRevisionRepository;
   tagRepository: TagRepository;
   tagBlacklistRepository: TagBlacklistRepository;
   publicationStateRepository: PublicationStateRepository;

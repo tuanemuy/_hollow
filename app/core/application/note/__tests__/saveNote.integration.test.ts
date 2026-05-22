@@ -345,6 +345,77 @@ describe("saveNote (integration)", () => {
     expect(links).toHaveLength(0);
   });
 
+  // Issue #158: every successful SaveNote appends a revision row.
+  it("appends a note_revisions row reflecting the saved state", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        title: "saved-title",
+        contentHtml: "<p>saved body</p>",
+        requireLock: false,
+      },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.noteRevisions)
+      .where(eq(schema.noteRevisions.noteId, noteId as unknown as string));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.title).toBe("saved-title");
+    expect(rows[0]?.contentHtml).toContain("saved body");
+    expect(rows[0]?.ownerId).toBe(owner);
+    expect(rows[0]?.createdByUserId).toBe(owner);
+  });
+
+  it("prunes the oldest revision when the per-note ceiling is exceeded", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    // Lower the retention ceiling to 2 for this test so we don't need
+    // 50 saves to observe pruning.
+    await container.unitOfWorkProvider.run(async (ctx) => {
+      const { entity, expectedVersion } =
+        await ctx.instanceSettingsRepository.get();
+      const next = {
+        ...entity,
+        limits: {
+          ...entity.limits,
+          maxNoteRevisionsPerNote: 2,
+        },
+        version: entity.version + 1,
+        updatedAt: new Date(),
+      } as typeof entity;
+      await ctx.instanceSettingsRepository.save(next, expectedVersion);
+    });
+
+    for (let i = 0; i < 3; i += 1) {
+      await saveNote({
+        container,
+        input: {
+          actorUserId: owner,
+          noteId,
+          contentHtml: `<p>v${i + 1}</p>`,
+          requireLock: false,
+        },
+      });
+    }
+
+    const rows = await container.db
+      .select()
+      .from(schema.noteRevisions)
+      .where(eq(schema.noteRevisions.noteId, noteId as unknown as string));
+    expect(rows).toHaveLength(2);
+  });
+
   it("bumps the media ref-count for newly-added body media via reconcileRefs", async () => {
     const container = getContainer();
     const owner = await seedUser(container);

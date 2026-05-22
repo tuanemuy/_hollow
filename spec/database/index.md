@@ -268,6 +268,25 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 インデックス:
 - `idx_nmr_media` (media_id)
 
+### note_revisions
+
+`SaveNote` / `RestoreNoteRevision` 成功時に追加される、Note の不変スナップショット履歴。 親 Note の物理削除 (PurgeNote) で `ON DELETE CASCADE` により消える。 `AdminSettings.limits.maxNoteRevisionsPerNote` を超過した古い行はアプリケーション層で削除される (Issue #158 ADR-004)。
+
+| カラム | 型 | 制約 |
+|---|---|---|
+| id | TEXT | PRIMARY KEY |
+| note_id | TEXT | NOT NULL, REFERENCES notes(id) ON DELETE CASCADE |
+| owner_id | TEXT | NOT NULL, REFERENCES users(id) ON DELETE CASCADE — `notes.owner_id` の冗長保持（メンテナンス用） |
+| title | TEXT | NOT NULL |
+| content_html | TEXT | NOT NULL |
+| front_matter_json | TEXT | NOT NULL DEFAULT '{}' |
+| created_by_user_id | TEXT | NOT NULL, REFERENCES users(id) ON DELETE CASCADE — 将来の共同編集対応のため列だけ保持（UI 非表示） |
+| created_at | TEXT | NOT NULL |
+
+インデックス:
+- `idx_note_revisions_note_created` (note_id, created_at DESC, id DESC) — UI 表示の newest-first 一覧 + 同 ms 内の安定順
+- `idx_note_revisions_owner` (owner_id)
+
 ---
 
 ## Tag

@@ -24,6 +24,7 @@ export const NoteErrorCode = {
   ReleaseNotOwner: "note_release_not_owner",
   ExtendNotOwner: "note_extend_not_owner",
   MediaNotOwned: "media_not_owned",
+  InvalidRevisionId: "note_invalid_revision_id",
 } as const;
 
 export type NoteErrorCode = (typeof NoteErrorCode)[keyof typeof NoteErrorCode];

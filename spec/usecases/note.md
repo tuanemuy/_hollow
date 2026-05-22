@@ -45,6 +45,7 @@
    - NoteRepository.save
    - `MediaService.reconcileRefs(旧, 新)`
    - Tag の noteCount inc/dec
+   - **NoteRevision を 1 件 insert**（Issue #158 ADR-002）— 確定した `next` Note の `title` / `contentHtml` / `frontMatter` をスナップショット。`AdminSettings.limits.maxNoteRevisionsPerNote` を超過していたら最古行を削除（同 UoW 内、ADR-004）
 4. Outbox `note.saved` 発火。payload は NoteSnapshot 型: `{ noteId, ownerId, visibility, title, plainBody, tagNames, directoryPath, frontMatterDate, updatedAt }`（plainBody は HtmlSanitizer の派生メソッドで HTML→text 変換、directoryPath は DirectoryService.computePath、tagNames は TagRepository.findByIds から取得）
 
 ### エラーケース
@@ -187,6 +188,7 @@
 ### 処理フロー
 1. Note 取得、所有者確認、`status === 'trashed'`
 2. UoW: `NoteRepository.purge(id)`、Outbox `note.purged`（Media が refCount を減算）
+3. **`note_revisions` は `ON DELETE CASCADE` で物理削除される** — 履歴は別途消す必要なし（Issue #158）
 
 ### エラーケース
 - `BusinessRuleError('note_not_trashed')`
@@ -297,3 +299,72 @@
 1. Note 取得、所有者確認
 2. UoW: `NoteService.duplicate` → 保存 → Outbox `note.saved`
 3. 旧 mediaRefs について MediaService.reconcileRefs で inc
+
+---
+
+## ListNoteRevisions（Issue #158）
+
+### 概要
+特定の Note の履歴一覧。trashed なノートでも閲覧可能。
+
+### 入力DTO
+- `actorUserId: UserId`, `noteId: NoteId`, `limit: number`, `offset: number`
+
+### 出力DTO
+- `revisions: NoteRevisionSummaryDTO[]`, `totalCount: number`
+
+### 処理フロー
+1. Note 取得、所有者確認
+2. `NoteRevisionRepository.findByNoteId(noteId, { limit, offset })` で newest-first 取得
+3. `NoteRevisionRepository.countByNoteId(noteId)` で件数取得
+4. Summary DTO（`id` / `noteId` / `title` / `createdAt` / `createdByUserId`）に投影
+
+### エラーケース
+- `NotFoundError('NOTE_NOT_FOUND')` / `ForbiddenError('NOTE_FORBIDDEN')`
+
+---
+
+## GetNoteRevision（Issue #158）
+
+### 概要
+単一の過去版 + 現在の Note 状態を返す。UI が「現在版と過去版を比較」できるようにペアで返却。
+
+### 入力DTO
+- `actorUserId: UserId`, `noteId: NoteId`, `revisionId: NoteRevisionId`
+
+### 出力DTO
+- `revision: NoteRevisionDTO`, `note: NoteDTO`
+
+### 処理フロー
+1. Note 取得、所有者確認
+2. `NoteRevisionRepository.findById(revisionId)` を取得
+3. `revision.noteId === noteId` を確認（クロスノート参照拒否）
+
+### エラーケース
+- `NotFoundError('NOTE_NOT_FOUND' | 'REVISION_NOT_FOUND')` / `ForbiddenError('NOTE_FORBIDDEN')`
+
+---
+
+## RestoreNoteRevision（Issue #158）
+
+### 概要
+過去版を Note 本体に書き戻す。ADR-005 のセマンティクス。
+
+### 入力DTO
+- `actorUserId: UserId`, `noteId: NoteId`, `revisionId: NoteRevisionId`
+
+### 出力DTO
+- `note: NoteDTO`
+
+### 処理フロー（UoW 内）
+1. Note 取得、所有者確認、`status === 'active'` 確認
+2. Revision 取得、`noteId` / `ownerId` 整合性確認
+3. **現在の Note 状態を新しい revision として insert**（セーフティネット）
+4. `NoteService.assembleFromInputs` を **revision の contentHtml** に対して走らせ、タグ / 内部リンク / メディア参照を現時点で再抽出
+5. `Note.updateContent({ title, contentHtml, frontMatter, tagIds, internalLinkRefs, mediaRefs, actorUserId, requireLock: false })` → save → `note.contentUpdated` イベント
+6. `MediaService.reconcileRefs(旧, 新)`
+7. 上限 (`maxNoteRevisionsPerNote`) 超過時は最古を削除
+
+### エラーケース
+- `BusinessRuleError('media_not_owned' | 'edit_locked_by_other' | 'note_already_trashed')`
+- `NotFoundError('NOTE_NOT_FOUND' | 'REVISION_NOT_FOUND')` / `ForbiddenError('NOTE_FORBIDDEN')`
