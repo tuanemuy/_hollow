@@ -121,7 +121,7 @@ ADMIN_LLM_API_KEY=""
 # Required by `R2ObjectStorage` to mint short-lived presigned URLs for
 # export downloads. Issue via Cloudflare dashboard → R2 → "Manage R2
 # API Tokens"; for local dev, scope a read/write token to the dev
-# `tanstack-start-template-objects` bucket only.
+# `hollow-local-objects` bucket only.
 #
 # All three (plus the `OBJECT_STORAGE` binding from `wrangler.toml` and
 # the `R2_OBJECT_BUCKET_NAME` var) must be set together for DI to wire
