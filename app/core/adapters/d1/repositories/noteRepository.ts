@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   gte,
@@ -55,7 +56,7 @@ type NoteTagRow = typeof noteTags.$inferSelect;
 type NoteInternalLinkRow = typeof noteInternalLinks.$inferSelect;
 type NoteMediaRefRow = typeof noteMediaRefs.$inferSelect;
 
-type SortColumn = "updatedAt" | "createdAt" | "title";
+type SortColumn = Extract<keyof NoteRow, "updatedAt" | "createdAt" | "title">;
 
 // Aggregate-shaped bundle of the per-note ancillary rows the reconstruct
 // path consumes. Built once per multi-row read and indexed by note id so
@@ -404,7 +405,7 @@ export class D1NoteRepository implements NoteRepository {
         const rows = await this.db
           .select()
           .from(notes)
-          .where(where ?? undefined)
+          .where(where)
           .orderBy(
             order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
             desc(notes.id),
@@ -418,7 +419,7 @@ export class D1NoteRepository implements NoteRepository {
         this.db
           .select()
           .from(notes)
-          .where(and(where ?? undefined, inArray(notes.id, [...chunk]))),
+          .where(and(where, inArray(notes.id, [...chunk]))),
       );
       const sorted = sortNoteRowsBy(rows, sortCol, order);
       const page = sorted.slice(opts.offset, opts.offset + opts.limit);
@@ -443,9 +444,14 @@ export class D1NoteRepository implements NoteRepository {
     ownerId: UserId,
     opts: NoteOwnerCountOpts,
   ): Promise<{
-    where: SQL | null;
+    where: SQL;
     idScope: ReadonlySet<string> | null;
   } | null> {
+    // `conditions` is seeded with `eq(notes.ownerId, ownerId)`, so
+    // `and(...conditions)` always produces a non-null `SQL` — drizzle
+    // returns `undefined` only for an empty argument list. The cast
+    // keeps the return type free of a vestigial null branch that
+    // callers would otherwise have to defend against.
     const conditions = [eq(notes.ownerId, ownerId)];
     if (opts.status) {
       conditions.push(eq(notes.status, opts.status));
@@ -497,12 +503,12 @@ export class D1NoteRepository implements NoteRepository {
       const intersected = intersectIdSets(candidateSets);
       if (intersected.size === 0) return null;
       return {
-        where: and(...conditions) ?? null,
+        where: and(...conditions) as SQL,
         idScope: intersected,
       };
     }
 
-    return { where: and(...conditions) ?? null, idScope: null };
+    return { where: and(...conditions) as SQL, idScope: null };
   }
 
   // Tag AND-filter: a note matches when it carries *every* supplied tag.
@@ -646,7 +652,6 @@ export class D1NoteRepository implements NoteRepository {
           .from(notes)
           .where(inArray(notes.id, [...chunk])),
       );
-      // backlink listing fixed sort: updatedAt desc, id desc
       const sorted = sortNoteRowsBy(rows, "updatedAt", "desc");
       return this.hydrateMany(sorted);
     });
@@ -657,15 +662,12 @@ export class D1NoteRepository implements NoteRepository {
       const built = await this.buildOwnerListWhere(ownerId, opts ?? {});
       if (built === null) return 0;
       const { where, idScope } = built;
-      // `count(*)` would be faster but Drizzle's typed builder needs
-      // the projection to spell out a column; pulling the id only is
-      // cheap in SQLite (no row body materialisation).
       if (idScope === null) {
         const rows = await this.db
-          .select({ id: notes.id })
+          .select({ c: count() })
           .from(notes)
-          .where(where ?? undefined);
-        return rows.length;
+          .where(where);
+        return rows[0]?.c ?? 0;
       }
       // Same chunk-and-fold strategy as `findByOwner`: the additional
       // predicates in `where` may strip ids from `idScope`, so we have
@@ -673,11 +675,11 @@ export class D1NoteRepository implements NoteRepository {
       // than returning `idScope.size`. See ADR-001 §補足.
       const rows = await selectInChunks(Array.from(idScope), (chunk) =>
         this.db
-          .select({ id: notes.id })
+          .select({ c: count() })
           .from(notes)
-          .where(and(where ?? undefined, inArray(notes.id, [...chunk]))),
+          .where(and(where, inArray(notes.id, [...chunk]))),
       );
-      return rows.length;
+      return rows.reduce((acc, r) => acc + r.c, 0);
     });
   }
 

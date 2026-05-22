@@ -1152,6 +1152,199 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
         noteRepository.countByOwner(owner, { visibility: ["public"] }),
     );
     expect(count).toBe(150);
+    // list/count cross-check: under the same filter, the page that
+    // covers every candidate must match `count` in cardinality so the
+    // chunk-summed count and chunk-folded list can't drift apart.
+    const listed = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 1000,
+          offset: 0,
+          visibility: ["public"],
+        }),
+    );
+    expect(listed).toHaveLength(count);
+  });
+
+  // T-bind-012: `sort='title'` chunk path. The JS `sortNoteRowsBy`
+  // helper must match a single-query DB-side `ORDER BY title ASC, id
+  // DESC`. `seedManyNotes` assigns titles `Bulk 0..149` (ASCII only),
+  // so SQLite's BINARY collation and JS string compare agree, but the
+  // resulting order is lexicographic — `Bulk 10` precedes `Bulk 2`.
+  it("T-bind-012: findByOwner({ visibility: ['public'], sort: 'title', order: 'asc' }) matches DB-side ordering", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = ids.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          sort: "title",
+          order: "asc",
+          visibility: ["public"],
+        }),
+    );
+    // Build the expected page by replicating the SQL ordering in JS:
+    // primary `title ASC` (lexicographic over ASCII), tie-break `id
+    // DESC`. Titles are unique here so the tie-break never fires.
+    const byIndex = new Map<NoteId, number>();
+    for (let i = 0; i < ids.length; i += 1) {
+      byIndex.set(ids[i], i);
+    }
+    const expected = [...ids]
+      .sort((a, b) => {
+        const ta = `Bulk ${byIndex.get(a)}`;
+        const tb = `Bulk ${byIndex.get(b)}`;
+        if (ta < tb) return -1;
+        if (ta > tb) return 1;
+        return a < b ? 1 : a > b ? -1 : 0;
+      })
+      .slice(0, 50);
+    expect(found.map((n) => n.id as NoteId)).toEqual(expected);
+  });
+
+  // T-bind-013: chunk-fold seam regression for the `findByOwner` chunk
+  // path — 60 + 60 = 120 notes straddle `SAFE_CHUNK_SIZE=90`, half
+  // share one `updatedAt` and the rest share another. Verifies the
+  // JS-side `(updatedAt DESC, id DESC)` re-sort survives the chunk
+  // boundary with ties (sibling test of T-bind-006 for `findReferrers`).
+  it("T-bind-013: findByOwner preserves (updatedAt DESC, id DESC) across the chunk boundary with ties", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const earlyTs = "2026-03-01T00:00:00.000Z";
+    const lateTs = "2026-03-02T00:00:00.000Z";
+    const earlyIds: NoteId[] = [];
+    const lateIds: NoteId[] = [];
+    const noteStmts: BatchItem<"sqlite">[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      lateIds.push(id);
+      noteStmts.push(
+        container.db.insert(schema.notes).values({
+          id,
+          ownerId: owner,
+          directoryId: dir,
+          slug: `seam-late-${i}`,
+          title: `Late ${i}`,
+          contentHtml: "<p>body</p>",
+          frontMatterJson: "{}",
+          status: "active",
+          trashedAt: null,
+          createdAt: TZ,
+          updatedAt: lateTs,
+          editLockUserId: null,
+          editLockAcquiredAt: null,
+          editLockExpiresAt: null,
+          version: 0,
+        }),
+      );
+    }
+    for (let i = 0; i < 60; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      earlyIds.push(id);
+      noteStmts.push(
+        container.db.insert(schema.notes).values({
+          id,
+          ownerId: owner,
+          directoryId: dir,
+          slug: `seam-early-${i}`,
+          title: `Early ${i}`,
+          contentHtml: "<p>body</p>",
+          frontMatterJson: "{}",
+          status: "active",
+          trashedAt: null,
+          createdAt: TZ,
+          updatedAt: earlyTs,
+          editLockUserId: null,
+          editLockAcquiredAt: null,
+          editLockExpiresAt: null,
+          version: 0,
+        }),
+      );
+    }
+    await container.db.batch(
+      noteStmts as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+    const pubStmts = [...lateIds, ...earlyIds].map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 120,
+          offset: 0,
+          sort: "updatedAt",
+          order: "desc",
+          visibility: ["public"],
+        }),
+    );
+    const foundIds = found.map((n) => n.id as NoteId);
+    const expected = [
+      ...[...lateIds].sort().reverse(),
+      ...[...earlyIds].sort().reverse(),
+    ];
+    expect(foundIds).toEqual(expected);
+  });
+
+  // T-bind-014: `intersected.size === 0` short-circuit. A tagId that
+  // exists nowhere produces an empty candidate set, so
+  // `buildOwnerListWhere` returns `null` and both `findByOwner` and
+  // `countByOwner` skip the DB entirely. The tagId is a valid UUIDv7
+  // shape so transport-boundary validation can't intercept it.
+  it("T-bind-014: findByOwner / countByOwner short-circuit on empty intersected scope", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "exists" });
+    const ghostTag = nextId(0x05) as TagId;
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 100,
+          offset: 0,
+          tagIds: [ghostTag],
+          visibility: ["public"],
+        }),
+    );
+    expect(found).toEqual([]);
+
+    const count = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.countByOwner(owner, {
+          tagIds: [ghostTag],
+          visibility: ["public"],
+        }),
+    );
+    expect(count).toBe(0);
   });
 });
 

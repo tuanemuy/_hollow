@@ -137,7 +137,7 @@ Issue 本文の選択肢 (A) には「`opts.cursor`」表記があるが、`Note
   - `title` 列: BMP 範囲 (U+0000–U+FFFF) では UTF-8 byte 順と UTF-16 code unit 順は codepoint 順を保つため等価。BMP 外（U+10000〜、サロゲートペア）を含む title が現れた場合のみ理論上ズレうるが、MVP 規模では非問題
   - tie-break `desc(id)` は UUIDv7（必ず ASCII）なので決定論的
   - **注**: tie-break が決定論性を保証するのは「primary key 完全一致のとき」のみ。`sort='title'` の primary 比較自体のズレは tie-break では救えないが、上記理由で BMP 範囲では発生しない
-- **`offset` 過大時のメモリ**: `intersected.size = 5000` で `offset = 4500` のとき全 5000 件メモリ展開後 slice。旧実装は WHERE 段階で 5000 件 bind することで failure していたので、新実装はむしろ「failure していたシナリオが動くようになる」。Cloudflare Workers のメモリ制限 (128MB) に照らして、`NoteRow` 1 件 ~1KB 想定で **想定最大 1 万件程度までは安全**。それを超える owner が出現した時点で本格的な subquery 化（選択肢 B）を別 Issue で検討する
+- **`offset` 過大時のメモリ**: `intersected.size = 5000` で `offset = 4500` のとき全 5000 件メモリ展開後 slice。旧実装は WHERE 段階で 5000 件 bind することで failure していたので、新実装はむしろ「failure していたシナリオが動くようになる」。Cloudflare Workers のメモリ制限 (128MB) に照らした想定上限は **`contentHtml` のサイズに依存する**: chunk 経路は現状 `select()` 全カラム取得で、`contentHtml` が 10-50KB/行に達することを考えると、ADR-001 Follow-up の 2-pass 化が入るまでは **数百件規模を実用上限とする**。それを大きく超える owner が出現した場合は本格的な subquery 化（選択肢 B）または 2-pass 化を別 Issue で先行する
 - **chunk クエリ間の uncommitted reads**: D1 強整合だが、chunk 群と `intersected` 取得との間に書き込みが挟まる race は理論上ある。旧実装でも同等 race が存在したため悪化ではない
 - **ADR-003 Follow-up 残課題**: 本 Issue ではスコープを `findByOwner` / `countByOwner` の `intersected` 経路に限定。`publicationStateRepository.findByNoteIds` 等は別 Issue 候補のまま
 
