@@ -87,8 +87,10 @@ NoteSnapshot は Note ドメイン側のユースケース（SaveNote 等）が 
   - `upsert(doc: SearchDocument): Promise<void>`
   - `delete(noteId: NoteId): Promise<void>`
   - `query(q: SearchQuery): Promise<{ hits: SearchHit[]; nextCursor: string | null }>`
-  - `bulkRebuildFromSnapshots(snapshots: AsyncIterable<SearchDocument>): Promise<void>`
+  - `bulkRebuildFromSnapshots(snapshots: AsyncIterable<SearchDocument>): Promise<void>` — production の呼び出し経路は `AdminSettings.RebuildSearchIndex`（spec/usecases/adminSettings.md 参照）。
 - エラーケース: `SearchIndexUnavailableError` / `SearchTimeoutError`
+
+`NoteSnapshot.frontMatterDate` は `frontMatter['date']` を `Date | null` に解釈した値。`Date` インスタンス / ISO 文字列 / epoch ミリ秒（finite な number）以外は `null` 扱いとする（`buildNoteSnapshot.parseFrontMatterDate` 参照）。
 
 ### IndexJobRepository
 - `enqueue(job: IndexJob): Promise<void>`

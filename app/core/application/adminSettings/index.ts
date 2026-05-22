@@ -18,6 +18,11 @@ export {
   getUserPromptOverride,
 } from "./getUserPromptOverride";
 export {
+  type RebuildSearchIndexInput,
+  type RebuildSearchIndexOutput,
+  rebuildSearchIndex,
+} from "./rebuildSearchIndex";
+export {
   type ResetDesignTokensInput,
   type ResetDesignTokensOutput,
   resetDesignTokens,
