@@ -1346,6 +1346,53 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     );
     expect(count).toBe(0);
   });
+
+  // T-bind-015 (Issue #171): the 2-pass chunk path must apply
+  // `buildOwnerListWhere`'s additional predicates in Pass 1, not only
+  // the `notes.id IN (...)` chunk. Seed 100 active + 50 trashed notes
+  // all with `visibility='public'` so `idScope` spans 150 ids; calling
+  // with `status='active'` must trim the trashed half via the `where`
+  // predicate during Pass 1, leaving only the 100 active ids on the
+  // page. Regression guard for the optimisation that moved full-row
+  // hydration into Pass 2.
+  it("T-bind-015: findByOwner 2-pass chunk path applies status predicate during Pass 1", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const activeIds = await seedManyNotes(container, owner, dir, 100, {
+      status: "active",
+    });
+    const trashedIds = await seedManyNotes(container, owner, dir, 50, {
+      status: "trashed",
+    });
+    const pubStmts = [...activeIds, ...trashedIds].map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["public"],
+          status: "active",
+        }),
+    );
+    const foundIds = new Set(found.map((n) => n.id as NoteId));
+    expect(foundIds.size).toBe(100);
+    for (const id of activeIds) expect(foundIds.has(id)).toBe(true);
+    for (const id of trashedIds) expect(foundIds.has(id)).toBe(false);
+  });
 });
 
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
