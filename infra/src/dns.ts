@@ -13,7 +13,7 @@ export const createDns = (cfg: Config) => {
     content: PLACEHOLDER_AAAA,
     proxied: true,
     ttl: 1,
-    comment: `Placeholder AAAA for proxied Worker route (route itself is managed by wrangler.${cfg.stage}.toml — see ${cfg.appName}/${cfg.stage})`,
+    comment: `Placeholder AAAA for proxied Worker route; see wrangler.${cfg.stage}.toml`,
   });
 
   return { aaaa, zone };
