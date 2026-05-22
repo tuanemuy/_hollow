@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
 import {
+  type RebuildSearchIndexResultDTO,
+  toRebuildSearchIndexResultDTO,
+} from "@/core/application/dto/adminSettings";
+import {
   type ExportJobDTO,
   type ExportJobId as ExportJobIdDTO,
   toExportJobDTO,
@@ -106,4 +110,19 @@ export const retryExportJobFn = createServerFn({ method: "POST" })
       },
     });
     return {};
+  });
+
+export const rebuildSearchIndexFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .handler(async (): Promise<RebuildSearchIndexResultDTO> => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/adminSettings/rebuildSearchIndex"),
+    );
+    const result = await module.rebuildSearchIndex({
+      container,
+      input: { actorUserId: toUserIdDTO(actor.id) },
+    });
+    return toRebuildSearchIndexResultDTO(result);
   });

@@ -76,9 +76,11 @@ SECRET_BOX_MASTER_KEY="ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE="
 #
 # DI wires the real adapter only when ADMIN_LLM_API_KEY *and*
 # ADMIN_LLM_MODEL are both present and non-empty. Either missing → falls
-# back to `Stub*`, which rejects every call with
-# `BusinessRuleError("unsupported_format")`. Leave empty for purely local
-# dev; calls to any provider are billed.
+# back to `StubLLMProvider` (under `app/core/adapters/stub/`), which
+# rejects every call with `BusinessRuleError("unsupported_format")`.
+# (The R2 storage Stub classes were removed in Issue #100 and replaced
+# with an inline DI fallback; the LLM Stub class is the remaining one.)
+# Leave empty for purely local dev; calls to any provider are billed.
 #
 # When any of these env vars is set, the `/admin/llm` UI surfaces the
 # corresponding field as "環境変数で固定中" (env-locked) and silently
@@ -123,9 +125,10 @@ ADMIN_LLM_API_KEY=""
 #
 # All three (plus the `OBJECT_STORAGE` binding from `wrangler.toml` and
 # the `R2_OBJECT_BUCKET_NAME` var) must be set together for DI to wire
-# `R2ObjectStorage`. Any one empty → falls back to `StubObjectStorage`,
-# which rejects every call with `StorageUnavailableError`. The
-# data-plane `TEMP_FILES` binding still works without these credentials.
+# `R2ObjectStorage`. Any one empty → DI installs an inline unavailable
+# `ObjectStorage` adapter that rejects every call with
+# `StorageUnavailableError`. The data-plane `TEMP_FILES` binding still
+# works without these credentials.
 R2_ACCOUNT_ID=""
 R2_ACCESS_KEY_ID=""
 R2_SECRET_ACCESS_KEY=""

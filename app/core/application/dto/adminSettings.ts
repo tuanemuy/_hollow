@@ -1,5 +1,6 @@
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
+import { type Instant, toInstant } from "./common";
 
 /**
  * Per-purpose prompt template projection. `expectedVariables` is mirrored
@@ -64,6 +65,31 @@ export type InstanceSettingsDTO = Readonly<{
     trashRetentionDays: number;
   }>;
 }>;
+
+/**
+ * Result projection of `AdminSettings.RebuildSearchIndex`. `processedCount`
+ * is the number of active-note snapshots streamed into
+ * `searchIndex.bulkRebuildFromSnapshots`; the two timestamps bracket the
+ * full rebuild (including the per-page UoW reads) so the admin UI can
+ * surface elapsed time without re-running the clock client-side.
+ */
+export type RebuildSearchIndexResultDTO = Readonly<{
+  processedCount: number;
+  startedAt: Instant;
+  finishedAt: Instant;
+}>;
+
+export function toRebuildSearchIndexResultDTO(result: {
+  processedCount: number;
+  startedAt: Date;
+  finishedAt: Date;
+}): RebuildSearchIndexResultDTO {
+  return {
+    processedCount: result.processedCount,
+    startedAt: toInstant(result.startedAt),
+    finishedAt: toInstant(result.finishedAt),
+  };
+}
 
 /**
  * `apiKeyMasked` is materialised by the caller (usecase) so the

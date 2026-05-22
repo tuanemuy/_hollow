@@ -6,12 +6,8 @@ import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setup
 import {
   R2ObjectStorage,
   type R2PresignConfig,
-  StubObjectStorage,
 } from "@/core/adapters/cloudflare/r2ObjectStorage";
-import {
-  R2TempFileStorage,
-  StubTempFileStorage,
-} from "@/core/adapters/cloudflare/r2TempFileStorage";
+import { R2TempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
@@ -46,6 +42,15 @@ import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
 import type { PDFExtractor } from "@/core/domain/ingestion/ports/pdfExtractor";
+import {
+  type TempFileStorage,
+  TempFileStorageUnavailableError,
+} from "@/core/domain/ingestion/ports/tempFileStorage";
+import {
+  type ObjectMetadata,
+  type ObjectStorage,
+  StorageUnavailableError,
+} from "@/core/domain/media/ports/objectStorage";
 import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
 import { ConsoleLogger, type Logger } from "../ports/logger";
@@ -132,13 +137,17 @@ export type RequestServerConfig = AppConfig &
     // see `resolveConsumerLlmConfig`.
     adminLlmBaseUrl?: string;
     // R2 binding for ingestion-temp storage. When present DI wires
-    // `R2TempFileStorage`; absent → `StubTempFileStorage`. Data-plane
-    // only, no credentials needed.
+    // `R2TempFileStorage`; absent → DI installs an inline unavailable
+    // adapter that rejects every call with
+    // `TempFileStorageUnavailableError` (see `createUnavailableTempFileStorage`).
+    // Data-plane only, no credentials needed.
     tempFilesBucket?: R2Bucket;
     // R2 binding for the long-lived objects bucket. Wiring
     // `R2ObjectStorage` requires this AND a complete `r2PresignConfig`
     // (presign URLs are minted against the S3 endpoint, not the
-    // binding). Any field missing → DI keeps `StubObjectStorage`.
+    // binding). Any field missing → DI installs an inline unavailable
+    // adapter that rejects every call with `StorageUnavailableError`
+    // (see `createUnavailableObjectStorage`).
     objectStorageBucket?: R2Bucket;
     // SigV4 credentials and bucket name used by
     // `R2ObjectStorage.presign*`. Manually issued in the Cloudflare
@@ -190,12 +199,15 @@ export type ServerEnv = Readonly<{
   // default endpoint. Public information delivered via vars.
   ADMIN_LLM_BASE_URL?: string;
   // R2 binding for ingestion-temp storage. Optional so the DI fallback
-  // (`StubTempFileStorage`) covers worker entries that do not bind it.
+  // (inline unavailable adapter that rejects with
+  // `TempFileStorageUnavailableError`) covers worker entries that do not
+  // bind it.
   TEMP_FILES?: R2Bucket;
   // R2 binding for the long-lived objects bucket. Wiring
   // `R2ObjectStorage` additionally requires `R2_ACCOUNT_ID` /
   // `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_OBJECT_BUCKET_NAME`
-  // — any missing field downgrades DI to `StubObjectStorage`.
+  // — any missing field downgrades DI to an inline unavailable adapter
+  // that rejects every call with `StorageUnavailableError`.
   OBJECT_STORAGE?: R2Bucket;
   // R2 presign credentials. SigV4 needs all three; the bucket name is
   // delivered separately as a public var. Sourced from SOPS-encrypted
@@ -237,7 +249,8 @@ export function readRequestServerConfig(
 ): RequestServerConfig {
   // `R2ObjectStorage` requires the data-plane binding AND the four
   // SigV4 inputs together. Any one missing → omit `r2PresignConfig`
-  // entirely so DI falls back to `StubObjectStorage`; partial-config
+  // entirely so DI falls back to the inline unavailable adapter that
+  // rejects every call with `StorageUnavailableError`; partial-config
   // wiring would surface as a runtime crash on first presign call.
   const r2PresignReady =
     !!env.OBJECT_STORAGE &&
@@ -295,6 +308,67 @@ function buildSharedDeps(): SharedDeps {
     idGenerator: UuidV7Generator,
     logger: ConsoleLogger,
   };
+}
+
+// Inline unavailable adapter for `ObjectStorage`. Wired by
+// `createRequestContainer` when the R2 binding or SigV4 presign config
+// is incomplete (see ADR-001 of Issue #100). Each method is an
+// `async () => { throw ... }` closure so the microtask path matches
+// the historical `async function { throw }` behaviour — see the
+// implementation note in `.issue/100/adr.md`.
+function createUnavailableObjectStorage(): ObjectStorage {
+  return {
+    put: async (
+      _key: string,
+      _bytes: ArrayBuffer,
+      _contentType: string,
+    ): Promise<void> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+    get: async (_key: string): Promise<ArrayBuffer> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+    stat: async (_key: string): Promise<ObjectMetadata> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+    delete: async (_key: string): Promise<void> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+    presignDownload: async (_key: string, _ttlSec: number): Promise<URL> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+    presignUpload: async (
+      _key: string,
+      _contentType: string,
+      _ttlSec: number,
+    ): Promise<URL> => {
+      throw new StorageUnavailableError("object_storage_not_configured");
+    },
+  } satisfies ObjectStorage;
+}
+
+// Inline unavailable adapter for `TempFileStorage`. Wired by
+// `createRequestContainer` when the `TEMP_FILES` R2 binding is absent.
+// `async () => { throw ... }` closure form matches the historical
+// `async function { throw }` microtask behaviour.
+function createUnavailableTempFileStorage(): TempFileStorage {
+  return {
+    put: async (_key: string, _bytes: ArrayBuffer): Promise<void> => {
+      throw new TempFileStorageUnavailableError(
+        "temp_file_storage_not_configured",
+      );
+    },
+    get: async (_key: string): Promise<ArrayBuffer> => {
+      throw new TempFileStorageUnavailableError(
+        "temp_file_storage_not_configured",
+      );
+    },
+    delete: async (_key: string): Promise<void> => {
+      throw new TempFileStorageUnavailableError(
+        "temp_file_storage_not_configured",
+      );
+    },
+  } satisfies TempFileStorage;
 }
 
 /**
@@ -444,7 +518,7 @@ export function createRequestContainer(
     objectStorage:
       objectStorageBucket && r2PresignConfig
         ? new R2ObjectStorage(objectStorageBucket, r2PresignConfig)
-        : new StubObjectStorage(),
+        : createUnavailableObjectStorage(),
     searchIndex: new D1SearchIndex(db, UuidV7Generator),
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
     emailSender: new ConsoleEmailSender(ConsoleLogger),
@@ -478,7 +552,7 @@ export function createRequestContainer(
     ),
     tempFileStorage: tempFilesBucket
       ? new R2TempFileStorage(tempFilesBucket)
-      : new StubTempFileStorage(),
+      : createUnavailableTempFileStorage(),
     promptResolver: new D1PromptResolver(db),
     secretBox: secretBoxMasterKey
       ? new WebCryptoSecretBox(secretBoxMasterKey)

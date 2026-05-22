@@ -4,14 +4,8 @@ import { content } from "@/config";
 import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
 import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
 import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
-import {
-  R2ObjectStorage,
-  StubObjectStorage,
-} from "@/core/adapters/cloudflare/r2ObjectStorage";
-import {
-  R2TempFileStorage,
-  StubTempFileStorage,
-} from "@/core/adapters/cloudflare/r2TempFileStorage";
+import { R2ObjectStorage } from "@/core/adapters/cloudflare/r2ObjectStorage";
+import { R2TempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
@@ -28,8 +22,14 @@ import {
 } from "@/core/domain/adminSettings/ports/secretBox";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
-import { TempFileStorageUnavailableError } from "@/core/domain/ingestion/ports/tempFileStorage";
-import { StorageUnavailableError } from "@/core/domain/media/ports/objectStorage";
+import {
+  type TempFileStorage,
+  TempFileStorageUnavailableError,
+} from "@/core/domain/ingestion/ports/tempFileStorage";
+import {
+  type ObjectStorage,
+  StorageUnavailableError,
+} from "@/core/domain/media/ports/objectStorage";
 import { ConsoleLogger } from "../../ports/logger";
 import { NoopRelayTrigger } from "../../ports/relayTrigger";
 import {
@@ -286,7 +286,7 @@ describe("createRequestContainer", () => {
     expect(Object.hasOwn(config, "adminLlmBaseUrl")).toBe(false);
   });
 
-  it("surfaces explicit unavailable errors from production Stubs", async () => {
+  it("surfaces explicit unavailable errors from inline unavailable storage adapters and StubLLMProvider", async () => {
     const container = createRequestContainer(configWith());
     await expect(
       container.objectStorage.put("k", new ArrayBuffer(0), "text/plain"),
@@ -353,6 +353,47 @@ describe("createRequestContainer", () => {
 const fakeBucket = (): R2Bucket => ({}) as R2Bucket;
 const fakeFetcher = (): Fetcher => ({}) as Fetcher;
 
+// Verifies the inline unavailable `ObjectStorage` adapter that DI
+// installs when the R2 binding / SigV4 presign config is incomplete
+// (ADR-001 of Issue #100). Every port method must reject with
+// `StorageUnavailableError`; instanceof-based checks no longer apply
+// because the production Stub class was removed.
+async function assertObjectStoragePortUnavailable(
+  storage: ObjectStorage,
+): Promise<void> {
+  await expect(
+    storage.put("k", new ArrayBuffer(0), "text/plain"),
+  ).rejects.toThrow(StorageUnavailableError);
+  await expect(storage.get("k")).rejects.toThrow(StorageUnavailableError);
+  await expect(storage.stat("k")).rejects.toThrow(StorageUnavailableError);
+  await expect(storage.delete("k")).rejects.toThrow(StorageUnavailableError);
+  await expect(storage.presignDownload("k", 60)).rejects.toThrow(
+    StorageUnavailableError,
+  );
+  await expect(storage.presignUpload("k", "text/plain", 60)).rejects.toThrow(
+    StorageUnavailableError,
+  );
+}
+
+// Symmetric counterpart of `assertObjectStoragePortUnavailable` for the
+// inline unavailable `TempFileStorage` adapter that DI installs when the
+// `TEMP_FILES` R2 binding is absent (ADR-001 of Issue #100). Asserts the
+// full port surface — every method — rejects with
+// `TempFileStorageUnavailableError`.
+async function assertTempFileStoragePortUnavailable(
+  storage: TempFileStorage,
+): Promise<void> {
+  await expect(storage.put("k", new ArrayBuffer(0))).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+  await expect(storage.get("k")).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+  await expect(storage.delete("k")).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+}
+
 describe("createRequestContainer — env → adapter mapping", () => {
   // ----- tempFileStorage --------------------------------------------------
   it("wires R2TempFileStorage when TEMP_FILES binding is present", () => {
@@ -362,9 +403,13 @@ describe("createRequestContainer — env → adapter mapping", () => {
     expect(container.tempFileStorage).toBeInstanceOf(R2TempFileStorage);
   });
 
-  it("falls back to StubTempFileStorage when TEMP_FILES is absent", () => {
+  it("falls back to an unavailable TempFileStorage adapter when TEMP_FILES is absent (every port method rejects with TempFileStorageUnavailableError)", async () => {
+    // ADR-001 of Issue #100: the production Stub class was removed and
+    // the DI now installs an inline unavailable adapter. Verify the
+    // port contract is honoured across every `TempFileStorage` method
+    // instead of leaning on `instanceof` of an exported class.
     const container = createRequestContainer(configWith());
-    expect(container.tempFileStorage).toBeInstanceOf(StubTempFileStorage);
+    await assertTempFileStoragePortUnavailable(container.tempFileStorage);
   });
 
   // ----- objectStorage ----------------------------------------------------
@@ -383,18 +428,20 @@ describe("createRequestContainer — env → adapter mapping", () => {
     expect(container.objectStorage).toBeInstanceOf(R2ObjectStorage);
   });
 
-  it("falls back to StubObjectStorage when r2PresignConfig is absent", () => {
+  it("falls back to an unavailable ObjectStorage adapter when r2PresignConfig is absent (every port method rejects with StorageUnavailableError)", async () => {
+    // See note above on TempFileStorage — port contract check replaces
+    // the prior `instanceof`-based assertion (Issue #100 ADR-001).
     const container = createRequestContainer(
       configWith({ objectStorageBucket: fakeBucket() }),
     );
-    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+    await assertObjectStoragePortUnavailable(container.objectStorage);
   });
 
-  it("falls back to StubObjectStorage when objectStorageBucket is absent (presign config alone is not enough)", () => {
+  it("falls back to an unavailable ObjectStorage adapter when objectStorageBucket is absent (presign config alone is not enough)", async () => {
     const container = createRequestContainer(
       configWith({ r2PresignConfig: fullR2Config.r2PresignConfig }),
     );
-    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+    await assertObjectStoragePortUnavailable(container.objectStorage);
   });
 
   // ----- llmProvider ------------------------------------------------------
@@ -876,7 +923,7 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     ["R2_SECRET_ACCESS_KEY"],
     ["R2_OBJECT_BUCKET_NAME"],
     ["OBJECT_STORAGE"],
-  ] as const)("downgrades to StubObjectStorage when %s is missing", async (missingKey) => {
+  ] as const)("downgrades to an unavailable ObjectStorage adapter when %s is missing (every port method rejects with StorageUnavailableError)", async (missingKey) => {
     const partial: Partial<ServerEnv> = {
       OBJECT_STORAGE: fakeBucket(),
       R2_ACCOUNT_ID: "acc",
@@ -886,7 +933,15 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     };
     delete partial[missingKey];
     const container = await createConsumerContainer(envWithBindings(partial));
-    expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
+    await assertObjectStoragePortUnavailable(container.objectStorage);
+  });
+
+  it("downgrades to an unavailable TempFileStorage adapter when TEMP_FILES is missing (every port method rejects with TempFileStorageUnavailableError)", async () => {
+    // Symmetric coverage for the consumer container path: omitting the
+    // `TEMP_FILES` R2 binding must result in the inline unavailable
+    // adapter rather than a partially-wired `R2TempFileStorage`.
+    const container = await createConsumerContainer(envWithBindings());
+    await assertTempFileStoragePortUnavailable(container.tempFileStorage);
   });
 
   it("does not honour relayTriggerOverride — consumer path always builds its own RelayTrigger from env (Issue #66 ADR-003)", async () => {

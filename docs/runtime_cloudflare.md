@@ -67,7 +67,7 @@ Each stage file is a self-contained mirror of `wrangler.toml` with `-staging` / 
 
 Bindings duplicated into `[env.consumer]` so dispatch reaches real adapters (Issue #110):
 
-- `TEMP_FILES` / `OBJECT_STORAGE` (R2) — `runIngestionJob` reads ingestion bytes from `TEMP_FILES`; `runExportJob` writes artifacts to `OBJECT_STORAGE`. Absent → DI falls back to `Stub*Storage` which throws `*UnavailableError` on call.
+- `TEMP_FILES` / `OBJECT_STORAGE` (R2) — `runIngestionJob` reads ingestion bytes from `TEMP_FILES`; `runExportJob` writes artifacts to `OBJECT_STORAGE`. Absent → DI installs an inline unavailable adapter that rejects every call with `TempFileStorageUnavailableError` / `StorageUnavailableError` (Issue #100 ADR-001).
 - `RELAY` (Service Binding) — when bound, secondary events emitted by the dispatched usecases publish immediately via `ServiceBindingRelayTrigger`; absent → fall back to `NoopRelayTrigger` and the 5-minute relay cron picks them up.
 - `R2_OBJECT_BUCKET_NAME` / `ADMIN_LLM_MODEL` (vars) — public configuration that complements the secrets listed below.
 
@@ -121,7 +121,7 @@ Required on the **web** and **consumer** workers for the ingestion / export disp
 | `ADMIN_LLM_API_KEY`       | Env override for the Anthropic api key. **LLM adapter wire condition**: DI wires `AnthropicLLMProvider` only when this **and** `ADMIN_LLM_MODEL` (the `[vars]` entry, public) are **both** present. Either one missing → DI keeps `StubLLMProvider`. At this stage the DB-stored ciphertext is not consulted at dispatch time — the dynamic-resolution layer ships in a follow-up Issue. |
 | `R2_ACCOUNT_ID`           | Cloudflare account id (also visible in dashboard URL). Used by `R2ObjectStorage` SigV4 presign path.                                                                                                                                                                                                                                                          |
 | `R2_ACCESS_KEY_ID`        | R2 API token access key id. Issue via Cloudflare dashboard → R2 → "Manage R2 API Tokens"; scope read/write to the `objects` bucket only and **issue a separate token per stage** (ADR-005, Issue #110).                                                                                                                                                       |
-| `R2_SECRET_ACCESS_KEY`    | The matching secret key. Both `R2_*` keys plus `OBJECT_STORAGE` binding plus `R2_OBJECT_BUCKET_NAME` var (`[vars]`) must all be present for DI to wire `R2ObjectStorage`. Any missing → `StubObjectStorage`.                                                                                                                                                  |
+| `R2_SECRET_ACCESS_KEY`    | The matching secret key. Both `R2_*` keys plus `OBJECT_STORAGE` binding plus `R2_OBJECT_BUCKET_NAME` var (`[vars]`) must all be present for DI to wire `R2ObjectStorage`. Any missing → DI falls back to an inline unavailable adapter that rejects every call with `StorageUnavailableError` (Issue #100 ADR-001).                                                                                                                                                                                                                                                                            |
 
 > The CI deploy step (`pnpm deploy:<stage>:all`) currently pushes the single SOPS-decrypted secrets file to every Worker (`wrangler secret bulk`). ADR-007 (Issue #110) deferred per-worker filtering — until that lands, relay / pruner / dlq receive these secrets even though they do not consume them. `workerSecretSpecs()` in `infra/src/secrets.ts` is the spec source-of-truth for what each Worker actually needs.
 
@@ -137,7 +137,7 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 
 `pnpm dev` always provisions the `TEMP_FILES` / `OBJECT_STORAGE` R2 bindings via miniflare's in-memory R2 simulator. The bindings exist even when `.dev.vars` is empty:
 
-- Leaving `R2_*` empty → DI keeps `StubObjectStorage` (presign / put / get all reject). The `TEMP_FILES` binding itself still works because data-plane R2 ops do not consult the SigV4 credentials.
+- Leaving `R2_*` empty → DI falls back to an inline unavailable `ObjectStorage` adapter (presign / put / get all reject with `StorageUnavailableError`). The `TEMP_FILES` binding itself still works because data-plane R2 ops do not consult the SigV4 credentials.
 - Leaving `ADMIN_LLM_API_KEY` empty (or omitting `ADMIN_LLM_MODEL` in `wrangler.toml [vars]`) → DI keeps `StubLLMProvider`. Ingestion jobs fail at the metadata step with `BusinessRuleError("unsupported_format")` so the failure mode is observable.
 - Setting the full set → DI wires the real adapters. Hitting Anthropic from local dev incurs real cost — issue a low-quota api key for development.
 
@@ -175,6 +175,8 @@ pnpm deploy:production:all:dry       # dry run
 ## D1 migrations
 
 The canonical SQL lives under `app/core/adapters/d1/migrations/`. Generate it with `pnpm db:generate` from `app/core/adapters/d1/schema.ts`.
+
+Search index rebuilds have two distinct paths: the migration-bundled `INSERT … SELECT FROM search_documents` rebuild covers schema-change repopulation (host table is the source), while the admin-facing `AdminSettings.RebuildSearchIndex` operation (admin route at `/admin/jobs`) rebuilds the host table itself from upstream Note aggregates when `search_documents` is stale or corrupt — see `.issue/93/adr.md` ADR-001.
 
 ```bash
 pnpm db:migrate                        # alias of db:apply:local
