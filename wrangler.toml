@@ -9,7 +9,7 @@
 # Wrangler does NOT inherit `d1_databases` / `vars` from top level into
 # named environments — the duplication across `[env.*]` blocks is by
 # design. Keep `database_id` / `APP_URL` in sync across every block.
-name = "tanstack-start-template"
+name = "hollow-local"
 main = "app/server.cloudflare.ts"
 compatibility_date = "2026-05-01"
 # `nodejs_compat` is required because @tanstack/react-start imports
@@ -26,7 +26,7 @@ APP_URL = "http://localhost:8787"
 # Bucket name used by `R2ObjectStorage` to mint SigV4 presigned URLs.
 # Public information (S3 endpoint URL is exposed in presigned links
 # anyway), so it lives in `[vars]` rather than `.dev.vars`. See ADR-006.
-R2_OBJECT_BUCKET_NAME = "tanstack-start-template-objects"
+R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 # Model id consumed by `AnthropicLLMProvider`. Public information.
 # DI wires `AnthropicLLMProvider` only when this AND
 # `ADMIN_LLM_API_KEY` (secret) are both present.
@@ -46,7 +46,7 @@ ADMIN_LLM_BASE_URL = ""
 # transactionally with aggregate writes — see app/core/adapters/d1/.
 [[d1_databases]]
 binding = "DB"
-database_name = "tanstack-start-template-d1"
+database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
@@ -57,11 +57,11 @@ migrations_dir = "app/core/adapters/d1/migrations"
 # `createUnavailable*` factories and `.issue/100/adr.md` ADR-001).
 [[r2_buckets]]
 binding = "TEMP_FILES"
-bucket_name = "tanstack-start-template-temp-files"
+bucket_name = "hollow-local-temp-files"
 
 [[r2_buckets]]
 binding = "OBJECT_STORAGE"
-bucket_name = "tanstack-start-template-objects"
+bucket_name = "hollow-local-objects"
 
 # Service Binding to the relay Worker — kicked from usecases right
 # after a UoW commit so newly-persisted outbox rows publish without
@@ -69,12 +69,12 @@ bucket_name = "tanstack-start-template-objects"
 # and swallowed; the cron is the authoritative trigger.
 [[services]]
 binding = "RELAY"
-service = "tanstack-start-template-relay"
+service = "hollow-local-relay"
 
 
 # === Relay (Service Binding fetch + safety-net cron) ====================
 [env.relay]
-name = "tanstack-start-template-relay"
+name = "hollow-local-relay"
 main = "app/worker/cloudflare/relay.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
@@ -92,13 +92,13 @@ OUTBOX_MAX_ATTEMPTS = "2"    # multiplied by [env.consumer] max_retries — keep
 
 [[env.relay.d1_databases]]
 binding = "DB"
-database_name = "tanstack-start-template-d1"
+database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
 [[env.relay.queues.producers]]
 binding = "EVENTS_QUEUE"
-queue = "tanstack-start-template-events"
+queue = "hollow-local-events"
 
 # Cron is the safety net — the primary trigger is the RELAY service
 # binding fired from usecases after each UoW commit. 5 minutes is a
@@ -110,7 +110,7 @@ crons = ["*/5 * * * *"]
 
 # === Consumer ===========================================================
 [env.consumer]
-name = "tanstack-start-template-consumer"
+name = "hollow-local-consumer"
 main = "app/worker/cloudflare/consumer.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
@@ -119,7 +119,7 @@ compatibility_flags = ["nodejs_compat"]
 APP_URL = "http://localhost:8787"
 # Wrangler does NOT inherit `vars` / `r2_buckets` / `services` from the
 # top level into named environments — these are duplicated on purpose.
-R2_OBJECT_BUCKET_NAME = "tanstack-start-template-objects"
+R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 ADMIN_LLM_PROVIDER = "anthropic"
 ADMIN_LLM_BASE_URL = ""
@@ -128,7 +128,7 @@ ADMIN_LLM_BASE_URL = ""
 # stamps. Drop if your consumers are stateless.
 [[env.consumer.d1_databases]]
 binding = "DB"
-database_name = "tanstack-start-template-d1"
+database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
@@ -138,21 +138,21 @@ migrations_dir = "app/core/adapters/d1/migrations"
 # does not inherit them into named environments.
 [[env.consumer.r2_buckets]]
 binding = "TEMP_FILES"
-bucket_name = "tanstack-start-template-temp-files"
+bucket_name = "hollow-local-temp-files"
 
 [[env.consumer.r2_buckets]]
 binding = "OBJECT_STORAGE"
-bucket_name = "tanstack-start-template-objects"
+bucket_name = "hollow-local-objects"
 
 # Service Binding to relay — enables `ServiceBindingRelayTrigger` so
 # secondary domain events emitted by `runIngestionJob` / `runExportJob`
 # publish immediately rather than waiting for the 5-min cron.
 [[env.consumer.services]]
 binding = "RELAY"
-service = "tanstack-start-template-relay"
+service = "hollow-local-relay"
 
 [[env.consumer.queues.consumers]]
-queue = "tanstack-start-template-events"
+queue = "hollow-local-events"
 max_batch_size = 25
 max_batch_timeout = 30 # seconds
 # Total delivery budget: relay's `DEFAULT_MAX_ATTEMPTS = 2` (publish-side
@@ -160,7 +160,7 @@ max_batch_timeout = 30 # seconds
 # the worst case. Keep both numbers small and adjust together —
 # multiplying them is what produces the user-visible retry count.
 max_retries = 3
-dead_letter_queue = "tanstack-start-template-events-dlq"
+dead_letter_queue = "hollow-local-events-dlq"
 
 
 # === Pruner =============================================================
@@ -168,7 +168,7 @@ dead_letter_queue = "tanstack-start-template-events-dlq"
 # preserved for operator inspection — the pruner only sweeps processed
 # rows.
 [env.pruner]
-name = "tanstack-start-template-pruner"
+name = "hollow-local-pruner"
 main = "app/worker/cloudflare/pruner.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
@@ -182,7 +182,7 @@ OUTBOX_RETENTION_MS = "604800000"   # 7 days
 
 [[env.pruner.d1_databases]]
 binding = "DB"
-database_name = "tanstack-start-template-d1"
+database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
@@ -195,7 +195,7 @@ crons = ["0 3 * * *"] # 03:00 UTC daily
 # would loop. `max_retries` is therefore kept low to absorb a transient
 # logger/projection blip without masquerading as automated recovery.
 [env.dlq]
-name = "tanstack-start-template-dlq"
+name = "hollow-local-dlq"
 main = "app/worker/cloudflare/dlq.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
@@ -207,12 +207,12 @@ APP_URL = "http://localhost:8787"
 # quarantined events. Drop if your DLQ handler stays purely log/metric.
 [[env.dlq.d1_databases]]
 binding = "DB"
-database_name = "tanstack-start-template-d1"
+database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
 [[env.dlq.queues.consumers]]
-queue = "tanstack-start-template-events-dlq"
+queue = "hollow-local-events-dlq"
 max_batch_size = 25
 max_batch_timeout = 30 # seconds
 max_retries = 1
