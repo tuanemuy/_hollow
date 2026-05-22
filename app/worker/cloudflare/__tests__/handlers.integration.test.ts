@@ -823,8 +823,20 @@ describe("consumer Worker — handleQueue dispatch", () => {
 
     expect(result.explicitAcks).toContain("msg-ingestion-r2-smoke");
 
-    // R2 path was exercised.
+    // R2 path was exercised. If the DI had fallen back to the inline
+    // unavailable adapter (Issue #100 ADR-001), `R2TempFileStorage.get`
+    // would never be reached and `TempFileStorageUnavailableError` would
+    // bubble up instead — so a single positive call on this spy
+    // indirectly guarantees the real R2 adapter is wired into the
+    // consumer container.
     expect(r2GetSpy).toHaveBeenCalledWith(tempStorageKey);
+    expect(r2GetSpy).toHaveBeenCalledTimes(1);
+    // Also confirm the spy's first call resolved successfully (i.e. the
+    // R2 binding returned the seeded bytes), not the unavailable
+    // adapter's reject path that would surface as a rejected promise.
+    const firstCallResult = r2GetSpy.mock.results[0];
+    expect(firstCallResult?.type).toBe("return");
+    await expect(firstCallResult?.value).resolves.toBeInstanceOf(ArrayBuffer);
 
     // Job moved off `pending` — the dispatch reached the downstream
     // LLM step. With `ADMIN_LLM_API_KEY` / `ADMIN_LLM_MODEL` unset,

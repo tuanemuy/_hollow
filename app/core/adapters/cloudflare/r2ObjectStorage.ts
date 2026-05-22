@@ -7,15 +7,6 @@ import {
 } from "@/core/domain/media/ports/objectStorage";
 
 /**
- * Cloudflare R2 implementation of the {@link ObjectStorage} port.
- *
- * Production-runtime fallback for missing R2 bindings lives in the DI
- * module (`serverCloudflare.ts`) as a private inline factory — see
- * `.issue/100/adr.md` ADR-001. This file intentionally exports only
- * the real adapter so the API surface stays focused.
- */
-
-/**
  * Credentials and endpoint configuration required to presign R2 object
  * URLs. R2's Worker binding exposes data-plane methods (`put` / `get`
  * / `delete`) but does not natively mint presigned URLs — those are
@@ -41,7 +32,7 @@ const S3_SERVICE = "s3";
 const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 
 /**
- * Cloudflare R2 implementation of {@link ObjectStorage}.
+ * Cloudflare R2 implementation of the {@link ObjectStorage} port.
  *
  * Data-plane operations (`put` / `get` / `delete`) go through the R2
  * Worker binding so they incur no S3-API egress and need no credentials.
@@ -53,6 +44,11 @@ const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
  * Errors are translated into the shared {@link ObjectStorage} contract:
  * lookup misses become {@link StorageNotFoundError}; transient binding
  * or signing failures become {@link StorageUnavailableError}.
+ *
+ * Production-runtime fallback for missing R2 bindings lives in the DI
+ * module (`serverCloudflare.ts`) as a private inline factory — see
+ * `.issue/100/adr.md` ADR-001. This file intentionally exports only
+ * the real adapter so the API surface stays focused.
  */
 export class R2ObjectStorage implements ObjectStorage {
   private readonly endpoint: string;

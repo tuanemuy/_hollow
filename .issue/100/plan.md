@@ -61,7 +61,7 @@ Issue #96 ADR-003 / ADR-005 で意図的に後回しにした「R2 binding 配�
 - **対象ファイル:** `app/core/application/di/serverCloudflare.ts`
 - **変更内容:**
   - `StubObjectStorage` / `StubTempFileStorage` の import を削除
-  - module 上部に private factory `createUnavailableObjectStorage(): ObjectStorage`、`createUnavailableTempFileStorage(): TempFileStorage` を追加。各メソッドは `Promise.reject(new StorageUnavailableError(...))` / `Promise.reject(new TempFileStorageUnavailableError(...))` を返す（既存 Stub と同等の挙動）。
+  - module 上部に private factory `createUnavailableObjectStorage(): ObjectStorage`、`createUnavailableTempFileStorage(): TempFileStorage` を追加。各メソッドは `async () => { throw new StorageUnavailableError(...) }` / `async () => { throw new TempFileStorageUnavailableError(...) }` クロージャ形を採用する（既存 Stub と同等の microtask 挙動）。理由は `.issue/100/adr.md` ADR-001 を参照。
   - `createRequestContainer` の `objectStorage` / `tempFileStorage` 分岐の fallback 側を新 factory 呼び出しに変更。条件式（`objectStorageBucket && r2PresignConfig` / `tempFilesBucket` の有無）は維持。
 - **理由:** Stub クラス削除に伴う fallback 経路の置換。「DI 配線時には binding 欠落でも container 構築は成功し、operation 時に明示的なエラーで運用者が気付ける」挙動を維持。
 

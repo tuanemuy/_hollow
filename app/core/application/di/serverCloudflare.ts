@@ -332,7 +332,7 @@ function createUnavailableObjectStorage(): ObjectStorage {
     ): Promise<URL> => {
       throw new StorageUnavailableError("object_storage_not_configured");
     },
-  };
+  } satisfies ObjectStorage;
 }
 
 // Inline unavailable adapter for `TempFileStorage`. Wired by
@@ -356,7 +356,7 @@ function createUnavailableTempFileStorage(): TempFileStorage {
         "temp_file_storage_not_configured",
       );
     },
-  };
+  } satisfies TempFileStorage;
 }
 
 /**

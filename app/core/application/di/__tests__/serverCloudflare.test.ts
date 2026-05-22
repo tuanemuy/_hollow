@@ -22,7 +22,10 @@ import {
 } from "@/core/domain/adminSettings/ports/secretBox";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
-import { TempFileStorageUnavailableError } from "@/core/domain/ingestion/ports/tempFileStorage";
+import {
+  type TempFileStorage,
+  TempFileStorageUnavailableError,
+} from "@/core/domain/ingestion/ports/tempFileStorage";
 import {
   type ObjectStorage,
   StorageUnavailableError,
@@ -214,7 +217,7 @@ describe("createRequestContainer", () => {
     expect(withoutKey.adminSettingsEnv.apiKey).toBeNull();
   });
 
-  it("surfaces explicit unavailable errors from production Stubs", async () => {
+  it("surfaces explicit unavailable errors from inline unavailable storage adapters and StubLLMProvider", async () => {
     const container = createRequestContainer(configWith());
     await expect(
       container.objectStorage.put("k", new ArrayBuffer(0), "text/plain"),
@@ -303,6 +306,25 @@ async function assertObjectStoragePortUnavailable(
   );
 }
 
+// Symmetric counterpart of `assertObjectStoragePortUnavailable` for the
+// inline unavailable `TempFileStorage` adapter that DI installs when the
+// `TEMP_FILES` R2 binding is absent (ADR-001 of Issue #100). Asserts the
+// full port surface — every method — rejects with
+// `TempFileStorageUnavailableError`.
+async function assertTempFileStoragePortUnavailable(
+  storage: TempFileStorage,
+): Promise<void> {
+  await expect(storage.put("k", new ArrayBuffer(0))).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+  await expect(storage.get("k")).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+  await expect(storage.delete("k")).rejects.toThrow(
+    TempFileStorageUnavailableError,
+  );
+}
+
 describe("createRequestContainer — env → adapter mapping", () => {
   // ----- tempFileStorage --------------------------------------------------
   it("wires R2TempFileStorage when TEMP_FILES binding is present", () => {
@@ -318,14 +340,7 @@ describe("createRequestContainer — env → adapter mapping", () => {
     // port contract is honoured across every `TempFileStorage` method
     // instead of leaning on `instanceof` of an exported class.
     const container = createRequestContainer(configWith());
-    const ts = container.tempFileStorage;
-    await expect(ts.put("k", new ArrayBuffer(0))).rejects.toThrow(
-      TempFileStorageUnavailableError,
-    );
-    await expect(ts.get("k")).rejects.toThrow(TempFileStorageUnavailableError);
-    await expect(ts.delete("k")).rejects.toThrow(
-      TempFileStorageUnavailableError,
-    );
+    await assertTempFileStoragePortUnavailable(container.tempFileStorage);
   });
 
   // ----- objectStorage ----------------------------------------------------
@@ -850,6 +865,14 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     delete partial[missingKey];
     const container = await createConsumerContainer(envWithBindings(partial));
     await assertObjectStoragePortUnavailable(container.objectStorage);
+  });
+
+  it("downgrades to an unavailable TempFileStorage adapter when TEMP_FILES is missing (every port method rejects with TempFileStorageUnavailableError)", async () => {
+    // Symmetric coverage for the consumer container path: omitting the
+    // `TEMP_FILES` R2 binding must result in the inline unavailable
+    // adapter rather than a partially-wired `R2TempFileStorage`.
+    const container = await createConsumerContainer(envWithBindings());
+    await assertTempFileStoragePortUnavailable(container.tempFileStorage);
   });
 
   it("does not honour relayTriggerOverride — consumer path always builds its own RelayTrigger from env (Issue #66 ADR-003)", async () => {
