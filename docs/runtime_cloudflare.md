@@ -176,6 +176,8 @@ pnpm deploy:production:all:dry       # dry run
 
 The canonical SQL lives under `app/core/adapters/d1/migrations/`. Generate it with `pnpm db:generate` from `app/core/adapters/d1/schema.ts`.
 
+Search index rebuilds have two distinct paths: the migration-bundled `INSERT … SELECT FROM search_documents` rebuild covers schema-change repopulation (host table is the source), while the admin-facing `AdminSettings.RebuildSearchIndex` operation (admin route at `/admin/jobs`) rebuilds the host table itself from upstream Note aggregates when `search_documents` is stale or corrupt — see `.issue/93/adr.md` ADR-001.
+
 ```bash
 pnpm db:migrate                        # alias of db:apply:local
 pnpm db:apply:local                    # apply to the local D1

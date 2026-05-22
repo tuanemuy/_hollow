@@ -1,5 +1,7 @@
 # Search ユースケース
 
+> 検索インデックスの再構築（`bulkRebuildFromSnapshots` 経路）は admin 専用 operation として `AdminSettings.RebuildSearchIndex`（spec/usecases/adminSettings.md）に集約する。
+
 ## HandleNoteSavedEvent / HandleNoteTrashedEvent / HandlePublicationChangedEvent
 
 ### 概要

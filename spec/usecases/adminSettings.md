@@ -129,6 +129,32 @@
 
 ---
 
+## RebuildSearchIndex
+
+### 入力DTO
+- `actorUserId: UserId`
+
+### 出力DTO
+- `processedCount: number`、`startedAt: Instant`、`finishedAt: Instant`
+
+### 処理フロー
+1. admin チェック（`assertAdmin`）
+2. `userRepository.listAll`（cursor ベース、page size `REBUILD_USER_PAGE_SIZE = 50`）でユーザを列挙
+3. 各ユーザについて `noteRepository.findByOwner({ status: 'active', limit: REBUILD_PAGE_SIZE = 50, offset })` で active ノートを offset ページング
+4. 各ページごとに新しい UoW を開き `buildNoteSnapshots` で snapshot を構築、`SearchDocument.fromSnapshot(snap, now)` を AsyncIterable で yield
+5. `searchIndex.bulkRebuildFromSnapshots(generator())` を UoW の外で await
+6. `{ processedCount, startedAt, finishedAt }` を返す
+
+### エラーケース
+- `ForbiddenError('FORBIDDEN_ADMIN_ONLY')`（actor が admin でない / 削除 / 停止）
+- `SearchIndexUnavailableError` / `SystemError(DatabaseError)` は presentation 層へ propagate
+
+### 注記
+- migration 内の `INSERT … SELECT FROM search_documents` リビルドは schema 変更時の決定的経路。本 RebuildSearchIndex は host table 自体が古い / 壊れた場合の整合性回復経路。詳細は `.issue/93/adr.md` ADR-001。
+- 排他制御は行わない。並走時は eventual consistency に任せる（ADR-003）。UI 側でボタン disable などのクライアント側の多重押下防止のみ行う。
+
+---
+
 ## GetUsageMetrics
 
 ### 入力DTO

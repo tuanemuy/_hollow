@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, useTransition } from "react";
+import type { RebuildSearchIndexResultDTO } from "@/core/application/dto/adminSettings";
 import type { ExportJobDTO } from "@/core/application/dto/export";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -10,7 +11,11 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { retryExportJobFn, retryIngestionJobFn } from "./action";
+import {
+  rebuildSearchIndexFn,
+  retryExportJobFn,
+  retryIngestionJobFn,
+} from "./action";
 
 type IngestionStatus = IngestionJobDTO["status"];
 type ExportStatus = ExportJobDTO["status"];
@@ -367,6 +372,64 @@ function CleanupSection() {
   );
 }
 
+function SearchIndexSection() {
+  const rebuild = useServerFn(rebuildSearchIndexFn);
+  const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<RebuildSearchIndexResultDTO | null>(
+    null,
+  );
+  const [error, setError] = useState<SerializedError | null>(null);
+
+  const runRebuild = () => {
+    startTransition(async () => {
+      setError(null);
+      try {
+        const out = await rebuild();
+        setResult(out);
+      } catch (caught) {
+        setError(extractSerializedError(caught));
+      }
+    });
+  };
+
+  const summary = error !== null ? displayError(error) : "";
+
+  return (
+    <section className={SECTION_CLASS}>
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>検索インデックスの再構築</h2>
+      </div>
+      <p className={SECTION_DESC_CLASS}>
+        Note を source of truth として `search_documents` を再投入します。host
+        table
+        が古い・破損した場合の整合性回復経路です。実行中は再構築ボタンを無効化します。
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className={BTN_SM_CLASS}
+          onClick={runRebuild}
+          disabled={isPending}
+          data-pending={isPending || undefined}
+        >
+          {isPending ? "再構築中…" : "再構築を実行"}
+        </button>
+        {result !== null ? (
+          <p className="text-xs text-ink-secondary m-0">
+            {result.processedCount} 件を {formatDateTime(result.finishedAt)}{" "}
+            に再投入しました
+          </p>
+        ) : null}
+      </div>
+      {summary !== "" ? (
+        <p className={FIELD_ERROR_CLASS} style={{ marginTop: 6 }}>
+          {summary}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export function JobsBoard({
   ingestionJobs,
   exportJobs,
@@ -479,6 +542,8 @@ export function JobsBoard({
           </div>
         </div>
       </section>
+
+      <SearchIndexSection />
 
       <CleanupSection />
     </>
