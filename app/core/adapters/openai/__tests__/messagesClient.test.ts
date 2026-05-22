@@ -384,6 +384,37 @@ describe("callOpenAIMessages", () => {
         ),
       ).rejects.toBeInstanceOf(UnavailableErr);
     });
+
+    it("masks secrets in the provider 4xx error body before embedding it into the thrown message", async () => {
+      setFetch(
+        vi.fn(async () =>
+          jsonResponse(401, {
+            error: {
+              type: "invalid_api_key",
+              message:
+                "rejected at https://api.openai.com/v1/chat/completions?api-version=2024-02-01&key=fake-secret-xxx",
+            },
+          }),
+        ),
+      );
+      try {
+        await callOpenAIMessages(
+          BASE_CONFIG,
+          "sys",
+          [{ type: "text", text: "x" }],
+          mapper,
+        );
+        throw new Error("expected to throw");
+      } catch (e) {
+        expect(e).toBeInstanceOf(QuotaErr);
+        const message = (e as Error).message;
+        expect(message).not.toContain("fake-secret-xxx");
+        expect(message).not.toContain("api-version=2024-02-01");
+        expect(message).toContain(
+          "https://api.openai.com/v1/chat/completions?…",
+        );
+      }
+    });
   });
 });
 

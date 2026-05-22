@@ -1,3 +1,8 @@
+import {
+  maskSecrets,
+  sanitizeErrorReason,
+  toReasonString,
+} from "@/core/application/llm/sanitizeErrorReason";
 import type { GeminiSharedConfig } from "./messagesClient";
 
 // Wall-clock budget for the probe. The dispatcher in
@@ -79,10 +84,11 @@ export async function pingGemini(
       const message = body.error?.message;
       const status = body.error?.status;
       if (typeof message === "string" && message.length > 0) {
+        const masked = maskSecrets(message);
         detail =
           typeof status === "string" && status.length > 0
-            ? `${status}: ${message}`
-            : message;
+            ? `${status}: ${masked}`
+            : masked;
       }
     } catch {
       // Body might be plain text or empty; fall through to HTTP-status detail.
@@ -92,10 +98,7 @@ export async function pingGemini(
     if (error instanceof Error && error.name === "AbortError") {
       return { ok: false, reason: `Request timed out after ${timeoutMs}ms` };
     }
-    return {
-      ok: false,
-      reason: error instanceof Error ? error.message : String(error),
-    };
+    return { ok: false, reason: toReasonString(sanitizeErrorReason(error)) };
   } finally {
     clearTimeout(timer);
   }

@@ -107,7 +107,7 @@ describe("pingAnthropic", () => {
     });
   });
 
-  it("never throws on a network TypeError; reports the error message as the reason", async () => {
+  it("never throws on a network TypeError; reports a sanitized network category", async () => {
     setFetch(
       vi.fn(async () => {
         throw new TypeError("fetch failed");
@@ -115,6 +115,43 @@ describe("pingAnthropic", () => {
     );
 
     const result = await pingAnthropic(CFG, "sk-ant-test", 5000);
-    expect(result).toEqual({ ok: false, error: "fetch failed" });
+    expect(result).toEqual({ ok: false, error: "network: fetch failed" });
+  });
+
+  it("masks secrets embedded in a TypeError message and tags it as network", async () => {
+    setFetch(
+      vi.fn(async () => {
+        throw new TypeError(
+          "fetch failed at https://api.anthropic.com/v1/messages?key=fake-secret-xxx",
+        );
+      }),
+    );
+
+    const result = await pingAnthropic(CFG, "sk-ant-test", 5000);
+    expect(result.ok).toBe(false);
+    const error = (result as { error: string }).error;
+    expect(error).toContain("network:");
+    expect(error).not.toContain("fake-secret-xxx");
+    expect(error).toContain("https://api.anthropic.com/v1/messages?…");
+  });
+
+  it("masks secrets in the 4xx error body message", async () => {
+    setFetch(
+      vi.fn(async () =>
+        jsonResponse(401, {
+          error: {
+            type: "authentication_error",
+            message: "invalid key sk-ant-secretvalue1234",
+          },
+        }),
+      ),
+    );
+
+    const result = await pingAnthropic(CFG, "sk-ant-bad", 5000);
+    expect(result.ok).toBe(false);
+    const error = (result as { error: string }).error;
+    expect(error).toContain("authentication_error:");
+    expect(error).not.toContain("sk-ant-secretvalue1234");
+    expect(error).toContain("***");
   });
 });

@@ -227,6 +227,57 @@ describe("HttpLLMConnectionTester", () => {
       expect(result).not.toHaveProperty("error");
     });
 
+    it("masks secrets in a raw probe-returned error string (defense in depth, anthropic)", async () => {
+      // Simulates a hypothetical probe that forgot to apply sanitize:
+      // the dispatcher's final masking pass must still strip secrets.
+      mockedPingAnthropic.mockResolvedValueOnce({
+        ok: false,
+        error:
+          "fetch failed at https://api.anthropic.com/v1?key=fake-secret-xxx",
+      });
+
+      const tester = new HttpLLMConnectionTester(5000);
+      const result = await tester.ping(
+        cfg({ provider: "anthropic" }),
+        "sk-ant",
+      );
+      expect(result.ok).toBe(false);
+      const error = (result as { error: string }).error;
+      expect(error).not.toContain("fake-secret-xxx");
+      expect(error).toContain("https://api.anthropic.com/v1?…");
+    });
+
+    it("masks secrets in a raw probe-returned reason string (defense in depth, openai)", async () => {
+      mockedPingOpenAI.mockResolvedValueOnce({
+        ok: false,
+        reason: "Authorization: Bearer sk-leaked-OPENAI-token-xxxx provided",
+      });
+
+      const tester = new HttpLLMConnectionTester(5000);
+      const result = await tester.ping(cfg({ provider: "openai" }), "sk-test");
+      expect(result.ok).toBe(false);
+      const error = (result as { error: string }).error;
+      expect(error).not.toContain("sk-leaked-OPENAI-token-xxxx");
+      expect(error).toContain("Bearer ***");
+    });
+
+    it("masks secrets in a raw probe-returned reason string (defense in depth, gemini)", async () => {
+      mockedPingGemini.mockResolvedValueOnce({
+        ok: false,
+        reason: "rejected: AIzaSyLEAKEDGEMINIKEYxxxx is invalid",
+      });
+
+      const tester = new HttpLLMConnectionTester(5000);
+      const result = await tester.ping(
+        cfg({ provider: "gemini" }),
+        "AIza-test",
+      );
+      expect(result.ok).toBe(false);
+      const error = (result as { error: string }).error;
+      expect(error).not.toContain("AIzaSyLEAKEDGEMINIKEYxxxx");
+      expect(error).toContain("***");
+    });
+
     it("returns latencyMs >= 0 and Number.isFinite for a successful ping", async () => {
       mockedPingAnthropic.mockResolvedValueOnce({ ok: true });
 

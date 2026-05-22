@@ -1,3 +1,8 @@
+import {
+  maskSecrets,
+  sanitizeErrorReason,
+  toReasonString,
+} from "@/core/application/llm/sanitizeErrorReason";
 import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
 
 /**
@@ -54,7 +59,8 @@ export async function pingAnthropic(
       const message = body.error?.message;
       const type = body.error?.type;
       if (typeof message === "string" && message.length > 0) {
-        detail = type ? `${type}: ${message}` : message;
+        const masked = maskSecrets(message);
+        detail = type ? `${type}: ${masked}` : masked;
       }
     } catch {
       // Fall through to HTTP-status-only detail. The probe must never
@@ -65,10 +71,7 @@ export async function pingAnthropic(
     if (error instanceof Error && error.name === "AbortError") {
       return { ok: false, error: `Request timed out after ${timeoutMs}ms` };
     }
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return { ok: false, error: toReasonString(sanitizeErrorReason(error)) };
   } finally {
     clearTimeout(timer);
   }

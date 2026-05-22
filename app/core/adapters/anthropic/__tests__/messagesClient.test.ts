@@ -1,5 +1,81 @@
-import { describe, expect, it } from "vitest";
-import { arrayBufferToBase64 } from "../messagesClient";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  type AnthropicErrorMapper,
+  arrayBufferToBase64,
+  callAnthropicMessages,
+} from "../messagesClient";
+
+type FetchMock = ReturnType<typeof vi.fn>;
+
+function setFetch(mock: FetchMock): void {
+  vi.stubGlobal("fetch", mock);
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+class RateLimitErr extends Error {
+  override readonly name = "RateLimitErr";
+}
+class UnavailableErr extends Error {
+  override readonly name = "UnavailableErr";
+}
+class TimeoutErr extends Error {
+  override readonly name = "TimeoutErr";
+}
+class QuotaErr extends Error {
+  override readonly name = "QuotaErr";
+}
+
+const mapper: AnthropicErrorMapper = {
+  rateLimit: (m, cause) => new RateLimitErr(m, cause as ErrorOptions),
+  unavailable: (m, cause) => new UnavailableErr(m, cause as ErrorOptions),
+  timeout: (m, cause) => new TimeoutErr(m, cause as ErrorOptions),
+  quota: (m, cause) => new QuotaErr(m, cause as ErrorOptions),
+};
+
+const BASE_CONFIG = {
+  apiKey: "sk-ant-test",
+  model: "claude-3-5-haiku-latest",
+} as const;
+
+describe("callAnthropicMessages detailSuffix masking", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("masks secrets in the provider 4xx error body before embedding it into the thrown message", async () => {
+    setFetch(
+      vi.fn(async () =>
+        jsonResponse(429, {
+          error: {
+            type: "rate_limit",
+            message:
+              "slow down at https://api.anthropic.com/v1/messages?key=fake-secret-xxx",
+          },
+        }),
+      ),
+    );
+    try {
+      await callAnthropicMessages(
+        BASE_CONFIG,
+        "sys",
+        [{ type: "text", text: "x" }],
+        mapper,
+      );
+      throw new Error("expected to throw");
+    } catch (e) {
+      expect(e).toBeInstanceOf(RateLimitErr);
+      const message = (e as Error).message;
+      expect(message).not.toContain("fake-secret-xxx");
+      expect(message).toContain("https://api.anthropic.com/v1/messages?…");
+    }
+  });
+});
 
 function roundTrip(buffer: ArrayBuffer): Uint8Array {
   const base64 = arrayBufferToBase64(buffer);

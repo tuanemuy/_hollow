@@ -132,14 +132,53 @@ describe("pingOpenAI", () => {
       expect((result as { reason: string }).reason).toMatch(/timed out/);
     });
 
-    it("reports the error message when fetch throws unexpectedly", async () => {
+    it("reports a sanitized network category when fetch throws a TypeError", async () => {
       setFetch(
         vi.fn(async () => {
           throw new TypeError("network down");
         }),
       );
       const result = await pingOpenAI(BASE_CONFIG);
-      expect(result).toEqual({ ok: false, reason: "network down" });
+      expect(result).toEqual({ ok: false, reason: "network: network down" });
+    });
+
+    it("masks Azure ?key=... query parameters embedded in a TypeError", async () => {
+      setFetch(
+        vi.fn(async () => {
+          throw new TypeError(
+            "fetch failed at https://res.openai.azure.com/openai/deployments/dep?api-version=2024-02-01&key=fake-secret-xxx",
+          );
+        }),
+      );
+      const result = await pingOpenAI({
+        ...BASE_CONFIG,
+        baseURL:
+          "https://res.openai.azure.com/openai/deployments/dep?api-version=2024-02-01",
+      });
+      expect(result.ok).toBe(false);
+      const reason = (result as { reason: string }).reason;
+      expect(reason).toContain("network:");
+      expect(reason).not.toContain("fake-secret-xxx");
+      expect(reason).not.toContain("api-version=2024-02-01");
+    });
+
+    it("masks secrets in the 4xx error body message", async () => {
+      setFetch(
+        vi.fn(async () =>
+          jsonResponse(401, {
+            error: {
+              type: "invalid_api_key",
+              message: "key sk-secretvalueabcdef is invalid",
+            },
+          }),
+        ),
+      );
+      const result = await pingOpenAI(BASE_CONFIG);
+      expect(result.ok).toBe(false);
+      const reason = (result as { reason: string }).reason;
+      expect(reason).toContain("invalid_api_key:");
+      expect(reason).not.toContain("sk-secretvalueabcdef");
+      expect(reason).toContain("***");
     });
   });
 });

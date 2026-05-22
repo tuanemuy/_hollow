@@ -1,6 +1,7 @@
 import { pingAnthropic } from "@/core/adapters/anthropic/connectionPing";
 import { pingGemini } from "@/core/adapters/gemini/connectionPing";
 import { pingOpenAI } from "@/core/adapters/openai/connectionPing";
+import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
 import type {
   LLMConnectionPingResult,
   LLMConnectionTester,
@@ -100,8 +101,12 @@ export class HttpLLMConnectionTester implements LLMConnectionTester {
     if (outcome.ok) {
       return { ok: true, latencyMs };
     }
+    // Defense-in-depth: probes already mask secrets, but rerun `maskSecrets`
+    // here so a future probe that forgets to apply masking cannot leak
+    // tokens through this dispatcher (ADR-002 of Issue #141). Category
+    // normalization is not re-applied — see ADR-002 for why.
     return outcome.error !== undefined
-      ? { ok: false, latencyMs, error: outcome.error }
+      ? { ok: false, latencyMs, error: maskSecrets(outcome.error) }
       : { ok: false, latencyMs };
   }
 }
