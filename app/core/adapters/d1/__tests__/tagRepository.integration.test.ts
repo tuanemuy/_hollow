@@ -1,5 +1,7 @@
+import type { BatchItem } from "drizzle-orm/batch";
 import { describe, expect, it } from "vitest";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { TagId } from "@/core/domain/tag/valueObject";
 import * as schema from "../schema";
 import { createTestContainer, type TestContainer } from "./helpers";
 
@@ -153,5 +155,44 @@ describe("D1TagRepository.findByOwner — LIKE ESCAPE regression (Issue #36)", (
         }),
     );
     expect(rows.map((t) => t.name)).toEqual(["50%-special"]);
+  });
+});
+
+describe("D1TagRepository.findByIds — D1 bind limit regression (Issue #45)", () => {
+  // 150 tag ids feed `inArray(tags.id, [...])` past the D1 host-variable
+  // cap on the pre-#45 implementation. Post-fix `selectInChunks`
+  // splits the lookup and concatenates rows across chunks.
+  it("T-bind-001: findByIds returns all 150 rows across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+
+    const tagIds: TagId[] = [];
+    const tagStmts: BatchItem<"sqlite">[] = [];
+    const TZ = new Date("2026-03-01T00:00:00.000Z").toISOString();
+    for (let i = 0; i < 150; i += 1) {
+      const id = nextId(0x03);
+      tagIds.push(id as TagId);
+      tagStmts.push(
+        container.db.insert(schema.tags).values({
+          id,
+          ownerId: owner,
+          name: `bulk-${i}`,
+          nameNormalized: `bulk-${i}`,
+          noteCount: 0,
+          version: 0,
+          createdAt: TZ,
+          updatedAt: TZ,
+        }),
+      );
+    }
+    await container.db.batch(
+      tagStmts as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) => tagRepository.findByIds(tagIds),
+    );
+    expect(rows).toHaveLength(150);
+    expect(new Set(rows.map((t) => t.id))).toEqual(new Set(tagIds));
   });
 });

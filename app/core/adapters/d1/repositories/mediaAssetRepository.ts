@@ -12,6 +12,7 @@ import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { mediaAssets } from "../schema";
+import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
 type MediaAssetRow = typeof mediaAssets.$inferSelect;
@@ -92,10 +93,12 @@ export class D1MediaAssetRepository implements MediaAssetRepository {
   findByIds(ids: readonly MediaAssetId[]): Promise<readonly MediaAsset[]> {
     return mapDbError("Failed to find media assets by ids", async () => {
       if (ids.length === 0) return [];
-      const rows = await this.db
-        .select()
-        .from(mediaAssets)
-        .where(inArray(mediaAssets.id, [...ids]));
+      const rows = await selectInChunks(ids, (chunk) =>
+        this.db
+          .select()
+          .from(mediaAssets)
+          .where(inArray(mediaAssets.id, [...chunk])),
+      );
       return rows.map((row) => this.toMediaAsset(row));
     });
   }
