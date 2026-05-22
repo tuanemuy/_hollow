@@ -168,7 +168,6 @@ describe("D1TagRepository.findByIds — D1 bind limit regression (Issue #45)", (
 
     const tagIds: TagId[] = [];
     const tagStmts: BatchItem<"sqlite">[] = [];
-    const TZ = new Date("2026-03-01T00:00:00.000Z").toISOString();
     for (let i = 0; i < 150; i += 1) {
       const id = nextId(0x03);
       tagIds.push(id as TagId);
@@ -194,5 +193,13 @@ describe("D1TagRepository.findByIds — D1 bind limit regression (Issue #45)", (
     );
     expect(rows).toHaveLength(150);
     expect(new Set(rows.map((t) => t.id))).toEqual(new Set(tagIds));
+  });
+
+  it("returns [] for an empty id list without querying", async () => {
+    const container = createTestContainer();
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) => tagRepository.findByIds([]),
+    );
+    expect(rows).toEqual([]);
   });
 });

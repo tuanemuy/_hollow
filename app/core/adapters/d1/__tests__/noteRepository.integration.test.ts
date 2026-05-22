@@ -942,14 +942,14 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     expect(foundIds).toEqual(expected);
   });
 
-  // T-bind-005 (Issue #45): `resolveTagAndCandidates` is private and
+  // T-bind-007 (Issue #45): `resolveTagAndCandidates` is private and
   // reached via `findByOwner({ tagIds: [...] })`. A 150-tag input feeds
   // `inArray(noteTags.tagId, [...])` past the D1 host-variable cap on
   // the pre-#45 implementation. Post-fix the helper chunks the lookup
   // and the JS-side `Map<noteId, Set<tagId>>` aggregator folds tag rows
   // across chunk boundaries (single `noteId` with tag rows split across
   // chunks still passes the `seen.size === tagIds.length` filter).
-  it("T-bind-005: findByOwner({ tagIds: [...150] }) AND-matches a single note across the chunk boundary", async () => {
+  it("T-bind-007: findByOwner({ tagIds: [...150] }) AND-matches a single note across the chunk boundary", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);

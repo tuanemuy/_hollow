@@ -47,7 +47,7 @@ pnpm test:integration
   1. `pnpm test:integration --run app/core/adapters/d1/__tests__/tagRepository.integration.test.ts` で新規 `D1TagRepository.findByIds — D1 bind limit regression` describe を実行
   2. `pnpm test:integration --run app/core/adapters/d1/__tests__/mediaAssetRepository.integration.test.ts` を実行（新規ファイル）
   3. `pnpm test:integration --run app/core/adapters/d1/__tests__/publicationStateRepository.integration.test.ts` を実行（新規ファイル）
-  4. `pnpm test:integration --run app/core/adapters/d1/__tests__/noteRepository.integration.test.ts` で新規 **T-bind-005** (`findByOwner({ tagIds: [...150] })`) が pass することを確認
+  4. `pnpm test:integration --run app/core/adapters/d1/__tests__/noteRepository.integration.test.ts` で新規 **T-bind-007** (`findByOwner({ tagIds: [...150] })`) が pass することを確認
 - **期待結果:** 4 ケース全 pass
 - **確認ポイント:**
   - 修正を一時退避（`git stash`）した状態で新規 bind-limit テストを走らせ、D1 バインド上限エラー（`SQLITE_TOOBIG` 相当 / D1 `D1_TYPE_ERROR` / `too many SQL variables`）で FAIL することを記録する。仕様回帰テストとして機能していることの間接証拠

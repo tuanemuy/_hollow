@@ -100,7 +100,7 @@ Issue 本文の「対象候補」に列挙された 4 箇所:
 
 - **対象ファイル:** `app/core/adapters/d1/__tests__/noteRepository.integration.test.ts`
 - **変更内容:** 既存の `D1NoteRepository — D1 bind limit regression` describe block に追加
-  - **T-bind-005**: owner に 150 件の tag を seed → 1 件の active note を seed → 150 tag すべてを 1 note に紐づける（`noteTags` に 150 行）→ `findByOwner(owner, { tagIds: [...150], status: 'active', ... })` で当該 note 1 件が返ることを assert
+  - **T-bind-007**: owner に 150 件の tag を seed → 1 件の active note を seed → 150 tag すべてを 1 note に紐づける（`noteTags` に 150 行）→ `findByOwner(owner, { tagIds: [...150], status: 'active', ... })` で当該 note 1 件が返ることを assert
 - **理由:** `resolveTagAndCandidates` は private なので `findByOwner` 経由でしか触れない。`tagIds.length === 150` の入力で `noteTags` 結合が正しく動くことを担保
 
 #### 5c. `mediaAssetRepository.integration.test.ts`（新規）
