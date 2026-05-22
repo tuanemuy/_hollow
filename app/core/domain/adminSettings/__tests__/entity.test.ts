@@ -183,7 +183,7 @@ describe("InstanceSettings.reconstruct", () => {
     try {
       InstanceSettings.reconstruct({
         ...row,
-        llm: { ...row.llm, provider: "openai" },
+        llm: { ...row.llm, provider: "unknown-provider" },
       });
       expect.fail("should have thrown");
     } catch (error) {

@@ -84,20 +84,27 @@ const vars: Record<string, string> = {
   WORKER_CONSUMER: stack.workerNamesOut.consumer,
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
-  // Public LLM model id + provider id delivered via `wrangler.toml [vars]`.
-  // Literal defaults live here rather than in Pulumi StackOutput because
-  // they are deploy-time choices, not provisioned resources. Stage-specific
-  // overrides (e.g. claude-3-5-haiku for staging) ship in a follow-up
-  // Issue — until then, **keep these values in sync with `wrangler.toml`**
+  // Public LLM model id + provider id + optional base URL override
+  // delivered via `wrangler.toml [vars]`. Literal defaults live here
+  // rather than in Pulumi StackOutput because they are deploy-time
+  // choices, not provisioned resources. Stage-specific overrides
+  // (e.g. claude-3-5-haiku for staging) ship in a follow-up Issue —
+  // until then, **keep these values in sync with `wrangler.toml`**
   // (`[vars]` and `[env.consumer.vars]`); they are the local-dev
-  // counterpart of the staging/production defaults. Adding a new provider
-  // requires (1) appending to `LLM_PROVIDERS` in
+  // counterpart of the staging/production defaults. Adding a new
+  // provider requires (1) appending to `LLM_PROVIDERS` in
   // `app/core/domain/adminSettings/valueObject.ts`, (2) extending the
-  // factories in `app/core/application/di/llmProviderFactory.ts`, and
-  // (3) updating these defaults if the new provider should be the stage
-  // default.
+  // factories in `app/core/application/di/llmProviderFactory.ts`,
+  // (3) updating these defaults if the new provider should be the
+  // stage default, and (4) syncing every env var to all 7 sites:
+  // `wrangler.toml [vars]` + `[env.consumer.vars]`, both staging /
+  // production templates' `[vars]` + `[env.consumer.vars]`, and this
+  // `vars` literal (see Issue #101 plan.md Step 10 (re #122 ADR-008)).
+  // `ADMIN_LLM_BASE_URL` is only meaningful for the OpenAI-compatible
+  // provider; empty string means "use the provider default endpoint".
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
   ADMIN_LLM_PROVIDER: "anthropic",
+  ADMIN_LLM_BASE_URL: "",
 };
 
 const template = readFileSync(templatePath, "utf8");

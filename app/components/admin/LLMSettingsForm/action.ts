@@ -26,7 +26,9 @@ export const updateLLMConfigFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
+        provider: data.provider,
         model: data.model,
+        baseURL: data.baseURL,
         apiKeyPlain: data.apiKeyPlain,
       },
     });

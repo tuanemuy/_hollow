@@ -608,8 +608,8 @@ describe("buildOcrProvider", () => {
 
   it("throws for an unsupported provider", () => {
     expect(() =>
-      buildOcrProvider("openai", "sk-ant-test", "claude-3-5-sonnet"),
-    ).toThrow(/Unsupported OCR provider: openai/);
+      buildOcrProvider("azure-openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported OCR provider: azure-openai/);
   });
 });
 
@@ -671,8 +671,8 @@ describe("buildLlmProvider", () => {
 
   it("throws for an unsupported provider", () => {
     expect(() =>
-      buildLlmProvider("openai", "sk-ant-test", "claude-3-5-sonnet"),
-    ).toThrow(/Unsupported LLM provider: openai/);
+      buildLlmProvider("azure-openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported LLM provider: azure-openai/);
   });
 });
 
@@ -734,14 +734,14 @@ describe("buildPdfExtractor", () => {
 
   it("throws for an unsupported provider", () => {
     expect(() =>
-      buildPdfExtractor("openai", "sk-ant-test", "claude-3-5-sonnet"),
-    ).toThrow(/Unsupported PDF provider: openai/);
+      buildPdfExtractor("azure-openai", "sk-ant-test", "claude-3-5-sonnet"),
+    ).toThrow(/Unsupported PDF provider: azure-openai/);
   });
 });
 
 describe("createConsumerContainer — env / ctx → adapter mapping", () => {
-  it("returns all RequestContainer fields plus the worker-only ports", () => {
-    const container = createConsumerContainer(envWithBindings());
+  it("returns all RequestContainer fields plus the worker-only ports", async () => {
+    const container = await createConsumerContainer(envWithBindings());
     expect(container.outboxRepository).toBeDefined();
     expect(container.idempotencyStore).toBeDefined();
     expect(container.indexJobRepository).toBeDefined();
@@ -754,18 +754,18 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.secretBox).toBeDefined();
   });
 
-  it("does not invoke ctx.waitUntil during container construction", () => {
+  it("does not invoke ctx.waitUntil during container construction", async () => {
     // Container build itself must be side-effect-free with respect to
     // `waitUntil` — the kick only fires when a UoW commit publishes an
     // event. Guards against accidental eager-fetch wiring.
     const ctx = { waitUntil: vi.fn() };
-    const container = createConsumerContainer(envWithBindings(), ctx);
+    const container = await createConsumerContainer(envWithBindings(), ctx);
     expect(container).toBeDefined();
     expect(ctx.waitUntil).not.toHaveBeenCalled();
   });
 
-  it("threads ServerEnv R2 + LLM bindings through to the right adapters", () => {
-    const container = createConsumerContainer(
+  it("threads ServerEnv R2 + LLM bindings through to the right adapters", async () => {
+    const container = await createConsumerContainer(
       envWithBindings({
         TEMP_FILES: fakeBucket(),
         OBJECT_STORAGE: fakeBucket(),
@@ -785,12 +785,12 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     expect(container.pdfExtractor).toBeInstanceOf(AnthropicPDFExtractor);
   });
 
-  it("propagates ADMIN_LLM_PROVIDER env to the factory: throws on unsupported value", () => {
+  it("propagates ADMIN_LLM_PROVIDER env to the factory: throws on unsupported value", async () => {
     // Guards the env → readRequestServerConfig → buildXxxProvider chain
     // for the consumer worker. If the conditional spread of
     // `adminLlmProvider` regresses, this test catches it because the
     // factory's `default: throw` only fires when the value reaches it.
-    expect(() =>
+    await expect(
       createConsumerContainer(
         envWithBindings({
           ADMIN_LLM_API_KEY: "sk-ant-test",
@@ -798,7 +798,7 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
           ADMIN_LLM_PROVIDER: "unsupported-x",
         }),
       ),
-    ).toThrow(/Unsupported LLM provider: unsupported-x/);
+    ).rejects.toThrow(/Unsupported LLM provider: unsupported-x/);
   });
 
   it.each([
@@ -807,7 +807,7 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
     ["R2_SECRET_ACCESS_KEY"],
     ["R2_OBJECT_BUCKET_NAME"],
     ["OBJECT_STORAGE"],
-  ] as const)("downgrades to StubObjectStorage when %s is missing", (missingKey) => {
+  ] as const)("downgrades to StubObjectStorage when %s is missing", async (missingKey) => {
     const partial: Partial<ServerEnv> = {
       OBJECT_STORAGE: fakeBucket(),
       R2_ACCOUNT_ID: "acc",
@@ -816,17 +816,17 @@ describe("createConsumerContainer — env / ctx → adapter mapping", () => {
       R2_OBJECT_BUCKET_NAME: "buck",
     };
     delete partial[missingKey];
-    const container = createConsumerContainer(envWithBindings(partial));
+    const container = await createConsumerContainer(envWithBindings(partial));
     expect(container.objectStorage).toBeInstanceOf(StubObjectStorage);
   });
 
-  it("does not honour relayTriggerOverride — consumer path always builds its own RelayTrigger from env (Issue #66 ADR-003)", () => {
+  it("does not honour relayTriggerOverride — consumer path always builds its own RelayTrigger from env (Issue #66 ADR-003)", async () => {
     // The override seam is request-path-only. `createConsumerContainer`
     // calls `readRequestServerConfig(env, ctx)` internally, and that
     // reader does not surface any `relayTriggerOverride` — even if the
     // entry tried to inject one, it would be dropped before reaching
     // the UoW provider. This anchors the production zero-impact claim.
-    const container = createConsumerContainer(envWithBindings());
+    const container = await createConsumerContainer(envWithBindings());
     const trigger = (
       container.unitOfWorkProvider as unknown as {
         readonly relayTrigger: unknown;

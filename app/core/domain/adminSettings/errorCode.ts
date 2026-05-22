@@ -18,6 +18,9 @@ export const AdminSettingsErrorCode = {
     "admin_settings_invalid_registration_closed_reason",
   InvalidInstanceLimit: "admin_settings_invalid_instance_limit",
   EnvOverrideMissingKey: "admin_settings_env_override_missing_key",
+  InvalidLLMBaseURL: "admin_settings_invalid_llm_base_url",
+  ProviderChangedRequiresApiKey:
+    "admin_settings_provider_changed_requires_api_key",
 } as const;
 
 export type AdminSettingsErrorCode =

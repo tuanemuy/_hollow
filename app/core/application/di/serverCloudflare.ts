@@ -1,6 +1,6 @@
 import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
+import { eq } from "drizzle-orm";
 import { content } from "@/config";
-import { HttpLLMConnectionTester } from "@/core/adapters/anthropic/llmConnectionTester";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import {
@@ -19,6 +19,7 @@ import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyS
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
+import { instanceSettings as instanceSettingsTable } from "@/core/adapters/d1/schema";
 import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
 import { D1UnitOfWorkProvider } from "@/core/adapters/d1/unitOfWork";
 import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder";
@@ -37,6 +38,10 @@ import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
+import {
+  isSecretBoxError,
+  type SecretBox,
+} from "@/core/domain/adminSettings/ports/secretBox";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
@@ -53,6 +58,7 @@ import {
   readPruneTuning as readPruneTuningShared,
   readRelayTuning as readRelayTuningShared,
 } from "./env";
+import { HttpLLMConnectionTester } from "./llmConnectionTester";
 import {
   createLLMProvider,
   createOCRProvider,
@@ -172,6 +178,11 @@ export type ServerEnv = Readonly<{
   // matching the pre-#122 behaviour. Public information (no secret) so
   // it ships via vars.
   ADMIN_LLM_PROVIDER?: string;
+  // Optional base URL override consumed by the OpenAI-compatible adapter
+  // (Issue #101 ADR-001). Anthropic / Gemini providers ignore this
+  // value. Wrangler `[vars]` entry — empty string → use the provider's
+  // default endpoint. Public information delivered via vars.
+  ADMIN_LLM_BASE_URL?: string;
   // R2 binding for ingestion-temp storage. Optional so the DI fallback
   // (`StubTempFileStorage`) covers worker entries that do not bind it.
   TEMP_FILES?: R2Bucket;
@@ -310,12 +321,14 @@ export function buildOcrProvider(
   provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
+  adminLlmBaseURL?: string | null,
 ): OCRProvider {
   if (!adminLlmApiKey || !adminLlmModel) return new StubOCRProvider();
   return createOCRProvider({
     provider: provider ?? "anthropic",
     apiKey: adminLlmApiKey,
     model: adminLlmModel,
+    ...(adminLlmBaseURL ? { baseURL: adminLlmBaseURL } : {}),
   });
 }
 
@@ -330,12 +343,14 @@ export function buildPdfExtractor(
   provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
+  adminLlmBaseURL?: string | null,
 ): PDFExtractor {
   if (!adminLlmApiKey || !adminLlmModel) return new StubPDFExtractor();
   return createPDFExtractor({
     provider: provider ?? "anthropic",
     apiKey: adminLlmApiKey,
     model: adminLlmModel,
+    ...(adminLlmBaseURL ? { baseURL: adminLlmBaseURL } : {}),
   });
 }
 
@@ -354,12 +369,14 @@ export function buildLlmProvider(
   provider: string | undefined,
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
+  adminLlmBaseURL?: string | null,
 ): LLMProvider {
   if (!adminLlmApiKey || !adminLlmModel) return new StubLLMProvider();
   return createLLMProvider({
     provider: provider ?? "anthropic",
     apiKey: adminLlmApiKey,
     model: adminLlmModel,
+    ...(adminLlmBaseURL ? { baseURL: adminLlmBaseURL } : {}),
   });
 }
 
@@ -367,6 +384,16 @@ export function buildLlmProvider(
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
+ *
+ * Per ADR-007 (Issue #110), the request path never invokes the LLM /
+ * OCR / PDF adapters directly — every LLM-bound operation goes through
+ * a queued job dispatched to the consumer worker. As a result the
+ * request-side LLM ports are wired with the env-only fast path
+ * (`buildLlmProvider` / `buildOcrProvider` / `buildPdfExtractor` driven
+ * by `ADMIN_LLM_API_KEY` + `ADMIN_LLM_MODEL`) and intentionally ignore
+ * `ADMIN_LLM_BASE_URL`. The base-URL override is consulted only by
+ * {@link createConsumerContainer}'s {@link resolveConsumerLlmConfig},
+ * which is the sole code path that actually issues LLM HTTP calls.
  */
 export function createRequestContainer(
   config: RequestServerConfig,
@@ -518,21 +545,201 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
  *   same store. Keeping the sub-builders self-contained beats
  *   threading a shared handle through their signatures for a cost we
  *   can't measure.
+ * - LLM adapters are wired **twice on purpose**: first by the inner
+ *   `createRequestContainer` call below using the env-only fast path
+ *   (`ADMIN_LLM_API_KEY` + `ADMIN_LLM_MODEL`), then optionally
+ *   overridden by the `resolveConsumerLlmConfig`-driven block when a
+ *   DB-stored ciphertext successfully decrypts. The first build is
+ *   cheap — adapter constructors only stash the api key / model strings
+ *   and never open a network connection — so the duplication buys
+ *   simplicity (no special "skip LLM wiring" knob threaded into
+ *   `createRequestContainer`) at negligible runtime cost.
  */
-export function createConsumerContainer(
+export async function createConsumerContainer(
   env: ServerEnv,
   ctx?: { waitUntil(promise: Promise<unknown>): void },
-): ConsumerContainer {
+): Promise<ConsumerContainer> {
   const requestContainer = createRequestContainer(
     readRequestServerConfig(env, ctx),
   );
   const workerContainer = createWorkerContainer(env);
+  // ADR-007: consumer-path async pre-step. Resolve (provider, model,
+  // baseURL, apiKey) per env override > DB > Stub fallback, then override
+  // the request-side LLM / OCR / PDF ports with adapters built from the
+  // resolved values. A `null` resolution leaves the request-side adapters
+  // in place (env-only path or Stub fallback).
+  const resolved = await resolveConsumerLlmConfig(
+    env,
+    requestContainer.secretBox,
+  );
+  const llmOverrides: Partial<{
+    llmProvider: LLMProvider;
+    ocrProvider: OCRProvider;
+    pdfExtractor: PDFExtractor;
+  }> = resolved
+    ? {
+        llmProvider: buildLlmProvider(
+          resolved.provider,
+          resolved.apiKey,
+          resolved.model,
+          resolved.baseURL,
+        ),
+        ocrProvider: buildOcrProvider(
+          resolved.provider,
+          resolved.apiKey,
+          resolved.model,
+          resolved.baseURL,
+        ),
+        pdfExtractor: buildPdfExtractor(
+          resolved.provider,
+          resolved.apiKey,
+          resolved.model,
+          resolved.baseURL,
+        ),
+      }
+    : {};
   return {
     ...requestContainer,
+    ...llmOverrides,
     outboxRepository: workerContainer.outboxRepository,
     idempotencyStore: workerContainer.idempotencyStore,
     indexJobRepository: workerContainer.indexJobRepository,
   } satisfies ConsumerContainer;
+}
+
+/**
+ * Shape of `(provider, model, baseURL, apiKey)` resolved for the
+ * consumer-worker LLM / OCR / PDF factories. Returned by
+ * {@link resolveConsumerLlmConfig} only when all three required fields
+ * (`provider`, `model`, `apiKey`) are usable; otherwise the resolver
+ * returns `null` and the consumer container keeps the request-side
+ * adapters the env-only / Stub fallback already wired.
+ */
+type ResolvedConsumerLlmConfig = Readonly<{
+  provider: string;
+  model: string;
+  baseURL: string | null;
+  apiKey: string;
+}>;
+
+/**
+ * Resolve the LLM config for the consumer worker per ADR-007:
+ *
+ * **env override > DB resolution > Stub fallback**.
+ *
+ * 1. `provider` / `model`: env value (set & non-empty) wins; else DB value
+ *    (when an `instance_settings` row exists).
+ * 2. `baseURL`: env value (set & non-empty) wins; else DB value (may be
+ *    `null`). Only meaningful for the `openai` provider — adapter
+ *    factories ignore it otherwise (`LLMConfig.create` enforces the
+ *    invariant at write time, so the value reaching this resolver is
+ *    already shape-correct for the chosen provider).
+ * 3. `apiKey`:
+ *    - `ADMIN_LLM_API_KEY` env set & non-empty → env value (DB ciphertext
+ *      ignored).
+ *    - else if `llm_api_key_ciphertext` row column present → `SecretBox.decrypt`.
+ *    - decrypt failure (`SecretBoxError`, e.g. `NullSecretBox` raises
+ *      `KeyUnavailable`; wrong master key raises `DecryptFailed`) → return
+ *      `null` and warn-log so the consumer container keeps the
+ *      request-side Stub adapters rather than crashing the queue handler.
+ *    - else (no ciphertext, no env) → return `null` (Stub fallback).
+ *
+ * Returns `null` when any of `(provider, model, apiKey)` is missing, which
+ * means "no LLM override; use whatever `createRequestContainer` already
+ * wired" (env-only path or Stub).
+ *
+ * Reads `instance_settings` directly via the D1 binding (no UoW) — this is
+ * a read-only resolution path, the singleton aggregate is queried by
+ * primary key, and the cost of constructing a UoW for a single read would
+ * dwarf the read itself. Mirrors `D1PromptResolver`'s direct-read pattern.
+ */
+async function resolveConsumerLlmConfig(
+  env: ServerEnv,
+  secretBox: SecretBox,
+): Promise<ResolvedConsumerLlmConfig | null> {
+  // A read failure (missing table during migration, transient D1 hiccup)
+  // collapses to "no DB value" so the env-only path or Stub fallback
+  // continues to serve. A warn-log here would be excessively noisy for a
+  // fresh deployment where the row simply hasn't been written yet.
+  const dbRow = await readInstanceSettingsLlmRow(env).catch(() => null);
+
+  const envProvider = env.ADMIN_LLM_PROVIDER;
+  const provider =
+    envProvider !== undefined && envProvider.length > 0
+      ? envProvider
+      : (dbRow?.llmProvider ?? null);
+
+  const envModel = env.ADMIN_LLM_MODEL;
+  const model =
+    envModel !== undefined && envModel.length > 0
+      ? envModel
+      : (dbRow?.llmModel ?? null);
+
+  const envBaseURL = env.ADMIN_LLM_BASE_URL;
+  const baseURL =
+    envBaseURL !== undefined && envBaseURL.length > 0
+      ? envBaseURL
+      : (dbRow?.llmBaseUrl ?? null);
+
+  let apiKey: string | null = null;
+  const envApiKey = env.ADMIN_LLM_API_KEY;
+  if (envApiKey !== undefined && envApiKey.length > 0) {
+    apiKey = envApiKey;
+  } else if (dbRow?.llmApiKeyCiphertext) {
+    try {
+      apiKey = await secretBox.decrypt(dbRow.llmApiKeyCiphertext);
+    } catch (cause) {
+      if (isSecretBoxError(cause)) {
+        ConsoleLogger.warn(
+          "[di] consumer LLM apiKey decrypt failed; falling back to Stub adapters",
+          { code: cause.code },
+        );
+      } else {
+        ConsoleLogger.warn(
+          "[di] consumer LLM apiKey resolution threw; falling back to Stub adapters",
+          { cause },
+        );
+      }
+      return null;
+    }
+  }
+
+  if (provider === null || model === null || apiKey === null) {
+    return null;
+  }
+
+  return { provider, model, baseURL, apiKey };
+}
+
+type InstanceSettingsLlmRow = Readonly<{
+  llmProvider: string;
+  llmModel: string;
+  llmBaseUrl: string | null;
+  llmApiKeyCiphertext: string | null;
+}>;
+
+/**
+ * Read the singleton `instance_settings` row's LLM-relevant columns.
+ * Returns `null` when the row is missing (fresh deployment before the
+ * admin has saved anything). Throws on a driver-level read failure; the
+ * caller swallows it via `.catch(() => null)` so a transient D1 hiccup
+ * does not knock the consumer worker offline.
+ */
+async function readInstanceSettingsLlmRow(
+  env: ServerEnv,
+): Promise<InstanceSettingsLlmRow | null> {
+  const db = getDatabase(env.DB);
+  const rows = await db
+    .select({
+      llmProvider: instanceSettingsTable.llmProvider,
+      llmModel: instanceSettingsTable.llmModel,
+      llmBaseUrl: instanceSettingsTable.llmBaseUrl,
+      llmApiKeyCiphertext: instanceSettingsTable.llmApiKeyCiphertext,
+    })
+    .from(instanceSettingsTable)
+    .where(eq(instanceSettingsTable.id, "singleton"))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /**

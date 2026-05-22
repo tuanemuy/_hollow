@@ -11,6 +11,13 @@ import { assertAdmin } from "./authorization";
 export type TestLLMConnectionDraft = Readonly<{
   provider: string;
   model: string;
+  /**
+   * OpenAI-compatible endpoint base URL. Always `null` for non-`openai`
+   * providers (the value-object enforces the invariant on `create`).
+   * Carried through `LLMConfig.create` so the draft preview hits the
+   * same endpoint the persisted config would.
+   */
+  baseURL: string | null;
   apiKeySource: "env" | "db";
   apiKeyCiphertext: string | null;
 }>;
@@ -58,6 +65,7 @@ export async function testLLMConnection({
         return LLMConfig.create({
           provider: input.draftConfig.provider,
           model: input.draftConfig.model,
+          baseURL: input.draftConfig.baseURL,
           apiKeySource: input.draftConfig.apiKeySource,
           apiKeyCiphertext: input.draftConfig.apiKeyCiphertext,
         });

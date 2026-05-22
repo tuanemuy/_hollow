@@ -7,6 +7,7 @@ import type {
   UsageMetricsSnapshot,
 } from "@/core/application/ports/usageMetricsProvider";
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsErrorCode } from "@/core/domain/adminSettings/errorCode";
 import type {
   LLMConnectionPingResult,
   LLMConnectionTester,
@@ -100,11 +101,10 @@ const ADMIN_ID = "01950000-0000-7000-8000-00000000ad01";
 const MEMBER_ID = "01950000-0000-7000-8000-00000000ad02";
 
 class StubLLMConnectionTester implements LLMConnectionTester {
+  readonly calls: Array<{ cfg: LLMConfig; apiKey: string }> = [];
   constructor(private readonly result: LLMConnectionPingResult) {}
-  async ping(
-    _cfg: LLMConfig,
-    _apiKey: string,
-  ): Promise<LLMConnectionPingResult> {
+  async ping(cfg: LLMConfig, apiKey: string): Promise<LLMConnectionPingResult> {
+    this.calls.push({ cfg, apiKey });
     return this.result;
   }
 }
@@ -189,7 +189,9 @@ describe("updateLLMConfig", () => {
       container,
       input: {
         actorUserId: ADMIN_ID,
+        provider: "anthropic",
         model: "claude-3-5-sonnet-latest",
+        baseURL: null,
         apiKeyPlain: "sk-secret",
       },
     });
@@ -218,7 +220,9 @@ describe("updateLLMConfig", () => {
       container,
       input: {
         actorUserId: ADMIN_ID,
+        provider: "anthropic",
         model: "claude-3-5-sonnet-latest",
+        baseURL: null,
         apiKeyPlain: "sk-ignored",
       },
     });
@@ -242,7 +246,9 @@ describe("updateLLMConfig", () => {
         container,
         input: {
           actorUserId: ADMIN_ID,
+          provider: "anthropic",
           model: "   ",
+          baseURL: null,
           apiKeyPlain: "sk-secret",
         },
       });
@@ -267,7 +273,9 @@ describe("updateLLMConfig", () => {
         container,
         input: {
           actorUserId: MEMBER_ID,
+          provider: "anthropic",
           model: "claude-3-5-sonnet-latest",
+          baseURL: null,
           apiKeyPlain: "sk-secret",
         },
       });
@@ -276,6 +284,125 @@ describe("updateLLMConfig", () => {
       caught = error;
     }
     expect(isForbiddenError(caught)).toBe(true);
+  });
+
+  it("changing provider requires apiKeyPlain (ADR-008)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    // Seed the persisted aggregate with provider=anthropic + a DB-source key.
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+
+    let caught: unknown;
+    try {
+      await updateLLMConfig({
+        container,
+        input: {
+          actorUserId: ADMIN_ID,
+          provider: "openai",
+          model: "gpt-4o",
+          baseURL: null,
+          apiKeyPlain: null,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isBusinessRuleError(caught)).toBe(true);
+    expect((caught as { code?: string }).code).toBe(
+      AdminSettingsErrorCode.ProviderChangedRequiresApiKey,
+    );
+  });
+
+  it("changing provider with a fresh apiKeyPlain succeeds and re-encrypts (ADR-008)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o",
+        baseURL: "https://api.openai.com/v1",
+        apiKeyPlain: "sk-openai",
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.llmProvider).toBe("openai");
+    expect(rows[0]?.llmBaseUrl).toBe("https://api.openai.com/v1");
+    expect(rows[0]?.llmApiKeySource).toBe("db");
+    expect(rows[0]?.llmApiKeyCiphertext).not.toBeNull();
+    expect(rows[0]?.llmApiKeyCiphertext).not.toBe("sk-openai");
+  });
+
+  it("preserves the existing ciphertext when provider is unchanged and apiKeyPlain is null", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-anthropic",
+      },
+    });
+    const initial = await container.db.select().from(schema.instanceSettings);
+    const initialCiphertext = initial[0]?.llmApiKeyCiphertext;
+    expect(initialCiphertext).not.toBeNull();
+
+    await updateLLMConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-7-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: null,
+      },
+    });
+
+    const after = await container.db.select().from(schema.instanceSettings);
+    expect(after[0]?.llmModel).toBe("claude-3-7-sonnet-latest");
+    expect(after[0]?.llmApiKeySource).toBe("db");
+    expect(after[0]?.llmApiKeyCiphertext).toBe(initialCiphertext);
   });
 });
 
@@ -332,6 +459,73 @@ describe("testLLMConnection", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe("invalid_api_key");
+  });
+
+  it("useDraft=true forwards the draftConfig to the tester (provider/model/baseURL) instead of the persisted row", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 7 });
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: { apiKey: "sk-env" },
+      llmConnectionTester: stub,
+    };
+
+    const result = await testLLMConnection({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        useDraft: true,
+        draftConfig: {
+          provider: "openai",
+          model: "gpt-4o",
+          baseURL: "https://api.openai.com/v1",
+          apiKeySource: "env",
+          apiKeyCiphertext: null,
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.error).toBeNull();
+
+    expect(stub.calls).toHaveLength(1);
+    const captured = stub.calls[0];
+    expect(captured?.cfg.provider).toBe("openai");
+    expect(captured?.cfg.model).toBe("gpt-4o");
+    expect(captured?.cfg.baseURL).toBe("https://api.openai.com/v1");
+    expect(captured?.apiKey).toBe("sk-env");
+  });
+
+  it("useDraft=true with draftConfig=null returns ok=false with an explanatory error (no tester dispatch)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 0 });
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: { apiKey: "sk-env" },
+      llmConnectionTester: stub,
+    };
+
+    const result = await testLLMConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: true, draftConfig: null },
+    });
+    expect(result).toEqual({
+      ok: false,
+      latencyMs: 0,
+      error: "Draft configuration is required when useDraft is true",
+    });
+    expect(stub.calls).toHaveLength(0);
   });
 });
 
