@@ -9,7 +9,7 @@
 | 本文中 `#tag` 含む | CreateNote | tag 自動抽出、Tag 作成、note_tags 紐付け |
 | 本文中 `[[Other]]` 含む | CreateNote | InternalLink が未解決として保存 |
 | 他人 media を埋め込み | CreateNote | `BusinessRuleError('media_not_owned')` |
-| 1MB 超 content | CreateNote | `SystemError('data_integrity_error')` (cause: `BusinessRuleError('content_too_large')`、sanitizer の外側 try/catch で包む) |
+| 1MB 超 content | CreateNote | `SystemError(DataIntegrityError)` (cause: `BusinessRuleError('content_too_large')`、sanitizer の外側 try/catch で包む) |
 | 同一 slug の既存ノート | CreateNote | slug をサフィックス付与で衝突回避 |
 
 ## SaveNote

@@ -6,7 +6,7 @@
 |---|---|---|
 | 正常画像 | UploadMedia | MediaAsset(pending) + R2 put、DL URL 返却 |
 | サイズ超過 | UploadMedia | `BusinessRuleError('media_byte_size_exceeded')` |
-| storage 失敗 | UploadMedia | `SystemError('external_api_error')`、DB に Asset を残さない |
+| storage 失敗 | UploadMedia | `SystemError(ExternalApiError)`、DB に Asset を残さない |
 
 ## UploadMediaPresigned / FinalizeUpload
 
