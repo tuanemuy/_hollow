@@ -997,6 +997,162 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     );
     expect(found.map((n) => n.id as NoteId)).toEqual([note]);
   });
+
+  // T-bind-008..011 (Issue #165): exercise the new `findByOwner` /
+  // `countByOwner` chunk path that activates when `buildOwnerListWhere`
+  // returns a non-null `idScope`. The pre-#165 implementation embedded
+  // `inArray(notes.id, [...intersected])` inside the main query, which
+  // tripped the D1 host-var cap once the intersection grew past ~90
+  // ids. Post-fix the IN predicate moves to `selectInChunks` and the
+  // listing's sort/limit are re-applied in JS.
+
+  // T-bind-008: 150 public notes; `visibility=['public']` yields an
+  // intersected scope of 150 ids. `findByOwner` must chunk the lookup
+  // and return every row.
+  it("T-bind-008: findByOwner({ visibility: ['public'] }) returns 150 across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = ids.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["public"],
+        }),
+    );
+    expect(found).toHaveLength(150);
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
+  });
+
+  // T-bind-009: 150 public notes with strictly increasing `updatedAt`;
+  // `visibility=['public']` activates the chunk path, and the JS-side
+  // re-sort must match a single-query DB-side `ORDER BY updatedAt
+  // DESC, id DESC LIMIT 50 OFFSET 50`. `seedManyNotes` assigns
+  // `updatedAt = base + i*1000ms` so positions are deterministic.
+  it("T-bind-009: findByOwner({ visibility: ['public'], offset: 50, limit: 50, sort: updatedAt desc }) matches DB-side ordering", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const publicIds = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = publicIds.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 50,
+          sort: "updatedAt",
+          order: "desc",
+          visibility: ["public"],
+        }),
+    );
+    // Public ids were seeded in index order with monotonically
+    // increasing updatedAt. After `(updatedAt DESC, id DESC)` the page
+    // at offset=50 limit=50 contains indices 99..50 (descending).
+    const expected = [...publicIds].reverse().slice(50, 100);
+    expect(found.map((n) => n.id as NoteId)).toEqual(expected);
+  });
+
+  // T-bind-010: two candidate sets (visibility + tagIds) both expand
+  // to the same 150 ids. The intersection is still 150, so the chunk
+  // path runs. Confirms that multi-axis filter mixes feed the same
+  // code path.
+  it("T-bind-010: findByOwner({ tagIds, visibility: ['public'] }) intersects two 150-id sets across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTag(container, owner, "bulk-public");
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = ids.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    const tagStmts = ids.map((noteId) =>
+      container.db.insert(schema.noteTags).values({ noteId, tagId: tag }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+    await container.db.batch(
+      tagStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          tagIds: [tag],
+          visibility: ["public"],
+        }),
+    );
+    expect(found).toHaveLength(150);
+    expect(new Set(found.map((n) => n.id as NoteId))).toEqual(new Set(ids));
+  });
+
+  // T-bind-011: `countByOwner` must agree with `findByOwner` under
+  // the same filter. 150 public notes intersected with public
+  // visibility → count of 150. The chunked per-chunk `select id`
+  // sums correctly across chunk boundaries.
+  it("T-bind-011: countByOwner({ visibility: ['public'] }) returns 150 across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = ids.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const count = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.countByOwner(owner, { visibility: ["public"] }),
+    );
+    expect(count).toBe(150);
+  });
 });
 
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
