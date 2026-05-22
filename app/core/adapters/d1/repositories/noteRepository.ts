@@ -482,10 +482,12 @@ export class D1NoteRepository implements NoteRepository {
   private async resolveTagAndCandidates(
     tagIds: readonly TagId[],
   ): Promise<ReadonlySet<string>> {
-    const tagRows = await this.db
-      .select({ noteId: noteTags.noteId, tagId: noteTags.tagId })
-      .from(noteTags)
-      .where(inArray(noteTags.tagId, [...tagIds]));
+    const tagRows = await selectInChunks(tagIds, (chunk) =>
+      this.db
+        .select({ noteId: noteTags.noteId, tagId: noteTags.tagId })
+        .from(noteTags)
+        .where(inArray(noteTags.tagId, [...chunk])),
+    );
     const countByNote = new Map<string, Set<string>>();
     for (const row of tagRows) {
       const seen = countByNote.get(row.noteId) ?? new Set<string>();

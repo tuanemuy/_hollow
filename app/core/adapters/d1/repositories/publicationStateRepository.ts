@@ -20,6 +20,7 @@ import type {
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { publicationStates } from "../schema";
+import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
 type PublicationStateRow = typeof publicationStates.$inferSelect;
@@ -184,10 +185,12 @@ export class D1PublicationStateRepository
   findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]> {
     return mapDbError("Failed to bulk-read publication_states", async () => {
       if (ids.length === 0) return [];
-      const rows = await this.db
-        .select()
-        .from(publicationStates)
-        .where(inArray(publicationStates.noteId, [...ids]));
+      const rows = await selectInChunks(ids, (chunk) =>
+        this.db
+          .select()
+          .from(publicationStates)
+          .where(inArray(publicationStates.noteId, [...chunk])),
+      );
       return rows.map((row) => this.toEntity(row));
     });
   }

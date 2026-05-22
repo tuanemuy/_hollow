@@ -20,6 +20,7 @@ import type { TagId, TagName } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { tags } from "../schema";
+import { selectInChunks } from "./_chunks";
 import { escapeLikePattern, mapDbError } from "./helpers";
 
 type TagRow = typeof tags.$inferSelect;
@@ -183,10 +184,12 @@ export class D1TagRepository implements TagRepository {
   findByIds(ids: readonly TagId[]): Promise<readonly Tag[]> {
     return mapDbError("Failed to find tags by ids", async () => {
       if (ids.length === 0) return [];
-      const rows = await this.db
-        .select()
-        .from(tags)
-        .where(inArray(tags.id, ids as readonly string[] as string[]));
+      const rows = await selectInChunks(ids, (chunk) =>
+        this.db
+          .select()
+          .from(tags)
+          .where(inArray(tags.id, [...chunk])),
+      );
       return rows.map((row) => this.toTag(row));
     });
   }

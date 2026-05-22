@@ -941,6 +941,62 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     ];
     expect(foundIds).toEqual(expected);
   });
+
+  // T-bind-007 (Issue #45): `resolveTagAndCandidates` is private and
+  // reached via `findByOwner({ tagIds: [...] })`. A 150-tag input feeds
+  // `inArray(noteTags.tagId, [...])` past the D1 host-variable cap on
+  // the pre-#45 implementation. Post-fix the helper chunks the lookup
+  // and the JS-side `Map<noteId, Set<tagId>>` aggregator folds tag rows
+  // across chunk boundaries (single `noteId` with tag rows split across
+  // chunks still passes the `seen.size === tagIds.length` filter).
+  it("T-bind-007: findByOwner({ tagIds: [...150] }) AND-matches a single note across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const note = await seedNote(container, owner, dir, { title: "all-tags" });
+
+    const tagIds: TagId[] = [];
+    const tagStmts: BatchItem<"sqlite">[] = [];
+    for (let i = 0; i < 150; i += 1) {
+      const tagId = nextId(0x04) as TagId;
+      tagIds.push(tagId);
+      tagStmts.push(
+        container.db.insert(schema.tags).values({
+          id: tagId,
+          ownerId: owner,
+          name: `bulk-tag-${i}`,
+          nameNormalized: `bulk-tag-${i}`,
+          noteCount: 1,
+          version: 0,
+          createdAt: TZ,
+          updatedAt: TZ,
+        }),
+      );
+    }
+    await container.db.batch(
+      tagStmts as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const noteTagStmts = tagIds.map((tagId) =>
+      container.db.insert(schema.noteTags).values({ noteId: note, tagId }),
+    );
+    await container.db.batch(
+      noteTagStmts as unknown as [
+        BatchItem<"sqlite">,
+        ...BatchItem<"sqlite">[],
+      ],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 50,
+          offset: 0,
+          tagIds,
+        }),
+    );
+    expect(found.map((n) => n.id as NoteId)).toEqual([note]);
+  });
 });
 
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
@@ -972,6 +1028,36 @@ describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
     expect(ids).toContain(hasRow);
     expect(ids).not.toContain(noRow);
     expect(result).toHaveLength(1);
+  });
+
+  // T-bind-001 (Issue #45): 150 note ids feed `inArray(publicationStates.noteId, [...])`
+  // past the D1 host-variable cap on the pre-#45 implementation. Post-fix
+  // `selectInChunks` splits the lookup and concatenates rows across chunks.
+  it("T-bind-001: findByNoteIds returns all 150 rows across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteIds = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = noteIds.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.findByNoteIds(noteIds),
+    );
+    expect(result).toHaveLength(150);
+    expect(new Set(result.map((s) => s.noteId))).toEqual(new Set(noteIds));
   });
 });
 
