@@ -183,3 +183,39 @@ Accepted (implementation)
   - `env` の有無で `envOverrides` 出力が変わる → caller によって UI が env-aware かどうか分かれる
     - 実際は presentation 経路のみが env-aware にすべきなので問題なし
   - `null` を「未指定」マーカーとして使う TS 上の anti-pattern とも見えるが、`AdminSettingsEnv` 自体を「全部 null」で作るより読みやすい
+
+---
+
+## ADR-008: `assertEnvOverride` の apiKey trim 挙動を本 Issue では維持
+
+### Status
+Accepted
+
+### Context
+
+レビュー review-001 で `app/core/domain/adminSettings/service.ts:49` の `assertEnvOverride` 内 apiKey 判定が `trim().length === 0` を「未設定」と扱う点が ADR-002（`length > 0`、trim しない、4 field 共通）と細部不一致だと指摘された。
+
+具体的には:
+
+- ADR-002 / 本 Issue の DI 層（`serverCloudflare.ts`）と consumer 経路（`resolveConsumerLlmConfig`）は `value !== undefined && value.length > 0` で envOverrides 判定
+- 一方 `AdminSettingsService.assertEnvOverride`（apiKey 専用）は内部で `trim().length === 0` を「envApiKey 未設定」と扱う
+
+このため、`env.apiKey === " "`（whitespace-only）のケースで:
+- admin UI / consumer は「env.apiKey set」と判定（length > 0）
+- `assertEnvOverride` は「未設定」とみなして DB 値を維持
+
+という細い乖離が生じうる。
+
+### Decision
+
+本 Issue（#143）のスコープでは `assertEnvOverride` の trim 挙動を**維持**する。修正は別 Issue で扱う。
+
+### Consequences
+
+- 良い点:
+  - 既存テスト `app/core/domain/adminSettings/__tests__/service.test.ts:83 "treats whitespace-only env.apiKey as missing"` を翻す必要がない（影響範囲が広い）
+  - 本 Issue の主目的（UI lock 表示と save silent skip）は trim 不一致と独立に成立する
+  - Phase 4 で W-UC-001 / W-DI-001 / W-S-003 を一括対応する follow-up Issue を起票して、ADR-002 と service.ts:49 を整合させる方針が明確
+- トレードオフ:
+  - whitespace-only apiKey で admin UI（env.apiKey set 表示）と save 経路（DB 値を使う）に細い乖離リスクが残る。実害は低い（whitespace を意図的に env apiKey として設定するユースケースは非現実的）
+  - follow-up Issue を起票する責務をメインエージェント（Phase 4）に委譲
