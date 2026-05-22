@@ -342,3 +342,40 @@ Issue #101 本文では `app/core/adapters/google/` を提案しているが、G
 
 - 1周目（要件カバレッジ視点）: 問題点ゼロ、改善提案 3 件（S-001〜S-003）を ADR-007 / Step 11 / Step 7 に反映
 - 1周目（アーキ・リスク視点）: 問題点 4 件（P-001〜P-004）を ADR-001 / ADR-002 / ADR-007 / Step 10 に反映、改善提案 9 件のうち S-001 を ADR-005 に、S-003 を ADR-004 / ADR-002 に、S-006 を ADR-008 に、S-007 を ADR-009 に追加
+
+---
+
+## ADR-010: PR レビュー Round 1 で見送った 4 Warning の扱い
+
+### Status
+
+Accepted (PR レビュー Round 1 後)
+
+### Context
+
+PR #138 のレイヤー別 5 並列レビュー (`.issue/101/review/review-001.md`) で計 25 Warning が指摘され、21 件は本 PR で修正、4 件は見送り or 別 Issue 化と判断。
+
+### Decision
+
+以下 4 Warning は本 PR スコープでは見送り:
+
+1. **W-A-004**: `OpenAISharedConfig.baseURL: string | undefined` vs `LLMConfig.baseURL: string | null` の型整合 mismatch
+   - 理由: dispatcher 内 1 箇所の ternary で済んでおり実害なし。型整合のリファクタは provider-registry pattern (Issue #122 ADR-005 → 本 Issue ADR-005 フォローアップ) で `app/core/adapters/<provider>/index.ts` 規約を入れる際にまとめて整理するのが clean
+   - フォローアップ Issue で対応
+
+2. **W-I-005**: `createConsumerContainer.integration.test.ts` の env baseURL override の assertion 弱さ（`instanceof OpenAILLMProvider` のみ）
+   - 理由: `OpenAILLMProvider` の `baseURL` は private state で外部から検査不可。test-only getter 追加 or `resolveConsumerLlmConfig` を export して pure function として検証するアプローチは構造変更が必要で、本 PR スコープを超える
+   - フォローアップ Issue (factory DRY 化と同じ抽出文脈) で対応
+
+3. **W-F-003**: connectionPing error の生メッセージが UI に露出（URL に secret 混入時の漏洩リスク）
+   - 理由: 本 PR の `pingGemini` 等の error reason は `error instanceof Error ? error.message : String(error)` で fetch エラーをそのまま返す既存 pattern。Anthropic 側 (`pingAnthropic`) も同じ pattern なので本 PR で局所的に sanitize を入れると Anthropic 側との非対称が発生
+   - 全 provider 横断の error sanitize layer は別 Issue で統一実装
+
+4. **W-F-006**: CSRF 対策が `__Host-session` + `SameSite=lax` のみで、明示的 token / `Origin` 検証無し
+   - 理由: 本 PR で新規導入された脆弱性ではなく、`updateLLMConfig` 含む既存 admin 経路全体の課題
+   - 別 Issue で `Origin`/`Referer` 検証ミドルウェア追加を検討
+
+### Consequences
+
+- 良い点: 本 PR の責務（provider 拡張 + DB resolution）に集中。横断的なリファクタ・security 強化を別 Issue として可視化
+- トレードオフ: フォローアップ Issue 起票が必要（Phase 4 で実施）

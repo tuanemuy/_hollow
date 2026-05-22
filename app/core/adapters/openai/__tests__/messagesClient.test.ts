@@ -341,6 +341,30 @@ describe("callOpenAIMessages", () => {
       ).rejects.toBeInstanceOf(UnavailableErr);
     });
 
+    it("maps a non-AbortError / non-TypeError throw to mapper.unavailable", async () => {
+      // Mirrors the symmetric Gemini test (W-T-005): the "unexpected
+      // error" branch covers exotic throws (RangeError, plain string,
+      // …) so the caller still receives a port-shaped error instead of
+      // a raw provider/native one.
+      setFetch(
+        vi.fn(async () => {
+          throw new RangeError("boom");
+        }),
+      );
+      await expect(
+        callOpenAIMessages(
+          BASE_CONFIG,
+          "sys",
+          [{ type: "text", text: "x" }],
+          mapper,
+        ),
+      ).rejects.toSatisfy(
+        (e) =>
+          e instanceof UnavailableErr &&
+          e.message.startsWith("Unexpected error while calling OpenAI"),
+      );
+    });
+
     it("maps non-JSON body to mapper.unavailable", async () => {
       setFetch(
         vi.fn(
@@ -363,6 +387,24 @@ describe("callOpenAIMessages", () => {
   });
 });
 
+function roundTrip(buffer: ArrayBuffer): Uint8Array {
+  const base64 = arrayBufferToBase64(buffer);
+  const binary = atob(base64);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    out[i] = binary.charCodeAt(i);
+  }
+  return out;
+}
+
+function makeRandomBuffer(size: number): ArrayBuffer {
+  const bytes = new Uint8Array(size);
+  for (let i = 0; i < size; i++) {
+    bytes[i] = (i * 2654435761) & 0xff;
+  }
+  return bytes.buffer;
+}
+
 describe("arrayBufferToBase64", () => {
   it("round-trips an empty buffer", () => {
     expect(arrayBufferToBase64(new ArrayBuffer(0))).toBe("");
@@ -372,5 +414,17 @@ describe("arrayBufferToBase64", () => {
     const bytes = new Uint8Array([0x00, 0xff, 0x10, 0x80]);
     const encoded = arrayBufferToBase64(bytes.buffer);
     expect(encoded).toBe(btoa("\x00\xff\x10\x80"));
+  });
+
+  it("round-trips across the 8KB chunk boundary", () => {
+    // 8KB is the internal chunk size of arrayBufferToBase64. Verifying
+    // sizes immediately around the boundary (8191/8192/8193) catches
+    // off-by-one errors in the chunk slicing, and 100KB exercises the
+    // multi-chunk path.
+    for (const size of [8191, 8192, 8193, 100 * 1024]) {
+      const buffer = makeRandomBuffer(size);
+      const decoded = roundTrip(buffer);
+      expect(decoded).toEqual(new Uint8Array(buffer));
+    }
   });
 });

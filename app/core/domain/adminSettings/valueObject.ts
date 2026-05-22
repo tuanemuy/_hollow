@@ -228,6 +228,10 @@ export const LLMConfig = {
       }
       ciphertext = params.apiKeyCiphertext;
     } else {
+      // Symmetric with the db branch above: any non-null value — including
+      // the empty / whitespace-only string — violates the env invariant.
+      // Treating `""` as "effectively null" would silently mask form bugs
+      // that send an unset ciphertext as `""`; reject loudly instead.
       if (params.apiKeyCiphertext !== null) {
         throw new BusinessRuleError(
           AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,

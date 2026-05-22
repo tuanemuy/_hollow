@@ -33,6 +33,14 @@ export const AdminSettingsService = {
    * Force `apiKeySource = 'env'` when an env-provided api key exists, so
    * runtime resolution always prefers the operator-controlled value. When
    * the env is absent, the config is returned unchanged.
+   *
+   * The reconciled config carries `provider` and `baseURL` over from
+   * `cfg` verbatim — this helper never changes the provider identity or
+   * the OpenAI-compatible endpoint. Any invariant violation between the
+   * two (e.g. non-null `baseURL` on a non-`openai` provider) is the
+   * responsibility of {@link LLMConfig.create}, which is called below
+   * and will throw `InvalidLLMBaseURL` if the carry-over breaks the VO
+   * invariant.
    */
   assertEnvOverride: (
     cfg: LLMConfig,

@@ -384,6 +384,16 @@ export function buildLlmProvider(
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
+ *
+ * Per ADR-007 (Issue #110), the request path never invokes the LLM /
+ * OCR / PDF adapters directly — every LLM-bound operation goes through
+ * a queued job dispatched to the consumer worker. As a result the
+ * request-side LLM ports are wired with the env-only fast path
+ * (`buildLlmProvider` / `buildOcrProvider` / `buildPdfExtractor` driven
+ * by `ADMIN_LLM_API_KEY` + `ADMIN_LLM_MODEL`) and intentionally ignore
+ * `ADMIN_LLM_BASE_URL`. The base-URL override is consulted only by
+ * {@link createConsumerContainer}'s {@link resolveConsumerLlmConfig},
+ * which is the sole code path that actually issues LLM HTTP calls.
  */
 export function createRequestContainer(
   config: RequestServerConfig,
@@ -535,6 +545,15 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
  *   same store. Keeping the sub-builders self-contained beats
  *   threading a shared handle through their signatures for a cost we
  *   can't measure.
+ * - LLM adapters are wired **twice on purpose**: first by the inner
+ *   `createRequestContainer` call below using the env-only fast path
+ *   (`ADMIN_LLM_API_KEY` + `ADMIN_LLM_MODEL`), then optionally
+ *   overridden by the `resolveConsumerLlmConfig`-driven block when a
+ *   DB-stored ciphertext successfully decrypts. The first build is
+ *   cheap — adapter constructors only stash the api key / model strings
+ *   and never open a network connection — so the duplication buys
+ *   simplicity (no special "skip LLM wiring" knob threaded into
+ *   `createRequestContainer`) at negligible runtime cost.
  */
 export async function createConsumerContainer(
   env: ServerEnv,

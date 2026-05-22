@@ -99,7 +99,7 @@ const vars: Record<string, string> = {
   // stage default, and (4) syncing every env var to all 7 sites:
   // `wrangler.toml [vars]` + `[env.consumer.vars]`, both staging /
   // production templates' `[vars]` + `[env.consumer.vars]`, and this
-  // `vars` literal (see Issue #101 ADR-008 / plan.md Step 10).
+  // `vars` literal (see Issue #101 plan.md Step 10 (re #122 ADR-008)).
   // `ADMIN_LLM_BASE_URL` is only meaningful for the OpenAI-compatible
   // provider; empty string means "use the provider default endpoint".
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",

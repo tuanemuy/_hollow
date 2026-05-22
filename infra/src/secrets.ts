@@ -31,9 +31,15 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
   //   LLM api key when admin settings are resolved during dispatch.
   //   When unset, DI falls back to `NullSecretBox` and any decrypt
   //   operation surfaces `SecretBoxError(KeyUnavailable)`.
-  // - `ADMIN_LLM_API_KEY`: env override for the Anthropic api key.
-  //   Combined with the `ADMIN_LLM_MODEL` var (public), it triggers DI
-  //   to wire `AnthropicLLMProvider`. Absent → `StubLLMProvider`.
+  // - `ADMIN_LLM_API_KEY`: env override for the admin-side LLM provider
+  //   api key (Anthropic / OpenAI / Gemini — selected by
+  //   `ADMIN_LLM_PROVIDER`). Combined with the `ADMIN_LLM_MODEL` +
+  //   `ADMIN_LLM_PROVIDER` vars (public), it triggers DI to wire the
+  //   matching real adapter (`AnthropicLLMProvider` /
+  //   `OpenAILLMProvider` / `GeminiLLMProvider`). Absent → the consumer
+  //   worker falls back to the DB-stored ciphertext (decrypted via
+  //   `SecretBox`/`SECRET_BOX_MASTER_KEY`) when present, otherwise to
+  //   `StubLLMProvider`.
   // - `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`:
   //   SigV4 credentials for `R2ObjectStorage.presign*`. R2's Worker
   //   binding (`OBJECT_STORAGE`) only covers data-plane ops; presigned

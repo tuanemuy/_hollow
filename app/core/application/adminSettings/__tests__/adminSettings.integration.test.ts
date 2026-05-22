@@ -101,11 +101,10 @@ const ADMIN_ID = "01950000-0000-7000-8000-00000000ad01";
 const MEMBER_ID = "01950000-0000-7000-8000-00000000ad02";
 
 class StubLLMConnectionTester implements LLMConnectionTester {
+  readonly calls: Array<{ cfg: LLMConfig; apiKey: string }> = [];
   constructor(private readonly result: LLMConnectionPingResult) {}
-  async ping(
-    _cfg: LLMConfig,
-    _apiKey: string,
-  ): Promise<LLMConnectionPingResult> {
+  async ping(cfg: LLMConfig, apiKey: string): Promise<LLMConnectionPingResult> {
+    this.calls.push({ cfg, apiKey });
     return this.result;
   }
 }
@@ -460,6 +459,73 @@ describe("testLLMConnection", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.error).toBe("invalid_api_key");
+  });
+
+  it("useDraft=true forwards the draftConfig to the tester (provider/model/baseURL) instead of the persisted row", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 7 });
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: { apiKey: "sk-env" },
+      llmConnectionTester: stub,
+    };
+
+    const result = await testLLMConnection({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        useDraft: true,
+        draftConfig: {
+          provider: "openai",
+          model: "gpt-4o",
+          baseURL: "https://api.openai.com/v1",
+          apiKeySource: "env",
+          apiKeyCiphertext: null,
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.error).toBeNull();
+
+    expect(stub.calls).toHaveLength(1);
+    const captured = stub.calls[0];
+    expect(captured?.cfg.provider).toBe("openai");
+    expect(captured?.cfg.model).toBe("gpt-4o");
+    expect(captured?.cfg.baseURL).toBe("https://api.openai.com/v1");
+    expect(captured?.apiKey).toBe("sk-env");
+  });
+
+  it("useDraft=true with draftConfig=null returns ok=false with an explanatory error (no tester dispatch)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 0 });
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: { apiKey: "sk-env" },
+      llmConnectionTester: stub,
+    };
+
+    const result = await testLLMConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: true, draftConfig: null },
+    });
+    expect(result).toEqual({
+      ok: false,
+      latencyMs: 0,
+      error: "Draft configuration is required when useDraft is true",
+    });
+    expect(stub.calls).toHaveLength(0);
   });
 });
 

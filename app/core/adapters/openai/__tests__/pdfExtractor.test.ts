@@ -30,6 +30,7 @@ function makeExtractor(
     apiKey: string;
     model: string;
     timeoutMs: number;
+    baseURL: string;
   }> = {},
 ): OpenAIPDFExtractor {
   return new OpenAIPDFExtractor({
@@ -38,6 +39,7 @@ function makeExtractor(
     ...(overrides.timeoutMs !== undefined
       ? { timeoutMs: overrides.timeoutMs }
       : {}),
+    ...(overrides.baseURL !== undefined ? { baseURL: overrides.baseURL } : {}),
   });
 }
 
@@ -71,6 +73,7 @@ describe("OpenAIPDFExtractor", () => {
               {
                 type: "file",
                 file: {
+                  filename: "document.pdf",
                   file_data: expect.stringMatching(
                     /^data:application\/pdf;base64,/,
                   ),
@@ -80,6 +83,10 @@ describe("OpenAIPDFExtractor", () => {
           },
         ],
       });
+      // OpenAI's PDF input block requires the `filename` field — without it
+      // the API rejects the request with HTTP 400. See B-A-001 / review-001.
+      const fileBlock = body.messages[1].content[0];
+      expect(fileBlock.file.filename).toBe("document.pdf");
     });
 
     it("returns empty text when the response has no content", async () => {
@@ -92,6 +99,24 @@ describe("OpenAIPDFExtractor", () => {
         text: "",
         pageImages: [],
       });
+    });
+  });
+
+  describe("baseURL forwarding", () => {
+    it("forwards a non-default Azure-style baseURL into the fetched URL while preserving the api-version query string", async () => {
+      const mock = vi.fn(async () => chatTextResponse("ok"));
+      setFetch(mock);
+
+      const extractor = makeExtractor({
+        baseURL:
+          "https://example.azure.com/openai/deployments/dep?api-version=2024-01-01",
+      });
+      await extractor.extract({ bytes: pdfBytes() });
+
+      const [url] = mock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe(
+        "https://example.azure.com/openai/deployments/dep/chat/completions?api-version=2024-01-01",
+      );
     });
   });
 

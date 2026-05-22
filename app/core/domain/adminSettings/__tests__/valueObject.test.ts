@@ -366,6 +366,40 @@ describe("LLMConfig", () => {
       );
     }
   });
+
+  it("rejects env-sourced config with empty-string ciphertext (symmetric with db branch)", () => {
+    try {
+      LLMConfig.create({
+        provider: "anthropic",
+        model: "m",
+        apiKeySource: "env",
+        apiKeyCiphertext: "",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects env-sourced config with whitespace-only ciphertext", () => {
+    try {
+      LLMConfig.create({
+        provider: "anthropic",
+        model: "m",
+        apiKeySource: "env",
+        apiKeyCiphertext: "   ",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+      );
+    }
+  });
 });
 
 describe("DesignTokens", () => {

@@ -30,6 +30,7 @@ function makeProvider(
     apiKey: string;
     model: string;
     timeoutMs: number;
+    baseURL: string;
   }> = {},
 ): OpenAIOCRProvider {
   return new OpenAIOCRProvider({
@@ -38,6 +39,7 @@ function makeProvider(
     ...(overrides.timeoutMs !== undefined
       ? { timeoutMs: overrides.timeoutMs }
       : {}),
+    ...(overrides.baseURL !== undefined ? { baseURL: overrides.baseURL } : {}),
   });
 }
 
@@ -90,6 +92,27 @@ describe("OpenAIOCRProvider", () => {
         mime: "image/jpeg",
       });
       expect(result).toBe("");
+    });
+  });
+
+  describe("baseURL forwarding", () => {
+    it("forwards a non-default Azure-style baseURL into the fetched URL while preserving the api-version query string", async () => {
+      const mock = vi.fn(async () => chatTextResponse("ok"));
+      setFetch(mock);
+
+      const provider = makeProvider({
+        baseURL:
+          "https://example.azure.com/openai/deployments/dep?api-version=2024-01-01",
+      });
+      await provider.extractText({
+        imageBytes: pngBytes(),
+        mime: "image/png",
+      });
+
+      const [url] = mock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe(
+        "https://example.azure.com/openai/deployments/dep/chat/completions?api-version=2024-01-01",
+      );
     });
   });
 

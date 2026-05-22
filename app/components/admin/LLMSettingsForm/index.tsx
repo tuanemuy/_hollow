@@ -75,7 +75,14 @@ export function LLMSettingsForm({
   const baseURLId = useId();
   const apiKeyId = useId();
 
-  const persistedProvider = settings.llm.provider as ProviderId;
+  // Defensive narrowing: the DTO's `provider` is typed as `string` and
+  // could drift away from `LLM_PROVIDERS_TRANSPORT` if the domain adds a
+  // provider before the transport list is updated (or vice versa). Fall
+  // back to the first transport literal so the UI keeps rendering rather
+  // than blowing up on a missing label / select option.
+  const persistedProvider: ProviderId = isProviderId(settings.llm.provider)
+    ? settings.llm.provider
+    : LLM_PROVIDERS_TRANSPORT[0];
   const [provider, setProvider] = useState<ProviderId>(persistedProvider);
   const [model, setModel] = useState(settings.llm.model);
   const [baseURL, setBaseURL] = useState(settings.llm.baseURL ?? "");
@@ -156,6 +163,17 @@ export function LLMSettingsForm({
 
   const summaryMessage = state.error !== null ? displayError(state.error) : "";
   const testErrorMessage = testError !== null ? displayError(testError) : "";
+  // Field-level mapping for the "provider changed but no api key supplied"
+  // server-side rejection. The transport returns a `business`-kind error
+  // with this code; surfacing it on the api-key input lets assistive tech
+  // jump straight to the offending field instead of hunting the summary
+  // for context.
+  const apiKeyServerError =
+    state.error !== null &&
+    state.error.kind === "business" &&
+    state.error.code === "ADMIN_SETTINGS_PROVIDER_CHANGED_REQUIRES_API_KEY"
+      ? "プロバイダ変更には新しい API キーが必要です。"
+      : null;
 
   return (
     <form action={formAction}>
@@ -246,16 +264,24 @@ export function LLMSettingsForm({
           環境変数 <code className={CODE_INLINE_CLASS}>ADMIN_LLM_API_KEY</code>{" "}
           が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。
         </p>
-        <div className={`${BANNER_BASE} bg-accent-surface`} role="status">
-          <div className="flex-1 text-ink">
-            <strong className="block mb-[2px] font-semibold">現在の状態</strong>
-            {settings.llm.apiKeySource === "env"
-              ? "環境変数から読み込み中"
-              : settings.llm.apiKeyMasked !== null
-                ? `DB に保管されたキーを使用中 (${settings.llm.apiKeyMasked})`
-                : "API キーは未設定です"}
+        {!providerChanged ? (
+          // Hide the persisted-state announcement while the provider-change
+          // alert above is live — otherwise screen readers announce two
+          // competing aria-live regions on the same render and the
+          // user-actionable warning loses priority.
+          <div className={`${BANNER_BASE} bg-accent-surface`} role="status">
+            <div className="flex-1 text-ink">
+              <strong className="block mb-[2px] font-semibold">
+                現在の状態
+              </strong>
+              {settings.llm.apiKeySource === "env"
+                ? "環境変数から読み込み中"
+                : settings.llm.apiKeyMasked !== null
+                  ? `DB に保管されたキーを使用中 (${settings.llm.apiKeyMasked})`
+                  : "API キーは未設定です"}
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={apiKeyId}>
             新しい API キー
@@ -283,6 +309,7 @@ export function LLMSettingsForm({
               autoComplete="off"
               disabled={isPending}
               required={apiKeyRequired || undefined}
+              aria-invalid={apiKeyServerError !== null || undefined}
             />
             <button
               type="button"
@@ -298,6 +325,9 @@ export function LLMSettingsForm({
               ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
               : "未入力で保存すると現在のキーが維持されます。"}
           </p>
+          {apiKeyServerError !== null ? (
+            <p className={FIELD_ERROR_CLASS}>{apiKeyServerError}</p>
+          ) : null}
           {testResult !== null ? (
             <div
               className={`${BANNER_BASE} mt-3 ${

@@ -35,6 +35,13 @@ export type UpdateLLMConfigInput = {
    * — the previous ciphertext was encrypted for a different provider's
    * endpoint and is rejected with
    * `AdminSettingsErrorCode.ProviderChangedRequiresApiKey` (ADR-008).
+   *
+   * When the provider is left unchanged AND `apiKeyPlain` is `null` AND
+   * the persisted `apiKeySource === 'env'` AND no env-provided api key
+   * is available at the moment of save, `AdminSettingsService.assertEnvOverride`
+   * throws `AdminSettingsErrorCode.EnvOverrideMissingKey` — the caller
+   * has effectively asked to keep the env source without the env actually
+   * carrying a value.
    */
   apiKeyPlain: string | null;
 };

@@ -41,6 +41,12 @@ export const updateLLMConfigSchema = z.object({
   apiKeyPlain: z.string().min(1).max(4096).nullable(),
 });
 
+// Draft test always sources the api key from the env override
+// (`ADMIN_LLM_API_KEY`). The client must never submit a ciphertext on
+// this path — DB-stored ciphertext lives server-side only and the draft
+// preview never decrypts on behalf of the client. Locking the schema to
+// `apiKeySource: "env" + apiKeyCiphertext: null` closes the transport
+// hole so a malicious client cannot probe arbitrary ciphertexts.
 export const testLLMConnectionSchema = z.object({
   useDraft: z.boolean(),
   draftConfig: z
@@ -48,8 +54,12 @@ export const testLLMConnectionSchema = z.object({
       provider: z.enum(LLM_PROVIDERS_TRANSPORT),
       model: z.string().trim().min(1).max(200),
       baseURL: baseURLSchema,
-      apiKeySource: z.enum(["env", "db"]),
-      apiKeyCiphertext: z.string().max(8192).nullable(),
+      apiKeySource: z.literal("env"),
+      apiKeyCiphertext: z.null(),
+    })
+    .refine((draft) => draft.provider === "openai" || draft.baseURL === null, {
+      message: "OpenAI 以外のプロバイダでは baseURL を空にしてください",
+      path: ["baseURL"],
     })
     .nullable(),
 });

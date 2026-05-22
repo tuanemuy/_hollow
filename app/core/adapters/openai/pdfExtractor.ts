@@ -81,7 +81,7 @@ export class OpenAIPDFExtractor implements PDFExtractor {
       [
         {
           type: "file",
-          file: { file_data: dataURI },
+          file: { filename: "document.pdf", file_data: dataURI },
         },
       ],
       pdfErrorMapper,

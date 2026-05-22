@@ -73,7 +73,7 @@ export type OpenAIImageBlock = Readonly<{
 }>;
 export type OpenAIFileBlock = Readonly<{
   type: "file";
-  file: Readonly<{ file_data: string }>;
+  file: Readonly<{ filename: string; file_data: string }>;
 }>;
 
 export type OpenAIContentBlock =
