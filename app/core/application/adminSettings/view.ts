@@ -1,5 +1,6 @@
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
+import type { AdminSettingsEnv } from "../di/types";
 import {
   type InstanceSettingsDTO,
   toInstanceSettingsDTO,
@@ -31,8 +32,24 @@ export function maskApiKey(cfg: LLMConfig): string | null {
   return `••••${tail}`;
 }
 
+/**
+ * Project an `InstanceSettings` aggregate into the admin-UI DTO,
+ * overlaying `AdminSettingsEnv` so env-locked fields surface their
+ * runtime-effective value and the per-field `envOverrides` flags.
+ *
+ * `env` is optional so callers without a container (legacy fixtures,
+ * domain-layer tests) keep working — `null` means "no env overrides
+ * known", and the DTO falls back to the DB values verbatim.
+ */
 export function toInstanceSettingsView(
   settings: InstanceSettings,
+  env: AdminSettingsEnv | null = null,
 ): InstanceSettingsDTO {
-  return toInstanceSettingsDTO(settings, maskApiKey(settings.llm));
+  // Defense-in-depth: when env.apiKey is set, the env value wins at runtime
+  // and the persisted ciphertext is irrelevant to the UI. Skip masking
+  // entirely so a stale DB cipher never makes the round-trip into the DTO
+  // (`toInstanceSettingsDTO` also nulls `apiKeyMasked` when envOverrides.apiKey,
+  // this is the upstream belt to that suspenders).
+  const apiKeyMasked = env?.apiKey ? null : maskApiKey(settings.llm);
+  return toInstanceSettingsDTO(settings, apiKeyMasked, env);
 }

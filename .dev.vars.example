@@ -66,15 +66,55 @@ ADMIN_SETUP_TOKEN=""
 # `workerSecretSpecs` as of Issue #110).
 SECRET_BOX_MASTER_KEY="ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE="
 
-# --- LLM (Anthropic) env override ----------------------------------------
-# Anthropic API key. DI wires `AnthropicLLMProvider` only when this AND
-# `ADMIN_LLM_MODEL` (the `wrangler.toml [vars]` entry) are BOTH present.
-# Either one empty → falls back to `StubLLMProvider`, which rejects
-# every call with `BusinessRuleError("unsupported_format")`. (The Stub
-# class still exists under `app/core/adapters/stub/` for this LLM
-# fallback; the R2 storage Stub classes were removed in Issue #100 and
-# replaced with an inline DI fallback.) Leave empty for purely local
-# dev; calls to Anthropic are billed.
+# --- LLM provider env override -------------------------------------------
+# 4 paired vars selecting the LLM / OCR / PDF provider:
+#   ADMIN_LLM_PROVIDER : "anthropic" | "openai" | "gemini"
+#   ADMIN_LLM_MODEL    : provider-specific model id
+#   ADMIN_LLM_BASE_URL : OpenAI-compatible endpoint base URL (only honoured
+#                        by the `openai` provider; ignored otherwise)
+#   ADMIN_LLM_API_KEY  : provider-specific API key
+#
+# DI wires the real adapter only when ADMIN_LLM_API_KEY *and*
+# ADMIN_LLM_MODEL are both present and non-empty. Either missing → falls
+# back to `StubLLMProvider` (under `app/core/adapters/stub/`), which
+# rejects every call with `BusinessRuleError("unsupported_format")`.
+# (The R2 storage Stub classes were removed in Issue #100 and replaced
+# with an inline DI fallback; the LLM Stub class is the remaining one.)
+# Leave empty for purely local dev; calls to any provider are billed.
+#
+# When any of these env vars is set, the `/admin/llm` UI surfaces the
+# corresponding field as "環境変数で固定中" (env-locked) and silently
+# preserves the persisted DB value on save — env > DB at runtime per
+# Issue #101 ADR-007.
+#
+# API key formats by provider:
+#   Anthropic : sk-ant-api03-...
+#   OpenAI    : sk-... (本家) / プロバイダ固有 (Groq, vLLM, Azure 等)
+#   Gemini    : AIza...
+#
+# --- Example: Anthropic (default) ---------------------------------------
+# ADMIN_LLM_PROVIDER="anthropic"
+# ADMIN_LLM_MODEL="claude-sonnet-4-5"
+# ADMIN_LLM_BASE_URL=""
+# ADMIN_LLM_API_KEY="sk-ant-api03-..."
+#
+# --- Example: OpenAI 本家 -----------------------------------------------
+# ADMIN_LLM_PROVIDER="openai"
+# ADMIN_LLM_MODEL="gpt-4o"
+# ADMIN_LLM_BASE_URL=""
+# ADMIN_LLM_API_KEY="sk-..."
+#
+# --- Example: Groq (OpenAI-compatible) ----------------------------------
+# ADMIN_LLM_PROVIDER="openai"
+# ADMIN_LLM_MODEL="llama-3.3-70b-versatile"
+# ADMIN_LLM_BASE_URL="https://api.groq.com/openai/v1"
+# ADMIN_LLM_API_KEY="gsk_..."
+#
+# --- Example: Google Gemini ---------------------------------------------
+# ADMIN_LLM_PROVIDER="gemini"
+# ADMIN_LLM_MODEL="gemini-1.5-pro"
+# ADMIN_LLM_BASE_URL=""
+# ADMIN_LLM_API_KEY="AIza..."
 ADMIN_LLM_API_KEY=""
 
 # --- R2 SigV4 presign credentials ---------------------------------------

@@ -74,7 +74,15 @@ export async function updateLLMConfig({
   input,
 }: ServiceArgs<UpdateLLMConfigInput>): Promise<UpdateLLMConfigOutput> {
   const now = container.clock.now();
+  const env = container.adminSettingsEnv;
 
+  // Silent-skip targets per Issue #143 ADR-001 / ADR-005: any LLM field
+  // backed by an `ADMIN_LLM_*` env override is held at the persisted DB
+  // value rather than rewritten with the input. The encrypted apiKey is
+  // a separate axis — `AdminSettingsService.assertEnvOverride` drops it
+  // downstream when `env.apiKey` is set, so the upstream encrypt → drop
+  // is intentional: admin-gated so DoS surface is irrelevant, and a
+  // cheap web-crypto call keeps the control flow simpler than branching.
   const apiKeyCiphertext =
     input.apiKeyPlain === null
       ? null
@@ -86,7 +94,25 @@ export async function updateLLMConfig({
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
 
-      const providerChanged = input.provider !== current.llm.provider;
+      // env override → DB-current value (input + env value both discarded).
+      const effectiveProvider: LLMProvider =
+        env.provider !== null ? current.llm.provider : input.provider;
+      const effectiveModel =
+        env.model !== null ? current.llm.model : input.model;
+      const effectiveBaseURL =
+        env.baseURL !== null ? current.llm.baseURL : input.baseURL;
+      // Reconcile silent-skip + LLMConfig invariant: when the effective
+      // provider lands on a non-openai value (env-pinned or otherwise), a
+      // lingering `input.baseURL` would trip `LLMConfig.create`'s provider
+      // × baseURL guard. Force baseURL to null so silent skip never throws.
+      const safeBaseURL =
+        effectiveProvider === "openai" ? effectiveBaseURL : null;
+
+      // `providerChanged` flips to false when env locks the provider —
+      // the operator cannot change a provider that env has pinned, so the
+      // "must re-enter api key" guard is dead code in that regime.
+      const providerChanged =
+        env.provider === null && input.provider !== current.llm.provider;
       if (providerChanged && apiKeyCiphertext === null) {
         throw new BusinessRuleError(
           AdminSettingsErrorCode.ProviderChangedRequiresApiKey,
@@ -98,24 +124,34 @@ export async function updateLLMConfig({
       const draft: LLMConfig =
         apiKeyCiphertext !== null
           ? LLMConfig.create({
-              provider: input.provider,
-              model: input.model,
-              baseURL: input.baseURL,
+              provider: effectiveProvider,
+              model: effectiveModel,
+              baseURL: safeBaseURL,
               apiKeySource: "db",
               apiKeyCiphertext,
             })
           : LLMConfig.create({
-              provider: input.provider,
-              model: input.model,
-              baseURL: input.baseURL,
+              provider: effectiveProvider,
+              model: effectiveModel,
+              baseURL: safeBaseURL,
               apiKeySource: current.llm.apiKeySource,
               apiKeyCiphertext: current.llm.apiKeyCiphertext,
             });
 
-      const reconciled = AdminSettingsService.assertEnvOverride(
-        draft,
-        container.adminSettingsEnv,
-      );
+      const reconciled = AdminSettingsService.assertEnvOverride(draft, env);
+
+      const skippedFields: string[] = [];
+      if (env.provider !== null) skippedFields.push("provider");
+      if (env.model !== null) skippedFields.push("model");
+      if (env.baseURL !== null) skippedFields.push("baseURL");
+      if (skippedFields.length > 0) {
+        // payload は env 値 / input 値 / ciphertext を含めない（field 名のみ）。
+        // 監査としては「どの field が silent skip されたか」だけが必要であり、
+        // 実値を流すと secret hygiene が崩れる。
+        container.logger.warn("admin_llm_env_override_skip", {
+          fields: skippedFields,
+        });
+      }
 
       const next = InstanceSettings.updateLLM(current, reconciled, now);
       await instanceSettingsRepository.save(next, expectedVersion);

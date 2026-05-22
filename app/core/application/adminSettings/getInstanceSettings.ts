@@ -32,5 +32,7 @@ export async function getInstanceSettings({
       return entity;
     },
   );
-  return { settings: toInstanceSettingsView(settings) };
+  return {
+    settings: toInstanceSettingsView(settings, container.adminSettingsEnv),
+  };
 }

@@ -32,13 +32,28 @@ import type { UsageMetricsProvider } from "../ports/usageMetricsProvider";
 /**
  * Operator-controlled env values that adminSettings usecases consult.
  *
- * `apiKey` mirrors the `env.apiKey` field threaded through
- * `AdminSettingsService.assertEnvOverride`. `null` means "operator has
- * not configured an env-supplied key"; the stored `LLMConfig` takes
- * effect verbatim. When set, the env value forces `apiKeySource = 'env'`
- * so runtime resolution always prefers it.
+ * Each field mirrors a single `ADMIN_LLM_*` env var. `null` means the
+ * operator has not configured an env override for that field; the
+ * stored `LLMConfig` takes effect verbatim. Presence semantics follow
+ * `value !== undefined && value.length > 0` (see ADR-002 of Issue #143),
+ * matching the consumer-side resolver in
+ * `serverCloudflare.ts:resolveConsumerLlmConfig` so admin UI and
+ * consumer agree on which fields are env-locked.
+ *
+ * - `apiKey`: forces `apiKeySource = 'env'` via
+ *   `AdminSettingsService.assertEnvOverride` so runtime always prefers
+ *   the env value. The raw string never crosses into the DTO.
+ * - `provider` / `model` / `baseURL`: silent-skip targets in
+ *   `updateLLMConfig` — when set, the corresponding fields on the saved
+ *   draft are reverted to the persisted DB value so env > DB resolution
+ *   stays consistent across read and write paths.
  */
-export type AdminSettingsEnv = Readonly<{ apiKey: string | null }>;
+export type AdminSettingsEnv = Readonly<{
+  apiKey: string | null;
+  provider: string | null;
+  model: string | null;
+  baseURL: string | null;
+}>;
 
 export type AppConfig = Readonly<{
   appUrl: string;
@@ -176,9 +191,9 @@ export type RequestContainer = SharedDeps &
      */
     usageMetricsProvider: UsageMetricsProvider;
     /**
-     * Operator-controlled env values consulted by admin usecases.
-     * Currently only the LLM api-key env override (see
-     * `AdminSettingsService.assertEnvOverride`).
+     * Operator-controlled env values consulted by admin usecases. See
+     * {@link AdminSettingsEnv} for field semantics and the env-override
+     * contract shared with the consumer-side resolver.
      */
     adminSettingsEnv: AdminSettingsEnv;
   }>;

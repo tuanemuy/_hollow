@@ -32,6 +32,25 @@ export type InstanceSettingsDTO = Readonly<{
      * adapter boundary.
      */
     apiKeyMasked: string | null;
+    /**
+     * Per-field flag indicating whether the operator has supplied an
+     * `ADMIN_LLM_*` env override for that LLM setting. `true` means the
+     * UI MUST render the field in a locked state (env value wins over
+     * any DB-stored value). The `provider` / `model` / `baseURL` fields
+     * above are overwritten with the env-supplied current value when
+     * the matching `envOverrides.*` flag is `true`, so the admin sees
+     * the runtime-effective value rather than the stale DB value.
+     *
+     * The raw `apiKey` value never reaches the DTO — only the boolean
+     * presence flag — so the masked / source pair already in this DTO
+     * remains the sole channel for surfacing the api-key state.
+     */
+    envOverrides: Readonly<{
+      provider: boolean;
+      model: boolean;
+      apiKey: boolean;
+      baseURL: boolean;
+    }>;
   }>;
   prompts: Readonly<Record<string, PromptDTO>>;
   designTokens: Readonly<Record<string, string>>;
@@ -76,10 +95,22 @@ export function toRebuildSearchIndexResultDTO(result: {
  * `apiKeyMasked` is materialised by the caller (usecase) so the
  * application layer can swap masking strategies without touching the
  * domain. Pass `null` when the source is `env` or no key is configured.
+ *
+ * `llmEnv` carries the runtime-effective env override values plus the
+ * presence flags so the DTO can surface env-locked fields with the
+ * current (env-derived) value rather than the stale DB value. Callers
+ * that have no env state (legacy tests, fixtures) can pass
+ * `llmEnv: null` to fall back to the DB value verbatim.
  */
 export function toInstanceSettingsDTO(
   settings: InstanceSettings,
   apiKeyMasked: string | null,
+  llmEnv: Readonly<{
+    apiKey: string | null;
+    provider: string | null;
+    model: string | null;
+    baseURL: string | null;
+  }> | null,
 ): InstanceSettingsDTO {
   const prompts: Record<string, PromptDTO> = {};
   for (const [purpose, template] of Object.entries(settings.prompts)) {
@@ -92,13 +123,38 @@ export function toInstanceSettingsDTO(
   for (const [key, value] of Object.entries(settings.designTokens.tokens)) {
     designTokens[key] = value;
   }
+  const envOverrides = {
+    provider: llmEnv !== null && llmEnv.provider !== null,
+    model: llmEnv !== null && llmEnv.model !== null,
+    apiKey: llmEnv !== null && llmEnv.apiKey !== null,
+    baseURL: llmEnv !== null && llmEnv.baseURL !== null,
+  };
+  // env-locked fields surface the runtime-effective value rather than the
+  // stale DB value (Issue #143 ADR-003). `provider` is narrowed back to
+  // `LLMProviderName` defensively — validated by `createLLMProvider`'s
+  // `default: throw` at DI bootstrap, so any unrecognized value would have
+  // already aborted container construction before reaching this DTO.
+  const provider = (
+    envOverrides.provider && llmEnv !== null && llmEnv.provider !== null
+      ? llmEnv.provider
+      : settings.llm.provider
+  ) as LLMProviderName;
+  const model =
+    envOverrides.model && llmEnv !== null && llmEnv.model !== null
+      ? llmEnv.model
+      : settings.llm.model;
+  const baseURL =
+    envOverrides.baseURL && llmEnv !== null && llmEnv.baseURL !== null
+      ? llmEnv.baseURL
+      : settings.llm.baseURL;
   return {
     llm: {
-      provider: settings.llm.provider,
-      model: settings.llm.model,
-      baseURL: settings.llm.baseURL,
+      provider,
+      model,
+      baseURL,
       apiKeySource: settings.llm.apiKeySource,
-      apiKeyMasked,
+      apiKeyMasked: envOverrides.apiKey ? null : apiKeyMasked,
+      envOverrides,
     },
     prompts,
     designTokens,

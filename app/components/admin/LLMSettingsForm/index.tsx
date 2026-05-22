@@ -41,7 +41,7 @@ const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
 const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 const INPUT_CLASS =
-  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
+  "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-surface";
 const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const SELECT_CLASS = INPUT_CLASS;
 const BTN_CLASS =
@@ -56,6 +56,9 @@ const CODE_INLINE_CLASS =
   "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
 const REQUIRED_BADGE_CLASS =
   "inline-flex items-center h-5 px-2 ml-2 rounded-pill bg-error-surface text-error text-[11px] font-semibold align-middle";
+const LOCK_BADGE_CLASS =
+  "inline-flex items-center h-5 px-2 ml-2 rounded-pill bg-surface text-ink-secondary text-[11px] font-semibold align-middle";
+const LOCK_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
 
 function isProviderId(value: string): value is ProviderId {
   return (LLM_PROVIDERS_TRANSPORT as readonly string[]).includes(value);
@@ -74,6 +77,10 @@ export function LLMSettingsForm({
   const modelId = useId();
   const baseURLId = useId();
   const apiKeyId = useId();
+  const providerLockHintId = useId();
+  const modelLockHintId = useId();
+  const baseURLLockHintId = useId();
+  const apiKeyLockHintId = useId();
 
   // Defensive narrowing: the DTO's `provider` is typed as `string` and
   // could drift away from `LLM_PROVIDERS_TRANSPORT` if the domain adds a
@@ -91,9 +98,26 @@ export function LLMSettingsForm({
   const [testError, setTestError] = useState<SerializedError | null>(null);
   const [isTesting, startTestTransition] = useTransition();
 
-  const providerChanged = provider !== persistedProvider;
-  const apiKeyRequired = providerChanged;
-  const showBaseURL = provider === "openai";
+  const envOverrides = settings.llm.envOverrides;
+  // env-locked fields: HTML `disabled` removes them from the submitted
+  // FormData per spec, so the usecase silent-skip is a defensive net
+  // rather than the primary mechanism (Issue #143 ADR-006).
+  const allLocked =
+    envOverrides.provider &&
+    envOverrides.model &&
+    envOverrides.apiKey &&
+    envOverrides.baseURL;
+  // env-pinned provider cannot be changed by the operator. Without this
+  // suppression the local `provider` state would diverge from
+  // `persistedProvider` whenever the user toggles a still-mounted select
+  // option, and `providerChanged` would falsely demand an api key.
+  const providerChanged =
+    !envOverrides.provider && provider !== persistedProvider;
+  const apiKeyRequired = providerChanged && !envOverrides.apiKey;
+  // Render the baseURL field when the provider is openai (semantics: only
+  // openai consumes a base URL) OR when env has set a baseURL (so the lock
+  // UI surfaces even with `ADMIN_LLM_PROVIDER=anthropic + ADMIN_LLM_BASE_URL=...`).
+  const showBaseURL = provider === "openai" || envOverrides.baseURL;
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -177,6 +201,24 @@ export function LLMSettingsForm({
 
   return (
     <form action={formAction}>
+      {allLocked ? (
+        <div
+          className={`${BANNER_BASE} bg-accent-surface`}
+          role="status"
+          data-all-env-locked=""
+        >
+          <div className="flex-1 text-ink">
+            <strong className="block mb-[2px] font-semibold">
+              すべての LLM 設定が環境変数で固定中
+            </strong>
+            プロバイダ・モデル・Base URL・API
+            キーのすべてが環境変数で設定されています。
+            このページからの変更は反映されません。設定を変更するには
+            <code className={CODE_INLINE_CLASS}>ADMIN_LLM_*</code>{" "}
+            環境変数を更新してください。
+          </div>
+        </div>
+      ) : null}
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>LLM プロバイダ</h2>
         <p className={SECTION_DESC_CLASS}>
@@ -186,6 +228,11 @@ export function LLMSettingsForm({
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={providerId}>
             プロバイダ
+            {envOverrides.provider ? (
+              <span className={LOCK_BADGE_CLASS} aria-hidden="true">
+                環境変数で固定中
+              </span>
+            ) : null}
           </label>
           <select
             id={providerId}
@@ -198,7 +245,11 @@ export function LLMSettingsForm({
                 setProvider(next);
               }
             }}
-            disabled={isPending}
+            disabled={isPending || envOverrides.provider}
+            data-env-locked={envOverrides.provider || undefined}
+            aria-describedby={
+              envOverrides.provider ? providerLockHintId : undefined
+            }
           >
             {LLM_PROVIDERS_TRANSPORT.map((id) => (
               <option key={id} value={id}>
@@ -209,6 +260,13 @@ export function LLMSettingsForm({
           <p className={FIELD_HINT_CLASS}>
             現在の保存値: {PROVIDER_LABEL[persistedProvider]}
           </p>
+          {envOverrides.provider ? (
+            <p className={LOCK_HINT_CLASS} id={providerLockHintId}>
+              環境変数{" "}
+              <code className={CODE_INLINE_CLASS}>ADMIN_LLM_PROVIDER</code>{" "}
+              で固定されているため変更できません。
+            </p>
+          ) : null}
         </div>
         {providerChanged ? (
           <div
@@ -229,6 +287,11 @@ export function LLMSettingsForm({
           <div className={FIELD_CLASS}>
             <label className={FIELD_LABEL_CLASS} htmlFor={baseURLId}>
               Base URL（任意）
+              {envOverrides.baseURL ? (
+                <span className={LOCK_BADGE_CLASS} aria-hidden="true">
+                  環境変数で固定中
+                </span>
+              ) : null}
             </label>
             <input
               id={baseURLId}
@@ -239,8 +302,12 @@ export function LLMSettingsForm({
               value={baseURL}
               onChange={(event) => setBaseURL(event.target.value)}
               placeholder="https://api.openai.com/v1"
-              disabled={isPending}
+              disabled={isPending || envOverrides.baseURL}
+              data-env-locked={envOverrides.baseURL || undefined}
               autoComplete="off"
+              aria-describedby={
+                envOverrides.baseURL ? baseURLLockHintId : undefined
+              }
             />
             <p className={FIELD_HINT_CLASS}>
               OpenAI 本家を使う場合は空欄で OK。Azure / Groq / vLLM 等の場合は
@@ -254,6 +321,13 @@ export function LLMSettingsForm({
               PDF 取り込みには <code className={CODE_INLINE_CLASS}>gpt-4o</code>{" "}
               系のモデル指定が必要です。
             </p>
+            {envOverrides.baseURL ? (
+              <p className={LOCK_HINT_CLASS} id={baseURLLockHintId}>
+                環境変数{" "}
+                <code className={CODE_INLINE_CLASS}>ADMIN_LLM_BASE_URL</code>{" "}
+                で固定されているため変更できません。
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -290,6 +364,11 @@ export function LLMSettingsForm({
                 必須
               </span>
             ) : null}
+            {envOverrides.apiKey ? (
+              <span className={LOCK_BADGE_CLASS} aria-hidden="true">
+                環境変数で固定中
+              </span>
+            ) : null}
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -307,9 +386,13 @@ export function LLMSettingsForm({
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
               autoComplete="off"
-              disabled={isPending}
+              disabled={isPending || envOverrides.apiKey}
+              data-env-locked={envOverrides.apiKey || undefined}
               required={apiKeyRequired || undefined}
               aria-invalid={apiKeyServerError !== null || undefined}
+              aria-describedby={
+                envOverrides.apiKey ? apiKeyLockHintId : undefined
+              }
             />
             <button
               type="button"
@@ -320,10 +403,15 @@ export function LLMSettingsForm({
               {isTesting ? "テスト中..." : "接続テスト"}
             </button>
           </div>
-          <p className={FIELD_HINT_CLASS}>
-            {apiKeyRequired
-              ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
-              : "未入力で保存すると現在のキーが維持されます。"}
+          <p
+            className={FIELD_HINT_CLASS}
+            id={envOverrides.apiKey ? apiKeyLockHintId : undefined}
+          >
+            {envOverrides.apiKey
+              ? "環境変数 ADMIN_LLM_API_KEY で固定されているため変更できません。"
+              : apiKeyRequired
+                ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
+                : "未入力で保存すると現在のキーが維持されます。"}
           </p>
           {apiKeyServerError !== null ? (
             <p className={FIELD_ERROR_CLASS}>{apiKeyServerError}</p>
@@ -356,6 +444,11 @@ export function LLMSettingsForm({
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={modelId}>
             既定モデル
+            {envOverrides.model ? (
+              <span className={LOCK_BADGE_CLASS} aria-hidden="true">
+                環境変数で固定中
+              </span>
+            ) : null}
           </label>
           <input
             id={modelId}
@@ -364,8 +457,10 @@ export function LLMSettingsForm({
             className={INPUT_CLASS}
             value={model}
             onChange={(event) => setModel(event.target.value)}
-            required
-            disabled={isPending}
+            required={!envOverrides.model || undefined}
+            disabled={isPending || envOverrides.model}
+            data-env-locked={envOverrides.model || undefined}
+            aria-describedby={envOverrides.model ? modelLockHintId : undefined}
           />
           <p className={FIELD_HINT_CLASS}>
             例:{" "}
@@ -375,6 +470,13 @@ export function LLMSettingsForm({
                 ? "gpt-4o"
                 : "gemini-1.5-pro"}
           </p>
+          {envOverrides.model ? (
+            <p className={LOCK_HINT_CLASS} id={modelLockHintId}>
+              環境変数{" "}
+              <code className={CODE_INLINE_CLASS}>ADMIN_LLM_MODEL</code>{" "}
+              で固定されているため変更できません。
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -388,7 +490,8 @@ export function LLMSettingsForm({
         <button
           type="submit"
           className={BTN_PRIMARY_CLASS}
-          disabled={isPending}
+          disabled={isPending || allLocked}
+          data-all-env-locked={allLocked || undefined}
         >
           {isPending ? "保存中..." : "変更を保存"}
         </button>

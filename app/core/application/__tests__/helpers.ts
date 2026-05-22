@@ -120,7 +120,12 @@ export function createTestContainer(): TestContainer {
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
-    adminSettingsEnv: { apiKey: null },
+    adminSettingsEnv: {
+      apiKey: null,
+      provider: null,
+      model: null,
+      baseURL: null,
+    },
     objectStorage: new InMemoryObjectStorage(),
     htmlRenderer: new TemplateHtmlRenderer(),
     markdownRenderer: new HtmlToMarkdownRenderer(),
