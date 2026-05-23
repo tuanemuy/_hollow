@@ -92,9 +92,16 @@ export type ProcessOutboxEventsOptions = {
   // the next-attempt timestamp finite.
   backoffMs?: (attempts: number) => number;
   // Identifies this worker on the rows it claims (diagnostics only).
-  // Defaults to a stable id minted once per isolate, so a worker that
-  // crashes mid-batch and restarts on the same isolate sees its own
-  // prior claim in `claimed_by` rather than an unrelated UUID.
+  // Defaults to a fresh id minted per tick via `container.idGenerator`.
+  // Tick-scoped (rather than isolate-scoped) attribution matches the
+  // lease lifecycle: a `claimed_by` value lives only as long as the
+  // claim that wrote it, so a retry on the same isolate is correctly
+  // observed as a new attempt rather than the same worker re-asserting
+  // its prior claim. Generation deliberately routes through the
+  // `IdGenerator` port so this module never invokes `crypto.randomUUID()`
+  // — Cloudflare Workers rejects random generation in global scope at
+  // upload time (validation 10021), and routing through the port also
+  // keeps id minting deterministic under test.
   workerId?: string;
   // How long a claimed row stays exclusive to this worker before another
   // worker is allowed to re-claim it (covers a crashed worker without an
@@ -110,13 +117,6 @@ export type ProcessOutboxEventsOptions = {
   // safety-net cron picks up the rest on the next tick.
   maxIterations?: number;
 };
-
-// Stable diagnostic id for the relay worker. Evaluated once at module
-// load (i.e. per isolate), so successive ticks on the same isolate
-// share the same `claimed_by` value. UUIDv4 is sufficient — this id is
-// never used as a domain key, only for log correlation and lease
-// attribution.
-const RELAY_WORKER_ID = crypto.randomUUID();
 
 export const DEFAULT_BATCH_SIZE = 100;
 // Quarantine after 2 publish attempts. The consumer-side queue then
@@ -218,8 +218,8 @@ async function processOutboxBatch(
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const backoffMs = options.backoffMs ?? defaultBackoffMs;
   const leaseMs = options.leaseMs ?? DEFAULT_LEASE_MS;
-  const { logger, clock, outboxRepository } = container;
-  const workerId = options.workerId ?? RELAY_WORKER_ID;
+  const { logger, clock, outboxRepository, idGenerator } = container;
+  const workerId = options.workerId ?? idGenerator.next();
 
   const now = clock.now();
   const entries = await outboxRepository.claimPending({
