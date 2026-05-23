@@ -469,6 +469,68 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
+  listWithCount(
+    ownerId: UserId,
+    opts: NoteOwnerListOpts,
+  ): Promise<{ items: readonly Note[]; count: number }> {
+    return mapDbError("Failed to list notes with count by owner", async () => {
+      const sortCol = pickSortColumn(opts.sort);
+      const order = opts.order ?? "desc";
+
+      // Single filter resolution shared by both projections. The
+      // candidate-set fetches (`resolveVisibilityCandidateIds`,
+      // `resolveTagAndCandidates`, `resolveReferrerCandidates`) and the
+      // `intersectIdSets` pass run exactly once — the prior
+      // `findByOwner` + `countByOwner` pair ran them twice. See
+      // `.issue/173/adr.md` ADR-001.
+      const built = await this.buildOwnerListWhere(ownerId, opts);
+      if (built === null) return { items: [], count: 0 };
+      const { where, idScope } = built;
+
+      if (idScope === null) {
+        // Reads against the binding do not share an in-flight
+        // transaction, so the page-row select and the `count()`
+        // aggregate are safe to fire concurrently. See `loadChildren`
+        // (above) for the same pattern.
+        const [rows, countRows] = await Promise.all([
+          this.db
+            .select()
+            .from(notes)
+            .where(where)
+            .orderBy(
+              order === "asc" ? asc(notes[sortCol]) : desc(notes[sortCol]),
+              desc(notes.id),
+            )
+            .limit(opts.limit)
+            .offset(opts.offset),
+          this.db.select({ c: count() }).from(notes).where(where),
+        ]);
+        const items = await this.hydrateMany(rows);
+        return { items, count: countRows[0]?.c ?? 0 };
+      }
+
+      // Chunk path: the full filtered id set has to be materialised to
+      // run the cross-chunk JS sort anyway, so `count` is just
+      // `sorted.length` — no extra per-chunk `count()` round trips.
+      const rows = await selectInChunks(Array.from(idScope), (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(and(where, inArray(notes.id, [...chunk]))),
+      );
+      const sorted = sortNoteRowsBy(rows, sortCol, order);
+      const page = sorted.slice(opts.offset, opts.offset + opts.limit);
+      const items = await this.hydrateMany(page);
+      // `sorted` only contains rows that passed the full `where`
+      // (per-chunk query applies it via `and(where, inArray(...))`), so
+      // `sorted.length` equals the filtered total — not `idScope.size`,
+      // which omits `where` predicates outside the candidate sets
+      // (status / dateRange / visibility NOT EXISTS). See
+      // `.issue/165/adr.md` ADR-001 §補足.
+      return { items, count: sorted.length };
+    });
+  }
+
   // Filter-only where-builder shared by `findByOwner` and `countByOwner`
   // so the two cannot drift in filter semantics. Returns `null` when the
   // filter mix is structurally guaranteed to match zero rows (empty

@@ -1,8 +1,5 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
-import type {
-  NoteOwnerCountOpts,
-  NoteOwnerListOpts,
-} from "@/core/domain/note/ports/noteRepository";
+import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
 import type {
   DateRange,
   NoteId,
@@ -37,9 +34,15 @@ export async function listNotesByOwner({
   input,
 }: ServiceArgs<ListNotesByOwnerInput>): Promise<ListNotesByOwnerOutput> {
   const offset = Math.max(0, (input.page - 1) * input.limit);
-  // Filter set shared between the list query and the count query so the
-  // rendered `count` cannot disagree with the visible slice (Issue #30).
-  const countOpts: NoteOwnerCountOpts = {
+  // `listWithCount` derives both the page and the total from a single
+  // filter resolution, so the rendered count is structurally consistent
+  // with the visible slice (Issue #30). Pagination / sort fields on
+  // `opts` only affect `items`; `count` is the filtered total.
+  const opts: NoteOwnerListOpts = {
+    limit: input.limit,
+    offset,
+    ...(input.sort !== undefined ? { sort: input.sort } : {}),
+    ...(input.order !== undefined ? { order: input.order } : {}),
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
     ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
@@ -48,24 +51,11 @@ export async function listNotesByOwner({
       ? { referencingNoteId: input.referencingNoteId }
       : {}),
   };
-  const opts: NoteOwnerListOpts = {
-    limit: input.limit,
-    offset,
-    ...(input.sort !== undefined ? { sort: input.sort } : {}),
-    ...(input.order !== undefined ? { order: input.order } : {}),
-    ...countOpts,
-  };
 
   const { items, count } = await container.unitOfWorkProvider.run(
     async (ctx) => {
-      const found = await ctx.noteRepository.findByOwner(
-        input.actorUserId,
-        opts,
-      );
-      const total = await ctx.noteRepository.countByOwner(
-        input.actorUserId,
-        countOpts,
-      );
+      const { items: found, count: total } =
+        await ctx.noteRepository.listWithCount(input.actorUserId, opts);
       const tagIds = new Set<string>();
       for (const note of found) {
         for (const id of note.tagIds) tagIds.add(id);

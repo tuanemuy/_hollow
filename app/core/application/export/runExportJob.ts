@@ -224,6 +224,10 @@ function buildAssemblyDeps(
       async countByOwner() {
         return 0;
       },
+      // Export pipeline never lists owner-scoped notes through this stub.
+      async listWithCount() {
+        return { items: [], count: 0 };
+      },
       async insert() {},
       async save() {},
       async delete() {},
