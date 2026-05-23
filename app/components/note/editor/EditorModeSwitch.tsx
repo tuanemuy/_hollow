@@ -1,4 +1,4 @@
-import { pillBtn, pillBtnPrimary } from "../styles";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { EditorMode } from "./editorState";
 
 /**

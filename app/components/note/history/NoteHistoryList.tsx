@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { pillBtn } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteDetail, loadNoteRevisions } from "../loaders";
-import { pillBtn } from "../styles";
 
 /**
  * P11h — list of past `NoteRevision` snapshots for a single note.

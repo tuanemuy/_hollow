@@ -15,9 +15,9 @@ import type {
   SuggestionProps,
 } from "@tiptap/suggestion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { searchInternalLinkTargetsFn } from "@/components/note/actions";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
-import { pillBtn, pillBtnPrimary } from "../styles";
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";

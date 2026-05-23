@@ -2,7 +2,7 @@
  * Shared Tailwind utility-class constants for tag components.
  *
  * Follows the same plain-string-constant pattern as
- * `note/styles.ts`, `auth/styles.ts`, `layout/styles.ts`, `public/styles.ts`
+ * `common/styles.ts`, `auth/styles.ts`, `layout/styles.ts`, `public/styles.ts`
  * (see CLAUDE.md "Repeated utility strings can be hoisted").
  */
 

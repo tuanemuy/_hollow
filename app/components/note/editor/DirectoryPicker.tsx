@@ -1,8 +1,8 @@
 "use client";
 
 import { useId } from "react";
+import { field, fieldControl, fieldLabel } from "@/components/common/styles";
 import type { FlatDirectory } from "../loaders";
-import { field, fieldControl, fieldLabel } from "../styles";
 
 /**
  * Directory selector for the editor.

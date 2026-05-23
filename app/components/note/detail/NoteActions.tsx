@@ -9,6 +9,12 @@ import {
   TRASH_SEARCH,
 } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import {
+  formError,
+  pillBtn,
+  pillBtnDanger,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import type { NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -19,7 +25,6 @@ import {
 import { deleteNoteFn, duplicateNoteFn } from "../actions";
 import { MoveNoteDialog } from "../list/MoveNoteDialog";
 import type { FlatDirectory } from "../loaders";
-import { formError, pillBtn, pillBtnDanger, pillBtnPrimary } from "../styles";
 import { UrlCopyButton } from "./UrlCopyButton";
 
 export type NoteActionsProps = Readonly<{

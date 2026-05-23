@@ -4,18 +4,20 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
-import { dialogActions, dialogTitle } from "@/components/note/styles";
+import {
+  dialogActions,
+  dialogTitle,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import {
-  FIELD_INPUT,
-  FIELD_LABEL,
-  FORM_ERROR,
-  PILL_BTN,
-} from "../layout/styles";
 import { mergeTagsFn } from "./actions";
 import { progressBarIndeterminate, progressTrack } from "./styles";
 
@@ -74,7 +76,7 @@ export function MergeTagDialog({
       <form onSubmit={submit} aria-busy={isPending}>
         <h2 className={dialogTitle}>タグを統合</h2>
         <div className="flex flex-col gap-2 mb-4">
-          <label htmlFor={targetId} className={FIELD_LABEL}>
+          <label htmlFor={targetId} className={fieldLabel}>
             統合先タグ
           </label>
           <select
@@ -82,7 +84,7 @@ export function MergeTagDialog({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             required
-            className={FIELD_INPUT}
+            className={fieldControl}
           >
             <option value="">— 選択してください —</option>
             {candidates.map((c) => (
@@ -106,7 +108,7 @@ export function MergeTagDialog({
           </p>
         ) : null}
         {error !== null ? (
-          <p className={FORM_ERROR} role="alert">
+          <p className={formError} role="alert">
             {displayError(error)}
           </p>
         ) : null}
@@ -132,7 +134,7 @@ export function MergeTagDialog({
         <div className={dialogActions}>
           <button
             type="button"
-            className={PILL_BTN}
+            className={pillBtn}
             onClick={onClose}
             disabled={isPending}
           >
@@ -140,7 +142,7 @@ export function MergeTagDialog({
           </button>
           <button
             type="submit"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
             disabled={isPending || target === ""}
           >

@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  dialog,
-  dialogBackdrop,
-  dialogCloseButton,
-} from "@/components/note/styles";
+import { dialog, dialogBackdrop, dialogCloseButton } from "./styles";
 
 export type DialogProps = Readonly<{
   open: boolean;

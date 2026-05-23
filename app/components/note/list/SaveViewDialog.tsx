@@ -3,13 +3,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
-import { createSavedViewFn } from "@/components/view/actions";
-import { displayError } from "@/core/presentation/errorDisplay";
-import {
-  extractSerializedError,
-  type SerializedError,
-} from "@/core/presentation/errorResponse";
-import type { NoteListSearch } from "../schema";
 import {
   dialogActions,
   dialogTitle,
@@ -20,7 +13,14 @@ import {
   pillBtn,
   pillBtnPrimary,
   radioRow,
-} from "../styles";
+} from "@/components/common/styles";
+import { createSavedViewFn } from "@/components/view/actions";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import type { NoteListSearch } from "../schema";
 import { searchToViewQuery } from "./listSelectors";
 
 type Props = {

@@ -3,6 +3,13 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import {
+  dialogActions,
+  dialogTitle,
+  field,
+  fieldControl,
+  pillBtn,
+} from "@/components/common/styles";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -11,13 +18,6 @@ import {
 } from "@/core/presentation/errorResponse";
 import { searchInternalLinkTargetsFn } from "../actions";
 import { nextSuggestionIndex } from "../editor/internalLinkSuggest";
-import {
-  dialogActions,
-  dialogTitle,
-  field,
-  fieldControl,
-  pillBtn,
-} from "../styles";
 
 type NoteSuggestion = Extract<InternalLinkSuggestion, { kind: "note" }>;
 

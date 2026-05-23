@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import { NOTE_HISTORY_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { formError, pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -12,7 +13,6 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { restoreNoteRevisionFn } from "../actions";
-import { formError, pillBtn, pillBtnPrimary } from "../styles";
 
 /**
  * Client-side toolbar wrapping the "restore" action on the past-revision

@@ -1,5 +1,5 @@
 /**
- * Shared Tailwind utility-class constants for note components.
+ * Shared Tailwind utility-class constants for common UI primitives (domain-agnostic).
  *
  * These are plain string constants (not `@apply` CSS rules) — Tailwind
  * JIT still sees the static utility tokens, so the bundle stays the same

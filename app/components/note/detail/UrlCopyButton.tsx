@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { pillBtn } from "../styles";
+import { pillBtn } from "@/components/common/styles";
 
 /**
  * Client-side URL copy button.

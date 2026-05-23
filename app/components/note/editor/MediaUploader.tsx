@@ -2,6 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
+import { field, fieldLabel, pillBtn } from "@/components/common/styles";
 import {
   finalizeMediaUploadFn,
   presignMediaUploadFn,
@@ -11,7 +12,6 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { field, fieldLabel, pillBtn } from "../styles";
 import { insertMediaIntoHtml } from "./mediaInsert";
 
 /**

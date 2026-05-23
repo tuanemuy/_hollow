@@ -4,12 +4,6 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
-import { displayError } from "@/core/presentation/errorDisplay";
-import {
-  extractSerializedError,
-  type SerializedError,
-} from "@/core/presentation/errorResponse";
-import { bulkExportNotesFn } from "../actions";
 import {
   checkboxRow,
   dialogActions,
@@ -21,7 +15,13 @@ import {
   pillBtn,
   pillBtnPrimary,
   radioRow,
-} from "../styles";
+} from "@/components/common/styles";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { bulkExportNotesFn } from "../actions";
 import { useSelection } from "./SelectionContext";
 
 type Props = {
