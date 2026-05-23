@@ -26,12 +26,11 @@ compatibility_flags = ["nodejs_compat"]
 type = "ESModule"
 globs = ["**/*.js", "**/*.mjs"]
 
-# Route — keep in sync with infra/Pulumi.staging.yaml (hollow:hostname + hollow:zoneName).
-# Managed by wrangler (not Pulumi) so Worker code + route apply atomically; see Issue #139.
-# This route applies only to the web Worker (top level); relay/consumer/pruner/dlq have no public routes.
-routes = [
-  { pattern = "staging.hollow.maku-ja.com/*", zone_name = "maku-ja.com" }
-]
+# The web Worker's public hostname is bound via Cloudflare Workers
+# Custom Domains, provisioned by Pulumi (`infra/src/dns.ts`). The legacy
+# `routes = [...]` block is intentionally absent: Custom Domains own both
+# the DNS record and the edge cert, so a `routes` declaration would race
+# with the Pulumi-managed binding.
 
 [assets]
 directory = "./dist/client"

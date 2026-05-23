@@ -1,22 +1,35 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import type { Config } from "./config.ts";
+import { workerNames } from "./config.ts";
 
-const PLACEHOLDER_AAAA = "100::";
-
+// Bind the web Worker to `cfg.hostname` via Workers Custom Domains.
+// Custom Domains let Cloudflare own the DNS record and the edge cert
+// for the host — Universal SSL only covers the zone apex and a single
+// wildcard level, so `staging.hollow.maku-ja.com` and similar
+// multi-level subdomains have no cert under the legacy
+// `wrangler routes` + proxied-DnsRecord pattern.
+//
+// `environment = "production"` here matches Cloudflare's internal
+// version namespace for the top-level wrangler deploy (`wrangler
+// deploy --config wrangler.<stage>.toml` without `--env <x>`) — it is
+// NOT the same as the `[env.relay]` / `[env.consumer]` sub-environments
+// in wrangler.toml.
 export const createDns = (cfg: Config) => {
   const zone = cloudflare.getZoneOutput({ filter: { name: cfg.zoneName } });
+  const names = workerNames(cfg);
 
-  const aaaa = new cloudflare.DnsRecord(`dns-${cfg.stage}`, {
-    zoneId: zone.id,
-    name: cfg.hostname,
-    type: "AAAA",
-    content: PLACEHOLDER_AAAA,
-    proxied: true,
-    ttl: 1,
-    comment: `Placeholder AAAA for proxied Worker route; see wrangler.${cfg.stage}.toml`,
-  });
+  const customDomain = new cloudflare.WorkersCustomDomain(
+    `custom-domain-${cfg.stage}`,
+    {
+      accountId: cfg.accountId,
+      zoneId: zone.id,
+      hostname: cfg.hostname,
+      service: names.web,
+      environment: "production",
+    },
+  );
 
-  return { aaaa, zone };
+  return { customDomain, zone };
 };
 
 export type DnsOutput = ReturnType<typeof createDns>;
