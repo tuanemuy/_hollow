@@ -415,15 +415,57 @@ export class D1NoteRepository implements NoteRepository {
         return this.hydrateMany(rows);
       }
 
-      const rows = await selectInChunks(Array.from(idScope), (chunk) =>
+      // 2-pass chunk path (Issue #171): Pass 1 reads only the
+      // sort-key columns (`id + updatedAt + createdAt + title`,
+      // ~150 bytes/row) across the full `idScope`, JS-sorts and
+      // slices to confirm the page id set; Pass 2 fetches the full
+      // `NoteRow` (including `contentHtml` / `frontMatterJson`)
+      // only for the at-most-`limit` page ids. This caps the heavy
+      // materialisation at `limit × NoteRow` instead of the prior
+      // `idScope.size × NoteRow` — critical because `contentHtml`
+      // reaches 10-50KB/row in production. The `where` predicate is
+      // applied in Pass 1 only: Pass 2 just IN-filters on the
+      // already-narrowed `pageIds` (see `.issue/171/adr.md`
+      // ADR-001 §補足 for the safety argument).
+      const sortRows = await selectInChunks(Array.from(idScope), (chunk) =>
         this.db
-          .select()
+          .select({
+            id: notes.id,
+            updatedAt: notes.updatedAt,
+            createdAt: notes.createdAt,
+            title: notes.title,
+          })
           .from(notes)
           .where(and(where, inArray(notes.id, [...chunk]))),
       );
-      const sorted = sortNoteRowsBy(rows, sortCol, order);
-      const page = sorted.slice(opts.offset, opts.offset + opts.limit);
-      return this.hydrateMany(page);
+      const pageKeys = sortNoteRowsBy(sortRows, sortCol, order).slice(
+        opts.offset,
+        opts.offset + opts.limit,
+      );
+      if (pageKeys.length === 0) return [];
+      const pageIds = pageKeys.map((r) => r.id);
+
+      const fullRows = await selectInChunks(pageIds, (chunk) =>
+        this.db
+          .select()
+          .from(notes)
+          .where(inArray(notes.id, [...chunk])),
+      );
+      // Pass 2 chunks run in parallel and lose Pass 1's order.
+      // Reindex by id and walk `pageIds` to rebuild the page's
+      // ordering. A row missing from `byId` means it was deleted
+      // between the two passes — the same race the pre-2-pass chunk
+      // path and the `idScope === null` DB-side LIMIT/OFFSET path
+      // both already had, surfacing here as a page shorter than
+      // `limit`.
+      const byId = new Map<string, NoteRow>();
+      for (const row of fullRows) byId.set(row.id, row);
+      const ordered: NoteRow[] = [];
+      for (const id of pageIds) {
+        const row = byId.get(id);
+        if (row !== undefined) ordered.push(row);
+      }
+      return this.hydrateMany(ordered);
     });
   }
 
@@ -913,11 +955,16 @@ function intersectIdSets(
 // ASCII, so SQLite BINARY collation and JS string compare agree.
 // `title` is application-supplied text; for BMP-range characters the
 // two collations agree too. See `.issue/165/adr.md` for the analysis.
-function sortNoteRowsBy(
-  rows: readonly NoteRow[],
-  sortCol: SortColumn,
-  order: "asc" | "desc",
-): NoteRow[] {
+//
+// Generic over the row shape so the same helper sorts both the Pass-1
+// `{ id, [sortCol] }` projection (Issue #171) and the full `NoteRow`
+// fetched by `findReferrers`. The `T` constraint pins down only the
+// columns the comparator actually reads — `id` plus every `SortColumn`
+// (all three are `string` in the current schema: ISO-8601 for
+// `updatedAt`/`createdAt`, application text for `title`).
+function sortNoteRowsBy<
+  T extends { readonly id: string } & { readonly [K in SortColumn]: string },
+>(rows: readonly T[], sortCol: SortColumn, order: "asc" | "desc"): T[] {
   const dir = order === "asc" ? 1 : -1;
   return [...rows].sort((a, b) => {
     const av = a[sortCol];

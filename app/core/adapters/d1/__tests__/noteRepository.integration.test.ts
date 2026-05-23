@@ -1346,6 +1346,98 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     );
     expect(count).toBe(0);
   });
+
+  // T-bind-015 (Issue #171): the 2-pass chunk path must apply
+  // `buildOwnerListWhere`'s additional predicates in Pass 1, not only
+  // the `notes.id IN (...)` chunk. Seed 100 active + 50 trashed notes
+  // all with `visibility='public'` so `idScope` spans 150 ids; calling
+  // with `status='active'` must trim the trashed half via the `where`
+  // predicate during Pass 1, leaving only the 100 active ids on the
+  // page. Regression guard for the optimisation that moved full-row
+  // hydration into Pass 2. Also pins `toHaveLength` so a duplicated row
+  // (e.g. Pass 2 fanning out incorrectly) would be caught alongside the
+  // set-equality assertion.
+  it("T-bind-015: findByOwner 2-pass chunk path applies status predicate during Pass 1", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const activeIds = await seedManyNotes(container, owner, dir, 100, {
+      status: "active",
+    });
+    const trashedIds = await seedManyNotes(container, owner, dir, 50, {
+      status: "trashed",
+    });
+    const pubStmts = [...activeIds, ...trashedIds].map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["public"],
+          status: "active",
+        }),
+    );
+    const foundIds = new Set(found.map((n) => n.id as NoteId));
+    expect(found).toHaveLength(100);
+    expect(foundIds.size).toBe(100);
+    for (const id of activeIds) expect(foundIds.has(id)).toBe(true);
+    for (const id of trashedIds) expect(foundIds.has(id)).toBe(false);
+  });
+
+  // T-bind-016 (Issue #171): cover the `pageKeys.length === 0` early
+  // return inside the 2-pass chunk path. Seed 100 trashed notes all
+  // `visibility='public'`, so `idScope` spans 100 ids but Pass 1's
+  // `status='active'` predicate strips every row. The implementation
+  // must short-circuit to `[]` without firing Pass 2 — a typo in the
+  // early-return branch would otherwise reach `selectInChunks([], ...)`
+  // which also returns `[]`, hiding the regression. Asserting `[]`
+  // here pins the user-visible contract even if the internal seam
+  // erodes.
+  it("T-bind-016: findByOwner 2-pass chunk path short-circuits when Pass 1 strips every id", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const trashedIds = await seedManyNotes(container, owner, dir, 100, {
+      status: "trashed",
+    });
+    const pubStmts = trashedIds.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findByOwner(owner, {
+          limit: 200,
+          offset: 0,
+          visibility: ["public"],
+          status: "active",
+        }),
+    );
+    expect(found).toEqual([]);
+  });
 });
 
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
