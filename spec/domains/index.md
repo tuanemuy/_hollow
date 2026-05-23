@@ -60,10 +60,10 @@ identity, adminSettings は他から参照されるが、自身は他のドメ�
 | イベント | 物理 event 名 | 発火元 usecase | 購読する usecase / ドメイン |
 |---|---|---|---|
 | `note.saved` | `note.created` / `note.content_updated` / `note.renamed` / `note.moved` / `note.restored` / `note.tags_replaced` | Note.CreateNote/SaveNote/SaveNoteDraft/RenameNote/MoveNote/RestoreNote/DuplicateNote、Ingestion.CommitIngestionPreview、Tag.RenameTag/MergeTags/DeleteTag | Search.HandleNoteSavedEvent |
-| `note.deleted` | `note.trashed` / `note.purged` | Note.DeleteNote/BulkTrashNotes、Directory.DeleteDirectory（配下分） | Search.HandleNoteTrashedEvent、Publication.HandleNoteTrashedEvent（trash のみ）、View.HandleNotePurgedEvent（部分） |
+| `note.deleted` | `note.trashed` / `note.purged` | Note.DeleteNote/BulkTrashNotes、Directory.DeleteDirectory（配下分） | Search.HandleNoteTrashedEvent、Publication.HandleNoteTrashedEvent（trash のみ）、View.HandleNotePurgedEvent（部分。`note.trashed` 経由で fan-out — 同 handler を再利用） |
 | `note.purged` | `note.purged` | Note.PurgeNote/PurgeTrashOlderThan | Media.HandleNotePurgedEvent、Publication.HandleNotePurgedEvent、View.HandleNotePurgedEvent |
 | `note.publish_changed` | `note.publish_changed` | Publication.ChangePublicationVisibility/BulkChangePublicationVisibility、Publication.HandleNoteTrashedEvent | Search.HandlePublicationChangedEvent |
-| `media.uploaded` | `media.uploaded` | Media.UploadMedia/FinalizeUpload | Media 自身の TTL ベース孤児監視 |
+| `media.uploaded` | （物理 event は MVP 範囲外。下記注記参照） | Media.UploadMedia/FinalizeUpload | Media 自身の TTL ベース孤児監視（注: 物理 event は emit されない。`purgeOrphans` cron が `media_assets.refCount = 0 && createdAt < now - orphanAge` を直接走査する設計で event-driven ではない） |
 | `user.deleted` | `user.deleted` | Identity.DeleteAccount/SuspendUser（永続停止のとき） | Publication.HandleUserDeletedEvent、Export.HandleUserDeletedEvent、他ドメインのクリーンアップ |
 | `tag.deleted` | `tag.deleted` | Tag.DeleteTag | View.HandleTagDeletedEvent |
-| `directory.deleted` | `directory.deleted` | Directory.DeleteDirectory | View.HandleDirectoryDeletedEvent |
+| `directory.deleted` | （物理 event は emit されない。下記注記参照） | Directory.DeleteDirectory | View.HandleDirectoryDeletedEvent（注: 物理 event は emit されない。`Directory.DeleteDirectory` は配下ノートの `note.trashed` のみ emit し、View 側の broken marker は `note.trashed` 経由で fan-out される — `view.handleNotePurgedEvent` を再利用） |

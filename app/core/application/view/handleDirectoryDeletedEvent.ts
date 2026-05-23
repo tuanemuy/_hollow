@@ -10,6 +10,17 @@ export type HandleDirectoryDeletedEventInput = Readonly<{
 /**
  * Mark every SavedView whose query references `directoryId` as having a
  * broken directory reference. Idempotent.
+ *
+ * NOTE (Issue #159 ADR-003): this handler is intentionally NOT wired into
+ * the production dispatcher (`dispatchDomainEvent`). `directory.deleted`
+ * is not a physical domain event — `Directory.DeleteDirectory` only emits
+ * `note.trashed` for each child note, and the SavedView broken marker is
+ * fanned out through that `note.trashed` route by reusing
+ * `view.handleNotePurgedEvent`. The handler is preserved to keep the door
+ * open if a future design promotes directory-level broken markers to a
+ * first-class event; until then it is dormant code. See
+ * `spec/domains/index.md` (購読対応表 — `directory.deleted` 行の注記) for the
+ * symmetric spec-side acknowledgement.
  */
 export async function handleDirectoryDeletedEvent({
   container,

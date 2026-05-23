@@ -1,20 +1,30 @@
 import type { DomainEvent } from "@/core/domain/common/event";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportJobId as ExportJobIdVO } from "@/core/domain/export/valueObject";
+import { UserId } from "@/core/domain/identity/valueObject";
 import { isLLMRateLimitError } from "@/core/domain/ingestion/ports/llmProvider";
 import { IngestionJobId as IngestionJobIdVO } from "@/core/domain/ingestion/valueObject";
+import { MediaAssetId } from "@/core/domain/media/valueObject";
+import type { NotePurgedEvent } from "@/core/domain/note/events";
 import { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSnapshot } from "@/core/domain/search/entity";
+import { TagId } from "@/core/domain/tag/valueObject";
 import type { ConsumerContainer } from "../di/types";
 import type { IngestionJobId as IngestionJobIdDTO } from "../dto/ingestion";
 import { NotFoundError } from "../errors";
+import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../export/handleUserDeletedEvent";
 import { runExportJob } from "../export/runExportJob";
 import { runIngestionJob } from "../ingestion/runIngestionJob";
+import { handleNotePurgedEvent as mediaHandleNotePurgedEvent } from "../media/handleNotePurgedEvent";
+import { handleNotePurgedEvent as publicationHandleNotePurgedEvent } from "../publication/handleNotePurgedEvent";
 import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../publication/handleNoteTrashedEvent";
+import { handleUserDeletedEvent as publicationHandleUserDeletedEvent } from "../publication/handleUserDeletedEvent";
 import { buildNoteSnapshots } from "../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../search/handlePublicationChangedEvent";
+import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../view/handleNotePurgedEvent";
+import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../view/handleTagDeletedEvent";
 
 /**
  * Outcome returned by `dispatchDomainEvent` to the queue handler glue.
@@ -45,15 +55,31 @@ export type DispatchOutcome =
  *   `note.moved` / `note.restored` / `note.tags_replaced` →
  *   `search.handleNoteSavedEvent` (re-build snapshot from `noteId` first)
  * - `note.trashed` → fan-out to `search.handleNoteTrashedEvent` then
- *   `publication.handleNoteTrashedEvent` (search-first so the delete
- *   index op is settled before publication emits `note.publish_changed`)
- * - `note.purged` → `search.handleNoteTrashedEvent` only. Publication /
- *   Media / View side handlers are intentionally NOT wired here — they
- *   live in separate Issues (see `.issue/145/plan.md` "含まれないもの")
+ *   `publication.handleNoteTrashedEvent` then `view.handleNotePurgedEvent`
+ *   (search-first so the delete index op is settled before publication
+ *   emits `note.publish_changed`; view broken marker last because it does
+ *   not depend on the other two — see Issue #159 ADR-002, the view
+ *   handler is reused for both trash and purge)
+ * - `note.purged` → fan-out to `search.handleNoteTrashedEvent` then
+ *   `publication.handleNotePurgedEvent` then `media.handleNotePurgedEvent`
+ *   then `view.handleNotePurgedEvent` (Issue #159 ADR-001)
  * - `note.publish_changed` → `handlePublicationChangedEvent` (re-build
  *   snapshot first)
- * - Everything else → `skipped` (`share_link.*`, `tag.*`,
- *   `directory.*`, `media.*`, `user.*`, `ingestion.previewAttached`, ...)
+ * - `tag.deleted` → `view.handleTagDeletedEvent`
+ * - `user.deleted` → fan-out to `publication.handleUserDeletedEvent` then
+ *   `export.handleUserDeletedEvent` (Issue #159 ADR-004)
+ * - Everything else → `skipped` (`share_link.*`, `directory.*`,
+ *   `media.*`, `ingestion.previewAttached`, ...). `directory.deleted` /
+ *   `media.uploaded` remain skipped because the physical events are
+ *   never emitted (Issue #159 ADR-003).
+ *
+ * Payload validation rule (Issue #159 ADR-005): for newly wired cases,
+ * VO factories that validate payload fields the handlers will consume
+ * are called at the head of the case BEFORE any handler is awaited.
+ * This guarantees that a `BusinessRuleError` raised by payload schema
+ * drift never lands between two side-effecting handlers (which would
+ * leave a partial-commit state that no redelivery can recover, since
+ * `handled+warn` ack-stamps the message).
  *
  * `ingestion.regenerated` is intentionally NOT routed: `regenerate`
  * transitions `previewing → processing` directly, so `runIngestionJob`'s
@@ -143,27 +169,82 @@ export async function dispatchDomainEvent(
       case "note.trashed": {
         const payload = event.payload as Readonly<{ noteId: string }>;
         const noteId = NoteId.create(payload.noteId);
-        // fan-out: search first, publication second. Both handlers are
+        // fan-out: search → publication → view. All handlers are
         // idempotent so a partial-failure retry replays cleanly. Order
         // is fixed (not parallel) because publication.handleNoteTrashedEvent
         // internally emits `note.publish_changed`, and finishing the
         // search delete first keeps the index in a consistent "trashed
         // notes are absent" state before the subsequent publish_changed
-        // dispatch arrives.
+        // dispatch arrives. View runs last to mark SavedView broken
+        // (Issue #159 ADR-002 — reuses `view.handleNotePurgedEvent`).
         await searchHandleNoteTrashedEvent({ container, input: { noteId } });
         await publicationHandleNoteTrashedEvent({
           container,
           input: { noteId },
         });
+        await viewHandleNotePurgedEvent({
+          container,
+          input: { noteId: payload.noteId },
+        });
         return { kind: "handled" };
       }
       case "note.purged": {
-        const payload = event.payload as Readonly<{ noteId: string }>;
+        const payload = event.payload as Readonly<{
+          noteId: string;
+          ownerId: string;
+          mediaRefs: readonly string[];
+        }>;
+        // === Issue #159 ADR-005: validation 一括先行 ===
+        // handler が参照する field を副作用呼出の前に全件 validate する。
+        // payload schema drift で BusinessRuleError が後段 handler 呼出
+        // 後に発生すると partial-commit が回復不能になるため。
         const noteId = NoteId.create(payload.noteId);
-        // search delete only. publication / media / view side purge
-        // handlers are out of scope for this Issue (#145) — they remain
-        // skipped to keep the dispatcher's behavioural change minimal.
+        void UserId.create(payload.ownerId);
+        // validate-only, envelope は event cast で渡す
+        void payload.mediaRefs.map((id) => MediaAssetId.create(id));
+        // === handler 順次呼出 (search → publication → media → view) ===
         await searchHandleNoteTrashedEvent({ container, input: { noteId } });
+        await publicationHandleNotePurgedEvent({
+          container,
+          input: { noteId },
+        });
+        await mediaHandleNotePurgedEvent({
+          container,
+          input: { event: event as NotePurgedEvent },
+        });
+        await viewHandleNotePurgedEvent({
+          container,
+          input: { noteId: payload.noteId },
+        });
+        return { kind: "handled" };
+      }
+      case "tag.deleted": {
+        const payload = event.payload as Readonly<{ tagId: string }>;
+        // validate-only — handler signature takes raw string but we want
+        // schema drift to surface as BusinessRuleError before any side
+        // effects (Issue #159 ADR-005).
+        void TagId.create(payload.tagId);
+        await viewHandleTagDeletedEvent({
+          container,
+          input: { tagId: payload.tagId },
+        });
+        return { kind: "handled" };
+      }
+      case "user.deleted": {
+        const payload = event.payload as Readonly<{ userId: string }>;
+        const userId = UserId.create(payload.userId);
+        // fan-out: publication → export. Order per Issue #159 ADR-004
+        // (publication first so "公開停止 → export 取消" logical order is
+        // preserved). publication is idempotent (already-private notes
+        // produce empty drafts) so retry replays cleanly.
+        await publicationHandleUserDeletedEvent({
+          container,
+          input: { userId },
+        });
+        await exportHandleUserDeletedEvent({
+          container,
+          input: { userId },
+        });
         return { kind: "handled" };
       }
       case "note.publish_changed": {
