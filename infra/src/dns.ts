@@ -1,35 +1,29 @@
 import * as cloudflare from "@pulumi/cloudflare";
 import type { Config } from "./config.ts";
-import { workerNames } from "./config.ts";
 
-// Bind the web Worker to `cfg.hostname` via Workers Custom Domains.
-// Custom Domains let Cloudflare own the DNS record and the edge cert
-// for the host — Universal SSL only covers the zone apex and a single
-// wildcard level, so `staging.hollow.maku-ja.com` and similar
-// multi-level subdomains have no cert under the legacy
-// `wrangler routes` + proxied-DnsRecord pattern.
+// Phase 1 of the DnsRecord → WorkersCustomDomain migration.
 //
-// `environment = "production"` here matches Cloudflare's internal
-// version namespace for the top-level wrangler deploy (`wrangler
-// deploy --config wrangler.<stage>.toml` without `--env <x>`) — it is
-// NOT the same as the `[env.relay]` / `[env.consumer]` sub-environments
-// in wrangler.toml.
+// `WorkersCustomDomain` is intentionally NOT declared here yet. Pulumi
+// cannot order the destroy of the prior `dns-<stage>` `DnsRecord` and
+// the create of the new `custom-domain-<stage>` `WorkersCustomDomain`:
+// they have different resource types and no implicit dependency, so
+// Pulumi runs them in parallel. The first attempt failed with
+// `code 100117` ("hostname already has externally managed DNS
+// records") because the legacy AAAA `100::` placeholder was still
+// in flight when the bind tried to create.
+//
+// Splitting into two deploys removes the race:
+//   Phase 1 (this file): destroy the legacy DnsRecord. Pulumi has
+//     nothing else to do under `createDns`, leaving Cloudflare with a
+//     clean hostname.
+//   Phase 2 (follow-up PR): re-introduce the WorkersCustomDomain
+//     block against the now-empty hostname.
+//
+// `zone` is still resolved so callers (and Phase 2) can refer to
+// `dns.zone.id` without a churn diff between phases.
 export const createDns = (cfg: Config) => {
   const zone = cloudflare.getZoneOutput({ filter: { name: cfg.zoneName } });
-  const names = workerNames(cfg);
-
-  const customDomain = new cloudflare.WorkersCustomDomain(
-    `custom-domain-${cfg.stage}`,
-    {
-      accountId: cfg.accountId,
-      zoneId: zone.id,
-      hostname: cfg.hostname,
-      service: names.web,
-      environment: "production",
-    },
-  );
-
-  return { customDomain, zone };
+  return { zone };
 };
 
 export type DnsOutput = ReturnType<typeof createDns>;
