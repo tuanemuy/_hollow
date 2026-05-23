@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { SAFE_CHUNK_SIZE, selectInChunks } from "../_chunks";
+import {
+  DEFAULT_MAX_CONCURRENCY,
+  SAFE_CHUNK_SIZE,
+  selectInChunks,
+} from "../_chunks";
 
 describe("selectInChunks", () => {
   it("returns [] and never calls the runner for an empty input", async () => {
@@ -13,7 +17,9 @@ describe("selectInChunks", () => {
     const runner = vi.fn(async (chunk: readonly string[]) =>
       chunk.map((id) => `r:${id}`),
     );
-    const out = await selectInChunks(["a", "b", "c"], runner, 10);
+    const out = await selectInChunks(["a", "b", "c"], runner, {
+      chunkSize: 10,
+    });
     expect(out).toEqual(["r:a", "r:b", "r:c"]);
     expect(runner).toHaveBeenCalledTimes(1);
     expect(runner.mock.calls[0][0]).toEqual(["a", "b", "c"]);
@@ -22,7 +28,7 @@ describe("selectInChunks", () => {
   it("invokes the runner exactly once when ids.length === chunkSize", async () => {
     const ids = Array.from({ length: 5 }, (_, i) => `id-${i}`);
     const runner = vi.fn(async (chunk: readonly string[]) => chunk);
-    const out = await selectInChunks(ids, runner, 5);
+    const out = await selectInChunks(ids, runner, { chunkSize: 5 });
     expect(out).toEqual(ids);
     expect(runner).toHaveBeenCalledTimes(1);
   });
@@ -30,7 +36,7 @@ describe("selectInChunks", () => {
   it("splits into two chunks when ids.length === chunkSize + 1 and concatenates", async () => {
     const ids = Array.from({ length: 6 }, (_, i) => `id-${i}`);
     const runner = vi.fn(async (chunk: readonly string[]) => chunk);
-    const out = await selectInChunks(ids, runner, 5);
+    const out = await selectInChunks(ids, runner, { chunkSize: 5 });
     expect(out).toEqual(ids);
     expect(runner).toHaveBeenCalledTimes(2);
     expect(runner.mock.calls[0][0]).toEqual(ids.slice(0, 5));
@@ -44,7 +50,9 @@ describe("selectInChunks", () => {
       seenChunks.push([...chunk]);
       return chunk;
     });
-    const out = await selectInChunks(ids, runner, SAFE_CHUNK_SIZE);
+    const out = await selectInChunks(ids, runner, {
+      chunkSize: SAFE_CHUNK_SIZE,
+    });
     expect(runner).toHaveBeenCalledTimes(3);
     expect(seenChunks[0]).toHaveLength(90);
     expect(seenChunks[1]).toHaveLength(90);
@@ -53,15 +61,24 @@ describe("selectInChunks", () => {
   });
 
   it("throws when chunkSize <= 0", async () => {
-    await expect(selectInChunks(["a"], async (c) => c, 0)).rejects.toThrow(
-      /chunkSize/,
-    );
-    await expect(selectInChunks(["a"], async (c) => c, -1)).rejects.toThrow(
-      /chunkSize/,
-    );
+    await expect(
+      selectInChunks(["a"], async (c) => c, { chunkSize: 0 }),
+    ).rejects.toThrow(/chunkSize/);
+    await expect(
+      selectInChunks(["a"], async (c) => c, { chunkSize: -1 }),
+    ).rejects.toThrow(/chunkSize/);
   });
 
-  // Runs chunks in parallel via `Promise.all`. Asserts that the
+  it("throws when maxConcurrency <= 0", async () => {
+    await expect(
+      selectInChunks(["a"], async (c) => c, { maxConcurrency: 0 }),
+    ).rejects.toThrow(/maxConcurrency/);
+    await expect(
+      selectInChunks(["a"], async (c) => c, { maxConcurrency: -1 }),
+    ).rejects.toThrow(/maxConcurrency/);
+  });
+
+  // Runs chunks in parallel via a bounded worker pool. Asserts that the
   // resolved array still tracks chunk (input) order regardless of the
   // order in which the runner promises settle.
   it("preserves input chunk order when chunks resolve out of order", async () => {
@@ -72,21 +89,96 @@ describe("selectInChunks", () => {
       await new Promise((r) => setTimeout(r, (9 - idx) * 2));
       return chunk;
     });
-    const out = await selectInChunks(ids, runner, 3);
+    const out = await selectInChunks(ids, runner, { chunkSize: 3 });
     expect(out).toEqual(ids);
     expect(runner).toHaveBeenCalledTimes(3);
   });
 
   it("rejects with the first runner failure when a chunk throws", async () => {
-    const ids = Array.from({ length: 9 }, (_, i) => `id-${i}`);
+    const ids = Array.from({ length: 30 }, (_, i) => `id-${i}`);
+    const maxConcurrency = 3;
     const runner = vi.fn(async (chunk: readonly string[]) => {
-      if (chunk[0] === "id-3") throw new Error("boom");
+      if (chunk[0] === "id-0") throw new Error("boom");
+      // Hold other workers long enough that the rejection bubbles up
+      // before they can claim further chunks.
+      await new Promise((r) => setTimeout(r, 20));
       return chunk;
     });
-    await expect(selectInChunks(ids, runner, 3)).rejects.toThrow(/boom/);
-    // Parallel dispatch: all chunks were attempted even though one
-    // failed. The JSDoc contract calls this out explicitly so callers
-    // know not to rely on "stop after first failure" semantics.
-    expect(runner).toHaveBeenCalledTimes(3);
+    await expect(
+      selectInChunks(ids, runner, { chunkSize: 1, maxConcurrency }),
+    ).rejects.toThrow(/boom/);
+    // Bounded worker pool: all maxConcurrency workers spin up
+    // synchronously via Array.from and claim cursors 0/1/2 before any
+    // await yields. So exactly `maxConcurrency` runner calls happen,
+    // not fewer (proves all workers started) and not more (proves
+    // post-rejection chunks were never claimed thanks to the `aborted`
+    // flag).
+    expect(runner.mock.calls.length).toBe(maxConcurrency);
+    // Wait one more macrotask past the in-flight 20ms hold to give any
+    // zombie worker a chance to mis-claim further chunks — if the
+    // abort flag is wired incorrectly, the call count would creep up
+    // past maxConcurrency here.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(runner.mock.calls.length).toBe(maxConcurrency);
+  });
+
+  it("respects maxConcurrency by capping in-flight runners", async () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `id-${i}`);
+    const maxConcurrency = 3;
+    let inFlight = 0;
+    let peak = 0;
+    const runner = vi.fn(async (chunk: readonly string[]) => {
+      inFlight++;
+      if (inFlight > peak) peak = inFlight;
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return chunk;
+    });
+    const out = await selectInChunks(ids, runner, {
+      chunkSize: 1,
+      maxConcurrency,
+    });
+    expect(out).toEqual(ids);
+    expect(runner).toHaveBeenCalledTimes(20);
+    // Equality (not just `<=`): with 20 chunks and 5ms holds per chunk,
+    // the pool must saturate to the cap. Asserting equality locks the
+    // worker-pool's "fully spin up to the cap" invariant.
+    expect(peak).toBe(maxConcurrency);
+  });
+
+  it("preserves input chunk order under bounded concurrency", async () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `id-${i}`);
+    const runner = vi.fn(async (chunk: readonly string[]) => {
+      // Random-ish settle delays so chunks finish out of dispatch order.
+      const idx = Number(chunk[0]?.split("-")[1] ?? "0");
+      await new Promise((r) => setTimeout(r, (idx % 5) * 2));
+      return chunk;
+    });
+    const out = await selectInChunks(ids, runner, {
+      chunkSize: 1,
+      maxConcurrency: 3,
+    });
+    expect(out).toEqual(ids);
+  });
+
+  it("defaults to DEFAULT_MAX_CONCURRENCY when not specified", async () => {
+    const ids = Array.from({ length: 200 }, (_, i) => `id-${i}`);
+    let inFlight = 0;
+    let peak = 0;
+    const runner = vi.fn(async (chunk: readonly string[]) => {
+      inFlight++;
+      if (inFlight > peak) peak = inFlight;
+      await new Promise((r) => setTimeout(r, 1));
+      inFlight--;
+      return chunk;
+    });
+    const out = await selectInChunks(ids, runner, { chunkSize: 1 });
+    expect(out).toEqual(ids);
+    expect(runner).toHaveBeenCalledTimes(200);
+    // Equality locks the default value: with 200 chunks and 1ms holds,
+    // the pool must saturate exactly to `DEFAULT_MAX_CONCURRENCY`. If
+    // the default ever silently drifts (or the cap is misapplied),
+    // this assertion catches it.
+    expect(peak).toBe(DEFAULT_MAX_CONCURRENCY);
   });
 });
