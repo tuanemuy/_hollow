@@ -13,10 +13,9 @@
  * cross-chunk sorting — both are the caller's responsibility when the
  * underlying query relied on a `WHERE id IN (...) ORDER BY ...` clause.
  *
- * Chunks are dispatched in parallel via `Promise.all`. The first
- * runner rejection propagates as the function's rejection; sibling
- * runners that were already in flight will still settle, their results
- * simply discarded.
+ * Chunks are dispatched through a bounded worker pool (default
+ * `DEFAULT_MAX_CONCURRENCY`). On first rejection, already-claimed
+ * chunks complete and settle; unclaimed chunks are never started.
  */
 export const D1_BIND_LIMIT_HOST_VARS = 100;
 
@@ -28,22 +27,82 @@ export const D1_BIND_LIMIT_HOST_VARS = 100;
  */
 export const SAFE_CHUNK_SIZE = 90;
 
+/**
+ * Default upper bound on the number of chunk runners that may be
+ * in-flight concurrently. Sits within the DB-connection-pool industry
+ * default band (5-10) and acts as a conservative safety margin against
+ * Cloudflare Workers' (non-public) subrequest throttling threshold and
+ * D1's (non-public) concurrent-connection cap. Rationale and follow-up
+ * conditions are recorded in `.issue/172/adr.md` ADR-001.
+ */
+export const DEFAULT_MAX_CONCURRENCY = 8;
+
+export interface SelectInChunksOptions {
+  chunkSize?: number;
+  maxConcurrency?: number;
+}
+
+/**
+ * Split `ids` into chunks of at most `chunkSize`, dispatch them through
+ * a bounded worker pool of at most `maxConcurrency` in-flight runners,
+ * and return the concatenation of per-chunk results in input chunk
+ * order.
+ *
+ * Bounding the in-flight count prevents the worst-case `Promise.all`
+ * fan-out (e.g. 112 chunks for `idScope.size = 10000`) from saturating
+ * Cloudflare Workers subrequest throttling or D1's concurrent-connection
+ * cap — neither of which is documented as a public numeric threshold.
+ * The default of {@link DEFAULT_MAX_CONCURRENCY} (8) sits in the
+ * industry-default DB connection-pool band (5-10); see
+ * `.issue/172/adr.md` for the full rationale.
+ *
+ * Ordering and failure semantics:
+ * - The resolved array tracks input chunk order regardless of which
+ *   runner settles first (workers write results into a pre-sized array
+ *   at their claimed index).
+ * - First rejection wins: the function rejects with the first runner
+ *   failure. Chunks already claimed by a worker continue to completion
+ *   and their results are discarded. Chunks not yet claimed by any
+ *   worker are **never started** — this differs from the previous
+ *   `Promise.all` implementation where every chunk's runner was always
+ *   invoked. Callers must not rely on runner side effects firing for
+ *   every chunk.
+ */
 export async function selectInChunks<T>(
   ids: readonly string[],
   runner: (chunk: readonly string[]) => Promise<readonly T[]>,
-  chunkSize: number = SAFE_CHUNK_SIZE,
+  options?: SelectInChunksOptions,
 ): Promise<readonly T[]> {
   if (ids.length === 0) return [];
+  const chunkSize = options?.chunkSize ?? SAFE_CHUNK_SIZE;
+  const maxConcurrency = options?.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
   if (chunkSize <= 0) {
     throw new Error(`selectInChunks: chunkSize must be > 0, got ${chunkSize}`);
+  }
+  if (maxConcurrency <= 0) {
+    throw new Error(
+      `selectInChunks: maxConcurrency must be > 0, got ${maxConcurrency}`,
+    );
   }
   const chunks: (readonly string[])[] = [];
   for (let i = 0; i < ids.length; i += chunkSize) {
     chunks.push(ids.slice(i, i + chunkSize));
   }
-  // Chunks are independent read-only queries. `Promise.all` preserves
-  // input order in the resolved array, so callers that rely on chunk
-  // concatenation order keep that guarantee.
-  const results = await Promise.all(chunks.map(runner));
+  const results: (readonly T[])[] = new Array(chunks.length);
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(maxConcurrency, chunks.length) },
+    async () => {
+      while (true) {
+        // cursor++ is safe across workers: JS evaluates the
+        // post-increment synchronously before any `await` yields
+        // control, so two workers never observe the same index.
+        const i = cursor++;
+        if (i >= chunks.length) return;
+        results[i] = await runner(chunks[i]);
+      }
+    },
+  );
+  await Promise.all(workers);
   return results.flat();
 }
