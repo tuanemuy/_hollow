@@ -27,6 +27,14 @@ import { tagEventDecoders } from "../tag/eventDecoders";
 // inspection — re-kick them by clearing `failed_at` / `next_attempt_at`.
 // Consumers must be idempotent keyed on `event.id`.
 //
+// All ambient deps (clock, id generation, logger, repositories) come
+// through `WorkerContainer`. In particular the diagnostic `workerId`
+// stamped on claimed rows is minted per tick via `container.idGenerator`
+// — never at module load. Cloudflare Workers' global-scope validation
+// (10021) rejects `crypto.randomUUID()` / async I/O / `setTimeout` calls
+// outside a handler, so any random-id helper must stay inside the
+// `processOutboxBatch` body. See Issue #188.
+//
 // The dispatcher receives the full decoded batch of a single relay tick
 // and returns a per-event outcome. The batched contract lets a Cloudflare
 // Queue producer collapse N `send()` subrequests into a single
@@ -91,17 +99,11 @@ export type ProcessOutboxEventsOptions = {
   // (1-based: `attempts` after the increment). Capped internally to keep
   // the next-attempt timestamp finite.
   backoffMs?: (attempts: number) => number;
-  // Identifies this worker on the rows it claims (diagnostics only).
-  // Defaults to a fresh id minted per tick via `container.idGenerator`.
-  // Tick-scoped (rather than isolate-scoped) attribution matches the
-  // lease lifecycle: a `claimed_by` value lives only as long as the
-  // claim that wrote it, so a retry on the same isolate is correctly
-  // observed as a new attempt rather than the same worker re-asserting
-  // its prior claim. Generation deliberately routes through the
-  // `IdGenerator` port so this module never invokes `crypto.randomUUID()`
-  // — Cloudflare Workers rejects random generation in global scope at
-  // upload time (validation 10021), and routing through the port also
-  // keeps id minting deterministic under test.
+  // Identifies this worker on the rows it claims; diagnostic-only and
+  // never used as a domain key. Defaults to a fresh id minted per tick
+  // via `container.idGenerator.next()`. Tick-scoped attribution matches
+  // the lease lifecycle — see the module header for why generation must
+  // route through the port rather than being minted at module load.
   workerId?: string;
   // How long a claimed row stays exclusive to this worker before another
   // worker is allowed to re-claim it (covers a crashed worker without an
