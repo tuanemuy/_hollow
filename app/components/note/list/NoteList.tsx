@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { FlatDirectory, OwnedNotesResult } from "../loaders";
 import type { NoteListSearch } from "../schema";
-import { pillBtn, pillBtnPrimary } from "../styles";
 import { BulkActionBar } from "./BulkActionBar";
 import { CalendarView } from "./CalendarView";
 import { FilterBar } from "./FilterBar";

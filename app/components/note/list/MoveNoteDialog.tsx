@@ -4,13 +4,6 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
-import { displayError } from "@/core/presentation/errorDisplay";
-import {
-  extractSerializedError,
-  type SerializedError,
-} from "@/core/presentation/errorResponse";
-import { bulkMoveNotesFn, moveNoteFn } from "../actions";
-import type { FlatDirectory } from "../loaders";
 import {
   dialogActions,
   dialogTitle,
@@ -20,7 +13,14 @@ import {
   formError,
   pillBtn,
   pillBtnPrimary,
-} from "../styles";
+} from "@/components/common/styles";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { bulkMoveNotesFn, moveNoteFn } from "../actions";
+import type { FlatDirectory } from "../loaders";
 
 type Props = {
   noteIds: readonly string[];

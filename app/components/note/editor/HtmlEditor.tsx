@@ -1,7 +1,12 @@
 "use client";
 
 import { useId } from "react";
-import { field, fieldControl, fieldLabel, fieldTextarea } from "../styles";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  fieldTextarea,
+} from "@/components/common/styles";
 
 /**
  * HTML edit pane with a sanitized-on-save preview folded under

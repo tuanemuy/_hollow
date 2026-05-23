@@ -10,6 +10,14 @@ import {
   useState,
   useTransition,
 } from "react";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import { createDirectoryFn } from "@/components/directory/actions";
 import {
   acquireEditLockFn,
@@ -25,14 +33,6 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { FlatDirectory } from "../loaders";
-import {
-  field,
-  fieldControl,
-  fieldLabel,
-  formError,
-  pillBtn,
-  pillBtnPrimary,
-} from "../styles";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { EditLockBanner } from "./EditLockBanner";

@@ -8,7 +8,7 @@ import {
   fieldTextarea,
   formError,
   pillBtn,
-} from "../styles";
+} from "@/components/common/styles";
 import type { FrontMatterMode } from "./editorState";
 
 /**

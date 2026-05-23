@@ -3,10 +3,10 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
-import { pillBtn, pillBtnPrimary } from "../styles";
 import { DisplayModeSwitch } from "./DisplayModeSwitch";
 import { SaveViewDialog } from "./SaveViewDialog";
 

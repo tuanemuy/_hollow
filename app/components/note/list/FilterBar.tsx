@@ -3,8 +3,8 @@
 import { useRouter } from "@tanstack/react-router";
 import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { pillBtn } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
-import { pillBtn } from "../styles";
 import { formatReferencingNoteChipLabel } from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
 

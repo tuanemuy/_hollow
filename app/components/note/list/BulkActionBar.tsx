@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { formError, pillBtn, pillBtnDanger } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -11,7 +12,6 @@ import {
 } from "@/core/presentation/errorResponse";
 import { bulkTrashNotesFn } from "../actions";
 import type { FlatDirectory } from "../loaders";
-import { formError, pillBtn, pillBtnDanger } from "../styles";
 import { BulkExportDialog } from "./BulkExportDialog";
 import { BulkVisibilityDialog } from "./BulkVisibilityDialog";
 import { MoveNoteDialog } from "./MoveNoteDialog";

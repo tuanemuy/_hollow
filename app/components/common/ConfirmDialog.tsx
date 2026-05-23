@@ -1,13 +1,8 @@
 "use client";
 
 import { useId } from "react";
-import {
-  dialogActions,
-  dialogTitle,
-  pillBtn,
-  pillBtnDanger,
-} from "@/components/note/styles";
 import { Dialog } from "./Dialog";
+import { dialogActions, dialogTitle, pillBtn, pillBtnDanger } from "./styles";
 
 export type ConfirmDialogProps = Readonly<{
   open: boolean;

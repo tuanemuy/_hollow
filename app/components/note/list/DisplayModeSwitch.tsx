@@ -3,9 +3,9 @@
 import { useRouter } from "@tanstack/react-router";
 import { useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
-import { pillBtn, pillBtnPrimary } from "../styles";
 
 type Props = {
   current: DisplayMode;
