@@ -1350,8 +1350,11 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
 
 describe("D1NoteRepository.listWithCount (integration)", () => {
   // T-listWithCount-001: pin the `idScope === null` path. `listWithCount`
-  // must agree row-for-row with the `findByOwner` + `countByOwner` pair
-  // when no candidate-set filters fire — i.e. status / dateRange only.
+  // must agree row-for-row with `findByOwner` for items and with
+  // `countByOwner` for the filtered total. The count call deliberately
+  // receives the same `opts` (with pagination/sort fields included) to
+  // pin that those fields are ignored on the count side — matching the
+  // documented contract.
   it("T-listWithCount-001: idScope === null path matches (findByOwner, countByOwner) pair", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
@@ -1384,9 +1387,12 @@ describe("D1NoteRepository.listWithCount (integration)", () => {
           opts,
         );
         const single = await noteRepository.findByOwner(owner, opts);
-        const singleCount = await noteRepository.countByOwner(owner, {
-          status: opts.status,
-        });
+        // Pass full `opts` (incl. limit/offset/sort/order) — `countByOwner`
+        // accepts `NoteOwnerCountOpts` so pagination fields are simply
+        // absent from its type; the call still pins that the filtered
+        // total is independent of any page window even when the caller
+        // is paginating.
+        const singleCount = await noteRepository.countByOwner(owner, opts);
         return {
           batchItems: items,
           batchCount: count,
@@ -1397,10 +1403,11 @@ describe("D1NoteRepository.listWithCount (integration)", () => {
 
     expect(batchItems.map((n) => n.id)).toEqual(listItems.map((n) => n.id));
     expect(batchCount).toBe(total);
-    // Sanity: seeded 3 active notes, paged 2 most-recent (c, b).
+    // Sanity: seeded 3 active notes, paged 2 most-recent (c, b);
+    // the third-oldest note `a` must fall outside the page window.
     expect(batchItems.map((n) => n.id)).toEqual([c, b]);
+    expect(batchItems.map((n) => n.id)).not.toContain(a);
     expect(batchCount).toBe(3);
-    expect(a).toBeDefined();
   });
 
   // T-listWithCount-002: pin the `idScope !== null` (chunk) path with a
@@ -1441,9 +1448,9 @@ describe("D1NoteRepository.listWithCount (integration)", () => {
           opts,
         );
         const single = await noteRepository.findByOwner(owner, opts);
-        const singleCount = await noteRepository.countByOwner(owner, {
-          visibility: opts.visibility,
-        });
+        // Same as T-001: pass full `opts` to pin that pagination/sort
+        // fields on the count side are ignored even in the chunk path.
+        const singleCount = await noteRepository.countByOwner(owner, opts);
         return {
           batchItems: items,
           batchCount: count,
@@ -1460,26 +1467,42 @@ describe("D1NoteRepository.listWithCount (integration)", () => {
 
   // T-listWithCount-003: empty intersected scope short-circuit. The
   // ghost tagId produces an empty candidate set; `buildOwnerListWhere`
-  // returns `null` and `listWithCount` must skip the DB entirely.
-  it("T-listWithCount-003: empty intersected scope returns { items: [], count: 0 }", async () => {
+  // returns `null` and `listWithCount` must skip the DB entirely. The
+  // (findByOwner, countByOwner) pair must agree on the empty result so
+  // the sibling-equivalence contract holds at the most degenerate
+  // branch too.
+  it("T-listWithCount-003: empty intersected scope returns { items: [], count: 0 } and matches (findByOwner, countByOwner) pair", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
     await seedNote(container, owner, dir, { title: "exists" });
     const ghostTag = nextId(0x05) as TagId;
+    const opts = {
+      limit: 100,
+      offset: 0,
+      tagIds: [ghostTag],
+      visibility: ["public" as PublicationVisibility],
+    };
 
-    const result = await container.unitOfWorkProvider.run(
-      async ({ noteRepository }) =>
-        noteRepository.listWithCount(owner, {
-          limit: 100,
-          offset: 0,
-          tagIds: [ghostTag],
-          visibility: ["public"],
-        }),
-    );
+    const { batch, single, singleCount } =
+      await container.unitOfWorkProvider.run(async ({ noteRepository }) => {
+        const batchResult = await noteRepository.listWithCount(owner, opts);
+        const singleResult = await noteRepository.findByOwner(owner, opts);
+        const singleCountResult = await noteRepository.countByOwner(
+          owner,
+          opts,
+        );
+        return {
+          batch: batchResult,
+          single: singleResult,
+          singleCount: singleCountResult,
+        };
+      });
 
-    expect(result.items).toEqual([]);
-    expect(result.count).toBe(0);
+    expect(batch.items).toEqual([]);
+    expect(batch.count).toBe(0);
+    expect(single).toEqual([]);
+    expect(singleCount).toBe(0);
   });
 
   // T-listWithCount-004: `count` is independent of pagination / sort.

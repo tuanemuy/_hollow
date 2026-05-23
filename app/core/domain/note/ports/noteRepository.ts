@@ -173,12 +173,20 @@ export interface NoteRepository extends TransactionalRepository<Note> {
 
   /**
    * Owner-scoped batch listing that returns the page `items` and the
-   * filtered total `count` from a single filter resolution. Semantically
-   * equivalent to calling
-   * `findByOwner(ownerId, opts) + countByOwner(ownerId, opts)`
-   * with matching filter fields, but adapters implement it by running
-   * the shared candidate-set / `where` resolution exactly once, then
-   * deriving both projections from the same intermediate.
+   * filtered total `count` from a single filter resolution. Together
+   * with {@link NoteRepository.findByOwner} and
+   * {@link NoteRepository.countByOwner}, this method is the third
+   * sibling of an API family that shares one filter contract; adapters
+   * resolve the filter exactly once and derive both projections from
+   * the same intermediate. Semantically:
+   *
+   *   listWithCount(ownerId, opts).items === findByOwner(ownerId, opts)
+   *   listWithCount(ownerId, opts).count === countByOwner(ownerId, opts')
+   *
+   * where `opts'` is `opts` with the pagination / sort fields dropped
+   * (those have no meaning for a count). The `opts === undefined`
+   * convenience overload of `countByOwner` corresponds to
+   * `listWithCount` invoked with all filter fields left unset.
    *
    * Contract:
    * - `count` is the filtered total **before** pagination — i.e.
@@ -188,20 +196,20 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * - Filter semantics (status / tagIds / dateRange / visibility /
    *   referencingNoteId) mirror {@link NoteRepository.findByOwner};
    *   pagination / sort fields mirror {@link NoteListOpts}.
-   * - When the filter mix is structurally guaranteed to match zero
-   *   rows (empty `visibility` array, or any candidate-set
-   *   intersection that is empty), adapters short-circuit to
-   *   `{ items: [], count: 0 }` without touching the database.
+   * - When the filter combination cannot match any owner-scoped note
+   *   (an empty `visibility` array, or filters that intersect to the
+   *   empty set), adapters short-circuit to `{ items: [], count: 0 }`
+   *   without touching the database.
    * - Because both projections are derived from the same filter
    *   resolution, `items.length <= count` and the rendered total cannot
    *   structurally disagree with the visible slice (Issue #30 invariant
    *   stays enforced — see `listNotesByOwner` for the consumer).
    *
    * PR #170 ADR-001 Follow-up [P-W-004]: previously `findByOwner` +
-   * `countByOwner` ran the candidate-set / intersection / chunk-fetch
-   * pipelines twice. This batch entry point lets the adapter collapse
-   * them to a single pass. The single-call methods stay available for
-   * callers that only need one projection.
+   * `countByOwner` ran the filter-resolution pipeline twice. This
+   * batch entry point lets the adapter collapse them to a single pass.
+   * The single-call siblings stay available for callers that only
+   * need one projection.
    */
   listWithCount(
     ownerId: UserId,

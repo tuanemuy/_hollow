@@ -479,6 +479,12 @@ export class D1NoteRepository implements NoteRepository {
       const sorted = sortNoteRowsBy(rows, sortCol, order);
       const page = sorted.slice(opts.offset, opts.offset + opts.limit);
       const items = await this.hydrateMany(page);
+      // `sorted` only contains rows that passed the full `where`
+      // (per-chunk query applies it via `and(where, inArray(...))`), so
+      // `sorted.length` equals the filtered total — not `idScope.size`,
+      // which omits `where` predicates outside the candidate sets
+      // (status / dateRange / visibility NOT EXISTS). See
+      // `.issue/165/adr.md` ADR-001 §補足.
       return { items, count: sorted.length };
     });
   }
