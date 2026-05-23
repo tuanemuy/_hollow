@@ -27,6 +27,14 @@ import { tagEventDecoders } from "../tag/eventDecoders";
 // inspection — re-kick them by clearing `failed_at` / `next_attempt_at`.
 // Consumers must be idempotent keyed on `event.id`.
 //
+// All ambient deps (clock, id generation, logger, repositories) come
+// through `WorkerContainer`. In particular the diagnostic `workerId`
+// stamped on claimed rows is minted per tick via `container.idGenerator`
+// — never at module load. Cloudflare Workers' global-scope validation
+// (10021) rejects `crypto.randomUUID()` / async I/O / `setTimeout` calls
+// outside a handler, so any random-id helper must stay inside the
+// `processOutboxBatch` body. See Issue #188.
+//
 // The dispatcher receives the full decoded batch of a single relay tick
 // and returns a per-event outcome. The batched contract lets a Cloudflare
 // Queue producer collapse N `send()` subrequests into a single
@@ -91,10 +99,11 @@ export type ProcessOutboxEventsOptions = {
   // (1-based: `attempts` after the increment). Capped internally to keep
   // the next-attempt timestamp finite.
   backoffMs?: (attempts: number) => number;
-  // Identifies this worker on the rows it claims (diagnostics only).
-  // Defaults to a stable id minted once per isolate, so a worker that
-  // crashes mid-batch and restarts on the same isolate sees its own
-  // prior claim in `claimed_by` rather than an unrelated UUID.
+  // Identifies this worker on the rows it claims; diagnostic-only and
+  // never used as a domain key. Defaults to a fresh id minted per tick
+  // via `container.idGenerator.next()`. Tick-scoped attribution matches
+  // the lease lifecycle — see the module header for why generation must
+  // route through the port rather than being minted at module load.
   workerId?: string;
   // How long a claimed row stays exclusive to this worker before another
   // worker is allowed to re-claim it (covers a crashed worker without an
@@ -110,13 +119,6 @@ export type ProcessOutboxEventsOptions = {
   // safety-net cron picks up the rest on the next tick.
   maxIterations?: number;
 };
-
-// Stable diagnostic id for the relay worker. Evaluated once at module
-// load (i.e. per isolate), so successive ticks on the same isolate
-// share the same `claimed_by` value. UUIDv4 is sufficient — this id is
-// never used as a domain key, only for log correlation and lease
-// attribution.
-const RELAY_WORKER_ID = crypto.randomUUID();
 
 export const DEFAULT_BATCH_SIZE = 100;
 // Quarantine after 2 publish attempts. The consumer-side queue then
@@ -218,8 +220,8 @@ async function processOutboxBatch(
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const backoffMs = options.backoffMs ?? defaultBackoffMs;
   const leaseMs = options.leaseMs ?? DEFAULT_LEASE_MS;
-  const { logger, clock, outboxRepository } = container;
-  const workerId = options.workerId ?? RELAY_WORKER_ID;
+  const { logger, clock, outboxRepository, idGenerator } = container;
+  const workerId = options.workerId ?? idGenerator.next();
 
   const now = clock.now();
   const entries = await outboxRepository.claimPending({
