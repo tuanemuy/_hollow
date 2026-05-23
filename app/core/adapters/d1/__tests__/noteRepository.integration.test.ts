@@ -1348,6 +1348,171 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
   });
 });
 
+describe("D1NoteRepository.listWithCount (integration)", () => {
+  // T-listWithCount-001: pin the `idScope === null` path. `listWithCount`
+  // must agree row-for-row with the `findByOwner` + `countByOwner` pair
+  // when no candidate-set filters fire — i.e. status / dateRange only.
+  it("T-listWithCount-001: idScope === null path matches (findByOwner, countByOwner) pair", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const a = await seedNote(container, owner, dir, {
+      title: "alpha",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    });
+    const b = await seedNote(container, owner, dir, {
+      title: "beta",
+      updatedAt: "2026-04-02T00:00:00.000Z",
+    });
+    const c = await seedNote(container, owner, dir, {
+      title: "gamma",
+      updatedAt: "2026-04-03T00:00:00.000Z",
+    });
+
+    const opts = {
+      limit: 2,
+      offset: 0,
+      status: "active" as const,
+      sort: "updatedAt" as const,
+      order: "desc" as const,
+    };
+
+    const { batchItems, batchCount, listItems, total } =
+      await container.unitOfWorkProvider.run(async ({ noteRepository }) => {
+        const { items, count } = await noteRepository.listWithCount(
+          owner,
+          opts,
+        );
+        const single = await noteRepository.findByOwner(owner, opts);
+        const singleCount = await noteRepository.countByOwner(owner, {
+          status: opts.status,
+        });
+        return {
+          batchItems: items,
+          batchCount: count,
+          listItems: single,
+          total: singleCount,
+        };
+      });
+
+    expect(batchItems.map((n) => n.id)).toEqual(listItems.map((n) => n.id));
+    expect(batchCount).toBe(total);
+    // Sanity: seeded 3 active notes, paged 2 most-recent (c, b).
+    expect(batchItems.map((n) => n.id)).toEqual([c, b]);
+    expect(batchCount).toBe(3);
+    expect(a).toBeDefined();
+  });
+
+  // T-listWithCount-002: pin the `idScope !== null` (chunk) path with a
+  // 150-note × visibility filter — same shape as T-bind-010/011. The
+  // batch API must agree with the single-call pair even when the cross-
+  // chunk JS sort/slice is doing the heavy lifting.
+  it("T-listWithCount-002: idScope !== null (chunk) path matches (findByOwner, countByOwner) pair across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const ids = await seedManyNotes(container, owner, dir, 150);
+    const pubStmts = ids.map((noteId) =>
+      container.db.insert(schema.publicationStates).values({
+        noteId,
+        ownerId: owner,
+        visibility: "public",
+        publishedAt: TZ,
+        updatedAt: TZ,
+        version: 0,
+      }),
+    );
+    await container.db.batch(
+      pubStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const opts = {
+      limit: 50,
+      offset: 50,
+      visibility: ["public" as PublicationVisibility],
+      sort: "updatedAt" as const,
+      order: "desc" as const,
+    };
+
+    const { batchItems, batchCount, listItems, total } =
+      await container.unitOfWorkProvider.run(async ({ noteRepository }) => {
+        const { items, count } = await noteRepository.listWithCount(
+          owner,
+          opts,
+        );
+        const single = await noteRepository.findByOwner(owner, opts);
+        const singleCount = await noteRepository.countByOwner(owner, {
+          visibility: opts.visibility,
+        });
+        return {
+          batchItems: items,
+          batchCount: count,
+          listItems: single,
+          total: singleCount,
+        };
+      });
+
+    expect(batchItems.map((n) => n.id)).toEqual(listItems.map((n) => n.id));
+    expect(batchCount).toBe(total);
+    expect(batchItems).toHaveLength(50);
+    expect(batchCount).toBe(150);
+  });
+
+  // T-listWithCount-003: empty intersected scope short-circuit. The
+  // ghost tagId produces an empty candidate set; `buildOwnerListWhere`
+  // returns `null` and `listWithCount` must skip the DB entirely.
+  it("T-listWithCount-003: empty intersected scope returns { items: [], count: 0 }", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "exists" });
+    const ghostTag = nextId(0x05) as TagId;
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.listWithCount(owner, {
+          limit: 100,
+          offset: 0,
+          tagIds: [ghostTag],
+          visibility: ["public"],
+        }),
+    );
+
+    expect(result.items).toEqual([]);
+    expect(result.count).toBe(0);
+  });
+
+  // T-listWithCount-004: `count` is independent of pagination / sort.
+  // With 5 owner-active notes and `limit=2, offset=0`, `items.length`
+  // tracks the page window but `count` must report the full filtered
+  // total (5).
+  it("T-listWithCount-004: limit/offset/sort/order do not affect count", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    for (let i = 0; i < 5; i += 1) {
+      await seedNote(container, owner, dir, {
+        title: `n-${i}`,
+        updatedAt: `2026-05-0${i + 1}T00:00:00.000Z`,
+      });
+    }
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.listWithCount(owner, {
+          limit: 2,
+          offset: 0,
+          status: "active",
+          sort: "updatedAt",
+          order: "desc",
+        }),
+    );
+
+    expect(result.items).toHaveLength(2);
+    expect(result.count).toBe(5);
+  });
+});
+
 describe("D1PublicationStateRepository.findByNoteIds (integration)", () => {
   // I-W-004: bulk lookup contract — empty input short-circuits, missing
   // ids drop silently so the caller's `'private'` fallback is the single

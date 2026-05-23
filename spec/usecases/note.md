@@ -244,7 +244,7 @@
 
 ### 処理フロー
 - `keyword` がある場合: Search ドメイン（SearchOwnNotes）に委譲
-- 無い場合: `NoteRepository.findByOwner` を呼び、DTO 化
+- 無い場合: `NoteRepository.listWithCount` を 1 回呼び、`{ items, count }` を取得して DTO 化（同一 filter 解決から page と total を導出するため、表示総件数と可視ページが構造的に一致する — Issue #30）
 
 ### エラーケース
 - `ValidationError`

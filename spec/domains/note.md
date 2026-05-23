@@ -142,6 +142,7 @@
   - `save(note: Note): Promise<void>`
   - `purge(id: NoteId): Promise<void>` — 物理削除（孤児メディアイベントを発行）
   - `countByOwner(ownerId: UserId): Promise<number>`
+  - `listWithCount(ownerId: UserId, opts: ListOpts & { status?: NoteStatus; tagIds?: TagId[]; dateRange?: DateRange; visibility?: PublicationVisibility[]; referencingNoteId?: NoteId }): Promise<{ items: Note[]; count: number }>` — `findByOwner(opts) + countByOwner(opts)` のバッチ版。アダプターは同一 filter 解決を 1 回だけ走らせて両方を導出する（`buildOwnerListWhere` の `intersected` 計算 / candidate set I/O を共有）。`count` は filter 適用後の総件数で `limit/offset/sort/order` の影響を受けない。`listNotesByOwner` ユースケース向け最適化（PR #170 ADR-001 Follow-up [P-W-004]、Issue #173）
 - エラーケース: `RepositoryConflictError`（slug 一意）
 
 ### HtmlSanitizer（ポート）

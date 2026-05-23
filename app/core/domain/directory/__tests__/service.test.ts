@@ -190,6 +190,12 @@ class StubNoteRepository implements NoteRepository {
   countByOwner(_o: UserId, _opts?: NoteOwnerCountOpts): Promise<number> {
     throw new Error("not implemented");
   }
+  listWithCount(
+    _o: UserId,
+    _opts: NoteOwnerListOpts,
+  ): Promise<{ items: readonly Note[]; count: number }> {
+    throw new Error("not implemented");
+  }
 
   // Unused helper kept to silence unused-parameter lint on the `TagId`
   // import path, which would otherwise be dropped to no effect.

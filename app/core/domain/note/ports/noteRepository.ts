@@ -170,4 +170,41 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * that disagrees with the visible page.
    */
   countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number>;
+
+  /**
+   * Owner-scoped batch listing that returns the page `items` and the
+   * filtered total `count` from a single filter resolution. Semantically
+   * equivalent to calling
+   * `findByOwner(ownerId, opts) + countByOwner(ownerId, opts)`
+   * with matching filter fields, but adapters implement it by running
+   * the shared candidate-set / `where` resolution exactly once, then
+   * deriving both projections from the same intermediate.
+   *
+   * Contract:
+   * - `count` is the filtered total **before** pagination — i.e.
+   *   `opts.limit` / `opts.offset` / `opts.sort` / `opts.order` only
+   *   affect the `items` projection. `count` is the cardinality of the
+   *   full filtered set and is independent of the page window.
+   * - Filter semantics (status / tagIds / dateRange / visibility /
+   *   referencingNoteId) mirror {@link NoteRepository.findByOwner};
+   *   pagination / sort fields mirror {@link NoteListOpts}.
+   * - When the filter mix is structurally guaranteed to match zero
+   *   rows (empty `visibility` array, or any candidate-set
+   *   intersection that is empty), adapters short-circuit to
+   *   `{ items: [], count: 0 }` without touching the database.
+   * - Because both projections are derived from the same filter
+   *   resolution, `items.length <= count` and the rendered total cannot
+   *   structurally disagree with the visible slice (Issue #30 invariant
+   *   stays enforced — see `listNotesByOwner` for the consumer).
+   *
+   * PR #170 ADR-001 Follow-up [P-W-004]: previously `findByOwner` +
+   * `countByOwner` ran the candidate-set / intersection / chunk-fetch
+   * pipelines twice. This batch entry point lets the adapter collapse
+   * them to a single pass. The single-call methods stay available for
+   * callers that only need one projection.
+   */
+  listWithCount(
+    ownerId: UserId,
+    opts: NoteOwnerListOpts,
+  ): Promise<{ items: readonly Note[]; count: number }>;
 }
