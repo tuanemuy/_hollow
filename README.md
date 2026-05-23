@@ -130,7 +130,7 @@ Cloudflare infrastructure (D1 / Queues / DNS / Worker Routes) is managed by Pulu
 - `CLOUDFLARE_ACCOUNT_ID`
 - `PULUMI_ACCESS_TOKEN`
 - `PULUMI_CONFIG_PASSPHRASE` (only if any stack config uses `--secret`)
-- `SOPS_AGE_KEY` — the private age key matching a recipient in `.sops.yaml`
+- `SOPS_AGE_KEY` — per-stage age private key, set as an Environment Secret on the `staging` / `production` Environment (see [`infra/secrets/README.md`](infra/secrets/README.md))
 
 運用詳細は [`docs/deployment_setup.md`](docs/deployment_setup.md) を参照。
 
