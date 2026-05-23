@@ -8,7 +8,12 @@
 # block re-declares them. Keep `database_id`, queue names, bucket names,
 # Service Binding targets, and `APP_URL` in sync across every block.
 name = "${WORKER_WEB}"
-main = "app/server.cloudflare.ts"
+# Point at the Vite-built artifact rather than raw TS. TanStack Start's server entry
+# uses Vite-plugin virtual imports (#tanstack-router-entry, tanstack-start-manifest:v,
+# etc.) that wrangler's esbuild cannot resolve when bundling from source. `no_bundle`
+# tells wrangler to ship the already-bundled output as-is. See Issue #174.
+main = "dist/server/index.js"
+no_bundle = true
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 
