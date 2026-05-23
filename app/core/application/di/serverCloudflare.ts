@@ -18,6 +18,7 @@ import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService
 import { instanceSettings as instanceSettingsTable } from "@/core/adapters/d1/schema";
 import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
 import { D1UnitOfWorkProvider } from "@/core/adapters/d1/unitOfWork";
+import { ResendEmailSender } from "@/core/adapters/email/resendEmailSender";
 import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder";
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
@@ -116,6 +117,18 @@ export type RequestServerConfig = AppConfig &
     // operations that actually need encryption (saving a DB-sourced
     // LLM api key) surface `SecretBoxError(KeyUnavailable)` on call.
     secretBoxMasterKey?: string;
+    // Optional `RESEND_API_KEY` secret. Paired with `emailFrom`, both
+    // present → DI wires `ResendEmailSender` for real transactional email;
+    // either missing → DI keeps `ConsoleEmailSender` (dev fallback that
+    // only logs). The AND condition guards against the silent-failure
+    // path where Resend would 4xx every send for an unverified `from`
+    // domain. See `.issue/197/adr.md` ADR-005.
+    resendApiKey?: string;
+    // Optional `EMAIL_FROM` var. Verified sender address on the Resend
+    // side (SPF/DKIM/DMARC). Public information so it ships via wrangler
+    // `[vars]` rather than as a secret. Paired with `resendApiKey` (see
+    // above) to gate the `ResendEmailSender` wiring.
+    emailFrom?: string;
     // Optional `ADMIN_LLM_API_KEY` env override. When set, admin
     // settings resolution prefers this over any DB-stored ciphertext
     // (`AdminSettingsService.assertEnvOverride`); `null` here means
@@ -183,6 +196,15 @@ export type ServerEnv = Readonly<{
   // Optional base64-encoded 32-byte master key for `WebCryptoSecretBox`.
   // Absent → DI falls back to `NullSecretBox` (operation-time fail).
   SECRET_BOX_MASTER_KEY?: string;
+  // Optional Resend HTTP API key. Paired with `EMAIL_FROM`, both present
+  // → DI wires `ResendEmailSender` (real transactional email). Either
+  // missing → DI keeps `ConsoleEmailSender` as the dev fallback. See
+  // `.issue/197/adr.md` ADR-005.
+  RESEND_API_KEY?: string;
+  // Optional verified sender address used by `ResendEmailSender`.
+  // Wrangler `[vars]` entry (public information). Empty / unset →
+  // pairs with `RESEND_API_KEY` missing to keep `ConsoleEmailSender`.
+  EMAIL_FROM?: string;
   // Optional admin-side LLM api key override. Absent → no env override.
   ADMIN_LLM_API_KEY?: string;
   // Optional model id for `AnthropicLLMProvider`. Wrangler `[vars]`
@@ -282,6 +304,8 @@ export function readRequestServerConfig(
     ...(env.SECRET_BOX_MASTER_KEY
       ? { secretBoxMasterKey: env.SECRET_BOX_MASTER_KEY }
       : {}),
+    ...(env.RESEND_API_KEY ? { resendApiKey: env.RESEND_API_KEY } : {}),
+    ...(env.EMAIL_FROM ? { emailFrom: env.EMAIL_FROM } : {}),
     ...(env.ADMIN_LLM_API_KEY ? { adminLlmApiKey: env.ADMIN_LLM_API_KEY } : {}),
     ...(env.ADMIN_LLM_MODEL ? { adminLlmModel: env.ADMIN_LLM_MODEL } : {}),
     ...(env.ADMIN_LLM_PROVIDER
@@ -502,6 +526,8 @@ export function createRequestContainer(
     waitUntil,
     adminSetupToken,
     secretBoxMasterKey,
+    resendApiKey,
+    emailFrom,
     adminLlmApiKey,
     adminLlmModel,
     adminLlmProvider,
@@ -532,7 +558,13 @@ export function createRequestContainer(
         : createUnavailableObjectStorage(),
     searchIndex: new D1SearchIndex(db, UuidV7Generator),
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
-    emailSender: new ConsoleEmailSender(ConsoleLogger),
+    emailSender:
+      resendApiKey && emailFrom
+        ? new ResendEmailSender({
+            apiKey: resendApiKey,
+            from: emailFrom,
+          })
+        : new ConsoleEmailSender(ConsoleLogger),
     setupTokenVerifier: new EnvSetupTokenVerifier(
       adminSetupToken === undefined
         ? undefined

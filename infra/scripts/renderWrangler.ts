@@ -107,6 +107,16 @@ const vars: Record<string, string> = {
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
   ADMIN_LLM_PROVIDER: "anthropic",
   ADMIN_LLM_BASE_URL: "",
+  // Resend sender address consumed by `ResendEmailSender` (Issue #197).
+  // Must be a domain that has SPF/DKIM/DMARC verified in Resend, or
+  // every send returns 4xx. The literal here is a placeholder — edit
+  // per stage before deploying, or override via `wrangler secret put`
+  // is NOT applicable because `EMAIL_FROM` is a public var, not a
+  // secret. Paired with the `RESEND_API_KEY` secret: both present →
+  // DI wires `ResendEmailSender`; either missing → DI keeps
+  // `ConsoleEmailSender` (dev fallback). See `.issue/197/adr.md`
+  // ADR-005.
+  EMAIL_FROM: "noreply@example.com",
 };
 
 const template = readFileSync(templatePath, "utf8");

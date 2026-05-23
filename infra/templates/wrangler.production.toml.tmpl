@@ -42,6 +42,13 @@ R2_OBJECT_BUCKET_NAME = "${R2_OBJECTS_BUCKET}"
 ADMIN_LLM_MODEL = "${ADMIN_LLM_MODEL}"
 ADMIN_LLM_PROVIDER = "${ADMIN_LLM_PROVIDER}"
 ADMIN_LLM_BASE_URL = "${ADMIN_LLM_BASE_URL}"
+# Sender address consumed by `ResendEmailSender` when paired with the
+# `RESEND_API_KEY` secret. Must be a Resend-verified domain or sends
+# return 4xx. Only wired on the web Worker (no `[env.*.vars]` entries)
+# because authentication-flow email dispatch is request-driven and
+# does not run on the consumer/relay/pruner/dlq/indexer paths. See
+# `.issue/197/adr.md` ADR-005.
+EMAIL_FROM = "${EMAIL_FROM}"
 
 [[d1_databases]]
 binding = "DB"

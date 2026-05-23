@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { FakeIdGenerator } from "../../__tests__/fakes";
 import type { WorkerContainer } from "../../di/types";
 import { SystemClock } from "../../ports/clock";
 import { ConsoleLogger } from "../../ports/logger";
@@ -6,7 +7,6 @@ import type {
   ClaimPendingArgs,
   OutboxRepository,
 } from "../../ports/outboxRepository";
-import { FakeIdGenerator } from "../../__tests__/fakes";
 import { type EventDispatcher, processOutboxEvents } from "../eventRelayWorker";
 
 // Pure unit tests for the `workerId` resolution path inside
