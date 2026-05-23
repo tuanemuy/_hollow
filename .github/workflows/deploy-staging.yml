@@ -76,12 +76,19 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.90.1"
+          # Order matters on the first-ever deploy: the top-level
+          # Worker and `[env.consumer]` both bind `RELAY` via
+          # `[[services]] service = "hollow-staging-relay"`, and
+          # Cloudflare rejects the upload with code 10143 when the
+          # referenced Worker does not exist yet (Issue #188).
+          # Deploy targets that have no service binding first, then
+          # consumers of those targets last.
           command: |
-            deploy --config wrangler.staging.toml
             deploy --config wrangler.staging.toml --env relay
-            deploy --config wrangler.staging.toml --env consumer
             deploy --config wrangler.staging.toml --env pruner
             deploy --config wrangler.staging.toml --env dlq
+            deploy --config wrangler.staging.toml --env consumer
+            deploy --config wrangler.staging.toml
 
       - name: Inject secrets (SOPS → wrangler secret bulk)
         env:
