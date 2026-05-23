@@ -97,9 +97,7 @@ describe("selectInChunks", () => {
   it("rejects with the first runner failure when a chunk throws", async () => {
     const ids = Array.from({ length: 30 }, (_, i) => `id-${i}`);
     const maxConcurrency = 3;
-    let callCount = 0;
     const runner = vi.fn(async (chunk: readonly string[]) => {
-      callCount++;
       if (chunk[0] === "id-0") throw new Error("boom");
       // Hold other workers long enough that the rejection bubbles up
       // before they can claim further chunks.
@@ -109,14 +107,19 @@ describe("selectInChunks", () => {
     await expect(
       selectInChunks(ids, runner, { chunkSize: 1, maxConcurrency }),
     ).rejects.toThrow(/boom/);
-    // Bounded worker pool: only the workers that were already spun up
-    // (<= maxConcurrency) ever invoked the runner. Chunks that no
-    // worker had a chance to claim are never started.
-    expect(runner.mock.calls.length).toBeLessThanOrEqual(maxConcurrency);
-    expect(callCount).toBeLessThanOrEqual(maxConcurrency);
-    // 30 chunks were prepared but the runner must not have seen all of
-    // them — proves "unclaimed chunks are never started".
-    expect(runner.mock.calls.length).toBeLessThan(ids.length);
+    // Bounded worker pool: all maxConcurrency workers spin up
+    // synchronously via Array.from and claim cursors 0/1/2 before any
+    // await yields. So exactly `maxConcurrency` runner calls happen,
+    // not fewer (proves all workers started) and not more (proves
+    // post-rejection chunks were never claimed thanks to the `aborted`
+    // flag).
+    expect(runner.mock.calls.length).toBe(maxConcurrency);
+    // Wait one more macrotask past the in-flight 20ms hold to give any
+    // zombie worker a chance to mis-claim further chunks — if the
+    // abort flag is wired incorrectly, the call count would creep up
+    // past maxConcurrency here.
+    await new Promise((r) => setTimeout(r, 30));
+    expect(runner.mock.calls.length).toBe(maxConcurrency);
   });
 
   it("respects maxConcurrency by capping in-flight runners", async () => {
@@ -137,8 +140,10 @@ describe("selectInChunks", () => {
     });
     expect(out).toEqual(ids);
     expect(runner).toHaveBeenCalledTimes(20);
-    expect(peak).toBeLessThanOrEqual(maxConcurrency);
-    expect(peak).toBeGreaterThan(0);
+    // Equality (not just `<=`): with 20 chunks and 5ms holds per chunk,
+    // the pool must saturate to the cap. Asserting equality locks the
+    // worker-pool's "fully spin up to the cap" invariant.
+    expect(peak).toBe(maxConcurrency);
   });
 
   it("preserves input chunk order under bounded concurrency", async () => {
@@ -170,7 +175,10 @@ describe("selectInChunks", () => {
     const out = await selectInChunks(ids, runner, { chunkSize: 1 });
     expect(out).toEqual(ids);
     expect(runner).toHaveBeenCalledTimes(200);
-    expect(peak).toBeLessThanOrEqual(DEFAULT_MAX_CONCURRENCY);
-    expect(peak).toBeGreaterThan(0);
+    // Equality locks the default value: with 200 chunks and 1ms holds,
+    // the pool must saturate exactly to `DEFAULT_MAX_CONCURRENCY`. If
+    // the default ever silently drifts (or the cap is misapplied),
+    // this assertion catches it.
+    expect(peak).toBe(DEFAULT_MAX_CONCURRENCY);
   });
 });

@@ -56,17 +56,22 @@ export interface SelectInChunksOptions {
  * industry-default DB connection-pool band (5-10); see
  * `.issue/172/adr.md` for the full rationale.
  *
+ * Caller-side fan-out is **not** bounded by this helper: N concurrent
+ * calls to `selectInChunks` observe up to N × maxConcurrency in-flight
+ * runners. See `.issue/172/adr.md` ADR-001 §fan-out.
+ *
  * Ordering and failure semantics:
  * - The resolved array tracks input chunk order regardless of which
  *   runner settles first (workers write results into a pre-sized array
  *   at their claimed index).
  * - First rejection wins: the function rejects with the first runner
- *   failure. Chunks already claimed by a worker continue to completion
- *   and their results are discarded. Chunks not yet claimed by any
- *   worker are **never started** — this differs from the previous
- *   `Promise.all` implementation where every chunk's runner was always
- *   invoked. Callers must not rely on runner side effects firing for
- *   every chunk.
+ *   failure. Chunks already in flight at the moment of rejection
+ *   continue to completion and their results are discarded. Chunks not
+ *   yet claimed by any worker are **never started** because workers
+ *   observe the `aborted` flag at the top of each loop iteration. This
+ *   differs from the previous `Promise.all` implementation where every
+ *   chunk's runner was always invoked. Callers must not rely on runner
+ *   side effects firing for every chunk.
  */
 export async function selectInChunks<T>(
   ids: readonly string[],
@@ -90,16 +95,27 @@ export async function selectInChunks<T>(
   }
   const results: (readonly T[])[] = new Array(chunks.length);
   let cursor = 0;
+  let aborted = false;
   const workers = Array.from(
     { length: Math.min(maxConcurrency, chunks.length) },
     async () => {
-      while (true) {
+      while (!aborted) {
         // cursor++ is safe across workers: JS evaluates the
         // post-increment synchronously before any `await` yields
         // control, so two workers never observe the same index.
         const i = cursor++;
         if (i >= chunks.length) return;
-        results[i] = await runner(chunks[i]);
+        try {
+          results[i] = await runner(chunks[i]);
+        } catch (e) {
+          // Set `aborted` before re-throwing so sibling workers observe
+          // the flag on their next loop iteration and skip claiming
+          // further chunks. `Promise.all` rejects on the first thrown
+          // worker, so `results.flat()` below is only reached when every
+          // worker completed successfully (no sparse slots possible).
+          aborted = true;
+          throw e;
+        }
       }
     },
   );

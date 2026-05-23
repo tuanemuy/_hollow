@@ -56,7 +56,7 @@ Issue #165（PR #170）で `findByOwner` / `countByOwner` / `listWithCount` の 
 
 1. **本 Issue では `loadChildren` の `Promise.all([×3])` 構造には手を入れない**: 並列性は子テーブル fetch のレイテンシ最小化を意図したもので、構造を直列化すると I/O レイテンシが累積する
 2. **デフォルト 8 並列は「helper 単体での保守値」と位置付け**: fan-out 3 倍の 24 まで増えても、Workers 公式 docs にある subrequest 関連の数値（free 50 / paid 1000）は通常「per invocation の累積数」で「同時 in-flight 数」とは別の閾値である点に留意。同時並列 throttling の閾値そのものは非公開だが、累積数の枠から見ても 24 並列 1 batch ≪ 50 累積であり、他の subrequest（hydrateMany や外部 API 呼び出し）の予算を残せる水準
-3. **listWithCount のような複合 fan-out**: `Promise.all([findByOwner, countByOwner])` で両方が chunk 経路ヒットすると `2 × maxConcurrency = 16` 並列。`loadChildren` を含めると合算 `findByOwner chunk → loadChildren 3 並列 + countByOwner chunk` というシーケンスになり、瞬間ピークは fan-out 設計と await 順序に依存する
+3. **`listWithCount` の chunk 経路は単一 selectInChunks**: PR #170 / #173 統合後、`listWithCount` の chunk 経路は `selectInChunks` を 1 回呼び、count は `sorted.length` で導出する単一スキャン（`noteRepository.ts:515-520, 530`）。`Promise.all([findByOwner, countByOwner])` で `2 × maxConcurrency` 並列になる経路は存在しない。fan-out が起こり得るのは `findByOwner` chunk → `hydrateMany` 内の `loadChildren` 3 並列という直列遷移で、瞬間ピークは `max(maxConcurrency, 3 × maxConcurrency) = 24` で和ではない
 4. **fan-out が体感レイテンシ問題を起こす運用観察が出たら**: 呼び出し側で `Promise.all` を直列化するか、`loadChildren` を子テーブル別に `{ maxConcurrency }` をオーバーライドする方針に切り替える。本 ADR を Superseded にする
 
 代替案として「helper 単位ではなくリポジトリ単位で並列度を制御する」設計（例: AsyncLocalStorage で `Workers` レベルの token bucket）も考えうるが、現時点の Issue スコープを超え、必要性が顕在化していないため見送る。
