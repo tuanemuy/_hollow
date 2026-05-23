@@ -19,14 +19,20 @@ import type { TagId } from "@/core/domain/tag/valueObject";
 import type { ConsumerContainer } from "../../di/types";
 import type { IngestionJobId as IngestionJobIdDTO } from "../../dto/ingestion";
 import { NotFoundError } from "../../errors";
+import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../../export/handleUserDeletedEvent";
 import { runExportJob } from "../../export/runExportJob";
 import { runIngestionJob } from "../../ingestion/runIngestionJob";
+import { handleNotePurgedEvent as mediaHandleNotePurgedEvent } from "../../media/handleNotePurgedEvent";
 import type { Logger } from "../../ports/logger";
+import { handleNotePurgedEvent as publicationHandleNotePurgedEvent } from "../../publication/handleNotePurgedEvent";
 import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../../publication/handleNoteTrashedEvent";
+import { handleUserDeletedEvent as publicationHandleUserDeletedEvent } from "../../publication/handleUserDeletedEvent";
 import { buildNoteSnapshots } from "../../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../../search/handlePublicationChangedEvent";
+import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../../view/handleNotePurgedEvent";
+import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../../view/handleTagDeletedEvent";
 import { dispatchDomainEvent } from "../dispatchDomainEvent";
 
 vi.mock("../../ingestion/runIngestionJob", () => ({
@@ -47,6 +53,24 @@ vi.mock("../../search/handlePublicationChangedEvent", () => ({
 vi.mock("../../publication/handleNoteTrashedEvent", () => ({
   handleNoteTrashedEvent: vi.fn(async () => undefined),
 }));
+vi.mock("../../publication/handleNotePurgedEvent", () => ({
+  handleNotePurgedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../media/handleNotePurgedEvent", () => ({
+  handleNotePurgedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../view/handleNotePurgedEvent", () => ({
+  handleNotePurgedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../view/handleTagDeletedEvent", () => ({
+  handleTagDeletedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../publication/handleUserDeletedEvent", () => ({
+  handleUserDeletedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../export/handleUserDeletedEvent", () => ({
+  handleUserDeletedEvent: vi.fn(async () => ({ cancelled: 0 })),
+}));
 vi.mock("../../search/buildNoteSnapshot", () => ({
   buildNoteSnapshots: vi.fn(async () => []),
 }));
@@ -59,6 +83,16 @@ const mockedHandlePublicationChanged = vi.mocked(handlePublicationChangedEvent);
 const mockedPublicationHandleNoteTrashed = vi.mocked(
   publicationHandleNoteTrashedEvent,
 );
+const mockedPublicationHandleNotePurged = vi.mocked(
+  publicationHandleNotePurgedEvent,
+);
+const mockedMediaHandleNotePurged = vi.mocked(mediaHandleNotePurgedEvent);
+const mockedViewHandleNotePurged = vi.mocked(viewHandleNotePurgedEvent);
+const mockedViewHandleTagDeleted = vi.mocked(viewHandleTagDeletedEvent);
+const mockedPublicationHandleUserDeleted = vi.mocked(
+  publicationHandleUserDeletedEvent,
+);
+const mockedExportHandleUserDeleted = vi.mocked(exportHandleUserDeletedEvent);
 const mockedBuildNoteSnapshots = vi.mocked(buildNoteSnapshots);
 
 const stubLogger: Logger = {
@@ -381,16 +415,24 @@ function shareLinkRevokedEvent(): DomainEvent {
   };
 }
 
+const TAG_ID = "01938f00-fff0-7000-8000-000000000001" as TagId;
+
 function tagDeletedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
-    type: "tag.deleted" as never,
-    payload: { tagId: "01938f00-fff0-7000-8000-000000000001" } as never,
+    type: "tag.deleted",
+    payload: { tagId: TAG_ID },
     occurredAt: new Date(0),
-    aggregateId: "01938f00-fff0-7000-8000-000000000001",
-  } as DomainEvent;
+    aggregateId: TAG_ID,
+  };
 }
 
+// `directory.deleted` / `media.uploaded` are physical events that are
+// NEVER emitted by the production code (Issue #159 ADR-003: `Directory.
+// DeleteDirectory` emits only `note.trashed` for children, and Media's
+// orphan monitoring is TTL-based rather than event-driven). They remain
+// as `as never` fake events so the skipped-regression-guard tests can
+// still exercise the default branch of the dispatcher switch.
 function directoryDeletedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
@@ -416,11 +458,11 @@ function mediaUploadedEvent(): DomainEvent {
 function userDeletedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
-    type: "user.deleted" as never,
-    payload: { userId: OWNER_ID } as never,
+    type: "user.deleted",
+    payload: { userId: OWNER_ID, deletedAt: new Date(0) },
     occurredAt: new Date(0),
     aggregateId: OWNER_ID,
-  } as DomainEvent;
+  };
 }
 
 beforeEach(() => {
@@ -430,6 +472,12 @@ beforeEach(() => {
   mockedSearchHandleNoteTrashed.mockReset();
   mockedHandlePublicationChanged.mockReset();
   mockedPublicationHandleNoteTrashed.mockReset();
+  mockedPublicationHandleNotePurged.mockReset();
+  mockedMediaHandleNotePurged.mockReset();
+  mockedViewHandleNotePurged.mockReset();
+  mockedViewHandleTagDeleted.mockReset();
+  mockedPublicationHandleUserDeleted.mockReset();
+  mockedExportHandleUserDeleted.mockReset();
   mockedBuildNoteSnapshots.mockReset();
 
   mockedRunIngestionJob.mockResolvedValue(undefined);
@@ -438,6 +486,12 @@ beforeEach(() => {
   mockedSearchHandleNoteTrashed.mockResolvedValue(undefined);
   mockedHandlePublicationChanged.mockResolvedValue(undefined);
   mockedPublicationHandleNoteTrashed.mockResolvedValue(undefined);
+  mockedPublicationHandleNotePurged.mockResolvedValue(undefined);
+  mockedMediaHandleNotePurged.mockResolvedValue(undefined);
+  mockedViewHandleNotePurged.mockResolvedValue(undefined);
+  mockedViewHandleTagDeleted.mockResolvedValue(undefined);
+  mockedPublicationHandleUserDeleted.mockResolvedValue(undefined);
+  mockedExportHandleUserDeleted.mockResolvedValue({ cancelled: 0 });
   // Default: snapshot builder returns a single sentinel snapshot. Tests
   // that care about the empty / multi-result case override per-test.
   mockedBuildNoteSnapshots.mockResolvedValue([fakeSnapshot(NOTE_ID)]);
@@ -635,8 +689,8 @@ describe("dispatchDomainEvent — note save routing (#145)", () => {
   });
 });
 
-describe("dispatchDomainEvent — note.trashed fan-out (#145)", () => {
-  it("calls search handler then publication handler in order", async () => {
+describe("dispatchDomainEvent — note.trashed fan-out (#145 + #159)", () => {
+  it("calls search → publication → view handlers in order", async () => {
     const callOrder: string[] = [];
     mockedSearchHandleNoteTrashed.mockImplementationOnce(async () => {
       callOrder.push("search");
@@ -644,10 +698,13 @@ describe("dispatchDomainEvent — note.trashed fan-out (#145)", () => {
     mockedPublicationHandleNoteTrashed.mockImplementationOnce(async () => {
       callOrder.push("publication");
     });
+    mockedViewHandleNotePurged.mockImplementationOnce(async () => {
+      callOrder.push("view");
+    });
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, noteTrashedEvent());
     expect(outcome).toEqual({ kind: "handled" });
-    expect(callOrder).toEqual(["search", "publication"]);
+    expect(callOrder).toEqual(["search", "publication", "view"]);
   });
 
   it("returns retry on fan-out partial failure (search ok, publication transient)", async () => {
@@ -660,6 +717,17 @@ describe("dispatchDomainEvent — note.trashed fan-out (#145)", () => {
     expect(outcome.kind).toBe("retry");
     expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
     expect(mockedPublicationHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleNotePurged).not.toHaveBeenCalled();
+  });
+
+  it("returns retry when view handler fails after publication ok", async () => {
+    mockedViewHandleNotePurged.mockRejectedValueOnce(new Error("d1 transient"));
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, noteTrashedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedPublicationHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleNotePurged).toHaveBeenCalledTimes(1);
   });
 
   it("returns handled+warn when payload noteId is empty (BusinessRuleError)", async () => {
@@ -678,17 +746,229 @@ describe("dispatchDomainEvent — note.trashed fan-out (#145)", () => {
     const outcome = await dispatchDomainEvent(container, event);
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedSearchHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(mockedPublicationHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(mockedViewHandleNotePurged).not.toHaveBeenCalled();
     expect(stubLogger.warn).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("dispatchDomainEvent — note.purged routing (#145)", () => {
-  it("routes to search trash handler only (publication / media / view are out of scope)", async () => {
+describe("dispatchDomainEvent — note.purged fan-out (#159)", () => {
+  it("calls search → publication → media → view handlers in order", async () => {
+    const callOrder: string[] = [];
+    mockedSearchHandleNoteTrashed.mockImplementationOnce(async () => {
+      callOrder.push("search");
+    });
+    mockedPublicationHandleNotePurged.mockImplementationOnce(async () => {
+      callOrder.push("publication");
+    });
+    mockedMediaHandleNotePurged.mockImplementationOnce(async () => {
+      callOrder.push("media");
+    });
+    mockedViewHandleNotePurged.mockImplementationOnce(async () => {
+      callOrder.push("view");
+    });
+    const { container } = makeStubContainer({});
+    const event = notePurgedEvent();
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(callOrder).toEqual(["search", "publication", "media", "view"]);
+    // The media handler receives the full event envelope (per ADR-005).
+    const mediaCallArg = mockedMediaHandleNotePurged.mock.calls[0]?.[0];
+    expect(mediaCallArg?.input.event).toBe(event);
+  });
+
+  it("returns retry when media handler fails after publication ok (view not called)", async () => {
+    mockedMediaHandleNotePurged.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, notePurgedEvent());
-    expect(outcome).toEqual({ kind: "handled" });
+    expect(outcome.kind).toBe("retry");
     expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
-    expect(mockedPublicationHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(mockedPublicationHandleNotePurged).toHaveBeenCalledTimes(1);
+    expect(mockedMediaHandleNotePurged).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleNotePurged).not.toHaveBeenCalled();
+  });
+
+  it("returns retry when view handler fails after media ok", async () => {
+    mockedViewHandleNotePurged.mockRejectedValueOnce(new Error("d1 transient"));
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, notePurgedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedSearchHandleNoteTrashed).toHaveBeenCalledTimes(1);
+    expect(mockedPublicationHandleNotePurged).toHaveBeenCalledTimes(1);
+    expect(mockedMediaHandleNotePurged).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleNotePurged).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns retry when publication purge fails (media / view not called)", async () => {
+    mockedPublicationHandleNotePurged.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, notePurgedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedMediaHandleNotePurged).not.toHaveBeenCalled();
+    expect(mockedViewHandleNotePurged).not.toHaveBeenCalled();
+  });
+
+  it("returns handled+warn when payload noteId is empty (ADR-005: validation before any handler)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "note.purged",
+      payload: {
+        noteId: "" as NoteId,
+        ownerId: OWNER_ID,
+        mediaRefs: [] as readonly MediaAssetId[],
+      },
+      occurredAt: new Date(0),
+      aggregateId: NOTE_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedSearchHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(mockedPublicationHandleNotePurged).not.toHaveBeenCalled();
+    expect(mockedMediaHandleNotePurged).not.toHaveBeenCalled();
+    expect(mockedViewHandleNotePurged).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns handled+warn when payload ownerId is empty (ADR-005: head validation)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "note.purged",
+      payload: {
+        noteId: NOTE_ID,
+        ownerId: "" as UserId,
+        mediaRefs: [] as readonly MediaAssetId[],
+      },
+      occurredAt: new Date(0),
+      aggregateId: NOTE_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedSearchHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns handled+warn when payload mediaRefs contains an empty string (ADR-005: head validation)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "note.purged",
+      payload: {
+        noteId: NOTE_ID,
+        ownerId: OWNER_ID,
+        mediaRefs: ["" as MediaAssetId] as readonly MediaAssetId[],
+      },
+      occurredAt: new Date(0),
+      aggregateId: NOTE_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedSearchHandleNoteTrashed).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("dispatchDomainEvent — tag.deleted routing (#159)", () => {
+  it("routes tag.deleted to view handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const event = tagDeletedEvent();
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedViewHandleTagDeleted).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleTagDeleted).toHaveBeenCalledWith({
+      container,
+      input: { tagId: TAG_ID },
+    });
+  });
+
+  it("returns handled+warn when payload tagId is empty (BusinessRuleError)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "tag.deleted",
+      payload: { tagId: "" as TagId },
+      occurredAt: new Date(0),
+      aggregateId: TAG_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedViewHandleTagDeleted).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns retry when view handler throws a transient error", async () => {
+    mockedViewHandleTagDeleted.mockRejectedValueOnce(new Error("d1 transient"));
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, tagDeletedEvent());
+    expect(outcome.kind).toBe("retry");
+  });
+});
+
+describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
+  it("routes user.deleted to publication then export in order", async () => {
+    const callOrder: string[] = [];
+    mockedPublicationHandleUserDeleted.mockImplementationOnce(async () => {
+      callOrder.push("publication");
+    });
+    mockedExportHandleUserDeleted.mockImplementationOnce(async () => {
+      callOrder.push("export");
+      return { cancelled: 0 };
+    });
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(callOrder).toEqual(["publication", "export"]);
+    expect(mockedPublicationHandleUserDeleted).toHaveBeenCalledWith({
+      container,
+      input: { userId: OWNER_ID },
+    });
+    expect(mockedExportHandleUserDeleted).toHaveBeenCalledWith({
+      container,
+      input: { userId: OWNER_ID },
+    });
+  });
+
+  it("returns retry on partial failure (publication ok, export transient)", async () => {
+    mockedExportHandleUserDeleted.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedPublicationHandleUserDeleted).toHaveBeenCalledTimes(1);
+    expect(mockedExportHandleUserDeleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns retry when publication fails (export not called)", async () => {
+    mockedPublicationHandleUserDeleted.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
+    expect(outcome.kind).toBe("retry");
+    expect(mockedPublicationHandleUserDeleted).toHaveBeenCalledTimes(1);
+    expect(mockedExportHandleUserDeleted).not.toHaveBeenCalled();
+  });
+
+  it("returns handled+warn when payload userId is empty (BusinessRuleError)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "user.deleted",
+      payload: { userId: "" as UserId, deletedAt: new Date(0) },
+      occurredAt: new Date(0),
+      aggregateId: OWNER_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedPublicationHandleUserDeleted).not.toHaveBeenCalled();
+    expect(mockedExportHandleUserDeleted).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -738,8 +1018,8 @@ describe("dispatchDomainEvent — note.publish_changed routing (#145)", () => {
   });
 });
 
-describe("dispatchDomainEvent — skipped regression guards (#145)", () => {
-  it("skips share_link.issued (intentional — out of scope for #145)", async () => {
+describe("dispatchDomainEvent — skipped regression guards", () => {
+  it("skips share_link.issued (intentional — separate routing discussion, out of scope for #159)", async () => {
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
       container,
@@ -748,7 +1028,7 @@ describe("dispatchDomainEvent — skipped regression guards (#145)", () => {
     expect(outcome).toEqual({ kind: "skipped" });
   });
 
-  it("skips share_link.revoked", async () => {
+  it("skips share_link.revoked (intentional — separate routing discussion, out of scope for #159)", async () => {
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
       container,
@@ -757,13 +1037,10 @@ describe("dispatchDomainEvent — skipped regression guards (#145)", () => {
     expect(outcome).toEqual({ kind: "skipped" });
   });
 
-  it("skips tag.deleted (out of scope — separate Issue)", async () => {
-    const { container } = makeStubContainer({});
-    const outcome = await dispatchDomainEvent(container, tagDeletedEvent());
-    expect(outcome).toEqual({ kind: "skipped" });
-  });
-
-  it("skips directory.deleted (out of scope — separate Issue)", async () => {
+  it("skips directory.deleted (physical event never emitted — Issue #159 ADR-003)", async () => {
+    // `Directory.DeleteDirectory` only emits `note.trashed` for children;
+    // there is no `directory.deleted` physical event. The spec table lists
+    // it for completeness but no production code path enqueues it.
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
       container,
@@ -772,15 +1049,12 @@ describe("dispatchDomainEvent — skipped regression guards (#145)", () => {
     expect(outcome).toEqual({ kind: "skipped" });
   });
 
-  it("skips media.uploaded (out of scope — separate Issue)", async () => {
+  it("skips media.uploaded (physical event never emitted — Issue #159 ADR-003)", async () => {
+    // Media orphan monitoring is TTL-based (cron scans refCount=0 rows)
+    // rather than event-driven; `media.uploaded` is not part of the
+    // production event taxonomy.
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, mediaUploadedEvent());
-    expect(outcome).toEqual({ kind: "skipped" });
-  });
-
-  it("skips user.deleted (out of scope — separate Issue)", async () => {
-    const { container } = makeStubContainer({});
-    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
     expect(outcome).toEqual({ kind: "skipped" });
   });
 });
