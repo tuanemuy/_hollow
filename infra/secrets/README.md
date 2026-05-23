@@ -18,17 +18,21 @@ without adding it here will cause the deploy step to fail loudly.
 
 1. Install [age](https://github.com/FiloSottile/age) and
    [sops](https://github.com/getsops/sops).
-2. Generate a personal age key:
+2. Generate one age key per stage:
    ```sh
    mkdir -p ~/.config/sops/age
-   age-keygen -o ~/.config/sops/age/keys.txt
+   age-keygen -o ~/.config/sops/age/hollow-staging.txt
+   age-keygen -o ~/.config/sops/age/hollow-production.txt
    ```
-3. Send your `age1...` *public* key (printed to stdout above; never the
-   private key) to the repo maintainer. They append it to `.sops.yaml`
+3. Send each `age1...` *public* key (printed to stdout above; never the
+   private key) to the repo maintainer. They append them to `.sops.yaml`
    and re-key existing files.
 4. Confirm decryption works:
    ```sh
-   sops -d infra/secrets/staging.enc.json
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/hollow-staging.txt \
+     sops -d infra/secrets/staging.enc.json
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/hollow-production.txt \
+     sops -d infra/secrets/production.enc.json
    ```
 
 ## Adding / updating a secret
@@ -80,3 +84,7 @@ GitHub Actions loads the age *private* key from
 `secrets.SOPS_AGE_KEY` and decrypts at deploy time. See
 `.github/workflows/deploy-staging.yml` / `deploy-production.yml`. Never
 commit a private age key.
+
+Register `SOPS_AGE_KEY` as an Environment Secret on the matching GitHub
+Environment (`staging` / `production`); value is the contents of
+`~/.config/sops/age/hollow-<stage>.txt`.
