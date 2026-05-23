@@ -168,15 +168,16 @@ export async function dispatchDomainEvent(
       }
       case "note.trashed": {
         const payload = event.payload as Readonly<{ noteId: string }>;
+        // === Issue #159 ADR-005: validation 一括先行 ===
+        // 複数 handler のある fan-out では、handler が参照する field を
+        // 副作用呼出の前に全件 validate する。noteId の VO 化は既存
+        // コードが担当しているため、ここで再確認することで partial-commit
+        // リスク（validation 失敗が handler 呼出後に起こる）を排除。
         const noteId = NoteId.create(payload.noteId);
-        // fan-out: search → publication → view. All handlers are
-        // idempotent so a partial-failure retry replays cleanly. Order
-        // is fixed (not parallel) because publication.handleNoteTrashedEvent
-        // internally emits `note.publish_changed`, and finishing the
-        // search delete first keeps the index in a consistent "trashed
-        // notes are absent" state before the subsequent publish_changed
-        // dispatch arrives. View runs last to mark SavedView broken
-        // (Issue #159 ADR-002 — reuses `view.handleNotePurgedEvent`).
+        // === handler 順次呼出（search → publication → view） ===
+        // 各 handler が冪等で、publication は note.publish_changed を再 emit する
+        // ため、search delete を先に済ませることで index を一貫性のある状態に
+        // 保つ。view は last に実行（ADR-002 — note.purged と同じ handler を再利用）。
         await searchHandleNoteTrashedEvent({ container, input: { noteId } });
         await publicationHandleNoteTrashedEvent({
           container,
