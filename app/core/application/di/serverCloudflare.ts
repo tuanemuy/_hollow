@@ -202,8 +202,9 @@ export type ServerEnv = Readonly<{
   // `.issue/197/adr.md` ADR-005.
   RESEND_API_KEY?: string;
   // Optional verified sender address used by `ResendEmailSender`.
-  // Wrangler `[vars]` entry (public information). Empty / unset →
-  // pairs with `RESEND_API_KEY` missing to keep `ConsoleEmailSender`.
+  // Wrangler `[vars]` entry (public information). Empty / unset → AND
+  // gate fails, DI keeps `ConsoleEmailSender` regardless of
+  // `RESEND_API_KEY` state. See `.issue/197/adr.md` ADR-005.
   EMAIL_FROM?: string;
   // Optional admin-side LLM api key override. Absent → no env override.
   ADMIN_LLM_API_KEY?: string;

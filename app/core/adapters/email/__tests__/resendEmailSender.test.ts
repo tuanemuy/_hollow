@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EmailAddress } from "@/core/domain/identity/valueObject";
 import { DEFAULT_ENDPOINT, ResendEmailSender } from "../resendEmailSender";
 
@@ -157,6 +157,21 @@ describe("ResendEmailSender.sendEmailChangeNotice", () => {
     expect(body.html).toContain(LINK.toString());
     expect(body.subject).toMatch(/email|address/i);
   });
+
+  it("renders Japanese email-change confirmation when locale is 'ja'", async () => {
+    const { mock, lastCall } = captureFetch();
+    const sender = new ResendEmailSender({
+      apiKey: "re_test_key",
+      from: "no-reply@example.com",
+      fetchImpl: mock as unknown as typeof fetch,
+    });
+
+    await sender.sendEmailChangeNotice(TO, LINK, "ja");
+
+    const { body } = lastCall();
+    expect(body.subject).toBe("メールアドレス変更の確認");
+    expect(body.html).toContain(LINK.toString());
+  });
 });
 
 describe("ResendEmailSender.sendEmailChangeWarning", () => {
@@ -281,6 +296,81 @@ describe("ResendEmailSender error mapping", () => {
       /network/,
     );
   });
+
+  it("wraps unexpected non-Error throws as `unexpected error` with maskSecrets applied", async () => {
+    // Some runtimes (and library bugs) throw strings or POJOs from
+    // `fetch`. The `unexpected error` branch must (1) wrap them in an
+    // Error, and (2) run the stringified cause through `maskSecrets`
+    // before embedding it in the user-visible message.
+    const mock = vi.fn(async () => {
+      // Simulated stack that accidentally echoes a Bearer credential
+      // (e.g. an undici layer dumping the request headers).
+      // biome-ignore lint/style/useThrowOnlyError: simulating an
+      // unexpected non-Error throw
+      throw "stack trace -- authorization: Bearer re_secret_should_be_masked";
+    });
+    const sender = new ResendEmailSender({
+      apiKey: "re_secret_should_be_masked",
+      from: "no-reply@example.com",
+      fetchImpl: mock as unknown as typeof fetch,
+    });
+
+    try {
+      await sender.sendVerification(TO, LINK, "en");
+      throw new Error("expected to throw");
+    } catch (e) {
+      const message = (e as Error).message;
+      expect(message).toMatch(/^ResendEmailSender: unexpected error:/);
+      expect(message).not.toContain("re_secret_should_be_masked");
+    }
+  });
+
+  it("falls back to text() and includes the truncated body when the error response is not JSON", async () => {
+    // Resend (and most APIs) emit JSON, but a malformed proxy or a
+    // 5xx HTML error page can land on the adapter. `extractErrorDetail`
+    // must downgrade to `response.text()` and surface a slice in the
+    // thrown message so operators get a hint.
+    const htmlError = new Response("<html>Bad Gateway</html>", {
+      status: 502,
+      headers: { "content-type": "text/html" },
+    });
+    const mock = vi.fn(async () => htmlError);
+    const sender = new ResendEmailSender({
+      apiKey: "re_test_key",
+      from: "no-reply@example.com",
+      fetchImpl: mock as unknown as typeof fetch,
+    });
+
+    await expect(sender.sendVerification(TO, LINK, "en")).rejects.toThrow(
+      /API error 502:.*Bad Gateway/,
+    );
+  });
+
+  it("html-escapes link and email addresses to keep authentication mails XSS-safe", async () => {
+    // Email bodies are rendered as HTML by mail clients. `escapeHtml`
+    // is the only defence against malformed/attacker-controlled inputs.
+    // Use a link with `&` (a real-world signing parameter) and an
+    // address synthesised from the verified value object.
+    const { mock, lastCall } = captureFetch();
+    const sender = new ResendEmailSender({
+      apiKey: "re_test_key",
+      from: "no-reply@example.com",
+      fetchImpl: mock as unknown as typeof fetch,
+    });
+
+    const linkWithAmp = new URL(
+      "https://app.example.com/verify?token=abc&next=%2Fadmin",
+    );
+
+    await sender.sendVerification(TO, linkWithAmp, "en");
+
+    const { body } = lastCall();
+    // `&` in the URL must be escaped in HTML output, otherwise mail
+    // clients (and any embedded preview) will mis-parse the link.
+    expect(body.html).toContain("token=abc&amp;next=%2Fadmin");
+    // The raw `&next` form must not appear unescaped between tags.
+    expect(body.html).not.toContain("token=abc&next=");
+  });
 });
 
 describe("ResendEmailSender default fetch binding", () => {
@@ -289,23 +379,24 @@ describe("ResendEmailSender default fetch binding", () => {
   // assign `fetch` to an instance property and later call it as
   // `this.fetchImpl(...)`. The default fallback must wrap the call so the
   // method-invocation site never sees a bare detached `fetch`.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("invokes the global fetch with the correct `this` binding when fetchImpl is not provided", async () => {
-    const realFetch = globalThis.fetch;
     let receivedThis: unknown = "<not captured>";
     const stub = vi.fn(function fetchStub(this: unknown) {
       receivedThis = this;
       return Promise.resolve(okResponse());
     });
-    globalThis.fetch = stub as unknown as typeof fetch;
-    try {
-      const sender = new ResendEmailSender({
-        apiKey: "re_test_key",
-        from: "no-reply@example.com",
-      });
-      await sender.sendVerification(TO, LINK, "en");
-    } finally {
-      globalThis.fetch = realFetch;
-    }
+    vi.stubGlobal("fetch", stub);
+
+    const sender = new ResendEmailSender({
+      apiKey: "re_test_key",
+      from: "no-reply@example.com",
+    });
+    await sender.sendVerification(TO, LINK, "en");
+
     expect(stub).toHaveBeenCalledTimes(1);
     // Arrow-wrapper invokes via `globalThis.fetch(...)`, so `this` is
     // `globalThis` — never the `ResendEmailSender` instance.

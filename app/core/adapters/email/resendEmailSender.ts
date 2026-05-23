@@ -187,22 +187,29 @@ export class ResendEmailSender implements EmailSender {
 }
 
 async function extractErrorDetail(response: Response): Promise<string> {
+  // Read raw text first so the JSON parse failure path can still fall
+  // back to the body — `Response.body` is a single-use stream, so calling
+  // `.json()` first would lock it and any subsequent `.text()` would
+  // throw `TypeError: Body has already been read`.
+  let text = "";
   try {
-    const body = (await response.json()) as ResendErrorBody;
+    text = await response.text();
+  } catch {
+    return "";
+  }
+  if (text.length === 0) return "";
+  try {
+    const body = JSON.parse(text) as ResendErrorBody;
     if (typeof body.message === "string" && body.message.length > 0) {
       return body.message;
     }
     if (typeof body.name === "string" && body.name.length > 0) {
       return body.name;
     }
-    return "";
   } catch {
-    try {
-      return (await response.text()).slice(0, 256);
-    } catch {
-      return "";
-    }
+    // Non-JSON (e.g. HTML proxy error page) — fall through to truncated text.
   }
+  return text.slice(0, 256);
 }
 
 type RenderedEmail = Readonly<{ subject: string; html: string }>;

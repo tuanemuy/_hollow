@@ -171,7 +171,22 @@ A 案で先行する `ADMIN_LLM_*` はいずれも「Pulumi がプロビジョ�
 
 ### Decision
 
-A を採用する。`renderWrangler.ts` の `vars` リテラルに `EMAIL_FROM: "noreply@example.com"` を追加し、コメントで「Resend で SPF/DKIM/DMARC 検証済みのドメインに編集してからデプロイする必要がある」旨を明記。
+A を採用する。ただし review-001 の B-001 を受けて、当初案の「リテラル `EMAIL_FROM: "noreply@example.com"` を共通配線」ではなく、**per-stage の dictionary を導入し、デフォルトを空文字にする**:
+
+```ts
+const EMAIL_FROM_BY_STAGE: Record<Stage, string> = {
+  staging: "",
+  production: "",
+};
+// vars: { ..., EMAIL_FROM: EMAIL_FROM_BY_STAGE[stage] }
+```
+
+空文字は ADR-005 の AND ゲート（`resendApiKey && emailFrom`）を FALSE にするため、operator が verify 済みドメインをコミットするまで `ConsoleEmailSender` が wire される（fail-safe）。Operator のセットアップ手順は次のとおり:
+
+1. Resend ダッシュボードで stage 用 from ドメインを SPF/DKIM/DMARC verify
+2. `infra/scripts/renderWrangler.ts` の `EMAIL_FROM_BY_STAGE[<stage>]` を verify 済みドメインに編集してコミット
+3. `sops infra/secrets/<stage>.enc.json` で `RESEND_API_KEY` を追加
+4. `pnpm deploy:<stage>`
 
 ### Consequences
 
@@ -179,7 +194,9 @@ A を採用する。`renderWrangler.ts` の `vars` リテラルに `EMAIL_FROM: 
   - 既存の `ADMIN_LLM_*` リテラル配線パターンに揃う
   - Pulumi スタックを再 provision せずに値を差し替えられる（renderer 経由）
   - Pulumi StackOutput の型サーフェスを最小に保てる
+  - **デフォルトが空文字なので、未設定状態でデプロイしても `ConsoleEmailSender` にフォールバックする — silent 4xx は発生しない**
+  - staging / production を独立に設定できる
 - トレードオフ:
-  - リテラルの初期値が `noreply@example.com` のままデプロイすると Resend が 4xx を返し silent failure になる（ADR-005 の AND ガードで実害は回避されるが、運用者には「設定したつもりが反映されていない」状態に見える）。staging 実機検証（plan step 9）で気付ける設計
-  - 将来 stage 別に `EMAIL_FROM` を切り替えたい場合は renderer を分岐する必要がある（テンプレート別に `${EMAIL_FROM}` を解決する単純な拡張で済む）
+  - 初回デプロイ時は `ConsoleEmailSender` で「メールが届かないが UoW は通る」状態になる。これは fail-safe な設計だが、operator は明示的に setup runbook を完了させない限り production で実メールが届かない（→ 設計どおりの「気付き」になる）
+  - 将来「stage 別に値が違うのは煩雑」になった場合は `EMAIL_FROM_BY_STAGE` を単一値に縮退させる選択肢が残る
 

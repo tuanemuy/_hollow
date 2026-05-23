@@ -72,6 +72,14 @@ type StackOutput = {
 
 const stack = JSON.parse(stackOutputRaw) as StackOutput;
 
+// Per-stage public Resend sender address. Default `""` keeps the DI AND
+// gate (`resendApiKey && emailFrom`, ADR-005) FALSE so `ConsoleEmailSender`
+// is wired until an operator commits a verified domain — fail-safe.
+const EMAIL_FROM_BY_STAGE: Record<Stage, string> = {
+  staging: "",
+  production: "",
+};
+
 const vars: Record<string, string> = {
   APP_URL: stack.appUrl,
   D1_ID: stack.d1DatabaseId,
@@ -108,15 +116,15 @@ const vars: Record<string, string> = {
   ADMIN_LLM_PROVIDER: "anthropic",
   ADMIN_LLM_BASE_URL: "",
   // Resend sender address consumed by `ResendEmailSender` (Issue #197).
-  // Must be a domain that has SPF/DKIM/DMARC verified in Resend, or
-  // every send returns 4xx. The literal here is a placeholder — edit
-  // per stage before deploying, or override via `wrangler secret put`
-  // is NOT applicable because `EMAIL_FROM` is a public var, not a
-  // secret. Paired with the `RESEND_API_KEY` secret: both present →
-  // DI wires `ResendEmailSender`; either missing → DI keeps
-  // `ConsoleEmailSender` (dev fallback). See `.issue/197/adr.md`
-  // ADR-005.
-  EMAIL_FROM: "noreply@example.com",
+  // **Per-stage**: each entry in `EMAIL_FROM_BY_STAGE` is the verified
+  // Resend domain for that stage. Default is `""` so the DI AND gate
+  // (`resendApiKey && emailFrom`, ADR-005) keeps `ConsoleEmailSender`
+  // by default — no silent 4xx from sending against an unverified
+  // domain. Operator workflow: (1) verify the chosen domain in the
+  // Resend dashboard (SPF/DKIM/DMARC), (2) update the stage entry
+  // below, (3) deploy. See `infra/secrets/README.md` and
+  // `.issue/197/adr.md` ADR-006.
+  EMAIL_FROM: EMAIL_FROM_BY_STAGE[stage],
 };
 
 const template = readFileSync(templatePath, "utf8");
