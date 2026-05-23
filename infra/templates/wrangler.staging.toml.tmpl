@@ -69,6 +69,12 @@ name = "${WORKER_RELAY}"
 main = "app/worker/cloudflare/relay.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+# Sub-Worker bundles its TS entry; the top-level `no_bundle = true`
+# (used because the main Worker ships a Vite-built artifact) does NOT
+# inherit into envs that point at raw `.ts` files, so we override here.
+# Without this, wrangler would upload `app/worker/cloudflare/*.ts` raw
+# and Cloudflare would reject the script with a SyntaxError [code: 10021].
+no_bundle = false
 
 [env.relay.vars]
 APP_URL = "${APP_URL}"
@@ -96,6 +102,12 @@ name = "${WORKER_CONSUMER}"
 main = "app/worker/cloudflare/consumer.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+# Sub-Worker bundles its TS entry; the top-level `no_bundle = true`
+# (used because the main Worker ships a Vite-built artifact) does NOT
+# inherit into envs that point at raw `.ts` files, so we override here.
+# Without this, wrangler would upload `app/worker/cloudflare/*.ts` raw
+# and Cloudflare would reject the script with a SyntaxError [code: 10021].
+no_bundle = false
 
 [env.consumer.vars]
 APP_URL = "${APP_URL}"
@@ -136,6 +148,12 @@ name = "${WORKER_INDEXER}"
 main = "app/worker/cloudflare/indexer.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+# Sub-Worker bundles its TS entry; the top-level `no_bundle = true`
+# (used because the main Worker ships a Vite-built artifact) does NOT
+# inherit into envs that point at raw `.ts` files, so we override here.
+# Without this, wrangler would upload `app/worker/cloudflare/*.ts` raw
+# and Cloudflare would reject the script with a SyntaxError [code: 10021].
+no_bundle = false
 
 [env.indexer.vars]
 APP_URL = "${APP_URL}"
@@ -158,6 +176,12 @@ name = "${WORKER_PRUNER}"
 main = "app/worker/cloudflare/pruner.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+# Sub-Worker bundles its TS entry; the top-level `no_bundle = true`
+# (used because the main Worker ships a Vite-built artifact) does NOT
+# inherit into envs that point at raw `.ts` files, so we override here.
+# Without this, wrangler would upload `app/worker/cloudflare/*.ts` raw
+# and Cloudflare would reject the script with a SyntaxError [code: 10021].
+no_bundle = false
 
 [env.pruner.vars]
 APP_URL = "${APP_URL}"
@@ -179,6 +203,12 @@ name = "${WORKER_DLQ}"
 main = "app/worker/cloudflare/dlq.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
+# Sub-Worker bundles its TS entry; the top-level `no_bundle = true`
+# (used because the main Worker ships a Vite-built artifact) does NOT
+# inherit into envs that point at raw `.ts` files, so we override here.
+# Without this, wrangler would upload `app/worker/cloudflare/*.ts` raw
+# and Cloudflare would reject the script with a SyntaxError [code: 10021].
+no_bundle = false
 
 [env.dlq.vars]
 APP_URL = "${APP_URL}"
