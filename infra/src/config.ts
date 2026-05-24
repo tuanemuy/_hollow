@@ -11,6 +11,7 @@ export type Config = {
   stage: Stage;
   zoneName: string;
   hostname: string;
+  emailFrom: string;
   accountId: string;
 };
 
@@ -29,6 +30,7 @@ export const readConfig = (): Config => {
     stage: stageRaw,
     zoneName: cfg.require("zoneName"),
     hostname: cfg.require("hostname"),
+    emailFrom: cfg.require("emailFrom"),
     accountId: cfg.require("cloudflareAccountId"),
   };
 };

@@ -54,6 +54,7 @@ const stackOutputRaw = execFileSync(
 
 type StackOutput = {
   appUrl: string;
+  emailFrom: string;
   d1DatabaseId: string;
   d1DatabaseName: string;
   eventsQueueName: string;
@@ -107,6 +108,12 @@ const vars: Record<string, string> = {
   ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
   ADMIN_LLM_PROVIDER: "anthropic",
   ADMIN_LLM_BASE_URL: "",
+  // Resend sender address consumed by `ResendEmailSender` (Issue #197).
+  // Sourced from `hollow:emailFrom` in `infra/Pulumi.{stage}.yaml` →
+  // exported as `emailFrom` StackOutput by `infra/src/index.ts`. Must
+  // be a domain Resend has SPF/DKIM/DMARC-verified, otherwise every
+  // send returns 4xx. See `.issue/197/adr.md` ADR-006.
+  EMAIL_FROM: stack.emailFrom,
 };
 
 const template = readFileSync(templatePath, "utf8");

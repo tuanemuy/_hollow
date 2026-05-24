@@ -286,6 +286,115 @@ describe("createRequestContainer", () => {
     expect(Object.hasOwn(config, "adminLlmBaseUrl")).toBe(false);
   });
 
+  it("readRequestServerConfig omits resendApiKey/emailFrom when env vars are unset", () => {
+    const config = readRequestServerConfig(envWith());
+    expect(Object.hasOwn(config, "resendApiKey")).toBe(false);
+    expect(Object.hasOwn(config, "emailFrom")).toBe(false);
+  });
+
+  it("readRequestServerConfig threads RESEND_API_KEY / EMAIL_FROM into the config when both are set", () => {
+    const config = readRequestServerConfig(
+      envWith({
+        RESEND_API_KEY: "re_test_key",
+        EMAIL_FROM: "noreply@example.com",
+      }),
+    );
+    expect(config.resendApiKey).toBe("re_test_key");
+    expect(config.emailFrom).toBe("noreply@example.com");
+  });
+
+  it("readRequestServerConfig drops empty-string RESEND_API_KEY / EMAIL_FROM", () => {
+    // Truthy spread mirrors the SECRET_BOX_MASTER_KEY pattern: an
+    // empty string from wrangler `[vars]` must not survive the
+    // transport boundary, otherwise the AND gate in createRequestContainer
+    // would receive a `""` and the constructor empty-string guard
+    // would be the only safety net.
+    const config = readRequestServerConfig(
+      envWith({ RESEND_API_KEY: "", EMAIL_FROM: "" }),
+    );
+    expect(Object.hasOwn(config, "resendApiKey")).toBe(false);
+    expect(Object.hasOwn(config, "emailFrom")).toBe(false);
+  });
+
+  it("createRequestContainer wires ConsoleEmailSender when neither RESEND_API_KEY nor EMAIL_FROM is set", async () => {
+    const container = createRequestContainer(configWith());
+    // ConsoleEmailSender swallows everything via logger.info — verify
+    // it never throws and that no real network call is attempted.
+    await expect(
+      container.emailSender.sendVerification(
+        "user@example.com" as never,
+        new URL("https://app.example.com/verify"),
+        "en",
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("createRequestContainer keeps ConsoleEmailSender when only RESEND_API_KEY is set (AND gate)", async () => {
+    const container = createRequestContainer(
+      configWith({ resendApiKey: "re_test_key" }),
+    );
+    // No fetch is performed; ConsoleEmailSender resolves without
+    // throwing. If the AND gate had failed open, ResendEmailSender
+    // would attempt a real fetch and the test would either throw
+    // (network in vitest) or be observable via fetch mocking.
+    await expect(
+      container.emailSender.sendVerification(
+        "user@example.com" as never,
+        new URL("https://app.example.com/verify"),
+        "en",
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("createRequestContainer keeps ConsoleEmailSender when only EMAIL_FROM is set (AND gate)", async () => {
+    const container = createRequestContainer(
+      configWith({ emailFrom: "noreply@example.com" }),
+    );
+    await expect(
+      container.emailSender.sendVerification(
+        "user@example.com" as never,
+        new URL("https://app.example.com/verify"),
+        "en",
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("createRequestContainer wires ResendEmailSender when both RESEND_API_KEY and EMAIL_FROM are set", async () => {
+    const container = createRequestContainer(
+      configWith({
+        resendApiKey: "re_test_key",
+        emailFrom: "noreply@example.com",
+      }),
+    );
+    // ResendEmailSender attempts a real POST. Stub `globalThis.fetch`
+    // to verify the path was taken — ConsoleEmailSender would never
+    // call `fetch`.
+    const stub = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "abc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", stub);
+    try {
+      await container.emailSender.sendVerification(
+        "user@example.com" as never,
+        new URL("https://app.example.com/verify"),
+        "en",
+      );
+      expect(stub).toHaveBeenCalledTimes(1);
+      const calls = stub.mock.calls as unknown as Array<
+        [input: string, init?: RequestInit]
+      >;
+      const firstCall = calls[0];
+      if (!firstCall) throw new Error("expected fetch to be called");
+      expect(firstCall[0]).toBe("https://api.resend.com/emails");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("surfaces explicit unavailable errors from inline unavailable storage adapters and StubLLMProvider", async () => {
     const container = createRequestContainer(configWith());
     await expect(

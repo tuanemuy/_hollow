@@ -3,24 +3,26 @@ import type { EmailSender } from "@/core/domain/identity/ports/emailSender";
 import type { EmailAddress } from "@/core/domain/identity/valueObject";
 
 /**
- * MVP `EmailSender` implementation that logs each message instead of
- * dispatching to a provider.
+ * Dev-fallback `EmailSender` implementation that logs each message
+ * instead of dispatching to a provider.
  *
- * Rationale. The MVP does not yet wire a transactional-email provider
- * (Resend / SES / etc.). All the identity flows (`SignUp`, `RequestPassword
- * Reset`, `RequestEmailChange`) call `EmailSender.send*` *after* the UoW
- * commits, so a logger-only implementation lets every flow run end-to-end
- * during development and emits the link to stdout where it can be
- * copy-pasted in tests. Failures are swallowed (the underlying logger
- * cannot fail) so this implementation satisfies the port's "errors map
- * to `EmailSendError` at the application layer" contract trivially —
- * it never raises one.
+ * Rationale. All the identity flows (`SignUp`, `RequestPasswordReset`,
+ * `RequestEmailChange`) call `EmailSender.send*` *after* the UoW
+ * commits, so a logger-only implementation lets every flow run
+ * end-to-end during local development and emits the link to stdout
+ * where it can be copy-pasted in tests. Failures are swallowed (the
+ * underlying logger cannot fail) so this implementation satisfies the
+ * port's "errors map to `EmailSendError` at the application layer"
+ * contract trivially — it never raises one.
  *
- * Production wiring path. Replace this class with a provider-backed
- * implementation (Resend HTTP API or Cloudflare Email Routing) under the
- * same port. The four templates are pre-named (`verification`,
- * `password_reset`, `email_change_notice`, `email_change_warning`) so a
- * template-driven provider can dispatch directly.
+ * Production wiring path. The DI layer (`serverCloudflare.ts`) selects
+ * `ResendEmailSender` (`adapters/email/resendEmailSender.ts`) when both
+ * `RESEND_API_KEY` (secret) and `EMAIL_FROM` (var) are set, and falls
+ * back to this class otherwise (either value missing). The four
+ * templates are pre-named (`verification`, `password_reset`,
+ * `email_change_notice`, `email_change_warning`) so any future
+ * template-driven provider (Cloudflare Email Routing, SES, …) can
+ * dispatch directly. See `.issue/197/adr.md` ADR-005.
  */
 export class ConsoleEmailSender implements EmailSender {
   constructor(private readonly logger: Logger) {}

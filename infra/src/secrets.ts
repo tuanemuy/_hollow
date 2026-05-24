@@ -21,6 +21,16 @@ export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
     "BETTER_AUTH_SECRET",
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
+    // Resend HTTP API key consumed by `ResendEmailSender` for the four
+    // transactional templates (verification / password reset / email
+    // change notice / email change warning). Paired with the public
+    // `EMAIL_FROM` var — both present → DI wires `ResendEmailSender`;
+    // either missing → DI keeps `ConsoleEmailSender` (dev fallback that
+    // only logs). Listed in `shared` for the same bulk-push reason as
+    // the other entries (ADR-007 #110); only the web Worker actually
+    // consumes it, so non-web Workers receive an unused secret until
+    // per-worker filtering lands. See `.issue/197/adr.md` ADR-004.
+    "RESEND_API_KEY",
   ] as const;
   // Secrets required by code paths that actually dispatch ingestion /
   // export work — i.e. the web Worker (request-driven dispatch) and
