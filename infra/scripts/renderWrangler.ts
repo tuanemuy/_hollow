@@ -76,8 +76,8 @@ const stack = JSON.parse(stackOutputRaw) as StackOutput;
 // gate (`resendApiKey && emailFrom`, ADR-005) FALSE so `ConsoleEmailSender`
 // is wired until an operator commits a verified domain — fail-safe.
 const EMAIL_FROM_BY_STAGE: Record<Stage, string> = {
-  staging: "",
-  production: "",
+  staging: "noreply@maku-ja.com",
+  production: "noreply@maku-ja.com",
 };
 
 const vars: Record<string, string> = {
