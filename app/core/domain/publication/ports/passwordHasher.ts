@@ -6,9 +6,9 @@
  * directly, so the domain just needs a stateless hash / verify pair.
  *
  * `hash` is expected to produce a self-describing string that includes
- * algorithm parameters (e.g. argon2id with `$argon2id$...` prefix) so
- * `verify` can re-derive the cost factors. Adapters are free to use
- * any algorithm that satisfies that contract.
+ * algorithm parameters (e.g. scrypt with `$scrypt$ln=...,r=...,p=...$`
+ * prefix) so `verify` can re-derive the cost factors. Adapters are
+ * free to use any algorithm that satisfies that contract.
  */
 export interface PasswordHasher {
   hash(raw: string): Promise<string>;

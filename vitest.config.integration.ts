@@ -83,5 +83,8 @@ export default defineConfig({
     include: ["app/**/*.integration.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.direnv/**"],
     setupFiles: ["app/core/adapters/d1/__tests__/setup.ts"],
+    // scrypt N=2^16 in workerd is slow enough that multi-signup tests
+    // blow past the default 5s timeout. See ADR 012.
+    testTimeout: 60_000,
   },
 });

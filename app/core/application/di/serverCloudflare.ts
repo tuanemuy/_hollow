@@ -25,7 +25,7 @@ import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer"
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
-import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
+import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import {
   NullSecretBox,
   WebCryptoSecretBox,
@@ -552,7 +552,7 @@ export function createRequestContainer(
     ),
     htmlSanitizer: new SanitizeHtmlSanitizer(),
     markdownConverter: new MarkdownItConverter(),
-    passwordHasher: new Argon2idPasswordHasher(),
+    passwordHasher: new ScryptPasswordHasher(),
     objectStorage:
       objectStorageBucket && r2PresignConfig
         ? new R2ObjectStorage(objectStorageBucket, r2PresignConfig)

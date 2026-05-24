@@ -1,10 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import {
-  hashArgon2id,
-  isArgon2idEncoded,
-  verifyArgon2id,
-  WasmUnavailableError,
-} from "@/core/adapters/security/argon2id";
+  hashScrypt,
+  isScryptEncoded,
+  verifyScrypt,
+} from "@/core/adapters/security/scrypt";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
@@ -24,32 +23,13 @@ import { mapDbError } from "./helpers";
 
 const CREDENTIAL_PROVIDER_ID = "credential";
 
-// Legacy PBKDF2-SHA256 encoded form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
-// New hashes are Argon2id (see `adapters/security/argon2id.ts`). The
-// PBKDF2 verify path is retained so existing accounts authored before
-// Issue #206 keep working until lazy upgrade rewrites them.
-//
-// Environments without WebAssembly dynamic compile (specifically the
-// `vitest-pool-workers` test harness — see
-// `spec/adr/011-argon2id-migration.md` ADR-005) fall back to a PBKDF2
-// hash. Production Cloudflare Workers always allows WASM compile, so
-// the fallback never fires in prod.
+// Legacy PBKDF2 verify is retained so accounts written before the
+// scrypt migration still authenticate; `maybeRehashLegacy` lazily
+// rewrites them. Form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
 const LEGACY_PBKDF2_ENCODING_VERSION = "pbkdf2-sha256-v1";
 const LEGACY_PBKDF2_HASH = "SHA-256";
-const LEGACY_PBKDF2_ITERATIONS = 600_000;
-const LEGACY_PBKDF2_SALT_BYTES = 16;
-const LEGACY_PBKDF2_KEY_BYTES = 32;
-// Defense-in-depth: cap iterations a malformed/malicious row can request
-// so a single bad SELECT can't pin the Worker isolate on PBKDF2. Mirrors
-// the cap on share-link's `legacyVerifyPbkdf2Sha256` in
-// `adapters/security/passwordHasher.ts`.
+// Cap iterations so a malformed/malicious row can't pin the worker.
 const LEGACY_PBKDF2_ITERATIONS_MAX = 10_000_000;
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin);
-}
 
 function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   const bin = atob(b64);
@@ -59,51 +39,10 @@ function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-async function legacyHashPbkdf2(raw: string): Promise<string> {
-  const salt = new Uint8Array(LEGACY_PBKDF2_SALT_BYTES);
-  crypto.getRandomValues(salt);
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(raw),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"],
-  );
-  const derived = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: LEGACY_PBKDF2_ITERATIONS,
-      hash: LEGACY_PBKDF2_HASH,
-    },
-    keyMaterial,
-    LEGACY_PBKDF2_KEY_BYTES * 8,
-  );
-  return [
-    LEGACY_PBKDF2_ENCODING_VERSION,
-    String(LEGACY_PBKDF2_ITERATIONS),
-    bytesToBase64(salt),
-    bytesToBase64(new Uint8Array(derived)),
-  ].join("$");
-}
-
-async function hashPassword(raw: string): Promise<string> {
-  try {
-    return await hashArgon2id(raw);
-  } catch (err) {
-    if (err instanceof WasmUnavailableError) {
-      return legacyHashPbkdf2(raw);
-    }
-    throw err;
-  }
-}
-
 function isLegacyPbkdf2Encoded(value: string): boolean {
   return value.startsWith(`${LEGACY_PBKDF2_ENCODING_VERSION}$`);
 }
 
-// Constant-time byte comparison. Required so verification timing does
-// not leak information about which prefix of the hash matched.
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -165,13 +104,8 @@ export async function legacyVerifyPbkdf2Hash(
 }
 
 async function verifyHash(raw: string, encoded: string): Promise<boolean> {
-  if (isArgon2idEncoded(encoded)) {
-    try {
-      return await verifyArgon2id(raw, encoded);
-    } catch (err) {
-      if (err instanceof WasmUnavailableError) return false;
-      throw err;
-    }
+  if (isScryptEncoded(encoded)) {
+    return verifyScrypt(raw, encoded);
   }
   if (isLegacyPbkdf2Encoded(encoded)) {
     return legacyVerifyPbkdf2Hash(raw, encoded);
@@ -189,7 +123,7 @@ async function verifyHash(raw: string, encoded: string): Promise<boolean> {
  * `verifyPasswordForUser`) must be invoked inside a
  * `D1UnitOfWorkProvider.run` callback so the supplied `PendingBatch`
  * can collect their writes — mutations enqueue the write directly, and
- * verify enqueues an Argon2id rehash whenever the stored hash uses a
+ * verify enqueues a scrypt rehash whenever the stored hash uses a
  * legacy PBKDF2 format (see "Lazy upgrade" below). Pure-read methods
  * (`hasPassword`, `resolveProvider`, `listCredentials`) never touch
  * `pending` and would work outside a UoW, but every current caller
@@ -197,7 +131,7 @@ async function verifyHash(raw: string, encoded: string): Promise<boolean> {
  *
  * **Lazy upgrade.** When `verifyPassword` / `verifyPasswordForUser`
  * succeeds against a legacy `pbkdf2-sha256-v1$...` row, the adapter
- * enqueues an `update accounts set password = <new argon2id> ...` onto
+ * enqueues an `update accounts set password = <new scrypt> ...` onto
  * the surrounding UoW so the row is silently re-hashed on next login.
  * `accounts` is intentionally not under OCC (see
  * `spec/database/index.md`), so a plain `pending.add(update)` is
@@ -248,7 +182,7 @@ export class D1CredentialStore implements CredentialStore {
         `User ${userId} already has a password credential`,
       );
     }
-    const hash = await hashPassword(raw);
+    const hash = await hashScrypt(raw);
     const now = this.clock.now().toISOString();
     this.pending.add(
       this.db.insert(accounts).values({
@@ -349,27 +283,15 @@ export class D1CredentialStore implements CredentialStore {
     }
   }
 
-  // Lazy upgrade: when verify succeeds against a legacy PBKDF2 hash,
-  // re-hash with Argon2id and enqueue the update onto the surrounding
-  // UoW. `accounts` is not OCC-tracked, so a bare `pending.add(update)`
-  // is sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003).
-  //
-  // If WebAssembly dynamic compile is unavailable (test pool only —
-  // ADR-005), `hashArgon2id` throws and we bail without rewriting.
-  // Production always has WASM, so this branch is test-only.
+  // `accounts` is not OCC-tracked, so a bare `pending.add(update)` is
+  // sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003).
   private async maybeRehashLegacy(
     userId: UserId,
     raw: string,
     currentEncoded: string,
   ): Promise<void> {
-    if (isArgon2idEncoded(currentEncoded)) return;
-    let upgraded: string;
-    try {
-      upgraded = await hashArgon2id(raw);
-    } catch (err) {
-      if (err instanceof WasmUnavailableError) return;
-      throw err;
-    }
+    if (isScryptEncoded(currentEncoded)) return;
+    const upgraded = await hashScrypt(raw);
     const now = this.clock.now().toISOString();
     this.pending.add(
       this.db
@@ -402,7 +324,7 @@ export class D1CredentialStore implements CredentialStore {
         "Current password does not match",
       );
     }
-    const hash = await hashPassword(newRaw);
+    const hash = await hashScrypt(newRaw);
     const now = this.clock.now().toISOString();
     this.pending.add(
       this.db
@@ -418,7 +340,7 @@ export class D1CredentialStore implements CredentialStore {
   }
 
   async resetPassword(userId: UserId, newRaw: RawPassword): Promise<void> {
-    const hash = await hashPassword(newRaw);
+    const hash = await hashScrypt(newRaw);
     const now = this.clock.now().toISOString();
     // Force-reset path. Skips current-password verification because the
     // caller has authenticated the user out-of-band (e.g. via
