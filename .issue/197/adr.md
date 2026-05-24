@@ -171,32 +171,38 @@ A 案で先行する `ADMIN_LLM_*` はいずれも「Pulumi がプロビジョ�
 
 ### Decision
 
-A を採用する。ただし review-001 の B-001 を受けて、当初案の「リテラル `EMAIL_FROM: "noreply@example.com"` を共通配線」ではなく、**per-stage の dictionary を導入し、デフォルトを空文字にする**:
+当初は A 案（renderer 内リテラル）を採用し、その後 review-001 B-001 を受けて per-stage `EMAIL_FROM_BY_STAGE` dict + 空文字デフォルトに変更したが、最終的に **B 案（Pulumi config + StackOutput）に置き換えた**。
 
-```ts
-const EMAIL_FROM_BY_STAGE: Record<Stage, string> = {
-  staging: "",
-  production: "",
-};
-// vars: { ..., EMAIL_FROM: EMAIL_FROM_BY_STAGE[stage] }
-```
+理由:
+- `EMAIL_FROM` は本来 **stage configuration** で、renderer のロジックではない
+- 既存の stage-specific 値（`hostname`, `zoneName`, `appName`, `accountId`）はすべて `infra/Pulumi.{stage}.yaml` → `readConfig()` → StackOutput export というレイヤー分離を経ており、`EMAIL_FROM` もそこに揃えるのが筋
+- renderer 内ハードコードは「code と config の混在」smell で、毎回値変更のたびに renderer ファイルの PR が発生する
 
-空文字は ADR-005 の AND ゲート（`resendApiKey && emailFrom`）を FALSE にするため、operator が verify 済みドメインをコミットするまで `ConsoleEmailSender` が wire される（fail-safe）。Operator のセットアップ手順は次のとおり:
+実装:
+
+1. `infra/Pulumi.{staging,production}.yaml` に `hollow:emailFrom` を追加
+2. `infra/src/config.ts` の `Config` 型と `readConfig()` に `emailFrom` を追加
+3. `infra/src/index.ts` で `export const emailFrom = cfg.emailFrom`
+4. `infra/scripts/renderWrangler.ts` の `StackOutput` 型に `emailFrom: string` を追加、`vars.EMAIL_FROM = stack.emailFrom` で参照
+
+Operator のセットアップ手順:
 
 1. Resend ダッシュボードで stage 用 from ドメインを SPF/DKIM/DMARC verify
-2. `infra/scripts/renderWrangler.ts` の `EMAIL_FROM_BY_STAGE[<stage>]` を verify 済みドメインに編集してコミット
-3. `sops infra/secrets/<stage>.enc.json` で `RESEND_API_KEY` を追加
-4. `pnpm deploy:<stage>`
+2. `infra/Pulumi.{stage}.yaml` の `hollow:emailFrom` を verify 済みドメインに編集
+3. `pnpm infra:up:{stage}` で Pulumi stack を更新（新 StackOutput を反映）
+4. `sops infra/secrets/{stage}.enc.json` で `RESEND_API_KEY` を追加
+5. `pnpm deploy:{stage}`
 
 ### Consequences
 
 - 良い点:
-  - 既存の `ADMIN_LLM_*` リテラル配線パターンに揃う
-  - Pulumi スタックを再 provision せずに値を差し替えられる（renderer 経由）
-  - Pulumi StackOutput の型サーフェスを最小に保てる
-  - **デフォルトが空文字なので、未設定状態でデプロイしても `ConsoleEmailSender` にフォールバックする — silent 4xx は発生しない**
-  - staging / production を独立に設定できる
+  - **stage config と renderer ロジックが明確に分離される**
+  - `hostname` / `zoneName` 等の既存 stage config と同じレイヤーに揃い、新規参加者が「stage 値はどこ？」で迷わない
+  - `pulumi config set hollow:emailFrom <value>` でも更新可能（yaml を直接編集する必要なし）
+  - 値変更時に renderer.ts を触らないため、PR の diff が config 変更のみで純粋になる
+  - `cfg.require("emailFrom")` で起動時に値の存在を強制 — 設定漏れが Pulumi 側で fail loud になる
 - トレードオフ:
-  - 初回デプロイ時は `ConsoleEmailSender` で「メールが届かないが UoW は通る」状態になる。これは fail-safe な設計だが、operator は明示的に setup runbook を完了させない限り production で実メールが届かない（→ 設計どおりの「気付き」になる）
-  - 将来「stage 別に値が違うのは煩雑」になった場合は `EMAIL_FROM_BY_STAGE` を単一値に縮退させる選択肢が残る
+  - 設定追加時に Pulumi config / config.ts / index.ts / renderWrangler.ts の StackOutput 型、計 4 箇所の編集が必要（既存の `hostname` 等も同じコストを払っている）
+  - 新規 StackOutput を追加した直後は `pnpm infra:up:{stage}` を走らせるまで StackOutput JSON に出ない（`hostname` 等と同じ pre-existing 制約）
+  - `ADMIN_LLM_*` は依然 renderer 内ハードコードのまま残る — 同じ smell があるが本 Issue のスコープ外（フォローアップで揃える価値あり）
 

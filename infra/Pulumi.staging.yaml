@@ -3,4 +3,5 @@ config:
   hollow:stage: staging
   hollow:zoneName: maku-ja.com
   hollow:hostname: staging.hollow.maku-ja.com
+  hollow:emailFrom: noreply@maku-ja.com
   hollow:cloudflareAccountId: 5ca5e9b7a94fd68cb165f0c9151343b9

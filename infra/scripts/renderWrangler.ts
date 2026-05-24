@@ -54,6 +54,7 @@ const stackOutputRaw = execFileSync(
 
 type StackOutput = {
   appUrl: string;
+  emailFrom: string;
   d1DatabaseId: string;
   d1DatabaseName: string;
   eventsQueueName: string;
@@ -71,14 +72,6 @@ type StackOutput = {
 };
 
 const stack = JSON.parse(stackOutputRaw) as StackOutput;
-
-// Per-stage public Resend sender address. Default `""` keeps the DI AND
-// gate (`resendApiKey && emailFrom`, ADR-005) FALSE so `ConsoleEmailSender`
-// is wired until an operator commits a verified domain — fail-safe.
-const EMAIL_FROM_BY_STAGE: Record<Stage, string> = {
-  staging: "noreply@maku-ja.com",
-  production: "noreply@maku-ja.com",
-};
 
 const vars: Record<string, string> = {
   APP_URL: stack.appUrl,
@@ -116,15 +109,11 @@ const vars: Record<string, string> = {
   ADMIN_LLM_PROVIDER: "anthropic",
   ADMIN_LLM_BASE_URL: "",
   // Resend sender address consumed by `ResendEmailSender` (Issue #197).
-  // **Per-stage**: each entry in `EMAIL_FROM_BY_STAGE` is the verified
-  // Resend domain for that stage. Default is `""` so the DI AND gate
-  // (`resendApiKey && emailFrom`, ADR-005) keeps `ConsoleEmailSender`
-  // by default — no silent 4xx from sending against an unverified
-  // domain. Operator workflow: (1) verify the chosen domain in the
-  // Resend dashboard (SPF/DKIM/DMARC), (2) update the stage entry
-  // below, (3) deploy. See `infra/secrets/README.md` and
-  // `.issue/197/adr.md` ADR-006.
-  EMAIL_FROM: EMAIL_FROM_BY_STAGE[stage],
+  // Sourced from `hollow:emailFrom` in `infra/Pulumi.{stage}.yaml` →
+  // exported as `emailFrom` StackOutput by `infra/src/index.ts`. Must
+  // be a domain Resend has SPF/DKIM/DMARC-verified, otherwise every
+  // send returns 4xx. See `.issue/197/adr.md` ADR-006.
+  EMAIL_FROM: stack.emailFrom,
 };
 
 const template = readFileSync(templatePath, "utf8");

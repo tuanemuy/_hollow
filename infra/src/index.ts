@@ -19,6 +19,7 @@ export const stage = cfg.stage;
 export const appName = cfg.appName;
 export const hostname = cfg.hostname;
 export const appUrl = `https://${cfg.hostname}`;
+export const emailFrom = cfg.emailFrom;
 
 export const d1DatabaseId = d1.id;
 export const d1DatabaseName = names.d1;
