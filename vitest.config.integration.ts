@@ -83,12 +83,8 @@ export default defineConfig({
     include: ["app/**/*.integration.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.direnv/**"],
     setupFiles: ["app/core/adapters/d1/__tests__/setup.ts"],
-    // scrypt (N=2^16, ~64 MiB) hashing inside vitest-pool-workers
-    // (single-threaded workerd) is noticeably slower than the same
-    // call in Node, and integration tests that perform multiple
-    // sign-ups can exceed the default 5s per-test timeout. Bump to
-    // 60s — production code is unchanged; tests just need headroom.
-    // See `spec/adr/012-scrypt-migration.md`.
+    // scrypt N=2^16 in workerd is slow enough that multi-signup tests
+    // blow past the default 5s timeout. See ADR 012.
     testTimeout: 60_000,
   },
 });

@@ -23,16 +23,12 @@ import { mapDbError } from "./helpers";
 
 const CREDENTIAL_PROVIDER_ID = "credential";
 
-// Legacy PBKDF2-SHA256 encoded form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
-// New hashes are scrypt (see `adapters/security/scrypt.ts`). The
-// PBKDF2 verify path is retained so existing accounts authored before
-// Issue #206 keep working until lazy upgrade rewrites them.
+// Legacy PBKDF2 verify is retained so accounts written before the
+// scrypt migration still authenticate; `maybeRehashLegacy` lazily
+// rewrites them. Form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
 const LEGACY_PBKDF2_ENCODING_VERSION = "pbkdf2-sha256-v1";
 const LEGACY_PBKDF2_HASH = "SHA-256";
-// Defense-in-depth: cap iterations a malformed/malicious row can request
-// so a single bad SELECT can't pin the Worker isolate on PBKDF2. Mirrors
-// the cap on share-link's `legacyVerifyPbkdf2Sha256` in
-// `adapters/security/passwordHasher.ts`.
+// Cap iterations so a malformed/malicious row can't pin the worker.
 const LEGACY_PBKDF2_ITERATIONS_MAX = 10_000_000;
 
 function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
@@ -47,8 +43,6 @@ function isLegacyPbkdf2Encoded(value: string): boolean {
   return value.startsWith(`${LEGACY_PBKDF2_ENCODING_VERSION}$`);
 }
 
-// Constant-time byte comparison. Required so verification timing does
-// not leak information about which prefix of the hash matched.
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -289,12 +283,8 @@ export class D1CredentialStore implements CredentialStore {
     }
   }
 
-  // Lazy upgrade: when verify succeeds against a legacy PBKDF2 hash,
-  // re-hash with scrypt and enqueue the update onto the surrounding
-  // UoW. `accounts` is not OCC-tracked, so a bare `pending.add(update)`
-  // is sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003)
-  // and `spec/adr/012-scrypt-migration.md` (Issue #211) for the
-  // algorithm choice.
+  // `accounts` is not OCC-tracked, so a bare `pending.add(update)` is
+  // sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003).
   private async maybeRehashLegacy(
     userId: UserId,
     raw: string,

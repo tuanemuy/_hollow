@@ -1,23 +1,8 @@
 import type { PasswordHasher } from "@/core/domain/publication/ports/passwordHasher";
 import { hashScrypt, isScryptEncoded, verifyScrypt } from "./scrypt";
 
-// ---------------------------------------------------------------------------
-// Password hashing — share-link verification
-// ---------------------------------------------------------------------------
-//
-// New hashes are scrypt (via `@noble/hashes`, see `./scrypt.ts`)
-// encoded in PHC-style format
-// (`$scrypt$ln=...,r=...,p=...$<salt>$<hash>`). The memory-hard KDF
-// replaces the previous PBKDF2-SHA256 default, and supersedes the
-// short-lived Argon2id attempt from PR #207 — see Issue #211 / ADR-006
-// for why pure-JS scrypt was chosen over WASM Argon2id.
-//
-// `verify` keeps accepting the legacy PBKDF2 format
-// (`$pbkdf2-sha256$i=<iter>$<saltB64>$<hashB64>`) so existing
-// share-link rows continue to authenticate without forced re-hash. The
-// share-link path intentionally does not implement lazy upgrade — see
+// Share-link does not implement lazy upgrade for legacy rows — see
 // `spec/adr/011-argon2id-migration.md` (ADR-003).
-
 const LEGACY_PBKDF2_PREFIX = "$pbkdf2-sha256$";
 
 function getSubtle(): SubtleCrypto {
@@ -105,14 +90,11 @@ async function legacyVerifyPbkdf2Sha256(
 }
 
 /**
- * Stateless password hasher used by share-link verification.
+ * Share-link password hasher.
  *
- * `hash` produces a scrypt PHC-encoded string. `verify` branches on
- * the prefix: scrypt records go through `verifyScrypt`, legacy
- * PBKDF2-SHA256 records (issued before the migration in Issue #206)
- * go through an internal verify path. Anything unrecognised returns
- * `false`; the method never throws so callers cannot infer existence
- * from error shape.
+ * `verify` returns `false` for any failure (mismatch, malformed hash,
+ * unknown algorithm) and never throws, so callers cannot infer
+ * existence from error shape.
  */
 export class ScryptPasswordHasher implements PasswordHasher {
   async hash(raw: string): Promise<string> {

@@ -635,12 +635,6 @@ describe("LogIn / LogOut", () => {
   // PBKDF2-SHA256 hash stored before the Argon2id migration, the
   // adapter rewrites the row to scrypt in the same UoW. Subsequent
   // logins must continue to succeed against the upgraded hash.
-  //
-  // scrypt is pure JS (`@noble/hashes`) and runs identically in the
-  // vitest-pool-workers test pool and in production Workers, so no
-  // probe / skip gating is needed here — the original WASM-based
-  // Argon2id approach in PR #207 required it, but the swap in Issue
-  // #211 removed that constraint.
   describe("lazy upgrade from legacy PBKDF2 to scrypt", () => {
     async function makeLegacyPbkdf2Hash(
       raw: string,

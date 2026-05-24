@@ -1,34 +1,20 @@
 import { scryptAsync } from "@noble/hashes/scrypt.js";
 
-// OWASP Password Storage Cheat Sheet (2024) scrypt profile, sized for
-// Cloudflare Workers Paid plan (30s CPU limit / 128 MiB heap). The
-// strict OWASP first recommendation is `N=2^17, r=8, p=1` (~128 MiB),
-// which sits exactly on the Workers heap ceiling alongside JS/WASM
-// allocations. We back off one notch to `N=2^16` (~64 MiB) so peak
-// memory stays well clear; OWASP lists this as the second acceptable
-// profile.
-//
-// `@noble/hashes` is a pure-JS implementation, so this runs without
-// the dynamic-WASM-compile restriction that broke the original
-// Argon2id (hash-wasm) plan — see Issue #211 / ADR-006.
-//
-// Source: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
+// OWASP scrypt second-tier profile. The first-tier `N=2^17` (~128 MiB)
+// would collide with the Workers 128 MiB heap, so we drop one notch.
+// See `spec/adr/012-scrypt-migration.md`.
 const SCRYPT_LOG_N = 16;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const SCRYPT_DK_LEN = 64;
 const SCRYPT_SALT_LENGTH = 16;
-// `scryptAsync` yields to the event loop every `asyncTick` ms so long
-// hashes do not monopolise the isolate. 10ms is the library default.
 const SCRYPT_ASYNC_TICK_MS = 10;
 
 const SCRYPT_PREFIX = "$scrypt$";
 
-// Defense-in-depth caps for parameters carried in a PHC-encoded hash.
-// A malformed or malicious row otherwise lets a single verify request
-// pin the worker on huge scrypt work. `ln <= 17` allows future tuning
-// up to the OWASP first profile without changing this file; `r` and
-// `p` are bounded a few notches above the production values.
+// Verify-side caps so a malformed/malicious row can't pin the worker
+// on huge scrypt work. `ln <= 17` leaves room for a future bump to the
+// first-tier profile without changing this file.
 const SCRYPT_VERIFY_MAX_LOG_N = 17;
 const SCRYPT_VERIFY_MAX_R = 16;
 const SCRYPT_VERIFY_MAX_P = 4;
@@ -51,8 +37,6 @@ function base64ToBytes(b64: string): Uint8Array | null {
   }
 }
 
-// Constant-time byte comparison. Required so verification timing does
-// not leak information about which prefix of the hash matched.
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -66,12 +50,6 @@ export function isScryptEncoded(value: string): boolean {
   return value.startsWith(SCRYPT_PREFIX);
 }
 
-// PHC-style encoded form for scrypt:
-// `$scrypt$ln=<int>,r=<int>,p=<int>$<salt-b64>$<hash-b64>`.
-// scrypt has no IETF-blessed PHC string, so we follow the common
-// "$scrypt$ln=,r=,p=" convention used by several PHC implementations.
-// Returns `null` if the parameter segment is malformed or any value
-// is outside its sane upper bound.
 function parseScryptParams(
   encoded: string,
 ): { ln: number; r: number; p: number } | null {
