@@ -55,6 +55,9 @@ const stackOutputRaw = execFileSync(
 type StackOutput = {
   appUrl: string;
   emailFrom: string;
+  llmProvider: string;
+  llmModel: string;
+  llmBaseUrl: string;
   d1DatabaseId: string;
   d1DatabaseName: string;
   eventsQueueName: string;
@@ -87,32 +90,12 @@ const vars: Record<string, string> = {
   WORKER_PRUNER: stack.workerNamesOut.pruner,
   WORKER_DLQ: stack.workerNamesOut.dlq,
   WORKER_INDEXER: stack.workerNamesOut.indexer,
-  // Public LLM model id + provider id + optional base URL override
-  // delivered via `wrangler.toml [vars]`. Literal defaults live here
-  // rather than in Pulumi StackOutput because they are deploy-time
-  // choices, not provisioned resources. Stage-specific overrides
-  // (e.g. claude-3-5-haiku for staging) ship in a follow-up Issue —
-  // until then, **keep these values in sync with `wrangler.toml`**
-  // (`[vars]` and `[env.consumer.vars]`); they are the local-dev
-  // counterpart of the staging/production defaults. Adding a new
-  // provider requires (1) appending to `LLM_PROVIDERS` in
-  // `app/core/domain/adminSettings/valueObject.ts`, (2) extending the
-  // factories in `app/core/application/di/llmProviderFactory.ts`,
-  // (3) updating these defaults if the new provider should be the
-  // stage default, and (4) syncing every env var to all 7 sites:
-  // `wrangler.toml [vars]` + `[env.consumer.vars]`, both staging /
-  // production templates' `[vars]` + `[env.consumer.vars]`, and this
-  // `vars` literal (see Issue #101 plan.md Step 10 (re #122 ADR-008)).
-  // `ADMIN_LLM_BASE_URL` is only meaningful for the OpenAI-compatible
-  // provider; empty string means "use the provider default endpoint".
-  ADMIN_LLM_MODEL: "claude-3-5-sonnet-latest",
-  ADMIN_LLM_PROVIDER: "anthropic",
-  ADMIN_LLM_BASE_URL: "",
-  // Resend sender address consumed by `ResendEmailSender` (Issue #197).
-  // Sourced from `hollow:emailFrom` in `infra/Pulumi.{stage}.yaml` →
-  // exported as `emailFrom` StackOutput by `infra/src/index.ts`. Must
-  // be a domain Resend has SPF/DKIM/DMARC-verified, otherwise every
-  // send returns 4xx. See `.issue/197/adr.md` ADR-006.
+  // Empty LLM values fall through to the DB-backed `instance_settings`
+  // at runtime (see `resolveConsumerLlmConfig`). Local-dev `wrangler.toml`
+  // is not Pulumi-sourced and must be synced by hand.
+  ADMIN_LLM_MODEL: stack.llmModel,
+  ADMIN_LLM_PROVIDER: stack.llmProvider,
+  ADMIN_LLM_BASE_URL: stack.llmBaseUrl,
   EMAIL_FROM: stack.emailFrom,
 };
 

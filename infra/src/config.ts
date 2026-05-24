@@ -13,6 +13,9 @@ export type Config = {
   hostname: string;
   emailFrom: string;
   accountId: string;
+  llmProvider: string;
+  llmModel: string;
+  llmBaseUrl: string;
 };
 
 export const readConfig = (): Config => {
@@ -32,6 +35,9 @@ export const readConfig = (): Config => {
     hostname: cfg.require("hostname"),
     emailFrom: cfg.require("emailFrom"),
     accountId: cfg.require("cloudflareAccountId"),
+    llmProvider: cfg.get("llmProvider") ?? "",
+    llmModel: cfg.get("llmModel") ?? "",
+    llmBaseUrl: cfg.get("llmBaseUrl") ?? "",
   };
 };
 

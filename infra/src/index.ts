@@ -20,6 +20,9 @@ export const appName = cfg.appName;
 export const hostname = cfg.hostname;
 export const appUrl = `https://${cfg.hostname}`;
 export const emailFrom = cfg.emailFrom;
+export const llmProvider = cfg.llmProvider;
+export const llmModel = cfg.llmModel;
+export const llmBaseUrl = cfg.llmBaseUrl;
 
 export const d1DatabaseId = d1.id;
 export const d1DatabaseName = names.d1;
