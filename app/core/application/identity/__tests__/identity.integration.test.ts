@@ -92,25 +92,6 @@ function deriveStatus(
   return "active";
 }
 
-/**
- * Returns the verification token for the (userId, purpose) row, **after
- * rewriting it to a deterministic alphanumeric value**.
- *
- * The `D1VerificationChallenge.consume` adapter looks up tokens via a
- * `LIKE %token%` predicate whose underscore-escape lacks a matching
- * `ESCAPE` clause, so random base64url tokens containing `_` or `\` are
- * intermittently unfindable (pre-existing adapter issue; out of scope
- * for the identity testcase brief). Rewriting the token to a fixed
- * alphanumeric value makes all consume() calls deterministic. The
- * stored payload is preserved so `email_change` (which carries
- * `newEmail`) still round-trips correctly.
- */
-let tokenCounter = 0;
-function nextStableToken(): string {
-  tokenCounter += 1;
-  return `tok${tokenCounter.toString(36).padStart(40, "x")}`;
-}
-
 async function readVerificationToken(
   container: TestContainer,
   userId: string,
@@ -131,14 +112,7 @@ async function readVerificationToken(
     token: string;
     payload?: Record<string, string>;
   };
-  const next = nextStableToken();
-  await container.db
-    .update(schema.verifications)
-    .set({
-      value: JSON.stringify({ token: next, payload: decoded.payload ?? {} }),
-    })
-    .where(eq(schema.verifications.id, row.id));
-  return next;
+  return decoded.token;
 }
 
 describe("SignUp", () => {
