@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import * as schema from "@/core/adapters/d1/schema";
 import {
+  hashArgon2id,
+  WasmUnavailableError,
+} from "@/core/adapters/security/argon2id";
+import {
   isAuthenticationError,
   isForbiddenError,
 } from "@/core/application/errors";
@@ -629,6 +633,141 @@ describe("LogIn / LogOut", () => {
       .from(schema.sessions)
       .where(eq(schema.sessions.token, verified.sessionToken));
     expect(after).toHaveLength(0);
+  });
+
+  // Lazy upgrade — Issue #206. When verify succeeds against a legacy
+  // PBKDF2-SHA256 hash stored before the Argon2id migration, the
+  // adapter rewrites the row to Argon2id in the same UoW. Subsequent
+  // logins must continue to succeed against the upgraded hash.
+  //
+  // The `vitest-pool-workers` test pool blocks dynamic WebAssembly
+  // compile (see `spec/adr/011-argon2id-migration.md` ADR-005), so the
+  // suite is gated on `Argon2idPasswordHasher.hash` producing a real
+  // Argon2id PHC string. When the adapter falls back to PBKDF2 (which
+  // happens iff `WebAssembly.compile` is unavailable), the lazy
+  // upgrade rewrite cannot produce an Argon2id row, so we skip these
+  // tests rather than assert the fallback shape. Production Workers
+  // always allows WASM, so the skip is test-only and the gap is
+  // covered by the staging smoke checklist.
+  describe("lazy upgrade from legacy PBKDF2 to Argon2id", () => {
+    async function makeLegacyPbkdf2Hash(
+      raw: string,
+      iterations: number,
+    ): Promise<string> {
+      const salt = new Uint8Array(16);
+      crypto.getRandomValues(salt);
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(raw),
+        { name: "PBKDF2" },
+        false,
+        ["deriveBits"],
+      );
+      const derived = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+        key,
+        256,
+      );
+      const toB64 = (bytes: Uint8Array): string => {
+        let s = "";
+        for (let i = 0; i < bytes.length; i++)
+          s += String.fromCharCode(bytes[i] ?? 0);
+        return btoa(s);
+      };
+      return `pbkdf2-sha256-v1$${iterations}$${toB64(salt)}$${toB64(
+        new Uint8Array(derived),
+      )}`;
+    }
+
+    // Probe with the real adapter helper so the skip condition matches
+    // the runtime branch exactly. An empty WASM module compile can
+    // succeed where `hash-wasm`'s base64-embedded module is rejected,
+    // so we ask the actual helper whether it can produce a hash.
+    async function argon2idAvailable(): Promise<boolean> {
+      try {
+        await hashArgon2id("probe");
+        return true;
+      } catch (err) {
+        if (err instanceof WasmUnavailableError) return false;
+        throw err;
+      }
+    }
+
+    for (const iterations of [100_000, 600_000] as const) {
+      it(`re-hashes a verified iter=${iterations} legacy account to Argon2id on logIn`, async (ctx) => {
+        if (!(await argon2idAvailable())) {
+          ctx.skip();
+          return;
+        }
+        const container = getContainer();
+        const seed = `lzy${iterations}`;
+        const { userId } = await signUp({
+          container,
+          input: baseSignUp(seed),
+        });
+        const verifyTok = await readVerificationToken(
+          container,
+          userId,
+          "email_verification",
+        );
+        await verifyEmail({ container, input: { token: verifyTok } });
+
+        // Overwrite the account password with a legacy PBKDF2 hash and
+        // freeze `updated_at` to a known sentinel so we can assert the
+        // lazy upgrade bumps it.
+        const password = strongPassword(seed);
+        const legacyHash = await makeLegacyPbkdf2Hash(password, iterations);
+        const frozenUpdatedAt = "2020-01-01T00:00:00.000Z";
+        await container.db
+          .update(schema.accounts)
+          .set({ password: legacyHash, updatedAt: frozenUpdatedAt })
+          .where(eq(schema.accounts.userId, userId));
+
+        // 1st logIn: succeeds, lazy upgrade fires.
+        const first = await logIn({
+          container,
+          input: {
+            email: uniqueEmail(seed),
+            password,
+            userAgent: null,
+            ipAddress: null,
+          },
+        });
+        expect(first.userId).toBe(userId);
+
+        const after = await container.db
+          .select({
+            password: schema.accounts.password,
+            updatedAt: schema.accounts.updatedAt,
+          })
+          .from(schema.accounts)
+          .where(eq(schema.accounts.userId, userId));
+        const upgraded = after[0]?.password;
+        expect(upgraded).toBeTruthy();
+        expect(upgraded?.startsWith("$argon2id$")).toBe(true);
+        expect(after[0]?.updatedAt).not.toBe(frozenUpdatedAt);
+
+        // 2nd logIn: verifies against the new Argon2id hash.
+        const second = await logIn({
+          container,
+          input: {
+            email: uniqueEmail(seed),
+            password,
+            userAgent: null,
+            ipAddress: null,
+          },
+        });
+        expect(second.userId).toBe(userId);
+
+        // The hash on disk should still be Argon2id after the second
+        // login (no spurious re-hash on already-upgraded rows).
+        const stillUpgraded = await container.db
+          .select({ password: schema.accounts.password })
+          .from(schema.accounts)
+          .where(eq(schema.accounts.userId, userId));
+        expect(stillUpgraded[0]?.password?.startsWith("$argon2id$")).toBe(true);
+      });
+    }
   });
 });
 

@@ -188,10 +188,11 @@ A 案で先行する `ADMIN_LLM_*` はいずれも「Pulumi がプロビジョ�
 Operator のセットアップ手順:
 
 1. Resend ダッシュボードで stage 用 from ドメインを SPF/DKIM/DMARC verify
-2. `infra/Pulumi.{stage}.yaml` の `hollow:emailFrom` を verify 済みドメインに編集
-3. `pnpm infra:up:{stage}` で Pulumi stack を更新（新 StackOutput を反映）
-4. `sops infra/secrets/{stage}.enc.json` で `RESEND_API_KEY` を追加
-5. `pnpm deploy:{stage}`
+2. `infra/Pulumi.{stage}.yaml` の `hollow:emailFrom` を verify 済みドメインに編集してコミット
+3. `sops infra/secrets/{stage}.enc.json` で `RESEND_API_KEY` を追加してコミット
+4. main にマージ → `.github/workflows/deploy-{stage}.yml` が自動で `pulumi up`（StackOutput 反映）→ `infra:render` → `wrangler deploy` を実行
+
+ローカルから `pulumi up` を手動実行する必要はない（CI 側に `PULUMI_ACCESS_TOKEN` / `CLOUDFLARE_API_TOKEN` 等が登録済み）。
 
 ### Consequences
 
@@ -203,6 +204,6 @@ Operator のセットアップ手順:
   - `cfg.require("emailFrom")` で起動時に値の存在を強制 — 設定漏れが Pulumi 側で fail loud になる
 - トレードオフ:
   - 設定追加時に Pulumi config / config.ts / index.ts / renderWrangler.ts の StackOutput 型、計 4 箇所の編集が必要（既存の `hostname` 等も同じコストを払っている）
-  - 新規 StackOutput を追加した直後は `pnpm infra:up:{stage}` を走らせるまで StackOutput JSON に出ない（`hostname` 等と同じ pre-existing 制約）
+  - 新規 StackOutput を追加した直後は `pulumi up` を走らせるまで StackOutput JSON に出ない（`hostname` 等と同じ pre-existing 制約）。CI の deploy workflow は `infra:render` の前に必ず `pulumi up` を実行するため、merge 後に自動で反映される
   - `ADMIN_LLM_*` は依然 renderer 内ハードコードのまま残る — 同じ smell があるが本 Issue のスコープ外（フォローアップで揃える価値あり）
 
