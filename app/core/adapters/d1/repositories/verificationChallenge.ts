@@ -1,4 +1,4 @@
-import { eq, like, lte } from "drizzle-orm";
+import { eq, lte, sql } from "drizzle-orm";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import type {
@@ -135,11 +135,13 @@ export class D1VerificationChallenge implements VerificationChallenge {
     token: string,
     expectedPurpose: ChallengePurpose,
   ): Promise<ConsumedChallenge | ChallengeError> {
-    // Find any row whose stored `value` JSON carries this token. The
-    // UNIQUE index on `value` means at most one match. The `LIKE`
-    // predicate scopes the candidate set to "value containing the
-    // token" so SQLite can short-circuit; the strict membership check
-    // happens after decode.
+    // Lookup by exact match on the embedded `token` field. SQLite's
+    // `LIKE` was previously used to scope the candidate set, but its
+    // `_` metacharacter cannot be escaped without an `ESCAPE` clause,
+    // and base64url tokens contain `_` ~75% of the time — every such
+    // token silently missed. `json_extract` matches the exact field
+    // value with no metacharacter hazard; the table stays small enough
+    // that a linear scan is fine.
     const rows = await mapDbError(
       "Failed to look up verification challenge",
       async () => {
@@ -147,27 +149,17 @@ export class D1VerificationChallenge implements VerificationChallenge {
           .select()
           .from(verifications)
           .where(
-            like(
-              verifications.value,
-              `%${token.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")}%`,
-            ),
+            sql`json_extract(${verifications.value}, '$.token') = ${token}`,
           )
           .limit(2);
       },
     );
 
-    let matched: (typeof rows)[number] | null = null;
-    for (const row of rows) {
-      const decoded = decodeValue(row.value);
-      if (decoded && decoded.token === token) {
-        matched = row;
-        break;
-      }
-    }
+    const matched = rows[0] ?? null;
     if (!matched) return "not_found";
 
     const decoded = decodeValue(matched.value);
-    if (!decoded) return "not_found";
+    if (!decoded || decoded.token !== token) return "not_found";
 
     const now = this.clock.now();
     const expiresAt = new Date(matched.expiresAt);
