@@ -143,7 +143,9 @@ Accepted (実装中追加)
 
 `Argon2idPasswordHasher.hash` および `D1CredentialStore.hashPassword` はこの error を catch して PBKDF2-HMAC-SHA256 (iter=600,000) に **runtime fallback** する。verify 側は Argon2id encoded が来た場合に WASM 失敗で false (auth fail) に倒す。
 
-加えて `identity.integration.test.ts` の lazy upgrade テストは、テスト本体冒頭で空 WASM モジュールのコンパイルを試行し、失敗時は `ctx.skip()` でスキップする。本テストは production / staging smoke (ステップ 11) で担保する。
+加えて `identity.integration.test.ts` の lazy upgrade テストは、テスト本体冒頭で **adapter ヘルパ `hashArgon2id("probe")` を直接呼び**、`WasmUnavailableError` が返ったら `ctx.skip()` でスキップする。空 WASM モジュールの compile 可否を probe する案も検討したが、空モジュールが通っても hash-wasm の埋め込みモジュールが通らないケースを誤って通してしまうリスクがあるため、実装そのものを probe する形に統一した。本テストは production / staging smoke (ステップ 11) で担保する。
+
+検出ロジックの脆性対策として、`isWasmDisallowedError` が真を返した瞬間に `console.warn` を出力する。production ログにこの警告が出るのは「workerd の error message 文言が変わって誤分類した」状態であり、サイレントダウングレードを検出する tripwire として機能する。
 
 ### Consequences
 
@@ -160,3 +162,36 @@ Accepted (実装中追加)
   - 単体テスト (`pnpm test:unit`) は node 環境で動作するので Argon2id round-trip / encoded format / legacy PBKDF2 互換を完全に検証する
   - 統合テスト (`pnpm test:integration`) は fallback 経路で動作するので、port 契約 (hash 後に verify が true、wrong pass で false) を検証する
   - staging smoke (ステップ 11) で「`$argon2id$` prefix の hash が DB に書かれること」「iter=100,000 / 600,000 legacy ユーザの lazy upgrade」を実環境で検証する
+
+---
+
+## ADR-006: Argon2id `verifyArgon2id` に defense-in-depth の m/t/p 上限を追加
+
+### Status
+Accepted (PR review-001 で追加)
+
+### Context
+
+`hash-wasm` は `argon2id` / `argon2Verify` のパラメータ (`memorySize`, `iterations`, `parallelism`) に **上限を持たない** (`hash-wasm/dist/index.umd.js:740-754` で確認)。production の入力源は基本的に自分の DB だが、SQL injection / 直接書き込み攻撃 / マイグレーションバグ等で `accounts.password` または `share_links.password` に `$argon2id$v=19$m=999999999,t=999,p=1$...` のような巨大値が紛れ込んだ場合、`verifyArgon2id` 内部で 100 GiB 級の WASM linear memory を確保しに行き Worker isolate を巻き込んで OOM / CPU 超過する。
+
+同様に `D1CredentialStore` の `legacyVerifyPbkdf2Hash` も share-link 側 (`Argon2idPasswordHasher#verify`) と比べて iter 上限チェックが欠落しており、`pbkdf2-sha256-v1$2147483647$...` を仕込まれた瞬間に CPU を焼かれる。
+
+### Decision
+
+- `app/core/adapters/security/argon2id.ts` に `parseArgon2idParams(encoded)` を新設し、verify 直前で:
+  - `m ≤ ARGON2ID_MEMORY_KIB * 2` (= 38 MiB)
+  - `t ≤ 16`
+  - `p ≤ 4`
+  - すべて正整数
+  を検査。範囲外は WASM 呼び出し前に `false` を返す。
+- `D1CredentialStore` 側に `LEGACY_PBKDF2_ITERATIONS_MAX = 10_000_000` の sanity cap を追加し、share-link 側と対称化。
+
+### Consequences
+
+- 良い点:
+  - 巨大パラメータによる Worker DoS の発火窓を adapter 層で塞いだ
+  - 将来 OWASP 推奨が m/t/p を 2 倍程度引き上げる余地は残しつつ、明らかに悪意ある値だけを弾く
+  - 単体テスト (`argon2id.test.ts`, `credentialStoreLegacyVerify.test.ts`) で境界が固定される
+- トレードオフ:
+  - cap を上回るパラメータで意図的に hash された fixture は将来 verify 失敗する (現状そんな fixture は存在しない)
+  - 上限値が将来の OWASP 推奨更新に追従するメンテナンスコストが生じる (constant 1 行変更で済む)

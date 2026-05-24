@@ -39,6 +39,11 @@ const LEGACY_PBKDF2_HASH = "SHA-256";
 const LEGACY_PBKDF2_ITERATIONS = 600_000;
 const LEGACY_PBKDF2_SALT_BYTES = 16;
 const LEGACY_PBKDF2_KEY_BYTES = 32;
+// Defense-in-depth: cap iterations a malformed/malicious row can request
+// so a single bad SELECT can't pin the Worker isolate on PBKDF2. Mirrors
+// the cap on share-link's `legacyVerifyPbkdf2Sha256` in
+// `adapters/security/passwordHasher.ts`.
+const LEGACY_PBKDF2_ITERATIONS_MAX = 10_000_000;
 
 function bytesToBase64(bytes: Uint8Array): string {
   let bin = "";
@@ -108,7 +113,10 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-async function legacyVerifyPbkdf2Hash(
+// Exported solely for unit testing the legacy verify path against
+// fixed-string fixtures (Issue #206 plan step 4). Not part of any
+// stable adapter surface — consumers should call `verifyHash` instead.
+export async function legacyVerifyPbkdf2Hash(
   raw: string,
   encoded: string,
 ): Promise<boolean> {
@@ -122,7 +130,13 @@ async function legacyVerifyPbkdf2Hash(
   ];
   if (version !== LEGACY_PBKDF2_ENCODING_VERSION) return false;
   const iterations = Number.parseInt(iterStr, 10);
-  if (!Number.isFinite(iterations) || iterations < 1) return false;
+  if (
+    !Number.isFinite(iterations) ||
+    iterations < 1 ||
+    iterations > LEGACY_PBKDF2_ITERATIONS_MAX
+  ) {
+    return false;
+  }
   let salt: Uint8Array<ArrayBuffer>;
   let expected: Uint8Array<ArrayBuffer>;
   try {
@@ -169,19 +183,17 @@ async function verifyHash(raw: string, encoded: string): Promise<boolean> {
  * D1 implementation of `CredentialStore` that writes directly to the
  * better-auth `accounts` table.
  *
- * **Execution mode.** All methods are expected to be invoked inside a
+ * **Execution mode.** Mutation methods (`registerPassword`,
+ * `changePassword`, `resetPassword`, `removePassword`, `linkProvider`,
+ * `unlinkProvider`, `purgeAll`) and verify methods (`verifyPassword`,
+ * `verifyPasswordForUser`) must be invoked inside a
  * `D1UnitOfWorkProvider.run` callback so the supplied `PendingBatch`
- * can collect their writes for atomic commit. Mutations
- * (`registerPassword`, `changePassword`, `resetPassword`,
- * `removePassword`, `linkProvider`, `unlinkProvider`, `purgeAll`)
- * enqueue onto `pending` directly. Read-and-verify methods
- * (`verifyPassword`, `verifyPasswordForUser`, `hasPassword`,
- * `resolveProvider`, `listCredentials`) execute their SELECTs
- * immediately against the binding, but the verify-path additionally
- * enqueues an Argon2id rehash onto `pending` whenever the stored hash
- * uses a legacy PBKDF2 format (see "Lazy upgrade" below). All callers
- * (`logIn`, `changePassword`, etc.) already run inside a UoW, so this
- * is not a contract change in practice.
+ * can collect their writes — mutations enqueue the write directly, and
+ * verify enqueues an Argon2id rehash whenever the stored hash uses a
+ * legacy PBKDF2 format (see "Lazy upgrade" below). Pure-read methods
+ * (`hasPassword`, `resolveProvider`, `listCredentials`) never touch
+ * `pending` and would work outside a UoW, but every current caller
+ * runs inside one for consistency.
  *
  * **Lazy upgrade.** When `verifyPassword` / `verifyPasswordForUser`
  * succeeds against a legacy `pbkdf2-sha256-v1$...` row, the adapter

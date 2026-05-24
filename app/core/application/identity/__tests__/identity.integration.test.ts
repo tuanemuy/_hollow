@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import * as schema from "@/core/adapters/d1/schema";
 import {
+  hashArgon2id,
+  WasmUnavailableError,
+} from "@/core/adapters/security/argon2id";
+import {
   isAuthenticationError,
   isForbiddenError,
 } from "@/core/application/errors";
@@ -675,21 +679,23 @@ describe("LogIn / LogOut", () => {
       )}`;
     }
 
-    async function wasmCompileAllowed(): Promise<boolean> {
-      const emptyModule = new Uint8Array([
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      ]);
+    // Probe with the real adapter helper so the skip condition matches
+    // the runtime branch exactly. An empty WASM module compile can
+    // succeed where `hash-wasm`'s base64-embedded module is rejected,
+    // so we ask the actual helper whether it can produce a hash.
+    async function argon2idAvailable(): Promise<boolean> {
       try {
-        await WebAssembly.compile(emptyModule);
+        await hashArgon2id("probe");
         return true;
-      } catch {
-        return false;
+      } catch (err) {
+        if (err instanceof WasmUnavailableError) return false;
+        throw err;
       }
     }
 
     for (const iterations of [100_000, 600_000] as const) {
       it(`re-hashes a verified iter=${iterations} legacy account to Argon2id on logIn`, async (ctx) => {
-        if (!(await wasmCompileAllowed())) {
+        if (!(await argon2idAvailable())) {
           ctx.skip();
           return;
         }
@@ -706,12 +712,15 @@ describe("LogIn / LogOut", () => {
         );
         await verifyEmail({ container, input: { token: verifyTok } });
 
-        // Overwrite the account password with a legacy PBKDF2 hash.
+        // Overwrite the account password with a legacy PBKDF2 hash and
+        // freeze `updated_at` to a known sentinel so we can assert the
+        // lazy upgrade bumps it.
         const password = strongPassword(seed);
         const legacyHash = await makeLegacyPbkdf2Hash(password, iterations);
+        const frozenUpdatedAt = "2020-01-01T00:00:00.000Z";
         await container.db
           .update(schema.accounts)
-          .set({ password: legacyHash })
+          .set({ password: legacyHash, updatedAt: frozenUpdatedAt })
           .where(eq(schema.accounts.userId, userId));
 
         // 1st logIn: succeeds, lazy upgrade fires.
@@ -727,12 +736,16 @@ describe("LogIn / LogOut", () => {
         expect(first.userId).toBe(userId);
 
         const after = await container.db
-          .select({ password: schema.accounts.password })
+          .select({
+            password: schema.accounts.password,
+            updatedAt: schema.accounts.updatedAt,
+          })
           .from(schema.accounts)
           .where(eq(schema.accounts.userId, userId));
         const upgraded = after[0]?.password;
         expect(upgraded).toBeTruthy();
         expect(upgraded?.startsWith("$argon2id$")).toBe(true);
+        expect(after[0]?.updatedAt).not.toBe(frozenUpdatedAt);
 
         // 2nd logIn: verifies against the new Argon2id hash.
         const second = await logIn({
