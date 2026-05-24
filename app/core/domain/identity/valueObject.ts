@@ -163,7 +163,8 @@ export const RawPassword = {
 };
 
 /**
- * Argon2id-formatted password hash. Construction validates only
+ * Encoded password hash (algorithm chosen by the adapter; currently
+ * scrypt via `@noble/hashes`). Construction validates only
  * non-emptiness; format details (algorithm parameters) belong to the
  * `CredentialStore` adapter and are not part of the domain contract.
  */

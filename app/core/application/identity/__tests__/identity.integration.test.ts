@@ -3,10 +3,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import * as schema from "@/core/adapters/d1/schema";
 import {
-  hashArgon2id,
-  WasmUnavailableError,
-} from "@/core/adapters/security/argon2id";
-import {
   isAuthenticationError,
   isForbiddenError,
 } from "@/core/application/errors";
@@ -637,19 +633,15 @@ describe("LogIn / LogOut", () => {
 
   // Lazy upgrade — Issue #206. When verify succeeds against a legacy
   // PBKDF2-SHA256 hash stored before the Argon2id migration, the
-  // adapter rewrites the row to Argon2id in the same UoW. Subsequent
+  // adapter rewrites the row to scrypt in the same UoW. Subsequent
   // logins must continue to succeed against the upgraded hash.
   //
-  // The `vitest-pool-workers` test pool blocks dynamic WebAssembly
-  // compile (see `spec/adr/011-argon2id-migration.md` ADR-005), so the
-  // suite is gated on `Argon2idPasswordHasher.hash` producing a real
-  // Argon2id PHC string. When the adapter falls back to PBKDF2 (which
-  // happens iff `WebAssembly.compile` is unavailable), the lazy
-  // upgrade rewrite cannot produce an Argon2id row, so we skip these
-  // tests rather than assert the fallback shape. Production Workers
-  // always allows WASM, so the skip is test-only and the gap is
-  // covered by the staging smoke checklist.
-  describe("lazy upgrade from legacy PBKDF2 to Argon2id", () => {
+  // scrypt is pure JS (`@noble/hashes`) and runs identically in the
+  // vitest-pool-workers test pool and in production Workers, so no
+  // probe / skip gating is needed here — the original WASM-based
+  // Argon2id approach in PR #207 required it, but the swap in Issue
+  // #211 removed that constraint.
+  describe("lazy upgrade from legacy PBKDF2 to scrypt", () => {
     async function makeLegacyPbkdf2Hash(
       raw: string,
       iterations: number,
@@ -679,26 +671,8 @@ describe("LogIn / LogOut", () => {
       )}`;
     }
 
-    // Probe with the real adapter helper so the skip condition matches
-    // the runtime branch exactly. An empty WASM module compile can
-    // succeed where `hash-wasm`'s base64-embedded module is rejected,
-    // so we ask the actual helper whether it can produce a hash.
-    async function argon2idAvailable(): Promise<boolean> {
-      try {
-        await hashArgon2id("probe");
-        return true;
-      } catch (err) {
-        if (err instanceof WasmUnavailableError) return false;
-        throw err;
-      }
-    }
-
     for (const iterations of [100_000, 600_000] as const) {
-      it(`re-hashes a verified iter=${iterations} legacy account to Argon2id on logIn`, async (ctx) => {
-        if (!(await argon2idAvailable())) {
-          ctx.skip();
-          return;
-        }
+      it(`re-hashes a verified iter=${iterations} legacy account to scrypt on logIn`, async () => {
         const container = getContainer();
         const seed = `lzy${iterations}`;
         const { userId } = await signUp({
@@ -744,10 +718,10 @@ describe("LogIn / LogOut", () => {
           .where(eq(schema.accounts.userId, userId));
         const upgraded = after[0]?.password;
         expect(upgraded).toBeTruthy();
-        expect(upgraded?.startsWith("$argon2id$")).toBe(true);
+        expect(upgraded?.startsWith("$scrypt$")).toBe(true);
         expect(after[0]?.updatedAt).not.toBe(frozenUpdatedAt);
 
-        // 2nd logIn: verifies against the new Argon2id hash.
+        // 2nd logIn: verifies against the new scrypt hash.
         const second = await logIn({
           container,
           input: {
@@ -759,13 +733,13 @@ describe("LogIn / LogOut", () => {
         });
         expect(second.userId).toBe(userId);
 
-        // The hash on disk should still be Argon2id after the second
+        // The hash on disk should still be scrypt after the second
         // login (no spurious re-hash on already-upgraded rows).
         const stillUpgraded = await container.db
           .select({ password: schema.accounts.password })
           .from(schema.accounts)
           .where(eq(schema.accounts.userId, userId));
-        expect(stillUpgraded[0]?.password?.startsWith("$argon2id$")).toBe(true);
+        expect(stillUpgraded[0]?.password?.startsWith("$scrypt$")).toBe(true);
       });
     }
   });

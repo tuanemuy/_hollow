@@ -26,7 +26,7 @@ import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer"
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
-import { Argon2idPasswordHasher } from "@/core/adapters/security/passwordHasher";
+import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
@@ -116,7 +116,7 @@ export function createTestContainer(): TestContainer {
     ),
     htmlSanitizer: new SanitizeHtmlSanitizer(),
     markdownConverter: new MarkdownItConverter(),
-    passwordHasher: new Argon2idPasswordHasher(),
+    passwordHasher: new ScryptPasswordHasher(),
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,

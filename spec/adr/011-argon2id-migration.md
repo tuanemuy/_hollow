@@ -2,7 +2,7 @@
 
 ## ステータス
 
-承認済み（2026-05-24）
+承認済み（2026-05-24） — **ADR-005 の判断は誤り**。一部 [ADR 012](./012-scrypt-migration.md) で訂正・上書き。
 
 ## コンテキスト
 
@@ -45,7 +45,18 @@
 
 lazy upgrade 導入に伴い、`D1CredentialStore` の verify 系メソッドも UoW 内呼び出し前提として契約を締め直した。実呼び出し (`logIn`, `changePassword` 等) はすべて UoW 内のため破壊的変更ではない。
 
-### vitest-pool-workers の WASM compile 制約 (ADR-005)
+### vitest-pool-workers の WASM compile 制約 (ADR-005) — **訂正済み**
+
+> **訂正 (2026-05-24, Issue #211)**: 本節の前提「production は WASM compile を許可する」は誤り。
+> Cloudflare Workers は **production を含む全環境で** `WebAssembly.compile(<bytes>)` を
+> "dynamic WebAssembly compilation from arbitrary buffers" として拒否する。staging デプロイ後の
+> サインアップが `WasmUnavailableError → PBKDF2 fallback (iter=600,000)` の二段で失敗していたことが
+> 実証している（CF Workers の Web Crypto PBKDF2 iter 上限 100,000 で fallback も死ぬ）。
+>
+> 結果として `hash-wasm` 経由の Argon2id 採用は本番で機能していなかった。
+> 後継方針は [ADR 012](./012-scrypt-migration.md) を参照。
+
+(以下は当時の判断記録)
 
 `hash-wasm` は `WebAssembly.compile()` を最初の呼び出し時に動的実行する。Cloudflare Workers の production は許可するが、`@cloudflare/vitest-pool-workers` の workerd は `disallow-code-generation-from-strings` を WebAssembly にも拡張しており、`CompileError: Wasm code generation disallowed by embedder` を投げる。test pool に WASM コンパイルを許可する公開オプションは存在しない (miniflare v4 / vitest-pool-workers v0.16.4 時点)。
 
