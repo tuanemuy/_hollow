@@ -1,3 +1,4 @@
+import { extractJsonObject } from "@/core/adapters/llm/jsonEnvelope";
 import {
   type LLMMetadataInput,
   type LLMMetadataResult,
@@ -28,6 +29,9 @@ const llmErrorMapper: OpenAIErrorMapper = {
   quota: (message, cause) => new LLMQuotaExceededError(message, cause),
 } as const;
 
+const RETRY_SYSTEM_SUFFIX =
+  "Your previous reply was not parseable JSON. Reply with a single JSON object only, no prose, no fences.";
+
 /**
  * OpenAI-compatible Chat Completions adapter for {@link LLMProvider}.
  *
@@ -41,9 +45,17 @@ const llmErrorMapper: OpenAIErrorMapper = {
  * - `AbortError` (deadline lapsed) → `LLMTimeoutError`
  * - Network `TypeError` / other unexpected throws → `LLMUnavailableError`
  *
- * Response shape contract mirrors the Anthropic adapter: the model is
- * asked for a single-line JSON envelope. Empty assistant content is
- * rejected here because the JSON envelope contract cannot accept it.
+ * Response shape contract: the model is asked for a single-line JSON
+ * envelope. The structured-output flag (`response_format:
+ * { type: "json_object" }`) is set so OpenAI enforces JSON at the API
+ * level. Robust extraction (`extractJsonObject`) still tolerates fences
+ * and leading prose. On parse / shape failure the adapter retries once
+ * with an appended "previous reply was not parseable JSON" hint in the
+ * system prompt; the second failure surfaces as `LLMUnavailableError`
+ * with "after 1 retry" in the message (Issue #227 ADR-001).
+ *
+ * Empty assistant content is rejected here because the JSON envelope
+ * contract cannot accept it.
  */
 export class OpenAILLMProvider implements LLMProvider {
   private readonly config: OpenAISharedConfig;
@@ -61,8 +73,16 @@ export class OpenAILLMProvider implements LLMProvider {
   async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
     const system = this.buildStructureSystemPrompt(input);
     const userMessage = this.buildStructureUserMessage(input);
-    const text = await this.invoke(system, userMessage);
-    const envelope = this.parseJsonEnvelope(text);
+    const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
+      const parsed = extractJsonObject(raw);
+      if (parsed === null) return null;
+      const html = parsed.html;
+      const titleSuggestion = parsed.titleSuggestion;
+      if (typeof html !== "string" || typeof titleSuggestion !== "string") {
+        return null;
+      }
+      return parsed;
+    });
     const html = this.requireString(envelope, "html");
     const titleSuggestion = this.requireString(envelope, "titleSuggestion");
     const directorySuggestionRaw = envelope.directorySuggestion;
@@ -81,8 +101,14 @@ export class OpenAILLMProvider implements LLMProvider {
   async suggestMetadata(input: LLMMetadataInput): Promise<LLMMetadataResult> {
     const system = this.buildMetadataSystemPrompt(input);
     const userMessage = this.buildMetadataUserMessage(input);
-    const text = await this.invoke(system, userMessage);
-    const envelope = this.parseJsonEnvelope(text);
+    const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
+      const parsed = extractJsonObject(raw);
+      if (parsed === null) return null;
+      if (!Array.isArray(parsed.tags) || !Array.isArray(parsed.aliases)) {
+        return null;
+      }
+      return parsed;
+    });
     const tags = this.requireStringArray(envelope, "tags");
     const aliases = this.requireStringArray(envelope, "aliases");
     return { tags, aliases };
@@ -127,6 +153,7 @@ export class OpenAILLMProvider implements LLMProvider {
       system,
       [{ type: "text", text: user }],
       llmErrorMapper,
+      { responseFormat: { type: "json_object" } },
     );
     if (text.length === 0) {
       throw new LLMUnavailableError(
@@ -136,28 +163,31 @@ export class OpenAILLMProvider implements LLMProvider {
     return text;
   }
 
-  private parseJsonEnvelope(text: string): Record<string, unknown> {
-    const trimmed = text.trim();
-    const fenced = trimmed
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
+  private async invokeWithRetry(
+    system: string,
+    user: string,
+    validate: (raw: string) => Record<string, unknown> | null,
+  ): Promise<Record<string, unknown>> {
+    const firstText = await this.invoke(system, user);
+    const firstParsed = validate(firstText);
+    if (firstParsed !== null) return firstParsed;
+
+    const retrySystem = `${system}\n${RETRY_SYSTEM_SUFFIX}`;
+    let secondText: string;
     try {
-      const parsed = JSON.parse(fenced) as unknown;
-      if (
-        parsed === null ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
-        throw new Error("envelope is not a JSON object");
-      }
-      return parsed as Record<string, unknown>;
+      secondText = await this.invoke(retrySystem, user);
     } catch (cause) {
       throw new LLMUnavailableError(
-        "OpenAI response was not a JSON envelope",
+        "OpenAI response was not a JSON envelope after 1 retry",
         cause,
       );
     }
+    const secondParsed = validate(secondText);
+    if (secondParsed !== null) return secondParsed;
+
+    throw new LLMUnavailableError(
+      "OpenAI response was not a JSON envelope after 1 retry",
+    );
   }
 
   private requireString(

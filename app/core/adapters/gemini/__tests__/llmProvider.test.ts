@@ -54,6 +54,11 @@ function makeProvider(
   });
 }
 
+function parseRequestBody(mock: FetchMock, callIndex: number): unknown {
+  const call = mock.mock.calls[callIndex] as unknown as [unknown, RequestInit];
+  return JSON.parse(call[1].body as string);
+}
+
 const STRUCTURE_INPUT = {
   rawText: "the raw source",
   prompt: "",
@@ -143,19 +148,22 @@ describe("GeminiLLMProvider", () => {
         },
         generationConfig: {
           maxOutputTokens: 4096,
+          responseMimeType: "application/json",
         },
       });
     });
 
-    it("suggestMetadata: returns parsed envelope with tags / aliases", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({ tags: ["a", "b"], aliases: ["alpha"] }),
-        ),
+    it("suggestMetadata: returns parsed envelope and sends responseMimeType flag", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({ tags: ["a", "b"], aliases: ["alpha"] }),
       );
-      const provider = makeProvider();
-      const result = await provider.suggestMetadata(METADATA_INPUT);
+      setFetch(mock);
+      const result = await makeProvider().suggestMetadata(METADATA_INPUT);
       expect(result).toEqual({ tags: ["a", "b"], aliases: ["alpha"] });
+      const body = parseRequestBody(mock, 0) as {
+        generationConfig: { responseMimeType?: string };
+      };
+      expect(body.generationConfig.responseMimeType).toBe("application/json");
     });
 
     it("structureToHtml: normalises null directorySuggestion to null", async () => {
@@ -202,6 +210,38 @@ describe("GeminiLLMProvider", () => {
       });
     });
 
+    it("structureToHtml: recovers an envelope preceded by prose (parser leniency)", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            'Of course: {"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
+    it("structureToHtml: recovers the head object when wrapped in an array", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            '[{"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}]',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
     it("suggestMetadata: filters non-string entries out of tags / aliases arrays", async () => {
       setFetch(
         vi.fn(async () =>
@@ -213,6 +253,75 @@ describe("GeminiLLMProvider", () => {
       );
       const result = await makeProvider().suggestMetadata(METADATA_INPUT);
       expect(result).toEqual({ tags: ["a", "b"], aliases: ["x"] });
+    });
+  });
+
+  describe("retry on broken envelope", () => {
+    it("recovers when the first reply is non-JSON and the retry returns a valid envelope", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result.html).toBe("<p/>");
+      expect(mock).toHaveBeenCalledTimes(2);
+
+      const retryBody = parseRequestBody(mock, 1) as {
+        systemInstruction: { parts: Array<{ text: string }> };
+        generationConfig: { responseMimeType?: string };
+      };
+      const retrySystem = retryBody.systemInstruction.parts[0].text;
+      expect(retrySystem).toContain(
+        "Your previous reply was not parseable JSON",
+      );
+      expect(retrySystem).toContain("JSON");
+      expect(retryBody.generationConfig.responseMimeType).toBe(
+        "application/json",
+      );
+    });
+
+    it("fails with 'after 1 retry' when both attempts return broken envelopes", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(rawTextResponse("still not json"));
+      setFetch(mock);
+
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
+        (e) =>
+          e instanceof LLMUnavailableError &&
+          e.message === "Gemini response was not a JSON envelope after 1 retry",
+      );
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when required keys are missing on the first reply", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result.html).toBe("<p/>");
+      expect(mock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -345,43 +454,40 @@ describe("GeminiLLMProvider", () => {
   });
 
   describe("JSON envelope failures", () => {
-    it("throws LLMUnavailableError when the text is not parseable JSON", async () => {
-      setFetch(vi.fn(async () => rawTextResponse("not json at all")));
-      await expect(
-        makeProvider().structureToHtml(STRUCTURE_INPUT),
-      ).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message === "Gemini response was not a JSON envelope" &&
-          e.cause instanceof Error,
-      );
-    });
-
-    it("throws LLMUnavailableError when html is missing", async () => {
-      setFetch(
-        vi.fn(async () =>
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies miss html", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
           envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
-        ),
-      );
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        );
+      setFetch(mock);
       await expect(
         makeProvider().structureToHtml(STRUCTURE_INPUT),
       ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message.includes('required string field "html"'),
+          e.message === "Gemini response was not a JSON envelope after 1 retry",
       );
+      expect(mock).toHaveBeenCalledTimes(2);
     });
 
-    it("throws LLMUnavailableError when tags is not an array", async () => {
-      setFetch(
-        vi.fn(async () => envelopeResponse({ tags: "nope", aliases: [] })),
-      );
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies have non-array tags", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(envelopeResponse({ tags: "nope", aliases: [] }))
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "still nope", aliases: [] }),
+        );
+      setFetch(mock);
       await expect(
         makeProvider().suggestMetadata(METADATA_INPUT),
       ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message.includes('field "tags" must be an array'),
+          e.message === "Gemini response was not a JSON envelope after 1 retry",
       );
     });
   });

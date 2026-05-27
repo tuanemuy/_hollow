@@ -169,6 +169,16 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
+ * Optional per-call knobs for {@link callOpenAIMessages}. LLM-mode
+ * callers may pass `responseFormat: { type: "json_object" }` to force
+ * the model to emit a JSON object at the API level. OCR / PDF callers
+ * omit this entirely so their request bodies stay unchanged.
+ */
+export type OpenAICallOptions = Readonly<{
+  responseFormat?: Readonly<{ type: "json_object" }>;
+}>;
+
+/**
  * POSTs a single Chat Completions request and returns the extracted
  * assistant text. The provided `mapper` decides which concrete `Error`
  * subclass is thrown for each failure category, letting OCR / PDF /
@@ -181,6 +191,7 @@ export async function callOpenAIMessages(
   system: string,
   content: readonly OpenAIContentBlock[],
   mapper: OpenAIErrorMapper,
+  options?: OpenAICallOptions,
 ): Promise<string> {
   const endpoint = buildChatCompletionsURL(config.baseURL);
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -191,6 +202,24 @@ export async function callOpenAIMessages(
     controller.abort();
   }, timeoutMs);
 
+  const requestBody: Record<string, unknown> = {
+    model: config.model,
+    max_tokens: maxTokens,
+    messages: [
+      {
+        role: "system",
+        content: system,
+      },
+      {
+        role: "user",
+        content,
+      },
+    ],
+  };
+  if (options?.responseFormat !== undefined) {
+    requestBody.response_format = options.responseFormat;
+  }
+
   let response: Response;
   try {
     response = await fetch(endpoint, {
@@ -199,20 +228,7 @@ export async function callOpenAIMessages(
         "content-type": "application/json",
         authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model,
-        max_tokens: maxTokens,
-        messages: [
-          {
-            role: "system",
-            content: system,
-          },
-          {
-            role: "user",
-            content,
-          },
-        ],
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
   } catch (cause) {

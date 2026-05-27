@@ -145,12 +145,21 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * The joined text content is `String.trim()`-ed before return —
  * leading/trailing whitespace and newlines are dropped. Matches existing
  * `AnthropicLLMProvider` behavior.
+ *
+ * Optional `prefill` appends `{ role: "assistant", content: prefill }`
+ * to the `messages` array. Anthropic interprets this as a partial
+ * assistant turn the model must continue from. LLM-mode callers use
+ * `prefill: "{"` on retry to force the next response to start as a JSON
+ * envelope. Anthropic API semantics: the prefill characters are NOT
+ * included in the returned content, so the parser receives the
+ * continuation only.
  */
 export async function callAnthropicMessages(
   config: AnthropicSharedConfig,
   system: string,
   content: readonly AnthropicContentBlock[],
   mapper: AnthropicErrorMapper,
+  prefill?: string,
 ): Promise<string> {
   const endpoint = config.endpoint ?? DEFAULT_ENDPOINT;
   const apiVersion = config.apiVersion ?? DEFAULT_API_VERSION;
@@ -161,6 +170,16 @@ export async function callAnthropicMessages(
   const timer = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
+
+  const messages: Array<Record<string, unknown>> = [
+    {
+      role: "user",
+      content,
+    },
+  ];
+  if (prefill !== undefined) {
+    messages.push({ role: "assistant", content: prefill });
+  }
 
   let response: Response;
   try {
@@ -175,12 +194,7 @@ export async function callAnthropicMessages(
         model: config.model,
         max_tokens: maxTokens,
         system,
-        messages: [
-          {
-            role: "user",
-            content,
-          },
-        ],
+        messages,
       }),
       signal: controller.signal,
     });

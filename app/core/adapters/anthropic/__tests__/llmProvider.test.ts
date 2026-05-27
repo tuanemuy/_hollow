@@ -55,6 +55,11 @@ function makeProvider(
   });
 }
 
+function parseRequestBody(mock: FetchMock, callIndex: number): unknown {
+  const call = mock.mock.calls[callIndex] as unknown as [unknown, RequestInit];
+  return JSON.parse(call[1].body as string);
+}
+
 const STRUCTURE_INPUT = {
   rawText: "the raw source",
   prompt: "",
@@ -115,7 +120,12 @@ describe("AnthropicLLMProvider", () => {
       expect(mock).toHaveBeenCalledTimes(1);
       const call = mock.mock.calls[0] as unknown as [unknown, RequestInit];
       const init = call[1];
-      const body = JSON.parse(init.body as string);
+      const body = JSON.parse(init.body as string) as {
+        messages: Array<{ role: string }>;
+        system: string;
+        model: string;
+        max_tokens: number;
+      };
       expect(body).toMatchObject({
         model: "claude-3-5-sonnet-latest",
         max_tokens: 4096,
@@ -129,6 +139,8 @@ describe("AnthropicLLMProvider", () => {
           },
         ],
       });
+      // No prefill on the initial request.
+      expect(body.messages).toHaveLength(1);
       expect(call[0]).toBe("https://api.anthropic.com/v1/messages");
       expect(init.headers).toMatchObject({
         "content-type": "application/json",
@@ -229,6 +241,38 @@ describe("AnthropicLLMProvider", () => {
       });
     });
 
+    it("structureToHtml: recovers an envelope preceded by prose (parser leniency)", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            'Here is your JSON: {"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
+    it("structureToHtml: recovers the head object when wrapped in an array", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            '[{"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}]',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
     it("suggestMetadata: filters non-string entries out of tags / aliases arrays", async () => {
       setFetch(
         vi.fn(async () =>
@@ -241,6 +285,114 @@ describe("AnthropicLLMProvider", () => {
       const provider = makeProvider();
       const result = await provider.suggestMetadata(METADATA_INPUT);
       expect(result).toEqual({ tags: ["a", "b"], aliases: ["x"] });
+    });
+  });
+
+  describe("retry on broken envelope", () => {
+    it("recovers when the first reply is non-JSON and the retry returns a valid envelope", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result.html).toBe("<p/>");
+      expect(mock).toHaveBeenCalledTimes(2);
+
+      const retryBody = parseRequestBody(mock, 1) as {
+        system: string;
+        messages: Array<{ role: string; content: unknown }>;
+      };
+      expect(retryBody.system).toContain(
+        "Your previous reply was not parseable JSON",
+      );
+      expect(retryBody.system).toContain("JSON");
+      // Anthropic-specific: retry attaches an assistant prefill message
+      // at the tail so the model continues from `{`.
+      const lastMessage = retryBody.messages[retryBody.messages.length - 1];
+      expect(lastMessage).toEqual({ role: "assistant", content: "{" });
+    });
+
+    it("does not include the prefill message on the initial request", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({
+          html: "<p/>",
+          titleSuggestion: "T",
+          directorySuggestion: null,
+        }),
+      );
+      setFetch(mock);
+      await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      const body = parseRequestBody(mock, 0) as {
+        messages: Array<{ role: string }>;
+      };
+      expect(body.messages).toHaveLength(1);
+      expect(body.messages[0].role).toBe("user");
+    });
+
+    it("recovers when the prefilled retry returns a `{`-less continuation", async () => {
+      // Anthropic API drops the prefill chars from the returned text. The
+      // adapter must re-prepend `{` before parsing.
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json"))
+        .mockResolvedValueOnce(
+          rawTextResponse(
+            '"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}',
+          ),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
+    it("fails with 'after 1 retry' when both attempts return broken envelopes", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json"))
+        .mockResolvedValueOnce(rawTextResponse("still not json"));
+      setFetch(mock);
+
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
+        (e) =>
+          e instanceof LLMUnavailableError &&
+          e.message ===
+            "Anthropic response was not a JSON envelope after 1 retry",
+      );
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when required keys are missing on the first reply", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result.html).toBe("<p/>");
+      expect(mock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -409,102 +561,75 @@ describe("AnthropicLLMProvider", () => {
       );
     });
 
-    it("throws LLMUnavailableError with cause when the text block is not parseable JSON", async () => {
-      setFetch(vi.fn(async () => rawTextResponse("not json at all")));
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both attempts return a JSON array body", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("[1,2,3]"))
+        .mockResolvedValueOnce(rawTextResponse("[1,2,3]"));
+      setFetch(mock);
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "Anthropic response was not a JSON envelope" &&
-          e.cause instanceof Error,
+          e.message ===
+            "Anthropic response was not a JSON envelope after 1 retry",
       );
     });
 
-    it("throws LLMUnavailableError when the envelope is a JSON array", async () => {
-      setFetch(vi.fn(async () => rawTextResponse("[1,2,3]")));
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies are JSON null", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("null"))
+        .mockResolvedValueOnce(rawTextResponse("null"));
+      setFetch(mock);
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "Anthropic response was not a JSON envelope",
+          e.message ===
+            "Anthropic response was not a JSON envelope after 1 retry",
       );
     });
 
-    it("throws LLMUnavailableError when the envelope is JSON null", async () => {
-      setFetch(vi.fn(async () => rawTextResponse("null")));
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies miss html", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        );
+      setFetch(mock);
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "Anthropic response was not a JSON envelope",
+          e.message ===
+            "Anthropic response was not a JSON envelope after 1 retry",
       );
     });
 
-    it("throws LLMUnavailableError when html is missing", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            titleSuggestion: "T",
-            directorySuggestion: null,
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies have non-array tags", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "not an array", aliases: [] }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "still not", aliases: [] }),
+        );
+      setFetch(mock);
+      await expect(
+        makeProvider().suggestMetadata(METADATA_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message.includes('required string field "html"'),
-      );
-    });
-
-    it("throws LLMUnavailableError when titleSuggestion is missing", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            html: "<p/>",
-            directorySuggestion: null,
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message.includes('required string field "titleSuggestion"'),
-      );
-    });
-
-    it("throws LLMUnavailableError when tags is not an array", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            tags: "not an array",
-            aliases: [],
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.suggestMetadata(METADATA_INPUT)).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message.includes('field "tags" must be an array'),
-      );
-    });
-
-    it("throws LLMUnavailableError when aliases is not an array", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            tags: [],
-            aliases: { not: "an array" },
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.suggestMetadata(METADATA_INPUT)).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message.includes('field "aliases" must be an array'),
+          e.message ===
+            "Anthropic response was not a JSON envelope after 1 retry",
       );
     });
   });

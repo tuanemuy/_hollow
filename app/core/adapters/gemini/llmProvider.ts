@@ -1,3 +1,4 @@
+import { extractJsonObject } from "@/core/adapters/llm/jsonEnvelope";
 import {
   type LLMMetadataInput,
   type LLMMetadataResult,
@@ -31,6 +32,9 @@ const llmErrorMapper: GeminiErrorMapper = {
   quota: (message, cause) => new LLMQuotaExceededError(message, cause),
 } as const;
 
+const RETRY_SYSTEM_SUFFIX =
+  "Your previous reply was not parseable JSON. Reply with a single JSON object only, no prose, no fences.";
+
 /**
  * Google Gemini `generateContent` adapter for {@link LLMProvider}.
  *
@@ -48,11 +52,14 @@ const llmErrorMapper: GeminiErrorMapper = {
  * re-introduces the empty-string check after the helper call. See
  * `messagesClient.ts` JSDoc ("Empty-response contract").
  *
- * Response shape contract:
- * - `structureToHtml` asks the model to emit a strict JSON envelope
- *   `{ "html", "titleSuggestion", "directorySuggestion" }`.
- * - `suggestMetadata` asks for `{ "tags": string[], "aliases": string[] }`.
- *   Non-string entries are filtered out at the boundary.
+ * Response shape contract: the model is asked for a single-line JSON
+ * envelope. The structured-output flag (`responseMimeType:
+ * "application/json"`) is set so Gemini enforces JSON at the API level.
+ * Robust extraction (`extractJsonObject`) still tolerates fences and
+ * leading prose. On parse / shape failure the adapter retries once with
+ * an appended "previous reply was not parseable JSON" hint in the
+ * system prompt; the second failure surfaces as `LLMUnavailableError`
+ * with "after 1 retry" in the message (Issue #227 ADR-001).
  */
 export class GeminiLLMProvider implements LLMProvider {
   private readonly config: GeminiSharedConfig;
@@ -70,8 +77,17 @@ export class GeminiLLMProvider implements LLMProvider {
   async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
     const system = this.buildStructureSystemPrompt(input);
     const userMessage = this.buildStructureUserMessage(input);
-    const text = await this.invoke(system, userMessage);
-    const envelope = this.parseJsonEnvelope(text);
+    const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
+      const parsed = extractJsonObject(raw);
+      if (parsed === null) return null;
+      if (
+        typeof parsed.html !== "string" ||
+        typeof parsed.titleSuggestion !== "string"
+      ) {
+        return null;
+      }
+      return parsed;
+    });
     const html = this.requireString(envelope, "html");
     const titleSuggestion = this.requireString(envelope, "titleSuggestion");
     const directorySuggestionRaw = envelope.directorySuggestion;
@@ -90,8 +106,14 @@ export class GeminiLLMProvider implements LLMProvider {
   async suggestMetadata(input: LLMMetadataInput): Promise<LLMMetadataResult> {
     const system = this.buildMetadataSystemPrompt(input);
     const userMessage = this.buildMetadataUserMessage(input);
-    const text = await this.invoke(system, userMessage);
-    const envelope = this.parseJsonEnvelope(text);
+    const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
+      const parsed = extractJsonObject(raw);
+      if (parsed === null) return null;
+      if (!Array.isArray(parsed.tags) || !Array.isArray(parsed.aliases)) {
+        return null;
+      }
+      return parsed;
+    });
     const tags = this.requireStringArray(envelope, "tags");
     const aliases = this.requireStringArray(envelope, "aliases");
     return { tags, aliases };
@@ -136,6 +158,7 @@ export class GeminiLLMProvider implements LLMProvider {
       system,
       [{ text: user }],
       llmErrorMapper,
+      { responseMimeType: "application/json" },
     );
     if (text.length === 0) {
       throw new LLMUnavailableError(
@@ -145,28 +168,31 @@ export class GeminiLLMProvider implements LLMProvider {
     return text;
   }
 
-  private parseJsonEnvelope(text: string): Record<string, unknown> {
-    const trimmed = text.trim();
-    const fenced = trimmed
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
+  private async invokeWithRetry(
+    system: string,
+    user: string,
+    validate: (raw: string) => Record<string, unknown> | null,
+  ): Promise<Record<string, unknown>> {
+    const firstText = await this.invoke(system, user);
+    const firstParsed = validate(firstText);
+    if (firstParsed !== null) return firstParsed;
+
+    const retrySystem = `${system}\n${RETRY_SYSTEM_SUFFIX}`;
+    let secondText: string;
     try {
-      const parsed = JSON.parse(fenced) as unknown;
-      if (
-        parsed === null ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
-        throw new Error("envelope is not a JSON object");
-      }
-      return parsed as Record<string, unknown>;
+      secondText = await this.invoke(retrySystem, user);
     } catch (cause) {
       throw new LLMUnavailableError(
-        "Gemini response was not a JSON envelope",
+        "Gemini response was not a JSON envelope after 1 retry",
         cause,
       );
     }
+    const secondParsed = validate(secondText);
+    if (secondParsed !== null) return secondParsed;
+
+    throw new LLMUnavailableError(
+      "Gemini response was not a JSON envelope after 1 retry",
+    );
   }
 
   private requireString(
