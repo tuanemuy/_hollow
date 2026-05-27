@@ -175,3 +175,97 @@ Accepted（実装時に決定）
   - 値型が `string` で揃うので、構造編集モードの分類ロジック（`classifyValue`）が `kind: "string"` の単一パスで処理できる
 - トレードオフ:
   - 数値・真偽値を後から入れたい場合、raw JSON モードでの再編集が必要（構造モードの `<input>` は文字列しか書き出さない）。これは ADR-003 の「複雑値は raw モードで編集」と整合する制約
+
+---
+
+## ADR-006: FrontMatter エラーは構造化（タグ付きユニオン）で持ち、UI 層で日本語化する
+
+### Status
+
+Accepted（review-001 修正時に決定）
+
+### Context
+
+レビュー指摘 W-FE-006 で、構造編集モードで `frontMatterJsonError` に格納されていた `"key already exists: foo"` 等の英文文字列がそのまま画面に出ていることが問題化した。日本語 UI 内で英語短文だけ混ざる粗い体験で、表記揺れも生じやすい。
+
+選択肢:
+
+- (A) reducer が日本語メッセージ文字列を返す（最小変更）
+- (B) reducer は `{ kind: "duplicateKey" | "emptyKey" | "json", ... }` の構造化エラーを返し、UI 側で `displayFrontMatterError` がローカライズする
+
+### Decision
+
+(B) を採用。`FrontMatterError` をタグ付きユニオンとして公開し、`FrontMatterEditor` 内の `displayFrontMatterError(error, mode)` で日本語化する。
+
+### Consequences
+
+- 良い点:
+  - reducer が React にも i18n にも依存しないピュア関数のまま保たれる（CLAUDE.md「ドメイン/アプリケーション層は決定論的」の延長）
+  - テストが文字列マッチではなく構造マッチで書ける（`toEqual({ kind: "duplicateKey", key: "b" })`）。文言変更でテストが壊れない
+  - 将来の i18n 移行で `displayFrontMatterError` を翻訳辞書に置換するだけで済む
+  - `frontMatterJsonError.kind` を見るだけで「raw mode JSON エラー」と「構造モード reject」を区別できるため、ADR-003 の「構造モード reject はモード切替で消さない」分岐が型安全に書ける
+- トレードオフ:
+  - `frontMatterJsonError: string | null` から `FrontMatterError | null` への型変更で `editorState.test.ts` / `FrontMatterEditor.test.tsx` の文字列比較を構造比較に書き換える必要があった
+
+---
+
+## ADR-007: モード切替時の pending 状態強制 commit は UI 側の `document.activeElement.blur()` で実装
+
+### Status
+
+Accepted（review-001 修正時に決定）
+
+### Context
+
+ADR-003 で「pending 状態でのモード切替時はフォーカスを強制 blur して commit する」と決めたが、初版実装ではトグルボタン onClick / `EditorModeSwitch` の `onChange` ともに blur 強制が抜けていた（W-FE-004 / W-ST-002）。
+
+選択肢:
+
+- (A) reducer 内で何らかのフラグを立て、useEffect で blur する（双方向依存）
+- (B) UI 側でモード切替前に `document.activeElement.blur()` を直接呼ぶ
+- (C) `flushSync` で commit を同期化する
+
+### Decision
+
+(B) を採用。`FrontMatterEditor` のトグルボタン / `NoteEditor` の `EditorModeSwitch.onChange` の両方で、dispatch 直前に `document.activeElement instanceof HTMLElement && active.blur()` を実行する。
+
+### Consequences
+
+- 良い点:
+  - blur によって row の onBlur ハンドラ（`commitKey`）が動作し、ローカルバッファのコミット → reducer dispatch が確実に走る
+  - W-FE-002 の UI 側重複チェックと組み合わせれば、commit が reject されてもバッファは古い状態のまま残らず、reducer 側のエラーが UI に表示される
+  - reducer は介在せず、純粋関数のまま
+- トレードオフ:
+  - DOM API 直接依存だが、SSR / RSC 経由でも `"use client"` 内であれば問題なし
+  - `EditorModeSwitch.onChange` のラッパが膨らむが、副作用は局所化されている
+
+---
+
+## ADR-008: 構造モード reject エラーは `clearFrontMatterError` action か同一キー rename で明示的にクリアする
+
+### Status
+
+Accepted（review-001 修正時に決定）
+
+### Context
+
+W-ST-003: 重複 reject 後、ユーザが key 入力を元の値に戻して blur しても `commitKey` の `trimmed === fmKey` 早期 return パスで dispatch が出ず、`frontMatterJsonError` が残置されたまま autosave gate がブロックされ続ける問題があった。
+
+選択肢:
+
+- (A) `commitKey` から「同一キーでもエラークリアだけ送る」分岐を入れる
+- (B) reducer の `renameFrontMatterKey` 同一キー早期 return パスで、エラーがある場合のみクリアする
+- (C) 新規 action `clearFrontMatterError` を追加し、UI から明示的に呼ぶ
+
+### Decision
+
+(B) + (C) のハイブリッド。reducer の `renameFrontMatterKey(oldKey === newKey)` パスで pending エラーを自動クリアし（最も自然な「同名に戻したら回復」の体験）、同時に `clearFrontMatterError` action も追加して将来の利用に備える。
+
+### Consequences
+
+- 良い点:
+  - 「同一キーに戻して blur」というユーザの直感的な回復操作が機能する
+  - reducer 単体テストで回復パスを直接 assert できる
+  - `clearFrontMatterError` を別の経路（例: rawJson 編集後の手動クリアボタンなど）から呼べる拡張余地を残す
+- トレードオフ:
+  - reducer 仕様が「同一キー rename = no-op」ではなく「同一キー rename = エラークリア」に変わり、テストの早期 return 期待が `frontMatterJsonError === null` の前提付きになる

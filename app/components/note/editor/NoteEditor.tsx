@@ -268,7 +268,15 @@ export function NoteEditor(props: NoteEditorProps) {
 
       <EditorModeSwitch
         mode={state.mode}
-        onChange={(mode) => dispatch({ type: "setMode", mode })}
+        onChange={(mode) => {
+          // ADR-003 (Issue #230): switching editor modes unmounts the
+          // currently focused FrontMatter input. Force a blur first so
+          // any pending key-rename / add commits run before the row
+          // disappears, instead of being silently dropped.
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) active.blur();
+          dispatch({ type: "setMode", mode });
+        }}
       />
 
       {state.mode === "html" ? (

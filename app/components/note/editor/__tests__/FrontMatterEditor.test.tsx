@@ -311,7 +311,7 @@ describe("FrontMatterEditor — structured mode arbitrary keys", () => {
     );
   });
 
-  it("displays the parseError surfaced by the reducer (e.g. duplicate key)", () => {
+  it("displays the parseError surfaced by the reducer (duplicate key, Japanese)", () => {
     const h = makeHandlers();
     act(() => {
       root.render(
@@ -319,13 +319,49 @@ describe("FrontMatterEditor — structured mode arbitrary keys", () => {
           mode="structured"
           parsed={{ a: "1" }}
           rawJson=""
-          parseError="key already exists: a"
+          parseError={{ kind: "duplicateKey", key: "a" }}
           {...h}
         />,
       );
     });
     const err = container.querySelector('[role="alert"]');
-    expect(err?.textContent).toContain("already exists");
+    expect(err?.textContent).toContain("既に存在します");
+    expect(err?.textContent).toContain("'a'");
+  });
+
+  it("displays the empty-key error in Japanese", () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{}}
+          rawJson="{}"
+          parseError={{ kind: "emptyKey" }}
+          {...h}
+        />,
+      );
+    });
+    const err = container.querySelector('[role="alert"]');
+    expect(err?.textContent).toContain("キー名は空にできません");
+  });
+
+  it("renders a number-typed value with a primitive-type hint", () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ count: 42 }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const row = container.querySelector('[data-value-kind="number"]');
+    expect(row).not.toBeNull();
+    expect(row?.textContent).toContain("raw モード");
   });
 });
 
@@ -361,7 +397,7 @@ describe("FrontMatterEditor — raw mode", () => {
           mode="raw"
           parsed={{}}
           rawJson={"{not json"}
-          parseError={"Unexpected token"}
+          parseError={{ kind: "json", message: "Unexpected token" }}
           {...h}
         />,
       );

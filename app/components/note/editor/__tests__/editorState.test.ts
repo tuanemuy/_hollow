@@ -673,7 +673,7 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
     expect(s1.frontMatterJsonError).toBe(null);
   });
 
-  it("renameFrontMatterKey to a duplicate key is a no-op + error", () => {
+  it("renameFrontMatterKey to a duplicate key is a no-op + structured error", () => {
     const s0 = createInitialEditorState({
       ...baseInit,
       frontMatter: { a: 1, b: 2 },
@@ -684,7 +684,16 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
       newKey: "b",
     });
     expect(s1.frontMatter).toEqual({ a: 1, b: 2 });
-    expect(s1.frontMatterJsonError).toContain("already exists");
+    expect(s1.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+    // W-TS-002: rejected rename must NOT touch the raw-JSON mirror or
+    // the dirtyKeys set (ADR-003 core invariant — pending operations do
+    // not overwrite the in-sync representation, and they do not arm
+    // autosave on a known-rejected change).
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
   });
 
   it("renameFrontMatterKey to an empty key surfaces an error", () => {
@@ -742,7 +751,7 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
     expect(s1.dirtyKeys.has("frontMatter")).toBe(true);
   });
 
-  it("addFrontMatterKey on a duplicate key is a no-op + error", () => {
+  it("addFrontMatterKey on a duplicate key is a no-op + structured error", () => {
     const s0 = createInitialEditorState({
       ...baseInit,
       frontMatter: { a: 1 },
@@ -752,7 +761,14 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
       key: "a",
     });
     expect(s1.frontMatter).toEqual({ a: 1 });
-    expect(s1.frontMatterJsonError).toContain("already exists");
+    expect(s1.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "a",
+    });
+    // W-TS-002: rejected add must NOT touch the raw-JSON mirror or the
+    // dirtyKeys set (ADR-003 core invariant).
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
   });
 
   it("structured ⇔ raw toggle preserves key insertion order", () => {
@@ -765,6 +781,101 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
     const s2 = editorReducer(s1, { type: "toggleFrontMatterMode" });
     expect(s2.frontMatterMode).toBe("structured");
     expect(Object.keys(s2.frontMatter)).toEqual(["z", "a", "m"]);
+  });
+
+  // W-TS-001: UI guards `addFrontMatterKey("")` from happening today
+  // (the button is disabled and the commit helper short-circuits), but
+  // the reducer is the unconditional contract — exercise the empty-key
+  // and same-key paths directly so a UI regression cannot silently
+  // bypass the reject + error contract.
+  it('addFrontMatterKey("") surfaces an emptyKey error and leaves frontMatter untouched', () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, { type: "addFrontMatterKey", key: "" });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).toEqual({ kind: "emptyKey" });
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
+  });
+
+  it("renameFrontMatterKey(oldKey === newKey) without a prior error is a referential no-op", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "a",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  // W-ST-003: re-typing the original key after a duplicate rejection
+  // must clear the stale error — otherwise the autosave gate stays
+  // closed even though the FrontMatter is consistent.
+  it("renameFrontMatterKey(oldKey === newKey) clears a residual duplicate-key error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const rejected = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    expect(rejected.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+    const recovered = editorReducer(rejected, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "a",
+    });
+    expect(recovered.frontMatterJsonError).toBe(null);
+    expect(recovered.frontMatter).toEqual({ a: 1, b: 2 });
+  });
+
+  // W-ST-001: toggling structured → raw must NOT silently drop a
+  // pending structured-mode rejection — ADR-003 makes commit failures
+  // sticky so users see the recovery path. The raw text mirror still
+  // re-syncs (so raw mode shows the actual in-sync object).
+  it("toggleFrontMatterMode preserves a structured-mode error when switching to raw", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const rejected = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    const toggled = editorReducer(rejected, { type: "toggleFrontMatterMode" });
+    expect(toggled.frontMatterMode).toBe("raw");
+    expect(toggled.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+  });
+
+  it("clearFrontMatterError clears any pending error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const rejected = editorReducer(s0, { type: "addFrontMatterKey", key: "" });
+    expect(rejected.frontMatterJsonError).not.toBe(null);
+    const cleared = editorReducer(rejected, { type: "clearFrontMatterError" });
+    expect(cleared.frontMatterJsonError).toBe(null);
+  });
+
+  it("clearFrontMatterError on a clean state is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, { type: "clearFrontMatterError" });
+    expect(s1).toBe(s0);
   });
 });
 
