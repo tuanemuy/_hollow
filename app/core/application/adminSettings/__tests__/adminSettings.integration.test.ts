@@ -915,6 +915,35 @@ describe("updatePromptTemplate", () => {
     }
     expect(isBusinessRuleError(caught)).toBe(true);
   });
+
+  it("re-saving the same prompt content does not bump version (Issue #261)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    const payload = {
+      actorUserId: ADMIN_ID,
+      purpose: "title",
+      template: { text: "custom title", expectedVariables: [] },
+    } as const;
+    await updatePromptTemplate({ container, input: payload });
+    const rowsAfterFirst = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    expect(rowsAfterFirst).toHaveLength(1);
+    const versionAfterFirst = rowsAfterFirst[0]?.version;
+    expect(typeof versionAfterFirst).toBe("number");
+
+    await updatePromptTemplate({ container, input: payload });
+    const rowsAfterSecond = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    expect(rowsAfterSecond).toHaveLength(1);
+    expect(rowsAfterSecond[0]?.version).toBe(versionAfterFirst);
+  });
 });
 
 // ---------- ResetPromptTemplate / ResetAllPromptTemplates (Issue #218) ----------
@@ -1235,6 +1264,34 @@ describe("updateDesignTokens / resetDesignTokens", () => {
       caught = error;
     }
     expect(isBusinessRuleError(caught)).toBe(true);
+  });
+
+  it("re-saving identical tokens does not bump version (Issue #261)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    const payload = {
+      actorUserId: ADMIN_ID,
+      tokens: { "--color-primary": "#abc", "--color-bg": "#fff" },
+    } as const;
+    await updateDesignTokens({ container, input: payload });
+    const rowsAfterFirst = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    expect(rowsAfterFirst).toHaveLength(1);
+    const versionAfterFirst = rowsAfterFirst[0]?.version;
+    expect(typeof versionAfterFirst).toBe("number");
+
+    await updateDesignTokens({ container, input: payload });
+    const rowsAfterSecond = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    expect(rowsAfterSecond).toHaveLength(1);
+    expect(rowsAfterSecond[0]?.version).toBe(versionAfterFirst);
   });
 
   it("resetDesignTokens restores the empty default map", async () => {

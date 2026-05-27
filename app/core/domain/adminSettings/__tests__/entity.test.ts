@@ -146,6 +146,157 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     expect(next.version).toBe(current.version + 1);
   });
 
+  it("updatePrompt with an identical template is a no-op (same instance)", () => {
+    const tpl = PromptTemplate.create({
+      text: "Hello {{ name }}",
+      expectedVariables: ["name"],
+    });
+    const overridden = InstanceSettings.updatePrompt(
+      seed(),
+      "title",
+      tpl,
+      at(1),
+    );
+    const sameTpl = PromptTemplate.create({
+      text: "Hello {{ name }}",
+      expectedVariables: ["name"],
+    });
+    const same = InstanceSettings.updatePrompt(
+      overridden,
+      "title",
+      sameTpl,
+      at(99),
+    );
+    expect(same).toBe(overridden);
+    expect(same.version).toBe(overridden.version);
+    expect(same.updatedAt.getTime()).toBe(overridden.updatedAt.getTime());
+  });
+
+  it("updatePrompt bumps version when text differs", () => {
+    const first = PromptTemplate.create({
+      text: "Hello {{ name }}",
+      expectedVariables: ["name"],
+    });
+    const overridden = InstanceSettings.updatePrompt(
+      seed(),
+      "title",
+      first,
+      at(1),
+    );
+    const changed = PromptTemplate.create({
+      text: "Hi {{ name }}",
+      expectedVariables: ["name"],
+    });
+    const next = InstanceSettings.updatePrompt(
+      overridden,
+      "title",
+      changed,
+      at(2),
+    );
+    expect(next).not.toBe(overridden);
+    expect(next.version).toBe(overridden.version + 1);
+    expect(next.prompts.title).toBe(changed);
+  });
+
+  it("updatePrompt bumps version when expectedVariables differ", () => {
+    const first = PromptTemplate.create({
+      text: "static",
+      expectedVariables: ["a"],
+    });
+    const overridden = InstanceSettings.updatePrompt(
+      seed(),
+      "title",
+      first,
+      at(1),
+    );
+    const changed = PromptTemplate.create({
+      text: "static",
+      expectedVariables: ["b"],
+    });
+    const next = InstanceSettings.updatePrompt(
+      overridden,
+      "title",
+      changed,
+      at(2),
+    );
+    expect(next).not.toBe(overridden);
+    expect(next.version).toBe(overridden.version + 1);
+  });
+
+  it("updateDesignTokens with identical tokens is a no-op (same instance)", () => {
+    const tokens = DesignTokens.create({
+      tokens: { "--color-primary": "#123", "--color-bg": "#fff" },
+    });
+    const first = InstanceSettings.updateDesignTokens(seed(), tokens, at(1));
+    const sameTokens = DesignTokens.create({
+      tokens: { "--color-primary": "#123", "--color-bg": "#fff" },
+    });
+    const same = InstanceSettings.updateDesignTokens(first, sameTokens, at(99));
+    expect(same).toBe(first);
+    expect(same.version).toBe(first.version);
+    expect(same.updatedAt.getTime()).toBe(first.updatedAt.getTime());
+  });
+
+  it("updateDesignTokens from empty to empty is a no-op", () => {
+    const current = seed();
+    const same = InstanceSettings.updateDesignTokens(
+      current,
+      DesignTokens.create({ tokens: {} }),
+      at(5),
+    );
+    expect(same).toBe(current);
+    expect(same.version).toBe(current.version);
+  });
+
+  it("updateDesignTokens bumps version when a token value changes", () => {
+    const first = InstanceSettings.updateDesignTokens(
+      seed(),
+      DesignTokens.create({ tokens: { "--color-primary": "#123" } }),
+      at(1),
+    );
+    const next = InstanceSettings.updateDesignTokens(
+      first,
+      DesignTokens.create({ tokens: { "--color-primary": "#456" } }),
+      at(2),
+    );
+    expect(next).not.toBe(first);
+    expect(next.version).toBe(first.version + 1);
+  });
+
+  it("updateDesignTokens bumps version when a token key is added", () => {
+    const first = InstanceSettings.updateDesignTokens(
+      seed(),
+      DesignTokens.create({ tokens: { "--color-primary": "#123" } }),
+      at(1),
+    );
+    const next = InstanceSettings.updateDesignTokens(
+      first,
+      DesignTokens.create({
+        tokens: { "--color-primary": "#123", "--color-bg": "#fff" },
+      }),
+      at(2),
+    );
+    expect(next).not.toBe(first);
+    expect(next.version).toBe(first.version + 1);
+  });
+
+  it("updateDesignTokens bumps version when a token key is removed", () => {
+    const first = InstanceSettings.updateDesignTokens(
+      seed(),
+      DesignTokens.create({
+        tokens: { "--color-primary": "#123", "--color-bg": "#fff" },
+      }),
+      at(1),
+    );
+    const next = InstanceSettings.updateDesignTokens(
+      first,
+      DesignTokens.create({ tokens: { "--color-primary": "#123" } }),
+      at(2),
+    );
+    expect(next).not.toBe(first);
+    expect(next.version).toBe(first.version + 1);
+  });
+
   it("resetDesignTokens returns to the empty default map", () => {
     const current = InstanceSettings.updateDesignTokens(
       seed(),
