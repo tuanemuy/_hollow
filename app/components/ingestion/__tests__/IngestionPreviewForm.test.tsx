@@ -462,26 +462,39 @@ describe("IngestionPreviewForm", () => {
     expect(details?.open).toBe(false);
   });
 
-  // Issue #257 structural regression: the action bar must not be
-  // `sticky bottom-0` (it now sits at the flex-column's bottom via
-  // `flex-shrink-0`), and the body preview must not have its own
-  // `max-h-[240px] overflow-y-auto` (the single scroll container lives
-  // on the form's flex-1 child instead). If either reappears, the
-  // modal regresses into the double-scroll / floating-action-bar
-  // behaviour Issue #257 fixed.
-  it("does not introduce a sticky action bar or a max-h-bound body preview (Issue #257)", () => {
+  // Issue #257 structural regression: the modal must keep the
+  // "single scroll container + fixed footer" structure introduced
+  // by Issue #257. Two regressions in particular must stay caught:
+  //  - re-introducing `sticky bottom-0` on the action bar (which
+  //    caused the floating-action-bar bug), or any height-bound class
+  //    on the body preview (which caused the double-scroll bug);
+  //  - silently removing the inner `flex-1 min-h-0 overflow-y-auto`
+  //    scroll wrapper or the `flex-shrink-0` action bar, which would
+  //    pass a pure absence-based test even though the structural
+  //    contract is broken. The assertions below cover both directions.
+  it("keeps the single scroll container + fixed footer structure (Issue #257)", () => {
     renderForm({});
 
     const submit = getSubmitButton();
-    const actionBar = submit.parentElement;
+    const actionBar = submit.closest("[data-action-bar]");
     expect(actionBar).not.toBeNull();
-    expect(actionBar?.className ?? "").not.toContain("sticky");
+    const actionBarClass = actionBar?.className ?? "";
+    expect(actionBarClass).not.toContain("sticky");
+    expect(actionBarClass).toContain("flex-shrink-0");
+
+    const form = submit.closest("form");
+    expect(form).not.toBeNull();
+    const scrollWrapper = form?.firstElementChild;
+    expect(scrollWrapper).not.toBeNull();
+    const scrollWrapperClass = scrollWrapper?.className ?? "";
+    expect(scrollWrapperClass).toContain("flex-1");
+    expect(scrollWrapperClass).toContain("min-h-0");
+    expect(scrollWrapperClass).toContain("overflow-y-auto");
 
     const bodyPreview = document.body.querySelector(".note-detail-content");
     expect(bodyPreview).not.toBeNull();
     const previewClass = bodyPreview?.className ?? "";
-    expect(previewClass).not.toContain("max-h-[240px]");
-    expect(previewClass).not.toContain("overflow-y-auto");
+    expect(previewClass).not.toMatch(/max-h-\[\d+px\]/);
   });
 
   // W-T-006: empty frontMatterJson is omitted from the payload — the

@@ -62,6 +62,7 @@ Issue #257 の Resp-H2 提案には「`pillBtn` / `PILL_BTN` を 1 系統に集�
   - 統合判断（どちらに寄せるか、`pillBtnPrimary` / `pillBtnDanger` をどう移すか）を別途じっくり議論できる
 - トレードオフ:
   - 2 系統の重複は残るため、将来的にもう一方だけ更新されると再び乖離するリスク → 統合 Issue を Phase 4 で起票することで forget 防止
+  - `pillBtn` の class は `h-9 ... max-sm:min-h-[44px]` となり、モバイルでは `min-height: 44px` と `height: 36px` が共存する。CSS 仕様上は `min-height` が `height` を上書きするため最終 44px に達するが、レビュー (`review/review-001.md` W-F-001) で「`inline-flex` や `<a>` でブラウザ実装差が稀に出る可能性」が指摘された。現状は機能的に正しく、実機差は理論上の懸念のため本 Issue では対応せず、`h-9` を `max-sm:h-auto` で打ち消すパターンへの切り替えはブラウザ実装差が実際に報告された時点で検討する
 
 ---
 

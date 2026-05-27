@@ -220,7 +220,7 @@ export function IngestionPreviewForm({
   return (
     <>
       <form onSubmit={onSubmit} className="flex flex-1 flex-col min-h-0">
-        <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-6 px-6">
           <div className={field}>
             <label
               htmlFor={titleId}
@@ -327,7 +327,10 @@ export function IngestionPreviewForm({
           ) : null}
         </div>
 
-        <div className="flex-shrink-0 -mx-6 -mb-6 flex flex-wrap justify-end gap-2 border-t border-hairline bg-bg px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div
+          data-action-bar=""
+          className="flex-shrink-0 -mx-6 -mb-6 flex flex-wrap justify-end gap-2 border-t border-hairline bg-bg px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
           <button
             type="button"
             className={PILL_BTN}
