@@ -374,61 +374,92 @@ describe("IngestionPreviewForm", () => {
     expect(callArg.data).not.toHaveProperty("directoryId");
   });
 
-  // Issue #259 H-2: each field surfaces an "AI 提案" caption while its
-  // current value still matches the LLM-suggested initial value.
-  it("renders 'AI 提案' badges next to each suggested field on mount", () => {
-    renderForm({});
-    const badges = Array.from(document.body.querySelectorAll("span")).filter(
-      (s) => (s.textContent ?? "").includes("AI 提案"),
+  // Issue #259 H-2: each editable suggested field gets an "AI 提案"
+  // caption while its value still matches the LLM-suggested initial
+  // value. The body-preview is read-only and intentionally does NOT
+  // carry a badge.
+  const aiBadgeFor = (field: "title" | "directory" | "tags" | "frontmatter") =>
+    document.body.querySelector<HTMLSpanElement>(
+      `[data-ai-badge-for="${field}"]`,
     );
-    // タイトル / 本文プレビュー / ディレクトリ / タグ / FrontMatter
-    expect(badges.length).toBeGreaterThanOrEqual(5);
+  const tagsInput = (): HTMLInputElement => {
+    const inputs = Array.from(
+      document.body.querySelectorAll<HTMLInputElement>('input[type="text"]'),
+    );
+    const tags = inputs.find((el) =>
+      el
+        .getAttribute("placeholder")
+        ?.includes("idea, draft"),
+    );
+    if (!tags) throw new Error("tags input not rendered");
+    return tags;
+  };
+
+  it("renders an 'AI 提案' badge next to title / directory / tags / frontmatter on mount", () => {
+    renderForm({});
+    expect(aiBadgeFor("title")).not.toBeNull();
+    expect(aiBadgeFor("directory")).not.toBeNull();
+    expect(aiBadgeFor("tags")).not.toBeNull();
+    expect(aiBadgeFor("frontmatter")).not.toBeNull();
+    // Read-only body preview does not get a badge — the H-2 mental
+    // model ("edit → caption disappears") does not apply there.
+    expect(
+      document.body.querySelectorAll("[data-ai-badge-for]"),
+    ).toHaveLength(4);
   });
 
-  // Issue #259 H-2: editing a field hides only that field's badge.
-  it("hides the title 'AI 提案' badge after the user edits the title", async () => {
+  // Editing one field hides only that field's badge — the other three
+  // are unaffected (ADR-003 independence guarantee).
+  it("hides only the title badge when the title is edited; other badges stay", () => {
     renderForm({});
-
-    const countAi = () =>
-      Array.from(document.body.querySelectorAll("span")).filter((s) =>
-        (s.textContent ?? "").includes("AI 提案"),
-      ).length;
-    const before = countAi();
 
     act(() => {
       setNativeInputValue(getTitleInput(), "Some New Title");
     });
 
-    const after = countAi();
-    expect(after).toBe(before - 1);
+    expect(aiBadgeFor("title")).toBeNull();
+    expect(aiBadgeFor("directory")).not.toBeNull();
+    expect(aiBadgeFor("tags")).not.toBeNull();
+    expect(aiBadgeFor("frontmatter")).not.toBeNull();
   });
 
-  // Issue #259 H-2: restoring the field to the LLM-suggested value
-  // brings the badge back (see ADR-003).
-  it("re-shows the title badge when the value is restored to the initial suggestion", async () => {
+  it("hides only the tags badge when the tags input is edited; other badges stay", () => {
     renderForm({});
 
-    const countAi = () =>
-      Array.from(document.body.querySelectorAll("span")).filter((s) =>
-        (s.textContent ?? "").includes("AI 提案"),
-      ).length;
-    const initial = countAi();
+    act(() => {
+      setNativeInputValue(tagsInput(), "edited, tags");
+    });
+
+    expect(aiBadgeFor("tags")).toBeNull();
+    expect(aiBadgeFor("title")).not.toBeNull();
+    expect(aiBadgeFor("directory")).not.toBeNull();
+    expect(aiBadgeFor("frontmatter")).not.toBeNull();
+  });
+
+  // Restoring the field to the LLM-suggested value brings the badge
+  // back (see ADR-003).
+  it("re-shows the title badge when the value is restored to the initial suggestion", () => {
+    renderForm({});
 
     act(() => {
       setNativeInputValue(getTitleInput(), "Edited");
     });
-    expect(countAi()).toBe(initial - 1);
+    expect(aiBadgeFor("title")).toBeNull();
 
     act(() => {
       setNativeInputValue(getTitleInput(), "Suggested Title");
     });
-    expect(countAi()).toBe(initial);
+    expect(aiBadgeFor("title")).not.toBeNull();
   });
 
   // Issue #259 H-1: FrontMatter section starts collapsed via <details>.
+  // Use the frontmatter badge as the anchor so we never depend on
+  // "first <details> on the page".
   it("renders the FrontMatter section inside a <details> element that is closed by default", () => {
     renderForm({});
-    const details = document.body.querySelector("details");
+    const fmBadge = aiBadgeFor("frontmatter");
+    expect(fmBadge).not.toBeNull();
+    const details = fmBadge?.closest("details");
     expect(details).not.toBeNull();
     expect(details?.open).toBe(false);
   });

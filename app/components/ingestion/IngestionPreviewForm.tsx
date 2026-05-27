@@ -53,10 +53,23 @@ const AI_BADGE = "text-[11px] font-normal text-ink-tertiary";
  * Inline "AI suggestion" caption rendered next to each form label while
  * the user has not yet edited that field. Disappears the moment the
  * current value diverges from the initial LLM suggestion (see ADR-003).
+ *
+ * `field` is reflected to `data-ai-badge-for` so per-field assertions
+ * can locate the badge without relying on global span counts.
  */
-function AiSuggestionBadge({ edited }: { edited: boolean }) {
+function AiSuggestionBadge({
+  edited,
+  field,
+}: {
+  edited: boolean;
+  field: "title" | "directory" | "tags" | "frontmatter";
+}) {
   if (edited) return null;
-  return <span className={AI_BADGE}>✨ AI 提案</span>;
+  return (
+    <span className={AI_BADGE} data-ai-badge-for={field}>
+      ✨ AI 提案
+    </span>
+  );
 }
 
 function formatInitialFrontMatterJson(raw: string): string {
@@ -207,13 +220,13 @@ export function IngestionPreviewForm({
   return (
     <>
       <form onSubmit={onSubmit}>
-        <div className={field} data-edited={isTitleEdited || undefined}>
+        <div className={field}>
           <label
             htmlFor={titleId}
             className={`${fieldLabel} inline-flex items-center gap-2`}
           >
             <span>タイトル</span>
-            <AiSuggestionBadge edited={isTitleEdited} />
+            <AiSuggestionBadge edited={isTitleEdited} field="title" />
           </label>
           <input
             ref={titleInputRef}
@@ -229,10 +242,7 @@ export function IngestionPreviewForm({
         </div>
 
         <div className={field}>
-          <p className={`${fieldLabel} inline-flex items-center gap-2`}>
-            <span>本文プレビュー（読み取り専用）</span>
-            <AiSuggestionBadge edited={false} />
-          </p>
+          <p className={fieldLabel}>本文プレビュー（LLM 抽出・読み取り専用）</p>
           <div
             className={READONLY_CONTENT}
             // biome-ignore lint/security/noDangerouslySetInnerHtml: preview HTML is sanitised upstream by the ingestion pipeline
@@ -240,31 +250,31 @@ export function IngestionPreviewForm({
           />
         </div>
 
-        <div data-edited={isDirectoryEdited || undefined}>
-          <DirectoryPicker
-            tree={tree}
-            directoryId={directoryId}
-            pendingDirectoryName={pendingDirectoryName}
-            onSelectExisting={(id) => {
-              setDirectoryId(id);
-              if (id !== null) setPendingDirectoryName(null);
-            }}
-            onSetPendingName={(name) => {
-              setPendingDirectoryName(name);
-              if (name !== null) setDirectoryId(null);
-            }}
-            disabled={isPending || isTreeLoading}
-            legendSlot={<AiSuggestionBadge edited={isDirectoryEdited} />}
-          />
-        </div>
+        <DirectoryPicker
+          tree={tree}
+          directoryId={directoryId}
+          pendingDirectoryName={pendingDirectoryName}
+          onSelectExisting={(id) => {
+            setDirectoryId(id);
+            if (id !== null) setPendingDirectoryName(null);
+          }}
+          onSetPendingName={(name) => {
+            setPendingDirectoryName(name);
+            if (name !== null) setDirectoryId(null);
+          }}
+          disabled={isPending || isTreeLoading}
+          legendSlot={
+            <AiSuggestionBadge edited={isDirectoryEdited} field="directory" />
+          }
+        />
 
-        <div className={field} data-edited={isTagsEdited || undefined}>
+        <div className={field}>
           <label
             htmlFor={tagsId}
             className={`${fieldLabel} inline-flex items-center gap-2`}
           >
             <span>タグ（カンマ区切り）</span>
-            <AiSuggestionBadge edited={isTagsEdited} />
+            <AiSuggestionBadge edited={isTagsEdited} field="tags" />
           </label>
           <input
             id={tagsId}
@@ -277,10 +287,7 @@ export function IngestionPreviewForm({
           />
         </div>
 
-        <details
-          className={`${field} group`}
-          data-edited={isFrontMatterEdited || undefined}
-        >
+        <details className={`${field} group`}>
           <summary className={FRONT_MATTER_SUMMARY}>
             <span
               aria-hidden="true"
@@ -289,7 +296,10 @@ export function IngestionPreviewForm({
               ▸
             </span>
             <span>FrontMatter（JSON）</span>
-            <AiSuggestionBadge edited={isFrontMatterEdited} />
+            <AiSuggestionBadge
+              edited={isFrontMatterEdited}
+              field="frontmatter"
+            />
           </summary>
           <div className="mt-2">
             <label htmlFor={frontMatterId} className="sr-only">

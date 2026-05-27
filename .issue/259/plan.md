@@ -27,8 +27,9 @@ Issue #226 (PR #251) のデザインクリティーク（critique）H-1 / H-2 �
 
 - critique H-3（failed view の `errorCode/errorReason` 生表示の改善）
 - critique 中の「sticky bar の主従強調」「fieldset 縁取りの差別化」など他のミディアム/ロー優先度項目
-- `DirectoryPicker` 自体の UI 改修（提案バッジは外側に出す）
+- `DirectoryPicker` 自体の UI 改修。**ただし** バッジを fieldset legend の一部として読ませる必要があるため、`legendSlot?: ReactNode` 任意 prop の受け入れだけは追加する（ADR-004 で経緯を記録）
 - 本文プレビューの高さ token 化や `clamp` 化（critique で言及されているが H-1/H-2 とは独立）
+- 本文プレビューへの AI 提案バッジ表示（本文プレビューは読み取り専用で、H-2 のメンタルモデル「編集→消える」が成立しないため）
 
 ## 実装ステップ
 

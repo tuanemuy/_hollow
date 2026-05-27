@@ -48,6 +48,30 @@ critique H-2 の「AI 提案」バッジは 4 つのフィールドで再利用�
 
 ---
 
+## ADR-004: `DirectoryPicker` に `legendSlot` 任意 prop を追加（plan の「DirectoryPicker 自体の UI 改修はしない」を上書き）
+
+### Status
+Accepted（review-001 W-001 で明示化）
+
+### Context
+plan.md の「含まれないもの」では「`DirectoryPicker` 自体の UI 改修（提案バッジは外側に出す）」と書いた。しかし実装時に「DirectoryPicker の外側にバッジを置く」案を検討した結果、以下の問題が判明した:
+
+- DirectoryPicker は内部に `<fieldset><legend>ディレクトリ</legend>` を持つ。外側にラベルとバッジを置くと「ディレクトリ」が二重に表示される
+- fieldset の `<legend>` は意味的に「fieldset 内の input 群のキャプション」であり、提案バッジもそのキャプションの一部として読ませたい（SR 読み上げ順: 「ディレクトリ, AI 提案」）。legend 外に置くと semantic が壊れる
+
+### Decision
+DirectoryPicker に `legendSlot?: ReactNode` 任意 prop を追加し、`<legend>` 内に slot を差し込む形に切り替えた。NoteEditor 側からは渡さない（呼び出し点での破壊的変更なし）。
+
+### Consequences
+- 良い点:
+  - fieldset の semantic を壊さず、バッジが legend の一部として読み上げられる
+  - NoteEditor を含む既存の呼び出し点は影響を受けない（optional prop）
+  - JSDoc で「`IngestionPreviewForm` 用途」と用途を明示しているので、note editor 側で誤用される懸念は低い
+- トレードオフ:
+  - DirectoryPicker の API 表面積が 1 つ増える。再利用先が他に出ない限りはオーバースペック気味だが、現状は 2 呼び出し点中 1 つだけが使う形で限定的
+
+---
+
 ## ADR-003: 編集判定は「初期 LLM 提案値との一致比較」で行う（`dirty` フラグは持たない）
 
 ### Status
