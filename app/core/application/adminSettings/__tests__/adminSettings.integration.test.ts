@@ -933,12 +933,15 @@ describe("updatePromptTemplate", () => {
     const rowsAfterFirst = await container.db
       .select()
       .from(schema.instanceSettings);
+    expect(rowsAfterFirst).toHaveLength(1);
     const versionAfterFirst = rowsAfterFirst[0]?.version;
+    expect(typeof versionAfterFirst).toBe("number");
 
     await updatePromptTemplate({ container, input: payload });
     const rowsAfterSecond = await container.db
       .select()
       .from(schema.instanceSettings);
+    expect(rowsAfterSecond).toHaveLength(1);
     expect(rowsAfterSecond[0]?.version).toBe(versionAfterFirst);
   });
 });
@@ -1279,12 +1282,15 @@ describe("updateDesignTokens / resetDesignTokens", () => {
     const rowsAfterFirst = await container.db
       .select()
       .from(schema.instanceSettings);
+    expect(rowsAfterFirst).toHaveLength(1);
     const versionAfterFirst = rowsAfterFirst[0]?.version;
+    expect(typeof versionAfterFirst).toBe("number");
 
     await updateDesignTokens({ container, input: payload });
     const rowsAfterSecond = await container.db
       .select()
       .from(schema.instanceSettings);
+    expect(rowsAfterSecond).toHaveLength(1);
     expect(rowsAfterSecond[0]?.version).toBe(versionAfterFirst);
   });
 
