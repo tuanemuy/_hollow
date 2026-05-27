@@ -387,9 +387,7 @@ describe("IngestionPreviewForm", () => {
       document.body.querySelectorAll<HTMLInputElement>('input[type="text"]'),
     );
     const tags = inputs.find((el) =>
-      el
-        .getAttribute("placeholder")
-        ?.includes("idea, draft"),
+      el.getAttribute("placeholder")?.includes("idea, draft"),
     );
     if (!tags) throw new Error("tags input not rendered");
     return tags;
@@ -403,9 +401,9 @@ describe("IngestionPreviewForm", () => {
     expect(aiBadgeFor("frontmatter")).not.toBeNull();
     // Read-only body preview does not get a badge — the H-2 mental
     // model ("edit → caption disappears") does not apply there.
-    expect(
-      document.body.querySelectorAll("[data-ai-badge-for]"),
-    ).toHaveLength(4);
+    expect(document.body.querySelectorAll("[data-ai-badge-for]")).toHaveLength(
+      4,
+    );
   });
 
   // Editing one field hides only that field's badge — the other three
