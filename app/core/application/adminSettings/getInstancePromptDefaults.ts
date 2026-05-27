@@ -1,8 +1,19 @@
+import { BUILTIN_PROMPT_DEFAULTS } from "@/core/domain/adminSettings/defaults";
+import { PromptPurpose } from "@/core/domain/adminSettings/valueObject";
 import type { PromptDTO } from "../dto/adminSettings";
 import type { ServiceArgs } from "../types";
 
 export type GetInstancePromptDefaultsOutput = {
-  /** Per-purpose instance-default prompt templates. */
+  /**
+   * Per-purpose instance-default prompt templates. The map is always
+   * keyed by every `PromptPurpose`: when the instance has no override
+   * the entry surfaces the built-in default (`isOverridden: false`) so
+   * the per-user prompt-override settings page (P23) can render the
+   * "inheriting from instance" state without special-casing missing
+   * keys. This API contract is preserved as part of Issue #218 — the
+   * underlying aggregate moved to a `Partial<Record<>>` model but the
+   * DTO stays full-keyed.
+   */
   defaults: Readonly<Record<string, PromptDTO>>;
 };
 
@@ -28,11 +39,22 @@ export async function getInstancePromptDefaults({
     },
   );
   const defaults: Record<string, PromptDTO> = {};
-  for (const [purpose, template] of Object.entries(settings.prompts)) {
-    defaults[purpose] = {
-      text: template.text,
-      expectedVariables: [...template.expectedVariables],
-    };
+  for (const purpose of PromptPurpose.values) {
+    const override = settings.prompts[purpose];
+    if (override !== undefined) {
+      defaults[purpose] = {
+        text: override.text,
+        expectedVariables: [...override.expectedVariables],
+        isOverridden: true,
+      };
+    } else {
+      const builtin = BUILTIN_PROMPT_DEFAULTS[purpose];
+      defaults[purpose] = {
+        text: builtin.text,
+        expectedVariables: [...builtin.expectedVariables],
+        isOverridden: false,
+      };
+    }
   }
   return { defaults };
 }

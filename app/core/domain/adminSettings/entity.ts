@@ -1,5 +1,6 @@
 import { Version } from "@/core/domain/common/version";
-import { RehydrationError } from "@/core/domain/error";
+import { BusinessRuleError, RehydrationError } from "@/core/domain/error";
+import { AdminSettingsErrorCode } from "./errorCode";
 import {
   DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
   DesignTokens,
@@ -22,7 +23,12 @@ import {
 export const INSTANCE_SETTINGS_ID = "singleton" as const;
 export type InstanceSettingsId = typeof INSTANCE_SETTINGS_ID;
 
-type Prompts = Readonly<Record<PromptPurpose, PromptTemplate>>;
+/**
+ * Per-purpose prompt overrides. **Key presence = explicit override / key
+ * absence = inherit built-in default** (Issue #218 ADR-001). The empty map
+ * is the legitimate "no overrides yet" state.
+ */
+export type Prompts = Readonly<Partial<Record<PromptPurpose, PromptTemplate>>>;
 
 export type InstanceSettings = Readonly<{
   id: InstanceSettingsId;
@@ -34,25 +40,6 @@ export type InstanceSettings = Readonly<{
   version: Version;
   updatedAt: Date;
 }>;
-
-const DEFAULT_PROMPT_TEXT: Readonly<Record<PromptPurpose, string>> = {
-  structure: "",
-  title: "",
-  directory: "",
-  metadata: "",
-  ocr_assist: "",
-};
-
-function defaultPrompts(): Prompts {
-  const out = {} as Record<PromptPurpose, PromptTemplate>;
-  for (const purpose of PromptPurpose.values) {
-    out[purpose] = PromptTemplate.create({
-      text: DEFAULT_PROMPT_TEXT[purpose],
-      expectedVariables: [],
-    });
-  }
-  return out;
-}
 
 function defaultLLM(): LLMConfig {
   return LLMConfig.create({
@@ -128,21 +115,23 @@ function coerceLimits(
   };
 }
 
+/**
+ * Rehydrate `Prompts` from a persistence row. **Partial semantics** (Issue
+ * #218 ADR-001/ADR-004): missing keys are simply omitted, and legacy rows
+ * that persisted `text === ""` are also omitted to migrate "full map + empty
+ * string" data into the new "key presence = override" model transparently —
+ * no DB migration required.
+ */
 function rehydratePrompts(
   raw: Readonly<
     Record<string, { text: string; expectedVariables: readonly string[] }>
   >,
 ): Prompts {
-  const out = {} as Record<PromptPurpose, PromptTemplate>;
+  const out: Partial<Record<PromptPurpose, PromptTemplate>> = {};
   for (const purpose of PromptPurpose.values) {
     const entry = raw[purpose];
-    if (entry === undefined) {
-      out[purpose] = PromptTemplate.create({
-        text: DEFAULT_PROMPT_TEXT[purpose],
-        expectedVariables: [],
-      });
-      continue;
-    }
+    if (entry === undefined) continue;
+    if (entry.text === "") continue;
     out[purpose] = PromptTemplate.create({
       text: entry.text,
       expectedVariables: entry.expectedVariables,
@@ -160,7 +149,7 @@ export const InstanceSettings = {
   default: (now: Date): InstanceSettings => ({
     id: INSTANCE_SETTINGS_ID,
     llm: defaultLLM(),
-    prompts: defaultPrompts(),
+    prompts: {},
     designTokens: DesignTokens.empty(),
     registration: defaultRegistration(),
     limits: defaultLimits(),
@@ -179,17 +168,74 @@ export const InstanceSettings = {
     updatedAt: now,
   }),
 
+  /**
+   * Set an override for a single purpose. Callers MUST pass a non-empty
+   * template — the empty-text case is "reset to default" and is routed
+   * through {@link InstanceSettings.resetPrompt} at the usecase boundary
+   * (Issue #218 ADR-006). The domain operation name (`updatePrompt`) only
+   * means "install an override".
+   */
   updatePrompt: (
     settings: InstanceSettings,
     purpose: PromptPurpose,
     template: PromptTemplate,
     now: Date,
-  ): InstanceSettings => ({
-    ...settings,
-    prompts: { ...settings.prompts, [purpose]: template },
-    version: Version.next(settings.version),
-    updatedAt: now,
-  }),
+  ): InstanceSettings => {
+    if (template.text.length === 0) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.UpdatePromptRequiresNonEmptyText,
+        "updatePrompt requires a non-empty template; route empty text through resetPrompt at the usecase boundary",
+      );
+    }
+    return {
+      ...settings,
+      prompts: { ...settings.prompts, [purpose]: template },
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
+
+  /**
+   * Remove the override for a single purpose (back to "inherit built-in
+   * default"). No-op when the key is absent — the aggregate is returned
+   * unchanged so the caller can detect "nothing happened" by reference
+   * equality, mirroring `UserPromptOverride.clearPrompt`.
+   */
+  resetPrompt: (
+    settings: InstanceSettings,
+    purpose: PromptPurpose,
+    now: Date,
+  ): InstanceSettings => {
+    if (settings.prompts[purpose] === undefined) return settings;
+    const next: Partial<Record<PromptPurpose, PromptTemplate>> = {
+      ...settings.prompts,
+    };
+    delete next[purpose];
+    return {
+      ...settings,
+      prompts: next,
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
+
+  /**
+   * Clear all overrides at once. When the map is already empty this is a
+   * no-op (same instance, version unchanged) so the admin "reset all" UI
+   * can be invoked idempotently.
+   */
+  resetAllPrompts: (
+    settings: InstanceSettings,
+    now: Date,
+  ): InstanceSettings => {
+    if (Object.keys(settings.prompts).length === 0) return settings;
+    return {
+      ...settings,
+      prompts: {},
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
 
   updateDesignTokens: (
     settings: InstanceSettings,

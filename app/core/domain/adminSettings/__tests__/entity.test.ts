@@ -22,12 +22,10 @@ describe("InstanceSettings.default", () => {
     expect(Object.keys(settings.designTokens.tokens)).toHaveLength(0);
   });
 
-  it("starts at version 0 with all five prompt purposes initialised", () => {
+  it("starts at version 0 with an empty prompts map (no overrides yet)", () => {
     const settings = InstanceSettings.default(T0);
     expect(settings.version).toBe(0);
-    expect(Object.keys(settings.prompts).sort()).toEqual(
-      ["directory", "metadata", "ocr_assist", "structure", "title"].sort(),
-    );
+    expect(Object.keys(settings.prompts)).toHaveLength(0);
   });
 
   it("defaults registration to open=true with null closedReason", () => {
@@ -61,7 +59,7 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     expect(next.llm).toBe(llm);
   });
 
-  it("updatePrompt replaces the per-purpose template and bumps version", () => {
+  it("updatePrompt installs a per-purpose override and bumps version", () => {
     const current = seed();
     const tpl = PromptTemplate.create({
       text: "Hello {{ name }}",
@@ -69,8 +67,73 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     });
     const next = InstanceSettings.updatePrompt(current, "title", tpl, at(1));
     expect(next.prompts.title).toBe(tpl);
-    expect(next.prompts.structure).toBe(current.prompts.structure);
+    // Other purposes remain absent (= inherit built-in default).
+    expect(next.prompts.structure).toBeUndefined();
     expect(next.version).toBe(current.version + 1);
+  });
+
+  it("updatePrompt rejects an empty-text template (ADR-006 invariant)", () => {
+    const current = seed();
+    const empty = PromptTemplate.create({
+      text: "",
+      expectedVariables: [],
+    });
+    try {
+      InstanceSettings.updatePrompt(current, "title", empty, at(1));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      expect((error as { code: string }).code).toBe(
+        "admin_settings_update_prompt_requires_non_empty_text",
+      );
+    }
+  });
+
+  it("resetPrompt removes a single override and bumps version", () => {
+    const tpl = PromptTemplate.create({
+      text: "Hello",
+      expectedVariables: [],
+    });
+    const overridden = InstanceSettings.updatePrompt(
+      seed(),
+      "title",
+      tpl,
+      at(1),
+    );
+    const reset = InstanceSettings.resetPrompt(overridden, "title", at(2));
+    expect(reset.prompts.title).toBeUndefined();
+    expect(reset.version).toBe(overridden.version + 1);
+  });
+
+  it("resetPrompt on a missing purpose is a no-op (same instance)", () => {
+    const current = seed();
+    const same = InstanceSettings.resetPrompt(current, "title", at(5));
+    expect(same).toBe(current);
+    expect(same.version).toBe(current.version);
+  });
+
+  it("resetAllPrompts clears all overrides and bumps version", () => {
+    const tpl = PromptTemplate.create({
+      text: "Hello",
+      expectedVariables: [],
+    });
+    const first = InstanceSettings.updatePrompt(seed(), "title", tpl, at(1));
+    const second = InstanceSettings.updatePrompt(
+      first,
+      "structure",
+      tpl,
+      at(2),
+    );
+    const reset = InstanceSettings.resetAllPrompts(second, at(3));
+    expect(Object.keys(reset.prompts)).toHaveLength(0);
+    expect(reset.version).toBe(second.version + 1);
+  });
+
+  it("resetAllPrompts on an empty map is a no-op", () => {
+    const current = seed();
+    const same = InstanceSettings.resetAllPrompts(current, at(5));
+    expect(same).toBe(current);
+    expect(same.version).toBe(current.version);
   });
 
   it("updateDesignTokens replaces the map wholesale", () => {
@@ -169,14 +232,22 @@ describe("InstanceSettings.reconstruct", () => {
     expect(settings.version).toBe(3);
   });
 
-  it("backfills a missing prompt purpose with the default empty template", () => {
+  it("rehydrates an empty prompts map from a legacy full-map row whose entries are all empty strings", () => {
+    const row = validRow();
+    const settings = InstanceSettings.reconstruct(row);
+    // Legacy "full map + empty string" rows MUST migrate to "no overrides".
+    expect(Object.keys(settings.prompts)).toHaveLength(0);
+  });
+
+  it("omits missing prompt purposes (key absence = inherit default)", () => {
     const row = validRow();
     const partial = {
       ...row,
-      prompts: { structure: { text: "", expectedVariables: [] } },
+      prompts: { structure: { text: "use this", expectedVariables: [] } },
     };
     const settings = InstanceSettings.reconstruct(partial);
-    expect(settings.prompts.title.text).toBe("");
+    expect(settings.prompts.structure?.text).toBe("use this");
+    expect(settings.prompts.title).toBeUndefined();
   });
 
   it("translates underlying VO failures into RehydrationError (not BusinessRuleError)", () => {

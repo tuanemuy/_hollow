@@ -64,11 +64,30 @@ export const testLLMConnectionSchema = z.object({
     .nullable(),
 });
 
+// Purpose enumeration duplicated from `PROMPT_PURPOSES` in
+// `app/core/domain/adminSettings/valueObject.ts` (Issue #218 ADR-005).
+// Same dual-list pattern as `LLM_PROVIDERS_TRANSPORT` above — when adding
+// a purpose, update both lists. VO construction throws
+// `InvalidPromptPurpose` if they drift.
+export const PROMPT_PURPOSES_TRANSPORT = [
+  "structure",
+  "title",
+  "directory",
+  "metadata",
+  "ocr_assist",
+] as const;
+
 export const updatePromptTemplateSchema = z.object({
-  purpose: z.string().trim().min(1).max(200),
+  purpose: z.enum(PROMPT_PURPOSES_TRANSPORT),
   text: z.string().min(1).max(20_000),
   expectedVariables: z.array(z.string().trim().min(1).max(100)).max(64),
 });
+
+export const resetPromptTemplateSchema = z.object({
+  purpose: z.enum(PROMPT_PURPOSES_TRANSPORT),
+});
+
+export const resetAllPromptTemplatesSchema = z.object({});
 
 export const updateDesignTokensSchema = z.object({
   tokens: z.record(

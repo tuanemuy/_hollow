@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
-import { LLMConfig } from "@/core/domain/adminSettings/valueObject";
+import {
+  LLMConfig,
+  PromptPurpose,
+  PromptTemplate,
+} from "@/core/domain/adminSettings/valueObject";
 import { maskApiKey, toInstanceSettingsView } from "../view";
 
 const T0 = new Date(0);
@@ -247,6 +251,43 @@ describe("toInstanceSettingsView", () => {
     expect(dto.llm.apiKeyMasked).toMatch(/^••••.{4}$/);
     expect(dto.llm.apiKeyMasked).toBe(`••••${ciphertext.slice(-4)}`);
     expect(JSON.stringify(dto)).not.toContain(ciphertext);
+  });
+
+  it("prompts: every purpose surfaces isOverridden=false when no overrides exist (Issue #218)", () => {
+    const base = InstanceSettings.default(T0);
+    const dto = toInstanceSettingsView(base);
+    for (const purpose of PromptPurpose.values) {
+      expect(dto.prompts[purpose]?.isOverridden).toBe(false);
+    }
+    expect(Object.keys(dto.prompts).sort()).toEqual(
+      [...PromptPurpose.values].sort(),
+    );
+  });
+
+  it("prompts: an installed override surfaces isOverridden=true (Issue #218)", () => {
+    const base = InstanceSettings.default(T0);
+    const tpl = PromptTemplate.create({
+      text: "custom title",
+      expectedVariables: [],
+    });
+    const next = InstanceSettings.updatePrompt(base, "title", tpl, T0);
+    const dto = toInstanceSettingsView(next);
+    expect(dto.prompts.title?.isOverridden).toBe(true);
+    expect(dto.prompts.title?.text).toBe("custom title");
+    // Untouched purposes remain on built-in defaults.
+    expect(dto.prompts.structure?.isOverridden).toBe(false);
+  });
+
+  it("promptDefaults: mirrors BUILTIN_PROMPT_DEFAULTS for every purpose (Issue #218)", () => {
+    const base = InstanceSettings.default(T0);
+    const dto = toInstanceSettingsView(base);
+    expect(Object.keys(dto.promptDefaults).sort()).toEqual(
+      [...PromptPurpose.values].sort(),
+    );
+    for (const purpose of PromptPurpose.values) {
+      expect(dto.promptDefaults[purpose]?.text).toBe("");
+      expect(dto.promptDefaults[purpose]?.expectedVariables).toEqual([]);
+    }
   });
 
   it("flips all four envOverrides when every ADMIN_LLM_* env is set", () => {

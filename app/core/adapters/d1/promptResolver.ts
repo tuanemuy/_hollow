@@ -53,10 +53,12 @@ function parsePromptsJson(field: string, raw: string): PromptsJson {
  *
  * Resolution precedence: per-user override
  * (`user_prompt_overrides.prompts_json[purpose].text`) → instance default
- * (`instance_settings.prompts_json[purpose].text`) → empty string. The
- * empty-string fallback matches `InstanceSettings.default()` where every
- * `PromptPurpose` is materialised with `text: ""`; ingestion callers are
- * expected to treat an empty template as a signal to use the LLM-provider's
+ * (`instance_settings.prompts_json[purpose].text`) → empty string. Both
+ * tables persist a `Partial<Record<PromptPurpose, ...>>` (Issue #218
+ * ADR-001) where a missing key — or, on the legacy "full map + empty
+ * text" path, an entry whose `text` is empty after domain rehydration —
+ * signals "no override at this layer". The empty-string fallback is the
+ * documented signal for ingestion callers to use the LLM-provider's
  * built-in instructions.
  *
  * Reads are immediate (no batch buffering) because this is a read-only
