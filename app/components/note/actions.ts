@@ -62,7 +62,7 @@ import {
  *   "your JSON did not parse" from "your FrontMatter violates a domain
  *   rule".
  */
-function parseFrontMatterJson(
+export function parseFrontMatterJson(
   raw: string | undefined,
 ): FrontMatterRecord | undefined {
   if (raw === undefined) return undefined;
@@ -460,4 +460,48 @@ export const releaseEditLockFn = createServerFn({ method: "POST" })
       },
     });
     return { ok: true as const };
+  });
+
+/**
+ * Issue #226: client-callable wrapper around the directory-tree loader.
+ *
+ * Returns the same depth-prefixed `FlatDirectory[]` shape as
+ * `loadDirectoryTreeFlat` so the ingestion preview modal can lazy-load
+ * the tree from the client when it enters its `editing` view. The actor
+ * is resolved server-side via `requireCurrentUser()` so that callers
+ * cannot ask for another user's tree (ADR-008).
+ */
+export const getDirectoryTreeFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .handler(async () => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/directory/getDirectoryTree"),
+    );
+    const { tree } = await module.getDirectoryTree({
+      container,
+      input: { actorUserId: user.id as unknown as string },
+    });
+    type Node = (typeof tree)[number];
+    const flat: Array<{
+      id: string;
+      parentId: string | null;
+      name: string;
+      depth: number;
+      path: string;
+    }> = [];
+    const walk = (node: Node, parentPath: string): void => {
+      const path = `${parentPath}/${node.name}`;
+      flat.push({
+        id: node.id as unknown as string,
+        parentId:
+          node.parentId === null ? null : (node.parentId as unknown as string),
+        name: node.name,
+        depth: node.depth,
+        path,
+      });
+      for (const child of node.children) walk(child, path);
+    };
+    for (const root of tree) walk(root, "");
+    return { flat };
   });

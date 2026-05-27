@@ -9,7 +9,7 @@ import {
 
 export const NOTE_TITLE_MAX_LENGTH = 200;
 export const NOTE_BODY_MAX_BYTES = 1024 * 1024;
-const FRONT_MATTER_JSON_MAX_BYTES = 64 * 1024;
+export const FRONT_MATTER_JSON_MAX_BYTES = 64 * 1024;
 
 export const visibilitySchema = z.enum(["private", "unlisted", "public"]);
 
