@@ -45,15 +45,15 @@
 | 1 | `P14 公開設定モーダル / 画面` で `Limited-Note` を「限定公開」に切替えて保存する | トークン付き URL `/share/{token}` が表示される |
 | 2 | 当該 URL を別タブの未ログイン状態で開く | `P33 限定公開ノート閲覧画面` でノート本文が表示される |
 
-## TC-F1-03: 公開ステータスが FrontMatter に書き戻される
+## TC-F1-03: 公開ステータスは FrontMatter とは独立に管理される
 
 **種別**: 正常系
-**目的**: FrontMatter の `publish` キーが整合すること
+**目的**: 公開ステータスは `P14 公開設定モーダル` 経由でのみ変更でき、FrontMatter にも書き戻されない（公開状態と FrontMatter は独立した責務であることを確認）
 
 | # | 操作 | 期待結果 |
 |---|---|---|
-| 1 | `Public-Note` を公開に切替えた直後、`P11 ノート詳細画面` の FrontMatter パネルを開く | `publish: public` が表示される |
-| 2 | 非公開に戻して保存する | `publish: private` に更新される |
+| 1 | `Public-Note` を公開に切替えた後、`P11 ノート詳細画面` の FrontMatter パネルを開く | FrontMatter パネルに `publish` キーは自動追加されない（公開状態と FrontMatter は独立） |
+| 2 | オーナーが FrontMatter で `publish: public` を手書きで追加して保存 | 任意キーとして保存されるが、`P11` の公開状態表示・`P14` のラジオ値は変化しない |
 
 ## TC-F1-04: 限定公開でパスワード強度不足
 
