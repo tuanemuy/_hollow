@@ -3,6 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  serverFnChainStub,
+  useServerFnRouter,
+} from "@/components/_test-utils/serverFnMock";
 import type { NoteId } from "@/core/application/dto/note";
 import type { TagId } from "@/core/application/dto/tag";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
@@ -20,19 +24,14 @@ import type { InternalLinkSuggestion } from "@/core/application/note/searchInter
 // no-ops — they never get invoked through `useServerFn` since the hook
 // itself returns `mockedFn` directly.
 const mockedFn = vi.fn();
-vi.mock("@tanstack/react-start", () => {
-  // Exclude `then` so an accidental `await` on a chain leaf does not turn
-  // the Proxy into a thenable (which would hang the awaiter).
-  const chain = () =>
-    new Proxy(() => chain(), {
-      get: (_, prop) => (prop === "then" ? undefined : chain()),
-    });
-  return {
-    useServerFn: () => mockedFn,
-    createMiddleware: () => chain(),
-    createServerFn: () => chain(),
-  };
-});
+// The dialog only consumes the result of `useServerFn` once, so we
+// route every call to the same `mockedFn` via the helper's `fallback`
+// parameter (entries list is intentionally empty).
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: useServerFnRouter([], mockedFn),
+  createMiddleware: () => serverFnChainStub(),
+  createServerFn: () => serverFnChainStub(),
+}));
 
 // Import after vi.mock so the module under test resolves the mocked
 // `@tanstack/react-start`.

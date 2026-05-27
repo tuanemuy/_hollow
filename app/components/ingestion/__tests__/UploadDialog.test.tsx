@@ -3,6 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  serverFnChainStub,
+  useServerFnRouter,
+} from "@/components/_test-utils/serverFnMock";
 import { AppServerError } from "@/core/presentation/errorResponse";
 import type { IngestionJobWire } from "../actions";
 
@@ -19,26 +23,22 @@ const getJobMock = vi.fn();
 const discardMock = vi.fn();
 const getTreeMock = vi.fn();
 
-vi.mock("@tanstack/react-start", () => {
-  const chain = () =>
-    new Proxy(() => chain(), {
-      get: (_, prop) => (prop === "then" ? undefined : chain()),
-    });
-  return {
-    useServerFn: (fn: unknown) => {
-      // Identity dispatch via the imported references below. The module
-      // mock for `./actions` returns those same references, so the
-      // strict-equality compare here is stable.
-      if (fn === uploadMock) return uploadMock;
-      if (fn === getJobMock) return getJobMock;
-      if (fn === discardMock) return discardMock;
-      if (fn === getTreeMock) return getTreeMock;
-      return vi.fn();
-    },
-    createMiddleware: () => chain(),
-    createServerFn: () => chain(),
-  };
-});
+vi.mock("@tanstack/react-start", () => ({
+  // Identity dispatch via the imported references below. The module
+  // mock for `./actions` returns those same references, so the
+  // strict-equality compare inside `useServerFnRouter` is stable.
+  useServerFn: useServerFnRouter(
+    [
+      [uploadMock, uploadMock],
+      [getJobMock, getJobMock],
+      [discardMock, discardMock],
+      [getTreeMock, getTreeMock],
+    ],
+    vi.fn(),
+  ),
+  createMiddleware: () => serverFnChainStub(),
+  createServerFn: () => serverFnChainStub(),
+}));
 
 vi.mock("../actions", () => ({
   uploadFileFn: uploadMock,
@@ -76,7 +76,6 @@ const baseJob: IngestionJobWire = {
   status: "pending",
   preview: null,
   errorCode: null,
-  errorReason: null,
   regenerationCount: 0,
   savedAsNoteId: null,
   createdAt: new Date(0).toISOString(),
@@ -102,7 +101,6 @@ const failedJob: IngestionJobWire = {
   ...baseJob,
   status: "failed",
   errorCode: "INGESTION_TIMEOUT",
-  errorReason: "LLM timed out",
 };
 
 let container: HTMLDivElement;

@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
-import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
-import type { InternalLinkRefDTO } from "@/core/application/dto/note";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -13,6 +11,13 @@ import {
   getIngestionJobSchema,
   regenerateIngestionPreviewSchema,
 } from "./schema";
+import {
+  type IngestionJobWire,
+  type IngestionPreviewWire,
+  toIngestionJobWire,
+} from "./wire";
+
+export type { IngestionJobWire, IngestionPreviewWire };
 
 const toDtoUserId = (
   id: import("@/core/domain/identity/valueObject").UserId,
@@ -87,83 +92,6 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
     });
     return { noteId: result.noteId as unknown as string };
   });
-
-/**
- * Transport-safe projection of `IngestionJobDTO` for client polling.
- *
- * `FrontMatterDTO` (`Record<string, unknown>`) cannot cross the
- * TanStack Start serialization boundary by type — its index signature
- * resolves to `unknown` which the framework rejects as "may not be
- * serializable". We therefore stringify the preview's FrontMatter into
- * `frontMatterJson` here and rehydrate it in `IngestionPreviewForm`.
- * This mirrors the note-side ADR-008 convention.
- */
-export type IngestionPreviewWire = Readonly<{
-  title: string;
-  contentHtml: string;
-  suggestedDirectoryId: string | null;
-  suggestedDirectoryName: string | null;
-  frontMatterJson: string;
-  suggestedTagNames: readonly string[];
-  internalLinkRefs: readonly InternalLinkRefDTO[];
-  mediaRefs: readonly string[];
-}>;
-
-export type IngestionJobWire = Readonly<{
-  id: string;
-  ownerId: string;
-  originalFileName: string;
-  mimeType: string;
-  byteSize: number;
-  kind: string;
-  status: IngestionJobDTO["status"];
-  preview: IngestionPreviewWire | null;
-  errorCode: string | null;
-  errorReason: string | null;
-  regenerationCount: number;
-  savedAsNoteId: string | null;
-  createdAt: string;
-  updatedAt: string;
-}>;
-
-function toIngestionJobWire(job: IngestionJobDTO): IngestionJobWire {
-  return {
-    id: job.id as unknown as string,
-    ownerId: job.ownerId as unknown as string,
-    originalFileName: job.originalFileName,
-    mimeType: job.mimeType,
-    byteSize: job.byteSize,
-    kind: job.kind,
-    status: job.status,
-    preview:
-      job.preview === null
-        ? null
-        : {
-            title: job.preview.title,
-            contentHtml: job.preview.contentHtml,
-            suggestedDirectoryId:
-              job.preview.suggestedDirectoryId === null
-                ? null
-                : (job.preview.suggestedDirectoryId as unknown as string),
-            suggestedDirectoryName: job.preview.suggestedDirectoryName,
-            frontMatterJson: JSON.stringify(job.preview.frontMatter),
-            suggestedTagNames: job.preview.suggestedTagNames,
-            internalLinkRefs: job.preview.internalLinkRefs,
-            mediaRefs: job.preview.mediaRefs.map(
-              (id) => id as unknown as string,
-            ),
-          },
-    errorCode: job.errorCode,
-    errorReason: job.errorReason,
-    regenerationCount: job.regenerationCount,
-    savedAsNoteId:
-      job.savedAsNoteId === null
-        ? null
-        : (job.savedAsNoteId as unknown as string),
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-  };
-}
 
 export const getIngestionJobFn = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])

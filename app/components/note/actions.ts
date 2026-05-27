@@ -11,6 +11,7 @@ import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
 import { requireCurrentUser } from "@/lib/server/currentUser";
 import { EDIT_LOCK_TTL_SEC } from "./constants";
+import { type FlatDirectory, flattenDirectoryTree } from "./directoryTree";
 import {
   acquireLockSchema,
   bulkExportSchema,
@@ -473,7 +474,7 @@ export const releaseEditLockFn = createServerFn({ method: "POST" })
  */
 export const getDirectoryTreeFn = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .handler(async () => {
+  .handler(async (): Promise<{ flat: readonly FlatDirectory[] }> => {
     const user = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/directory/getDirectoryTree"),
@@ -482,26 +483,5 @@ export const getDirectoryTreeFn = createServerFn({ method: "GET" })
       container,
       input: { actorUserId: user.id },
     });
-    type Node = (typeof tree)[number];
-    const flat: Array<{
-      id: string;
-      parentId: string | null;
-      name: string;
-      depth: number;
-      path: string;
-    }> = [];
-    const walk = (node: Node, parentPath: string): void => {
-      const path = `${parentPath}/${node.name}`;
-      flat.push({
-        id: node.id as unknown as string,
-        parentId:
-          node.parentId === null ? null : (node.parentId as unknown as string),
-        name: node.name,
-        depth: node.depth,
-        path,
-      });
-      for (const child of node.children) walk(child, path);
-    };
-    for (const root of tree) walk(root, "");
-    return { flat };
+    return { flat: flattenDirectoryTree(tree) };
   });
