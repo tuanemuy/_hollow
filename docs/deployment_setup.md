@@ -38,10 +38,36 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
 
 ### 新しい secret を追加する
 
-1. `infra/src/secrets.ts` の `shared` 配列にキー名を追記
+1. `infra/src/secrets.ts` の該当配列（`shared` / `dispatchExtras` 等）にキー名を追記
 2. `infra/secrets/{staging,production}.enc.json` を `sops` で開いてキーを追加
 3. `infra/secrets/{staging,production}.json.example` にも追記
 4. `.dev.vars.example` にもローカル用として追記
+5. ローカルで spec ↔ enc.json の同期を確認:
+   ```sh
+   sops -d infra/secrets/staging.enc.json > /tmp/d.json
+   pnpm infra:check-secrets:staging -- /tmp/d.json
+   rm /tmp/d.json
+   ```
+   production も同様に。CI も deploy 前に同じチェックを走らせて missing / extra のいずれも fail-loud に検出する（Issue #203）。
+
+### secret を削除する
+
+1. `infra/src/secrets.ts` から該当キーを削除
+2. `infra/secrets/{staging,production}.enc.json` を `sops` で開いて該当行を削除
+3. `infra/secrets/{staging,production}.json.example` からも削除
+4. `pnpm infra:check-secrets:<stage>` で同期確認
+5. **次回 CI deploy 後**、Cloudflare 側に残る古い secret を全 Worker から手動削除する（`wrangler secret bulk` は追加・更新のみ、削除はしないため）:
+   ```sh
+   for env_flag in "" "--env relay" "--env consumer" "--env indexer" "--env pruner" "--env dlq"; do
+     # shellcheck disable=SC2086
+     pnpm exec wrangler secret delete <REMOVED_KEY> --config wrangler.staging.toml $env_flag
+   done
+   ```
+   production も同様に。
+
+### `^_` プレフィックスのドキュメント用キー
+
+`infra/secrets/*.json.example` および `*.enc.json` で `_` から始まるキーは documentation-only。CI の `jq` フィルタが bulk-push 前に drop し、`checkSecrets.ts` も比較対象から除外するため、Cloudflare 側には登録されない。隣接する secret の説明コメントとして自由に使ってよい。
 
 ### チームメイトを追加する
 

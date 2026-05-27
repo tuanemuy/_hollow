@@ -6,16 +6,34 @@ import { workerNames } from "./config.ts";
  * file under `infra/secrets/{stage}.enc.json` and uses `wrangler secret bulk`
  * to push the listed keys into the corresponding Worker.
  *
- * Keep this list in sync with what the application actually reads — adding a
- * key here without adding it to the encrypted secrets file will cause the
- * deploy to fail loudly, which is the desired behavior.
+ * Keep this list in sync with what the application actually reads. The CI
+ * workflow runs `infra/scripts/checkSecrets.ts` (via
+ * `pnpm infra:check-secrets:<stage> -- <decrypted-path>`) before
+ * `wrangler secret bulk` to validate that the union of `.secrets` here
+ * matches the keys present in `infra/secrets/<stage>.enc.json` (after
+ * stripping `^_`-prefixed documentation-only keys). Any drift fails the
+ * deploy loudly: adding a key here without adding it to the encrypted
+ * file (or vice versa) blocks the secret-push step.
+ *
+ * Invariant: the `secrets: readonly string[]` arrays below must not
+ * depend on `cfg.appName`. `checkSecrets.ts` passes a dummy `appName`
+ * so it can run without pulling Pulumi stack output — `cfg` is only
+ * consumed here to derive worker names via `workerNames(cfg)`.
+ *
+ * `^_` prefix convention: keys starting with `_` in
+ * `infra/secrets/<stage>.json.example` / `.enc.json` are
+ * documentation-only. The CI `jq` filter strips them before bulk-push,
+ * and `checkSecrets.ts` ignores them when comparing the union against
+ * the decrypted JSON.
  */
 export type WorkerSecretSpec = {
   worker: string;
   secrets: readonly string[];
 };
 
-export const workerSecretSpecs = (cfg: Config): readonly WorkerSecretSpec[] => {
+export const workerSecretSpecs = (
+  cfg: Pick<Config, "appName" | "stage">,
+): readonly WorkerSecretSpec[] => {
   const names = workerNames(cfg);
   const shared = [
     "BETTER_AUTH_SECRET",
