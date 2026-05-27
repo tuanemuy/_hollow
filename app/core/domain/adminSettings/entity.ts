@@ -1,5 +1,6 @@
 import { Version } from "@/core/domain/common/version";
-import { RehydrationError } from "@/core/domain/error";
+import { BusinessRuleError, RehydrationError } from "@/core/domain/error";
+import { AdminSettingsErrorCode } from "./errorCode";
 import {
   DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
   DesignTokens,
@@ -179,12 +180,20 @@ export const InstanceSettings = {
     purpose: PromptPurpose,
     template: PromptTemplate,
     now: Date,
-  ): InstanceSettings => ({
-    ...settings,
-    prompts: { ...settings.prompts, [purpose]: template },
-    version: Version.next(settings.version),
-    updatedAt: now,
-  }),
+  ): InstanceSettings => {
+    if (template.text.length === 0) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.UpdatePromptRequiresNonEmptyText,
+        "updatePrompt requires a non-empty template; route empty text through resetPrompt at the usecase boundary",
+      );
+    }
+    return {
+      ...settings,
+      prompts: { ...settings.prompts, [purpose]: template },
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
 
   /**
    * Remove the override for a single purpose (back to "inherit built-in

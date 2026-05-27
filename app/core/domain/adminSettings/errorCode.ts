@@ -6,6 +6,8 @@ export const AdminSettingsErrorCode = {
   InvalidLLMApiKeySource: "admin_settings_invalid_llm_api_key_source",
   InvalidLLMApiKeyCiphertext: "admin_settings_invalid_llm_api_key_ciphertext",
   InvalidPromptPurpose: "admin_settings_invalid_prompt_purpose",
+  UpdatePromptRequiresNonEmptyText:
+    "admin_settings_update_prompt_requires_non_empty_text",
   PromptTemplateTooLarge: "admin_settings_prompt_template_too_large",
   PromptTemplateVariableMismatch:
     "admin_settings_prompt_template_variable_mismatch",

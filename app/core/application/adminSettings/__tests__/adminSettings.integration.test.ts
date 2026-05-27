@@ -966,6 +966,27 @@ describe("resetPromptTemplate", () => {
     const rows = await container.db.select().from(schema.instanceSettings);
     expect(rows).toHaveLength(0);
   });
+
+  it("member is rejected with ForbiddenError", async () => {
+    await seedUser({
+      id: MEMBER_ID,
+      username: "bob",
+      email: "bob@example.com",
+      role: "member",
+    });
+    const container = createTestContainer();
+    let caught: unknown;
+    try {
+      await resetPromptTemplate({
+        container,
+        input: { actorUserId: MEMBER_ID, purpose: "title" },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isForbiddenError(caught)).toBe(true);
+  });
 });
 
 describe("resetAllPromptTemplates", () => {
@@ -1005,6 +1026,43 @@ describe("resetAllPromptTemplates", () => {
       unknown
     >;
     expect(Object.keys(promptsJson)).toHaveLength(0);
+  });
+
+  it("is a no-op when no overrides exist (no DB write)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await resetAllPromptTemplates({
+      container,
+      input: { actorUserId: ADMIN_ID },
+    });
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("member is rejected with ForbiddenError", async () => {
+    await seedUser({
+      id: MEMBER_ID,
+      username: "bob",
+      email: "bob@example.com",
+      role: "member",
+    });
+    const container = createTestContainer();
+    let caught: unknown;
+    try {
+      await resetAllPromptTemplates({
+        container,
+        input: { actorUserId: MEMBER_ID },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isForbiddenError(caught)).toBe(true);
   });
 });
 

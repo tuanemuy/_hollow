@@ -9,7 +9,7 @@ Proposed
 現状 `InstanceSettings.prompts` は `Readonly<Record<PromptPurpose, PromptTemplate>>` で、`default()` で「全 5 purpose を空文字 `PromptTemplate` で埋めた full map」を返す。これだと「上書き」と「未上書き」を区別する手段が `text === ""` 比較しかなく、ユーザーが意図的に空を保存した場合や、builtin と同じ文を保存した場合に `isOverridden` が誤判定になる。`UserPromptOverride` 側はすでに `Partial<Record<>>` 相当のセマンティクス（キーがあれば上書き、なければ継承）。
 
 ### Decision
-`Prompts` 型を `Readonly<Partial<Record<PromptPurpose, PromptTemplate>>>` に変更する。**キー存在 = 上書きあり / キー欠落 = 既定継承**。`InstanceSettings.default()` は `prompts: {}` を返す。`updatePrompt` は `text === ""` でキー削除（リセットと等価）、非空でキー追加。`resetPrompt(purpose)` でキー削除、`resetAllPrompts()` で map 空化。
+`Prompts` 型を `Readonly<Partial<Record<PromptPurpose, PromptTemplate>>>` に変更する。**キー存在 = 上書きあり / キー欠落 = 既定継承**。`InstanceSettings.default()` は `prompts: {}` を返す。`updatePrompt` は非空テンプレートを前提（空文字入力はユースケース層で `resetPrompt` にルーティング — ADR-006）。`resetPrompt(purpose)` でキー削除、`resetAllPrompts()` で map 空化。
 
 ### Consequences
 - **良い点**: `UserPromptOverride` と同型でセマンティクスが揃う。`isOverridden` 判定が曖昧さなくキー存在で導出できる。新規操作（reset 系）が自然に表現できる。

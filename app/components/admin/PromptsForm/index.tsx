@@ -99,7 +99,10 @@ function PromptCard({
   );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<{
+    kind: "saved" | "reset";
+    at: number;
+  } | null>(null);
 
   const onSave = () => {
     startTransition(async () => {
@@ -117,7 +120,7 @@ function PromptCard({
           },
         });
         await router.invalidate();
-        setSavedAt(Date.now());
+        setFeedback({ kind: "saved", at: Date.now() });
       } catch (caught) {
         setError(extractSerializedError(caught));
       }
@@ -132,7 +135,7 @@ function PromptCard({
         setText("");
         setVariables("");
         await router.invalidate();
-        setSavedAt(Date.now());
+        setFeedback({ kind: "reset", at: Date.now() });
       } catch (caught) {
         setError(extractSerializedError(caught));
       }
@@ -181,6 +184,11 @@ function PromptCard({
           onChange={(event) => setText(event.target.value)}
           disabled={isPending}
         />
+        {current.isOverridden && text.trim().length === 0 ? (
+          <p className={FIELD_HINT_CLASS}>
+            空にしたい場合は「この項目をリセット」を使ってください。
+          </p>
+        ) : null}
         {fieldErrors?.text?.[0] !== undefined ? (
           <p className={FIELD_ERROR_CLASS}>{fieldErrors.text[0]}</p>
         ) : null}
@@ -204,8 +212,10 @@ function PromptCard({
         </p>
       </div>
       <div className="flex gap-3 items-center justify-end mt-3">
-        {savedAt !== null && error === null ? (
-          <span className="text-success text-xs">保存しました</span>
+        {feedback !== null && error === null ? (
+          <span className="text-success text-xs">
+            {feedback.kind === "saved" ? "保存しました" : "リセットしました"}
+          </span>
         ) : null}
         {summary !== "" && fieldErrors === undefined ? (
           <span className="text-error text-xs">{summary}</span>

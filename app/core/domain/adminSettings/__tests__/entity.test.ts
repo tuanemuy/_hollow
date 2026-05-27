@@ -72,6 +72,23 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     expect(next.version).toBe(current.version + 1);
   });
 
+  it("updatePrompt rejects an empty-text template (ADR-006 invariant)", () => {
+    const current = seed();
+    const empty = PromptTemplate.create({
+      text: "",
+      expectedVariables: [],
+    });
+    try {
+      InstanceSettings.updatePrompt(current, "title", empty, at(1));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      expect((error as { code: string }).code).toBe(
+        "admin_settings_update_prompt_requires_non_empty_text",
+      );
+    }
+  });
+
   it("resetPrompt removes a single override and bumps version", () => {
     const tpl = PromptTemplate.create({
       text: "Hello",
