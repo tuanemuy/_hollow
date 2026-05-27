@@ -14,10 +14,11 @@
 
 ### 含まれるもの
 - `spec/design/pages/P13-upload.html:1123` の `FrontMatter: title, date, tags, status を検出` 文言の書き換え
+- レビュー review-001 W-001 受領: `spec/design/pages/P15-export.html:727` の `title / tags / date / status などのメタデータを冒頭に出力` 文言も同じ ADR-001/002 違反のため本 PR で同時修正（同質パターンの取りこぼし防止 + Issue 意図「旧固定スキーマ前提の撲滅」の完遂）
 
 ### 含まれないもの
 - 取り込み画面の Front Matter プレビュー UI 全体の再設計（Issue 本文では「余裕があれば」と任意扱い。本モックは `spec/design/index.md:139` でモーダル UI に置き換え済みのフォールバックページ扱いであり、Front Matter プレビュー UI は別途モーダル / Dialog primitive 側で扱うため、本 Issue では文言修正のみに絞る）
-- 他ページ・実装コードへの変更（grep で `title, date, tags, status` の固定列挙は P13 の当該 1 行以外に存在しない）
+- 実装コードへの変更（モック HTML のみ。実装側の `FrontMatterEditor` は Issue #230 で完了済み）
 
 ## 実装ステップ
 
@@ -32,6 +33,14 @@
   - ADR-002 により `frontMatter.tags` は新仕様で意味を持たない（タグはハッシュタグに一本化）ため、モック例示からも外す。
   - `date` は `parseFrontMatterDate` で実装側が読むキーであり、強調として先頭に置く。`title` / `description` は一般的な慣習として書かれることが多くサジェスト対象でもあるため例示に含める。
   - 「を検出」という文言は「あれば表示」モデルの趣旨（書かれているキーを汎用的に表示）と矛盾しないよう、固定スキーマ前提を匂わせる `tags, status` を取り除いた上で、例示が一例であることが文脈から読み取れる形にする。
+
+### 2. P15-export.html の同種文言を「あれば表示」モデルに沿って書き換え（review-001 W-001 受領）
+
+- **対象ファイル:** `spec/design/pages/P15-export.html`（727 行）
+- **変更内容:**
+  - 旧: `title / tags / date / status などのメタデータを冒頭に出力`
+  - 新: `date / title / description などのメタデータを冒頭に出力`
+- **理由:** 同じ ADR-001 / ADR-002 違反のスラッシュ区切りバリエーション。Issue #241 の意図「旧固定スキーマ前提の撲滅」を別ファイルにも適用するのが自然で、修正パターン・コストとも P13 と同等のため本 PR スコープで吸収する。
 
 ## 設計判断
 
