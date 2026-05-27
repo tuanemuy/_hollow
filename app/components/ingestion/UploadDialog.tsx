@@ -26,7 +26,14 @@ export function UploadDialog({ open, onClose }: Props) {
       </p>
       <UploadForm />
       <div className="mt-6 flex justify-end">
-        <Link to="/upload" onClick={onClose} className={pillBtn}>
+        {/*
+         * Explicit empty `hash` keeps the URL clean (`/upload`) instead
+         * of the router potentially preserving `#upload` from the
+         * outgoing location. UploadDialogMount also suppresses the
+         * dialog on the `/upload` pathname, so we do not call
+         * onClose() — that would race with the Link navigation.
+         */}
+        <Link to="/upload" hash={() => ""} className={pillBtn}>
           取り込みキューを見る
         </Link>
       </div>
