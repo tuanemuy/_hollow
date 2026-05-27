@@ -59,6 +59,11 @@ function makeProvider(
   });
 }
 
+function parseRequestBody(mock: FetchMock, callIndex: number): unknown {
+  const call = mock.mock.calls[callIndex] as unknown as [unknown, RequestInit];
+  return JSON.parse(call[1].body as string);
+}
+
 const STRUCTURE_INPUT = {
   rawText: "the raw source",
   prompt: "",
@@ -116,6 +121,7 @@ describe("OpenAILLMProvider", () => {
         titleSuggestion: "Hello",
         directorySuggestion: "inbox",
       });
+      expect(mock).toHaveBeenCalledTimes(1);
       const [url, init] = mock.mock.calls[0] as unknown as [
         string,
         RequestInit,
@@ -125,6 +131,7 @@ describe("OpenAILLMProvider", () => {
       expect(body).toMatchObject({
         model: "gpt-4o-mini",
         max_tokens: 4096,
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
@@ -142,19 +149,20 @@ describe("OpenAILLMProvider", () => {
       });
     });
 
-    it("suggestMetadata: returns parsed envelope with tags / aliases", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            tags: ["a", "b"],
-            aliases: ["alpha"],
-          }),
-        ),
+    it("suggestMetadata: returns parsed envelope with tags / aliases and sends response_format flag", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({
+          tags: ["a", "b"],
+          aliases: ["alpha"],
+        }),
       );
+      setFetch(mock);
 
       const provider = makeProvider();
       const result = await provider.suggestMetadata(METADATA_INPUT);
       expect(result).toEqual({ tags: ["a", "b"], aliases: ["alpha"] });
+      const body = parseRequestBody(mock, 0) as { response_format?: unknown };
+      expect(body.response_format).toEqual({ type: "json_object" });
     });
 
     it("structureToHtml: normalises empty / whitespace directorySuggestion to null", async () => {
@@ -189,6 +197,38 @@ describe("OpenAILLMProvider", () => {
       });
     });
 
+    it("structureToHtml: recovers an envelope preceded by prose (parser leniency)", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            'Sure, here you go: {"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
+    it("structureToHtml: recovers the head object when the envelope is wrapped in an array", async () => {
+      setFetch(
+        vi.fn(async () =>
+          rawTextResponse(
+            '[{"html":"<p/>","titleSuggestion":"T","directorySuggestion":null}]',
+          ),
+        ),
+      );
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+    });
+
     it("suggestMetadata: filters non-string entries out of tags / aliases", async () => {
       setFetch(
         vi.fn(async () =>
@@ -201,6 +241,109 @@ describe("OpenAILLMProvider", () => {
       const provider = makeProvider();
       const result = await provider.suggestMetadata(METADATA_INPUT);
       expect(result).toEqual({ tags: ["a", "b"], aliases: ["x"] });
+    });
+  });
+
+  describe("retry on broken envelope", () => {
+    it("recovers when the first reply is non-JSON and the retry returns a valid envelope", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result).toEqual({
+        html: "<p/>",
+        titleSuggestion: "T",
+        directorySuggestion: null,
+      });
+      expect(mock).toHaveBeenCalledTimes(2);
+
+      const retryBody = parseRequestBody(mock, 1) as {
+        messages: Array<{ role: string; content: string }>;
+        response_format?: unknown;
+      };
+      const retrySystem = retryBody.messages[0].content;
+      expect(retrySystem).toContain(
+        "Your previous reply was not parseable JSON",
+      );
+      expect(retrySystem).toContain("JSON");
+      expect(retryBody.response_format).toEqual({ type: "json_object" });
+    });
+
+    it("fails with 'after 1 retry' message when both attempts return broken envelopes", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(rawTextResponse("still not json"));
+      setFetch(mock);
+
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
+        (e) =>
+          e instanceof LLMUnavailableError &&
+          e.message === "OpenAI response was not a JSON envelope after 1 retry",
+      );
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries when required keys are missing on the first reply", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({
+            html: "<p/>",
+            titleSuggestion: "T",
+            directorySuggestion: null,
+          }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      expect(result.html).toBe("<p/>");
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("suggestMetadata: recovers when the first reply has non-array tags", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "not an array", aliases: [] }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: ["a", "b"], aliases: ["x"] }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().suggestMetadata(METADATA_INPUT);
+      expect(result).toEqual({ tags: ["a", "b"], aliases: ["x"] });
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("propagates LLMRateLimitError thrown on the retry instead of wrapping it", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(
+          jsonResponse(429, { error: { type: "rate_limit" } }),
+        );
+      setFetch(mock);
+
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toBeInstanceOf(LLMRateLimitError);
+      expect(mock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -310,64 +453,61 @@ describe("OpenAILLMProvider", () => {
       );
     });
 
-    it("throws LLMUnavailableError when the text content is not parseable JSON", async () => {
-      setFetch(vi.fn(async () => rawTextResponse("not json at all")));
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies are missing html", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ titleSuggestion: "T", directorySuggestion: null }),
+        );
+      setFetch(mock);
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message === "OpenAI response was not a JSON envelope",
+          e.message === "OpenAI response was not a JSON envelope after 1 retry",
+      );
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies miss titleSuggestion", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ html: "<p/>", directorySuggestion: null }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ html: "<p/>", directorySuggestion: null }),
+        );
+      setFetch(mock);
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toSatisfy(
+        (e) =>
+          e instanceof LLMUnavailableError &&
+          e.message === "OpenAI response was not a JSON envelope after 1 retry",
       );
     });
 
-    it("throws LLMUnavailableError when html is missing", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            titleSuggestion: "T",
-            directorySuggestion: null,
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
+    it("throws LLMUnavailableError with 'after 1 retry' when both replies have non-array tags", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "not an array", aliases: [] }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "still not", aliases: [] }),
+        );
+      setFetch(mock);
+      await expect(
+        makeProvider().suggestMetadata(METADATA_INPUT),
+      ).rejects.toSatisfy(
         (e) =>
           e instanceof LLMUnavailableError &&
-          e.message.includes('required string field "html"'),
-      );
-    });
-
-    it("throws LLMUnavailableError when titleSuggestion is missing", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            html: "<p/>",
-            directorySuggestion: null,
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.structureToHtml(STRUCTURE_INPUT)).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message.includes('required string field "titleSuggestion"'),
-      );
-    });
-
-    it("throws LLMUnavailableError when tags is not an array", async () => {
-      setFetch(
-        vi.fn(async () =>
-          envelopeResponse({
-            tags: "not an array",
-            aliases: [],
-          }),
-        ),
-      );
-      const provider = makeProvider();
-      await expect(provider.suggestMetadata(METADATA_INPUT)).rejects.toSatisfy(
-        (e) =>
-          e instanceof LLMUnavailableError &&
-          e.message.includes('field "tags" must be an array'),
+          e.message === "OpenAI response was not a JSON envelope after 1 retry",
       );
     });
   });

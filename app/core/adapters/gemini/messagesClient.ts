@@ -138,6 +138,16 @@ function buildEndpoint(config: GeminiSharedConfig): string {
 }
 
 /**
+ * Optional per-call knobs for {@link callGeminiGenerate}. LLM-mode
+ * callers may pass `responseMimeType: "application/json"` to force the
+ * model to emit a JSON document at the API level. OCR / PDF callers
+ * omit this entirely so their request bodies stay unchanged.
+ */
+export type GeminiCallOptions = Readonly<{
+  responseMimeType?: string;
+}>;
+
+/**
  * POSTs a single `generateContent` request and returns the extracted
  * text. The provided `mapper` decides which concrete `Error` subclass is
  * thrown for each failure category, letting OCR / PDF / LLM callers stay
@@ -152,6 +162,7 @@ export async function callGeminiGenerate(
   system: string,
   parts: readonly GeminiContentPart[],
   mapper: GeminiErrorMapper,
+  options?: GeminiCallOptions,
 ): Promise<string> {
   const endpoint = buildEndpoint(config);
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -161,6 +172,13 @@ export async function callGeminiGenerate(
   const timer = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
+
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: maxTokens,
+  };
+  if (options?.responseMimeType !== undefined) {
+    generationConfig.responseMimeType = options.responseMimeType;
+  }
 
   let response: Response;
   try {
@@ -180,9 +198,7 @@ export async function callGeminiGenerate(
         systemInstruction: {
           parts: [{ text: system }],
         },
-        generationConfig: {
-          maxOutputTokens: maxTokens,
-        },
+        generationConfig,
       }),
       signal: controller.signal,
     });
