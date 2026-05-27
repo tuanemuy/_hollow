@@ -28,6 +28,7 @@ export async function updateDesignTokens({
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.updateDesignTokens(current, tokens, now);
+      if (next === current) return;
       await instanceSettingsRepository.save(next, expectedVersion);
     },
   );

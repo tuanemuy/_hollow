@@ -46,7 +46,6 @@ export async function updatePromptTemplate({
       let next: InstanceSettings;
       if (isEmpty) {
         next = InstanceSettings.resetPrompt(current, purpose, now);
-        if (next === current) return;
       } else {
         const template = PromptTemplate.create({
           text: input.template.text,
@@ -54,6 +53,7 @@ export async function updatePromptTemplate({
         });
         next = InstanceSettings.updatePrompt(current, purpose, template, now);
       }
+      if (next === current) return;
       await instanceSettingsRepository.save(next, expectedVersion);
     },
   );

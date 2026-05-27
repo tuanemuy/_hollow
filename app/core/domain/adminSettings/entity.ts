@@ -116,6 +116,41 @@ function coerceLimits(
 }
 
 /**
+ * Content-equal check for `PromptTemplate`. `PromptTemplate.create`
+ * deduplicates `expectedVariables` while preserving input order, so two
+ * templates produced from the same canonical input always have arrays in
+ * the same order — element-wise comparison is sufficient and we do not
+ * need to fall back to set equality.
+ */
+function promptTemplatesEqual(a: PromptTemplate, b: PromptTemplate): boolean {
+  if (a === b) return true;
+  if (a.text !== b.text) return false;
+  const av = a.expectedVariables;
+  const bv = b.expectedVariables;
+  if (av.length !== bv.length) return false;
+  for (let i = 0; i < av.length; i++) {
+    if (av[i] !== bv[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Content-equal check for `DesignTokens`. The tokens map is a flat
+ * `Record<string, string>` (values are primitives), so a shallow
+ * key-and-value comparison is equivalent to a deep one.
+ */
+function designTokensEqual(a: DesignTokens, b: DesignTokens): boolean {
+  if (a === b) return true;
+  const aEntries = Object.entries(a.tokens);
+  const bKeys = Object.keys(b.tokens);
+  if (aEntries.length !== bKeys.length) return false;
+  for (const [k, v] of aEntries) {
+    if (b.tokens[k] !== v) return false;
+  }
+  return true;
+}
+
+/**
  * Rehydrate `Prompts` from a persistence row. **Partial semantics** (Issue
  * #218 ADR-001/ADR-004): missing keys are simply omitted, and legacy rows
  * that persisted `text === ""` are also omitted to migrate "full map + empty
@@ -174,6 +209,11 @@ export const InstanceSettings = {
    * through {@link InstanceSettings.resetPrompt} at the usecase boundary
    * (Issue #218 ADR-006). The domain operation name (`updatePrompt`) only
    * means "install an override".
+   *
+   * No-op when the existing override for `purpose` is content-equal to the
+   * incoming template — same instance is returned so callers can detect
+   * "nothing changed" by reference equality (Issue #261, symmetric with
+   * `resetPrompt`).
    */
   updatePrompt: (
     settings: InstanceSettings,
@@ -186,6 +226,10 @@ export const InstanceSettings = {
         AdminSettingsErrorCode.UpdatePromptRequiresNonEmptyText,
         "updatePrompt requires a non-empty template; route empty text through resetPrompt at the usecase boundary",
       );
+    }
+    const existing = settings.prompts[purpose];
+    if (existing !== undefined && promptTemplatesEqual(existing, template)) {
+      return settings;
     }
     return {
       ...settings,
@@ -237,16 +281,27 @@ export const InstanceSettings = {
     };
   },
 
+  /**
+   * Replace the design tokens map wholesale. No-op when the incoming
+   * tokens are content-equal to the current map — same instance is
+   * returned so callers can detect "nothing changed" by reference
+   * equality (Issue #261, symmetric with `resetPrompt`).
+   */
   updateDesignTokens: (
     settings: InstanceSettings,
     tokens: DesignTokens,
     now: Date,
-  ): InstanceSettings => ({
-    ...settings,
-    designTokens: tokens,
-    version: Version.next(settings.version),
-    updatedAt: now,
-  }),
+  ): InstanceSettings => {
+    if (designTokensEqual(settings.designTokens, tokens)) {
+      return settings;
+    }
+    return {
+      ...settings,
+      designTokens: tokens,
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
 
   resetDesignTokens: (
     settings: InstanceSettings,
