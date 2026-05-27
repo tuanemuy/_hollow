@@ -462,6 +462,28 @@ describe("IngestionPreviewForm", () => {
     expect(details?.open).toBe(false);
   });
 
+  // Issue #257 structural regression: the action bar must not be
+  // `sticky bottom-0` (it now sits at the flex-column's bottom via
+  // `flex-shrink-0`), and the body preview must not have its own
+  // `max-h-[240px] overflow-y-auto` (the single scroll container lives
+  // on the form's flex-1 child instead). If either reappears, the
+  // modal regresses into the double-scroll / floating-action-bar
+  // behaviour Issue #257 fixed.
+  it("does not introduce a sticky action bar or a max-h-bound body preview (Issue #257)", () => {
+    renderForm({});
+
+    const submit = getSubmitButton();
+    const actionBar = submit.parentElement;
+    expect(actionBar).not.toBeNull();
+    expect(actionBar?.className ?? "").not.toContain("sticky");
+
+    const bodyPreview = document.body.querySelector(".note-detail-content");
+    expect(bodyPreview).not.toBeNull();
+    const previewClass = bodyPreview?.className ?? "";
+    expect(previewClass).not.toContain("max-h-[240px]");
+    expect(previewClass).not.toContain("overflow-y-auto");
+  });
+
   // W-T-006: empty frontMatterJson is omitted from the payload — the
   // wire contract says undefined means "do not modify".
   it("omits frontMatterJson from the payload when the textarea is empty", async () => {

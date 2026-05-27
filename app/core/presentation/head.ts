@@ -52,7 +52,10 @@ export function buildHead(
 
   const meta: MetaTag[] = [
     { charSet: "utf-8" },
-    { name: "viewport", content: "width=device-width, initial-scale=1" },
+    {
+      name: "viewport",
+      content: "width=device-width, initial-scale=1, viewport-fit=cover",
+    },
     { title },
     { name: "description", content: description },
     { name: "theme-color", content: config.themeColor },
