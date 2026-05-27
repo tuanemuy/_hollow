@@ -374,6 +374,65 @@ describe("IngestionPreviewForm", () => {
     expect(callArg.data).not.toHaveProperty("directoryId");
   });
 
+  // Issue #259 H-2: each field surfaces an "AI 提案" caption while its
+  // current value still matches the LLM-suggested initial value.
+  it("renders 'AI 提案' badges next to each suggested field on mount", () => {
+    renderForm({});
+    const badges = Array.from(document.body.querySelectorAll("span")).filter(
+      (s) => (s.textContent ?? "").includes("AI 提案"),
+    );
+    // タイトル / 本文プレビュー / ディレクトリ / タグ / FrontMatter
+    expect(badges.length).toBeGreaterThanOrEqual(5);
+  });
+
+  // Issue #259 H-2: editing a field hides only that field's badge.
+  it("hides the title 'AI 提案' badge after the user edits the title", async () => {
+    renderForm({});
+
+    const countAi = () =>
+      Array.from(document.body.querySelectorAll("span")).filter((s) =>
+        (s.textContent ?? "").includes("AI 提案"),
+      ).length;
+    const before = countAi();
+
+    act(() => {
+      setNativeInputValue(getTitleInput(), "Some New Title");
+    });
+
+    const after = countAi();
+    expect(after).toBe(before - 1);
+  });
+
+  // Issue #259 H-2: restoring the field to the LLM-suggested value
+  // brings the badge back (see ADR-003).
+  it("re-shows the title badge when the value is restored to the initial suggestion", async () => {
+    renderForm({});
+
+    const countAi = () =>
+      Array.from(document.body.querySelectorAll("span")).filter((s) =>
+        (s.textContent ?? "").includes("AI 提案"),
+      ).length;
+    const initial = countAi();
+
+    act(() => {
+      setNativeInputValue(getTitleInput(), "Edited");
+    });
+    expect(countAi()).toBe(initial - 1);
+
+    act(() => {
+      setNativeInputValue(getTitleInput(), "Suggested Title");
+    });
+    expect(countAi()).toBe(initial);
+  });
+
+  // Issue #259 H-1: FrontMatter section starts collapsed via <details>.
+  it("renders the FrontMatter section inside a <details> element that is closed by default", () => {
+    renderForm({});
+    const details = document.body.querySelector("details");
+    expect(details).not.toBeNull();
+    expect(details?.open).toBe(false);
+  });
+
   // W-T-006: empty frontMatterJson is omitted from the payload — the
   // wire contract says undefined means "do not modify".
   it("omits frontMatterJson from the payload when the textarea is empty", async () => {
