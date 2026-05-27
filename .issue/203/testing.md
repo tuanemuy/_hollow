@@ -49,7 +49,7 @@
 
 ### 4. `_*` プレフィックスフィルタの単体検証
 
-- **目的:** `jq 'with_entries(select(.key | startswith("_") | not))'` フィルタが `.json.example` から `_comment` / `_dispatch_extras_comment` / `_web_only_comment` の 3 つを drop すること
+- **目的:** `jq 'with_entries(select(.key | startswith("_") | not))'` フィルタが `.json.example` から `_comment` / `_dispatch_extras_comment` / `_resend_api_key_comment` の 3 つを drop すること
 - **手順:**
   1. `jq 'with_entries(select(.key | startswith("_") | not))' infra/secrets/staging.json.example | jq 'keys | length'` を実行
 - **期待結果:** `9`（`_*` の 3 個が落ちて元の 12 個 → 9 個）
@@ -118,7 +118,7 @@
 - **`workerSecretSpecs` callsite（`infra/src/index.ts`）**: シグネチャを `Pick<Config, "appName" | "stage">` に狭めたが、既存 callsite は full `Config` を渡しているため後方互換。`pnpm typecheck` で確認
 - **既存 `infra/scripts/renderWrangler.ts`**: 触らない。CI workflow の `infra:render:*` ステップに影響なし
 - **既存 deploy 順序**: `Deploy Workers` → `Inject secrets` の順序は維持。secret push が失敗してもコード deploy は既に完了しているのは pre-existing な性質（ADR で受け入れ）
-- **Cloudflare 上の既存 `_*` secret**: 本 PR merge 後の初回 deploy では bulk-push に `_*` が含まれなくなるが、wrangler は既存 secret を削除しないため `_comment` / `_dispatch_extras_comment` / `_web_only_comment` が Cloudflare ダッシュボードに残り続ける。手動 cleanup は本 PR スコープ外（手順を `docs/deployment_setup.md` に追記）
+- **Cloudflare 上の既存 `_*` secret**: 本 PR merge 後の初回 deploy では bulk-push に `_*` が含まれなくなるが、wrangler は既存 secret を削除しないため `_comment` / `_dispatch_extras_comment` / `_resend_api_key_comment` が Cloudflare ダッシュボードに残り続ける。`docs/deployment_setup.md` の「Issue #203 マージ直後の一回限り cleanup」セクションに operator 向けループ手順を記載済み
 
 ---
 

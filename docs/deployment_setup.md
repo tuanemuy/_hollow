@@ -38,25 +38,34 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
 
 ### 新しい secret を追加する
 
-1. `infra/src/secrets.ts` の該当配列（`shared` / `dispatchExtras` 等）にキー名を追記
+1. `infra/src/secrets.ts` の該当配列（`shared` / `dispatchExtras`）にキー名を追記
 2. `infra/secrets/{staging,production}.enc.json` を `sops` で開いてキーを追加
 3. `infra/secrets/{staging,production}.json.example` にも追記
 4. `.dev.vars.example` にもローカル用として追記
 5. ローカルで spec ↔ enc.json の同期を確認:
    ```sh
-   sops -d infra/secrets/staging.enc.json > /tmp/d.json
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/hollow-staging.txt \
+     sops -d infra/secrets/staging.enc.json > /tmp/d.json
    pnpm infra:check-secrets:staging -- /tmp/d.json
    rm /tmp/d.json
    ```
-   production も同様に。CI も deploy 前に同じチェックを走らせて missing / extra のいずれも fail-loud に検出する（Issue #203）。
+   production も `hollow-production.txt` で同様に。CI も deploy 前に同じチェックを走らせて missing / extra のいずれも fail-loud に検出する（Issue #203）。
 
 ### secret を削除する
 
 1. `infra/src/secrets.ts` から該当キーを削除
 2. `infra/secrets/{staging,production}.enc.json` を `sops` で開いて該当行を削除
 3. `infra/secrets/{staging,production}.json.example` からも削除
-4. `pnpm infra:check-secrets:<stage>` で同期確認
-5. **次回 CI deploy 後**、Cloudflare 側に残る古い secret を全 Worker から手動削除する（`wrangler secret bulk` は追加・更新のみ、削除はしないため）:
+4. `.dev.vars.example` にローカル用エントリがあれば削除
+5. ローカルで spec ↔ enc.json の同期を確認（追加フローと同じ 3 ステップ）:
+   ```sh
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/hollow-staging.txt \
+     sops -d infra/secrets/staging.enc.json > /tmp/d.json
+   pnpm infra:check-secrets:staging -- /tmp/d.json
+   rm /tmp/d.json
+   ```
+   production も同様に。
+6. **次回 CI deploy 後**、Cloudflare 側に残る古い secret を全 Worker から手動削除する（`wrangler secret bulk` は追加・更新のみ、削除はしないため）:
    ```sh
    for env_flag in "" "--env relay" "--env consumer" "--env indexer" "--env pruner" "--env dlq"; do
      # shellcheck disable=SC2086
@@ -68,6 +77,21 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
 ### `^_` プレフィックスのドキュメント用キー
 
 `infra/secrets/*.json.example` および `*.enc.json` で `_` から始まるキーは documentation-only。CI の `jq` フィルタが bulk-push 前に drop し、`checkSecrets.ts` も比較対象から除外するため、Cloudflare 側には登録されない。隣接する secret の説明コメントとして自由に使ってよい。
+
+### Issue #203 マージ直後の一回限り cleanup
+
+本 Issue #203（PR #244）が merge されると `^_` プレフィックスのキーは bulk-push から落ちる。ただし `wrangler secret bulk` は既存 secret を削除しないため、過去に push 済みの documentation キーが Cloudflare ダッシュボードに残る。merge 直後の deploy 完了を確認したら、operator は staging / production それぞれで以下を 1 度だけ実行する:
+
+```sh
+for env_flag in "" "--env relay" "--env consumer" "--env indexer" "--env pruner" "--env dlq"; do
+  for legacy_key in _comment _dispatch_extras_comment _resend_api_key_comment; do
+    # shellcheck disable=SC2086
+    pnpm exec wrangler secret delete "$legacy_key" --config wrangler.staging.toml $env_flag || true
+  done
+done
+```
+
+production は `wrangler.production.toml` で同じループを走らせる。`|| true` は「対象 Worker にその secret が無かった」ケースを無視するため（一部 Worker には push されていない可能性あり）。完了後にダッシュボードで `_` 始まりのエントリが消えていることを目視確認。
 
 ### チームメイトを追加する
 

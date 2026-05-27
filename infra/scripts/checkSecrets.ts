@@ -20,6 +20,21 @@
  *
  * `appName` is irrelevant to the secret name set — see the invariant
  * documented on `workerSecretSpecs()` in `../src/secrets.ts`.
+ *
+ * Scope (intentional non-goals):
+ * - **Key set only.** Value validity (empty string, placeholder text,
+ *   `null`, whitespace, etc.) is not checked. The CI `wrangler secret
+ *   bulk` push surfaces such issues at the Worker invocation site.
+ * - **No duplicate-key detection.** `JSON.parse` silently keeps the
+ *   last occurrence on duplicate keys, so a `sops` editor session that
+ *   accidentally produces two entries with the same name is not caught
+ *   here.
+ * - **Trust boundary.** The decrypted file is treated as trusted input
+ *   (produced by `sops -d` on a self-managed `.enc.json`). Path
+ *   arguments containing a literal `--` are NOT supported — the CLI
+ *   strips every `--` token (see `positional` below) to neutralize
+ *   `pnpm` chain leakage. In practice the path is always a `mktemp`
+ *   output (`/tmp/tmp.XXXXX`).
  */
 import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";

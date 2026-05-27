@@ -100,9 +100,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          # Initialize before set -u trips, set trap before mktemp so a
+          # partial failure (one mktemp ok, the other not) still removes
+          # whatever was created.
+          DECRYPTED_RAW=""
+          DECRYPTED_FILTERED=""
+          trap 'rm -f "${DECRYPTED_RAW:-}" "${DECRYPTED_FILTERED:-}"' EXIT
           DECRYPTED_RAW=$(mktemp)
           DECRYPTED_FILTERED=$(mktemp)
-          trap 'rm -f "$DECRYPTED_RAW" "$DECRYPTED_FILTERED"' EXIT
           sops -d infra/secrets/production.enc.json > "$DECRYPTED_RAW"
 
           # Fail loudly if `workerSecretSpecs()` and the decrypted JSON

@@ -23,7 +23,7 @@
 ### 含まれないもの
 
 - **`Deploy Workers` ステップの `--env indexer` 欠落（pre-existing gap）**: `deploy-{staging,production}.yml` L79–L84 / L82–L87 にも同じ漏れがあるが、本 Issue は **secret bulk-push** に閉じる。フォローアップ Issue 候補として Phase 4 で扱う。
-- 既に Cloudflare 側に push 済みの `_comment` / `_dispatch_extras_comment` / `_web_only_comment` secret の削除作業（wrangler は bulk push で「渡されなかった既存 secret」を消さないため手動 `wrangler secret delete` が必要。手順は `docs/deployment_setup.md` に追記するが本 PR では実行しない）
+- 既に Cloudflare 側に push 済みの `_comment` / `_dispatch_extras_comment` / `_resend_api_key_comment` secret の削除作業（wrangler は bulk push で「渡されなかった既存 secret」を消さないため手動 `wrangler secret delete` が必要。手順は `docs/deployment_setup.md` に追記するが本 PR では実行しない）
 - `workerSecretSpecs()` の per-worker filtering（ADR-007 #110 で別 Issue）
 
 ## 実装ステップ
@@ -160,7 +160,7 @@
 ## リスクと注意点
 
 - **`Deploy Workers` ステップの `--env indexer` 欠落（pre-existing gap）**: secret bulk-push のループだけ直しても、`Deploy Workers` ステップが indexer をデプロイしないため、indexer のコード変更が反映されない状態が続く。本 Issue は **secret bulk-push** に閉じるので別 Issue として切り出すが、本 PR merge と並行して Phase 4 で必ずフォローアップ Issue を起票し、本 PR の中で残骸とならないようにする（secret は届くがコードは古い、という非対称が長期化しないよう運用上即時着手する想定）
-- **既存 `_*` secret の Cloudflare 上残存**: 本変更後の初回 deploy では bulk-push に `_*` が含まれなくなるが、wrangler は「渡されなかった既存 secret」を削除しない。Cloudflare ダッシュボードに既存の `_comment` / `_dispatch_extras_comment` / `_web_only_comment` が残るため、operator が `wrangler secret delete _comment --config wrangler.{stage}.toml [--env ...]` で各 worker × 各 `_*` キーを手動削除する必要がある。手順を `docs/deployment_setup.md` に追記
+- **既存 `_*` secret の Cloudflare 上残存**: 本変更後の初回 deploy では bulk-push に `_*` が含まれなくなるが、wrangler は「渡されなかった既存 secret」を削除しない。Cloudflare ダッシュボードに既存の `_comment` / `_dispatch_extras_comment` / `_resend_api_key_comment` が残るため、operator が `wrangler secret delete _comment --config wrangler.{stage}.toml [--env ...]` で各 worker × 各 `_*` キーを手動削除する必要がある。手順を `docs/deployment_setup.md` に追記
 - **`.enc.json` 側の Issue #197 残骸**: `.enc.json` には `RESEND_API_KEY` がまだ追加されておらず、旧 `ADMIN_SETUP_TOKEN` が残っている可能性が高い（Issue 本文より）。本 PR は SOPS 復号権限なしで `.enc.json` を編集できないため、merge 前に operator が `sops infra/secrets/<stage>.enc.json` で同期させる必要がある。同期せずに merge すると初回 deploy で CI check が `missing: RESEND_API_KEY` / `extra: ADMIN_SETUP_TOKEN` で fail する（**これが本 Issue の意図する fail-loud 検出そのもの**だが、運用上は事前に解消したい）。手順を `docs/deployment_setup.md` に追記
 - **`appName` invariant の将来破綻**: `workerSecretSpecs()` が将来 `appName` 依存になったら checkSecrets.ts のダミー値が壊れる。コードコメントで invariant を明示し、`infra/src/secrets.ts` 側にも「`.secrets` 配列は `appName` 依存にしない」旨を残すことを検討
 - **CI fail 時の blast radius**: pre-deploy check が fail した場合、Worker の `deploy` 自体は既に完了している（順序が deploy → secret push のため）。これは現状と同じ blast radius（secret 不一致のまま新コードが稼働する瞬間がある）。Issue #110 ADR-007 と同じ前提なので本 Issue では受け入れ、運用は「fail loud で次の deploy までに必ず直す」に依拠する
