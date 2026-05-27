@@ -19,17 +19,25 @@
 - フィールド:
   - `id: 'singleton'`
   - `llm: LLMConfig`
-  - `prompts: Record<PromptPurpose, PromptTemplate>`
+  - `prompts: Partial<Record<PromptPurpose, PromptTemplate>>` — **キー存在 = インスタンス上書き / キー欠落 = ビルトイン既定値を継承**（Issue #218 ADR-001）。`UserPromptOverride` と同型のセマンティクス
   - `designTokens: DesignTokens`
   - `registration: RegistrationPolicy`
   - `limits: InstanceLimits`
   - `updatedAt: Instant`
 - 振る舞い:
   - `updateLLM(cfg: LLMConfig, now: Instant): InstanceSettings`
-  - `updatePrompt(purpose: PromptPurpose, template: PromptTemplate, now: Instant): InstanceSettings`
+  - `updatePrompt(purpose: PromptPurpose, template: PromptTemplate, now: Instant): InstanceSettings` — 非空テンプレートで上書きを設定（空文字はユースケース層で `resetPrompt` にルーティング、ADR-006）
+  - `resetPrompt(purpose: PromptPurpose, now: Instant): InstanceSettings` — 単一上書きの削除（既定継承に戻す）
+  - `resetAllPrompts(now: Instant): InstanceSettings` — 全上書きを削除
   - `updateDesignTokens(tokens: DesignTokens, now: Instant): InstanceSettings`
+  - `resetDesignTokens(now: Instant): InstanceSettings`
   - `setRegistrationOpen(open: boolean, reason: string | null, now: Instant): InstanceSettings`
   - `updateLimits(limits: InstanceLimits, now: Instant): InstanceSettings`
+
+### 既定値（SSOT）
+
+- プロンプト: `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_PROMPT_DEFAULTS`。`text` は空文字を保持し、`promptResolver` の「空文字 = LLM プロバイダの既定指示にフォールバック」契約と整合する（Issue #218 ADR-002）。
+- デザイントークン: `app/styles/tokens.css`（CLAUDE.md と一致、`spec/design/tokens.md` にミラー）。コード SSOT は作らない（Issue #218 ADR-003）。
 
 ### UserPromptOverride（ユーザー個別、別集約）
 
@@ -48,6 +56,7 @@
 
 ### PromptPurpose（列挙）
 - `'structure' | 'title' | 'directory' | 'metadata' | 'ocr_assist'`
+- **SSOT**: 上記 5 値（Issue #218 ADR-005）。UI 用 ID（`ingestion_structuring` / `title_generation` / `directory_suggestion`）は廃止。`ocr_assist` は ingestion パイプライン未参照だが、admin 画面では編集可能（OCR 機能の将来的プロビジョン）。
 
 ### DesignTokens
 - フィールド: `tokens: Record<string, string>` — 例 `{ '--color-bg': '#fff', '--font-body': 'system-ui' }`
@@ -88,8 +97,9 @@
 ## ユースケース（概要）
 
 - GetInstanceSettings
+- GetInstancePromptDefaults（user/admin、P23 用）
 - UpdateLLMConfig / TestLLMConnection
-- UpdatePromptTemplate（admin） / UpdateUserPromptOverride（user）
+- UpdatePromptTemplate / ResetPromptTemplate / ResetAllPromptTemplates（admin） / UpdateUserPromptOverride（user）
 - UpdateDesignTokens / ResetDesignTokens
 - ToggleRegistrationPolicy
 - UpdateInstanceLimits

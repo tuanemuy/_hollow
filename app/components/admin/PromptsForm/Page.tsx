@@ -13,7 +13,10 @@ export async function PromptsPage() {
       <p className="text-md text-ink-secondary m-0 mb-8">
         インスタンス共通のシステムプロンプト。ユーザーが個別に上書きしない限り、これらが使われます。
       </p>
-      <PromptsForm prompts={settings.prompts} />
+      <PromptsForm
+        prompts={settings.prompts}
+        promptDefaults={settings.promptDefaults}
+      />
     </main>
   );
 }

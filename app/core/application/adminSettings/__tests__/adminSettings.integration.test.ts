@@ -24,7 +24,9 @@ import { createTestContainer } from "../../__tests__/helpers";
 import { isForbiddenError, isNotFoundError } from "../../errors";
 import { getInstanceSettings } from "../getInstanceSettings";
 import { getUsageMetrics } from "../getUsageMetrics";
+import { resetAllPromptTemplates } from "../resetAllPromptTemplates";
 import { resetDesignTokens } from "../resetDesignTokens";
+import { resetPromptTemplate } from "../resetPromptTemplate";
 import { testLLMConnection } from "../testLLMConnection";
 import { toggleRegistrationPolicy } from "../toggleRegistrationPolicy";
 import { updateDesignTokens } from "../updateDesignTokens";
@@ -912,6 +914,132 @@ describe("updatePromptTemplate", () => {
       caught = error;
     }
     expect(isBusinessRuleError(caught)).toBe(true);
+  });
+});
+
+// ---------- ResetPromptTemplate / ResetAllPromptTemplates (Issue #218) ----------
+
+describe("resetPromptTemplate", () => {
+  it("removes a single override so the purpose falls back to default", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updatePromptTemplate({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        purpose: "title",
+        template: { text: "custom title", expectedVariables: [] },
+      },
+    });
+
+    await resetPromptTemplate({
+      container,
+      input: { actorUserId: ADMIN_ID, purpose: "title" },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    const promptsJson = JSON.parse(rows[0]?.promptsJson ?? "{}") as Record<
+      string,
+      { text: string }
+    >;
+    expect(promptsJson.title).toBeUndefined();
+  });
+
+  it("is a no-op when the override does not exist (no DB write)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await resetPromptTemplate({
+      container,
+      input: { actorUserId: ADMIN_ID, purpose: "title" },
+    });
+    // No-op should not bootstrap the singleton row.
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe("resetAllPromptTemplates", () => {
+  it("clears every override at once", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updatePromptTemplate({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        purpose: "title",
+        template: { text: "custom title", expectedVariables: [] },
+      },
+    });
+    await updatePromptTemplate({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        purpose: "structure",
+        template: { text: "custom structure", expectedVariables: [] },
+      },
+    });
+
+    await resetAllPromptTemplates({
+      container,
+      input: { actorUserId: ADMIN_ID },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    const promptsJson = JSON.parse(rows[0]?.promptsJson ?? "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(promptsJson)).toHaveLength(0);
+  });
+});
+
+describe("updatePromptTemplate empty-text routing (ADR-006)", () => {
+  it("routes empty text to reset (= remove the override)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updatePromptTemplate({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        purpose: "title",
+        template: { text: "custom title", expectedVariables: [] },
+      },
+    });
+    await updatePromptTemplate({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        purpose: "title",
+        template: { text: "", expectedVariables: [] },
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    const promptsJson = JSON.parse(rows[0]?.promptsJson ?? "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(promptsJson.title).toBeUndefined();
   });
 });
 

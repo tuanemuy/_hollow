@@ -40,6 +40,7 @@ export async function getUserPromptOverride({
         out[purpose] = {
           text: template.text,
           expectedVariables: [...template.expectedVariables],
+          isOverridden: true,
         };
       }
       return out;

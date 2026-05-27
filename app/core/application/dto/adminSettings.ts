@@ -1,13 +1,32 @@
+import { BUILTIN_PROMPT_DEFAULTS } from "@/core/domain/adminSettings/defaults";
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
-import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
+import {
+  type LLMProvider as LLMProviderName,
+  PromptPurpose,
+} from "@/core/domain/adminSettings/valueObject";
 import { type Instant, toInstant } from "./common";
 
 /**
  * Per-purpose prompt template projection. `expectedVariables` is mirrored
  * verbatim from the domain VO so the admin UI can render the
  * placeholder hints alongside the editable text.
+ *
+ * `isOverridden` is `true` when the instance has an explicit override for
+ * the purpose, `false` when the field reflects the built-in default. The
+ * UI uses this to render the "上書き中" badge and to enable/disable the
+ * per-row reset button (Issue #218 ADR-001).
  */
 export type PromptDTO = Readonly<{
+  text: string;
+  expectedVariables: readonly string[];
+  isOverridden: boolean;
+}>;
+
+/**
+ * Per-purpose built-in defaults. Mirrors `BUILTIN_PROMPT_DEFAULTS` so the
+ * admin UI can show the system default alongside the current value.
+ */
+export type PromptDefaultDTO = Readonly<{
   text: string;
   expectedVariables: readonly string[];
 }>;
@@ -52,7 +71,15 @@ export type InstanceSettingsDTO = Readonly<{
       baseURL: boolean;
     }>;
   }>;
+  /**
+   * Per-purpose prompt projection. The map is keyed by `PromptPurpose` and
+   * always contains an entry for every domain purpose — when there is no
+   * override, the entry surfaces the built-in default with
+   * `isOverridden: false` (Issue #218 ADR-001).
+   */
   prompts: Readonly<Record<string, PromptDTO>>;
+  /** Built-in defaults, identical to `BUILTIN_PROMPT_DEFAULTS`. */
+  promptDefaults: Readonly<Record<string, PromptDefaultDTO>>;
   designTokens: Readonly<Record<string, string>>;
   registration: Readonly<{ open: boolean; closedReason: string | null }>;
   limits: Readonly<{
@@ -115,11 +142,27 @@ export function toInstanceSettingsDTO(
   }> | null,
 ): InstanceSettingsDTO {
   const prompts: Record<string, PromptDTO> = {};
-  for (const [purpose, template] of Object.entries(settings.prompts)) {
-    prompts[purpose] = {
-      text: template.text,
-      expectedVariables: [...template.expectedVariables],
+  const promptDefaults: Record<string, PromptDefaultDTO> = {};
+  for (const purpose of PromptPurpose.values) {
+    const builtin = BUILTIN_PROMPT_DEFAULTS[purpose];
+    promptDefaults[purpose] = {
+      text: builtin.text,
+      expectedVariables: [...builtin.expectedVariables],
     };
+    const override = settings.prompts[purpose];
+    if (override !== undefined) {
+      prompts[purpose] = {
+        text: override.text,
+        expectedVariables: [...override.expectedVariables],
+        isOverridden: true,
+      };
+    } else {
+      prompts[purpose] = {
+        text: builtin.text,
+        expectedVariables: [...builtin.expectedVariables],
+        isOverridden: false,
+      };
+    }
   }
   const designTokens: Record<string, string> = {};
   for (const [key, value] of Object.entries(settings.designTokens.tokens)) {
@@ -159,6 +202,7 @@ export function toInstanceSettingsDTO(
       envOverrides,
     },
     prompts,
+    promptDefaults,
     designTokens,
     registration: {
       open: settings.registration.open,

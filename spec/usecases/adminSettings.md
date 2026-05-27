@@ -68,10 +68,51 @@
 - なし
 
 ### 処理フロー
-- admin チェック → InstanceSettingsRepository.get → `updatePrompt` → save
+- admin チェック → InstanceSettingsRepository.get
+- `template.text === ""` のとき: **ResetPromptTemplate と等価に処理**（`InstanceSettings.resetPrompt(purpose)`、Issue #218 ADR-006）。集約に変更がなければ save しない
+- 非空のとき: `PromptTemplate.create` → `updatePrompt` → save
 
 ### エラーケース
 - `ValidationError('prompt_variable_missing' | 'prompt_too_large')`
+
+---
+
+## ResetPromptTemplate（admin）
+
+Issue #218。指定 `purpose` のインスタンス上書きを削除し、ビルトイン既定値（= LLM プロバイダの既定指示）へ戻す。
+
+### 入力DTO
+- `actorUserId`, `purpose: PromptPurpose`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+- admin チェック → `instanceSettingsRepository.get` → `InstanceSettings.resetPrompt(purpose, now)`
+- 集約に変更がなければ save しない（既に上書きなしの場合は no-op）
+
+### エラーケース
+- `ValidationError('prompt_purpose_invalid')`
+- `ForbiddenError('FORBIDDEN_ADMIN_ONLY')`
+
+---
+
+## ResetAllPromptTemplates（admin）
+
+Issue #218。すべてのインスタンス上書きを一括削除し、全 `PromptPurpose` をビルトイン既定値へ戻す。
+
+### 入力DTO
+- `actorUserId`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+- admin チェック → `instanceSettingsRepository.get` → `InstanceSettings.resetAllPrompts(now)`
+- 集約に変更がなければ save しない
+
+### エラーケース
+- `ForbiddenError('FORBIDDEN_ADMIN_ONLY')`
 
 ---
 
@@ -87,6 +128,10 @@
 
 ### エラーケース
 - `ValidationError`
+
+### 注記
+
+P23 の「インスタンスデフォルト継承中」表示は、Issue #218 のセマンティクス変更後は「インスタンスに上書きがあればそれを継承、なければビルトイン既定（= LLM プロバイダの既定指示）」を意味する（`getInstancePromptDefaults` の API 互換は維持）。
 
 ---
 

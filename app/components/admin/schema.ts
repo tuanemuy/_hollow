@@ -70,6 +70,12 @@ export const updatePromptTemplateSchema = z.object({
   expectedVariables: z.array(z.string().trim().min(1).max(100)).max(64),
 });
 
+export const resetPromptTemplateSchema = z.object({
+  purpose: z.string().trim().min(1).max(200),
+});
+
+export const resetAllPromptTemplatesSchema = z.object({});
+
 export const updateDesignTokensSchema = z.object({
   tokens: z.record(
     z.string().trim().min(1).max(200),

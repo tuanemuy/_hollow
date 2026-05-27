@@ -23,10 +23,20 @@ export {
   rebuildSearchIndex,
 } from "./rebuildSearchIndex";
 export {
+  type ResetAllPromptTemplatesInput,
+  type ResetAllPromptTemplatesOutput,
+  resetAllPromptTemplates,
+} from "./resetAllPromptTemplates";
+export {
   type ResetDesignTokensInput,
   type ResetDesignTokensOutput,
   resetDesignTokens,
 } from "./resetDesignTokens";
+export {
+  type ResetPromptTemplateInput,
+  type ResetPromptTemplateOutput,
+  resetPromptTemplate,
+} from "./resetPromptTemplate";
 export {
   type TestLLMConnectionDraft,
   type TestLLMConnectionInput,
