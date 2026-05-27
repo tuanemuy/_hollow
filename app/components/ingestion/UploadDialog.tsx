@@ -98,14 +98,28 @@ export function UploadDialog({ open, onClose }: Props) {
 
   const inputId = useId();
 
-  // Reset to the select state whenever the dialog opens.
+  // Flag flipped by the `open` cleanup so in-flight `submitFiles`
+  // callbacks know to skip their post-await `setView`. Without this
+  // a slow upload that resolves after the modal has been dismissed
+  // would silently transition the next-opened dialog into `waiting`
+  // for a job the user never started.
+  const cancelledRef = useRef(false);
+
+  // Reset to the select state whenever the dialog opens. The cleanup
+  // raises `cancelledRef` so any in-flight submitFiles promise (its
+  // network call still resolves) does not push state into a stale
+  // closure.
   useEffect(() => {
     if (open) {
+      cancelledRef.current = false;
       setView({ kind: "select" });
       setError(null);
       setIsDragOver(false);
       if (fileInputRef.current !== null) fileInputRef.current.value = "";
     }
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [open]);
 
   // Lazy-load the directory tree the first time we enter the `editing`
@@ -133,7 +147,12 @@ export function UploadDialog({ open, onClose }: Props) {
     };
   }, [view, tree.length, getTree]);
 
-  // Polling loop driven by the `waiting` view.
+  // Polling loop driven by the `waiting` view. The recursive
+  // `setTimeout` is tracked on a ref so the effect cleanup can
+  // `clearTimeout` whichever timer is currently outstanding —
+  // without that ref a tick scheduled mid-flight would survive
+  // a view change / unmount.
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (view.kind !== "waiting") return;
     let cancelled = false;
@@ -164,7 +183,7 @@ export function UploadDialog({ open, onClose }: Props) {
           setView({ kind: "timedOut", jobId: waitingView.jobId });
           return;
         }
-        setTimeout(tick, POLL_INTERVAL_MS);
+        pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
       } catch (e) {
         if (cancelled) return;
         const serialized = extractSerializedError(e);
@@ -187,10 +206,13 @@ export function UploadDialog({ open, onClose }: Props) {
         });
       }
     };
-    const id = setTimeout(tick, POLL_INTERVAL_MS);
+    pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearTimeout(id);
+      if (pollTimerRef.current !== null) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     };
   }, [view, getJob, onClose]);
 
@@ -214,6 +236,7 @@ export function UploadDialog({ open, onClose }: Props) {
             const formData = new FormData();
             formData.append("file", file);
             const { jobId } = await upload({ data: formData });
+            if (cancelledRef.current) return;
             setView({
               kind: "waiting",
               jobId: jobId as unknown as string,
@@ -221,6 +244,7 @@ export function UploadDialog({ open, onClose }: Props) {
               transientFailures: 0,
             });
           } catch (e) {
+            if (cancelledRef.current) return;
             setError(extractSerializedError(e));
             setView({ kind: "select" });
           }
@@ -238,12 +262,15 @@ export function UploadDialog({ open, onClose }: Props) {
             const formData = new FormData();
             formData.append("file", f);
             await upload({ data: formData });
+            if (cancelledRef.current) return;
             succeeded += 1;
           } catch {
+            if (cancelledRef.current) return;
             failedNames.push(f.name);
           }
         }
         await router.invalidate();
+        if (cancelledRef.current) return;
         setView({
           kind: "multiResult",
           total: list.length,

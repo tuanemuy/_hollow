@@ -10,20 +10,33 @@ import type { IngestionJobWire } from "../actions";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-// Shared mock — every server-fn the form uses resolves through this fn.
-// Tests can inspect the latest call to verify payload shape.
-const mockedFn = vi.fn();
+// Per-server-fn mocks. The form uses `commitIngestionPreviewFn` and
+// `discardIngestionPreviewFn`; identity-dispatch via the imported
+// references below keeps the two mocks separated so we can assert
+// commit vs discard behaviour independently (B-T-001 regression).
+const commitMock = vi.fn();
+const discardMock = vi.fn();
+
 vi.mock("@tanstack/react-start", () => {
   const chain = () =>
     new Proxy(() => chain(), {
       get: (_, prop) => (prop === "then" ? undefined : chain()),
     });
   return {
-    useServerFn: () => mockedFn,
+    useServerFn: (fn: unknown) => {
+      if (fn === commitMock) return commitMock;
+      if (fn === discardMock) return discardMock;
+      return vi.fn();
+    },
     createMiddleware: () => chain(),
     createServerFn: () => chain(),
   };
 });
+
+vi.mock("../actions", () => ({
+  commitIngestionPreviewFn: commitMock,
+  discardIngestionPreviewFn: discardMock,
+}));
 
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);
 vi.mock("@tanstack/react-router", () => {
@@ -70,11 +83,29 @@ const sampleJob: IngestionJobWire = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const pendingDirJob: IngestionJobWire = {
+  ...sampleJob,
+  preview: {
+    ...sampleJob.preview!,
+    suggestedDirectoryId: null,
+    suggestedDirectoryName: "ideas",
+  },
+};
+
+const emptyFrontMatterJob: IngestionJobWire = {
+  ...sampleJob,
+  preview: {
+    ...sampleJob.preview!,
+    frontMatterJson: "{}",
+  },
+};
+
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  mockedFn.mockReset();
+  commitMock.mockReset();
+  discardMock.mockReset();
   routerInvalidate.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -123,20 +154,37 @@ function getSubmitButton(): HTMLButtonElement {
   return btn;
 }
 
+function getButtonByText(text: string): HTMLButtonElement {
+  const buttons = document.body.querySelectorAll<HTMLButtonElement>("button");
+  for (const b of buttons) {
+    if ((b.textContent ?? "").trim() === text) return b;
+  }
+  throw new Error(`button with text ${text} not found`);
+}
+
+function renderForm(props: {
+  job?: IngestionJobWire;
+  onCommitted?: (id: string) => void;
+  onDiscarded?: () => void;
+  onCancel?: () => void;
+}) {
+  act(() => {
+    root.render(
+      <IngestionPreviewForm
+        job={props.job ?? sampleJob}
+        tree={[]}
+        isTreeLoading={false}
+        onCommitted={props.onCommitted ?? (() => {})}
+        onDiscarded={props.onDiscarded ?? (() => {})}
+        onCancel={props.onCancel ?? (() => {})}
+      />,
+    );
+  });
+}
+
 describe("IngestionPreviewForm", () => {
   it("renders preview values into the form fields", () => {
-    act(() => {
-      root.render(
-        <IngestionPreviewForm
-          job={sampleJob}
-          tree={[]}
-          isTreeLoading={false}
-          onCommitted={() => {}}
-          onDiscarded={() => {}}
-          onCancel={() => {}}
-        />,
-      );
-    });
+    renderForm({});
 
     const title = getTitleInput();
     expect(title.value).toBe("Suggested Title");
@@ -148,21 +196,10 @@ describe("IngestionPreviewForm", () => {
   });
 
   it("sends the expected payload (including frontMatterJson) on submit", async () => {
-    mockedFn.mockResolvedValue({ noteId: "note-1" });
+    commitMock.mockResolvedValue({ noteId: "note-1" });
     const onCommitted = vi.fn();
 
-    act(() => {
-      root.render(
-        <IngestionPreviewForm
-          job={sampleJob}
-          tree={[]}
-          isTreeLoading={false}
-          onCommitted={onCommitted}
-          onDiscarded={() => {}}
-          onCancel={() => {}}
-        />,
-      );
-    });
+    renderForm({ onCommitted });
 
     act(() => {
       setNativeInputValue(getTitleInput(), "My Title");
@@ -174,14 +211,15 @@ describe("IngestionPreviewForm", () => {
     await act(async () => {
       getSubmitButton().click();
     });
-    // Flush the microtask queue so the awaited mockedFn resolves and
+    // Flush the microtask queue so the awaited commit resolves and
     // onCommitted gets called.
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(mockedFn).toHaveBeenCalledTimes(1);
-    const callArg = mockedFn.mock.calls[0]?.[0];
+    expect(commitMock).toHaveBeenCalledTimes(1);
+    expect(discardMock).not.toHaveBeenCalled();
+    const callArg = commitMock.mock.calls[0]?.[0];
     expect(callArg).toMatchObject({
       data: expect.objectContaining({
         jobId: "job-1",
@@ -204,21 +242,13 @@ describe("IngestionPreviewForm", () => {
       code: "FRONT_MATTER_JSON_INVALID",
       message: "FrontMatter JSON is not parseable",
     });
-    mockedFn.mockRejectedValue(wrapped);
+    commitMock.mockRejectedValue(wrapped);
+
+    renderForm({ onCommitted });
 
     act(() => {
-      root.render(
-        <IngestionPreviewForm
-          job={sampleJob}
-          tree={[]}
-          isTreeLoading={false}
-          onCommitted={onCommitted}
-          onDiscarded={() => {}}
-          onCancel={() => {}}
-        />,
-      );
+      setNativeInputValue(getTitleInput(), "Preserved Title");
     });
-
     act(() => {
       setNativeInputValue(getFrontMatterTextarea(), "not-json");
     });
@@ -231,17 +261,136 @@ describe("IngestionPreviewForm", () => {
       await Promise.resolve();
     });
 
-    // The server-fn was invoked exactly once, the commit did not
-    // navigate (onCommitted not called), and an alert region is now
-    // visible. The exact wording of the message is owned by
-    // `errorDisplay.ts` — we only assert that an inline error appears
-    // and the form is still present.
-    expect(mockedFn).toHaveBeenCalledTimes(1);
+    expect(commitMock).toHaveBeenCalledTimes(1);
     expect(onCommitted).not.toHaveBeenCalled();
     const alert = document.body.querySelector('[role="alert"]');
     expect(alert).not.toBeNull();
     expect((alert?.textContent ?? "").length).toBeGreaterThan(0);
-    // The form's submit button still exists (modal not dismissed).
     expect(getSubmitButton()).not.toBeNull();
+    // W-T-005: other field values are retained after the invalid
+    // submission so the user can fix the FrontMatter without redoing
+    // the rest of the form.
+    expect(getTitleInput().value).toBe("Preserved Title");
+  });
+
+  // B-T-001: clicking "破棄" must NOT submit the form. It must open
+  // the ConfirmDialog and leave `commit` un-invoked. Regression guard
+  // for ADR-012 (nested-form HTML bug). If `ConfirmDialog` is ever
+  // moved back inside `<form>`, the submit click will fire the parent
+  // form's onSubmit and this test will fail.
+  it("clicking 破棄 opens the ConfirmDialog without invoking commit", async () => {
+    renderForm({});
+
+    await act(async () => {
+      getButtonByText("破棄").click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(commitMock).not.toHaveBeenCalled();
+    expect(discardMock).not.toHaveBeenCalled();
+    // Confirm dialog text from `<ConfirmDialog>` should now be visible.
+    expect(document.body.textContent).toContain("ジョブを破棄");
+    expect(document.body.textContent).toContain("このジョブを破棄しますか");
+  });
+
+  // B-T-001 (continued): the Confirm dialog's "破棄" button calls
+  // `discard` exactly once and then `onDiscarded`. `commit` must never
+  // fire on this path.
+  it("confirming 破棄 invokes discard exactly once and calls onDiscarded; commit is never called", async () => {
+    discardMock.mockResolvedValue(undefined);
+    const onDiscarded = vi.fn();
+    const onCommitted = vi.fn();
+    renderForm({ onDiscarded, onCommitted });
+
+    await act(async () => {
+      getButtonByText("破棄").click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // The confirm dialog now has its own "破棄" button which is the
+    // primary action. There are now two buttons with the text "破棄"
+    // (one in the form, one in the confirm). `getButtonByText` returns
+    // the first match — that is the form button; we need the confirm's.
+    const allDiscards = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).filter((b) => (b.textContent ?? "").trim() === "破棄");
+    const confirmDiscard = allDiscards[1] ?? allDiscards[0];
+    expect(confirmDiscard).toBeDefined();
+
+    await act(async () => {
+      confirmDiscard?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    expect(commitMock).not.toHaveBeenCalled();
+    expect(onDiscarded).toHaveBeenCalledTimes(1);
+    expect(onCommitted).not.toHaveBeenCalled();
+  });
+
+  // W-T-003: cancel button invokes onCancel and triggers neither
+  // commit nor discard.
+  it("clicking キャンセル invokes onCancel and never calls commit or discard", async () => {
+    const onCancel = vi.fn();
+    renderForm({ onCancel });
+
+    await act(async () => {
+      getButtonByText("キャンセル").click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(commitMock).not.toHaveBeenCalled();
+    expect(discardMock).not.toHaveBeenCalled();
+  });
+
+  // W-T-004: pending directory name path — when the preview has no
+  // suggestedDirectoryId but does have suggestedDirectoryName, the
+  // payload must carry `directoryNameToCreate` and not `directoryId`.
+  it("posts directoryNameToCreate when the preview suggests a not-yet-existing directory", async () => {
+    commitMock.mockResolvedValue({ noteId: "note-1" });
+    renderForm({ job: pendingDirJob });
+
+    await act(async () => {
+      getSubmitButton().click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const callArg = commitMock.mock.calls[0]?.[0];
+    expect(callArg.data).toMatchObject({
+      jobId: "job-1",
+      directoryNameToCreate: "ideas",
+    });
+    expect(callArg.data).not.toHaveProperty("directoryId");
+  });
+
+  // W-T-006: empty frontMatterJson is omitted from the payload — the
+  // wire contract says undefined means "do not modify".
+  it("omits frontMatterJson from the payload when the textarea is empty", async () => {
+    commitMock.mockResolvedValue({ noteId: "note-1" });
+    renderForm({ job: emptyFrontMatterJob });
+
+    // The empty `{}` preview formats to "" so the textarea is empty.
+    expect(getFrontMatterTextarea().value).toBe("");
+
+    await act(async () => {
+      getSubmitButton().click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const callArg = commitMock.mock.calls[0]?.[0];
+    expect(callArg.data).not.toHaveProperty("frontMatterJson");
   });
 });

@@ -480,7 +480,7 @@ export const getDirectoryTreeFn = createServerFn({ method: "GET" })
     );
     const { tree } = await module.getDirectoryTree({
       container,
-      input: { actorUserId: user.id as unknown as string },
+      input: { actorUserId: user.id },
     });
     type Node = (typeof tree)[number];
     const flat: Array<{

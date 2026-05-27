@@ -2,7 +2,14 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   field,
@@ -107,6 +114,15 @@ export function IngestionPreviewForm({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
+  // W-F-003: Focus the title input when the editing view first mounts
+  // so keyboard users land on the most-edited field. Done via ref +
+  // effect (instead of `autoFocus`) to comply with biome's
+  // a11y/noAutofocus rule.
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    titleInputRef.current?.focus();
+  }, []);
+
   const jobId = job.id as unknown as string;
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -166,6 +182,7 @@ export function IngestionPreviewForm({
             タイトル
           </label>
           <input
+            ref={titleInputRef}
             id={titleId}
             type="text"
             value={title}

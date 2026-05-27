@@ -297,4 +297,168 @@ describe("UploadDialog state machine", () => {
     // to the `select` view.
     expect(document.body.textContent).toContain("ファイルをドラッグ");
   });
+
+  // W-T-001: EC-1 — when the poll loop exceeds POLL_TIMEOUT_MS (180s)
+  // without observing a terminal status, the view must transition to
+  // `timedOut`. `setSystemTime` is used so the `Date.now()` check
+  // inside the loop sees a value past the budget after a single tick.
+  it("transitions to `timedOut` after 180 seconds of polling", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    // Always still pending so the loop never reaches a terminal status.
+    getJobMock.mockResolvedValue({ job: baseJob });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const startedAt = new Date(2026, 0, 1, 0, 0, 0).getTime();
+    vi.setSystemTime(startedAt);
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    // Jump past the 180s budget so the next tick's Date.now() check
+    // sees the timeout breach.
+    vi.setSystemTime(startedAt + 181_000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(document.body.textContent).toContain(
+      "推論の完了を待ちきれませんでした",
+    );
+  });
+
+  // W-T-002: ADR-011 — after POLL_MAX_TRANSIENT_FAILURES (3) transient
+  // failures the loop stops and the view falls back to `select` with
+  // an inline alert. Uses `system`-kind errors so they are classified
+  // as transient (vs business/forbidden which are fatal-on-first).
+  it("falls back to `select` after 3 consecutive transient poll failures (ADR-011)", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    const transient = new AppServerError({
+      kind: "system",
+      code: null,
+      message: "transient backend error",
+    });
+    getJobMock.mockRejectedValue(transient);
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    // Three poll attempts, each one ticking the transientFailures
+    // counter. After the third failure the loop sets `error` + view
+    // back to `select`.
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+
+    expect(getJobMock).toHaveBeenCalledTimes(3);
+    expect(document.body.textContent).toContain("ファイルをドラッグ");
+    expect(document.body.querySelector('[role="alert"]')).not.toBeNull();
+  });
+
+  // W-T-007: failed-view 破棄 button calls `discardIngestionPreviewFn`,
+  // invalidates the router, then calls onClose.
+  it("invokes discard + router.invalidate + onClose when failed-view 破棄 is clicked", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: failedJob });
+    discardMock.mockResolvedValue(undefined);
+    const onClose = vi.fn();
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={onClose} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Find the failed-view discard button.
+    const allButtons = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    const discardBtn = allButtons.find(
+      (b) => (b.textContent ?? "").trim() === "破棄",
+    );
+    expect(discardBtn).toBeDefined();
+
+    await act(async () => {
+      discardBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    expect(discardMock.mock.calls[0]?.[0]).toMatchObject({
+      data: { jobId: "job-1" },
+    });
+    expect(invalidateMock).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // W-T-008: multi-file partial failure surfaces a per-file failed
+  // name list. uploadMock resolves once then rejects once.
+  it("reports failed file names in the multi-result view on partial failure", async () => {
+    uploadMock
+      .mockResolvedValueOnce({ jobId: "job-1" })
+      .mockRejectedValueOnce(new Error("boom"));
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const files = [
+      new File(["a"], "a.md", { type: "text/markdown" }),
+      new File(["b"], "b.md", { type: "text/markdown" }),
+    ];
+    act(() => {
+      dispatchFile(findInputByAccept(), files);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(uploadMock).toHaveBeenCalledTimes(2);
+    expect(document.body.textContent).toContain("2 件中 1 件をキューに追加");
+    expect(document.body.textContent).toContain("1 件失敗");
+    expect(document.body.textContent).toContain("b.md");
+  });
 });

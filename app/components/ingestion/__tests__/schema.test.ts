@@ -39,6 +39,26 @@ describe("commitIngestionPreviewSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  // W-T-009: explicit empty directoryId must fail — the wire contract
+  // only permits non-empty ids or absence (which means "do not modify").
+  it("rejects an empty directoryId string", () => {
+    const result = commitIngestionPreviewSchema.safeParse({
+      jobId: "j-1",
+      directoryId: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // W-T-009: directoryNameToCreate is trimmed by the schema — the
+  // handler should see a clean name without surrounding whitespace.
+  it("trims directoryNameToCreate", () => {
+    const parsed = commitIngestionPreviewSchema.parse({
+      jobId: "j-1",
+      directoryNameToCreate: "  ideas  ",
+    });
+    expect(parsed.directoryNameToCreate).toBe("ideas");
+  });
 });
 
 describe("getIngestionJobSchema", () => {

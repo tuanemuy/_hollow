@@ -3,6 +3,15 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 
+function renderBusinessMessage(code: string | null, fallback: string): string {
+  switch (code) {
+    case "FRONT_MATTER_JSON_INVALID":
+      return "FrontMatter の JSON が不正です。形式を確認してください";
+    default:
+      return fallback;
+  }
+}
+
 function renderConflictMessage(code: string | null): string {
   switch (code) {
     case "OPTIMISTIC_LOCK_FAILURE":
@@ -31,7 +40,7 @@ function formatFieldErrors(
 export function renderErrorMessage(error: SerializedError): string {
   switch (error.kind) {
     case "business":
-      return error.message;
+      return renderBusinessMessage(error.code, error.message);
     case "notFound":
       return "対象が見つかりません";
     case "conflict":

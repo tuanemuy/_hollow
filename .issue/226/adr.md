@@ -399,4 +399,80 @@ Proposed
 - トレードオフ:
   - `ConfirmDialog` 自体は引き続き内部に form を持つので、別箇所で同じパターン（form 内 ConfirmDialog）を導入した場合に再発するリスクが残る。将来的に `ConfirmDialog` の form を `<div>` に置き換えるか、規約として「ConfirmDialog は form の外に置く」を明文化する余地がある（フォローアップ）
 
+---
+
+## ADR-013: `editing` ステート中の backdrop click は無効化し、明示ボタン / Esc のみで閉じる
+
+### Status
+Proposed (review-001 W-F-005 への応答)
+
+### Context
+
+`UploadDialog` の `editing` ステートでは、ユーザーがタイトル / ディレクトリ / タグ / FrontMatter を編集しているため、誤って backdrop（モーダル外側）を click したときに入力内容を破棄してダイアログを閉じると体験上の損失が大きい。一方で `uploading` / `waiting` 中は backdrop click も既に無効化されている（`closeOnBackdropClick={!isPending}`）。
+
+`editing` で backdrop click を無効化する場合の挙動の選択肢:
+
+1. backdrop click も Esc も両方無効化（uploading / waiting と同じ厳密さ）
+2. backdrop click のみ無効化、Esc は通す（明示的な意図表明と捉えて受理）
+3. backdrop click も Esc も通す（変更なし、現在の挙動）
+
+(3) は誤操作リスクが残る。(1) は escape ハッチが消えてアクセシビリティ的に弱い（キーボード操作で閉じられない）。
+
+### Decision
+
+**`editing` 中は `closeOnBackdropClick={false}` 相当の扱いとし、Esc キーは Dialog の標準動作で通す。** 明示的に「閉じる」「キャンセル」ボタン、または Esc キーを押さない限りダイアログは閉じない。
+
+実装上は既存の `isPending` 判定（`uploading` / `waiting` / `editing`）が既にこの動作を兼ねており、本 ADR はその意図を文書化するもの。コード変更は伴わない。
+
+### Consequences
+
+- 良い点:
+  - 編集中の誤クローズによる入力ロストを防げる
+  - キーボードユーザーには Esc という escape ハッチが残る（アクセシビリティ準拠）
+  - `uploading` / `waiting` と同じ backdrop ポリシーで一貫している
+- トレードオフ:
+  - マウスのみのユーザーは「閉じる」「キャンセル」ボタンを明示クリックする必要がある（テキストで明示されているので発見可能）
+
+---
+
+## ADR-014: 重複 logic / 内部実装漏出は本 PR 対象外とし、フォローアップ Issue で対応する
+
+### Status
+Proposed (review-001 W-B-001 / W-B-003 / W-T-010 への応答)
+
+### Context
+
+review-001 で次の 3 件が指摘された:
+
+- **W-B-001**: `getDirectoryTreeFn` のフラット化ロジックが `loadDirectoryTreeFlat` と重複（`app/components/note/actions.ts:474-507` と `app/components/note/loaders.ts:314-346`）
+- **W-B-003**: `IngestionJobWire.errorCode` / `errorReason` がそのままクライアントへ流出（`errorReason` は自由文字列なので内部実装の漏洩リスク）
+- **W-T-010**: `useServerFn` モックの無限 chain Proxy が脆い（テスト基盤の問題で本 Issue の実装ロジックとは独立）
+
+これらはいずれも本 PR の実装で導入された欠陥というよりは:
+
+- W-B-001 は ADR-008 でも「重複ロジックを整理する余地が残る（本 Issue では深追いしない）」と明記済みの既知の整理対象
+- W-B-003 は `loadIngestionJobs` でも同じ挙動で、本 PR のレグレッションではない
+- W-T-010 は `useServerFn` モック規約自体の問題で、別途規約整備が必要
+
+選択肢:
+
+1. 本 PR 内ですべて修正する
+2. 本 PR 対象外として個別フォローアップ Issue を起票する
+
+(1) は PR スコープを大きく拡げ、それぞれが独立した設計判断を必要とするため、レビューサイクルが長期化するリスクがある。
+
+### Decision
+
+**いずれも本 PR 対象外とし、Phase 4 でフォローアップ Issue を起票する。** 起票時には本 ADR と review-001 の該当項を参照し、それぞれの対応方針を独立に検討する。
+
+### Consequences
+
+- 良い点:
+  - 本 PR のスコープが守られ、Phase 3 レビュー → マージのフローが進む
+  - それぞれのフォローアップが独立した設計判断として扱える
+  - W-B-001 は ADR-008 で既に予告されている整理であり、別 Issue 化が自然
+- トレードオフ:
+  - 3 件の課題が残置される（追跡は Phase 4 の Issue 起票で担保）
+  - W-B-003 の `errorReason` 漏出は内部実装メッセージが UI に露出するため、フォローアップまでに重大な漏洩が起きないか定期的に確認する必要がある
+
 
