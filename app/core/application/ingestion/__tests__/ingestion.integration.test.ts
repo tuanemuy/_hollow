@@ -631,6 +631,39 @@ describe("commitIngestionPreview", () => {
     expect(types).toContain("ingestion.committed");
   });
 
+  it("persists modifications.frontMatter on the resulting note (Issue #226)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const tempKey = `${owner}/ingestion/committed-fm`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {
+          frontMatter: { status: "published", priority: 1 },
+        },
+      },
+    });
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    expect(noteRows).toHaveLength(1);
+    const fm = JSON.parse(noteRows[0]?.frontMatterJson ?? "{}");
+    expect(fm).toEqual({ status: "published", priority: 1 });
+  });
+
   it("rejects commit on a pending (non-previewing) job with BusinessRuleError(InvalidStateForCommit)", async () => {
     const container = getContainer();
     await seedInstanceSettings(container);

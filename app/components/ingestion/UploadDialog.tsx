@@ -1,42 +1,583 @@
 "use client";
 
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
 import { dialogTitle, pillBtn } from "@/components/common/styles";
-import { UploadForm } from "./UploadForm";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { FORM_ERROR } from "../layout/styles";
+import { getDirectoryTreeFn } from "../note/actions";
+import type { FlatDirectory } from "../note/loaders";
+import {
+  discardIngestionPreviewFn,
+  getIngestionJobFn,
+  type IngestionJobWire,
+  uploadFileFn,
+} from "./actions";
+import { IngestionPreviewForm } from "./IngestionPreviewForm";
+
+type View =
+  | { kind: "select" }
+  | { kind: "uploading"; total: number }
+  | {
+      kind: "waiting";
+      jobId: string;
+      startedAt: number;
+      transientFailures: number;
+    }
+  | {
+      kind: "editing";
+      job: IngestionJobWire;
+    }
+  | {
+      kind: "failed";
+      job: IngestionJobWire;
+    }
+  | {
+      kind: "multiResult";
+      total: number;
+      succeeded: number;
+      failedNames: readonly string[];
+    }
+  | {
+      kind: "timedOut";
+      jobId: string;
+    };
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
 
+const DROPZONE =
+  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
+
+const POLL_INTERVAL_MS = 1800;
+const POLL_TIMEOUT_MS = 180_000;
+const POLL_MAX_TRANSIENT_FAILURES = 3;
+
+/**
+ * Business-kind errors (`notFound`, `forbidden`, `validation`,
+ * `business`) imply the job is unrecoverable from the modal's POV —
+ * stop polling immediately. `system` / `unknown` are treated as
+ * transient and counted toward the retry cap.
+ */
+function isPollFatalError(err: SerializedError): boolean {
+  switch (err.kind) {
+    case "notFound":
+    case "forbidden":
+    case "business":
+    case "unauthorized":
+    case "validation":
+    case "conflict":
+      return true;
+    case "system":
+    case "unknown":
+      return false;
+  }
+}
+
 export function UploadDialog({ open, onClose }: Props) {
+  const router = useRouter();
+  const upload = useServerFn(uploadFileFn);
+  const getJob = useServerFn(getIngestionJobFn);
+  const getTree = useServerFn(getDirectoryTreeFn);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [view, setView] = useState<View>({ kind: "select" });
+  const [error, setError] = useState<SerializedError | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const [tree, setTree] = useState<readonly FlatDirectory[]>([]);
+  const [isTreeLoading, setIsTreeLoading] = useState(false);
+
+  const inputId = useId();
+
+  // Flag flipped by the `open` cleanup so in-flight `submitFiles`
+  // callbacks know to skip their post-await `setView`. Without this
+  // a slow upload that resolves after the modal has been dismissed
+  // would silently transition the next-opened dialog into `waiting`
+  // for a job the user never started.
+  const cancelledRef = useRef(false);
+
+  // Reset to the select state whenever the dialog opens. The cleanup
+  // raises `cancelledRef` so any in-flight submitFiles promise (its
+  // network call still resolves) does not push state into a stale
+  // closure.
+  useEffect(() => {
+    if (open) {
+      cancelledRef.current = false;
+      setView({ kind: "select" });
+      setError(null);
+      setIsDragOver(false);
+      if (fileInputRef.current !== null) fileInputRef.current.value = "";
+    }
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [open]);
+
+  // Lazy-load the directory tree the first time we enter the `editing`
+  // view. Re-runs only on the kind transition because the dependency is
+  // a string discriminant.
+  useEffect(() => {
+    if (view.kind !== "editing") return;
+    if (tree.length > 0) return;
+    let cancelled = false;
+    setIsTreeLoading(true);
+    void (async () => {
+      try {
+        const { flat } = await getTree();
+        if (!cancelled) setTree(flat);
+      } catch {
+        // Tree load failure leaves the picker empty — the user can
+        // still type a new directory name. Silent recovery is preferable
+        // to blocking the editing UX with a banner.
+      } finally {
+        if (!cancelled) setIsTreeLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, tree.length, getTree]);
+
+  // Polling loop driven by the `waiting` view. The recursive
+  // `setTimeout` is tracked on a ref so the effect cleanup can
+  // `clearTimeout` whichever timer is currently outstanding —
+  // without that ref a tick scheduled mid-flight would survive
+  // a view change / unmount.
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (view.kind !== "waiting") return;
+    let cancelled = false;
+    const waitingView = view;
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const { job } = await getJob({ data: { jobId: waitingView.jobId } });
+        if (cancelled) return;
+        if (job.status === "previewing") {
+          setView({ kind: "editing", job });
+          return;
+        }
+        if (job.status === "failed") {
+          setView({ kind: "failed", job });
+          return;
+        }
+        if (job.status === "saved" || job.status === "discarded") {
+          // Edge: the job moved past previewing between two polls (e.g.
+          // a parallel tab acted on it). Close the modal so the user is
+          // not stuck on a stale state.
+          onClose();
+          return;
+        }
+        // Still pending / processing — schedule the next poll if we
+        // have not run out of time.
+        if (Date.now() - waitingView.startedAt > POLL_TIMEOUT_MS) {
+          setView({ kind: "timedOut", jobId: waitingView.jobId });
+          return;
+        }
+        pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
+      } catch (e) {
+        if (cancelled) return;
+        const serialized = extractSerializedError(e);
+        if (isPollFatalError(serialized)) {
+          setError(serialized);
+          setView({ kind: "select" });
+          return;
+        }
+        const nextFailures = waitingView.transientFailures + 1;
+        if (nextFailures >= POLL_MAX_TRANSIENT_FAILURES) {
+          setError(serialized);
+          setView({ kind: "select" });
+          return;
+        }
+        setView({
+          kind: "waiting",
+          jobId: waitingView.jobId,
+          startedAt: waitingView.startedAt,
+          transientFailures: nextFailures,
+        });
+      }
+    };
+    pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      if (pollTimerRef.current !== null) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [view, getJob, onClose]);
+
+  const submitFiles = useCallback(
+    (files: FileList | null) => {
+      if (files === null || files.length === 0) return;
+      setError(null);
+      const list: File[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files.item(i);
+        if (f !== null) list.push(f);
+      }
+      if (list.length === 0) return;
+
+      if (list.length === 1) {
+        const file = list[0];
+        if (file === undefined) return;
+        setView({ kind: "uploading", total: 1 });
+        void (async () => {
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const { jobId } = await upload({ data: formData });
+            if (cancelledRef.current) return;
+            setView({
+              kind: "waiting",
+              jobId: jobId as unknown as string,
+              startedAt: Date.now(),
+              transientFailures: 0,
+            });
+          } catch (e) {
+            if (cancelledRef.current) return;
+            setError(extractSerializedError(e));
+            setView({ kind: "select" });
+          }
+        })();
+        return;
+      }
+
+      // Multiple files: enqueue all, surface aggregate result.
+      setView({ kind: "uploading", total: list.length });
+      void (async () => {
+        let succeeded = 0;
+        const failedNames: string[] = [];
+        for (const f of list) {
+          try {
+            const formData = new FormData();
+            formData.append("file", f);
+            await upload({ data: formData });
+            if (cancelledRef.current) return;
+            succeeded += 1;
+          } catch {
+            if (cancelledRef.current) return;
+            failedNames.push(f.name);
+          }
+        }
+        await router.invalidate();
+        if (cancelledRef.current) return;
+        setView({
+          kind: "multiResult",
+          total: list.length,
+          succeeded,
+          failedNames,
+        });
+      })();
+    },
+    [upload, router],
+  );
+
+  const onCommitted = useCallback(
+    (noteId: string) => {
+      void router.navigate({
+        to: "/notes/$noteId",
+        params: { noteId },
+      });
+      onClose();
+    },
+    [router, onClose],
+  );
+
+  const onDiscarded = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  // While the user has a single job mid-flight, the dialog must keep
+  // its body content laid out responsively — the inner stack scrolls
+  // and the action bar inside `IngestionPreviewForm` sticks.
+  const isPending =
+    view.kind === "uploading" ||
+    view.kind === "waiting" ||
+    view.kind === "editing";
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
       ariaLabel="アップロード"
-      closeOnBackdropClick
+      closeOnBackdropClick={!isPending}
       showCloseButton
+      closable={view.kind !== "uploading"}
     >
       <h2 className={dialogTitle}>アップロード</h2>
+
+      {view.kind === "select" ? (
+        <SelectView
+          inputId={inputId}
+          fileInputRef={fileInputRef}
+          isDragOver={isDragOver}
+          onDragOver={() => setIsDragOver(true)}
+          onDragLeave={() => setIsDragOver(false)}
+          onFiles={submitFiles}
+          error={error}
+        />
+      ) : null}
+
+      {view.kind === "uploading" ? <UploadingView total={view.total} /> : null}
+
+      {view.kind === "waiting" ? <WaitingView /> : null}
+
+      {view.kind === "editing" ? (
+        <IngestionPreviewForm
+          job={view.job}
+          tree={tree}
+          isTreeLoading={isTreeLoading}
+          onCommitted={onCommitted}
+          onDiscarded={onDiscarded}
+          onCancel={onClose}
+        />
+      ) : null}
+
+      {view.kind === "failed" ? (
+        <FailedView job={view.job} onClose={onClose} />
+      ) : null}
+
+      {view.kind === "multiResult" ? (
+        <MultiResultView
+          total={view.total}
+          succeeded={view.succeeded}
+          failedNames={view.failedNames}
+          onClose={onClose}
+        />
+      ) : null}
+
+      {view.kind === "timedOut" ? <TimedOutView onClose={onClose} /> : null}
+    </Dialog>
+  );
+}
+
+function SelectView({
+  inputId,
+  fileInputRef,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onFiles,
+  error,
+}: Readonly<{
+  inputId: string;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  isDragOver: boolean;
+  onDragOver: () => void;
+  onDragLeave: () => void;
+  onFiles: (files: FileList | null) => void;
+  error: SerializedError | null;
+}>) {
+  return (
+    <>
       <p className="text-sm text-ink-secondary mb-4">
         ファイルから新規ノートを作成します。HTML / Markdown / Office / PDF /
         画像 / 音声に対応しています。
       </p>
-      <UploadForm />
+      <label
+        htmlFor={inputId}
+        className={DROPZONE}
+        data-dragover={isDragOver ? "" : undefined}
+        onDragOver={(e) => {
+          e.preventDefault();
+          onDragOver();
+        }}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => {
+          e.preventDefault();
+          onDragLeave();
+          onFiles(e.dataTransfer.files);
+        }}
+      >
+        <p>
+          <strong className="text-ink">ファイルをドラッグ&ドロップ</strong>{" "}
+          またはクリックして選択
+        </p>
+        <p className="text-xs mt-2 text-ink-tertiary">複数選択にも対応</p>
+        <input
+          ref={fileInputRef}
+          id={inputId}
+          type="file"
+          multiple
+          onChange={(e) => onFiles(e.target.files)}
+        />
+      </label>
+      {error !== null ? (
+        <p className={FORM_ERROR} role="alert">
+          {displayError(error)}
+        </p>
+      ) : null}
       <div className="mt-6 flex justify-end">
-        {/*
-         * Explicit empty `hash` keeps the URL clean (`/upload`) instead
-         * of the router potentially preserving `#upload` from the
-         * outgoing location. UploadDialogMount also suppresses the
-         * dialog on the `/upload` pathname, so we do not call
-         * onClose() — that would race with the Link navigation.
-         */}
         <Link to="/upload" hash={() => ""} className={pillBtn}>
           取り込みキューを見る
         </Link>
       </div>
-    </Dialog>
+    </>
+  );
+}
+
+function UploadingView({ total }: Readonly<{ total: number }>) {
+  return (
+    <div
+      className="py-8 text-center text-sm text-ink-secondary"
+      aria-live="polite"
+    >
+      <SkeletonBlock />
+      <p className="mt-4">
+        {total === 1
+          ? "アップロード中..."
+          : `${total} 件のファイルをアップロード中...`}
+      </p>
+    </div>
+  );
+}
+
+function WaitingView() {
+  return (
+    <div
+      className="py-8 text-center text-sm text-ink-secondary"
+      aria-live="polite"
+    >
+      <SkeletonBlock />
+      <p className="mt-4">LLM がタイトルとメタデータを提案中...</p>
+      <p className="mt-1 text-xs text-ink-tertiary">
+        この処理には数十秒かかることがあります
+      </p>
+    </div>
+  );
+}
+
+function SkeletonBlock() {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="h-3 bg-surface rounded-md w-3/4 mx-auto motion-safe:animate-pulse" />
+      <div className="h-3 bg-surface rounded-md w-1/2 mx-auto motion-safe:animate-pulse" />
+      <div className="h-3 bg-surface rounded-md w-2/3 mx-auto motion-safe:animate-pulse" />
+    </div>
+  );
+}
+
+function FailedView({
+  job,
+  onClose,
+}: Readonly<{ job: IngestionJobWire; onClose: () => void }>) {
+  const router = useRouter();
+  const discard = useServerFn(discardIngestionPreviewFn);
+  const [isPending, setIsPending] = useState(false);
+  const [err, setErr] = useState<SerializedError | null>(null);
+  const onDiscard = () => {
+    setIsPending(true);
+    void (async () => {
+      try {
+        await discard({ data: { jobId: job.id as unknown as string } });
+        await router.invalidate();
+        onClose();
+      } catch (e) {
+        setErr(extractSerializedError(e));
+        setIsPending(false);
+      }
+    })();
+  };
+  return (
+    <div className="py-4">
+      <p className="text-sm text-ink mb-2">
+        取り込みに失敗しました: {job.originalFileName}
+      </p>
+      {job.errorReason !== null ? (
+        <p className="text-sm text-ink-secondary mb-4">
+          {job.errorCode}: {job.errorReason}
+        </p>
+      ) : null}
+      {err !== null ? (
+        <p className={FORM_ERROR} role="alert">
+          {displayError(err)}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
+        <Link to="/upload" hash={() => ""} className={pillBtn}>
+          キュー画面で詳細を見る
+        </Link>
+        <button
+          type="button"
+          className={pillBtn}
+          data-danger=""
+          onClick={onDiscard}
+          disabled={isPending}
+        >
+          破棄
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MultiResultView({
+  total,
+  succeeded,
+  failedNames,
+  onClose,
+}: Readonly<{
+  total: number;
+  succeeded: number;
+  failedNames: readonly string[];
+  onClose: () => void;
+}>) {
+  const failed = failedNames.length;
+  return (
+    <div className="py-2">
+      <p className="text-sm text-ink mb-2">
+        {total} 件中 {succeeded} 件をキューに追加しました
+        {failed > 0 ? `（${failed} 件失敗）` : ""}。
+      </p>
+      <p className="text-sm text-ink-secondary">
+        各ジョブのプレビューはキュー画面から順次操作できます。
+      </p>
+      {failedNames.length > 0 ? (
+        <ul className="mt-3 text-xs text-ink-tertiary list-disc pl-5">
+          {failedNames.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
+        <button type="button" className={pillBtn} onClick={onClose}>
+          閉じる
+        </button>
+        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
+          キュー画面を開く
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function TimedOutView({ onClose }: Readonly<{ onClose: () => void }>) {
+  return (
+    <div className="py-2">
+      <p className="text-sm text-ink mb-2">
+        推論の完了を待ちきれませんでした。
+      </p>
+      <p className="text-sm text-ink-secondary">
+        ジョブはキューに残っています。キュー画面から続きを操作できます。
+      </p>
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
+        <button type="button" className={pillBtn} onClick={onClose}>
+          閉じる
+        </button>
+        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
+          キュー画面を開く
+        </Link>
+      </div>
+    </div>
   );
 }

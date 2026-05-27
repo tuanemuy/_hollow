@@ -15,8 +15,7 @@ export async function UploadPage({ user }: Props) {
     <>
       <h1 className={PAGE_TITLE}>アップロード</h1>
       <p className={PAGE_SUBTITLE}>
-        ファイルから新規ノートを作成します。HTML / Markdown / Office / PDF /
-        画像 / 音声に対応しています。
+        裏で進行中・失敗・プレビュー保留のアップロードを管理する画面です。新規取り込みはヘッダーの「アップロード」ボタンから開くモーダルで完結します。
       </p>
 
       <UploadForm />
