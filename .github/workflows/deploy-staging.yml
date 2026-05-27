@@ -75,11 +75,15 @@ jobs:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
           set -euo pipefail
+          # Restrict newly-created files to owner-only as defence-in-depth
+          # on top of `mktemp`'s 0600 default (Issue #245 ADR-001).
+          umask 077
           # Run BEFORE Deploy Workers so a key-set mismatch short-circuits
           # the workflow before any Worker code is uploaded (Issue #245).
-          # `Inject secrets` below re-decrypts in its own step rather than
-          # sharing this file via $GITHUB_ENV; keeping the plaintext SOPS
-          # output step-local is the safer cleanup boundary (#245 ADR-001).
+          # The `Inject secrets` step below independently re-decrypts the
+          # SOPS file in its own bash scope rather than sharing this file
+          # via $GITHUB_ENV — keeping the plaintext step-local is the
+          # safer cleanup boundary (#245 ADR-001; see also that step).
           DECRYPTED_RAW=""
           trap 'rm -f "${DECRYPTED_RAW:-}"' EXIT
           DECRYPTED_RAW=$(mktemp)
@@ -119,6 +123,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          # Restrict newly-created files to owner-only as defence-in-depth
+          # on top of `mktemp`'s 0600 default (Issue #245 ADR-001).
+          umask 077
           # Key-set validation already ran in `Validate secrets` above
           # (Issue #245). This step re-decrypts on purpose — sharing the
           # plaintext file across steps would broaden its retention scope

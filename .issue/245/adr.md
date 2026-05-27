@@ -30,6 +30,7 @@ B の修正で `Validate secrets` を `Inject secrets` から切り出すと、�
 
 - 良い点: 各 step が自己完結し、cleanup 漏れリスクなし。`Validate secrets` だけを取り出してデバッグする際も追加の前提なしに実行できる。
 - トレードオフ: `sops -d` を 2 回走らせるコストを許容する（無視できる範囲）。
+- 前提: `secrets.SOPS_AGE_KEY` は job 開始時にスナップショットされ step 間で再評価されないため、`Validate secrets` と `Inject secrets` の間に age キーローテーションが起きても両 step が同一キーで decrypt できる（GitHub Actions の secret 配信モデル）。
 
 ---
 
