@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
+import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { DirectoryTreeNode } from "@/core/application/dto/directory";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
@@ -111,13 +112,9 @@ export async function Sidebar({ user }: Props) {
             </Link>
           </li>
           <li>
-            <Link
-              to="/upload"
-              className={NAV_ITEM}
-              activeProps={ACTIVE_NAV_PROPS}
-            >
+            <UploadButton className={NAV_ITEM}>
               <span>アップロード</span>
-            </Link>
+            </UploadButton>
           </li>
         </ul>
       </div>

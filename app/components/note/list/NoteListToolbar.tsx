@@ -4,6 +4,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
@@ -105,9 +106,7 @@ export function NoteListToolbar({
           >
             新規作成
           </Link>
-          <Link to="/upload" className={pillBtn}>
-            アップロード
-          </Link>
+          <UploadButton className={pillBtn}>アップロード</UploadButton>
         </div>
       </div>
       <SaveViewDialog
