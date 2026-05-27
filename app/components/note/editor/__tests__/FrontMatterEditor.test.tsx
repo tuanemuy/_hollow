@@ -363,6 +363,169 @@ describe("FrontMatterEditor — structured mode arbitrary keys", () => {
     expect(row).not.toBeNull();
     expect(row?.textContent).toContain("raw モード");
   });
+
+  // W-TS-005: `data-value-kind` is a CSS / QA contract surface.
+  // `number` is covered above; assert the other non-trivial variants so
+  // the attribute domain stays pinned by tests.
+  it('renders a boolean-typed value with data-value-kind="boolean"', () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ flag: true }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const row = container.querySelector('[data-value-kind="boolean"]');
+    expect(row).not.toBeNull();
+  });
+
+  it('renders a nested-object value with data-value-kind="complex"', () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ obj: { a: 1 } }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const row = container.querySelector('[data-value-kind="complex"]');
+    expect(row).not.toBeNull();
+    // The complex row replaces the value `<input>` with the read-only
+    // raw-mode CTA, so no value input should be rendered for it.
+    expect(getValueInput("obj")).toBeNull();
+  });
+
+  // W-TS-004 (a): IME conversion confirm Enter must not commit a rename.
+  // Same guard as `Dialog.tsx` / `NotePickerDialog.tsx`. The keydown
+  // handler short-circuits on `isComposing`, so neither `preventDefault`
+  // nor `blur` (and thus `onRenameKey`) fires.
+  it("ignores Enter while IME is composing (no commit)", () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ a: "1" }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const keyInput = getKeyInputs()[0];
+    keyInput.focus();
+    act(() => {
+      typeInto(keyInput, "alpha");
+    });
+    const ev = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+      // `isComposing` is read-only on KeyboardEvent in some envs; the
+      // constructor honors it in happy-dom.
+      isComposing: true,
+    });
+    act(() => {
+      keyInput.dispatchEvent(ev);
+    });
+    expect(ev.defaultPrevented).toBe(false);
+    expect(h.onRenameKey).not.toHaveBeenCalled();
+  });
+
+  // W-TS-004 (b): on a duplicate rename the reducer rejects and the
+  // parent re-renders with the same `parsed`. The `useEffect([fmKey])`
+  // resync in `KeyRow` snaps the local `keyBuffer` back to the canonical
+  // key so the user sees a clean revert (W-FE-002).
+  it("snaps the key input value back to the original key after a duplicate rename", () => {
+    const h = makeHandlers();
+    const parsed = { a: "1", b: "2" };
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={parsed}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const keyInput = getKeyInputs()[0];
+    expect(keyInput.value).toBe("a");
+    act(() => {
+      typeInto(keyInput, "b");
+    });
+    expect(keyInput.value).toBe("b");
+    act(() => {
+      keyInput.dispatchEvent(new Event("focusout", { bubbles: true }));
+    });
+    // UI pre-check rolls the buffer back before dispatching so the
+    // reducer's reject branch (which leaves `parsed` unchanged) lands on
+    // an already-recovered input.
+    expect(h.onRenameKey).toHaveBeenCalledWith("a", "b");
+    // Parent re-renders with the same `parsed` (reducer kept it intact
+    // because of the duplicate).
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={parsed}
+          rawJson=""
+          parseError={{ kind: "duplicateKey", key: "b" }}
+          {...h}
+        />,
+      );
+    });
+    const refreshed = getKeyInputs()[0];
+    expect(refreshed.value).toBe("a");
+  });
+
+  // W-TS-004 (c): when the new-key buffer collides with an existing
+  // key the reducer surfaces the structured error but the input value
+  // must be kept (W-FE-003) so the user can edit the name without
+  // retyping it from scratch.
+  it("keeps the new-key buffer when commitNewKey hits a duplicate", () => {
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ a: "1" }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const addInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="追加するキー名"]',
+    );
+    if (!addInput) throw new Error("no add input");
+    act(() => {
+      typeInto(addInput, "a");
+    });
+    const addBtn = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "キーを追加");
+    if (!addBtn) throw new Error("no add button");
+    act(() => {
+      addBtn.click();
+    });
+    expect(h.onAddKey).toHaveBeenCalledWith("a");
+    // The duplicate branch returns early before `setNewKeyBuffer("")`,
+    // so the input still holds the rejected text and the user can edit
+    // it directly instead of starting over.
+    expect(addInput.value).toBe("a");
+  });
 });
 
 describe("FrontMatterEditor — raw mode", () => {

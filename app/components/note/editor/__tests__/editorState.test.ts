@@ -861,6 +861,34 @@ describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
     });
   });
 
+  // W-TS-003: the toggle path is intentionally asymmetric — structured
+  // errors (`duplicateKey` / `emptyKey`) survive a mode switch (W-ST-001
+  // above), but a `json`-kind error must be cleared when leaving raw
+  // mode because the raw text is re-parsed from the in-sync parsed
+  // object. Exercise the cleared side explicitly so a regression in the
+  // `kind !== "json"` guard surfaces here.
+  it("toggleFrontMatterMode clears a json-kind error and re-parses raw text when leaving raw", () => {
+    // Start in raw mode and introduce a json error via invalid input,
+    // then fix it: this leaves `kind: "json"` not the path. Instead,
+    // construct a stale state directly — raw mode + valid raw text + a
+    // residual json error — so the toggle is the action under test.
+    const inRaw = editorReducer(freshState(), {
+      type: "toggleFrontMatterMode",
+    });
+    const withValidRaw = editorReducer(inRaw, {
+      type: "setFrontMatterRawJson",
+      value: `{ "k": 1 }`,
+    });
+    const stale: EditorState = {
+      ...withValidRaw,
+      frontMatterJsonError: { kind: "json", message: "stale" },
+    };
+    const toggled = editorReducer(stale, { type: "toggleFrontMatterMode" });
+    expect(toggled.frontMatterMode).toBe("structured");
+    expect(toggled.frontMatterJsonError).toBe(null);
+    expect(toggled.frontMatter).toEqual({ k: 1 });
+  });
+
   it("clearFrontMatterError clears any pending error", () => {
     const s0 = createInitialEditorState({
       ...baseInit,

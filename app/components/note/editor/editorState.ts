@@ -366,10 +366,10 @@ export function editorReducer(
         // ADR-003: a pending structured-mode rejection (duplicateKey /
         // emptyKey) must not be silently dropped by switching modes.
         // The current parsed object is in-sync (the reducer only updates
-        // `frontMatter` on successful rename / add), so re-stringifying
-        // here would emit a "clean" raw view that contradicts the error.
-        // Preserve the error and leave the raw text as-is from the last
-        // sync; the UI keeps the inline message visible.
+        // `frontMatter` on successful rename / add), so resync the raw
+        // view from the in-sync parsed object — raw mode shows the
+        // actual committed state while the UI keeps the inline error
+        // message visible above the textarea.
         const hasStructuredError =
           state.frontMatterJsonError !== null &&
           state.frontMatterJsonError.kind !== "json";
