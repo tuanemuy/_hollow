@@ -135,7 +135,7 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 - `:root` のトークンは [`spec/design/tokens.md`](./tokens.md) の「ルート定義の最終形」をそのままコピーして使う。
 - ローカル変数 (`--bg`, `--ink` などドラフト時の短縮名) は使わず、トークンの正式名 (`--color-bg` 等) を使う。
 - 各ページの構造的な共通要素（ヘッダー、サイドバー、ドロワー開閉スクリプト）は **画面ごとに同じマークアップ** を貼る。Phase 3 の段階ではコンポーネント化しない（あくまで設計の HTML プロトタイプ）。
-- レスポンシブは `min-width` ベース。`max-width` メディアクエリは使わない。
+- レスポンシブは `min-width` ベース。例外として、グローバルな mobile fix（44px タップ領域の確保等）や、特定のブレークポイント範囲のみに適用したいスタイルでは `max-width` メディアクエリも使用してよい。
 - **アップロードモーダル**（P13 主動線）は `app/components/common/Dialog.tsx` primitive と既存 `MoveNoteDialog` / `SaveViewDialog` 等のパターンに準拠する。モーダル UI のビジュアルモックは [`pages/P13-upload-modal.html`](./pages/P13-upload-modal.html) に置き、フォールバックページは [`pages/P13-upload.html`](./pages/P13-upload.html) として並列に残す。
 
 ---
