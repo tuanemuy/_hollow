@@ -9,11 +9,27 @@ import type { IngestionJobId, IngestionStatus } from "../valueObject";
  * Offset/limit-style; ingestion lists are bounded per user. Filtering by
  * `status` is offered as the most common surface — searching by kind /
  * date range is handled in the application layer if needed.
+ *
+ * `excludeStatuses` lets the caller declaratively hide rows in the given
+ * status set (e.g. the upload-queue view hides `discarded` by default).
+ *
+ * Contract for combining `status` (include) and `excludeStatuses`:
+ * - If `status` is provided, it takes precedence and `excludeStatuses`
+ *   is ignored — adapters MUST NOT emit a `NOT IN (...)` clause in that
+ *   case. The intent is that an explicit include is more specific than
+ *   a default exclude, so callers can use `status: "discarded"` to fetch
+ *   a discarded-only history view even while the default excludes
+ *   `discarded` elsewhere.
+ * - If `status` is omitted and `excludeStatuses` is a non-empty array,
+ *   rows whose `status` is in the array are filtered out.
+ * - If both are omitted (or `excludeStatuses` is empty), no status
+ *   filtering is applied.
  */
 export type IngestionJobListOpts = Readonly<{
   limit: number;
   offset: number;
   status?: IngestionStatus;
+  excludeStatuses?: readonly IngestionStatus[];
   order?: "asc" | "desc";
 }>;
 

@@ -116,13 +116,17 @@
 ## GetIngestionJobs / GetIngestionJob
 
 ### 入力DTO
-- `actorUserId: UserId`, （Get: `jobId`）
+- 一覧: `actorUserId: UserId`, `status?: IngestionStatus`, `limit?: number`, `offset?: number`, `includeDiscarded?: boolean`
+- 単体: `actorUserId: UserId`, `jobId: IngestionJobId`
 
 ### 出力DTO
 - 一覧 / 単体の IngestionJobDTO
 
 ### 処理フロー
 - IngestionJobRepository.findByOwner / findById、所有者一致を確認
+- 既定では `discarded` を結果から除外する（取り込みキュー表示向け）
+- `includeDiscarded: true` または `status: "discarded"` を明示することで履歴として取得可能
+- `status` 明示指定が既定の除外条件より優先される（include が exclude に勝つ契約）
 
 ---
 

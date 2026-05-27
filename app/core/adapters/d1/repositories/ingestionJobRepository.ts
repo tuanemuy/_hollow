@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, notInArray, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -365,6 +365,10 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
       const conditions = [eq(ingestionJobs.ownerId, ownerId)];
       if (opts.status !== undefined) {
         conditions.push(eq(ingestionJobs.status, opts.status));
+      } else if (opts.excludeStatuses && opts.excludeStatuses.length > 0) {
+        conditions.push(
+          notInArray(ingestionJobs.status, [...opts.excludeStatuses]),
+        );
       }
       const rows = await this.db
         .select()

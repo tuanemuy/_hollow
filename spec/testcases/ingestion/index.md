@@ -56,6 +56,9 @@
 |---|---|---|
 | 自分のジョブ | Get | DTO |
 | 他人のジョブ | Get | `ForbiddenError('INGESTION_JOB_FORBIDDEN')` |
+| discarded を含む自分のジョブ群 | Get（status 未指定） | discarded を含まない一覧 |
+| discarded を含む自分のジョブ群 | Get（`includeDiscarded: true`） | discarded を含む一覧 |
+| discarded を含む自分のジョブ群 | Get（`status: "discarded"`） | discarded のみ含む一覧 |
 
 ## BulkUpload
 
