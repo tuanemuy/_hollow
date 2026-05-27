@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useId } from "react";
 import { field, fieldControl, fieldLabel } from "@/components/common/styles";
 import type { FlatDirectory } from "../loaders";
@@ -12,6 +13,10 @@ import type { FlatDirectory } from "../loaders";
  * by the orchestrator as `pendingDirectoryName` until save, at which
  * point it is created via `createDirectoryFn` and the resolved id is
  * passed to `createNoteFn` / `saveNoteFn`.
+ *
+ * `legendSlot` (optional) renders an inline node next to the
+ * "ディレクトリ" legend text. Used by `IngestionPreviewForm` to attach
+ * the "AI suggestion" caption; left unused by the regular note editor.
  */
 export type DirectoryPickerProps = Readonly<{
   tree: readonly FlatDirectory[];
@@ -20,6 +25,7 @@ export type DirectoryPickerProps = Readonly<{
   onSelectExisting: (id: string | null) => void;
   onSetPendingName: (name: string | null) => void;
   disabled?: boolean;
+  legendSlot?: ReactNode;
 }>;
 
 export function DirectoryPicker({
@@ -29,6 +35,7 @@ export function DirectoryPicker({
   onSelectExisting,
   onSetPendingName,
   disabled,
+  legendSlot,
 }: DirectoryPickerProps) {
   const selectId = useId();
   const newId = useId();
@@ -36,8 +43,9 @@ export function DirectoryPicker({
 
   return (
     <fieldset className="mb-4 rounded-lg border border-hairline p-4">
-      <legend className="px-2 text-[13px] font-medium text-ink-secondary">
-        ディレクトリ
+      <legend className="inline-flex items-center gap-2 px-2 text-[13px] font-medium text-ink-secondary">
+        <span>ディレクトリ</span>
+        {legendSlot}
       </legend>
       <div className={field}>
         <label htmlFor={selectId} className={fieldLabel}>

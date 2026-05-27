@@ -123,9 +123,35 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--color-ink-secondary);
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 6px;
   }
+  .ai-badge {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--color-ink-tertiary);
+  }
+  details.fm-block { margin-bottom: 16px; }
+  details.fm-block > summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-ink-secondary);
+    margin-bottom: 6px;
+  }
+  details.fm-block > summary::-webkit-details-marker { display: none; }
+  details.fm-block > summary .caret {
+    display: inline-block;
+    transition: transform 120ms ease-out;
+  }
+  details.fm-block[open] > summary .caret { transform: rotate(90deg); }
   .field-input,
   .field-textarea,
   .field-select {
@@ -272,12 +298,27 @@
       <h2 class="panel-title">アップロード</h2>
 
       <div class="field-block">
-        <label class="field-label" for="t1">タイトル</label>
+        <label class="field-label" for="t1">
+          <span>タイトル</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </label>
         <input id="t1" class="field-input" value="移行計画ドラフト">
       </div>
 
+      <div class="field-block">
+        <p class="field-label">本文プレビュー（LLM 抽出・読み取り専用）</p>
+        <div class="readonly-content">
+          <h3>移行計画ドラフト</h3>
+          <p>このノートは LLM によって構造化された HTML プレビューです。モーダル内では編集できません。</p>
+          <p>本文を編集する場合は、登録後にノート詳細／エディタへ遷移してください。</p>
+        </div>
+      </div>
+
       <fieldset class="dir-set">
-        <legend>ディレクトリ</legend>
+        <legend>
+          <span>ディレクトリ</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </legend>
         <div class="field-block">
           <label class="field-label">既存ディレクトリ</label>
           <select class="field-select">
@@ -293,26 +334,24 @@
       </fieldset>
 
       <div class="field-block">
-        <label class="field-label" for="tags1">タグ（カンマ区切り）</label>
+        <label class="field-label" for="tags1">
+          <span>タグ（カンマ区切り）</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </label>
         <input id="tags1" class="field-input" value="migration, draft">
       </div>
 
-      <div class="field-block">
-        <label class="field-label" for="fm1">FrontMatter（JSON）</label>
-        <textarea id="fm1" class="field-textarea" spellcheck="false">{
+      <details class="fm-block">
+        <summary>
+          <span class="caret" aria-hidden="true">▸</span>
+          <span>FrontMatter（JSON）</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </summary>
+        <textarea id="fm1" class="field-textarea" spellcheck="false" style="margin-top:6px;">{
   "status": "draft",
   "owner": "team-platform"
 }</textarea>
-      </div>
-
-      <div class="field-block">
-        <p class="field-label">本文プレビュー（読み取り専用）</p>
-        <div class="readonly-content">
-          <h3>移行計画ドラフト</h3>
-          <p>このノートは LLM によって構造化された HTML プレビューです。モーダル内では編集できません。</p>
-          <p>本文を編集する場合は、登録後にノート詳細／エディタへ遷移してください。</p>
-        </div>
-      </div>
+      </details>
 
       <div class="actions">
         <button class="pill">キャンセル</button>
@@ -331,12 +370,26 @@
       <h2 class="panel-title">アップロード</h2>
 
       <div class="field-block">
-        <label class="field-label">タイトル</label>
+        <label class="field-label">
+          <span>タイトル</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </label>
         <input class="field-input" value="議事録 2026-05-20">
       </div>
 
+      <div class="field-block">
+        <p class="field-label">本文プレビュー（LLM 抽出・読み取り専用）</p>
+        <div class="readonly-content">
+          <h3>議事録 2026-05-20</h3>
+          <p>本文 HTML プレビュー。モーダル内は読み取り専用。</p>
+        </div>
+      </div>
+
       <fieldset class="dir-set">
-        <legend>ディレクトリ</legend>
+        <legend>
+          <span>ディレクトリ</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </legend>
         <div class="field-block">
           <label class="field-label">既存ディレクトリ</label>
           <select class="field-select">
@@ -346,12 +399,16 @@
         </div>
       </fieldset>
 
-      <div class="field-block">
-        <label class="field-label">FrontMatter（JSON）</label>
-        <textarea class="field-textarea" spellcheck="false">{
+      <details class="fm-block">
+        <summary>
+          <span class="caret" aria-hidden="true">▸</span>
+          <span>FrontMatter（JSON）</span>
+          <span class="ai-badge">✨ AI 提案</span>
+        </summary>
+        <textarea class="field-textarea" spellcheck="false" style="margin-top:6px;">{
   "date": "2026-05-20"
 }</textarea>
-      </div>
+      </details>
 
       <div class="actions">
         <button class="pill">キャンセル</button>
