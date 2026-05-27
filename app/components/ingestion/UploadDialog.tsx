@@ -403,7 +403,7 @@ function SelectView({
           <strong className="text-ink">ファイルをドラッグ&ドロップ</strong>{" "}
           またはクリックして選択
         </p>
-        <p className="text-[13px] mt-2 text-ink-tertiary">複数選択にも対応</p>
+        <p className="text-xs mt-2 text-ink-tertiary">複数選択にも対応</p>
         <input
           ref={fileInputRef}
           id={inputId}
@@ -429,7 +429,7 @@ function SelectView({
 function UploadingView({ total }: Readonly<{ total: number }>) {
   return (
     <div
-      className="py-12 text-center text-sm text-ink-secondary"
+      className="py-8 text-center text-sm text-ink-secondary"
       aria-live="polite"
     >
       <SkeletonBlock />
@@ -445,12 +445,12 @@ function UploadingView({ total }: Readonly<{ total: number }>) {
 function WaitingView() {
   return (
     <div
-      className="py-10 text-center text-sm text-ink-secondary"
+      className="py-8 text-center text-sm text-ink-secondary"
       aria-live="polite"
     >
       <SkeletonBlock />
       <p className="mt-4">LLM がタイトルとメタデータを提案中...</p>
-      <p className="mt-1 text-[12px] text-ink-tertiary">
+      <p className="mt-1 text-xs text-ink-tertiary">
         この処理には数十秒かかることがあります
       </p>
     </div>
@@ -494,7 +494,7 @@ function FailedView({
         取り込みに失敗しました: {job.originalFileName}
       </p>
       {job.errorReason !== null ? (
-        <p className="text-[13px] text-ink-secondary mb-4">
+        <p className="text-sm text-ink-secondary mb-4">
           {job.errorCode}: {job.errorReason}
         </p>
       ) : null}
@@ -539,17 +539,17 @@ function MultiResultView({
         {total} 件中 {succeeded} 件をキューに追加しました
         {failed > 0 ? `（${failed} 件失敗）` : ""}。
       </p>
-      <p className="text-[13px] text-ink-secondary">
+      <p className="text-sm text-ink-secondary">
         各ジョブのプレビューはキュー画面から順次操作できます。
       </p>
       {failedNames.length > 0 ? (
-        <ul className="mt-3 text-[12px] text-ink-tertiary list-disc pl-5">
+        <ul className="mt-3 text-xs text-ink-tertiary list-disc pl-5">
           {failedNames.map((name) => (
             <li key={name}>{name}</li>
           ))}
         </ul>
       ) : null}
-      <div className="flex flex-wrap justify-end gap-2 mt-5">
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
         <button type="button" className={pillBtn} onClick={onClose}>
           閉じる
         </button>
@@ -567,10 +567,10 @@ function TimedOutView({ onClose }: Readonly<{ onClose: () => void }>) {
       <p className="text-sm text-ink mb-2">
         推論の完了を待ちきれませんでした。
       </p>
-      <p className="text-[13px] text-ink-secondary">
+      <p className="text-sm text-ink-secondary">
         ジョブはキューに残っています。キュー画面から続きを操作できます。
       </p>
-      <div className="flex flex-wrap justify-end gap-2 mt-5">
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
         <button type="button" className={pillBtn} onClick={onClose}>
           閉じる
         </button>

@@ -42,7 +42,7 @@ type Props = Readonly<{
 }>;
 
 const READONLY_CONTENT =
-  "note-detail-content max-h-[280px] overflow-y-auto rounded-md border border-hairline bg-surface-elevated p-4 text-sm text-ink";
+  "note-detail-content max-h-[240px] overflow-y-auto rounded-md border border-hairline bg-surface-elevated p-4 text-sm text-ink";
 
 function formatInitialFrontMatterJson(raw: string): string {
   if (raw.length === 0) return "";
@@ -176,7 +176,7 @@ export function IngestionPreviewForm({
 
   return (
     <>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form onSubmit={onSubmit}>
         <div className={field}>
           <label htmlFor={titleId} className={fieldLabel}>
             タイトル
@@ -234,7 +234,7 @@ export function IngestionPreviewForm({
             onChange={(e) => setFrontMatterJson(e.target.value)}
             placeholder='{"key": "value"}'
             disabled={isPending}
-            className={`${fieldControl} ${fieldTextarea} min-h-[160px]`}
+            className={`${fieldControl} ${fieldTextarea} min-h-[140px]`}
             spellCheck={false}
           />
         </div>
