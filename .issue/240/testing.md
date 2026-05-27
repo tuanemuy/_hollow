@@ -58,7 +58,7 @@ pnpm dev   # http://localhost:3000 (Cloudflare Workers ローカル + vite dev)
   1. テスト用ノートを開き、`P14 公開設定モーダル` でラジオを「公開」に切り替えて保存
   2. `P11 ノート詳細画面` の FrontMatter パネルを開く
   3. FrontMatter パネルに `publish` キーが自動追加されていないことを確認
-  4. ノートに `publish` 系のキーが既にあれば（手書きの場合）、その値は P14 の状態と一致せずに維持されていることを確認
+  4. ノートに `publish` キーが既に手書きされている場合は、`P14` 経由の公開状態切替によって `publish` の値が上書きされず、そのまま維持されること（独立性の二方向検証）を確認
 - **期待結果:** FrontMatter には `publish` キーが現れない。公開状態は P14 のラジオでのみ管理される
 - **確認ポイント:** `saveNote` と `changePublicationVisibility` が独立しているため、片方が他方を更新しないこと
 
