@@ -74,7 +74,8 @@
 ### FrontMatter
 - `value: Record<string, FrontMatterValue>`（`FrontMatterValue = string | number | boolean | string[] | Record<string, FrontMatterValue>`）
 - ルール: トップレベルキーは ASCII、深さ 3 以内、シリアライズサイズ 64 KiB 以下
-- 既知キー: `title`, `aliases: string[]`, `tags: string[]`, `publish: 'private' | 'unlisted' | 'public'`, `created`, `updated`, `date`
+- 任意キー前提（固定スキーマは持たない）。ノートに書かれているキーをそのまま保持・表示する
+- 実装側で意味を持つキー: `date`（検索インデックスの基準日として `parseFrontMatterDate` で読まれる）。それ以外のキー（`title`, `description`, `slug`, `aliases` 等）は Markdown 慣習として書かれることはあるが、アプリ側の特別な意味付けは持たない
 - 等価性: 正規化後の構造的等価
 
 ### InternalLinkRef

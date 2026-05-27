@@ -620,6 +620,293 @@ describe("parseTagInput", () => {
   });
 });
 
+describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
+  it("preserves existing arbitrary keys loaded from a note across other edits", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { mood: "tired", topic: "design" },
+    });
+    expect(s0.frontMatter).toEqual({ mood: "tired", topic: "design" });
+    const s1 = editorReducer(s0, {
+      type: "setFrontMatterField",
+      key: "topic",
+      value: "engineering",
+    });
+    expect(s1.frontMatter).toEqual({ mood: "tired", topic: "engineering" });
+    const s2 = editorReducer(s1, {
+      type: "setFrontMatterField",
+      key: "new",
+      value: "x",
+    });
+    expect(Object.keys(s2.frontMatter)).toEqual(["mood", "topic", "new"]);
+    expect(s2.frontMatterRawJson).toContain(`"mood"`);
+  });
+
+  it("preserves legacy `frontMatter.tags` array through unrelated edits (ADR-002)", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { tags: ["legacy"], other: "x" },
+    });
+    const s1 = editorReducer(s0, {
+      type: "setFrontMatterField",
+      key: "other",
+      value: "y",
+    });
+    expect(s1.frontMatter.tags).toEqual(["legacy"]);
+    const snap = snapshotForSubmit(s1);
+    const parsed = JSON.parse(snap.frontMatterJson) as Record<string, unknown>;
+    expect(parsed.tags).toEqual(["legacy"]);
+  });
+
+  it("renameFrontMatterKey preserves the original insertion order", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2, c: 3 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "b",
+      newKey: "bee",
+    });
+    expect(Object.keys(s1.frontMatter)).toEqual(["a", "bee", "c"]);
+    expect(s1.frontMatter.bee).toBe(2);
+    expect(s1.frontMatterJsonError).toBe(null);
+  });
+
+  it("renameFrontMatterKey to a duplicate key is a no-op + structured error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1, b: 2 });
+    expect(s1.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+    // W-TS-002: rejected rename must NOT touch the raw-JSON mirror or
+    // the dirtyKeys set (ADR-003 core invariant — pending operations do
+    // not overwrite the in-sync representation, and they do not arm
+    // autosave on a known-rejected change).
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
+  });
+
+  it("renameFrontMatterKey to an empty key surfaces an error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).not.toBe(null);
+  });
+
+  it("renameFrontMatterKey when oldKey is missing is a no-op", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "missing",
+      newKey: "z",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("renameFrontMatterKey resynchronises frontMatterRawJson", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "z",
+    });
+    expect(s1.frontMatterRawJson).toContain(`"z"`);
+    expect(s1.frontMatterRawJson).not.toContain(`"a"`);
+  });
+
+  it("addFrontMatterKey appends a new empty-string key at the end", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "addFrontMatterKey",
+      key: "b",
+    });
+    expect(Object.keys(s1.frontMatter)).toEqual(["a", "b"]);
+    expect(s1.frontMatter.b).toBe("");
+    expect(s1.dirtyKeys.has("frontMatter")).toBe(true);
+  });
+
+  it("addFrontMatterKey on a duplicate key is a no-op + structured error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "addFrontMatterKey",
+      key: "a",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "a",
+    });
+    // W-TS-002: rejected add must NOT touch the raw-JSON mirror or the
+    // dirtyKeys set (ADR-003 core invariant).
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
+  });
+
+  it("structured ⇔ raw toggle preserves key insertion order", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { z: 1, a: 2, m: 3 },
+    });
+    const s1 = editorReducer(s0, { type: "toggleFrontMatterMode" });
+    expect(s1.frontMatterMode).toBe("raw");
+    const s2 = editorReducer(s1, { type: "toggleFrontMatterMode" });
+    expect(s2.frontMatterMode).toBe("structured");
+    expect(Object.keys(s2.frontMatter)).toEqual(["z", "a", "m"]);
+  });
+
+  // W-TS-001: UI guards `addFrontMatterKey("")` from happening today
+  // (the button is disabled and the commit helper short-circuits), but
+  // the reducer is the unconditional contract — exercise the empty-key
+  // and same-key paths directly so a UI regression cannot silently
+  // bypass the reject + error contract.
+  it('addFrontMatterKey("") surfaces an emptyKey error and leaves frontMatter untouched', () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, { type: "addFrontMatterKey", key: "" });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).toEqual({ kind: "emptyKey" });
+    expect(s1.frontMatterRawJson).toBe(s0.frontMatterRawJson);
+    expect(s1.dirtyKeys).toBe(s0.dirtyKeys);
+  });
+
+  it("renameFrontMatterKey(oldKey === newKey) without a prior error is a referential no-op", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "a",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  // W-ST-003: re-typing the original key after a duplicate rejection
+  // must clear the stale error — otherwise the autosave gate stays
+  // closed even though the FrontMatter is consistent.
+  it("renameFrontMatterKey(oldKey === newKey) clears a residual duplicate-key error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const rejected = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    expect(rejected.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+    const recovered = editorReducer(rejected, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "a",
+    });
+    expect(recovered.frontMatterJsonError).toBe(null);
+    expect(recovered.frontMatter).toEqual({ a: 1, b: 2 });
+  });
+
+  // W-ST-001: toggling structured → raw must NOT silently drop a
+  // pending structured-mode rejection — ADR-003 makes commit failures
+  // sticky so users see the recovery path. The raw text mirror still
+  // re-syncs (so raw mode shows the actual in-sync object).
+  it("toggleFrontMatterMode preserves a structured-mode error when switching to raw", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const rejected = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    const toggled = editorReducer(rejected, { type: "toggleFrontMatterMode" });
+    expect(toggled.frontMatterMode).toBe("raw");
+    expect(toggled.frontMatterJsonError).toEqual({
+      kind: "duplicateKey",
+      key: "b",
+    });
+  });
+
+  // W-TS-003: the toggle path is intentionally asymmetric — structured
+  // errors (`duplicateKey` / `emptyKey`) survive a mode switch (W-ST-001
+  // above), but a `json`-kind error must be cleared when leaving raw
+  // mode because the raw text is re-parsed from the in-sync parsed
+  // object. Exercise the cleared side explicitly so a regression in the
+  // `kind !== "json"` guard surfaces here.
+  it("toggleFrontMatterMode clears a json-kind error and re-parses raw text when leaving raw", () => {
+    // Start in raw mode and introduce a json error via invalid input,
+    // then fix it: this leaves `kind: "json"` not the path. Instead,
+    // construct a stale state directly — raw mode + valid raw text + a
+    // residual json error — so the toggle is the action under test.
+    const inRaw = editorReducer(freshState(), {
+      type: "toggleFrontMatterMode",
+    });
+    const withValidRaw = editorReducer(inRaw, {
+      type: "setFrontMatterRawJson",
+      value: `{ "k": 1 }`,
+    });
+    const stale: EditorState = {
+      ...withValidRaw,
+      frontMatterJsonError: { kind: "json", message: "stale" },
+    };
+    const toggled = editorReducer(stale, { type: "toggleFrontMatterMode" });
+    expect(toggled.frontMatterMode).toBe("structured");
+    expect(toggled.frontMatterJsonError).toBe(null);
+    expect(toggled.frontMatter).toEqual({ k: 1 });
+  });
+
+  it("clearFrontMatterError clears any pending error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const rejected = editorReducer(s0, { type: "addFrontMatterKey", key: "" });
+    expect(rejected.frontMatterJsonError).not.toBe(null);
+    const cleared = editorReducer(rejected, { type: "clearFrontMatterError" });
+    expect(cleared.frontMatterJsonError).toBe(null);
+  });
+
+  it("clearFrontMatterError on a clean state is a referential no-op", () => {
+    const s0 = freshState();
+    const s1 = editorReducer(s0, { type: "clearFrontMatterError" });
+    expect(s1).toBe(s0);
+  });
+});
+
 describe("stringifyFrontMatter", () => {
   it("returns `{}` for an empty record", () => {
     expect(stringifyFrontMatter({})).toBe("{}");

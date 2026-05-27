@@ -6,18 +6,26 @@
  * binds this reducer to `useReducer` but never adds logic outside the
  * exported actions defined here.
  *
- * Design pillars (see ADR-005 / ADR-008):
- * - FrontMatter is held twice: as a parsed `Record<string, unknown>`
- *   (`frontMatter`) and as the user-visible raw JSON string
- *   (`frontMatterRawJson`). Toggling between structured-edit and raw
- *   modes is reversible; raw-mode parse errors keep the dirty value so
- *   typing-in-progress is never lost.
+ * Design pillars (see ADR-005 / ADR-008 and Issue #230 ADR-003):
+ * - FrontMatter is a generic `Record<string, unknown>` of arbitrary
+ *   keys — the editor does not assume any fixed schema. Keys present
+ *   in the loaded note are rendered as-is; new keys can be added by
+ *   the user. The parsed object and the user-visible raw JSON string
+ *   (`frontMatterRawJson`) are kept in lockstep. Toggling between
+ *   structured-edit and raw modes is reversible; raw-mode parse errors
+ *   keep the dirty value so typing-in-progress is never lost.
+ * - Key insertion order is preserved everywhere — `setFrontMatterField`
+ *   keeps existing keys in place, `renameFrontMatterKey` rewrites the
+ *   key at its original position (so a rename never reorders the list).
+ *   The structured UI iterates `Object.entries(frontMatter)`, so order
+ *   in state drives order on screen.
  * - `dirtyKeys` is a `ReadonlySet` so autosave can ask "is anything
  *   dirty?" without diffing the entire state. `autosaveSuccess` clears
  *   it; field setters add to it.
  * - The reducer never throws. Invalid FrontMatter raw text records a
  *   `frontMatterJsonError` string and disables the save button at the
- *   UI level instead of failing the action.
+ *   UI level instead of failing the action. Duplicate-key errors from
+ *   `renameFrontMatterKey` / `addFrontMatterKey` use the same channel.
  * - `setMode` accepts any `EditorMode` literal. All three modes are
  *   fully wired (HTML / FrontMatter / WYSIWYG); the WYSIWYG tab was
  *   previously rendered disabled (Issue #1 ADR-002) and is now enabled
@@ -59,6 +67,25 @@ export type MediaInsertion = Readonly<{
 
 export type FrontMatterMode = "structured" | "raw";
 
+/**
+ * Structured error model for the FrontMatter editor (Issue #230).
+ *
+ * The reducer is React-agnostic and language-agnostic — it returns a
+ * `kind`-tagged variant and the UI maps each variant to a localized
+ * message via `displayFrontMatterError` (see `FrontMatterEditor.tsx`).
+ *
+ * - `json` covers raw-mode JSON parse / shape failures. The `message`
+ *   carries the raw `JSON.parse` text (or our shape check) — the UI
+ *   prefixes a Japanese label.
+ * - `duplicateKey` is emitted by `renameFrontMatterKey` / `addFrontMatterKey`
+ *   when the target name already exists.
+ * - `emptyKey` is emitted when the rename / add target is the empty string.
+ */
+export type FrontMatterError =
+  | Readonly<{ kind: "json"; message: string }>
+  | Readonly<{ kind: "duplicateKey"; key: string }>
+  | Readonly<{ kind: "emptyKey" }>;
+
 export type EditorState = Readonly<{
   mode: EditorMode;
   title: string;
@@ -66,7 +93,7 @@ export type EditorState = Readonly<{
   frontMatter: Record<string, unknown>;
   frontMatterMode: FrontMatterMode;
   frontMatterRawJson: string;
-  frontMatterJsonError: string | null;
+  frontMatterJsonError: FrontMatterError | null;
   directoryId: string | null;
   pendingDirectoryName: string | null;
   tagInput: string;
@@ -82,8 +109,15 @@ export type EditorAction =
   | Readonly<{ type: "setTitle"; value: string }>
   | Readonly<{ type: "setContent"; value: string }>
   | Readonly<{ type: "setFrontMatterField"; key: string; value: unknown }>
+  | Readonly<{
+      type: "renameFrontMatterKey";
+      oldKey: string;
+      newKey: string;
+    }>
+  | Readonly<{ type: "addFrontMatterKey"; key: string }>
   | Readonly<{ type: "setFrontMatterRawJson"; value: string }>
   | Readonly<{ type: "toggleFrontMatterMode" }>
+  | Readonly<{ type: "clearFrontMatterError" }>
   | Readonly<{ type: "setDirectory"; directoryId: string | null }>
   | Readonly<{ type: "setPendingDirectoryName"; value: string | null }>
   | Readonly<{ type: "setMode"; mode: EditorMode }>
@@ -202,7 +236,9 @@ function setFrontMatterFieldValue(
 
 function tryParseFrontMatterJson(
   raw: string,
-): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+):
+  | { ok: true; value: Record<string, unknown> }
+  | { ok: false; error: FrontMatterError } {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return { ok: true, value: {} };
   let parsed: unknown;
@@ -211,11 +247,20 @@ function tryParseFrontMatterJson(
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Invalid JSON",
+      error: {
+        kind: "json",
+        message: e instanceof Error ? e.message : "Invalid JSON",
+      },
     };
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { ok: false, error: "FrontMatter must be a JSON object" };
+    return {
+      ok: false,
+      error: {
+        kind: "json",
+        message: "FrontMatter はオブジェクト形式の JSON である必要があります",
+      },
+    };
   }
   return { ok: true, value: parsed as Record<string, unknown> };
 }
@@ -245,6 +290,61 @@ export function editorReducer(
         frontMatterJsonError: null,
       });
     }
+    case "renameFrontMatterKey": {
+      // Same-key commits don't rename, but they MUST clear any pending
+      // duplicate / empty error so the user can recover by re-typing the
+      // original name (W-ST-003). The autosave gate is keyed on
+      // `frontMatterJsonError !== null`, so a stale error here would
+      // silently block saving even though the FrontMatter is consistent.
+      if (action.oldKey === action.newKey) {
+        if (state.frontMatterJsonError === null) return state;
+        return { ...state, frontMatterJsonError: null };
+      }
+      if (!(action.oldKey in state.frontMatter)) return state;
+      if (action.newKey.length === 0) {
+        return {
+          ...state,
+          frontMatterJsonError: { kind: "emptyKey" },
+        };
+      }
+      if (action.newKey in state.frontMatter) {
+        return {
+          ...state,
+          frontMatterJsonError: { kind: "duplicateKey", key: action.newKey },
+        };
+      }
+      const nextFm: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(state.frontMatter)) {
+        if (k === action.oldKey) nextFm[action.newKey] = v;
+        else nextFm[k] = v;
+      }
+      return withDirty(state, "frontMatter", {
+        frontMatter: nextFm,
+        frontMatterRawJson: stringifyFrontMatter(nextFm),
+        frontMatterJsonError: null,
+      });
+    }
+    case "addFrontMatterKey": {
+      if (action.key.length === 0) {
+        return {
+          ...state,
+          frontMatterJsonError: { kind: "emptyKey" },
+        };
+      }
+      if (action.key in state.frontMatter) {
+        return {
+          ...state,
+          frontMatterJsonError: { kind: "duplicateKey", key: action.key },
+        };
+      }
+      const nextFm: Record<string, unknown> = { ...state.frontMatter };
+      nextFm[action.key] = "";
+      return withDirty(state, "frontMatter", {
+        frontMatter: nextFm,
+        frontMatterRawJson: stringifyFrontMatter(nextFm),
+        frontMatterJsonError: null,
+      });
+    }
     case "setFrontMatterRawJson": {
       const parsed = tryParseFrontMatterJson(action.value);
       if (!parsed.ok) {
@@ -263,6 +363,23 @@ export function editorReducer(
       const nextMode: FrontMatterMode =
         state.frontMatterMode === "structured" ? "raw" : "structured";
       if (nextMode === "raw") {
+        // ADR-003: a pending structured-mode rejection (duplicateKey /
+        // emptyKey) must not be silently dropped by switching modes.
+        // The current parsed object is in-sync (the reducer only updates
+        // `frontMatter` on successful rename / add), so resync the raw
+        // view from the in-sync parsed object — raw mode shows the
+        // actual committed state while the UI keeps the inline error
+        // message visible above the textarea.
+        const hasStructuredError =
+          state.frontMatterJsonError !== null &&
+          state.frontMatterJsonError.kind !== "json";
+        if (hasStructuredError) {
+          return {
+            ...state,
+            frontMatterMode: nextMode,
+            frontMatterRawJson: stringifyFrontMatter(state.frontMatter),
+          };
+        }
         return {
           ...state,
           frontMatterMode: nextMode,
@@ -284,6 +401,10 @@ export function editorReducer(
         frontMatter: parsed.value,
         frontMatterJsonError: null,
       };
+    }
+    case "clearFrontMatterError": {
+      if (state.frontMatterJsonError === null) return state;
+      return { ...state, frontMatterJsonError: null };
     }
     case "setDirectory": {
       if (state.directoryId === action.directoryId) return state;

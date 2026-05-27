@@ -56,7 +56,7 @@ import { WysiwygEditor } from "./WysiwygEditor";
  * Phase D coverage:
  * - HTML edit pane + sanitized-on-save preview (`HtmlEditor`)
  * - WYSIWYG pane backed by TipTap (`WysiwygEditor`, Issue #9)
- * - Structured FrontMatter known-key UI + raw-JSON toggle (`FrontMatterEditor`)
+ * - Generic key-value FrontMatter editor + raw-JSON toggle (`FrontMatterEditor`)
  * - Directory pick / inline new-directory creation (`DirectoryPicker`)
  * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`).
  *   In WYSIWYG mode the upload completion targets the current cursor via
@@ -268,7 +268,15 @@ export function NoteEditor(props: NoteEditorProps) {
 
       <EditorModeSwitch
         mode={state.mode}
-        onChange={(mode) => dispatch({ type: "setMode", mode })}
+        onChange={(mode) => {
+          // ADR-003 (Issue #230): switching editor modes unmounts the
+          // currently focused FrontMatter input. Force a blur first so
+          // any pending key-rename / add commits run before the row
+          // disappears, instead of being silently dropped.
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) active.blur();
+          dispatch({ type: "setMode", mode });
+        }}
       />
 
       {state.mode === "html" ? (
@@ -318,6 +326,10 @@ export function NoteEditor(props: NoteEditorProps) {
           onSetField={(key, value) =>
             dispatch({ type: "setFrontMatterField", key, value })
           }
+          onRenameKey={(oldKey, newKey) =>
+            dispatch({ type: "renameFrontMatterKey", oldKey, newKey })
+          }
+          onAddKey={(key) => dispatch({ type: "addFrontMatterKey", key })}
           onSetRawJson={(value) =>
             dispatch({ type: "setFrontMatterRawJson", value })
           }
