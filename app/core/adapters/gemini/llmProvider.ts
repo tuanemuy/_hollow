@@ -60,6 +60,11 @@ const RETRY_SYSTEM_SUFFIX =
  * an appended "previous reply was not parseable JSON" hint in the
  * system prompt; the second failure surfaces as `LLMUnavailableError`
  * with "after 1 retry" in the message (Issue #227 ADR-001).
+ *
+ * `responseMimeType` is supported by Gemini 1.5 and 2.x models. Older
+ * `gemini-1.0` and a few preview models reject it with HTTP 400, which
+ * surfaces as `LLMUnavailableError`; model compatibility is the caller's
+ * responsibility.
  */
 export class GeminiLLMProvider implements LLMProvider {
   private readonly config: GeminiSharedConfig;
@@ -177,16 +182,12 @@ export class GeminiLLMProvider implements LLMProvider {
     const firstParsed = validate(firstText);
     if (firstParsed !== null) return firstParsed;
 
+    // Retry once with a stronger system prompt. Throws from invoke()
+    // (LLMRateLimitError / LLMQuotaExceededError / LLMTimeoutError) must
+    // propagate unchanged so runIngestionJob's queue-redelivery and
+    // markFailed paths keep their semantics — see ADR-001.
     const retrySystem = `${system}\n${RETRY_SYSTEM_SUFFIX}`;
-    let secondText: string;
-    try {
-      secondText = await this.invoke(retrySystem, user);
-    } catch (cause) {
-      throw new LLMUnavailableError(
-        "Gemini response was not a JSON envelope after 1 retry",
-        cause,
-      );
-    }
+    const secondText = await this.invoke(retrySystem, user);
     const secondParsed = validate(secondText);
     if (secondParsed !== null) return secondParsed;
 

@@ -76,4 +76,14 @@ describe("extractJsonObject", () => {
       c: "x",
     });
   });
+
+  it("skips a leading prose pseudo-brace pair and recovers the real envelope", () => {
+    expect(extractJsonObject('Greeting {John}, here: {"k":1}')).toEqual({
+      k: 1,
+    });
+  });
+
+  it("returns null when every brace candidate fails to parse", () => {
+    expect(extractJsonObject("noise {bad}{also bad} trail")).toBeNull();
+  });
 });

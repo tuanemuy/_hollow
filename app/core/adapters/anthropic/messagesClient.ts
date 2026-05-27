@@ -153,6 +153,11 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * envelope. Anthropic API semantics: the prefill characters are NOT
  * included in the returned content, so the parser receives the
  * continuation only.
+ *
+ * The current call shape is single-turn (user then optional assistant
+ * prefill). Multi-turn usage must preserve Anthropic's role-alternation
+ * rule — pushing a second assistant message after another assistant
+ * yields HTTP 400. Revisit this helper before extending to multi-turn.
  */
 export async function callAnthropicMessages(
   config: AnthropicSharedConfig,

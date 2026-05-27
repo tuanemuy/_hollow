@@ -314,6 +314,37 @@ describe("OpenAILLMProvider", () => {
       expect(result.html).toBe("<p/>");
       expect(mock).toHaveBeenCalledTimes(2);
     });
+
+    it("suggestMetadata: recovers when the first reply has non-array tags", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: "not an array", aliases: [] }),
+        )
+        .mockResolvedValueOnce(
+          envelopeResponse({ tags: ["a", "b"], aliases: ["x"] }),
+        );
+      setFetch(mock);
+
+      const result = await makeProvider().suggestMetadata(METADATA_INPUT);
+      expect(result).toEqual({ tags: ["a", "b"], aliases: ["x"] });
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
+
+    it("propagates LLMRateLimitError thrown on the retry instead of wrapping it", async () => {
+      const mock = vi
+        .fn()
+        .mockResolvedValueOnce(rawTextResponse("not json at all"))
+        .mockResolvedValueOnce(
+          jsonResponse(429, { error: { type: "rate_limit" } }),
+        );
+      setFetch(mock);
+
+      await expect(
+        makeProvider().structureToHtml(STRUCTURE_INPUT),
+      ).rejects.toBeInstanceOf(LLMRateLimitError);
+      expect(mock).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("empty response → LLMUnavailableError", () => {

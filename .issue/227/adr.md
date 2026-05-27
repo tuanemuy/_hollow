@@ -16,6 +16,8 @@ CLAUDE.md の retry strategy:
 ### Decision
 adapter 層の `llmProvider.ts` 内で、パース失敗時に **system prompt を強化して 1 回だけリトライ**する（初回呼び出し + リトライ 1 = 合計 2 attempts）。Issue 完了条件「最低 1 回はリトライ」を最小コストで満たす。失敗時の `LLMUnavailableError` メッセージは "after 1 retry" を含めて attempts 回数を明示する。application 層には変更を入れない。
 
+**リトライ呼び出し中の throw 伝播ルール (Review #001 B-001 で確定):** `invokeWithRetry` の 2 回目 invoke が `LLMRateLimitError` / `LLMQuotaExceededError` / `LLMTimeoutError` を throw した場合は **try/catch せず素通し**する。これにより `runIngestionJob` の queue 再配信 (`LLMRateLimitError` のみ re-throw) と `markFailed` のセマンティクスが保たれる。adapter 層が catch していいのは「2 回目で `extractJsonObject` がやはり null を返した／必須キーが欠落していた」というパース失敗のみで、その場合だけ `LLMUnavailableError("... after 1 retry")` を投げる。
+
 ### Consequences
 - 良い点:
   - CLAUDE.md の retry strategy 原則に沿う

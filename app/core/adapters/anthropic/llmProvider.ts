@@ -204,25 +204,23 @@ export class AnthropicLLMProvider implements LLMProvider {
     const firstParsed = validate(firstText);
     if (firstParsed !== null) return firstParsed;
 
+    // Retry once with a stronger system prompt and a `{` prefill so the
+    // model continues the assistant turn from a JSON object opener.
+    //
+    // Two semantics to handle:
+    // 1. The prefill character is NOT echoed in the returned text
+    //    (Anthropic API semantics), so a `{`-less continuation like
+    //    `"html":"...",}` is expected — re-prepend `{` to parse.
+    // 2. Throws from invoke() (LLMRateLimitError / LLMQuotaExceededError
+    //    / LLMTimeoutError) propagate unchanged so runIngestionJob's
+    //    queue-redelivery and markFailed paths keep their semantics —
+    //    see ADR-001.
     const retrySystem = `${system}\n${RETRY_SYSTEM_SUFFIX}`;
-    let secondText: string;
-    try {
-      // Prefill { so Anthropic continues the assistant turn from a JSON
-      // object opener. The prefill characters are NOT included in the
-      // returned text (Anthropic API semantics), so the parser must
-      // accept the continuation as-is. extractJsonObject still works
-      // because the model typically completes the object, but the
-      // returned text may start with the key name rather than `{`.
-      // Re-prepend `{` before parsing.
-      secondText = await this.invoke(retrySystem, user, RETRY_PREFILL);
-    } catch (cause) {
-      throw new LLMUnavailableError(
-        "Anthropic response was not a JSON envelope after 1 retry",
-        cause,
-      );
-    }
-    const secondParsed =
-      validate(secondText) ?? validate(`${RETRY_PREFILL}${secondText}`);
+    const secondText = await this.invoke(retrySystem, user, RETRY_PREFILL);
+    const startsWithBrace = secondText.trimStart().startsWith("{");
+    const secondParsed = startsWithBrace
+      ? validate(secondText)
+      : (validate(secondText) ?? validate(`${RETRY_PREFILL}${secondText}`));
     if (secondParsed !== null) return secondParsed;
 
     throw new LLMUnavailableError(

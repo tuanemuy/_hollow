@@ -54,6 +54,11 @@ const RETRY_SYSTEM_SUFFIX =
  * system prompt; the second failure surfaces as `LLMUnavailableError`
  * with "after 1 retry" in the message (Issue #227 ADR-001).
  *
+ * The `response_format` parameter is supported by `gpt-4o*`, `gpt-4.1*`,
+ * and other current OpenAI models. Legacy / Azure deployments that do
+ * not accept it will surface HTTP 400 → `LLMUnavailableError`; model
+ * compatibility is the caller's responsibility (Issue #227 ADR-005).
+ *
  * Empty assistant content is rejected here because the JSON envelope
  * contract cannot accept it.
  */
@@ -172,16 +177,12 @@ export class OpenAILLMProvider implements LLMProvider {
     const firstParsed = validate(firstText);
     if (firstParsed !== null) return firstParsed;
 
+    // Retry once with a stronger system prompt. Throws from invoke()
+    // (LLMRateLimitError / LLMQuotaExceededError / LLMTimeoutError) must
+    // propagate unchanged so runIngestionJob's queue-redelivery and
+    // markFailed paths keep their semantics — see ADR-001.
     const retrySystem = `${system}\n${RETRY_SYSTEM_SUFFIX}`;
-    let secondText: string;
-    try {
-      secondText = await this.invoke(retrySystem, user);
-    } catch (cause) {
-      throw new LLMUnavailableError(
-        "OpenAI response was not a JSON envelope after 1 retry",
-        cause,
-      );
-    }
+    const secondText = await this.invoke(retrySystem, user);
     const secondParsed = validate(secondText);
     if (secondParsed !== null) return secondParsed;
 

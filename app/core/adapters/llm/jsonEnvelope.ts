@@ -28,15 +28,21 @@ export function extractJsonObject(
   const stripped = stripFences(text).trim();
   if (stripped.length === 0) return null;
 
-  const objectSlice = findBalancedSlice(stripped, "{", "}");
-  if (objectSlice !== null) {
-    const parsed = safeParseObject(objectSlice);
+  // Walk every `{` candidate. Models occasionally prepend prose with its
+  // own brace pairs (e.g. `Greeting {John}, here: {"k":1}`), so the first
+  // brace-balanced slice may not be the real envelope.
+  let searchFrom = 0;
+  while (true) {
+    const slice = findBalancedSlice(stripped, "{", "}", searchFrom);
+    if (slice === null) break;
+    const parsed = safeParseObject(slice.text);
     if (parsed !== null) return parsed;
+    searchFrom = slice.start + 1;
   }
 
-  const arraySlice = findBalancedSlice(stripped, "[", "]");
+  const arraySlice = findBalancedSlice(stripped, "[", "]", 0);
   if (arraySlice !== null) {
-    const parsed = safeParseArrayHead(arraySlice);
+    const parsed = safeParseArrayHead(arraySlice.text);
     if (parsed !== null) return parsed;
   }
 
@@ -57,12 +63,15 @@ function stripFences(text: string): string {
   return s;
 }
 
+type BalancedSlice = { start: number; text: string };
+
 function findBalancedSlice(
   text: string,
   open: "{" | "[",
   close: "}" | "]",
-): string | null {
-  const start = text.indexOf(open);
+  searchFrom: number,
+): BalancedSlice | null {
+  const start = text.indexOf(open, searchFrom);
   if (start === -1) return null;
 
   let depth = 0;
@@ -94,7 +103,7 @@ function findBalancedSlice(
     } else if (text[i] === close) {
       depth -= 1;
       if (depth === 0) {
-        return text.slice(start, i + 1);
+        return { start, text: text.slice(start, i + 1) };
       }
     }
   }
