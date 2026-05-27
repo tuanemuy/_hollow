@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { UserDTO } from "@/core/application/dto";
 import {
   APP_HEADER,
@@ -54,9 +55,7 @@ export function Header({ user }: Props) {
         <Link to="/notes/new" className={PILL_BTN} data-primary="">
           新規作成
         </Link>
-        <Link to="/upload" className={PILL_BTN}>
-          アップロード
-        </Link>
+        <UploadButton className={PILL_BTN}>アップロード</UploadButton>
         <Link
           to="/"
           search={HOME_SEARCH}

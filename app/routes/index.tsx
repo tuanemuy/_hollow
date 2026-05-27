@@ -15,6 +15,10 @@ import { validateInput } from "@/core/presentation/validator";
 import "@/components/note/actions";
 import "@/components/directory/actions";
 import "@/components/tag/actions";
+// Kept as a safety-net even though `AppShell` also registers the
+// ingestion actions: the home route is the most common entry path
+// for upload-from-modal, and explicit registration here insulates
+// the manifest from any future change to AppShell's import chain.
 import "@/components/ingestion/actions";
 import "@/components/view/actions";
 import "@/components/media/actions";
