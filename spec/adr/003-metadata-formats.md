@@ -12,7 +12,7 @@ idea.md ではメタデータの形式として FrontMatter / ハッシュタグ
 
 MVP では以下の 3 形式を **同時にサポート** する。各形式は役割が異なるためいずれも残す。
 
-- **FrontMatter**: ノート単位で構造化されたメタデータを宣言的に付与する用途（title / aliases / created / updated / publish など）。現行: タグソースはハッシュタグに一本化しており、`frontMatter.tags` はエディタ・パーサとも参照しない（Issue #230 ADR-002）
+- **FrontMatter**: ノート単位で構造化されたメタデータを宣言的に付与する用途（title / description / slug / aliases / date など。アプリ側で意味を持つのは date のみで、他は任意キー扱い）。現行: タグソースはハッシュタグに一本化しており、`frontMatter.tags` はエディタ・パーサとも参照しない（Issue #230 ADR-002）。公開状態は FrontMatter ではなく独立した `PublicationState` 集約で管理する（Issue #240 で明文化）
 - **タグ（`#hashtag`）**: 本文・FrontMatter に散在する非階層ラベル。一覧/検索の絞り込みに使う
 - **内部リンク（`[[Note Title]]` または `[[note-id]]`）**: ノート間の関連付け。バックリンクを自動算出する
 
