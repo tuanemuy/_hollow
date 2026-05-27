@@ -10,6 +10,13 @@ export type GetIngestionJobsInput = Readonly<{
   offset?: number;
   status?: string;
   order?: "asc" | "desc";
+  /**
+   * Opt-in flag to surface `discarded` jobs in the result. Defaults to
+   * `false` so the upload-queue view hides discarded jobs by default.
+   * Ignored when `status` is explicitly set — the explicit status takes
+   * precedence (see `IngestionJobListOpts` contract).
+   */
+  includeDiscarded?: boolean;
 }>;
 
 export type GetIngestionJobsOutput = Readonly<{
@@ -34,12 +41,21 @@ export async function getIngestionJobs({
       ? undefined
       : IngestionStatus.create(input.status);
 
+  // Default behaviour hides `discarded` jobs from the upload queue. When
+  // a caller explicitly passes a `status` filter we never attach
+  // `excludeStatuses` — the port contract says the include wins.
+  const excludeStatuses =
+    status === undefined && input.includeDiscarded !== true
+      ? (["discarded"] as const)
+      : undefined;
+
   const jobs = await container.unitOfWorkProvider.run(
     async ({ ingestionJobRepository }) => {
       return ingestionJobRepository.findByOwner(actor, {
         limit,
         offset,
         ...(status === undefined ? {} : { status }),
+        ...(excludeStatuses === undefined ? {} : { excludeStatuses }),
         order: input.order ?? "desc",
       });
     },
