@@ -881,7 +881,8 @@ describe("getIngestionJobs", () => {
       input: { actorUserId: owner },
     });
     const ids = jobs.map((j) => j.id as unknown as string);
-    expect(ids).toEqual([previewing]);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toBe(previewing);
   });
 
   it("includes discarded jobs when includeDiscarded is true", async () => {
@@ -923,7 +924,8 @@ describe("getIngestionJobs", () => {
       input: { actorUserId: owner, status: "discarded" },
     });
     const ids = jobs.map((j) => j.id as unknown as string);
-    expect(ids).toEqual([discarded]);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toBe(discarded);
   });
 
   it("does not exclude discarded when status is explicitly set to non-discarded", async () => {
@@ -965,7 +967,51 @@ describe("getIngestionJobs", () => {
       input: { actorUserId: owner, status: "saved" },
     });
     const ids = jobs.map((j) => j.id as unknown as string);
-    expect(ids).toEqual([saved]);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toBe(saved);
+  });
+
+  it("treats explicit status as winning when both status and includeDiscarded are provided", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const dirId = await seedDirectory(container, owner);
+    const noteIdRaw = nextNoteId();
+    await container.db.insert(schema.notes).values({
+      id: noteIdRaw,
+      ownerId: owner as unknown as string,
+      directoryId: dirId,
+      slug: `n-${noteIdRaw.slice(-6)}`,
+      title: "n",
+      contentHtml: "<p>n</p>",
+      frontMatterJson: "{}",
+      status: "active",
+      trashedAt: null,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+    const saved = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "saved",
+      tempStorageKey: null,
+      savedAsNoteId: noteIdRaw,
+    });
+    await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "discarded",
+    });
+
+    const { jobs } = await getIngestionJobs({
+      container,
+      input: { actorUserId: owner, status: "saved", includeDiscarded: true },
+    });
+    const ids = jobs.map((j) => j.id as unknown as string);
+    expect(ids).toHaveLength(1);
+    expect(ids[0]).toBe(saved);
   });
 });
 

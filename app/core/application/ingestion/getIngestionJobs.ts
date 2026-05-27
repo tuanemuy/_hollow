@@ -4,6 +4,16 @@ import type { UserId as UserIdDTO } from "../dto/identity";
 import type { ServiceArgs } from "../types";
 import { type IngestionJobView, toIngestionJobView } from "./view";
 
+/**
+ * Statuses hidden from the upload-queue view by default. Centralised so a
+ * future expansion (e.g. also hiding archived entries) is a single-file
+ * change. Callers opt out via `includeDiscarded`, or override entirely by
+ * passing an explicit `status` filter.
+ */
+const UPLOAD_QUEUE_DEFAULT_HIDDEN_STATUSES: readonly IngestionStatus[] = [
+  "discarded",
+];
+
 export type GetIngestionJobsInput = Readonly<{
   actorUserId: UserIdDTO;
   limit?: number;
@@ -41,12 +51,13 @@ export async function getIngestionJobs({
       ? undefined
       : IngestionStatus.create(input.status);
 
-  // Default behaviour hides `discarded` jobs from the upload queue. When
-  // a caller explicitly passes a `status` filter we never attach
-  // `excludeStatuses` — the port contract says the include wins.
+  // Default behaviour hides `discarded` jobs from the upload queue. The
+  // port already guarantees `status` wins over `excludeStatuses`, but we
+  // also skip attaching it here so the call site documents the contract
+  // explicitly and avoids relying on adapter-side precedence alone.
   const excludeStatuses =
     status === undefined && input.includeDiscarded !== true
-      ? (["discarded"] as const)
+      ? UPLOAD_QUEUE_DEFAULT_HIDDEN_STATUSES
       : undefined;
 
   const jobs = await container.unitOfWorkProvider.run(
