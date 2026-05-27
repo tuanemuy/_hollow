@@ -3,24 +3,15 @@ import type { FrontMatterDTO } from "@/core/application/dto/note";
 /**
  * Pure presentational panel for FrontMatter.
  *
- * Known keys (`title`, `date`, `tags`, `description`, `slug`) are shown
- * first as a structured list. Any remaining keys are collapsed under a
- * `<details>` block.
+ * Renders all keys present in the FrontMatter record as a generic
+ * key/value list in their original insertion order (Issue #230 — the
+ * editor no longer assumes any fixed known-key schema). The list is
+ * wrapped in a `<details>` block so the section stays collapsible; the
+ * existing "section absent when empty" behaviour is preserved.
  *
  * `renderFrontMatterValue` is exported as a pure recursive renderer so
  * tests / external callers can reuse the same nested-value formatter.
  */
-const KNOWN_KEY_ORDER = [
-  "title",
-  "date",
-  "tags",
-  "description",
-  "slug",
-] as const;
-
-type KnownKey = (typeof KNOWN_KEY_ORDER)[number];
-
-const KNOWN_KEY_SET = new Set<string>(KNOWN_KEY_ORDER);
 
 export type FrontMatterPanelProps = Readonly<{
   frontMatter: FrontMatterDTO;
@@ -87,20 +78,18 @@ export function FrontMatterPanel({ frontMatter }: FrontMatterPanelProps) {
   const keys = Object.keys(frontMatter);
   if (keys.length === 0) return null;
 
-  const knownPresent: KnownKey[] = KNOWN_KEY_ORDER.filter(
-    (k) => k in frontMatter,
-  );
-  const others = keys.filter((k) => !KNOWN_KEY_SET.has(k));
-
   return (
     <section
       className="mt-8 px-5 py-4 rounded-lg border border-hairline bg-surface"
       aria-label="FrontMatter"
     >
       <h2 className="text-lg font-semibold mb-3">FrontMatter</h2>
-      {knownPresent.length > 0 ? (
+      <details className="mt-1" open>
+        <summary className="cursor-pointer py-2 text-[13px] text-ink-secondary">
+          すべて表示 ({keys.length})
+        </summary>
         <dl className={KNOWN_DL}>
-          {knownPresent.map((k) => (
+          {keys.map((k) => (
             <div className={KNOWN_ROW} key={k}>
               <dt className={KNOWN_DT}>{k}</dt>
               <dd className={KNOWN_DD}>
@@ -109,24 +98,7 @@ export function FrontMatterPanel({ frontMatter }: FrontMatterPanelProps) {
             </div>
           ))}
         </dl>
-      ) : null}
-      {others.length > 0 ? (
-        <details className="mt-3">
-          <summary className="cursor-pointer py-2 text-[13px] text-ink-secondary">
-            その他 ({others.length})
-          </summary>
-          <dl className={KNOWN_DL}>
-            {others.map((k) => (
-              <div className={KNOWN_ROW} key={k}>
-                <dt className={KNOWN_DT}>{k}</dt>
-                <dd className={KNOWN_DD}>
-                  {renderFrontMatterValue(frontMatter[k])}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-      ) : null}
+      </details>
     </section>
   );
 }

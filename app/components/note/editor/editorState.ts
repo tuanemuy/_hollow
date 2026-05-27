@@ -6,18 +6,26 @@
  * binds this reducer to `useReducer` but never adds logic outside the
  * exported actions defined here.
  *
- * Design pillars (see ADR-005 / ADR-008):
- * - FrontMatter is held twice: as a parsed `Record<string, unknown>`
- *   (`frontMatter`) and as the user-visible raw JSON string
- *   (`frontMatterRawJson`). Toggling between structured-edit and raw
- *   modes is reversible; raw-mode parse errors keep the dirty value so
- *   typing-in-progress is never lost.
+ * Design pillars (see ADR-005 / ADR-008 and Issue #230 ADR-003):
+ * - FrontMatter is a generic `Record<string, unknown>` of arbitrary
+ *   keys — the editor does not assume any fixed schema. Keys present
+ *   in the loaded note are rendered as-is; new keys can be added by
+ *   the user. The parsed object and the user-visible raw JSON string
+ *   (`frontMatterRawJson`) are kept in lockstep. Toggling between
+ *   structured-edit and raw modes is reversible; raw-mode parse errors
+ *   keep the dirty value so typing-in-progress is never lost.
+ * - Key insertion order is preserved everywhere — `setFrontMatterField`
+ *   keeps existing keys in place, `renameFrontMatterKey` rewrites the
+ *   key at its original position (so a rename never reorders the list).
+ *   The structured UI iterates `Object.entries(frontMatter)`, so order
+ *   in state drives order on screen.
  * - `dirtyKeys` is a `ReadonlySet` so autosave can ask "is anything
  *   dirty?" without diffing the entire state. `autosaveSuccess` clears
  *   it; field setters add to it.
  * - The reducer never throws. Invalid FrontMatter raw text records a
  *   `frontMatterJsonError` string and disables the save button at the
- *   UI level instead of failing the action.
+ *   UI level instead of failing the action. Duplicate-key errors from
+ *   `renameFrontMatterKey` / `addFrontMatterKey` use the same channel.
  * - `setMode` accepts any `EditorMode` literal. All three modes are
  *   fully wired (HTML / FrontMatter / WYSIWYG); the WYSIWYG tab was
  *   previously rendered disabled (Issue #1 ADR-002) and is now enabled
@@ -82,6 +90,12 @@ export type EditorAction =
   | Readonly<{ type: "setTitle"; value: string }>
   | Readonly<{ type: "setContent"; value: string }>
   | Readonly<{ type: "setFrontMatterField"; key: string; value: unknown }>
+  | Readonly<{
+      type: "renameFrontMatterKey";
+      oldKey: string;
+      newKey: string;
+    }>
+  | Readonly<{ type: "addFrontMatterKey"; key: string }>
   | Readonly<{ type: "setFrontMatterRawJson"; value: string }>
   | Readonly<{ type: "toggleFrontMatterMode" }>
   | Readonly<{ type: "setDirectory"; directoryId: string | null }>
@@ -239,6 +253,53 @@ export function editorReducer(
         action.key,
         action.value,
       );
+      return withDirty(state, "frontMatter", {
+        frontMatter: nextFm,
+        frontMatterRawJson: stringifyFrontMatter(nextFm),
+        frontMatterJsonError: null,
+      });
+    }
+    case "renameFrontMatterKey": {
+      if (action.oldKey === action.newKey) return state;
+      if (!(action.oldKey in state.frontMatter)) return state;
+      if (action.newKey.length === 0) {
+        return {
+          ...state,
+          frontMatterJsonError: "key cannot be empty",
+        };
+      }
+      if (action.newKey in state.frontMatter) {
+        return {
+          ...state,
+          frontMatterJsonError: `key already exists: ${action.newKey}`,
+        };
+      }
+      const nextFm: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(state.frontMatter)) {
+        if (k === action.oldKey) nextFm[action.newKey] = v;
+        else nextFm[k] = v;
+      }
+      return withDirty(state, "frontMatter", {
+        frontMatter: nextFm,
+        frontMatterRawJson: stringifyFrontMatter(nextFm),
+        frontMatterJsonError: null,
+      });
+    }
+    case "addFrontMatterKey": {
+      if (action.key.length === 0) {
+        return {
+          ...state,
+          frontMatterJsonError: "key cannot be empty",
+        };
+      }
+      if (action.key in state.frontMatter) {
+        return {
+          ...state,
+          frontMatterJsonError: `key already exists: ${action.key}`,
+        };
+      }
+      const nextFm: Record<string, unknown> = { ...state.frontMatter };
+      nextFm[action.key] = "";
       return withDirty(state, "frontMatter", {
         frontMatter: nextFm,
         frontMatterRawJson: stringifyFrontMatter(nextFm),

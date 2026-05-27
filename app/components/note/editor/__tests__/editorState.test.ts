@@ -620,6 +620,154 @@ describe("parseTagInput", () => {
   });
 });
 
+describe("editorReducer FrontMatter arbitrary keys (Issue #230)", () => {
+  it("preserves existing arbitrary keys loaded from a note across other edits", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { mood: "tired", topic: "design" },
+    });
+    expect(s0.frontMatter).toEqual({ mood: "tired", topic: "design" });
+    const s1 = editorReducer(s0, {
+      type: "setFrontMatterField",
+      key: "topic",
+      value: "engineering",
+    });
+    expect(s1.frontMatter).toEqual({ mood: "tired", topic: "engineering" });
+    const s2 = editorReducer(s1, {
+      type: "setFrontMatterField",
+      key: "new",
+      value: "x",
+    });
+    expect(Object.keys(s2.frontMatter)).toEqual(["mood", "topic", "new"]);
+    expect(s2.frontMatterRawJson).toContain(`"mood"`);
+  });
+
+  it("preserves legacy `frontMatter.tags` array through unrelated edits (ADR-002)", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { tags: ["legacy"], other: "x" },
+    });
+    const s1 = editorReducer(s0, {
+      type: "setFrontMatterField",
+      key: "other",
+      value: "y",
+    });
+    expect(s1.frontMatter.tags).toEqual(["legacy"]);
+    const snap = snapshotForSubmit(s1);
+    const parsed = JSON.parse(snap.frontMatterJson) as Record<string, unknown>;
+    expect(parsed.tags).toEqual(["legacy"]);
+  });
+
+  it("renameFrontMatterKey preserves the original insertion order", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2, c: 3 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "b",
+      newKey: "bee",
+    });
+    expect(Object.keys(s1.frontMatter)).toEqual(["a", "bee", "c"]);
+    expect(s1.frontMatter.bee).toBe(2);
+    expect(s1.frontMatterJsonError).toBe(null);
+  });
+
+  it("renameFrontMatterKey to a duplicate key is a no-op + error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1, b: 2 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "b",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1, b: 2 });
+    expect(s1.frontMatterJsonError).toContain("already exists");
+  });
+
+  it("renameFrontMatterKey to an empty key surfaces an error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).not.toBe(null);
+  });
+
+  it("renameFrontMatterKey when oldKey is missing is a no-op", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "missing",
+      newKey: "z",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("renameFrontMatterKey resynchronises frontMatterRawJson", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "renameFrontMatterKey",
+      oldKey: "a",
+      newKey: "z",
+    });
+    expect(s1.frontMatterRawJson).toContain(`"z"`);
+    expect(s1.frontMatterRawJson).not.toContain(`"a"`);
+  });
+
+  it("addFrontMatterKey appends a new empty-string key at the end", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "addFrontMatterKey",
+      key: "b",
+    });
+    expect(Object.keys(s1.frontMatter)).toEqual(["a", "b"]);
+    expect(s1.frontMatter.b).toBe("");
+    expect(s1.dirtyKeys.has("frontMatter")).toBe(true);
+  });
+
+  it("addFrontMatterKey on a duplicate key is a no-op + error", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { a: 1 },
+    });
+    const s1 = editorReducer(s0, {
+      type: "addFrontMatterKey",
+      key: "a",
+    });
+    expect(s1.frontMatter).toEqual({ a: 1 });
+    expect(s1.frontMatterJsonError).toContain("already exists");
+  });
+
+  it("structured ⇔ raw toggle preserves key insertion order", () => {
+    const s0 = createInitialEditorState({
+      ...baseInit,
+      frontMatter: { z: 1, a: 2, m: 3 },
+    });
+    const s1 = editorReducer(s0, { type: "toggleFrontMatterMode" });
+    expect(s1.frontMatterMode).toBe("raw");
+    const s2 = editorReducer(s1, { type: "toggleFrontMatterMode" });
+    expect(s2.frontMatterMode).toBe("structured");
+    expect(Object.keys(s2.frontMatter)).toEqual(["z", "a", "m"]);
+  });
+});
+
 describe("stringifyFrontMatter", () => {
   it("returns `{}` for an empty record", () => {
     expect(stringifyFrontMatter({})).toBe("{}");
