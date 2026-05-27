@@ -7,8 +7,9 @@ import type { DirectoryTreeNode } from "@/core/application/directory/view";
  *
  * SSOT for both the RSC loader (`loadDirectoryTreeFlat`) and the client
  * server-fn (`getDirectoryTreeFn`). Keeping the flatten logic here keeps
- * the two paths structurally identical and `loaders.ts` (server-only)
- * free of pure helpers that could leak via accidental client import.
+ * the two paths structurally identical and keeps `loaders.ts`, where the
+ * runtime entry points depend on `serverData(getContainer())`, free of
+ * pure helpers that the keeps-its-shape-pure rule wants isolated.
  */
 export type FlatDirectory = Readonly<{
   id: string;

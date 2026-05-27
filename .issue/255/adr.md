@@ -40,4 +40,42 @@ UI 表示は `{errorCode}` のみとし、将来 `errorCode → 日本語訳マ�
   - 失敗ジョブの UI 表示が `code: reason` から `code` のみに変わる（軽微な UX 変更）。ユーザーが support に問い合わせる際は `errorCode` で job を特定し、サーバログから `errorReason` を引く運用に切り替わる
   - 将来「ユーザー文言マップ」が必要になったら別途実装が必要（plan で別 Issue 候補と明示）
 
+### Scope limitation: admin/Jobs 経路は本 PR スコープ外
+
+
+
+review-001 W-F-001 で `app/components/admin/Jobs/index.tsx:207-208` も `IngestionJobDTO.errorReason` を直接表示していることが確認された。Issue #255 は Issue #226 / PR #251 のレビュー指摘点のフォローアップという成り立ちのため、admin 経路は元 Issue が触れていない領域として **本 PR では意図的にスコープ外**とする。同等の境界遮断を admin 経路にも適用するフォローアップ Issue を別途起票する（Phase 4）。
+
+---
+
+## ADR-002: テストヘルパーの配置先を `app/components/_test-utils/` とする
+
+### Status
+Proposed
+
+### Context
+
+W-T-010 で導入した `serverFnMock` ヘルパーを components ディレクトリの近くに置きたい。既存規約として各ドメインフォルダ内に `__tests__/` がある（`app/components/ingestion/__tests__/`, `app/components/note/__tests__/` 等）が、複数ドメインから共有する横断ヘルパーは特定のドメイン下に置けない。
+
+選択肢:
+
+1. **`app/components/_test-utils/serverFnMock.ts`** — 横断ヘルパー専用ディレクトリを新設、underscore prefix で明示
+2. `app/components/__tests__/_utils/serverFnMock.ts` — 既存 `__tests__/` 名前空間の下に共通フォルダ
+3. `app/test-utils/serverFnMock.ts` — components 外のトップレベル
+
+### Decision
+
+**(1) `app/components/_test-utils/` を選択。**
+
+理由:
+- vitest のデフォルト test 検出パターン `**/*.{test,spec}.?(c|m)[jt]s?(x)` に該当しないため、`.test.` を含まないファイル名なら test 実行されない（実行時に確認済み: `pnpm test:unit` 全 green）
+- underscore prefix は test/internal フォルダの慣用表記で、production import からも視覚的に分離される
+- (2) は `__tests__/` がドメインフォルダ下の暗黙規約（各 owner が自分のテストを置く）なので、横断ヘルパーを混ぜると規約が二重化する
+- (3) は components の近接配置のメリットを失う
+
+### Consequences
+
+- 良い点: 横断テストヘルパーの置き場所が明示的、vitest の test 検出から確実に除外
+- トレードオフ: production tree (`app/components/`) 直下に test 専用ディレクトリが 1 つ追加される（命名で区別可能、production import からは決して参照されない前提）
+
 ---
