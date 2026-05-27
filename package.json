@@ -48,6 +48,8 @@
     "deploy:production:all:dry": "pnpm deploy:production:dry && pnpm deploy:production:relay:dry && pnpm deploy:production:consumer:dry && pnpm deploy:production:indexer:dry && pnpm deploy:production:pruner:dry && pnpm deploy:production:dlq:dry",
     "infra:render:staging": "pnpm --filter @hollow/infra render:staging",
     "infra:render:production": "pnpm --filter @hollow/infra render:production",
+    "infra:check-secrets:staging": "pnpm --filter @hollow/infra check-secrets:staging",
+    "infra:check-secrets:production": "pnpm --filter @hollow/infra check-secrets:production",
     "infra:preview:staging": "pnpm --filter @hollow/infra preview:staging",
     "infra:preview:production": "pnpm --filter @hollow/infra preview:production",
     "infra:up:staging": "pnpm --filter @hollow/infra up:staging",

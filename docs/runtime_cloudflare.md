@@ -128,7 +128,7 @@ Required on the **web** and **consumer** workers for the ingestion / export disp
 | `R2_ACCESS_KEY_ID`        | R2 API token access key id. Issue via Cloudflare dashboard → R2 → "Manage R2 API Tokens"; scope read/write to the `objects` bucket only and **issue a separate token per stage** (ADR-005, Issue #110).                                                                                                                                                       |
 | `R2_SECRET_ACCESS_KEY`    | The matching secret key. Both `R2_*` keys plus `OBJECT_STORAGE` binding plus `R2_OBJECT_BUCKET_NAME` var (`[vars]`) must all be present for DI to wire `R2ObjectStorage`. Any missing → DI falls back to an inline unavailable adapter that rejects every call with `StorageUnavailableError` (Issue #100 ADR-001).                                                                                                                                                                                                                                                                            |
 
-> The CI deploy step (`pnpm deploy:<stage>:all`) currently pushes the single SOPS-decrypted secrets file to every Worker (`wrangler secret bulk`). ADR-007 (Issue #110) deferred per-worker filtering — until that lands, relay / pruner / dlq receive these secrets even though they do not consume them. `workerSecretSpecs()` in `infra/src/secrets.ts` is the spec source-of-truth for what each Worker actually needs.
+> The CI **`Inject secrets` step** in `.github/workflows/deploy-{staging,production}.yml` (not `pnpm deploy:<stage>:all`, which only builds and `wrangler deploy`s) decrypts `infra/secrets/<stage>.enc.json` via `sops`, runs `pnpm infra:check-secrets:<stage>` to fail-loud on any spec-vs-decrypted-JSON drift (Issue #203), strips `^_`-prefixed documentation-only keys via `jq`, and finally calls `wrangler secret bulk` against every Worker — web, relay, consumer, indexer, pruner, dlq. ADR-007 (Issue #110) deferred per-worker filtering — until that lands, relay / pruner / dlq / indexer receive these secrets even though they do not consume them. `workerSecretSpecs()` in `infra/src/secrets.ts` is the spec source-of-truth for what each Worker actually needs.
 
 ### Web-only secrets
 
@@ -148,12 +148,20 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 
 ### Deployment SOPS workflow
 
-`infra/secrets/{stage}.enc.json` is SOPS-encrypted; the CI deploy step decrypts it and feeds it to `wrangler secret bulk`. To add a new key:
+`infra/secrets/{stage}.enc.json` is SOPS-encrypted; the CI `Inject secrets` step decrypts it, validates it against `workerSecretSpecs()`, strips `^_`-prefixed documentation keys, and feeds the rest to `wrangler secret bulk` against every Worker. To add or remove a key, follow the canonical procedures in [`infra/secrets/README.md`](../infra/secrets/README.md) (and the Japanese mirror in [`docs/deployment_setup.md`](deployment_setup.md)). The short version:
 
-1. Update `infra/secrets/{stage}.json.example` with the placeholder.
-2. Update `infra/src/secrets.ts` so `workerSecretSpecs()` lists the new key for the relevant workers.
-3. Manually edit the encrypted file: `pnpm --filter @hollow/infra secrets:edit:{stage}` (opens `sops` in your editor).
-4. Commit only the `.json.example` change and the `.enc.json` change. Never commit the plaintext.
+1. Update `workerSecretSpecs()` in `infra/src/secrets.ts` (single source of truth for what each Worker requires).
+2. Edit both encrypted files: `pnpm --filter @hollow/infra secrets:edit:staging` / `secrets:edit:production`.
+3. Mirror the change in `infra/secrets/{stage}.json.example` and `.dev.vars.example`.
+4. Verify spec ↔ JSON sync locally:
+   ```sh
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/hollow-staging.txt \
+     sops -d infra/secrets/staging.enc.json > /tmp/d.json
+   pnpm infra:check-secrets:staging -- /tmp/d.json
+   rm /tmp/d.json
+   ```
+   Repeat for production. CI runs the same check before bulk-push and fails the deploy if missing / extra keys are detected (Issue #203).
+5. Commit only `infra/src/secrets.ts`, the two `.json.example` updates, the two `.enc.json` updates, and any `.dev.vars.example` change. Never commit decrypted plaintext.
 
 ## Deployment
 

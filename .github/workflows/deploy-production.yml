@@ -100,13 +100,29 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          DECRYPTED=$(mktemp)
-          trap 'rm -f "$DECRYPTED"' EXIT
-          sops -d infra/secrets/production.enc.json > "$DECRYPTED"
+          # Initialize before set -u trips, set trap before mktemp so a
+          # partial failure (one mktemp ok, the other not) still removes
+          # whatever was created.
+          DECRYPTED_RAW=""
+          DECRYPTED_FILTERED=""
+          trap 'rm -f "${DECRYPTED_RAW:-}" "${DECRYPTED_FILTERED:-}"' EXIT
+          DECRYPTED_RAW=$(mktemp)
+          DECRYPTED_FILTERED=$(mktemp)
+          sops -d infra/secrets/production.enc.json > "$DECRYPTED_RAW"
 
-          for env_flag in "" "--env relay" "--env consumer" "--env pruner" "--env dlq"; do
+          # Fail loudly if `workerSecretSpecs()` and the decrypted JSON
+          # disagree on the key set (Issue #203). Runs against the raw
+          # file; the script ignores `^_` documentation keys internally.
+          pnpm infra:check-secrets:production -- "$DECRYPTED_RAW"
+
+          # Strip `^_`-prefixed documentation-only keys before bulk-push
+          # (Issue #203) so they do not pollute the Cloudflare secret set.
+          jq 'with_entries(select(.key | startswith("_") | not))' \
+            "$DECRYPTED_RAW" > "$DECRYPTED_FILTERED"
+
+          for env_flag in "" "--env relay" "--env consumer" "--env indexer" "--env pruner" "--env dlq"; do
             # shellcheck disable=SC2086
-            pnpm exec wrangler secret bulk "$DECRYPTED" --config wrangler.production.toml $env_flag
+            pnpm exec wrangler secret bulk "$DECRYPTED_FILTERED" --config wrangler.production.toml $env_flag
           done
 
       - name: Generate release notes
