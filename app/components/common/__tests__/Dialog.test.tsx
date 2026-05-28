@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Dialog } from "../Dialog";
@@ -345,5 +345,111 @@ describe("Dialog close button rendering", () => {
     // focusable, and forward Tab from last must wrap to the first (close).
     // Assert the trap fired and moved focus to the close button.
     expect(document.activeElement).toBe(closeBtn);
+  });
+});
+
+describe("Dialog initialFocusRef", () => {
+  // Helper: rAF twice so the effect-scheduled focus callback has run.
+  async function flushInitialFocus() {
+    await act(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
+    });
+  }
+
+  it("focuses the element pointed to by initialFocusRef when it is inside the panel", async () => {
+    const ref = createRef<HTMLInputElement>();
+    act(() => {
+      root.render(
+        <Dialog open={true} onClose={() => {}} initialFocusRef={ref}>
+          <button type="button" data-testid="first">
+            First
+          </button>
+          <input ref={ref} data-testid="target" />
+        </Dialog>,
+      );
+    });
+    await flushInitialFocus();
+    expect(ref.current).not.toBeNull();
+    expect(document.activeElement).toBe(ref.current);
+  });
+
+  it("falls back to the first focusable when initialFocusRef.current is null", async () => {
+    // A ref that never attaches — `current` stays null at fire time.
+    const ref = createRef<HTMLElement>();
+    act(() => {
+      root.render(
+        <Dialog open={true} onClose={() => {}} initialFocusRef={ref}>
+          <button type="button" data-testid="first">
+            First
+          </button>
+          <button type="button" data-testid="second">
+            Second
+          </button>
+        </Dialog>,
+      );
+    });
+    await flushInitialFocus();
+    const first = document.body.querySelector<HTMLButtonElement>(
+      'button[data-testid="first"]',
+    );
+    expect(first).not.toBeNull();
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("falls back to the first focusable when initialFocusRef points outside the panel", async () => {
+    // Mount a stray element outside the dialog, point the ref at it.
+    const stray = document.createElement("button");
+    stray.setAttribute("data-testid", "stray");
+    document.body.appendChild(stray);
+    const ref = { current: stray as HTMLElement | null };
+    try {
+      act(() => {
+        root.render(
+          <Dialog open={true} onClose={() => {}} initialFocusRef={ref}>
+            <button type="button" data-testid="first">
+              First
+            </button>
+          </Dialog>,
+        );
+      });
+      await flushInitialFocus();
+      const first = document.body.querySelector<HTMLButtonElement>(
+        'button[data-testid="first"]',
+      );
+      expect(document.activeElement).toBe(first);
+      expect(document.activeElement).not.toBe(stray);
+    } finally {
+      stray.remove();
+    }
+  });
+
+  it("ignores initialFocusRef when role='alertdialog' and focuses the panel", async () => {
+    const ref = createRef<HTMLInputElement>();
+    act(() => {
+      root.render(
+        <Dialog
+          open={true}
+          onClose={() => {}}
+          role="alertdialog"
+          ariaLabel="alert"
+          initialFocusRef={ref}
+        >
+          <input ref={ref} data-testid="target" />
+        </Dialog>,
+      );
+    });
+    await flushInitialFocus();
+    const panel = document.body.querySelector<HTMLElement>(
+      '[role="alertdialog"]',
+    );
+    expect(panel).not.toBeNull();
+    expect(document.activeElement).toBe(panel);
+    expect(document.activeElement).not.toBe(ref.current);
   });
 });

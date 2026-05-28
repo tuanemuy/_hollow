@@ -496,6 +496,38 @@ describe("IngestionPreviewForm", () => {
     expect(previewClass).not.toMatch(/max-h-\[\d+px\]/);
   });
 
+  // Issue #256 A11y-H2: the form no longer owns a focus side-effect.
+  // Focus on the editing view is driven by the parent (`UploadDialog`'s
+  // view machine) via the optional `titleInputRef` prop. When the prop
+  // is omitted the form mounts cleanly without grabbing focus.
+  it("does not grab focus on mount when titleInputRef is not provided", async () => {
+    // Park focus on an out-of-form element before mounting so we can
+    // assert the form did not steal it.
+    const sentinel = document.createElement("button");
+    sentinel.textContent = "sentinel";
+    document.body.appendChild(sentinel);
+    sentinel.focus();
+    expect(document.activeElement).toBe(sentinel);
+    try {
+      renderForm({});
+      // Flush rAF + microtasks so any latent focus side-effect would land.
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        });
+      });
+      const title = getTitleInput();
+      expect(document.activeElement).not.toBe(title);
+      expect(document.activeElement).toBe(sentinel);
+    } finally {
+      sentinel.remove();
+    }
+  });
+
   // W-T-006: empty frontMatterJson is omitted from the payload — the
   // wire contract says undefined means "do not modify".
   it("omits frontMatterJson from the payload when the textarea is empty", async () => {

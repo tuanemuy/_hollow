@@ -36,6 +36,7 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [isPending, startTransition] = useTransition();
   const nameId = useId();
+  const titleId = useId();
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -74,11 +75,13 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="ビューとして保存"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <h2 className={dialogTitle}>現在のフィルタをビューとして保存</h2>
+        <h2 id={titleId} className={dialogTitle}>
+          現在のフィルタをビューとして保存
+        </h2>
         <div className={field}>
           <label htmlFor={nameId} className={fieldLabel}>
             名前

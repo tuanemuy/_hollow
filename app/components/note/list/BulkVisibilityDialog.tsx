@@ -39,6 +39,7 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
   const [progress, setProgress] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const radioName = useId();
+  const titleId = useId();
 
   const ids = [...state.ids];
 
@@ -81,11 +82,13 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="公開設定を一括変更"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <h2 className={dialogTitle}>{ids.length} 件のノートの公開設定を変更</h2>
+        <h2 id={titleId} className={dialogTitle}>
+          {ids.length} 件のノートの公開設定を変更
+        </h2>
         <fieldset className={field}>
           <legend className={fieldLabel}>新しい公開状態</legend>
           {(["private", "unlisted", "public"] as const).map((v) => (

@@ -82,6 +82,42 @@ function isPollFatalError(err: SerializedError): boolean {
   }
 }
 
+/**
+ * Pure derivation of the SR status text for the current view. Used inside
+ * the always-mounted `role="status" aria-live="polite"` region so view
+ * transitions are announced once, in a single place. `select` returns an
+ * empty string so the polite region stays silent while errors are handled
+ * by the inline `role="alert"` region (avoids double-announce).
+ */
+function viewStatusText(view: View): string {
+  switch (view.kind) {
+    case "select":
+      return "";
+    case "uploading":
+      return view.total === 1
+        ? "アップロード中"
+        : `${view.total} 件のファイルをアップロード中`;
+    case "waiting":
+      return "LLM がタイトルとメタデータを提案中";
+    case "editing":
+      return "プレビュー編集に進みました";
+    case "failed":
+      return "取り込みに失敗しました";
+    case "multiResult": {
+      const base = `${view.total} 件中 ${view.succeeded} 件をキューに追加しました`;
+      return view.failedNames.length > 0
+        ? `${base}（${view.failedNames.length} 件失敗）`
+        : base;
+    }
+    case "timedOut":
+      return "推論の完了を待ちきれませんでした";
+    default: {
+      const _exhaustive: never = view;
+      return _exhaustive;
+    }
+  }
+}
+
 export function UploadDialog({ open, onClose }: Props) {
   const router = useRouter();
   const upload = useServerFn(uploadFileFn);
@@ -89,6 +125,7 @@ export function UploadDialog({ open, onClose }: Props) {
   const getTree = useServerFn(getDirectoryTreeFn);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [view, setView] = useState<View>({ kind: "select" });
   const [error, setError] = useState<SerializedError | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -97,6 +134,18 @@ export function UploadDialog({ open, onClose }: Props) {
   const [isTreeLoading, setIsTreeLoading] = useState(false);
 
   const inputId = useId();
+  const titleId = useId();
+  const statusId = useId();
+
+  // Move focus to the title input when the view transitions into `editing`.
+  // `Dialog.initialFocusRef` is intentionally not used here because the dialog
+  // always opens in the `select` view (the rAF initial-focus effect has long
+  // since fired by the time we reach editing). See ADR-004.
+  useEffect(() => {
+    if (view.kind === "editing") {
+      titleInputRef.current?.focus();
+    }
+  }, [view.kind]);
 
   // Flag flipped by the `open` cleanup so in-flight `submitFiles`
   // callbacks know to skip their post-await `setView`. Without this
@@ -309,12 +358,17 @@ export function UploadDialog({ open, onClose }: Props) {
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="アップロード"
+      ariaLabelledBy={titleId}
       closeOnBackdropClick={!isPending}
       showCloseButton
       closable={view.kind !== "uploading"}
     >
-      <h2 className={dialogTitle}>アップロード</h2>
+      <h2 id={titleId} className={dialogTitle}>
+        アップロード
+      </h2>
+      <div id={statusId} role="status" aria-live="polite" className="sr-only">
+        {viewStatusText(view)}
+      </div>
 
       {view.kind === "select" ? (
         <SelectView
@@ -337,6 +391,7 @@ export function UploadDialog({ open, onClose }: Props) {
           job={view.job}
           tree={tree}
           isTreeLoading={isTreeLoading}
+          titleInputRef={titleInputRef}
           onCommitted={onCommitted}
           onDiscarded={onDiscarded}
           onCancel={onClose}
@@ -428,10 +483,7 @@ function SelectView({
 
 function UploadingView({ total }: Readonly<{ total: number }>) {
   return (
-    <div
-      className="py-8 text-center text-sm text-ink-secondary"
-      aria-live="polite"
-    >
+    <div className="py-8 text-center text-sm text-ink-secondary">
       <SkeletonBlock />
       <p className="mt-4">
         {total === 1
@@ -444,10 +496,7 @@ function UploadingView({ total }: Readonly<{ total: number }>) {
 
 function WaitingView() {
   return (
-    <div
-      className="py-8 text-center text-sm text-ink-secondary"
-      aria-live="polite"
-    >
+    <div className="py-8 text-center text-sm text-ink-secondary">
       <SkeletonBlock />
       <p className="mt-4">LLM がタイトルとメタデータを提案中...</p>
       <p className="mt-1 text-xs text-ink-tertiary">

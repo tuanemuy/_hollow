@@ -2,14 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   field,
@@ -36,6 +29,13 @@ type Props = Readonly<{
   job: IngestionJobWire;
   tree: readonly FlatDirectory[];
   isTreeLoading: boolean;
+  /**
+   * Optional ref the parent uses to drive focus on its view transition
+   * (see `UploadDialog`'s view machine effect). When omitted the form
+   * carries no focus side-effect — the parent is responsible for landing
+   * focus on the appropriate element.
+   */
+  titleInputRef?: React.RefObject<HTMLInputElement | null>;
   onCommitted: (noteId: string) => void;
   onDiscarded: () => void;
   onCancel: () => void;
@@ -94,6 +94,7 @@ export function IngestionPreviewForm({
   job,
   tree,
   isTreeLoading,
+  titleInputRef,
   onCommitted,
   onDiscarded,
   onCancel,
@@ -157,14 +158,12 @@ export function IngestionPreviewForm({
     directoryId !== initialDirectoryId ||
     pendingDirectoryName !== initialPendingDirName;
 
-  // W-F-003: Focus the title input when the editing view first mounts
-  // so keyboard users land on the most-edited field. Done via ref +
-  // effect (instead of `autoFocus`) to comply with biome's
-  // a11y/noAutofocus rule.
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    titleInputRef.current?.focus();
-  }, []);
+  // W-F-003 + Issue #256: the title input ref is owned by the parent
+  // (`UploadDialog`'s view machine) so the form itself carries no focus
+  // side-effect. A local fallback ref keeps the JSX self-contained when
+  // the prop is omitted.
+  const localTitleInputRef = useRef<HTMLInputElement>(null);
+  const effectiveTitleInputRef = titleInputRef ?? localTitleInputRef;
 
   const jobId = job.id as unknown as string;
 
@@ -230,7 +229,7 @@ export function IngestionPreviewForm({
               <AiSuggestionBadge edited={isTitleEdited} field="title" />
             </label>
             <input
-              ref={titleInputRef}
+              ref={effectiveTitleInputRef}
               id={titleId}
               type="text"
               value={title}
