@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { Plus, Search, Upload } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { UserDTO } from "@/core/application/dto";
 import {
@@ -40,7 +42,7 @@ export function Header({ user }: Props) {
           >
             ノート検索
           </label>
-          <span className={SEARCH_BOX_ICON} aria-hidden="true" />
+          <Icon icon={Search} size={16} className={SEARCH_BOX_ICON} />
           <input
             id="header-search"
             name="q"
@@ -53,9 +55,13 @@ export function Header({ user }: Props) {
       </div>
       <div className={APP_HEADER_RIGHT}>
         <Link to="/notes/new" className={PILL_BTN} data-primary="">
+          <Icon icon={Plus} />
           新規作成
         </Link>
-        <UploadButton className={PILL_BTN}>アップロード</UploadButton>
+        <UploadButton className={PILL_BTN}>
+          <Icon icon={Upload} />
+          アップロード
+        </UploadButton>
         <Link
           to="/"
           search={HOME_SEARCH}

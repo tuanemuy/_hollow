@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
-import { PublicLayout, SearchIcon } from "./PublicLayout";
+import { Icon } from "@/components/common/Icon";
+import { PublicLayout } from "./PublicLayout";
 import {
   ERR_ACTIONS,
   ERR_CODE,
@@ -10,6 +12,7 @@ import {
   ERR_PAGE,
   ERR_TITLE,
   PILL_BTN,
+  SEARCH_ICON,
   USER_SEARCH_INPUT,
 } from "./styles";
 
@@ -66,7 +69,7 @@ export function ErrorPage({ kind, message }: Props) {
           {showSearch ? (
             <search className="relative max-w-[440px] mx-auto mb-6">
               <form method="get" action="/search">
-                <SearchIcon />
+                <Icon icon={Search} size={16} className={SEARCH_ICON} />
                 <label
                   htmlFor="err-search"
                   className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"

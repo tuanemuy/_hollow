@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
 import {
   PILL_BTN,
   PUBLIC_FOOTER,
@@ -43,7 +45,7 @@ export function PublicLayout({
         ) : (
           <search className={PUBLIC_HEADER_SEARCH}>
             <form method="get" action="/search">
-              <SearchIcon />
+              <Icon icon={Search} size={16} className={SEARCH_ICON} />
               <label
                 htmlFor="public-header-keyword"
                 className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
@@ -91,25 +93,6 @@ export function PublicLayout({
         </div>
       </footer>
     </div>
-  );
-}
-
-export function SearchIcon({ size = 16 }: { size?: number } = {}) {
-  return (
-    <svg
-      className={SEARCH_ICON}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
   );
 }
 

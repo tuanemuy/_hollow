@@ -1,8 +1,10 @@
 "use client";
 
 import { Link, useRouter } from "@tanstack/react-router";
+import { Bookmark, Plus, Upload } from "lucide-react";
 import { useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { SavedViewDTO } from "@/core/application/dto/view";
@@ -97,6 +99,7 @@ export function NoteListToolbar({
                 : undefined
             }
           >
+            <Icon icon={Bookmark} />
             ビューとして保存
           </button>
           <Link
@@ -104,9 +107,13 @@ export function NoteListToolbar({
             data-primary
             className={`${pillBtn} ${pillBtnPrimary}`}
           >
+            <Icon icon={Plus} />
             新規作成
           </Link>
-          <UploadButton className={pillBtn}>アップロード</UploadButton>
+          <UploadButton className={pillBtn}>
+            <Icon icon={Upload} />
+            アップロード
+          </UploadButton>
         </div>
       </div>
       <SaveViewDialog

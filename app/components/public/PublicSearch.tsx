@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import { cache } from "react";
+import { Icon } from "@/components/common/Icon";
 import { serverData } from "@/core/presentation/serverAction";
-import { avatarInitials, PublicLayout, SearchIcon } from "./PublicLayout";
+import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
   AUTHOR_AVATAR,
   PAGINATION,
@@ -10,6 +12,7 @@ import {
   SEARCH_EMPTY,
   SEARCH_FORM,
   SEARCH_FORM_BUTTON,
+  SEARCH_FORM_ICON,
   SEARCH_FORM_INPUT,
   SEARCH_HERO,
   SEARCH_HERO_H1,
@@ -74,7 +77,7 @@ export async function PublicSearch({
           <h1 className={SEARCH_HERO_H1}>公開ノートを検索</h1>
           <search className={SEARCH_FORM}>
             <form method="get" action="/search">
-              <SearchIcon size={18} />
+              <Icon icon={Search} size={20} className={SEARCH_FORM_ICON} />
               <label
                 htmlFor="public-search-input"
                 className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
