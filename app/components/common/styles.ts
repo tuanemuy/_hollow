@@ -63,7 +63,7 @@ export const dialog =
  * exclusion, `closable=false` disabling).
  */
 export const dialogCloseButton =
-  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full text-ink-secondary text-xl leading-none hover:bg-surface hover:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:bg-surface hover:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Modal dialog title. */
 export const dialogTitle = "text-lg font-medium mb-4";

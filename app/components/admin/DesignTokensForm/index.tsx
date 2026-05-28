@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { RotateCcw } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -263,6 +264,7 @@ export function DesignTokensForm({
         title="すべてのデザイントークンをリセットしますか？"
         description="すべての上書きが削除され、ビルトインの既定値に戻ります。この操作は取り消せません。"
         confirmLabel={isResetting ? "リセット中..." : "リセット"}
+        confirmIcon={RotateCcw}
         isPending={isResetting}
         onConfirm={onConfirmReset}
         onClose={() => setConfirmOpen(false)}

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
 import { loadOwnedNotes } from "@/components/note/loaders";
@@ -58,6 +58,7 @@ export async function TrashList({ user, page, limit }: Props) {
           <h2 className="text-xl font-medium text-ink mb-2">ゴミ箱は空です</h2>
           <p className="text-sm mb-4">削除したノートはここに表示されます。</p>
           <Link to="/" search={HOME_SEARCH} className={PILL_BTN}>
+            <Icon icon={ArrowLeft} />
             すべてのノートに戻る
           </Link>
         </div>

@@ -107,6 +107,7 @@ export function NoteActions({
     return (
       <div className={MENU}>
         <Link to="/trash" search={TRASH_SEARCH} className={pillBtn}>
+          <Icon icon={Trash2} />
           ゴミ箱を開く
         </Link>
       </div>
@@ -194,6 +195,7 @@ export function NoteActions({
         open={confirmDeleteOpen}
         title="このノートをゴミ箱に移動"
         confirmLabel="ゴミ箱へ"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={() => {
           setConfirmDeleteOpen(false);
