@@ -203,3 +203,164 @@ describe("NoteEditor.onModeChange confirm conditions", () => {
     expect(confirmMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Issue #286: discard during mode switch must cancel in-flight saveDraft.
+ *
+ * Uses fake timers so we can advance past the AUTOSAVE_DEBOUNCE_MS
+ * (1500ms) without hanging the test. saveDraft is mocked to either hang
+ * on a never-resolving promise (so we can observe it being in-flight at
+ * the moment of mode switch) or to reject when its AbortSignal aborts
+ * (so we can assert the abort propagated through the fetcher boundary).
+ */
+describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () => {
+  type SaveDraftArgs = { data: unknown; signal?: AbortSignal };
+
+  async function makeDirty(): Promise<void> {
+    const titleInput =
+      container.querySelector<HTMLInputElement>("#note-editor-title");
+    expect(titleInput).not.toBeNull();
+    await act(async () => {
+      if (titleInput !== null) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(titleInput, "dirty");
+        titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+  }
+
+  it("forwards an AbortSignal to saveDraft once autosave fires", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEditor();
+      // Hang the in-flight saveDraft so the controller stays alive long
+      // enough for the assertion.
+      saveDraftMock.mockImplementation(() => new Promise(() => {}));
+      await makeDirty();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(saveDraftMock).toHaveBeenCalled();
+      const call = saveDraftMock.mock.calls.at(-1)?.[0] as
+        | SaveDraftArgs
+        | undefined;
+      expect(call).toBeDefined();
+      expect(call?.signal).toBeInstanceOf(AbortSignal);
+      expect(call?.signal?.aborted).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts the in-flight saveDraft when the user picks discard", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEditor();
+      // Reject only when the signal aborts so we can both observe the
+      // in-flight state and verify the abort propagates.
+      saveDraftMock.mockImplementation(
+        ({ signal }: SaveDraftArgs) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      );
+      await makeDirty();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(saveDraftMock).toHaveBeenCalled();
+      const call = saveDraftMock.mock.calls.at(-1)?.[0] as
+        | SaveDraftArgs
+        | undefined;
+      const signal = call?.signal;
+      expect(signal?.aborted).toBe(false);
+
+      confirmMock.mockReturnValue(true);
+      await act(async () => {
+        tabByLabel("HTML").click();
+      });
+      // Mode-switch dispatched `autosaveDiscarded` which abort()'d the
+      // controller. Allow any pending microtasks (rejected promise +
+      // `.finally`) to flush.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      expect(signal?.aborted).toBe(true);
+      // AutosaveIndicator should be back in idle (the "自動保存はオフ"
+      // copy from `AutosaveIndicator.tsx:20`).
+      expect(container.textContent ?? "").toContain("自動保存はオフ");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the in-flight saveDraft alive when the user cancels the confirm", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEditor();
+      saveDraftMock.mockImplementation(
+        ({ signal }: SaveDraftArgs) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      );
+      await makeDirty();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      const call = saveDraftMock.mock.calls.at(-1)?.[0] as
+        | SaveDraftArgs
+        | undefined;
+      const signal = call?.signal;
+      expect(signal?.aborted).toBe(false);
+
+      confirmMock.mockReturnValue(false);
+      await act(async () => {
+        tabByLabel("HTML").click();
+      });
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      // Cancel must not abort the live fetch.
+      expect(signal?.aborted).toBe(false);
+      // Indicator is still showing the saving copy because we never
+      // discarded.
+      expect(container.textContent ?? "").toContain("保存中…");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears the autosaveError banner when the user discards during mode switch", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEditor();
+      // Reject 3 times so attemptRef hits MAX_ATTEMPTS and lands in
+      // `error`. Backoff waits are 500/1000/2000 ms, so push the
+      // timeline far enough past them.
+      saveDraftMock.mockRejectedValue(new Error("autosave network"));
+      await makeDirty();
+      // debounce 1500ms + retry backoffs (500 + 1000 + 2000)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(container.textContent ?? "").toContain("自動保存に失敗");
+
+      confirmMock.mockReturnValue(true);
+      await act(async () => {
+        tabByLabel("HTML").click();
+      });
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      expect(container.textContent ?? "").not.toContain("自動保存に失敗");
+      expect(container.textContent ?? "").toContain("自動保存はオフ");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

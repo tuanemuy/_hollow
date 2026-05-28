@@ -1,7 +1,7 @@
 "use client";
 
 import type { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { saveNoteDraftFn } from "@/components/note/actions";
 import { AUTOSAVE_DEBOUNCE_MS } from "@/components/note/constants";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
@@ -60,6 +60,28 @@ export type UseAutosaveArgs = Readonly<{
   state: EditorState;
   dispatch: React.Dispatch<EditorAction>;
   saveDraft: SaveNoteDraftServerFn;
+}>;
+
+/**
+ * Return shape of {@link useAutosave}.
+ *
+ * `abortInFlight` is the external abort path consumed by
+ * `NoteEditor.onModeChange` when the user picks "discard" in the
+ * unsaved-changes confirm dialog (Issue #286). It cancels any in-flight
+ * `saveDraft` fetch via `AbortController` and dispatches
+ * `autosaveDiscarded` so the AutosaveIndicator returns to `idle` and the
+ * retry / debounce bookkeeping is reset. The user's `dirtyKeys` are
+ * intentionally preserved — only the in-flight fetch and its UI status
+ * are discarded.
+ *
+ * Calling `abortInFlight()` when nothing is in flight is safe:
+ * - `controllerRef.current === null` skips `controller.abort()`
+ * - the reducer short-circuits `idle → idle` so no re-render occurs
+ * - the dispatched action is still emitted, which is what dismisses a
+ *   lingering `error` banner (see ADR-004 of Issue #286).
+ */
+export type UseAutosaveReturn = Readonly<{
+  abortInFlight: () => void;
 }>;
 
 const MAX_ATTEMPTS = 3;
@@ -128,11 +150,17 @@ export function useAutosave({
   state,
   dispatch,
   saveDraft,
-}: UseAutosaveArgs) {
+}: UseAutosaveArgs): UseAutosaveReturn {
   const attemptRef = useRef(0);
   const inFlightRef = useRef<Promise<void> | null>(null);
   const reRunRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Issue #286: external abort handle. The effect installs its
+  // `AbortController` here so `abortInFlight()` can reach across the
+  // hook boundary. Teardown clears the slot only when it still owns
+  // *this* controller (identity guard) so a stale teardown can't null
+  // out a newer effect's controller.
+  const controllerRef = useRef<AbortController | null>(null);
 
   // Snapshot only the fields actually sent on flush; this keeps the
   // autosave effect from restarting when unrelated state slices (e.g.
@@ -159,10 +187,15 @@ export function useAutosave({
   const canFlush = shouldFlushAutosave(state, noteId);
 
   useEffect(() => {
+    // When the autosave gate flips off (e.g. WYSIWYG unsupported-tag
+    // ack pending), we do not install a controller. The previous
+    // effect's teardown already null'd `controllerRef.current` via its
+    // identity guard, so `abortInFlight()` is naturally a no-op here.
     if (!canFlush) return;
 
     const controller = new AbortController();
     const signal = controller.signal;
+    controllerRef.current = controller;
 
     const flush = async (): Promise<void> => {
       if (signal.aborted) return;
@@ -175,6 +208,10 @@ export function useAutosave({
             contentHtml: snapshot.contentHtml,
             frontMatterJson: snapshot.frontMatterJson,
           },
+          // Issue #286: thread the effect's AbortSignal through to the
+          // underlying fetch so `controller.abort()` cancels the
+          // network request, not just the post-await bookkeeping.
+          signal,
         });
         if (signal.aborted) return;
         attemptRef.current = 0;
@@ -232,10 +269,51 @@ export function useAutosave({
     schedule();
     return () => {
       controller.abort();
+      // Identity-guarded clear: only null the slot when it still holds
+      // *our* controller. A newer effect may have already installed its
+      // own controller and we must not clobber it from this teardown.
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+      }
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
     };
   }, [canFlush, noteId, snapshot, dispatch, saveDraft]);
+
+  // Issue #286: external abort path. Stable identity via
+  // `useCallback([dispatch])` — `dispatch` is the only non-ref
+  // dependency, and `useReducer` guarantees its identity. The refs
+  // (`controllerRef`, `timerRef`, etc.) are deliberately omitted from
+  // the dep list: `useRef.current` is read at call time and never goes
+  // stale within a hook instance.
+  //
+  // Bookkeeping reset semantics:
+  // - `controller.abort()` fires AbortError on the in-flight fetch.
+  //   The existing `flush()` catch checks `signal.aborted` before
+  //   incrementing `attemptRef`, so a fresh `attemptRef = 0` here is
+  //   not racing with a `+= 1` from the abort-induced reject.
+  // - `inFlightRef.current` is left for the in-flight promise's
+  //   `.finally` identity guard to clear — touching it here would
+  //   double the bookkeeping and risk inverting the guard.
+  // - `timerRef` / `reRunRef` are cleared so a pending debounce or
+  //   re-run flag does not resurrect a flush after the user picked
+  //   "discard".
+  const abortInFlight = useCallback(() => {
+    const controller = controllerRef.current;
+    if (controller !== null) {
+      controller.abort();
+      controllerRef.current = null;
+    }
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    reRunRef.current = false;
+    attemptRef.current = 0;
+    dispatch({ type: "autosaveDiscarded" });
+  }, [dispatch]);
+
+  return { abortInFlight };
 }

@@ -358,6 +358,48 @@ describe("editorReducer autosave actions", () => {
     expect(s1.dirtyKeys.has("title")).toBe(true);
   });
 
+  // Issue #286: the mode-switch "discard" path resets autosave to idle
+  // without clearing dirtyKeys. Pins the transition matrix exhaustively.
+  describe("autosaveDiscarded", () => {
+    it("transitions saving → idle and preserves dirtyKeys", () => {
+      const s0 = editorReducer(freshState(), { type: "setTitle", value: "x" });
+      const s1 = editorReducer(s0, { type: "autosaveStart" });
+      expect(s1.autosave.kind).toBe("saving");
+      const s2 = editorReducer(s1, { type: "autosaveDiscarded" });
+      expect(s2.autosave).toEqual({ kind: "idle" });
+      expect(s2.dirtyKeys.has("title")).toBe(true);
+    });
+
+    it("transitions error → idle and preserves dirtyKeys", () => {
+      const s0 = editorReducer(freshState(), { type: "setTitle", value: "x" });
+      const err: SerializedError = {
+        kind: "system",
+        code: null,
+        message: "boom",
+      };
+      const s1 = editorReducer(s0, { type: "autosaveError", error: err });
+      const s2 = editorReducer(s1, { type: "autosaveDiscarded" });
+      expect(s2.autosave).toEqual({ kind: "idle" });
+      expect(s2.dirtyKeys.has("title")).toBe(true);
+    });
+
+    it("transitions saved → idle (no dirty before)", () => {
+      const s0 = editorReducer(freshState(), { type: "setTitle", value: "x" });
+      const s1 = editorReducer(s0, { type: "autosaveStart" });
+      const s2 = editorReducer(s1, { type: "autosaveSuccess", at: 1700 });
+      expect(s2.autosave.kind).toBe("saved");
+      const s3 = editorReducer(s2, { type: "autosaveDiscarded" });
+      expect(s3.autosave).toEqual({ kind: "idle" });
+    });
+
+    it("is a no-op (same state identity) when already idle", () => {
+      const s0 = freshState();
+      expect(s0.autosave.kind).toBe("idle");
+      const s1 = editorReducer(s0, { type: "autosaveDiscarded" });
+      expect(s1).toBe(s0);
+    });
+  });
+
   it("a field setter during `saving` leaves autosave on `saving`", () => {
     const s0 = editorReducer(freshState(), { type: "autosaveStart" });
     const s1 = editorReducer(s0, { type: "setTitle", value: "x" });
