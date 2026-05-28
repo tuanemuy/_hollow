@@ -161,5 +161,12 @@ export function extractSerializedError(error: unknown): SerializedError {
     const structural = asSerializedError(error.serialized);
     if (structural !== null) return structural;
   }
+  // Plain `SerializedError` shape — e.g. when callers store an
+  // already-extracted error in component state and re-feed it to
+  // `displayError`. Without this branch the structural object would fall
+  // through to `serializeError` and be flattened to `kind: "unknown"`,
+  // erasing the original `kind` / `message`.
+  const direct = asSerializedError(error);
+  if (direct !== null) return direct;
   return serializeError(error);
 }

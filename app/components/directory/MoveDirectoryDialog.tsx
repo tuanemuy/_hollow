@@ -130,8 +130,11 @@ export function MoveDirectoryDialog({
           >
             <option value="">— 選択してください —</option>
             {options.map((opt) => (
+              // Use the full path (or the "（ルート）" label) as the option
+              // text. We intentionally do not lean on leading whitespace for
+              // hierarchy, since most screen readers strip it; path itself
+              // conveys the ancestor chain unambiguously.
               <option key={opt.id} value={opt.id}>
-                {"  ".repeat(opt.depth)}
                 {opt.label}
               </option>
             ))}

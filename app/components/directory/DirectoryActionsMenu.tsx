@@ -35,7 +35,19 @@ export function DirectoryActionsMenu({
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+
+  // When the menu opens, move focus to the first menuitem so keyboard
+  // users land on an actionable target (matches WAI-ARIA Menu Button
+  // pattern's minimum expectation; full roving navigation is follow-up
+  // Issue #289 / ADR-006).
+  useEffect(() => {
+    if (!open) return;
+    const first =
+      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+    first?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -66,12 +78,29 @@ export function DirectoryActionsMenu({
   }, [open]);
 
   const runAndClose = (fn: () => void) => () => {
+    // Move focus back to the trigger BEFORE closing the menu, so that when
+    // `fn()` mounts a Dialog, the Dialog's `previousActiveRef` captures the
+    // trigger button rather than `<body>` (the menuitem is about to be
+    // unmounted by `setOpen(false)`). This preserves focus restoration when
+    // the Dialog later closes.
+    triggerRef.current?.focus();
     setOpen(false);
     fn();
   };
 
+  // Close on focus leaving the menu (Tab away). Without this the menu can
+  // stay visually expanded while focus is somewhere else in the page,
+  // which conflicts with the `role=menu` semantic and pollutes the SR
+  // announcement state.
+  const onFocusOut = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (!open) return;
+    const next = event.relatedTarget;
+    if (next instanceof Node && containerRef.current?.contains(next)) return;
+    setOpen(false);
+  };
+
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative" onBlur={onFocusOut}>
       <button
         ref={triggerRef}
         type="button"
@@ -90,7 +119,12 @@ export function DirectoryActionsMenu({
         <span aria-hidden="true">⋮</span>
       </button>
       {open ? (
-        <div id={menuId} role="menu" className={ACTIONS_MENU_PANEL}>
+        <div
+          ref={menuRef}
+          id={menuId}
+          role="menu"
+          className={ACTIONS_MENU_PANEL}
+        >
           <button
             type="button"
             role="menuitem"

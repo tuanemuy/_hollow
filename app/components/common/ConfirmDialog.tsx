@@ -40,6 +40,12 @@ export function ConfirmDialog({
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Stop React event bubbling so a ConfirmDialog mounted inside an
+    // outer form (e.g. NoteEditor / IngestionPreviewForm) does not also
+    // fire that form's submit handler. Portal places this `<form>` under
+    // document.body in the real DOM, but React's synthetic submit still
+    // bubbles up the virtual ancestor chain.
+    event.stopPropagation();
     if (isPending) return;
     onConfirm();
   };

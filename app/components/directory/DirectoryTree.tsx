@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useTransition,
@@ -109,7 +110,8 @@ export function DirectoryTree({ tree }: DirectoryTreeProps) {
           <p>まだディレクトリがありません</p>
           <button
             type="button"
-            className="self-start text-accent text-[13px] hover:underline"
+            disabled={root === undefined}
+            className="self-start text-accent text-[13px] hover:underline disabled:opacity-55 disabled:cursor-not-allowed disabled:no-underline"
             onClick={() => {
               if (root === undefined) return;
               setDialog({
@@ -218,6 +220,20 @@ function DirectoryTreeNodeView({
   const errorForThis =
     renameError !== null && renameError.id === id ? renameError.error : null;
 
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const wasRenamingRef = useRef(false);
+  const errorId = useId();
+  // When inline rename ends (commit / cancel) restore focus to the row's
+  // link so keyboard users do not lose their place in the tree. Without
+  // this the Link unmount/remount cycle leaves focus on <body>.
+  useEffect(() => {
+    if (wasRenamingRef.current && !isRenaming) {
+      const link = itemRef.current?.querySelector<HTMLElement>("a");
+      link?.focus();
+    }
+    wasRenamingRef.current = isRenaming;
+  }, [isRenaming]);
+
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (isRenaming) return;
     // Each treeitem div has its own onKeyDown. Without stopPropagation the
@@ -267,6 +283,7 @@ function DirectoryTreeNodeView({
 
   return (
     <div
+      ref={itemRef}
       role="treeitem"
       aria-level={depth}
       aria-expanded={hasChildren ? expanded : undefined}
@@ -301,6 +318,7 @@ function DirectoryTreeNodeView({
           <InlineRenameInput
             directoryId={id}
             initialName={node.name}
+            errorId={errorForThis !== null ? errorId : undefined}
             onDone={() => {
               setRenamingId(null);
             }}
@@ -355,7 +373,7 @@ function DirectoryTreeNodeView({
       </div>
 
       {errorForThis !== null ? (
-        <p className={TREE_ITEM_ERROR} role="alert">
+        <p id={errorId} className={TREE_ITEM_ERROR} role="alert">
           {displayError(errorForThis)}
         </p>
       ) : null}
@@ -388,6 +406,8 @@ function DirectoryTreeNodeView({
 type InlineRenameInputProps = Readonly<{
   directoryId: string;
   initialName: string;
+  /** Element id of an associated `role="alert"` error message, if any. */
+  errorId?: string | undefined;
   onDone: () => void;
   onError: (error: SerializedError) => void;
   onCommitSuccess: () => void;
@@ -396,6 +416,7 @@ type InlineRenameInputProps = Readonly<{
 function InlineRenameInput({
   directoryId,
   initialName,
+  errorId,
   onDone,
   onError,
   onCommitSuccess,
@@ -413,16 +434,26 @@ function InlineRenameInput({
     input.select();
   }, []);
 
+  // Enter → commit() triggers `disabled=true` (isPending) on the input, which
+  // causes the browser to blur it — and onBlur={commit} would then fire a
+  // second commit in the same event loop. Guard with a ref so commit is a
+  // single-shot per InlineRenameInput instance.
+  const committedRef = useRef(false);
+
   const commit = () => {
+    if (committedRef.current) return;
     const trimmed = value.trim();
     if (trimmed.length === 0) {
+      committedRef.current = true;
       onDone();
       return;
     }
     if (trimmed === initialName) {
+      committedRef.current = true;
       onDone();
       return;
     }
+    committedRef.current = true;
     startTransition(async () => {
       try {
         await renameDirectory({
@@ -461,6 +492,8 @@ function InlineRenameInput({
       maxLength={100}
       disabled={isPending}
       aria-label="ディレクトリ名"
+      aria-invalid={errorId !== undefined ? true : undefined}
+      aria-describedby={errorId}
       className={TREE_ITEM_RENAME_INPUT}
     />
   );

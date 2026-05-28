@@ -9,11 +9,19 @@
 
 /** Wrapper row for a single treeitem (link + actions trigger). */
 export const TREE_ITEM_ROW =
-  "group flex items-center gap-1 pr-1 rounded-md hover:bg-surface data-[active]:bg-surface data-[active]:font-medium aria-[current=page]:bg-surface aria-[current=page]:font-medium";
+  "group flex items-center gap-1 pr-1 rounded-md hover:bg-surface";
 
-/** The directory name link inside a treeitem. */
+/**
+ * The directory name link inside a treeitem.
+ *
+ * Active state styles are on the Link itself because TanStack Router's
+ * `activeProps` attaches `data-active` / `aria-current` to the Link, not
+ * to ancestors; placing the modifiers here lets the styles actually take
+ * effect (and matches the legacy `NAV_ITEM` shape used by the old
+ * read-only Sidebar tree).
+ */
 export const TREE_ITEM_LINK =
-  "flex-1 min-w-0 flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline truncate";
+  "flex-1 min-w-0 flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline truncate data-[active]:bg-surface data-[active]:font-medium aria-[current=page]:bg-surface aria-[current=page]:font-medium";
 
 /** Disclosure caret button (expand / collapse children). */
 export const TREE_DISCLOSURE =
