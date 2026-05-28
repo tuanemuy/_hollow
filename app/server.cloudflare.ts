@@ -14,6 +14,7 @@ import {
 } from "@/core/application/di/serverCloudflare";
 import type { RequestContainer } from "@/core/application/di/types";
 import { ConsoleLogger } from "@/core/application/ports/logger";
+import { buildSitemapResponse } from "@/core/presentation/sitemapHandler";
 
 // SSR and RSC are separate module graphs in the same isolate; pin the
 // ALS on `globalThis` (and on `import.meta.hot.data` for HMR) so both
@@ -64,6 +65,16 @@ export default {
         }
       : baseConfig;
     const container = createRequestContainer(config);
-    return storage.run(container, async () => defaultEntry.fetch(request));
+    return storage.run(container, async () => {
+      // `/sitemap.xml` is intercepted here because the TanStack Start
+      // server-fn pipeline serialises responses through the RSC RPC
+      // layer and cannot emit a raw XML body. See ADR-010 in
+      // `.issue/205/adr.md` for the rationale.
+      const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/sitemap.xml") {
+        return buildSitemapResponse(container);
+      }
+      return defaultEntry.fetch(request);
+    });
   },
 };
