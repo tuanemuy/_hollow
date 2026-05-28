@@ -56,6 +56,7 @@ TanStack Router の `router.invalidate({ filter })` は `(match: MakeRouteMatchU
   - 型を `AnyRouter["invalidate"]` の引数から導出することで `MakeRouteMatchUnion<TRouter>` と `AnyRouteMatch` のミスマッチによる `tsgo` 型エラーを回避（`@typescript/native-preview` は素の tsc より contravariance を厳しく扱うため）
 - **トレードオフ:**
   - leaf 側で `staleTime` を独自に設定している箇所（例: 検索結果ページ）の挙動を変えない。これは現状維持なのでリグレッションではない
+  - `AnyRouter` 経由で型を導出するため `match.routeId` は registered route id の literal union ではなく `string` にフォールバックする。`APP_SHELL_ROUTE_ID` の値が将来 route tree のリネームで乖離しても型レベルで検知できない。runtime テスト（manual-test TC-001/002/003）と grep ベースの完全性チェックで担保する
 
 ---
 
@@ -145,3 +146,49 @@ Proposed
   - 言語が他 12 箇所と統一される
 - **トレードオフ:**
   - 旧コメントの「navigate to landing」という遷移先情報は失われるが、直後の `router.navigate({ to: "/", search: HOME_SEARCH })` を読めば自明
+
+---
+
+## ADR-006: filter 引数を AND 合成にして `_app` 除外を不変条件化
+
+### Status
+Proposed（レビュー review-001 で追加）
+
+### Context
+初稿では `filter: filter ?? ((match) => match.routeId !== APP_SHELL_ROUTE_ID)` の形で「filter が渡されたら `_app` 除外をまるごと上書きする」API だった。レビュー W-002 で「ユーザーが filter を渡すと `_app` 除外がすり抜ける」と指摘された。
+
+選択肢:
+- (a) 現状維持 + JSDoc で「filter を渡すと `_app` 除外は失われる」と明記
+- (b) filter を **追加フィルタ**として AND 合成: `match.routeId !== APP_SHELL_ROUTE_ID && (filter?.(match) ?? true)`
+- (c) filter 引数を削除（YAGNI）
+
+### Decision
+**(b) AND 合成** を採用。
+
+### Consequences
+- **良い点:**
+  - `_app` 除外がラッパー経由では絶対にすり抜けない不変条件として強化される
+  - 将来「`_app` 除外 + 追加条件」という典型的なユースケース（例: 特定 leaf のみ更に絞り込む）に自然に対応できる
+  - JSDoc に「常に除外」と明記でき、API のセマンティクスが直感的になる
+- **トレードオフ:**
+  - 呼び出し側が「`_app` も含めて invalidate したい」場合はラッパーを使えず生 `router.invalidate()` を使う必要があるが、それは ADR-003 で定義した 3 ルールに該当するケースなので意図と一致
+
+---
+
+## ADR-007: `APP_SHELL_ROUTE_ID` の export を外して module-local 化
+
+### Status
+Proposed（レビュー review-001 で追加）
+
+### Context
+初稿では `APP_SHELL_ROUTE_ID` を `export const` していた。レビュー W-004 で「`rg APP_SHELL_ROUTE_ID app/` で外部利用は 0 件、unused export は biome の lint で検出されない」と指摘された。
+
+### Decision
+`export` を外し、`routerInvalidate.ts` 内の module-local 定数にする。
+
+### Consequences
+- **良い点:**
+  - YAGNI 原則に従い、未使用 export を残さない
+  - 将来必要になったら `export` を戻すコストは 1 行で済む
+- **トレードオフ:**
+  - 他のラッパー（例: 将来追加するかもしれない `routerNavigate`）が同じ ID を参照したくなった場合、それぞれで定数定義が重複する可能性。出てきたタイミングで初めて共通化を検討する

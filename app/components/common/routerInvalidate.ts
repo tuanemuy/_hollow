@@ -1,14 +1,16 @@
 import type { AnyRouter } from "@tanstack/react-router";
 
-export const APP_SHELL_ROUTE_ID = "/_app";
+const APP_SHELL_ROUTE_ID = "/_app";
 
 type InvalidateOpts = NonNullable<Parameters<AnyRouter["invalidate"]>[0]>;
 type InvalidateFilter = NonNullable<InvalidateOpts["filter"]>;
 
 /**
- * `router.invalidate()` のラッパー。デフォルトで `_app` layout route を
- * 除外し、AppShell loader の `staleTime: Infinity` を mutation 後にも
- * 維持する。
+ * `router.invalidate()` のラッパー。`_app` layout route を **常に除外**
+ * し、AppShell loader の `staleTime: Infinity` を mutation 後にも維持する。
+ *
+ * 追加の `filter` を渡した場合は `_app` 除外と **AND 合成** され、
+ * `_app` 除外の不変条件はラッパー経由では絶対にすり抜けない。
  *
  * 以下のいずれかに該当する mutation でのみ生の `router.invalidate()`
  * を直接呼ぶこと（AppShell を再評価させたいケース）:
@@ -25,6 +27,7 @@ export function routerInvalidate(
   filter?: InvalidateFilter,
 ): Promise<void> {
   return router.invalidate({
-    filter: filter ?? ((match) => match.routeId !== APP_SHELL_ROUTE_ID),
+    filter: (match) =>
+      match.routeId !== APP_SHELL_ROUTE_ID && (filter?.(match) ?? true),
   });
 }
