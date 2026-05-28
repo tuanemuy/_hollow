@@ -332,6 +332,12 @@ function DirectoryTreeNodeView({
             onCommitSuccess={() => {
               setRenameError(null);
             }}
+            onCancel={() => {
+              // Clear stale error so a previously failed rename doesn't
+              // leave a hanging `role="alert"` line after the input
+              // unmounts without committing.
+              if (errorForThis !== null) setRenameError(null);
+            }}
           />
         ) : (
           <Link
@@ -417,6 +423,12 @@ type InlineRenameInputProps = Readonly<{
   onDone: () => void;
   onError: (error: SerializedError) => void;
   onCommitSuccess: () => void;
+  /**
+   * Called when the input leaves without committing a real change
+   * (Esc / empty value / unchanged value). Lets the parent clear stale
+   * error state that would otherwise linger after the input unmounts.
+   */
+  onCancel: () => void;
 }>;
 
 function InlineRenameInput({
@@ -426,6 +438,7 @@ function InlineRenameInput({
   onDone,
   onError,
   onCommitSuccess,
+  onCancel,
 }: InlineRenameInputProps) {
   const router = useRouter();
   const renameDirectory = useServerFn(renameDirectoryFn);
@@ -451,11 +464,13 @@ function InlineRenameInput({
     const trimmed = value.trim();
     if (trimmed.length === 0) {
       committedRef.current = true;
+      onCancel();
       onDone();
       return;
     }
     if (trimmed === initialName) {
       committedRef.current = true;
+      onCancel();
       onDone();
       return;
     }
@@ -472,9 +487,11 @@ function InlineRenameInput({
         // Keep the input mounted so the user can correct the value;
         // aria-describedby/aria-invalid (set on the input by the parent)
         // now points at a real, visible error message. Reset the
-        // single-shot guard so a retry submission can proceed.
+        // single-shot guard so a retry submission can proceed. Restore
+        // focus to the input so keyboard / SR users can immediately edit.
         onError(extractSerializedError(e));
         committedRef.current = false;
+        inputRef.current?.focus();
       }
     });
   };
@@ -495,6 +512,7 @@ function InlineRenameInput({
         }
         if (event.key === "Escape") {
           event.preventDefault();
+          onCancel();
           onDone();
           return;
         }
