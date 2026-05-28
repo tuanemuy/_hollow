@@ -1,6 +1,6 @@
 import type { UserDTO } from "@/core/application/dto/identity";
-import { EMPTY_STATE, PAGE_SUBTITLE, PAGE_TITLE } from "../layout/styles";
-import { IngestionJobRow } from "./IngestionJobRow";
+import { PAGE_SUBTITLE, PAGE_TITLE } from "../layout/styles";
+import { IngestionQueue } from "./IngestionQueue";
 import { loadIngestionJobs } from "./loaders";
 import { UploadForm } from "./UploadForm";
 
@@ -22,22 +22,7 @@ export async function UploadPage({ user }: Props) {
 
       <section className="mt-12">
         <h2 className="text-xl font-semibold mb-4">取り込みキュー</h2>
-        {jobs.length === 0 ? (
-          <div className={EMPTY_STATE}>
-            <h2 className="text-xl font-medium text-ink mb-2">
-              まだジョブがありません
-            </h2>
-            <p className="text-sm">
-              ファイルをアップロードすると、ここに進行状況が表示されます。
-            </p>
-          </div>
-        ) : (
-          <div>
-            {jobs.map((job) => (
-              <IngestionJobRow key={job.id} job={job} />
-            ))}
-          </div>
-        )}
+        <IngestionQueue initialJobs={jobs} />
       </section>
     </>
   );

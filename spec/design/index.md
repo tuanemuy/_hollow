@@ -140,6 +140,19 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 
 ---
 
+## フィードバック・エラー表示原則（#221）
+
+- **インタラクションの即時 feedback**: 非同期処理を伴うボタンは押下直後に disabled + ローディング状態を出す。スケルトンを優先し、スピナーは避ける。
+- **バックグラウンド進捗**: 取り込み・エクスポート等のジョブは client polling で進捗を可視化する。間隔は active job がある間は 1.5〜4 秒、無い間は 16 秒以上に伸ばす（負荷とフレッシュ感のバランス）。
+- **`aria-live`**: 状態遷移・完了・失敗の通知は `aria-live="polite"`（通常）／`assertive`（エラーで即時通知が必要な場合のみ）を使う。
+- **エラー文言**:
+  - サーバーからは `SerializedError`（`kind`-tagged union + `code`）が届く。UI 側は **`app/core/presentation/errorDisplay.ts`** のマッピングを単一の真実とし、`displayError(error)` / `displayJobErrorCode(code)` 経由でのみ文言化する。
+  - 文言は「何が起きたか + 何をすればいいか」の 2 部構成。例: 「このファイル形式には対応していません。HTML / Markdown / Office / PDF / 画像 / 音声 形式でお試しください」。
+  - 内部 stack / 原文 message / 内部 errorCode は **絶対に UI に出さない**（presentation 層の `redactForClient` で system/unknown を遮蔽、business code はマッピングテーブル経由のみ）。
+- **トースト基盤**: 現状はコンポーネント内 `aria-live` 領域で局所通知する。グローバルトーストはフォローアップ課題として保留。
+
+---
+
 ## 10. スコープ外
 
 本デザインフェーズでは扱わない:

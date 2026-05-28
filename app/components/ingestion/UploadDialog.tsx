@@ -5,7 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
 import { dialogTitle, pillBtn } from "@/components/common/styles";
-import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  displayError,
+  displayJobErrorCode,
+} from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
@@ -493,9 +496,14 @@ function FailedView({
       <p className="text-sm text-ink mb-2">
         取り込みに失敗しました: {job.originalFileName}
       </p>
-      {job.errorCode !== null ? (
-        <p className="text-sm text-ink-secondary mb-4">{job.errorCode}</p>
-      ) : null}
+      {(() => {
+        const msg = displayJobErrorCode(job.errorCode);
+        return msg !== null ? (
+          <p className="text-sm text-ink-secondary mb-4" role="alert">
+            {msg}
+          </p>
+        ) : null;
+      })()}
       {err !== null ? (
         <p className={FORM_ERROR} role="alert">
           {displayError(err)}

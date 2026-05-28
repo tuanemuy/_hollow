@@ -161,5 +161,11 @@ export function extractSerializedError(error: unknown): SerializedError {
     const structural = asSerializedError(error.serialized);
     if (structural !== null) return structural;
   }
+  // Identity: if the value is already a SerializedError-shaped object
+  // (e.g. UI code that stored `extractSerializedError(e)` in state and
+  // later passes it back through `displayError`), recognise it directly
+  // rather than collapsing it into the `unknown` kind.
+  const direct = asSerializedError(error);
+  if (direct !== null) return direct;
   return serializeError(error);
 }

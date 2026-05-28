@@ -222,9 +222,10 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
     });
 
-    // The failed view shows the error code/reason and the two actions.
+    // The failed view shows a user-facing message (never the raw internal
+    // code) and the two actions.
     expect(document.body.textContent).toContain("取り込みに失敗しました");
-    expect(document.body.textContent).toContain("INGESTION_TIMEOUT");
+    expect(document.body.textContent).not.toContain("INGESTION_TIMEOUT");
     expect(document.body.textContent).toContain("破棄");
     expect(document.body.textContent).toContain("キュー画面で詳細を見る");
     // No "再試行" button on the modal failed view.

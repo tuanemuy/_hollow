@@ -66,7 +66,7 @@
 ### 異常系
 - 入力したディレクトリ名がディレクトリ規約違反（禁止文字など）
 - 同名ノートが既存: 「上書き保存」か「別名で保存」かを選ばせる
-- FrontMatter JSON が parse 不可 / オブジェクトでない: `BusinessRuleError("FRONT_MATTER_JSON_INVALID")` をモーダル内のエラーメッセージに表示
+- FrontMatter JSON が parse 不可 / オブジェクトでない: presentation 層の `errorDisplay.ts` 経由で「FrontMatter の JSON が不正です。形式を確認してください」のようなユーザー向け文言をモーダル内に表示する（内部の `BusinessRuleError("FRONT_MATTER_JSON_INVALID")` は UI には露出させない）
 - 入力中に取り込みプレビューがタイムアウトでロストした場合は再アップロードを促す
 
 ## B5: アップロード失敗・対応外形式・サイズ超過

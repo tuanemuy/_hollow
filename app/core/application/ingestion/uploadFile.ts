@@ -26,6 +26,15 @@ export async function uploadFile({
   container,
   input,
 }: ServiceArgs<UploadFileInput>): Promise<UploadFileOutput> {
+  // 0-byte guard runs before clock / id-generator side effects so that
+  // a rejected upload does not consume an id sequence slot. See ADR-007.
+  if (input.byteSize === 0) {
+    throw new BusinessRuleError(
+      IngestionErrorCode.InvalidByteSize,
+      "Empty file: byteSize must be greater than zero",
+    );
+  }
+
   const now = container.clock.now();
   const actorUserId = UserId.create(input.actorUserId);
   const id = container.idGenerator.next();

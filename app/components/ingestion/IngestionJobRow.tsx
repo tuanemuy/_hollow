@@ -4,7 +4,10 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  displayError,
+  displayJobErrorCode,
+} from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
@@ -133,11 +136,14 @@ export function IngestionJobRow({ job }: Props) {
           ) : null}
         </div>
       ) : null}
-      {job.errorCode !== null ? (
-        <p className={FORM_ERROR} role="alert">
-          {job.errorCode}
-        </p>
-      ) : null}
+      {(() => {
+        const msg = displayJobErrorCode(job.errorCode);
+        return msg !== null ? (
+          <p className={FORM_ERROR} role="alert">
+            {msg}
+          </p>
+        ) : null;
+      })()}
       <div className={JOB_CARD_ACTIONS}>
         {job.status === "previewing" ? (
           <>
