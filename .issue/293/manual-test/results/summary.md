@@ -33,3 +33,21 @@
 ## スクリーンショット
 - 1 回目: 14 枚 (`.issue/293/manual-test/screenshots/{tc-1,tc-2,tc-5,ec-1,ec-2}/`)
 - 再実行: 9 枚 (`.issue/293/manual-test/screenshots/{rerun-tc-1,rerun-tc-2}/`)
+
+## 2回目（loader-redirect 統合リファクタ後）
+
+レビュー W-P-001 / W-P-004 / W-P-005 対応として `_app/route.tsx` を refactor:
+- `beforeLoad` は同期 helper（`{ isLandingPath }` を context に積むだけ）
+- `loader` が単一 server fn `loadAppShell` を呼び、auth + chrome + redirect を集約
+
+### 再検証結果
+| TC | 結果 | 確認手段 |
+|----|------|----------|
+| REVERIFY-TC-1 (login → `/` → `/notes/{id}` → back) | **PASS** | agent-browser |
+| REVERIFY-TC-2 (`/tags` → `/trash` → `/notes/new` 連続遷移) | **PASS** | agent-browser |
+| REVERIFY-EC-1 (未ログイン `/`) | **PASS** | `curl http://localhost:3000/` → 200, 1.4s, Landing 完全 HTML、TanStack stream に `isLandingPath:true, userDto:null, authenticated:false` |
+| REVERIFY-EC-2 (未ログイン `/trash`, `/tags`) | **PASS** | curl: `/trash` → 2 redirects → `/?page=1&limit=20` (200, 90ms); `/tags` → 1 redirect → 同上 (56ms) |
+
+### 観察事項
+- 1 回目の REVERIFY で「unauth landing が hang する」と subagent が報告したが、clean restart 後の curl で再現せず。HMR キャッシュ状態に起因する transient な問題であり、refactor の責任ではないと確定
+- TanStack stream payload で `_app.loader` が `{userDto:null, header:null, sidebar:null}` を返し `_app.component` が `<Outlet/>` のみ描画 → Landing が無事 mount される

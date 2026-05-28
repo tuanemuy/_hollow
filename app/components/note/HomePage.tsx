@@ -17,10 +17,10 @@ type Props = {
 };
 
 /**
- * Home page shell. The route resolves every loader once with
+ * Home page composition. The route resolves every loader once with
  * `Promise.all` and threads the results through props so that children
- * (sidebar, list, toolbar) do not re-hit `serverData` and accidentally
- * defeat the `cache()`-based dedup.
+ * (list, toolbar, saved-view picker) do not re-hit `serverData` and
+ * accidentally defeat the `cache()`-based dedup.
  */
 export function HomePage({
   user,

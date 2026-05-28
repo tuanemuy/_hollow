@@ -170,10 +170,10 @@ leaf の server fn handler は `getCurrentUser()` + `toUserDTO()` を呼び続�
 
 ---
 
-## ADR-007: `beforeLoad` の auth ガードを server fn でラップする
+## ADR-007: `beforeLoad` の auth ガードを server fn でラップする → 後に loader 統合へ統合
 
 ### Status
-Accepted（実装フェーズで追加）
+Superseded by ADR-008（実装フェーズ → レビュー対応で再設計）
 
 ### Context
 初期実装では `_app.beforeLoad` が `@/lib/server/currentUser` を直接動的 import していた:
@@ -249,5 +249,114 @@ Accepted
   - `/` 着地時にランディングが出る → そこからログインへ進む既存 UX を保つ
 - **トレードオフ:**
   - 未認証 URL を踏んだ際に直接 `/login` に行く UX が欲しい場合は別 Issue で対応
+
+---
+
+## ADR-008: auth ガードと chrome ロードを 1 つの loader server fn に統合
+
+### Status
+Accepted（レビューフェーズで追加。ADR-007 を置き換え）
+
+### Context
+ADR-007 で `beforeLoad` を `resolveAppAuth` server fn でラップし、`loader` の `loadAppShellChrome` と並列に 2 つの server fn を持つ構造にした。これで SPA 遷移時の server-only モジュール参照は安全になったが、レビュー (W-P-001) で「`beforeLoad` は `staleTime` の影響を受けず毎回実行されるため、SPA 遷移ごとに `resolveAppAuth` の RPC が 1 ラウンドトリップ走り、`_app.loader` の `staleTime: Infinity` 恩恵が半減する」と指摘された。
+
+加えて W-P-005 で「`pathname` を毎回 server fn 引数として送るのは過剰（判定はクライアント実行可能）」、W-P-004 で「`getCurrentUser` の `cache()` 共有は server fn 境界をまたぐと保証なし」も指摘された。
+
+### Decision
+`beforeLoad` を **同期のクライアント側 helper** に絞り、`isLandingPath` を `context` に積むだけにする。auth check + chrome 取得 + redirect を 1 つの server fn `loadAppShell` に集約し、`loader` から呼ぶ。
+
+```ts
+const loadAppShell = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(z.object({ isLandingPath: z.boolean() })))
+  .handler(async ({ data }) => {
+    const { getCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await getCurrentUser();
+    if (user === null) {
+      if (!data.isLandingPath) {
+        throw redirect({ to: "/", search: HOME_SEARCH });
+      }
+      return { userDto: null, header: null, sidebar: null };
+    }
+    // ... render Header/Sidebar
+  });
+
+beforeLoad: ({ location }) => ({
+  isLandingPath: normalizeAuthGuardPathname(location.pathname) === "/",
+}),
+loader: ({ context }) => loadAppShell({ data: { isLandingPath: context.isLandingPath } }),
+```
+
+### Consequences
+- **良い点（W-P-001 解消）:**
+  - 初回 `_app` 進入時に 1 RPC、`staleTime: Infinity` のおかげで以降の SPA 遷移は 0 RPC
+  - `beforeLoad` はクライアント実行可能な軽い計算のみ。`server-only` モジュール参照なし
+- **W-P-005 解消:**
+  - `pathname` 文字列を server fn 引数に送らず、`isLandingPath: boolean` のみ
+- **W-P-004 解消:**
+  - `getCurrentUser` は `_app.loader` 内で 1 回。リーフ側との重複は ADR-009 で扱う
+- **トレードオフ:**
+  - redirect が loader フェーズ判定になる（`beforeLoad` redirect の即時性は失われる）が、`_app.loader` は初回 nav で 1 回しか走らないため実害なし
+  - `_app.beforeLoad` の context (`isLandingPath`) と `_app.loader` の deps が独立する設計。`loaderDeps` を使わず `context` 経由で渡すことで、loader の再評価を防ぎつつ最新の `isLandingPath` を伝える
+
+### 教訓 / プロジェクトルール候補
+- ルートの `beforeLoad` / `loader` から `server-only` モジュールを直接 import しない（ADR-007 から継続）
+- `beforeLoad` はクライアントでも走ることを前提に、auth 等の重い処理は `loader` 経由 server fn に寄せる
+- `staleTime` の効果を最大化したい layout route では `beforeLoad` を context 計算のみに留める
+
+---
+
+## ADR-009: リーフ側の defensive `getCurrentUser` + 1 行 redirect を意図的に残す
+
+### Status
+Accepted（レビューフェーズで追加）
+
+### Context
+ADR-005 では「leaf の server fn handler は `getCurrentUser` + `toUserDTO` を呼び続ける（redirect ガードのみ削除）」としていた。実装では W-A-003 の指摘どおり「`if (user === null) throw redirect({ to: "/", search: HOME_SEARCH })` を 1 行 defensive ガードとして残す」形になっており、ADR-005 の文言と乖離していた。
+
+このガードは:
+- `_app.beforeLoad`（同期 helper）と `_app.loader` が初回 1 回しか走らないため、セッション失効時（例: 別タブでログアウト）に `_app.loader` の cached `userDto` が stale になっても、リーフ側で fail-closed する唯一の保証
+- セキュリティレビュー (W-A-001) でも「leaf 側 1 行 defensive guard は意図的に残す方向で正しい」と判断
+
+### Decision
+リーフの defensive guard を **意図的に残す**。コードコメントは「Defensive: `_app.beforeLoad` guarantees a user here, but keep a 1-line fail-safe so a future routing change cannot leak through」と既存どおり保持。
+
+### Consequences
+- **良い点:**
+  - セッション失効時に leaf 単位で fail-closed
+  - `_app.loader` の cache が stale になる W-A-001 シナリオでも、機密 RPC へのアクセスは leaf 段階で遮断される
+  - 将来 `_app` 構造を変えた場合の safety net
+- **トレードオフ:**
+  - 各 leaf で `getCurrentUser` が呼ばれる（同一リクエスト内で `cache()` が効くケースは安く、効かないケースは DB ヒット 1 回）。`_app.loader` 統合（ADR-008）後も leaf 側は変更しない
+  - ADR-005 が更新前なので、本 ADR で上書きする位置付け
+
+---
+
+## ADR-010: `router.invalidate()` ノーフィルター呼び出しの整理を別 Issue 化する
+
+### Status
+Accepted（レビューフェーズで追加。本 Issue ではスコープ外）
+
+### Context
+レビュー B-P-001 で、コードベース内に `router.invalidate()` のノーフィルター呼び出しが 30+ 箇所残っており、これが TanStack Router の `staleTime: Infinity` を上書きして全マッチを invalid 化することが指摘された。結果として:
+
+- DirectoryTree rename、note bulk action、publish settings、identity プロフィール更新等の mutation 後に `_app` も invalidate される
+- `_app.loader` が再評価され、Sidebar の `loadDirectoryTree` が DB ヒット
+- 「リーフ遷移時に AppShell が保持される」という Issue #293 の主目的は達成されているが、「mutation 後も保持される」というさらに強い不変条件は満たせない
+
+### Decision
+本 Issue のスコープ「ページ遷移時の AppShell 再マウント抑止」は manual-test で確認済み。30+ 箇所の機械的置換 + ヘルパー新設は本 Issue とは別の問題（mutation キャッシュ管理戦略）として切り出す。
+
+別 Issue「`router.invalidate()` のフィルタ化で AppShell 持続化を強化する」を起票し、以下のスコープで継続検討する:
+- `router.invalidate({ filter: r => r.routeId !== "/_app" })` の薄いラッパーを `app/components/common/` に追加
+- 30+ 箇所の call site を Sidebar 表示に影響する mutation（directory/tag 関連）と影響しない mutation で分類
+- 後者をラッパー経由に置換
+
+### Consequences
+- **良い点:**
+  - 本 PR のレビュー粒度を保つ（30+ ファイル差分を 1 PR に含めない）
+  - mutation キャッシュ管理戦略として独立に議論できる
+- **トレードオフ:**
+  - mutation 後の AppShell 再評価コストは継続する（Issue #293 の主目的は満たしているが、フォローアップ Issue 解消まで実体験は中途半端）
 
 ---

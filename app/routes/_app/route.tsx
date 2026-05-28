@@ -13,14 +13,14 @@ import { validateInput } from "@/core/presentation/validator";
 // manifest registers them before the client build phase. Auth-related
 // actions are registered in `__root.tsx` and intentionally not duplicated
 // here; this layout only registers actions reachable from authenticated
-// pages mounted under `_app`.
+// pages mounted under `_app`. `ingestion/actions` is registered inside
+// `AppShellFrame.tsx` because `UploadDialogMount` lives there.
 import "@/components/note/actions";
 import "@/components/directory/actions";
 import "@/components/tag/actions";
 import "@/components/view/actions";
 import "@/components/media/actions";
 import "@/components/publication/PublishSettings/action";
-import "@/components/ingestion/actions";
 
 // `/` is the only authenticated route that also serves a landing page to
 // unauthenticated visitors. Normalising the pathname keeps that exception
@@ -30,28 +30,26 @@ function normalizeAuthGuardPathname(pathname: string): string {
   return (trimmed === "" ? "/" : trimmed).toLowerCase();
 }
 
-// `beforeLoad` runs on the server during SSR and on the client during SPA
-// navigation. `@/lib/server/currentUser` is `server-only` and resolves to a
-// stub on the client, so the auth check must be wrapped in a server fn that
-// runs as an RPC from both contexts.
-const resolveAppAuth = createServerFn({ method: "GET" })
+// Combined auth + chrome loader. `beforeLoad` is intentionally a sync
+// client-side helper that only computes `isLandingPath`, so the single
+// RPC below covers both the auth gate and the AppShell RSC payload.
+// With `staleTime: Infinity` this loader does not re-run on leaf
+// navigations, so subsequent SPA transitions cost zero RPCs.
+//
+// `beforeLoad` / `loader` run on both server and client. Server-only
+// imports must stay inside this `createServerFn` handler — direct
+// `await import("@/lib/server/currentUser")` from `beforeLoad` would
+// resolve to a stub on the client.
+const loadAppShell = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(validateInput(z.object({ pathname: z.string() })))
+  .inputValidator(validateInput(z.object({ isLandingPath: z.boolean() })))
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
-    return {
-      isAuthenticated: user !== null,
-      normalized: normalizeAuthGuardPathname(data.pathname),
-    };
-  });
-
-const loadAppShellChrome = createServerFn({ method: "GET" })
-  .middleware([errorResponseMiddleware])
-  .handler(async () => {
-    const { getCurrentUser } = await import("@/lib/server/currentUser");
-    const user = await getCurrentUser();
     if (user === null) {
+      if (!data.isLandingPath) {
+        throw redirect({ to: "/", search: HOME_SEARCH });
+      }
       return {
         userDto: null as UserDTO | null,
         header: null,
@@ -73,17 +71,11 @@ const loadAppShellChrome = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/_app")({
   staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
-  beforeLoad: async ({ location }) => {
-    const { isAuthenticated, normalized } = await resolveAppAuth({
-      data: { pathname: location.pathname },
-    });
-    // `/` is allowed for unauthenticated visitors so the landing page can
-    // render through the same `_app` tree without remounting AppShell.
-    if (normalized !== "/" && !isAuthenticated) {
-      throw redirect({ to: "/", search: HOME_SEARCH });
-    }
-  },
-  loader: () => loadAppShellChrome(),
+  beforeLoad: ({ location }) => ({
+    isLandingPath: normalizeAuthGuardPathname(location.pathname) === "/",
+  }),
+  loader: ({ context }) =>
+    loadAppShell({ data: { isLandingPath: context.isLandingPath } }),
   component: AppLayout,
   errorComponent: ({ error }) => (
     <div role="alert" className="p-6">

@@ -22,17 +22,6 @@ vi.mock("@tanstack/react-start/rsc", () => ({
   renderServerComponent: () => null,
 }));
 
-// `index.tsx` imports a long tail of side-effect-only action modules to
-// register server fns in the RSC manifest. None of them matter for the
-// pure-function `homeLoaderDeps`, so stub them all out.
-vi.mock("@/components/note/actions", () => ({}));
-vi.mock("@/components/directory/actions", () => ({}));
-vi.mock("@/components/tag/actions", () => ({}));
-vi.mock("@/components/ingestion/actions", () => ({}));
-vi.mock("@/components/view/actions", () => ({}));
-vi.mock("@/components/media/actions", () => ({}));
-vi.mock("@/components/publication/PublishSettings/action", () => ({}));
-
 const { homeLoaderDeps } = await import("../_app/index");
 
 describe("homeLoaderDeps", () => {
