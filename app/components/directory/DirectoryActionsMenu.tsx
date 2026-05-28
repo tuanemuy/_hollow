@@ -100,6 +100,7 @@ export function DirectoryActionsMenu({
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the wrapper hosts a button + menu panel and only listens for blur bubbling out of those interactive children; it deliberately has no role of its own (semantics are carried by `role="menu"` and the trigger button).
     <div ref={containerRef} className="relative" onBlur={onFocusOut}>
       <button
         ref={triggerRef}
