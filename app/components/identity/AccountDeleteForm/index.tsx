@@ -29,8 +29,7 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
       const confirmation = String(formData.get("confirmation") ?? "");
       try {
         await deleteAccount({ data: { confirmation } });
-        // Account deleted — invalidate so caches drop the now-purged
-        // session data, then navigate to landing.
+        // 過去訪問の cached _app match に残る旧 userDto を破棄するため _app も invalidate（rule 1）
         await router.invalidate();
         await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null, ok: true };

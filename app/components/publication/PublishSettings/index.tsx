@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { ShareLinkDTO } from "@/core/application/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -52,7 +53,7 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
     try {
       await changeVisibility({ data: { noteId, nextVisibility: next } });
       setVisibility(next);
-      await router.invalidate();
+      await routerInvalidate(router);
       return { error: null, ok: true };
     } catch (e) {
       return { error: extractSerializedError(e), ok: false };
@@ -68,7 +69,7 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
     try {
       const result = await issueLink({ data: { noteId, password } });
       setIssuedToken(result.urlToken);
-      await router.invalidate();
+      await routerInvalidate(router);
       return { error: null, ok: true };
     } catch (e) {
       return { error: extractSerializedError(e), ok: false };
@@ -179,7 +180,7 @@ function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
     startTransition(async () => {
       try {
         await revoke({ data: { shareLinkId: link.id } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -194,7 +195,7 @@ function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
         await setPassword({
           data: { shareLinkId: link.id, newPassword },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
         setPasswordDraft("");
       } catch (e) {

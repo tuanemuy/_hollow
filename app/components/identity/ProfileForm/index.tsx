@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -37,6 +38,7 @@ export function ProfileForm({ user }: { user: UserDTO }) {
           bio: bio.length === 0 ? null : bio,
         },
       });
+      // Header の displayName / avatar を更新するため _app も invalidate（rule 3）
       await router.invalidate();
       return { error: null, ok: true };
     } catch (e) {
@@ -51,7 +53,7 @@ export function ProfileForm({ user }: { user: UserDTO }) {
     const newUsername = String(formData.get("newUsername") ?? "").trim();
     try {
       await changeUsername({ data: { newUsername } });
-      await router.invalidate();
+      await routerInvalidate(router);
       return { error: null, ok: true };
     } catch (e) {
       return { error: extractSerializedError(e), ok: false };

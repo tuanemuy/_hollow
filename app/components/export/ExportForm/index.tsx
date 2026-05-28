@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -113,7 +114,7 @@ export function ExportForm({ noteId }: Props) {
             },
           },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setSuccess(`ジョブを開始しました (id=${job.id})`);
       } catch (e) {
         setError(extractSerializedError(e));

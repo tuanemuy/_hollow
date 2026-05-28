@@ -70,6 +70,7 @@ export function CreateDirectoryDialog({
         await createDirectory({
           data: { parentId, name: trimmed },
         });
+        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
         await router.invalidate();
         onClose();
       } catch (e) {

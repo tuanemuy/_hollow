@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -40,7 +41,7 @@ export function RegistrationForm({ initial }: Props) {
         await toggle({
           data: { open: next, closedReason: reason },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setSavedAt(Date.now());
       } catch (caught) {
         setOpen(!next);
@@ -56,7 +57,7 @@ export function RegistrationForm({ initial }: Props) {
         await toggle({
           data: { open, closedReason: reason },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setSavedAt(Date.now());
       } catch (caught) {
         setError(extractSerializedError(caught));

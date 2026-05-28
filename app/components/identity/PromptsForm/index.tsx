@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { PromptDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -97,7 +98,7 @@ function PromptRow({
             },
           },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
         setOk(true);
       } catch (e) {
@@ -111,7 +112,7 @@ function PromptRow({
     startTransition(async () => {
       try {
         await update({ data: { purpose, template: null } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setText("");
         setError(null);
         setOk(true);

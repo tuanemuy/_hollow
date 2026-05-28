@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -42,7 +43,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
     startTransition(async () => {
       try {
         await renameTag({ data: { tagId, newName: trimmed } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setIsEditing(false);
         setError(null);
       } catch (e) {
@@ -55,7 +56,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
     startTransition(async () => {
       try {
         await removeTag({ data: { tagId } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setConfirmDeleteOpen(false);
         setError(null);
       } catch (e) {

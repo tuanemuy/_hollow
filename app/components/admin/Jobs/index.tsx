@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Download, Search, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { RebuildSearchIndexResultDTO } from "@/core/application/dto/adminSettings";
 import type { ExportJobDTO } from "@/core/application/dto/export";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
@@ -459,7 +460,7 @@ export function JobsBoard({
   const sortedExport = useMemo(() => sortFailedFirst(exportJobs), [exportJobs]);
 
   const onChange = async () => {
-    await router.invalidate();
+    await routerInvalidate(router);
   };
 
   return (

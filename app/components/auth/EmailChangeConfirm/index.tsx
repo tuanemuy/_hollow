@@ -54,6 +54,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
     (async () => {
       try {
         await verifyChange({ data: { token } });
+        // _app の userDto.email キャッシュを破棄するため _app も invalidate（rule 1）
         await router.invalidate();
         setStatus({ kind: "success" });
       } catch (error) {

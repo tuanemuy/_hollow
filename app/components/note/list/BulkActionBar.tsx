@@ -6,6 +6,7 @@ import { Download, FolderInput, Globe, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { formError, pillBtn, pillBtnDanger } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -51,7 +52,7 @@ export function BulkActionBar({ tree }: Props) {
           );
         }
         dispatch({ type: "clear" });
-        await router.invalidate();
+        await routerInvalidate(router);
       } catch (e) {
         const err = extractSerializedError(e);
         if (

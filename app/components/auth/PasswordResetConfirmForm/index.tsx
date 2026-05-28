@@ -93,6 +93,7 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
             confirmPassword: String(formData.get("confirmPassword") ?? ""),
           },
         });
+        // 認証状態確立後の AppShell 再評価のため _app も invalidate（rule 1）
         await router.invalidate();
         await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null };

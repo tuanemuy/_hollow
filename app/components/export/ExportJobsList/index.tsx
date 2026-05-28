@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { ExportJobDTO } from "@/core/application/export/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -51,7 +52,7 @@ function ExportJobRow({ job }: { job: ExportJobDTO }) {
     startTransition(async () => {
       try {
         await cancel({ data: { jobId: job.id } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));

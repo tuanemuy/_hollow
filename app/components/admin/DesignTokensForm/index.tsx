@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -89,7 +90,7 @@ export function DesignTokensForm({
       try {
         const record = entriesToRecord(entries);
         await updateTokens({ data: { tokens: record } });
-        await router.invalidate();
+        await routerInvalidate(router);
         return { error: null, success: true };
       } catch (caught) {
         return { error: extractSerializedError(caught), success: false };
@@ -104,7 +105,7 @@ export function DesignTokensForm({
       try {
         await resetTokens({ data: {} });
         setEntries([]);
-        await router.invalidate();
+        await routerInvalidate(router);
         setConfirmOpen(false);
       } catch (caught) {
         setResetError(extractSerializedError(caught));
@@ -136,7 +137,7 @@ export function DesignTokensForm({
         const record = entriesToRecord(nextEntries);
         await updateTokens({ data: { tokens: record } });
         setEntries(nextEntries);
-        await router.invalidate();
+        await routerInvalidate(router);
       } catch (caught) {
         setRowResetError(extractSerializedError(caught));
       }

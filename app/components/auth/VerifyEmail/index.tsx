@@ -68,6 +68,7 @@ export function VerifyEmail({ token }: { token: string }) {
     (async () => {
       try {
         await verify({ data: { token } });
+        // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
         await router.invalidate();
         setStatus({ kind: "success" });
       } catch (error) {

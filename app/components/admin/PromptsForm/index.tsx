@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type {
   PromptDefaultDTO,
   PromptDTO,
@@ -119,7 +120,7 @@ function PromptCard({
             expectedVariables: parsedVariables,
           },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setFeedback({ kind: "saved", at: Date.now() });
       } catch (caught) {
         setError(extractSerializedError(caught));
@@ -134,7 +135,7 @@ function PromptCard({
         await reset({ data: { purpose: descriptor.purpose } });
         setText("");
         setVariables("");
-        await router.invalidate();
+        await routerInvalidate(router);
         setFeedback({ kind: "reset", at: Date.now() });
       } catch (caught) {
         setError(extractSerializedError(caught));
@@ -261,7 +262,7 @@ export function PromptsForm({
       setError(null);
       try {
         await resetAll({ data: {} });
-        await router.invalidate();
+        await routerInvalidate(router);
         setConfirmOpen(false);
       } catch (caught) {
         setError(extractSerializedError(caught));

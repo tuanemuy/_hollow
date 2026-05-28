@@ -4,6 +4,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { dialogTitle, pillBtn } from "@/components/common/styles";
 import {
   displayError,
@@ -318,7 +319,7 @@ export function UploadDialog({ open, onClose }: Props) {
             failedNames.push(f.name);
           }
         }
-        await router.invalidate();
+        await routerInvalidate(router);
         if (cancelledRef.current) return;
         setView({
           kind: "multiResult",
@@ -529,7 +530,7 @@ function FailedView({
     void (async () => {
       try {
         await discard({ data: { jobId: job.id } });
-        await router.invalidate();
+        await routerInvalidate(router);
         onClose();
       } catch (e) {
         setErr(extractSerializedError(e));
