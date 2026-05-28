@@ -198,6 +198,11 @@ export function IngestionPreviewForm({
               : { frontMatterJson: trimmedJson }),
           },
         });
+        if (pendingDirectoryName !== null) {
+          // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も
+          // invalidate（.issue/299/adr.md ADR-003）
+          await router.invalidate();
+        }
         onCommitted(result.noteId as unknown as string);
       } catch (e) {
         setError(extractSerializedError(e));
