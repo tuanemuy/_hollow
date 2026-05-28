@@ -20,6 +20,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { renameDirectoryFn } from "./actions";
+import { DIRECTORY_NAME_MAX_LENGTH } from "./schema";
 
 export type RenameDirectoryDialogProps = Readonly<{
   open: boolean;
@@ -94,7 +95,7 @@ export function RenameDirectoryDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            maxLength={100}
+            maxLength={DIRECTORY_NAME_MAX_LENGTH}
             required
             autoFocus
             disabled={isPending}

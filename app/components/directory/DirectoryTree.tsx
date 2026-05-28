@@ -19,6 +19,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { renameDirectoryFn } from "./actions";
+import { DIRECTORY_NAME_MAX_LENGTH } from "./schema";
 import { CreateDirectoryDialog } from "./CreateDirectoryDialog";
 import { DeleteDirectoryDialog } from "./DeleteDirectoryDialog";
 import { DirectoryActionsMenu } from "./DirectoryActionsMenu";
@@ -224,12 +225,17 @@ function DirectoryTreeNodeView({
   const wasRenamingRef = useRef(false);
   const errorId = useId();
   // When inline rename ends (commit / cancel) restore focus to the row's
-  // link so keyboard users do not lose their place in the tree. Without
-  // this the Link unmount/remount cycle leaves focus on <body>.
+  // link so keyboard users do not lose their place in the tree. Only act
+  // when focus actually landed on <body> (the browser fallback after the
+  // input unmounted). If the user tabbed/clicked elsewhere while the
+  // rename was committing, respect their intent and leave focus alone.
   useEffect(() => {
     if (wasRenamingRef.current && !isRenaming) {
-      const link = itemRef.current?.querySelector<HTMLElement>("a");
-      link?.focus();
+      const active = document.activeElement;
+      if (active === null || active === document.body) {
+        const link = itemRef.current?.querySelector<HTMLElement>("a");
+        link?.focus();
+      }
     }
     wasRenamingRef.current = isRenaming;
   }, [isRenaming]);
@@ -463,8 +469,12 @@ function InlineRenameInput({
         onCommitSuccess();
         onDone();
       } catch (e) {
+        // Keep the input mounted so the user can correct the value;
+        // aria-describedby/aria-invalid (set on the input by the parent)
+        // now points at a real, visible error message. Reset the
+        // single-shot guard so a retry submission can proceed.
         onError(extractSerializedError(e));
-        onDone();
+        committedRef.current = false;
       }
     });
   };
@@ -489,7 +499,7 @@ function InlineRenameInput({
           return;
         }
       }}
-      maxLength={100}
+      maxLength={DIRECTORY_NAME_MAX_LENGTH}
       disabled={isPending}
       aria-label="ディレクトリ名"
       aria-invalid={errorId !== undefined ? true : undefined}

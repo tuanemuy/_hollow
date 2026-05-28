@@ -119,11 +119,19 @@ export function DirectoryActionsMenu({
         <span aria-hidden="true">⋮</span>
       </button>
       {open ? (
+        // onMouseDown preventDefault keeps focus on the currently focused
+        // menuitem during mouse interaction. On macOS Safari/Firefox a
+        // `<button>` click moves focus to <body>, which would otherwise
+        // trigger the container's onBlur → close → click on an unmounted
+        // menuitem (and the click silently drops).
         <div
           ref={menuRef}
           id={menuId}
           role="menu"
           className={ACTIONS_MENU_PANEL}
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
         >
           <button
             type="button"

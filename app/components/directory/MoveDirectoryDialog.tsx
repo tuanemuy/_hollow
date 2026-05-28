@@ -74,7 +74,6 @@ export function MoveDirectoryDialog({
       // "move to root" reads unambiguously (cf. MoveNoteDialog which uses
       // path="/"; the two dialogs intentionally diverge — see plan).
       label: dir.id === rootId ? "（ルート）" : dir.path,
-      depth: dir.depth,
     }));
   }, [tree, directoryId, rootId]);
 

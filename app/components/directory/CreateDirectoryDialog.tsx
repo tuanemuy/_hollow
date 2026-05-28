@@ -20,6 +20,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { createDirectoryFn } from "./actions";
+import { DIRECTORY_NAME_MAX_LENGTH } from "./schema";
 
 export type CreateDirectoryDialogProps = Readonly<{
   open: boolean;
@@ -102,7 +103,7 @@ export function CreateDirectoryDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            maxLength={100}
+            maxLength={DIRECTORY_NAME_MAX_LENGTH}
             required
             autoFocus
             disabled={isPending}

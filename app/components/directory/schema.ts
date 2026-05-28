@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const DIRECTORY_NAME_MAX_LENGTH = 100;
+// Mirrors `DIRECTORY_NAME_MAX_LENGTH` in
+// `app/core/domain/directory/valueObject.ts`. Keep these in lockstep —
+// any divergence lets transport accept names the domain will reject,
+// surfacing a generic 422 instead of a clean transport-layer field error.
+export const DIRECTORY_NAME_MAX_LENGTH = 80;
 
 // Transport-boundary shape check for directory names. Mirrors the domain
 // invariant in `app/core/domain/directory/valueObject.ts` (DirectoryName)
