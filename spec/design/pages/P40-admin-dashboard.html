@@ -185,7 +185,8 @@
     background: var(--header-bg);
     backdrop-filter: var(--header-blur);
     -webkit-backdrop-filter: var(--header-blur);
-    padding: 14px 24px;
+    height: var(--header-height);
+    padding: 0 24px;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -557,7 +558,7 @@
 
   /* ===== Responsive header ===== */
   @media (max-width: 640px) {
-    .header { padding: 12px 16px; gap: 10px; }
+    .header { padding: 0 16px; gap: 10px; }
     .logo { display: none; }
     .admin-pill { font-size: 11px; padding: 3px 8px; }
   }

@@ -68,7 +68,7 @@
   input, textarea, select { font-family: inherit; color: inherit; }
   :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
 
-  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); padding: 14px 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5); }
+  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); height: var(--header-height); padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5); }
   @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
   .header-left { display: flex; align-items: center; gap: var(--space-3); }
   .logo { font-size: 21px; font-weight: var(--weight-light); letter-spacing: var(--tracking-tightest); }
@@ -208,7 +208,7 @@
   .row-expand .reason { font-size: var(--text-sm); color: var(--color-ink); line-height: var(--leading-relaxed); }
   .row-expand pre { font-family: var(--font-mono); font-size: var(--text-mono); background: var(--color-bg); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); margin-top: var(--space-3); overflow-x: auto; color: var(--color-ink-secondary); border: 1px solid var(--color-hairline); }
 
-  @media (max-width: 640px) { .header { padding: 12px 16px; gap: 10px; } .logo { display: none; } }
+  @media (max-width: 640px) { .header { padding: 0 16px; gap: 10px; } .logo { display: none; } }
   @media (min-width: 1024px) { .menu-btn { display: none; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } .running .dot { animation: none; } }
 </style>
