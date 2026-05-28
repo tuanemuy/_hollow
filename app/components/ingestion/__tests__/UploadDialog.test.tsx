@@ -490,7 +490,7 @@ describe("UploadDialog state machine", () => {
     });
     // uploading — `setView({kind: "uploading"})` runs synchronously
     // inside submitFiles before the upload await.
-    expect(status?.textContent).toContain("アップロード中");
+    expect(status?.textContent).toBe("アップロード中");
 
     // Resolve the upload to advance to `waiting`.
     await act(async () => {
@@ -498,7 +498,7 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(status?.textContent).toContain("LLM");
+    expect(status?.textContent).toBe("LLM がタイトルとメタデータを提案中");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
@@ -510,7 +510,7 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
     });
     // editing
-    expect(status?.textContent).toContain("プレビュー編集");
+    expect(status?.textContent).toBe("プレビュー編集に進みました");
   });
 
   it("updates the status region textContent for multi-file uploads", async () => {
@@ -535,23 +535,39 @@ describe("UploadDialog state machine", () => {
       dispatchFile(findInputByAccept(), files);
     });
     // uploading view active before any upload resolves.
-    expect(status?.textContent).toContain("2 件のファイルをアップロード中");
+    expect(status?.textContent).toBe("2 件のファイルをアップロード中");
 
     // Drain both uploads.
     await act(async () => {
       // The submitFiles loop awaits the first upload before kicking off
-      // the second, so we resolve them in order.
-      while (resolvers.length === 0) await Promise.resolve();
+      // the second, so we resolve them in order. A bounded microtask
+      // flush avoids the infinite-loop risk if a future refactor of
+      // `submitFiles` ever inserts an extra microtask / setTimeout in
+      // front of the first `upload()` call.
+      const MAX_FLUSH = 50;
+      for (let i = 0; i < MAX_FLUSH && resolvers.length === 0; i++) {
+        await Promise.resolve();
+      }
+      if (resolvers.length === 0) {
+        throw new Error("first upload was not invoked within the flush budget");
+      }
       resolvers[0]?.({ jobId: "job-a" });
       await Promise.resolve();
       await Promise.resolve();
-      while (resolvers.length < 2) await Promise.resolve();
+      for (let i = 0; i < MAX_FLUSH && resolvers.length < 2; i++) {
+        await Promise.resolve();
+      }
+      if (resolvers.length < 2) {
+        throw new Error(
+          "second upload was not invoked within the flush budget",
+        );
+      }
       resolvers[1]?.({ jobId: "job-b" });
       await Promise.resolve();
       await Promise.resolve();
     });
     // multiResult
-    expect(status?.textContent).toContain("2 件中 2 件をキューに追加しました");
+    expect(status?.textContent).toBe("2 件中 2 件をキューに追加しました");
   });
 
   it("includes the failed-count suffix in the status region on partial failure", async () => {
@@ -574,7 +590,9 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(status?.textContent).toContain("1 件失敗");
+    expect(status?.textContent).toBe(
+      "2 件中 1 件をキューに追加しました（1 件失敗）",
+    );
   });
 
   it("updates the status region textContent when polling observes failed", async () => {
@@ -598,7 +616,7 @@ describe("UploadDialog state machine", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(status?.textContent).toContain("取り込みに失敗しました");
+    expect(status?.textContent).toBe("取り込みに失敗しました");
   });
 
   it("updates the status region textContent on timeout", async () => {
@@ -625,7 +643,7 @@ describe("UploadDialog state machine", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(status?.textContent).toContain("推論の完了を待ちきれませんでした");
+    expect(status?.textContent).toBe("推論の完了を待ちきれませんでした");
   });
 
   // C': re-open contract — when the dialog is re-opened the status
@@ -656,7 +674,7 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
     });
     const status = document.body.querySelector<HTMLElement>('[role="status"]');
-    expect(status?.textContent).toContain("取り込みに失敗しました");
+    expect(status?.textContent).toBe("取り込みに失敗しました");
 
     // Close → re-open
     openProp = false;
@@ -677,6 +695,12 @@ describe("UploadDialog state machine", () => {
   // D: editing view focuses the title input. The focus is committed
   // via a `useEffect(view.kind)` so it fires synchronously after the
   // state commit — no rAF involved on the focus path itself.
+  //
+  // This relies on React's effect ordering guarantee that child commits
+  // (IngestionPreviewForm mounting its `<input ref>`) complete before the
+  // parent's `useEffect([view.kind])` fires. If IngestionPreviewForm is
+  // ever moved behind a Suspense boundary or lazy-loaded, this contract
+  // may silently break.
   it("moves focus to the title input when entering the editing view", async () => {
     uploadMock.mockResolvedValue({ jobId: "job-1" });
     getJobMock

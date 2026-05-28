@@ -3,7 +3,7 @@
 ## ADR-001: `Dialog.initialFocusRef` の API 形
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 A11y-H2 解消のため、`Dialog` プリミティブに「子コンポーネントが初期 focus 対象を明示的に指定する API」を導入する必要がある。以下の選択肢を検討:
@@ -29,7 +29,7 @@ A11y-H2 解消のため、`Dialog` プリミティブに「子コンポーネン
 ## ADR-002: `Dialog` の `ariaLabel | ariaLabelledBy` 排他制約
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 A11y-H1 を厳密に保証するなら「`ariaLabel` か `ariaLabelledBy` のいずれかは必ず指定する」を型レベルで強制したい。選択肢:
@@ -51,7 +51,7 @@ A11y-H1 を厳密に保証するなら「`ariaLabel` か `ariaLabelledBy` のい
 ## ADR-003: status region の実装場所
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 A11y-H3 解消には常設の `aria-live="polite"` 領域が必要。実装場所の選択肢:
@@ -75,7 +75,7 @@ view 切替のステータス文字列は同ファイル module-scope の純関�
 ## ADR-004: focus 契約の責務分離
 
 ### Status
-Proposed（レビュー 1 周目で更新）
+Accepted（レビュー 1 周目で更新）
 
 ### Context
 `Dialog` の rAF 初期フォーカス effect は `[mounted, role]` 依存で 1 度だけ走る。`UploadDialog` のように `Dialog` 内で view が遷移するケースでは、`waiting → editing` 遷移時に `initialFocusRef={titleInputRef}` を渡しても自動 focus は再発火しない。

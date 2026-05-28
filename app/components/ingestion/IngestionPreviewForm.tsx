@@ -2,7 +2,14 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   field,
@@ -209,11 +216,7 @@ export function IngestionPreviewForm({
   };
 
   if (preview === null) {
-    return (
-      <p className={FORM_ERROR} role="alert">
-        プレビューデータが見つかりません。
-      </p>
-    );
+    return <PreviewMissing />;
   }
 
   return (
@@ -370,5 +373,25 @@ export function IngestionPreviewForm({
         onClose={() => setConfirmDiscardOpen(false)}
       />
     </>
+  );
+}
+
+/**
+ * Fallback rendered when the upstream job has no preview payload. Owns its
+ * own focus side-effect: when mounted, focus is moved to the alert paragraph
+ * itself so keyboard users do not lose their focus position. The parent's
+ * view-machine effect targets `titleInputRef.current`, which is null in this
+ * branch — keeping the focus handoff inside the form keeps `UploadDialog`
+ * unaware of the fallback shape (W-A11Y-003 in review-001).
+ */
+function PreviewMissing() {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+  return (
+    <p ref={ref} className={FORM_ERROR} role="alert" tabIndex={-1}>
+      プレビューデータが見つかりません。
+    </p>
   );
 }

@@ -111,10 +111,8 @@ function viewStatusText(view: View): string {
     }
     case "timedOut":
       return "推論の完了を待ちきれませんでした";
-    default: {
-      const _exhaustive: never = view;
-      return _exhaustive;
-    }
+    default:
+      throw new Error(`unreachable view kind: ${JSON.stringify(view)}`);
   }
 }
 
@@ -135,7 +133,6 @@ export function UploadDialog({ open, onClose }: Props) {
 
   const inputId = useId();
   const titleId = useId();
-  const statusId = useId();
 
   // Move focus to the title input when the view transitions into `editing`.
   // `Dialog.initialFocusRef` is intentionally not used here because the dialog
@@ -366,7 +363,7 @@ export function UploadDialog({ open, onClose }: Props) {
       <h2 id={titleId} className={dialogTitle}>
         アップロード
       </h2>
-      <div id={statusId} role="status" aria-live="polite" className="sr-only">
+      <div role="status" aria-live="polite" className="sr-only">
         {viewStatusText(view)}
       </div>
 

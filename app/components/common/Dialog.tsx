@@ -295,9 +295,10 @@ function DialogInner({
   // Depends on `[mounted, role]`; `initialFocusRef` is intentionally not
   // a dep — the ref object is read at fire time and is expected to be
   // stable, so a deferred `ref.current` assignment that lands before the
-  // rAF still works.
+  // rAF still works. JSDoc above pins this stability contract, so we
+  // capture the ref object only at mount and never overwrite it (unlike
+  // `closableRef`/`onCloseRef`, which intentionally mirror per-render).
   const initialFocusRefRef = useRef(initialFocusRef);
-  initialFocusRefRef.current = initialFocusRef;
   useEffect(() => {
     if (!mounted) return;
     const raf = requestAnimationFrame(() => {
