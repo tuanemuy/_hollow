@@ -2,8 +2,10 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Download, FolderInput, Globe, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { formError, pillBtn, pillBtnDanger } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -80,6 +82,7 @@ export function BulkActionBar({ tree }: Props) {
             onClick={() => setOpen("move")}
             disabled={isPending}
           >
+            <Icon icon={FolderInput} />
             移動
           </button>
           <button
@@ -88,6 +91,7 @@ export function BulkActionBar({ tree }: Props) {
             onClick={() => setOpen("visibility")}
             disabled={isPending}
           >
+            <Icon icon={Globe} />
             公開設定
           </button>
           <button
@@ -96,6 +100,7 @@ export function BulkActionBar({ tree }: Props) {
             onClick={() => setOpen("export")}
             disabled={isPending}
           >
+            <Icon icon={Download} />
             エクスポート
           </button>
           <button
@@ -104,6 +109,7 @@ export function BulkActionBar({ tree }: Props) {
             onClick={() => setConfirmTrashOpen(true)}
             disabled={isPending}
           >
+            <Icon icon={Trash2} />
             {isPending ? "処理中..." : "ゴミ箱へ"}
           </button>
           <button
@@ -112,6 +118,7 @@ export function BulkActionBar({ tree }: Props) {
             onClick={() => dispatch({ type: "clear" })}
             disabled={isPending}
           >
+            <Icon icon={X} />
             選択解除
           </button>
         </div>

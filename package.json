@@ -64,6 +64,7 @@
     "db:execute:production": "wrangler d1 execute hollow-production-d1 --remote --config wrangler.production.toml --file"
   },
   "dependencies": {
+    "@noble/hashes": "^2.2.0",
     "@tanstack/react-router": "^1.169.2",
     "@tanstack/react-start": "^1.167.65",
     "@tiptap/extension-image": "^3.23.4",
@@ -73,8 +74,8 @@
     "@tiptap/react": "^3.23.4",
     "@tiptap/starter-kit": "^3.23.4",
     "@tiptap/suggestion": "^3.23.4",
-    "@noble/hashes": "^2.2.0",
     "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "uuid": "^14.0.0",

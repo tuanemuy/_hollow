@@ -1,6 +1,8 @@
 "use client";
 
+import { Link2 } from "lucide-react";
 import { useId, useState } from "react";
+import { Icon } from "@/components/common/Icon";
 import { pillBtn } from "@/components/common/styles";
 
 /**
@@ -60,6 +62,7 @@ export function UrlCopyButton({
         onClick={onCopy}
         aria-describedby={statusId}
       >
+        <Icon icon={Link2} />
         {label}
       </button>
       <span

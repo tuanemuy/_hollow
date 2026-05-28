@@ -1,8 +1,10 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import { useId } from "react";
 import { Dialog } from "./Dialog";
-import { dialogActions, dialogTitle, pillBtn, pillBtnDanger } from "./styles";
+import { Icon } from "./Icon";
+import { dialogActions, pillBtn, pillBtnDanger } from "./styles";
 
 export type ConfirmDialogProps = Readonly<{
   open: boolean;
@@ -54,9 +56,12 @@ export function ConfirmDialog({
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <h2 id={titleId} className={dialogTitle}>
-          {title}
-        </h2>
+        <div className="flex items-center gap-2 mb-4">
+          <Icon icon={AlertTriangle} size={20} className="text-warning" />
+          <h2 id={titleId} className="text-lg font-medium">
+            {title}
+          </h2>
+        </div>
         {description !== undefined ? (
           <div id={descId} className="text-sm text-ink-secondary">
             {description}

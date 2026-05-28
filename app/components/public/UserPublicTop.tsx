@@ -1,8 +1,10 @@
 import { Link, notFound } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import { cache } from "react";
+import { Icon } from "@/components/common/Icon";
 import { isNotFoundError } from "@/core/application/errors";
 import { serverData } from "@/core/presentation/serverAction";
-import { avatarInitials, PublicLayout, SearchIcon } from "./PublicLayout";
+import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
   EMPTY_LIST,
   NOTE_DATE,
@@ -22,6 +24,7 @@ import {
   PROFILE_STATS,
   PROFILE_USERNAME,
   PUBLIC_MAIN,
+  SEARCH_ICON,
   USER_SEARCH,
   USER_SEARCH_INPUT,
   USER_TOOLS,
@@ -110,7 +113,7 @@ export async function UserPublicTop({ username, page, limit }: Props) {
         <section className={USER_TOOLS}>
           <search className={USER_SEARCH}>
             <form method="get" action="/search">
-              <SearchIcon />
+              <Icon icon={Search} size={16} className={SEARCH_ICON} />
               <label
                 htmlFor={`user-search-${user.username}`}
                 className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"

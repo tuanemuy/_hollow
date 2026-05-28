@@ -37,7 +37,7 @@ export const PUBLIC_FOOTER_LINK =
   "transition-colors motion-reduce:transition-none hover:text-ink";
 
 export const SEARCH_ICON =
-  "absolute left-[13px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
+  "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 // ===== Note row / list (P30) =====
 export const NOTE_LIST = "mt-2 pb-16";

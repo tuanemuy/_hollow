@@ -2,8 +2,10 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { purgeNoteFn, restoreNoteFn } from "@/components/note/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -57,6 +59,7 @@ export function TrashRowActions({ noteId }: Props) {
         onClick={onRestore}
         disabled={isPending}
       >
+        <Icon icon={RotateCcw} />
         復元
       </button>
       <button
@@ -66,6 +69,7 @@ export function TrashRowActions({ noteId }: Props) {
         onClick={() => setConfirmPurgeOpen(true)}
         disabled={isPending}
       >
+        <Icon icon={Trash2} />
         完全削除
       </button>
       {error !== null ? (

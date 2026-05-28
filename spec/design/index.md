@@ -112,6 +112,17 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 - **`object-fit: cover` を既定** にし、トリミングが顔や重要要素を切らないアスペクト比 (16/9, 4/3, 1/1) を選ぶ。
 - **画像読み込み**: `loading="lazy"` を基本、`decoding="async"`。`srcset` は将来導入する画像最適化レイヤーに合わせて空欄でも可（MVP では未対応）。
 
+### 7.1 アイコン運用ガイドライン
+
+- **使用ライブラリ**: `lucide-react` を `app/components/common/Icon.tsx` ラッパー経由で使用する。生 `lucide-react` を直接 import したり `import * as Icons from "lucide-react"` の barrel import を行ったりしない（tree-shake が効かなくなる）。
+- **使う場面**: 主要アクションボタン（ヘッダーのナビゲーション、ノート一覧ツールバー、一括操作バー、行アクション、ノート詳細アクション、確認ダイアログのアイキャッチ、空状態のアイキャッチ、管理画面セクションヘッダ）にはアイコン+テキストで表示する。
+- **使わない場面**: 本文（Markdown 描画領域）、チップ内部、サイドバーのセクションタイトル、絵文字代替の単なる装飾。情報伝達に不要な「賑やかし」を増やさない。
+- **a11y 契約**:
+  - 「アイコン+テキスト」のボタンでは、アイコンは装飾扱い（`Icon` の `label` 未指定 → `aria-hidden="true"`）にしてテキスト側で accessible name を担う。
+  - 「アイコンのみ」のボタンでは、`<button>` 側に `aria-label` を必ず付け、`Icon` 側は装飾扱い（`label` 未指定）のままにする。`Icon` を `<button>` の唯一の子にして `Icon.label` を渡すと accessible name が二重になるため避ける。
+- **サイズの選び方**: テキスト併用 / インラインは `size={16}`（デフォルト）。アイコンのみボタン・確認ダイアログのアイキャッチは `size={20}`。空状態のアイキャッチは `size={24}`。
+- **配色**: 親要素の `text-*` トークン（`text-ink` / `text-ink-secondary` / `text-ink-tertiary` 等）を継承する（`currentColor`）。`Icon` の `className` に `text-*` 以外（特に `w-*` / `h-*`）を渡してサイズや寸法を上書きしない。寸法の真実は `size` prop のみ。
+
 ---
 
 ## 8. アクセシビリティ

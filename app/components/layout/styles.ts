@@ -9,12 +9,11 @@ export const APP_LOGO = "text-[21px] font-light tracking-tightest text-ink";
 
 export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 
-// Renders a left magnifier glyph via mask-image — same SVG the legacy CSS used.
 export const SEARCH_BOX_INPUT =
   "w-full h-9 border-0 bg-surface rounded-pill pl-[38px] pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover";
 
 export const SEARCH_BOX_ICON =
-  "absolute left-[13px] top-1/2 -translate-y-1/2 w-[14px] h-[14px] bg-ink-tertiary pointer-events-none [mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>\")] [mask-size:contain] [mask-repeat:no-repeat] [-webkit-mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>\")] [-webkit-mask-size:contain] [-webkit-mask-repeat:no-repeat]";
+  "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 export const PILL_BTN =
   "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none whitespace-nowrap hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] motion-reduce:active:scale-100 data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed data-[danger]:bg-error-surface data-[danger]:text-error aria-disabled:opacity-55 aria-disabled:cursor-not-allowed disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";

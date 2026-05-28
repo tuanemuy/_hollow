@@ -2,8 +2,10 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { ArrowRight, Check, RefreshCw, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import {
   displayError,
   displayJobErrorCode,
@@ -154,6 +156,7 @@ export function IngestionJobRow({ job }: Props) {
               onClick={onCommit}
               disabled={isPending}
             >
+              <Icon icon={Check} />
               ノートとして保存
             </button>
             <button
@@ -162,6 +165,7 @@ export function IngestionJobRow({ job }: Props) {
               onClick={onRegenerate}
               disabled={isPending}
             >
+              <Icon icon={RefreshCw} />
               再生成
             </button>
             <button
@@ -171,6 +175,7 @@ export function IngestionJobRow({ job }: Props) {
               onClick={() => setConfirmDiscardOpen(true)}
               disabled={isPending}
             >
+              <Icon icon={Trash2} />
               破棄
             </button>
           </>
@@ -183,6 +188,7 @@ export function IngestionJobRow({ job }: Props) {
             onClick={() => setConfirmDiscardOpen(true)}
             disabled={isPending}
           >
+            <Icon icon={Trash2} />
             破棄
           </button>
         ) : null}
@@ -194,6 +200,7 @@ export function IngestionJobRow({ job }: Props) {
             }}
             className={PILL_BTN}
           >
+            <Icon icon={ArrowRight} />
             ノートを開く
           </Link>
         ) : null}
