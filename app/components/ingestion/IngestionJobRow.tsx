@@ -4,7 +4,6 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -21,11 +20,12 @@ import {
 import {
   commitIngestionPreviewFn,
   discardIngestionPreviewFn,
+  type IngestionJobWire,
   regenerateIngestionPreviewFn,
 } from "./actions";
 
 type Props = {
-  job: IngestionJobDTO;
+  job: IngestionJobWire;
 };
 
 const JOB_CARD =
@@ -36,7 +36,7 @@ const JOB_CARD_NAME = "text-[15px] font-medium text-ink break-words";
 const JOB_CARD_META = "text-xs text-ink-tertiary";
 const JOB_CARD_ACTIONS = "inline-flex gap-2 mt-3 flex-wrap";
 
-const statusLabel: Record<IngestionJobDTO["status"], string> = {
+const statusLabel: Record<IngestionJobWire["status"], string> = {
   pending: "待機中",
   processing: "処理中",
   previewing: "プレビュー可能",
@@ -45,7 +45,7 @@ const statusLabel: Record<IngestionJobDTO["status"], string> = {
   discarded: "破棄済み",
 };
 
-const statusChipClass = (status: IngestionJobDTO["status"]): string => {
+const statusChipClass = (status: IngestionJobWire["status"]): string => {
   switch (status) {
     case "failed":
       return `${CHIP} ${CHIP_WARNING}`;
@@ -68,7 +68,7 @@ export function IngestionJobRow({ job }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
-  const jobId = job.id as unknown as string;
+  const jobId = job.id;
 
   const onCommit = () => {
     startTransition(async () => {
@@ -133,9 +133,9 @@ export function IngestionJobRow({ job }: Props) {
           ) : null}
         </div>
       ) : null}
-      {job.errorReason !== null ? (
+      {job.errorCode !== null ? (
         <p className={FORM_ERROR} role="alert">
-          {job.errorCode}: {job.errorReason}
+          {job.errorCode}
         </p>
       ) : null}
       <div className={JOB_CARD_ACTIONS}>
@@ -184,7 +184,7 @@ export function IngestionJobRow({ job }: Props) {
           <Link
             to="/notes/$noteId"
             params={{
-              noteId: job.savedAsNoteId as unknown as string,
+              noteId: job.savedAsNoteId,
             }}
             className={PILL_BTN}
           >

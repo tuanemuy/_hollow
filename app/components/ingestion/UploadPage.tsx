@@ -34,7 +34,7 @@ export async function UploadPage({ user }: Props) {
         ) : (
           <div>
             {jobs.map((job) => (
-              <IngestionJobRow key={job.id as unknown as string} job={job} />
+              <IngestionJobRow key={job.id} job={job} />
             ))}
           </div>
         )}

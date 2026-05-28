@@ -479,7 +479,7 @@ function FailedView({
     setIsPending(true);
     void (async () => {
       try {
-        await discard({ data: { jobId: job.id as unknown as string } });
+        await discard({ data: { jobId: job.id } });
         await router.invalidate();
         onClose();
       } catch (e) {
@@ -493,10 +493,8 @@ function FailedView({
       <p className="text-sm text-ink mb-2">
         取り込みに失敗しました: {job.originalFileName}
       </p>
-      {job.errorReason !== null ? (
-        <p className="text-sm text-ink-secondary mb-4">
-          {job.errorCode}: {job.errorReason}
-        </p>
+      {job.errorCode !== null ? (
+        <p className="text-sm text-ink-secondary mb-4">{job.errorCode}</p>
       ) : null}
       {err !== null ? (
         <p className={FORM_ERROR} role="alert">

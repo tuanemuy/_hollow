@@ -3,6 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  serverFnChainStub,
+  useServerFnRouter,
+} from "@/components/_test-utils/serverFnMock";
 import { AppServerError } from "@/core/presentation/errorResponse";
 import type { IngestionJobWire } from "../actions";
 
@@ -17,21 +21,17 @@ import type { IngestionJobWire } from "../actions";
 const commitMock = vi.fn();
 const discardMock = vi.fn();
 
-vi.mock("@tanstack/react-start", () => {
-  const chain = () =>
-    new Proxy(() => chain(), {
-      get: (_, prop) => (prop === "then" ? undefined : chain()),
-    });
-  return {
-    useServerFn: (fn: unknown) => {
-      if (fn === commitMock) return commitMock;
-      if (fn === discardMock) return discardMock;
-      return vi.fn();
-    },
-    createMiddleware: () => chain(),
-    createServerFn: () => chain(),
-  };
-});
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: useServerFnRouter(
+    [
+      [commitMock, commitMock],
+      [discardMock, discardMock],
+    ],
+    vi.fn(),
+  ),
+  createMiddleware: () => serverFnChainStub(),
+  createServerFn: () => serverFnChainStub(),
+}));
 
 vi.mock("../actions", () => ({
   commitIngestionPreviewFn: commitMock,
@@ -76,7 +76,6 @@ const sampleJob: IngestionJobWire = {
     mediaRefs: [],
   },
   errorCode: null,
-  errorReason: null,
   regenerationCount: 0,
   savedAsNoteId: null,
   createdAt: new Date(0).toISOString(),

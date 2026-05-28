@@ -13,6 +13,7 @@ import {
 import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
+import { flattenDirectoryTree } from "./directoryTree";
 
 /**
  * Combined input for the home / note-list loader.
@@ -300,16 +301,10 @@ export const loadNoteDetail = cache(
 );
 
 /**
- * Flatten the per-owner directory tree into a depth-prefixed list, the
- * shape that `<select>` pickers want.
+ * Re-export so existing consumers continue importing `FlatDirectory`
+ * from `note/loaders`. The SSOT now lives in `./directoryTree`.
  */
-export type FlatDirectory = Readonly<{
-  id: string;
-  parentId: string | null;
-  name: string;
-  depth: number;
-  path: string;
-}>;
+export type { FlatDirectory } from "./directoryTree";
 
 export const loadDirectoryTreeFlat = cache(
   serverData(
@@ -318,29 +313,12 @@ export const loadDirectoryTreeFlat = cache(
       { container },
       { getDirectoryTree },
       args: { actorUserId: string },
-    ): Promise<{ flat: readonly FlatDirectory[] }> => {
+    ) => {
       const { tree } = await getDirectoryTree({
         container,
         input: { actorUserId: args.actorUserId },
       });
-      const flat: FlatDirectory[] = [];
-      type Node = (typeof tree)[number];
-      const walk = (node: Node, parentPath: string): void => {
-        const path = `${parentPath}/${node.name}`;
-        flat.push({
-          id: node.id as unknown as string,
-          parentId:
-            node.parentId === null
-              ? null
-              : (node.parentId as unknown as string),
-          name: node.name,
-          depth: node.depth,
-          path,
-        });
-        for (const child of node.children) walk(child, path);
-      };
-      for (const root of tree) walk(root, "");
-      return { flat };
+      return { flat: flattenDirectoryTree(tree) };
     },
   ),
 );
