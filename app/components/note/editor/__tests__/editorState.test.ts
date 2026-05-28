@@ -361,6 +361,21 @@ describe("editorReducer autosave actions", () => {
   // Issue #286: the mode-switch "discard" path resets autosave to idle
   // without clearing dirtyKeys. Pins the transition matrix exhaustively.
   describe("autosaveDiscarded", () => {
+    it("transitions dirty → idle and preserves dirtyKeys", () => {
+      // After an autosaveSuccess the indicator briefly returns to
+      // `dirty` (see the field-setter pinning in this describe block).
+      // Discard from that state must still land in idle.
+      const s0 = editorReducer(freshState(), { type: "setTitle", value: "x" });
+      const s1 = editorReducer(s0, { type: "autosaveStart" });
+      const s2 = editorReducer(s1, { type: "autosaveSuccess", at: 1700 });
+      // Re-dirty after saved → state.autosave goes back to `dirty`
+      const s3 = editorReducer(s2, { type: "setTitle", value: "y" });
+      expect(s3.autosave.kind).toBe("dirty");
+      const s4 = editorReducer(s3, { type: "autosaveDiscarded" });
+      expect(s4.autosave).toEqual({ kind: "idle" });
+      expect(s4.dirtyKeys.has("title")).toBe(true);
+    });
+
     it("transitions saving → idle and preserves dirtyKeys", () => {
       const s0 = editorReducer(freshState(), { type: "setTitle", value: "x" });
       const s1 = editorReducer(s0, { type: "autosaveStart" });

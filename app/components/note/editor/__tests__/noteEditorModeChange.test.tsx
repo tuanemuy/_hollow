@@ -274,6 +274,7 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
         await vi.advanceTimersByTimeAsync(2000);
       });
       expect(saveDraftMock).toHaveBeenCalled();
+      const callsBeforeAbort = saveDraftMock.mock.calls.length;
       const call = saveDraftMock.mock.calls.at(-1)?.[0] as
         | SaveDraftArgs
         | undefined;
@@ -295,6 +296,30 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       // AutosaveIndicator should be back in idle (the "自動保存はオフ"
       // copy from `AutosaveIndicator.tsx:20`).
       expect(container.textContent ?? "").toContain("自動保存はオフ");
+
+      // Issue #286 review-001 W-T-003: indirectly assert that the prior
+      // in-flight promise's `.finally` cleared `inFlightRef.current`.
+      // If it had not, a fresh `schedule()` would hit the
+      // `inFlightRef.current !== null` branch and only set `reRunRef`
+      // instead of starting a new flush. Re-dirty the title and let the
+      // new mode's effect fire — a brand-new `saveDraft` call must
+      // surface, proving the in-flight slot is genuinely empty.
+      const titleInput =
+        container.querySelector<HTMLInputElement>("#note-editor-title");
+      await act(async () => {
+        if (titleInput !== null) {
+          const setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            "value",
+          )?.set;
+          setter?.call(titleInput, "another");
+          titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(saveDraftMock.mock.calls.length).toBeGreaterThan(callsBeforeAbort);
     } finally {
       vi.useRealTimers();
     }
@@ -352,13 +377,79 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       });
       expect(container.textContent ?? "").toContain("自動保存に失敗");
 
+      // Issue #286 review-001 W-T-004: stop the persistent rejection
+      // before discarding so the new mode's effect (post-`setMode`,
+      // re-mounted because `state.mode` is now in deps) doesn't
+      // immediately re-error from a leftover mock setting. The point
+      // of this case is to pin the banner dismiss, not to chain a
+      // second retry round.
+      saveDraftMock.mockReset();
+      saveDraftMock.mockResolvedValue(undefined);
+
       confirmMock.mockReturnValue(true);
       await act(async () => {
         tabByLabel("HTML").click();
       });
+      // Allow the post-discard effect's debounce + flush to settle so
+      // the indicator transitions through `saving → saved` rather than
+      // being mid-flight when we assert.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
       expect(confirmMock).toHaveBeenCalledTimes(1);
       expect(container.textContent ?? "").not.toContain("自動保存に失敗");
-      expect(container.textContent ?? "").toContain("自動保存はオフ");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Issue #286 review-001 W-F-003 / W-T-002: when the user discards
+  // mid-saving and switches to a different `canFlush=true` mode, the
+  // effect must re-mount on the new mode so autosave resumes without
+  // requiring the user to type again. This is the empirical evidence
+  // that `state.mode` is in the effect's dep array and the discard
+  // semantics ("cancel in-flight, preserve dirtyKeys") hold.
+  it("resumes autosave on the new mode after discard preserves dirtyKeys", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEditor();
+      // Hang the first saveDraft so we land in `saving` cleanly.
+      let resolveFirst: (() => void) | undefined;
+      saveDraftMock.mockImplementationOnce(
+        ({ signal }: SaveDraftArgs) =>
+          new Promise<void>((resolve, reject) => {
+            resolveFirst = () => resolve();
+            signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      );
+      // Subsequent calls (post-discard, on the new mode) succeed
+      // immediately so the indicator can return to `saved`.
+      saveDraftMock.mockResolvedValue(undefined);
+      await makeDirty();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(saveDraftMock).toHaveBeenCalledTimes(1);
+
+      confirmMock.mockReturnValue(true);
+      await act(async () => {
+        tabByLabel("HTML").click();
+      });
+      // Flush microtasks for the abort listener + finally bookkeeping.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      // Now in `html` mode with dirtyKeys preserved. The re-mounted
+      // effect should schedule a fresh flush after the debounce.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      // 2 calls = first (aborted) + second (post-discard on new mode).
+      expect(saveDraftMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      // Silence the dangling resolver to be polite to other tests.
+      resolveFirst?.();
     } finally {
       vi.useRealTimers();
     }

@@ -79,6 +79,11 @@ export type UseAutosaveArgs = Readonly<{
  * - the reducer short-circuits `idle → idle` so no re-render occurs
  * - the dispatched action is still emitted, which is what dismisses a
  *   lingering `error` banner (see ADR-004 of Issue #286).
+ *
+ * Scope: `abortInFlight` only cancels the `saveDraft` AbortController.
+ * `useEditLock`'s `extendLock` cycle and any other server functions
+ * driven elsewhere in the editor are unaffected — they own their own
+ * lifecycles and are not part of the "discard unsaved content" promise.
  */
 export type UseAutosaveReturn = Readonly<{
   abortInFlight: () => void;
@@ -167,7 +172,15 @@ export function useAutosave({
   // `state.autosave`, `state.editLock`) change. Destructuring `state`
   // gives the lint rule precise dep tracking — passing the whole `state`
   // object would force the effect to depend on the full record.
-  const { title, contentHtml, frontMatter, tagInput, directoryId } = state;
+  //
+  // `mode` is pulled out separately and added to the effect deps so
+  // mode switches re-mount the effect (Issue #286). Without it, a
+  // discard-then-switch transition between two `canFlush=true` modes
+  // (e.g. `inline → html` while dirty) would leave the previous effect
+  // with an aborted controller and the user's dirty content would not
+  // resume autosaving until the next keystroke changed `snapshot`.
+  const { title, contentHtml, frontMatter, tagInput, directoryId, mode } =
+    state;
   const snapshot = useMemo(
     () =>
       snapshotForSubmit({
@@ -186,6 +199,14 @@ export function useAutosave({
   // (the effect re-runs when any of these fields change).
   const canFlush = shouldFlushAutosave(state, noteId);
 
+  // `mode` is intentionally in the dep list (see suppression below) so
+  // a mode switch re-mounts the effect even when `canFlush` / `snapshot`
+  // stay constant. Without it, a discard-then-switch transition between
+  // two `canFlush=true` modes (e.g. `inline → html` while dirty) would
+  // leave the previous effect with an aborted controller and the user's
+  // dirty content would not resume autosaving until the next keystroke
+  // changed `snapshot` (Issue #286 review-001 W-F-001).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
   useEffect(() => {
     // When the autosave gate flips off (e.g. WYSIWYG unsupported-tag
     // ack pending), we do not install a controller. The previous
@@ -280,7 +301,7 @@ export function useAutosave({
         timerRef.current = null;
       }
     };
-  }, [canFlush, noteId, snapshot, dispatch, saveDraft]);
+  }, [canFlush, mode, noteId, snapshot, dispatch, saveDraft]);
 
   // Issue #286: external abort path. Stable identity via
   // `useCallback([dispatch])` — `dispatch` is the only non-ref
