@@ -42,7 +42,7 @@ type Props = Readonly<{
 }>;
 
 const READONLY_CONTENT =
-  "note-detail-content max-h-[240px] overflow-y-auto rounded-md border border-hairline bg-surface-elevated p-4 text-sm text-ink";
+  "note-detail-content rounded-md border border-hairline bg-surface-elevated p-4 text-sm text-ink";
 
 const FRONT_MATTER_SUMMARY =
   "list-none inline-flex items-center gap-2 cursor-pointer select-none text-[13px] font-medium text-ink-secondary [&::-webkit-details-marker]:hidden";
@@ -219,111 +219,118 @@ export function IngestionPreviewForm({
 
   return (
     <>
-      <form onSubmit={onSubmit}>
-        <div className={field}>
-          <label
-            htmlFor={titleId}
-            className={`${fieldLabel} inline-flex items-center gap-2`}
-          >
-            <span>タイトル</span>
-            <AiSuggestionBadge edited={isTitleEdited} field="title" />
-          </label>
-          <input
-            ref={titleInputRef}
-            id={titleId}
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="ノートのタイトル"
-            maxLength={200}
-            disabled={isPending}
-            className={fieldControl}
-          />
-        </div>
-
-        <div className={field}>
-          <p className={fieldLabel}>本文プレビュー（LLM 抽出・読み取り専用）</p>
-          <div
-            className={READONLY_CONTENT}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: preview HTML is sanitised upstream by the ingestion pipeline
-            dangerouslySetInnerHTML={{ __html: preview.contentHtml }}
-          />
-        </div>
-
-        <DirectoryPicker
-          tree={tree}
-          directoryId={directoryId}
-          pendingDirectoryName={pendingDirectoryName}
-          onSelectExisting={(id) => {
-            setDirectoryId(id);
-            if (id !== null) setPendingDirectoryName(null);
-          }}
-          onSetPendingName={(name) => {
-            setPendingDirectoryName(name);
-            if (name !== null) setDirectoryId(null);
-          }}
-          disabled={isPending || isTreeLoading}
-          legendSlot={
-            <AiSuggestionBadge edited={isDirectoryEdited} field="directory" />
-          }
-        />
-
-        <div className={field}>
-          <label
-            htmlFor={tagsId}
-            className={`${fieldLabel} inline-flex items-center gap-2`}
-          >
-            <span>タグ（カンマ区切り）</span>
-            <AiSuggestionBadge edited={isTagsEdited} field="tags" />
-          </label>
-          <input
-            id={tagsId}
-            type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            placeholder="例: idea, draft"
-            disabled={isPending}
-            className={fieldControl}
-          />
-        </div>
-
-        <details className={`${field} group`}>
-          <summary className={FRONT_MATTER_SUMMARY}>
-            <span
-              aria-hidden="true"
-              className="inline-block transition-transform motion-reduce:transition-none group-open:rotate-90"
+      <form onSubmit={onSubmit} className="flex flex-1 flex-col min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-6 px-6">
+          <div className={field}>
+            <label
+              htmlFor={titleId}
+              className={`${fieldLabel} inline-flex items-center gap-2`}
             >
-              ▸
-            </span>
-            <span>FrontMatter（JSON）</span>
-            <AiSuggestionBadge
-              edited={isFrontMatterEdited}
-              field="frontmatter"
-            />
-          </summary>
-          <div className="mt-2">
-            <label htmlFor={frontMatterId} className="sr-only">
-              FrontMatter（JSON）
+              <span>タイトル</span>
+              <AiSuggestionBadge edited={isTitleEdited} field="title" />
             </label>
-            <textarea
-              id={frontMatterId}
-              value={frontMatterJson}
-              onChange={(e) => setFrontMatterJson(e.target.value)}
-              placeholder='{"key": "value"}'
+            <input
+              ref={titleInputRef}
+              id={titleId}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="ノートのタイトル"
+              maxLength={200}
               disabled={isPending}
-              className={`${fieldControl} ${fieldTextarea} min-h-[140px]`}
-              spellCheck={false}
+              className={fieldControl}
             />
           </div>
-        </details>
 
-        {error !== null ? (
-          <p className={FORM_ERROR} role="alert">
-            {displayError(error)}
-          </p>
-        ) : null}
+          <div className={field}>
+            <p className={fieldLabel}>
+              本文プレビュー（LLM 抽出・読み取り専用）
+            </p>
+            <div
+              className={READONLY_CONTENT}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: preview HTML is sanitised upstream by the ingestion pipeline
+              dangerouslySetInnerHTML={{ __html: preview.contentHtml }}
+            />
+          </div>
 
-        <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-wrap justify-end gap-2 border-t border-hairline bg-bg px-6 py-4">
+          <DirectoryPicker
+            tree={tree}
+            directoryId={directoryId}
+            pendingDirectoryName={pendingDirectoryName}
+            onSelectExisting={(id) => {
+              setDirectoryId(id);
+              if (id !== null) setPendingDirectoryName(null);
+            }}
+            onSetPendingName={(name) => {
+              setPendingDirectoryName(name);
+              if (name !== null) setDirectoryId(null);
+            }}
+            disabled={isPending || isTreeLoading}
+            legendSlot={
+              <AiSuggestionBadge edited={isDirectoryEdited} field="directory" />
+            }
+          />
+
+          <div className={field}>
+            <label
+              htmlFor={tagsId}
+              className={`${fieldLabel} inline-flex items-center gap-2`}
+            >
+              <span>タグ（カンマ区切り）</span>
+              <AiSuggestionBadge edited={isTagsEdited} field="tags" />
+            </label>
+            <input
+              id={tagsId}
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="例: idea, draft"
+              disabled={isPending}
+              className={fieldControl}
+            />
+          </div>
+
+          <details className={`${field} group`}>
+            <summary className={FRONT_MATTER_SUMMARY}>
+              <span
+                aria-hidden="true"
+                className="inline-block transition-transform motion-reduce:transition-none group-open:rotate-90"
+              >
+                ▸
+              </span>
+              <span>FrontMatter（JSON）</span>
+              <AiSuggestionBadge
+                edited={isFrontMatterEdited}
+                field="frontmatter"
+              />
+            </summary>
+            <div className="mt-2">
+              <label htmlFor={frontMatterId} className="sr-only">
+                FrontMatter（JSON）
+              </label>
+              <textarea
+                id={frontMatterId}
+                value={frontMatterJson}
+                onChange={(e) => setFrontMatterJson(e.target.value)}
+                placeholder='{"key": "value"}'
+                disabled={isPending}
+                className={`${fieldControl} ${fieldTextarea} min-h-[140px]`}
+                spellCheck={false}
+              />
+            </div>
+          </details>
+
+          {error !== null ? (
+            <p className={FORM_ERROR} role="alert">
+              {displayError(error)}
+            </p>
+          ) : null}
+        </div>
+
+        <div
+          data-action-bar=""
+          className="flex-shrink-0 -mx-6 -mb-6 flex flex-wrap justify-end gap-2 border-t border-hairline bg-bg px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
           <button
             type="button"
             className={PILL_BTN}

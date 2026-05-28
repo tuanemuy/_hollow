@@ -10,7 +10,7 @@
 
 /** Pill button base — apply to every variant. */
 export const pillBtn =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =
@@ -53,7 +53,7 @@ export const dialogBackdrop =
  * in current consumers (SR_ONLY clipped text is unaffected).
  */
 export const dialog =
-  "relative bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-lg";
+  "relative flex flex-col bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-lg";
 
 /**
  * Opt-in close ("×") button rendered at the top-right of the dialog panel
