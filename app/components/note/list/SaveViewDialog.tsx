@@ -1,5 +1,6 @@
 "use client";
 
+import { getRouteApi } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
@@ -21,7 +22,9 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { NoteListSearch } from "../schema";
-import { searchToViewQuery } from "./listSelectors";
+import { searchToViewQuery, selectDisplay } from "./listSelectors";
+
+const homeRoute = getRouteApi("/");
 
 type Props = {
   open: boolean;
@@ -37,6 +40,12 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
   const [isPending, startTransition] = useTransition();
   const nameId = useId();
   const titleId = useId();
+  // `search.display` is stale here because Issue #219 excluded `display`
+  // from the home `loaderDeps`, so the server-rendered `search` prop is
+  // pinned to the value at first load. Read the latest mode from the URL
+  // directly so saving from tile / calendar persists the correct
+  // `displayMode`.
+  const displayMode = homeRoute.useSearch({ select: selectDisplay });
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,7 +66,7 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
               referencingNoteId: payload.query.referencingNoteId ?? null,
               visibilityFilter: [...payload.query.visibilityFilter],
             },
-            displayMode: payload.displayMode,
+            displayMode,
             calendarDateKey: "updated",
             sort: { by: "updatedAt", direction: "desc" },
             isDefault: false,

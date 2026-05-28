@@ -6,7 +6,9 @@ import {
   formatReferencingNoteChipLabel,
   groupNotesByDay,
   searchToViewQuery,
+  selectDisplay,
   selectionReducer,
+  shouldRedirectForSavedView,
   viewQueryEquals,
   viewQueryToSearch,
 } from "../listSelectors";
@@ -452,5 +454,53 @@ describe("viewQueryEquals", () => {
       ] as unknown as SavedViewDTO["query"]["visibilityFilter"],
     };
     expect(viewQueryEquals(a, b)).toBe(false);
+  });
+});
+
+describe("selectDisplay", () => {
+  it("returns the explicit display mode when set", () => {
+    expect(selectDisplay({ display: "tile" })).toBe("tile");
+    expect(selectDisplay({ display: "calendar" })).toBe("calendar");
+    expect(selectDisplay({ display: "list" })).toBe("list");
+  });
+
+  it("falls back to 'list' when display is undefined", () => {
+    expect(selectDisplay({})).toBe("list");
+    expect(selectDisplay({ display: undefined })).toBe("list");
+  });
+});
+
+describe("shouldRedirectForSavedView", () => {
+  // Issue #219 ADR-002: redirect must fire only when restoring a
+  // SavedView and the URL does not already pin a display. The four
+  // branches below cover the explicit invariants of the predicate;
+  // breaking any of them risks either a redirect loop or an
+  // unintentional override of a manual user switch.
+
+  const view = { displayMode: "tile" as const };
+
+  it("returns true when viewId is present, display is absent, and the view was resolved", () => {
+    expect(shouldRedirectForSavedView({ search: { viewId: "v1" }, view })).toBe(
+      true,
+    );
+  });
+
+  it("returns false when the user already pinned a display", () => {
+    expect(
+      shouldRedirectForSavedView({
+        search: { viewId: "v1", display: "list" },
+        view,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when the SavedView could not be resolved", () => {
+    expect(
+      shouldRedirectForSavedView({ search: { viewId: "v1" }, view: null }),
+    ).toBe(false);
+  });
+
+  it("returns false when there is no viewId in the URL", () => {
+    expect(shouldRedirectForSavedView({ search: {}, view })).toBe(false);
   });
 });

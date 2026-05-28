@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { LandingPage } from "@/components/landing/LandingPage";
-import { noteListSearchSchema } from "@/components/note/schema";
+import {
+  type NoteListSearch,
+  noteListSearchSchema,
+} from "@/components/note/schema";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
@@ -24,6 +27,28 @@ import "@/components/view/actions";
 import "@/components/media/actions";
 import "@/components/publication/PublishSettings/action";
 
+/**
+ * `loaderDeps` returns the search shape minus `display` so that
+ * switching list/tile/calendar does not invalidate the loader cache
+ * (Issue #219). `display` is a pure client-side rendering concern —
+ * it never reaches a usecase. The home loader still forwards the
+ * value to the server fn for the SavedView-redirect decision (see
+ * the `viewId` branch below), but the handler tolerates `undefined`
+ * because it's no longer part of the dedup key.
+ *
+ * The structural parameter shape lets tanstack-router infer its own
+ * `FullSearchSchemaOption` generic at the route boundary; the test
+ * passes a `NoteListSearch` literal directly.
+ */
+export const homeLoaderDeps = <T extends NoteListSearch>({
+  search,
+}: {
+  search: T;
+}): Omit<T, "display"> => {
+  const { display: _display, ...rest } = search;
+  return rest;
+};
+
 const renderHome = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(noteListSearchSchema))
@@ -44,7 +69,7 @@ const renderHome = createServerFn({ method: "GET" })
         loadSavedViewById,
         loadReferencingNoteTitle,
       },
-      { viewQueryToSearch },
+      { shouldRedirectForSavedView, viewQueryToSearch },
     ] = await Promise.all([
       import("@/components/note/HomePage"),
       import("@/core/application/dto/identity"),
@@ -64,6 +89,17 @@ const renderHome = createServerFn({ method: "GET" })
         }),
         loadAllTags({ actorUserId: user.id }),
       ]);
+      // SavedView restore — normalise URL so the client `useSearch`-driven
+      // display can mirror the stored `displayMode` (Issue #219 ADR-002).
+      // `shouldRedirectForSavedView` encodes the full predicate (viewId
+      // present, display absent, view resolved) so the branch can be
+      // regression-tested as a pure function.
+      if (shouldRedirectForSavedView({ search, view })) {
+        throw redirect({
+          to: "/",
+          search: { ...search, display: view?.displayMode },
+        });
+      }
       if (view !== null) {
         const restored = viewQueryToSearch(view, (tagIds) =>
           tagIds
@@ -141,8 +177,25 @@ export const Route = createFileRoute("/")({
   // `<Link to="/">` / `redirect({ to: "/" })` must pass
   // `search={HOME_SEARCH}` from `@/components/auth/links`.
   validateSearch: (search) => noteListSearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => renderHome({ data: deps }),
+  loaderDeps: homeLoaderDeps,
+  // `display` is intentionally stripped from `deps` (Issue #219 ADR-004)
+  // so view switches do not re-run the loader. We still forward the
+  // current URL value to the server fn so the SavedView redirect can
+  // decide whether to normalise the URL — only the initial loader
+  // invocation observes a meaningful `display` value, and subsequent
+  // display-only changes do not re-enter the loader.
+  loader: ({ deps, location }) => {
+    // `location.search` is generically typed as `{}` at this call site
+    // because tanstack-router has not yet projected the validated search
+    // through the loader signature. Cast back to `NoteListSearch` to
+    // recover the `display` field — `validateSearch` above is the
+    // single source of truth for the shape and runs before the loader
+    // (see Issue #219 ADR-004).
+    const search = location.search as NoteListSearch;
+    return renderHome({
+      data: { ...deps, display: search.display },
+    });
+  },
   head: ({ match }) => {
     const config = match.context?.config;
     if (!config) return {};
