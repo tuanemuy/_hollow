@@ -9,23 +9,19 @@ import { buildHead } from "@/core/presentation/head";
 import {
   PAGINATION_DEFAULT_LIMIT,
   PAGINATION_DEFAULT_PAGE,
+  paginationSchema,
+  paginationSearchSchema,
 } from "@/core/presentation/pagination";
 import { validateInput } from "@/core/presentation/validator";
 
-// Issue #215: `page` / `limit` are fully optional (input and output) so
-// `<Link to="/u/$username">` without an explicit `search` does not
-// serialise the schema defaults into the URL. The loader supplies
-// `1` / `20` fallbacks before calling the server fn.
-const searchSchema = z.object({
-  page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
-  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
-});
-
-const renderInputSchema = z.object({
-  username: z.string().min(1).max(64),
-  page: z.number().int().min(1).max(10_000),
-  limit: z.number().int().min(1).max(100),
-});
+// Issue #215: reuse `paginationSearchSchema` (URL variant — `page` /
+// `limit` are input/output optional so omission keeps the URL clean)
+// and `paginationSchema` (strict-RPC variant — required `number`s for
+// the server fn) instead of redefining their pagination caps inline.
+// `username` is the only field that needs a route-local schema.
+const renderInputSchema = z
+  .object({ username: z.string().min(1).max(64) })
+  .extend(paginationSchema.shape);
 
 const renderUserPublicTop = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
@@ -43,7 +39,7 @@ const renderUserPublicTop = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/u/$username/")({
   staleTime: 0,
-  validateSearch: (search) => searchSchema.parse(search),
+  validateSearch: (search) => paginationSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) =>
     renderUserPublicTop({

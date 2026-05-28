@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAGINATION_MAX_LIMIT } from "@/core/presentation/pagination";
 import {
   BULK_NOTE_IDS_MAX,
   DISPLAY_MODES,
@@ -78,7 +79,8 @@ export const noteListSearchSchema = z.object({
   // when computing `MakeRequiredSearchParams`; if `page` / `limit` were
   // required on the output side, `<Link to="/" search={HOME_SEARCH}>`
   // (where `HOME_SEARCH = {}`) would not type-check. Consumers fall
-  // back to `NOTE_LIST_LIMIT_DEFAULT` / `1` at the loader boundary.
+  // back to `NOTE_LIST_PAGE_DEFAULT` / `NOTE_LIST_LIMIT_DEFAULT` at
+  // the loader boundary.
   page: z.coerce.number().int().min(1).optional().catch(undefined),
   limit: z.coerce
     .number()
@@ -158,12 +160,35 @@ export const noteHistorySearchSchema = z.object({
   // Issue #215: same rationale as `noteListSearchSchema` above —
   // `.default(...)` is removed so the URL stays clean for default
   // pagination. The loader supplies `NOTE_HISTORY_DEFAULT_*` before
-  // calling the server fn.
+  // calling the server fn. `max` derives from `PAGINATION_MAX_LIMIT`
+  // so the cap cannot drift from the shared transport-boundary
+  // contract.
   page: z.coerce.number().int().min(1).optional().catch(undefined),
-  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PAGINATION_MAX_LIMIT)
+    .optional()
+    .catch(undefined),
 });
 
 export type NoteHistorySearch = z.infer<typeof noteHistorySearchSchema>;
+
+// Issue #215 guards: pin that both search schemas keep `page` /
+// `limit` truly optional on their output. If a future change re-adds
+// `.default(...)` (which would resurrect the `?page=1&limit=20` URL),
+// the empty-object extends check would fail and break typecheck.
+type _NoteListSearchSchemaIsPartial =
+  Record<string, never> extends Pick<NoteListSearch, "page" | "limit">
+    ? true
+    : never;
+type _NoteHistorySearchSchemaIsPartial =
+  Record<string, never> extends NoteHistorySearch ? true : never;
+const _noteListSearchSchemaIsPartial: _NoteListSearchSchemaIsPartial = true;
+const _noteHistorySearchSchemaIsPartial: _NoteHistorySearchSchemaIsPartial = true;
+void _noteListSearchSchemaIsPartial;
+void _noteHistorySearchSchemaIsPartial;
 
 // `query.max(NOTE_TITLE_MAX_LENGTH)` is sized so a user can prefix-match
 // a full note title without the transport layer rejecting the request.
