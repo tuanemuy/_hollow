@@ -70,6 +70,29 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Validate secrets (SOPS → infra:check-secrets)
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          set -euo pipefail
+          # Restrict newly-created files to owner-only as defence-in-depth
+          # on top of `mktemp`'s 0600 default (Issue #245 ADR-001).
+          umask 077
+          # Run BEFORE Deploy Workers so a key-set mismatch short-circuits
+          # the workflow before any Worker code is uploaded (Issue #245).
+          # The `Inject secrets` step below independently re-decrypts the
+          # SOPS file in its own bash scope rather than sharing this file
+          # via $GITHUB_ENV — keeping the plaintext step-local is the
+          # safer cleanup boundary (#245 ADR-001; see also that step).
+          DECRYPTED_RAW=""
+          trap 'rm -f "${DECRYPTED_RAW:-}"' EXIT
+          DECRYPTED_RAW=$(mktemp)
+          sops -d infra/secrets/staging.enc.json > "$DECRYPTED_RAW"
+
+          # Fail loudly if `workerSecretSpecs()` and the decrypted JSON
+          # disagree on the key set (Issue #203).
+          pnpm infra:check-secrets:staging -- "$DECRYPTED_RAW"
+
       - name: Deploy Workers
         uses: cloudflare/wrangler-action@v3
         with:
@@ -82,11 +105,14 @@ jobs:
           # Cloudflare rejects the upload with code 10143 when the
           # referenced Worker does not exist yet (Issue #188).
           # Deploy targets that have no service binding first, then
-          # consumers of those targets last.
+          # consumers of those targets last. `indexer` has no service
+          # bindings in either direction (Issue #245), so it sits in
+          # the no-binding cluster alongside pruner/dlq.
           command: |
             deploy --config wrangler.staging.toml --env relay
             deploy --config wrangler.staging.toml --env pruner
             deploy --config wrangler.staging.toml --env dlq
+            deploy --config wrangler.staging.toml --env indexer
             deploy --config wrangler.staging.toml --env consumer
             deploy --config wrangler.staging.toml
 
@@ -97,20 +123,19 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          # Initialize before set -u trips, set trap before mktemp so a
-          # partial failure (one mktemp ok, the other not) still removes
-          # whatever was created.
+          # Restrict newly-created files to owner-only as defence-in-depth
+          # on top of `mktemp`'s 0600 default (Issue #245 ADR-001).
+          umask 077
+          # Key-set validation already ran in `Validate secrets` above
+          # (Issue #245). This step re-decrypts on purpose — sharing the
+          # plaintext file across steps would broaden its retention scope
+          # without meaningful savings (#245 ADR-001).
           DECRYPTED_RAW=""
           DECRYPTED_FILTERED=""
           trap 'rm -f "${DECRYPTED_RAW:-}" "${DECRYPTED_FILTERED:-}"' EXIT
           DECRYPTED_RAW=$(mktemp)
           DECRYPTED_FILTERED=$(mktemp)
           sops -d infra/secrets/staging.enc.json > "$DECRYPTED_RAW"
-
-          # Fail loudly if `workerSecretSpecs()` and the decrypted JSON
-          # disagree on the key set (Issue #203). Runs against the raw
-          # file; the script ignores `^_` documentation keys internally.
-          pnpm infra:check-secrets:staging -- "$DECRYPTED_RAW"
 
           # Strip `^_`-prefixed documentation-only keys before bulk-push
           # (Issue #203) so they do not pollute the Cloudflare secret set.
