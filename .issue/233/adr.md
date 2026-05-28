@@ -191,4 +191,3 @@ ADR-004 で「blur → dirty 再評価 → confirm → dispatch」の順序を�
 - トレードオフ:
   - `useEffect` は同イベントハンドラ内では実行されず、commit phase（ハンドラ return 後）に走る。よって **同一イベント内で `active.blur()` が起こす同期 dispatch を `onModeChange` のクロージャや stateRef で同期的に読み出すことはできない**。本パターンが解決するのは「**別イベント**で dirty 化 → モード切替タブをクリック」というメインの UX 経路で、ハンドラ間で stateRef が確実に最新を反映するケース
   - 同一イベント内で blur → 即 confirm 経路を厳密に守りたい場合（FrontMatter の `commitKey` 由来の dispatch を含めて捕捉したい場合）は `flushSync(() => active.blur())` が別途必要。本 PR では実用上の影響を限定的とみて `flushSync` を採用せず stateRef のみとする。blur 由来の差分は次の autosave で確実に拾われるため致命的ではない
-  - `useCallback` の依存配列を空にできるため、ハンドラ identity が安定し、子コンポーネントの memo を阻害しない
