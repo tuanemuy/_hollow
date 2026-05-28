@@ -71,7 +71,10 @@ export default {
       // layer and cannot emit a raw XML body. See ADR-010 in
       // `.issue/205/adr.md` for the rationale.
       const url = new URL(request.url);
-      if (request.method === "GET" && url.pathname === "/sitemap.xml") {
+      if (
+        (request.method === "GET" || request.method === "HEAD") &&
+        url.pathname === "/sitemap.xml"
+      ) {
         return buildSitemapResponse(container);
       }
       return defaultEntry.fetch(request);

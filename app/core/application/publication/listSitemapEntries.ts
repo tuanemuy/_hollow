@@ -1,6 +1,6 @@
+import type { RequestContainer } from "@/core/application/di/types";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
-import type { ServiceArgs } from "../types";
 
 export type SitemapEntry = Readonly<{
   /** Path component (excluding origin) — e.g. `/u/alice/my-note`. */
@@ -33,7 +33,9 @@ export type ListSitemapEntriesOutput = Readonly<{
  */
 export async function listSitemapEntries({
   container,
-}: Omit<ServiceArgs<undefined>, "input">): Promise<ListSitemapEntriesOutput> {
+}: {
+  container: RequestContainer;
+}): Promise<ListSitemapEntriesOutput> {
   return container.unitOfWorkProvider.run(
     async ({ publicationStateRepository, noteRepository, userRepository }) => {
       const publicRefs = await publicationStateRepository.findAllPublic({
@@ -73,7 +75,7 @@ export async function listSitemapEntries({
           entries.push({ path: `/u/${owner.username}` });
         }
         entries.push({
-          path: `/u/${owner.username}/${note.slug as string}`,
+          path: `/u/${owner.username}/${note.slug}`,
           lastmod: note.updatedAt.toISOString(),
         });
       }

@@ -106,7 +106,7 @@ function makeContainer(spec: RepoSpec): RequestContainer {
 describe("listSitemapEntries", () => {
   it("returns an empty result when no public notes exist", async () => {
     const container = makeContainer({ publicRefs: [], notes: [], users: [] });
-    const { entries } = await listSitemapEntries({ container } as never);
+    const { entries } = await listSitemapEntries({ container });
     expect(entries).toEqual([]);
   });
 
@@ -133,7 +133,7 @@ describe("listSitemapEntries", () => {
       users: [owner],
     });
 
-    const { entries } = await listSitemapEntries({ container } as never);
+    const { entries } = await listSitemapEntries({ container });
 
     expect(entries).toEqual([
       { path: "/u/alice" },
@@ -182,7 +182,7 @@ describe("listSitemapEntries", () => {
       users: [live, suspended, deleted],
     });
 
-    const { entries } = await listSitemapEntries({ container } as never);
+    const { entries } = await listSitemapEntries({ container });
     expect(entries.map((e) => e.path)).toEqual(["/u/alive", "/u/alive/ok"]);
   });
 
@@ -208,7 +208,7 @@ describe("listSitemapEntries", () => {
       users: [owner],
     });
 
-    const { entries } = await listSitemapEntries({ container } as never);
+    const { entries } = await listSitemapEntries({ container });
     expect(entries.map((e) => e.path)).toEqual(["/u/alice", "/u/alice/live"]);
   });
 
@@ -233,7 +233,7 @@ describe("listSitemapEntries", () => {
       users: [alice, bob],
     });
 
-    const { entries } = await listSitemapEntries({ container } as never);
+    const { entries } = await listSitemapEntries({ container });
     expect(entries.map((e) => e.path)).toEqual([
       "/u/alice",
       "/u/alice/a",
@@ -259,7 +259,7 @@ describe("listSitemapEntries", () => {
       },
     } as unknown as RequestContainer;
 
-    await listSitemapEntries({ container } as never);
+    await listSitemapEntries({ container });
     expect(findAllPublic).toHaveBeenCalledWith({ limit: 1000 });
   });
 });

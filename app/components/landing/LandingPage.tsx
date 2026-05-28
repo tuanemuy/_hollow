@@ -482,7 +482,7 @@ export function LandingPage() {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/about" hash="contact" className={FOOTER_LIST_LINK}>
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     お問い合わせ
                   </Link>
                 </li>
@@ -502,11 +502,7 @@ export function LandingPage() {
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/about"
-                    hash="commerce"
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     特定商取引法
                   </Link>
                 </li>

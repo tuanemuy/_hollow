@@ -1,5 +1,3 @@
-import { loadServerDeps } from "@/core/presentation/serverAction";
-
 type LegalDocumentProps = {
   markdown: string;
 };
@@ -14,7 +12,8 @@ type LegalDocumentProps = {
  * note bodies (CLAUDE.md ADR-002 / Issue #205 ADR-006).
  */
 export async function LegalDocument({ markdown }: LegalDocumentProps) {
-  const { container } = await loadServerDeps(async () => ({}));
+  const { getContainer } = await import("@/core/application/di/containerStore");
+  const container = await getContainer();
   const rawHtml = await container.markdownConverter.toHtml(markdown);
   const { html } = container.htmlSanitizer.sanitize(rawHtml, {
     allowMedia: false,

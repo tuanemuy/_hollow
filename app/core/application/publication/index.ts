@@ -11,6 +11,7 @@ export * from "./handleNoteTrashedEvent";
 export * from "./handleUserDeletedEvent";
 export * from "./issueShareLink";
 export * from "./listShareLinks";
+export * from "./listSitemapEntries";
 export * from "./listUserPublicNotes";
 export * from "./resolveShareLink";
 export * from "./revokeShareLink";

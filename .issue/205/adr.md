@@ -328,3 +328,39 @@ return storage.run(container, async () => {
 - トレードオフ:
   - File route 経由ではないため、TanStack Router のルートメタデータ（head タグ等）は適用されない。sitemap.xml に head は不要なので問題なし。
   - 将来 TanStack Start が raw Response を loader からサポートした場合は、再度 file route に戻す選択肢を検討できる。
+
+---
+
+## ADR-011: about ページの節アンカーは本 Issue では採用しない
+
+### Status
+Accepted（review-001 で決定）
+
+### Context
+
+plan.md / spec/pages/index.md の P09b では `/about` 内に「特定商取引法（暫定アンカー `#commerce`）」「お問い合わせ（暫定アンカー `#contact`）」の節を設ける想定で、`app/content/legal/about.md` の見出しに kramdown 風の見出し ID 構文 `## ... {#commerce}` / `{#contact}` を埋め込み、`LandingPage` のフッターから `<Link to="/about" hash="commerce">` / `hash="contact">` で深リンクする実装になっていた。
+
+しかし review-001 [B-F-001] で、自作 `MarkdownItConverter`（`app/core/adapters/markdown/markdownConverter.ts`）には kramdown attribute lists プラグインが組み込まれておらず、`{#commerce}` は見出しテキストの一部として残り、`<h2 id="commerce">` は生成されないことが判明。結果としてランディングからのアンカーリンクは遷移先のアンカーが存在せず動作しない。
+
+選択肢:
+
+- 案A: `MarkdownItConverter` に kramdown attribute lists 相当のプラグインを追加し、見出し ID を正しく生成する。
+- 案B: 本 Issue ではアンカーを使わず `LandingPage` のリンクを `/about` トップに揃え、`about.md` から kramdown 構文を除去する。converter 拡張は別 Issue。
+
+### Decision
+
+**案B（アンカー不使用）を採用する。**
+
+- `LandingPage.tsx` の `<Link to="/about" hash="commerce">` / `hash="contact">` から `hash` 属性を外し、`/about` トップへのリンクのみとする。
+- `app/content/legal/about.md` の `## 特定商取引法に基づく表記 {#commerce}` / `## お問い合わせ {#contact}` から `{#...}` 部分を削除する。
+- MarkdownItConverter の kramdown attribute lists 対応は別 Issue で扱う。本 Issue の最小完了スコープからは外す。
+
+### Consequences
+
+- 良い点:
+  - converter 拡張の影響範囲（既存ノート本文の互換性検証、サニタイザ allowlist 拡張）を本 Issue で抱え込まずに済む。
+  - 法律ページ 3 種（terms / privacy / about）の素朴な静的提示という当初スコープに留まり、レビュー観点が明瞭になる。
+- トレードオフ:
+  - フッターの「特定商取引法」「お問い合わせ」リンクは `/about` ページ全体に遷移するため、利用者は該当節までスクロールで辿る必要がある。各節の小見出しでナビゲートできる前提が崩れる。
+  - `spec/pages/index.md` P09b の「暫定アンカー `#commerce` / `#contact`」記述は今後の converter 拡張時に再度有効化されることを前提とした暫定ドキュメントとして残る。
+  - 別 Issue 化した converter 拡張が完了次第、`LandingPage` の hash 復活と `about.md` の `{#...}` 復元が必要。

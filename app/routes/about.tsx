@@ -6,7 +6,6 @@ import aboutMd from "@/content/legal/about.md?raw";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
-import { loadServerDeps } from "@/core/presentation/serverAction";
 
 function applyAboutSubstitutions(
   template: string,
@@ -21,7 +20,10 @@ function applyAboutSubstitutions(
 const renderAbout = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
-    const { container } = await loadServerDeps(async () => ({}));
+    const { getContainer } = await import(
+      "@/core/application/di/containerStore"
+    );
+    const container = await getContainer();
     const { LegalDocument } = await import("@/components/public/LegalDocument");
     const { PublicLayout } = await import("@/components/public/PublicLayout");
     const md = applyAboutSubstitutions(aboutMd, {
