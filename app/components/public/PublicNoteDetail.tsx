@@ -42,7 +42,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
           <Link
             to="/u/$username"
             params={{ username: owner.username }}
-            search={{ page: 1, limit: 20 }}
+            search={{}}
             className="text-ink-secondary hover:text-ink"
           >
             {owner.displayName} (@{owner.username})
@@ -56,7 +56,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
         <Link
           to="/u/$username"
           params={{ username: owner.username }}
-          search={{ page: 1, limit: 20 }}
+          search={{}}
           className={AUTHOR_MINI}
         >
           <span className={AUTHOR_AVATAR} aria-hidden="true">
