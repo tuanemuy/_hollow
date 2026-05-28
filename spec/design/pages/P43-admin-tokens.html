@@ -68,7 +68,7 @@
   input, textarea, select { font-family: inherit; color: inherit; }
   :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
 
-  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); padding: 14px 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5); }
+  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); height: var(--header-height); padding: 0 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-5); }
   @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
   .header-left { display: flex; align-items: center; gap: var(--space-3); }
   .logo { font-size: 21px; font-weight: var(--weight-light); letter-spacing: var(--tracking-tightest); }

@@ -20,7 +20,7 @@ const ADMIN_SHELL_CLASS =
   "min-h-screen bg-bg text-ink font-sans text-md leading-normal tracking-normal antialiased";
 
 const ADMIN_HEADER_CLASS =
-  "sticky top-0 z-50 grid grid-cols-[auto_1fr_auto] items-center gap-5 px-6 py-[14px] bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:gap-[10px] max-sm:px-4 max-sm:py-3";
+  "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 px-6 bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:gap-[10px] max-sm:px-4";
 
 const ADMIN_HEADER_LEFT_CLASS = "flex items-center gap-3";
 
