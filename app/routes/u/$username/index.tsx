@@ -8,9 +8,13 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
+// Issue #215: `page` / `limit` are fully optional (input and output) so
+// `<Link to="/u/$username">` without an explicit `search` does not
+// serialise the schema defaults into the URL. The loader supplies
+// `1` / `20` fallbacks before calling the server fn.
 const searchSchema = z.object({
-  page: z.coerce.number().int().min(1).max(10_000).catch(1),
-  limit: z.coerce.number().int().min(1).max(100).catch(20),
+  page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
 });
 
 const renderInputSchema = z.object({
@@ -39,7 +43,11 @@ export const Route = createFileRoute("/u/$username/")({
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) =>
     renderUserPublicTop({
-      data: { username: params.username, page: deps.page, limit: deps.limit },
+      data: {
+        username: params.username,
+        page: deps.page ?? 1,
+        limit: deps.limit ?? 20,
+      },
     }),
   head: ({ match, params }) => {
     const config = match.context?.config;

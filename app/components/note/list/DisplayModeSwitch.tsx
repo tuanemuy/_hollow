@@ -1,7 +1,6 @@
 "use client";
 
 import { getRouteApi, useRouter } from "@tanstack/react-router";
-import { HOME_SEARCH } from "@/components/auth/links";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
@@ -36,19 +35,14 @@ export function DisplayModeSwitch() {
     router.navigate({
       to: "/",
       replace: true,
-      // `prev` is the inferred cross-route search union, so the home
-      // route's required `page` / `limit` may be `undefined`. Collapse
-      // onto `HOME_SEARCH` so the returned shape always satisfies the
-      // home schema's required defaults.
-      search: (prev) => {
-        const p = prev as Partial<NoteListSearch>;
-        return {
-          ...p,
-          page: p.page ?? HOME_SEARCH.page,
-          limit: p.limit ?? HOME_SEARCH.limit,
-          display: mode,
-        };
-      },
+      // Issue #215: `noteListSearchSchema` is input-optional for `page`
+      // / `limit`, so leaving them out keeps the URL clean (no
+      // `?page=1&limit=20`) while the parsed output still receives the
+      // schema defaults.
+      search: (prev) => ({
+        ...(prev as Partial<NoteListSearch>),
+        display: mode,
+      }),
     });
   };
 

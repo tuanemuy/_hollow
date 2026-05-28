@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   BULK_NOTE_IDS_MAX,
   EXPORT_BULK_LIMIT,
-  NOTE_LIST_LIMIT_DEFAULT,
   NOTE_LIST_LIMIT_MAX,
 } from "../constants";
 import {
@@ -27,10 +26,13 @@ import {
 } from "../schema";
 
 describe("noteListSearchSchema", () => {
-  it("accepts an empty object and applies defaults to `page` / `limit`", () => {
+  it("accepts an empty object and leaves `page` / `limit` undefined (Issue #215)", () => {
     const parsed = noteListSearchSchema.parse({});
-    expect(parsed.page).toBe(1);
-    expect(parsed.limit).toBe(NOTE_LIST_LIMIT_DEFAULT);
+    // Issue #215: `.default(...)` was removed so the schema no longer
+    // fills `page` / `limit`. Loaders re-default at the boundary so the
+    // URL stays clean for default pagination.
+    expect(parsed.page).toBeUndefined();
+    expect(parsed.limit).toBeUndefined();
     expect(parsed.display).toBeUndefined();
     expect(parsed.directoryId).toBeUndefined();
     expect(parsed.q).toBeUndefined();
@@ -58,8 +60,8 @@ describe("noteListSearchSchema", () => {
     expect(parsed.tagNames).toBeUndefined();
     expect(parsed.from).toBeUndefined();
     expect(parsed.to).toBeUndefined();
-    expect(parsed.page).toBe(1);
-    expect(parsed.limit).toBe(NOTE_LIST_LIMIT_DEFAULT);
+    expect(parsed.page).toBeUndefined();
+    expect(parsed.limit).toBeUndefined();
   });
 
   it("accepts each allowed `display` mode", () => {
@@ -82,16 +84,16 @@ describe("noteListSearchSchema", () => {
     expect(parsed.limit).toBe(50);
   });
 
-  it("falls back to default when `limit` exceeds the cap", () => {
+  it("falls back to undefined when `limit` exceeds the cap (Issue #215)", () => {
     const parsed = noteListSearchSchema.parse({
       limit: NOTE_LIST_LIMIT_MAX + 1,
     });
-    expect(parsed.limit).toBe(NOTE_LIST_LIMIT_DEFAULT);
+    expect(parsed.limit).toBeUndefined();
   });
 
-  it("falls back to default when `page` is zero or negative", () => {
-    expect(noteListSearchSchema.parse({ page: 0 }).page).toBe(1);
-    expect(noteListSearchSchema.parse({ page: -5 }).page).toBe(1);
+  it("falls back to undefined when `page` is zero or negative (Issue #215)", () => {
+    expect(noteListSearchSchema.parse({ page: 0 }).page).toBeUndefined();
+    expect(noteListSearchSchema.parse({ page: -5 }).page).toBeUndefined();
   });
 
   it("drops empty-string `tagNames` entries via .catch(undefined)", () => {

@@ -48,9 +48,17 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/")({
   staleTime: 0,
   validateSearch: (search) => noteHistorySearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
+  // Issue #215: `noteHistorySearchSchema` keeps `page` / `limit`
+  // optional on its output to drop the default pagination from the
+  // URL; fall back to `1` / `20` here so the strict-typed server fn
+  // still receives concrete numbers.
   loader: ({ params, deps }) =>
     renderHistory({
-      data: { noteId: params.noteId, page: deps.page, limit: deps.limit },
+      data: {
+        noteId: params.noteId,
+        page: deps.page ?? 1,
+        limit: deps.limit ?? 20,
+      },
     }),
   component: NoteHistoryRoute,
   errorComponent: ({ error }) => (

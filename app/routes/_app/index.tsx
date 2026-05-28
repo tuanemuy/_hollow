@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { NOTE_LIST_LIMIT_DEFAULT } from "@/components/note/constants";
 import {
   type NoteListSearch,
   noteListSearchSchema,
@@ -97,12 +98,18 @@ const renderHome = createServerFn({ method: "GET" })
       }
     }
 
+    // Issue #215: `noteListSearchSchema` keeps `page` / `limit` optional
+    // on its output to drop default pagination from the URL. Fall back
+    // here so loaders / DTOs continue to receive concrete numbers.
+    const pageForLoad = baseSearch.page ?? 1;
+    const limitForLoad = baseSearch.limit ?? NOTE_LIST_LIMIT_DEFAULT;
+
     const [owned, tree, tags, savedViews, referencing] = await Promise.all([
       loadOwnedNotes({
         actorUserId: user.id,
         status: "active",
-        page: baseSearch.page,
-        limit: baseSearch.limit,
+        page: pageForLoad,
+        limit: limitForLoad,
         ...(baseSearch.directoryId !== undefined
           ? { directoryId: baseSearch.directoryId }
           : {}),
@@ -141,8 +148,8 @@ const renderHome = createServerFn({ method: "GET" })
       Home: await renderServerComponent(
         <HomePage
           user={userDto}
-          page={baseSearch.page}
-          limit={baseSearch.limit}
+          page={pageForLoad}
+          limit={limitForLoad}
           owned={owned}
           tree={tree.flat}
           tags={tags.tags}

@@ -65,6 +65,17 @@ export async function NoteHistoryList({
   const { revisions, totalCount } = revisionsResult;
   const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / limit);
 
+  // Issue #215: drop default-equal pagination values from the URL.
+  // `noteHistorySearchSchema` defaults to `page=1` / `limit=20`, and the
+  // schema is input-optional, so omitting the matching keys yields a
+  // clean URL while the parsed values stay identical.
+  const HISTORY_DEFAULT_PAGE = 1;
+  const HISTORY_DEFAULT_LIMIT = 20;
+  const navSearch = (nextPage: number): { page?: number; limit?: number } => ({
+    ...(nextPage === HISTORY_DEFAULT_PAGE ? {} : { page: nextPage }),
+    ...(limit === HISTORY_DEFAULT_LIMIT ? {} : { limit }),
+  });
+
   return (
     <article className="max-w-[760px] mx-auto">
       <header className="mb-6">
@@ -130,7 +141,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={{ page: page - 1, limit }}
+              search={navSearch(page - 1)}
               className={pillBtn}
             >
               前へ
@@ -145,7 +156,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={{ page: page + 1, limit }}
+              search={navSearch(page + 1)}
               className={pillBtn}
             >
               次へ

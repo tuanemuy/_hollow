@@ -182,6 +182,12 @@ export async function UserPublicTop({ username, page, limit }: Props) {
   );
 }
 
+// Issue #215: `/u/$username`'s search schema defaults to `page=1` /
+// `limit=20`. Omit the matching values from the URL so default-equal
+// pagination does not leak into the query string.
+const USER_PUBLIC_DEFAULT_PAGE = 1;
+const USER_PUBLIC_DEFAULT_LIMIT = 20;
+
 function Pagination({
   username,
   page,
@@ -194,6 +200,10 @@ function Pagination({
   total: number;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const navSearch = (nextPage: number): { page?: number; limit?: number } => ({
+    ...(nextPage === USER_PUBLIC_DEFAULT_PAGE ? {} : { page: nextPage }),
+    ...(limit === USER_PUBLIC_DEFAULT_LIMIT ? {} : { limit }),
+  });
   return (
     <nav className={PAGINATION} aria-label="ページネーション">
       <span className="text-ink-tertiary text-[13px]">
@@ -204,7 +214,7 @@ function Pagination({
           <Link
             to="/u/$username"
             params={{ username }}
-            search={{ page: page - 1, limit }}
+            search={navSearch(page - 1)}
             className={PILL_BTN}
           >
             前へ
@@ -214,7 +224,7 @@ function Pagination({
           <Link
             to="/u/$username"
             params={{ username }}
-            search={{ page: page + 1, limit }}
+            search={navSearch(page + 1)}
             className={PILL_BTN}
           >
             次へ

@@ -3,7 +3,6 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { Bookmark, Plus, Upload } from "lucide-react";
 import { useState, useTransition } from "react";
-import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
@@ -25,6 +24,9 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
 
   const onSelectView = (viewId: string) => {
     if (viewId === "") {
+      // Issue #215: `page` / `limit` are dropped so the URL collapses to
+      // `/` (or `/?display=...`) — `noteListSearchSchema` fills the
+      // defaults on parse.
       startTransition(() => {
         router.navigate({
           to: "/",
@@ -32,8 +34,6 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             const p = prev as Partial<NoteListSearch>;
             return {
               display: p.display,
-              page: p.page ?? HOME_SEARCH.page,
-              limit: p.limit ?? HOME_SEARCH.limit,
             };
           },
         });
@@ -48,14 +48,7 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
     startTransition(() => {
       router.navigate({
         to: "/",
-        search: (prev) => {
-          const p = prev as Partial<NoteListSearch>;
-          return {
-            page: p.page ?? HOME_SEARCH.page,
-            limit: p.limit ?? HOME_SEARCH.limit,
-            viewId,
-          };
-        },
+        search: () => ({ viewId }),
       });
     });
   };

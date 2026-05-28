@@ -3,7 +3,6 @@ import {
   BULK_NOTE_IDS_MAX,
   DISPLAY_MODES,
   EXPORT_BULK_LIMIT,
-  NOTE_LIST_LIMIT_DEFAULT,
   NOTE_LIST_LIMIT_MAX,
 } from "./constants";
 
@@ -74,15 +73,20 @@ export const noteListSearchSchema = z.object({
   tagNames: z.array(z.string().min(1)).optional().catch(undefined),
   from: z.string().date().optional().catch(undefined),
   to: z.string().date().optional().catch(undefined),
-  page: z.coerce.number().int().min(1).optional().catch(undefined).default(1),
+  // Issue #215: `.default(...)` removed so the schema's output keeps
+  // `page` / `limit` optional. TanStack Router uses the output shape
+  // when computing `MakeRequiredSearchParams`; if `page` / `limit` were
+  // required on the output side, `<Link to="/" search={HOME_SEARCH}>`
+  // (where `HOME_SEARCH = {}`) would not type-check. Consumers fall
+  // back to `NOTE_LIST_LIMIT_DEFAULT` / `1` at the loader boundary.
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
   limit: z.coerce
     .number()
     .int()
     .min(1)
     .max(NOTE_LIST_LIMIT_MAX)
     .optional()
-    .catch(undefined)
-    .default(NOTE_LIST_LIMIT_DEFAULT),
+    .catch(undefined),
 });
 
 export type NoteListSearch = z.infer<typeof noteListSearchSchema>;
@@ -148,15 +152,12 @@ export const restoreNoteRevisionSchema = z.object({
  * absent or malformed.
  */
 export const noteHistorySearchSchema = z.object({
-  page: z.coerce.number().int().min(1).optional().catch(undefined).default(1),
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .optional()
-    .catch(undefined)
-    .default(20),
+  // Issue #215: same rationale as `noteListSearchSchema` above —
+  // `.default(...)` is removed so the URL stays clean for default
+  // pagination. The loader supplies `1` / `20` fallbacks before
+  // calling the server fn.
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
 });
 
 export type NoteHistorySearch = z.infer<typeof noteHistorySearchSchema>;

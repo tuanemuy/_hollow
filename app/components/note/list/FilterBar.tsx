@@ -2,7 +2,6 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useId, useState, useTransition } from "react";
-import { HOME_SEARCH } from "@/components/auth/links";
 import { pillBtn } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
 import { formatReferencingNoteChipLabel } from "./listSelectors";
@@ -45,15 +44,11 @@ export function FilterBar({
 
   const selected = new Set(selectedTagNames);
 
-  // `prev` is the inferred cross-route search union, so `page` / `limit`
-  // are optional from the router's perspective. We collapse them onto
-  // the home-route defaults so every updater return satisfies
-  // `MakeRequiredSearchParams`.
-  const withDefaults = (prev: Partial<NoteListSearch>): NoteListSearch => ({
-    ...prev,
-    page: prev.page ?? HOME_SEARCH.page,
-    limit: prev.limit ?? HOME_SEARCH.limit,
-  });
+  // Issue #215: `noteListSearchSchema` is input-optional for `page` /
+  // `limit`, so we leave them out of the navigate payload to keep the
+  // URL free of default pagination. The schema fills the parsed values
+  // via `.default(...)`. Existing non-default `page` / `limit` carried
+  // by `prev` are preserved verbatim by the spread.
 
   const toggleTag = (name: string) => {
     const next = new Set(selected);
@@ -64,7 +59,7 @@ export function FilterBar({
       router.navigate({
         to: "/",
         search: (prev) => ({
-          ...withDefaults(prev as Partial<NoteListSearch>),
+          ...(prev as Partial<NoteListSearch>),
           tagNames: arr.length === 0 ? undefined : arr,
         }),
       });
@@ -76,7 +71,7 @@ export function FilterBar({
       router.navigate({
         to: "/",
         search: (prev) => ({
-          ...withDefaults(prev as Partial<NoteListSearch>),
+          ...(prev as Partial<NoteListSearch>),
           [key]: value === "" ? undefined : value,
         }),
       });
@@ -88,7 +83,7 @@ export function FilterBar({
       router.navigate({
         to: "/",
         search: (prev) => ({
-          ...withDefaults(prev as Partial<NoteListSearch>),
+          ...(prev as Partial<NoteListSearch>),
           visibility:
             value === "" ? undefined : (value as NoteListSearch["visibility"]),
         }),
@@ -101,7 +96,7 @@ export function FilterBar({
       router.navigate({
         to: "/",
         search: (prev) => ({
-          ...withDefaults(prev as Partial<NoteListSearch>),
+          ...(prev as Partial<NoteListSearch>),
           referencingNoteId: undefined,
         }),
       });
@@ -113,10 +108,13 @@ export function FilterBar({
     startTransition(() => {
       router.navigate({
         to: "/",
+        // Adding a filter resets the page to the schema default. We
+        // explicitly clear `page` to undefined (not 1) so the URL drops
+        // any prior `?page=N`; the parsed value still defaults to 1.
         search: (prev) => ({
-          ...withDefaults(prev as Partial<NoteListSearch>),
+          ...(prev as Partial<NoteListSearch>),
           referencingNoteId: noteId,
-          page: 1,
+          page: undefined,
         }),
       });
     });
@@ -130,8 +128,6 @@ export function FilterBar({
           const p = prev as Partial<NoteListSearch>;
           return {
             display: p.display,
-            page: p.page ?? HOME_SEARCH.page,
-            limit: p.limit ?? HOME_SEARCH.limit,
             ...(p.q !== undefined ? { q: p.q } : {}),
           };
         },
