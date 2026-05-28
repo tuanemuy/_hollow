@@ -72,6 +72,7 @@ export function LoginForm() {
             password: String(formData.get("password") ?? ""),
           },
         });
+        // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
         await router.invalidate();
         await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null, email };

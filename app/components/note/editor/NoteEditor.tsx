@@ -11,6 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   field,
   fieldControl,
@@ -260,7 +261,7 @@ export function NoteEditor(props: NoteEditorProps) {
               frontMatterJson,
             },
           });
-          await router.invalidate();
+          await routerInvalidate(router);
           await router.navigate({
             to: "/notes/$noteId",
             params: { noteId: props.noteId },

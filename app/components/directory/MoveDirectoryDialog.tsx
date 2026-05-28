@@ -96,6 +96,7 @@ export function MoveDirectoryDialog({
         await moveDirectory({
           data: { directoryId, newParentId: target },
         });
+        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
         await router.invalidate();
         onClose();
       } catch (e) {

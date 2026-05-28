@@ -37,6 +37,7 @@ export function DeleteDirectoryDialog({
     startTransition(async () => {
       try {
         await deleteDirectory({ data: { directoryId } });
+        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
         await router.invalidate();
         onDeleted?.();
         onClose();

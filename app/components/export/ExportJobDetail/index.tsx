@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { ExportJobDTO } from "@/core/application/export/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -49,7 +50,7 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
       if (document.visibilityState !== "hidden" && !inFlight) {
         inFlight = true;
         try {
-          await router.invalidate();
+          await routerInvalidate(router);
         } finally {
           inFlight = false;
         }
@@ -69,7 +70,7 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
     startTransition(async () => {
       try {
         await cancel({ data: { jobId: job.id } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));

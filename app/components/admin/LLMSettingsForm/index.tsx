@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { InstanceSettingsDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -142,7 +143,7 @@ export function LLMSettingsForm({
           },
         });
         setApiKeyDraft("");
-        await router.invalidate();
+        await routerInvalidate(router);
         return { error: null, success: true };
       } catch (error) {
         return { error: extractSerializedError(error), success: false };

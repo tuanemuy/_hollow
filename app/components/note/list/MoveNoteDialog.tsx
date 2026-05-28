@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   dialogActions,
   dialogTitle,
@@ -70,7 +71,7 @@ export function MoveNoteDialog({
           }
         }
         onMoved?.();
-        await router.invalidate();
+        await routerInvalidate(router);
         onClose();
       } catch (e) {
         const err = extractSerializedError(e);

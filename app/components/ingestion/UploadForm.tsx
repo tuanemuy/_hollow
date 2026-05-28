@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useRef, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -37,7 +38,7 @@ export function UploadForm() {
           formData.append("file", file);
           await upload({ data: formData });
         }
-        await router.invalidate();
+        await routerInvalidate(router);
         if (fileInputRef.current !== null) {
           fileInputRef.current.value = "";
         }

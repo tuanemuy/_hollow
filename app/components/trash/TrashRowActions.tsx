@@ -6,6 +6,7 @@ import { RotateCcw, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { purgeNoteFn, restoreNoteFn } from "@/components/note/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -31,7 +32,7 @@ export function TrashRowActions({ noteId }: Props) {
     startTransition(async () => {
       try {
         await restore({ data: { noteId, restoreDirectoryId: null } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -43,7 +44,7 @@ export function TrashRowActions({ noteId }: Props) {
     startTransition(async () => {
       try {
         await purge({ data: { noteId } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));

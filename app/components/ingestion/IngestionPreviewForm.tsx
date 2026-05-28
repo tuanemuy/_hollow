@@ -11,6 +11,7 @@ import {
   useTransition,
 } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   field,
   fieldControl,
@@ -207,7 +208,7 @@ export function IngestionPreviewForm({
     startTransition(async () => {
       try {
         await discard({ data: { jobId } });
-        await router.invalidate();
+        await routerInvalidate(router);
         onDiscarded();
       } catch (e) {
         setError(extractSerializedError(e));

@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useMemo, useState, useTransition } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -227,7 +228,7 @@ export function UsersTable({ users }: { users: readonly UserDTO[] }) {
   }, [users, query, status]);
 
   const onChange = async () => {
-    await router.invalidate();
+    await routerInvalidate(router);
   };
 
   return (

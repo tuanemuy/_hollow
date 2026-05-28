@@ -67,6 +67,7 @@ export function RenameDirectoryDialog({
         await renameDirectory({
           data: { directoryId, newName: trimmed },
         });
+        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
         await router.invalidate();
         onClose();
       } catch (e) {

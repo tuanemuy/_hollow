@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -50,7 +51,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
     startTransition(async () => {
       try {
         await remove({ data: { viewId: view.id } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -67,7 +68,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
             viewId: view.isDefault ? null : view.id,
           },
         });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -84,7 +85,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
     startTransition(async () => {
       try {
         await rename({ data: { viewId: view.id, name: trimmed } });
-        await router.invalidate();
+        await routerInvalidate(router);
         setError(null);
         setIsEditing(false);
       } catch (e) {

@@ -78,6 +78,7 @@ export function AdminSignUpForm() {
             acceptTerms: acceptTerms as true,
           },
         });
+        // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
         await router.invalidate();
         return { error: null, success: true };
       } catch (error) {

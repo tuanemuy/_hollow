@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId } from "react";
+import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -31,7 +32,7 @@ export function CreateTagForm() {
       if (name.length === 0) return { error: null };
       try {
         await createTag({ data: { name } });
-        await router.invalidate();
+        await routerInvalidate(router);
         return { error: null };
       } catch (e) {
         return { error: extractSerializedError(e) };
