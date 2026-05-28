@@ -78,13 +78,13 @@ export function PublicLayout({
         <div className={PUBLIC_FOOTER_INNER}>
           <div>Hollow</div>
           <div className={PUBLIC_FOOTER_LINKS}>
-            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
+            <Link to="/terms" className={PUBLIC_FOOTER_LINK}>
               利用規約
             </Link>
-            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
+            <Link to="/privacy" className={PUBLIC_FOOTER_LINK}>
               プライバシー
             </Link>
-            <Link to="/" search={HOME_SEARCH} className={PUBLIC_FOOTER_LINK}>
+            <Link to="/about" className={PUBLIC_FOOTER_LINK}>
               このインスタンスについて
             </Link>
           </div>

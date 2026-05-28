@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNull } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -20,6 +20,7 @@ import type {
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { users } from "../schema";
+import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
 type UserRow = typeof users.$inferSelect;
@@ -184,6 +185,19 @@ export class D1UserRepository implements UserRepository {
         .from(users)
         .where(and(eq(users.role, "admin"), isNull(users.deletedAt)));
       return Number(rows[0]?.value ?? 0);
+    });
+  }
+
+  findByIds(ids: readonly UserId[]): Promise<readonly User[]> {
+    return mapDbError("Failed to find users by ids", async () => {
+      if (ids.length === 0) return [];
+      const rows = await selectInChunks(ids, (chunk) =>
+        this.db
+          .select()
+          .from(users)
+          .where(inArray(users.id, [...chunk])),
+      );
+      return rows.map((row) => this.toUser(row));
     });
   }
 

@@ -30,7 +30,7 @@ function isAbsoluteUrl(value: string): boolean {
   return value.startsWith("http://") || value.startsWith("https://");
 }
 
-function joinUrl(appUrl: string, pathOrUrl: string): string {
+export function joinUrl(appUrl: string, pathOrUrl: string): string {
   if (isAbsoluteUrl(pathOrUrl)) return pathOrUrl;
   const base = appUrl.replace(/\/$/, "");
   const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;

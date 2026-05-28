@@ -1,0 +1,19 @@
+User-agent: *
+Disallow: /settings/
+Disallow: /admin/
+Disallow: /notes/
+Disallow: /trash/
+Disallow: /tags/
+Disallow: /exports/
+Disallow: /views/
+Disallow: /upload/
+Disallow: /export/
+Disallow: /media/
+Disallow: /share/
+Disallow: /verify-email
+Disallow: /email-change/
+Disallow: /password-reset/
+Disallow: /setup
+Allow: /
+
+Sitemap: /sitemap.xml

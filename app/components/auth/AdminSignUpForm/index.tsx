@@ -8,7 +8,6 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { HOME_SEARCH } from "../links";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -362,16 +361,14 @@ export function AdminSignUpForm() {
           />
           <span>
             <Link
-              to="/"
-              search={HOME_SEARCH}
+              to="/terms"
               className="text-accent hover:underline hover:[text-underline-offset:3px]"
             >
               利用規約
             </Link>{" "}
             と{" "}
             <Link
-              to="/"
-              search={HOME_SEARCH}
+              to="/privacy"
               className="text-accent hover:underline hover:[text-underline-offset:3px]"
             >
               プライバシーポリシー

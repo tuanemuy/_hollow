@@ -28,4 +28,18 @@ export interface UserRepository extends TransactionalRepository<User> {
   findByEmail(email: EmailAddress): Promise<User | null>;
   countAdmins(): Promise<number>;
   listAll(opts: { limit: number; cursor?: UserId }): Promise<readonly User[]>;
+
+  /**
+   * Bulk read by ids for listing pipelines (e.g. sitemap projection)
+   * without N+1 queries. Order is not guaranteed; the caller must
+   * re-index by id (typically via `Map<UserId, User>`) when preserving
+   * input order matters. Ids without a matching row are simply absent
+   * from the result. An empty `ids` argument short-circuits to `[]`
+   * without touching the DB.
+   *
+   * This is the read-only counterpart to `findById`, which mints an OCC
+   * token for write-after-read flows. Read-only listing must use this
+   * method to avoid synthesising OCC tokens that will never be consumed.
+   */
+  findByIds(ids: readonly UserId[]): Promise<readonly User[]>;
 }

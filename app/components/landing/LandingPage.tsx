@@ -472,29 +472,17 @@ export function LandingPage() {
               <div className={FOOTER_COL_TITLE}>インスタンス</div>
               <ul className={FOOTER_LIST}>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     このインスタンスについて
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     運営者情報
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     お問い合わせ
                   </Link>
                 </li>
@@ -504,29 +492,17 @@ export function LandingPage() {
               <div className={FOOTER_COL_TITLE}>法的事項</div>
               <ul className={FOOTER_LIST}>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/terms" className={FOOTER_LIST_LINK}>
                     利用規約
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/privacy" className={FOOTER_LIST_LINK}>
                     プライバシーポリシー
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
+                  <Link to="/about" className={FOOTER_LIST_LINK}>
                     特定商取引法
                   </Link>
                 </li>

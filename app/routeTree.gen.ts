@@ -10,11 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ErrorRouteImport } from './routes/error'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as ViewsRouteRouteImport } from './routes/views/route'
 import { Route as URouteRouteImport } from './routes/u/route'
 import { Route as SettingsRouteRouteImport } from './routes/settings/route'
@@ -62,6 +65,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -77,6 +85,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -85,6 +98,11 @@ const LoginRoute = LoginRouteImport.update({
 const ErrorRoute = ErrorRouteImport.update({
   id: '/error',
   path: '/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ViewsRouteRoute = ViewsRouteRouteImport.update({
@@ -301,11 +319,14 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
   '/views': typeof ViewsRouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -347,11 +368,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -396,11 +420,14 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
   '/views': typeof ViewsRouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -447,11 +474,14 @@ export interface FileRouteTypes {
     | '/settings'
     | '/u'
     | '/views'
+    | '/about'
     | '/error'
     | '/login'
+    | '/privacy'
     | '/search'
     | '/setup'
     | '/signup'
+    | '/terms'
     | '/verify-email'
     | '/admin/design'
     | '/admin/jobs'
@@ -493,11 +523,14 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/u'
+    | '/about'
     | '/error'
     | '/login'
+    | '/privacy'
     | '/search'
     | '/setup'
     | '/signup'
+    | '/terms'
     | '/verify-email'
     | '/admin/design'
     | '/admin/jobs'
@@ -541,11 +574,14 @@ export interface FileRouteTypes {
     | '/settings'
     | '/u'
     | '/views'
+    | '/about'
     | '/error'
     | '/login'
+    | '/privacy'
     | '/search'
     | '/setup'
     | '/signup'
+    | '/terms'
     | '/verify-email'
     | '/admin/design'
     | '/admin/jobs'
@@ -591,11 +627,14 @@ export interface RootRouteChildren {
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren
   URouteRoute: typeof URouteRouteWithChildren
   ViewsRouteRoute: typeof ViewsRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
   ErrorRoute: typeof ErrorRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   SearchRoute: typeof SearchRoute
   SetupRoute: typeof SetupRoute
   SignupRoute: typeof SignupRoute
+  TermsRoute: typeof TermsRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   EmailChangeConfirmRoute: typeof EmailChangeConfirmRoute
   MediaMediaIdRoute: typeof MediaMediaIdRoute
@@ -624,6 +663,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -645,6 +691,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -657,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/error'
       fullPath: '/error'
       preLoaderRoute: typeof ErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/views': {
@@ -1055,11 +1115,14 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
   URouteRoute: URouteRouteWithChildren,
   ViewsRouteRoute: ViewsRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
   ErrorRoute: ErrorRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
   SearchRoute: SearchRoute,
   SetupRoute: SetupRoute,
   SignupRoute: SignupRoute,
+  TermsRoute: TermsRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   EmailChangeConfirmRoute: EmailChangeConfirmRoute,
   MediaMediaIdRoute: MediaMediaIdRoute,
