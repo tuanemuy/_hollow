@@ -38,3 +38,49 @@ export function flattenDirectoryTree(
   for (const root of tree) walk(root, "");
   return flat;
 }
+
+/**
+ * Collect the set of ids covering `targetId` itself and every descendant
+ * underneath it. DFS-walks the forest until the node is found, then walks
+ * the subtree to gather ids. Returns an empty Set when `targetId` is not
+ * present in the forest. Pure function — used by `MoveDirectoryDialog` to
+ * exclude the moving subtree from the destination picker so users cannot
+ * select a cyclic target. The backend `assertNotCyclicMove` is the source
+ * of truth; this helper only mirrors the same invariant in the UI for UX.
+ */
+export function getDescendantIds(
+  tree: ReadonlyArray<DirectoryTreeNode>,
+  targetId: string,
+): Set<string> {
+  const ids = new Set<string>();
+  const collect = (node: DirectoryTreeNode): void => {
+    ids.add(node.id as unknown as string);
+    for (const child of node.children) collect(child);
+  };
+  const find = (node: DirectoryTreeNode): boolean => {
+    if ((node.id as unknown as string) === targetId) {
+      collect(node);
+      return true;
+    }
+    for (const child of node.children) {
+      if (find(child)) return true;
+    }
+    return false;
+  };
+  for (const root of tree) {
+    if (find(root)) break;
+  }
+  return ids;
+}
+
+/**
+ * Filter a flat directory list, dropping any row whose `id` appears in
+ * `excludeIds`. Pure function — pairs with `getDescendantIds` to build a
+ * cycle-safe destination list for `MoveDirectoryDialog`.
+ */
+export function excludeSubtree(
+  flat: ReadonlyArray<FlatDirectory>,
+  excludeIds: ReadonlySet<string>,
+): FlatDirectory[] {
+  return flat.filter((dir) => !excludeIds.has(dir.id));
+}

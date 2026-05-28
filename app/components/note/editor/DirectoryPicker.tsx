@@ -1,8 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useId } from "react";
-import { field, fieldControl, fieldLabel } from "@/components/common/styles";
+import { useId, useMemo, useState } from "react";
+import {
+  field,
+  fieldControl,
+  fieldLabel,
+  pillBtn,
+} from "@/components/common/styles";
+import { DeleteDirectoryDialog } from "@/components/directory/DeleteDirectoryDialog";
+import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
 import type { FlatDirectory } from "../loaders";
 
 /**
@@ -17,6 +24,14 @@ import type { FlatDirectory } from "../loaders";
  * `legendSlot` (optional) renders an inline node next to the
  * "ディレクトリ" legend text. Used by `IngestionPreviewForm` to attach
  * the "AI suggestion" caption; left unused by the regular note editor.
+ *
+ * `allowExistingActions` (default `false`) is an opt-in switch that
+ * surfaces "Rename" / "Delete" buttons next to the existing-directory
+ * select when a real directory is selected (i.e. `directoryId !== null`).
+ * `NoteEditor` opts in; `IngestionPreviewForm` does not — physically
+ * deleting an LLM-suggested directory mid-preview would break the
+ * preview state contract (commit would NotFoundError, AI badges would
+ * desync). See ADR-007.
  */
 export type DirectoryPickerProps = Readonly<{
   tree: readonly FlatDirectory[];
@@ -26,6 +41,7 @@ export type DirectoryPickerProps = Readonly<{
   onSetPendingName: (name: string | null) => void;
   disabled?: boolean;
   legendSlot?: ReactNode;
+  allowExistingActions?: boolean;
 }>;
 
 export function DirectoryPicker({
@@ -36,10 +52,25 @@ export function DirectoryPicker({
   onSetPendingName,
   disabled,
   legendSlot,
+  allowExistingActions = false,
 }: DirectoryPickerProps) {
   const selectId = useId();
   const newId = useId();
   const usingNew = pendingDirectoryName !== null;
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const selected = useMemo(
+    () =>
+      directoryId === null ? null : tree.find((d) => d.id === directoryId),
+    [tree, directoryId],
+  );
+
+  const canShowActions =
+    allowExistingActions === true &&
+    directoryId !== null &&
+    selected !== undefined &&
+    selected !== null;
 
   return (
     <fieldset className="mb-4 rounded-lg border border-hairline p-4">
@@ -51,24 +82,46 @@ export function DirectoryPicker({
         <label htmlFor={selectId} className={fieldLabel}>
           既存ディレクトリ
         </label>
-        <select
-          id={selectId}
-          value={directoryId ?? ""}
-          onChange={(e) => {
-            const v = e.target.value;
-            onSelectExisting(v.length === 0 ? null : v);
-          }}
-          disabled={disabled === true || usingNew}
-          className={fieldControl}
-        >
-          <option value="">未選択</option>
-          {tree.map((node) => (
-            <option key={node.id} value={node.id}>
-              {"  ".repeat(node.depth)}
-              {node.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            id={selectId}
+            value={directoryId ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              onSelectExisting(v.length === 0 ? null : v);
+            }}
+            disabled={disabled === true || usingNew}
+            className={fieldControl}
+          >
+            <option value="">未選択</option>
+            {tree.map((node) => (
+              <option key={node.id} value={node.id}>
+                {"  ".repeat(node.depth)}
+                {node.name}
+              </option>
+            ))}
+          </select>
+          {canShowActions ? (
+            <div className="inline-flex gap-2">
+              <button
+                type="button"
+                className={pillBtn}
+                onClick={() => setRenameOpen(true)}
+                disabled={disabled}
+              >
+                リネーム
+              </button>
+              <button
+                type="button"
+                className={pillBtn}
+                onClick={() => setDeleteOpen(true)}
+                disabled={disabled}
+              >
+                削除
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor={newId} className={fieldLabel}>
@@ -87,6 +140,24 @@ export function DirectoryPicker({
           className={fieldControl}
         />
       </div>
+
+      {canShowActions ? (
+        <>
+          <RenameDirectoryDialog
+            open={renameOpen}
+            onClose={() => setRenameOpen(false)}
+            directoryId={selected.id}
+            currentName={selected.name}
+          />
+          <DeleteDirectoryDialog
+            open={deleteOpen}
+            onClose={() => setDeleteOpen(false)}
+            directoryId={selected.id}
+            directoryName={selected.name}
+            onDeleted={() => onSelectExisting(null)}
+          />
+        </>
+      ) : null}
     </fieldset>
   );
 }
