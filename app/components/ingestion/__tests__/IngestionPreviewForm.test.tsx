@@ -528,6 +528,46 @@ describe("IngestionPreviewForm", () => {
     }
   });
 
+  // Issue #256 W-A11Y-003 follow-up: when `job.preview === null` the
+  // form renders the `<PreviewMissing>` fallback. The fallback owns its
+  // own focus contract via a local `useEffect` + `tabIndex={-1}` on the
+  // alert paragraph so keyboard users do not lose focus on the editing
+  // view's exceptional branch. This test pins both halves of that
+  // contract (render + focus).
+  it("focuses the alert paragraph when job.preview is null (PreviewMissing fallback)", async () => {
+    const sentinel = document.createElement("button");
+    sentinel.textContent = "sentinel";
+    document.body.appendChild(sentinel);
+    sentinel.focus();
+    expect(document.activeElement).toBe(sentinel);
+    try {
+      const previewMissingJob: IngestionJobWire = {
+        ...sampleJob,
+        preview: null,
+      };
+      renderForm({ job: previewMissingJob });
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        });
+      });
+      const alert =
+        document.body.querySelector<HTMLParagraphElement>('p[role="alert"]');
+      expect(alert).not.toBeNull();
+      expect((alert?.textContent ?? "").trim()).toBe(
+        "プレビューデータが見つかりません。",
+      );
+      expect(alert?.tabIndex).toBe(-1);
+      expect(document.activeElement).toBe(alert);
+    } finally {
+      sentinel.remove();
+    }
+  });
+
   // W-T-006: empty frontMatterJson is omitted from the payload — the
   // wire contract says undefined means "do not modify".
   it("omits frontMatterJson from the payload when the textarea is empty", async () => {
