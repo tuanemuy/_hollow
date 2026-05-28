@@ -8,9 +8,48 @@ export type DialogProps = Readonly<{
   open: boolean;
   onClose: () => void;
   role?: "dialog" | "alertdialog";
+  /**
+   * Accessible name for the dialog (used as `aria-label` on the panel).
+   *
+   * Either `ariaLabel` or `ariaLabelledBy` MUST be specified so the dialog
+   * has a screen-reader-announceable name. Prefer `ariaLabelledBy` referencing
+   * a visible `<h2 id={...}>` inside the body — that keeps the visible title
+   * and the SR-announced name in lockstep. Use `ariaLabel` only when no
+   * visible title element exists.
+   */
   ariaLabel?: string | undefined;
+  /**
+   * Id of an element inside the dialog body whose text content names the
+   * dialog (used as `aria-labelledby` on the panel).
+   *
+   * Either `ariaLabel` or `ariaLabelledBy` MUST be specified. The recommended
+   * pattern is `ariaLabelledBy={titleId}` paired with a visible
+   * `<h2 id={titleId}>` rendered as the first child of the dialog body.
+   */
   ariaLabelledBy?: string | undefined;
   ariaDescribedBy?: string | undefined;
+  /**
+   * Optional ref to the element that should receive initial focus on open.
+   *
+   * Resolution order on mount (inside the rAF after the panel is committed):
+   * 1. `role="alertdialog"` → the panel itself is focused (WAI-ARIA contract);
+   *    `initialFocusRef` is ignored in this branch.
+   * 2. `initialFocusRef.current` is non-null and `panel.contains(ref.current)`
+   *    is true → that element is focused.
+   * 3. Otherwise fall back to the first match of `INITIAL_FOCUS_SELECTOR`
+   *    inside the panel, then to the panel itself.
+   *
+   * A `null` ref, a `current === null` value, or a ref pointing to an element
+   * outside the panel all fall back silently — this is a defensive contract
+   * to survive race conditions and accidental misuse.
+   *
+   * The effect depends on `[mounted, role]` only; the ref object is read at
+   * fire time, so a deferred `ref.current` assignment landing before the rAF
+   * still works. Subsequent `ref.current` updates do NOT re-trigger focus
+   * (consumers that need to move focus on later state transitions must do so
+   * with their own effect).
+   */
+  initialFocusRef?: React.RefObject<HTMLElement | null> | undefined;
   /**
    * When false, Esc key is ignored. Also disables the opt-in close paths:
    * the × button (`showCloseButton`) is rendered with `disabled`, and the
@@ -137,6 +176,7 @@ function DialogInner({
   ariaLabel,
   ariaLabelledBy,
   ariaDescribedBy,
+  initialFocusRef,
   closable = true,
   closeOnBackdropClick = false,
   showCloseButton = false,
@@ -249,9 +289,16 @@ function DialogInner({
   }, []);
 
   // Initial focus: alertdialog focuses the panel itself; otherwise focus
-  // the first focusable element inside the panel. Use rAF so the panel is
-  // committed to the DOM before we try to focus into it. Depends on `mounted`
-  // because the portal (and thus panelRef) is not attached until then.
+  // the consumer-provided `initialFocusRef` (when present and inside the
+  // panel), else the first focusable element inside the panel. Use rAF so
+  // the panel is committed to the DOM before we try to focus into it.
+  // Depends on `[mounted, role]`; `initialFocusRef` is intentionally not
+  // a dep — the ref object is read at fire time and is expected to be
+  // stable, so a deferred `ref.current` assignment that lands before the
+  // rAF still works. JSDoc above pins this stability contract, so we
+  // capture the ref object only at mount and never overwrite it (unlike
+  // `closableRef`/`onCloseRef`, which intentionally mirror per-render).
+  const initialFocusRefRef = useRef(initialFocusRef);
   useEffect(() => {
     if (!mounted) return;
     const raf = requestAnimationFrame(() => {
@@ -259,6 +306,11 @@ function DialogInner({
       if (panel === null) return;
       if (role === "alertdialog") {
         panel.focus();
+        return;
+      }
+      const requested = initialFocusRefRef.current?.current ?? null;
+      if (requested !== null && panel.contains(requested)) {
+        requested.focus();
         return;
       }
       // Use the initial-focus variant so the opt-in × close button (when

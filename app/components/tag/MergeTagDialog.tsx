@@ -46,6 +46,7 @@ export function MergeTagDialog({
   const [error, setError] = useState<SerializedError | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetId = useId();
+  const titleId = useId();
 
   const targetTag = candidates.find((c) => c.id === target);
 
@@ -70,11 +71,13 @@ export function MergeTagDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="タグを統合"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
       <form onSubmit={submit} aria-busy={isPending}>
-        <h2 className={dialogTitle}>タグを統合</h2>
+        <h2 id={titleId} className={dialogTitle}>
+          タグを統合
+        </h2>
         <div className="flex flex-col gap-2 mb-4">
           <label htmlFor={targetId} className={fieldLabel}>
             統合先タグ
