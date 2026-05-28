@@ -45,6 +45,7 @@ export function MoveNoteDialog({
   const [batchError, setBatchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetId = useId();
+  const titleId = useId();
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,11 +90,11 @@ export function MoveNoteDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="ノートを移動"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <h2 className={dialogTitle}>
+        <h2 id={titleId} className={dialogTitle}>
           {noteIds.length === 1
             ? "ノートを移動"
             : `${noteIds.length} 件のノートを移動`}

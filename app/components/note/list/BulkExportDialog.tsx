@@ -43,6 +43,7 @@ export function BulkExportDialog({ open, onClose }: Props) {
   const [batchError, setBatchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const radioName = useId();
+  const titleId = useId();
 
   const ids = [...state.ids];
 
@@ -88,11 +89,13 @@ export function BulkExportDialog({ open, onClose }: Props) {
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="一括エクスポート"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <h2 className={dialogTitle}>{ids.length} 件のノートをエクスポート</h2>
+        <h2 id={titleId} className={dialogTitle}>
+          {ids.length} 件のノートをエクスポート
+        </h2>
         <fieldset className={field}>
           <legend className={fieldLabel}>形式</legend>
           {(["html", "markdown", "pdf"] as const).map((f) => (

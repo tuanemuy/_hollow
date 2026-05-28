@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
@@ -111,6 +112,30 @@ export const getIngestionJobFn = createServerFn({ method: "GET" })
       },
     });
     return { job: toIngestionJobWire(result.job) };
+  });
+
+export const getIngestionJobsFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(
+    validateInput(
+      z.object({
+        limit: z.number().int().positive().max(200).optional(),
+      }),
+    ),
+  )
+  .handler(async ({ data }): Promise<{ jobs: readonly IngestionJobWire[] }> => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/ingestion/getIngestionJobs"),
+    );
+    const result = await module.getIngestionJobs({
+      container,
+      input: {
+        actorUserId: toDtoUserId(user.id),
+        limit: data.limit ?? 50,
+      },
+    });
+    return { jobs: result.jobs.map(toIngestionJobWire) };
   });
 
 export const discardIngestionPreviewFn = createServerFn({ method: "POST" })

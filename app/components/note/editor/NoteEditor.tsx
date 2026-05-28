@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import type { Editor } from "@tiptap/react";
 import {
   useCallback,
+  useEffect,
   useReducer,
   useRef,
   useState,
@@ -40,11 +41,13 @@ import { EditorModeSwitch } from "./EditorModeSwitch";
 import {
   createInitialEditorState,
   type EditLockState,
+  type EditorMode,
   editorReducer,
   parseTagInput,
 } from "./editorState";
 import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
+import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
@@ -104,6 +107,7 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const [state, dispatch] = useReducer(editorReducer, undefined, () => {
     const base = {
+      surface: props.mode === "new" ? ("new" as const) : ("edit" as const),
       title: props.mode === "edit" ? props.initialTitle : "",
       contentHtml: props.mode === "edit" ? props.initialContentHtml : "",
       frontMatter:
@@ -122,6 +126,19 @@ export function NoteEditor(props: NoteEditorProps) {
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
+
+  // ADR-008 (Issue #233 review-001 W-S-001 / W-F-006): `onModeChange`
+  // needs to read post-blur `dirtyKeys` / `autosave` to decide whether
+  // to confirm. React batches the `dispatch` triggered by
+  // `active.blur()`, so the `state` closure inside the same event
+  // handler is stale. Mirror the latest state into a ref via a commit-
+  // phase effect so the handler can read the up-to-date snapshot
+  // without resorting to `flushSync` (which would force a synchronous
+  // render and risk interfering with the autosave path).
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useAutosave({ noteId, state, dispatch, saveDraft });
   useEditLock({
@@ -143,11 +160,43 @@ export function NoteEditor(props: NoteEditorProps) {
         dispatch({ type: "mediaInsertionAdded", insertion });
         return;
       }
+      // `html` and `inline` (Issue #233 ADR-005) share the string-append
+      // path. For `inline`, the `InlineEditor`'s `useEffect([value])`
+      // resync rebuilds the DOM with the newly-appended `<img>` and
+      // re-takes the MutationObserver snapshot.
       dispatch({ type: "setContent", value: nextHtml });
       dispatch({ type: "mediaInsertionAdded", insertion });
     },
     [state.mode],
   );
+
+  const surface: "new" | "edit" = props.mode === "new" ? "new" : "edit";
+
+  const onModeChange = useCallback((nextMode: EditorMode) => {
+    // ADR-003 (Issue #230): switching editor modes unmounts the
+    // currently focused FrontMatter input. Force a blur first so any
+    // pending key-rename / add commits run before the row disappears,
+    // instead of being silently dropped. Issue #233 ADR-004 fixes the
+    // order as: blur → re-evaluate dirty → confirm → dispatch, so any
+    // dirty flag that blur introduces (e.g. a committed rename) is
+    // visible to the confirm step. The latest `dirtyKeys` / `autosave`
+    // is read from `stateRef` rather than the closure to capture any
+    // dispatch that blur produced (Issue #233 ADR-008).
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+    const latest = stateRef.current;
+    const isDirty =
+      latest.dirtyKeys.size > 0 ||
+      latest.autosave.kind === "saving" ||
+      latest.autosave.kind === "error";
+    if (isDirty) {
+      const ok = window.confirm(
+        "未保存の変更があります。保存せずに切り替えますか？",
+      );
+      if (!ok) return;
+    }
+    dispatch({ type: "setMode", mode: nextMode });
+  }, []);
 
   const resolveDirectoryId = async (): Promise<string | null> => {
     if (state.pendingDirectoryName === null) return state.directoryId;
@@ -268,16 +317,9 @@ export function NoteEditor(props: NoteEditorProps) {
       />
 
       <EditorModeSwitch
+        surface={surface}
         mode={state.mode}
-        onChange={(mode) => {
-          // ADR-003 (Issue #230): switching editor modes unmounts the
-          // currently focused FrontMatter input. Force a blur first so
-          // any pending key-rename / add commits run before the row
-          // disappears, instead of being silently dropped.
-          const active = document.activeElement;
-          if (active instanceof HTMLElement) active.blur();
-          dispatch({ type: "setMode", mode });
-        }}
+        onChange={onModeChange}
       />
 
       {state.mode === "html" ? (
@@ -286,6 +328,22 @@ export function NoteEditor(props: NoteEditorProps) {
             value={state.contentHtml}
             onChange={(v) => dispatch({ type: "setContent", value: v })}
             disabled={isPending}
+          />
+          <MediaUploader
+            contentHtml={state.contentHtml}
+            onInsert={onMediaInsert}
+            disabled={isPending}
+          />
+        </>
+      ) : null}
+
+      {state.mode === "inline" ? (
+        <>
+          <InlineEditor
+            value={state.contentHtml}
+            onChange={(v) => dispatch({ type: "setContent", value: v })}
+            disabled={isPending}
+            onInitFailed={() => dispatch({ type: "setMode", mode: "html" })}
           />
           <MediaUploader
             contentHtml={state.contentHtml}

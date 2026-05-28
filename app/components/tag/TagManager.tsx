@@ -1,7 +1,10 @@
+import { Hash } from "lucide-react";
+import { Icon } from "@/components/common/Icon";
 import type { UserDTO } from "@/core/application/dto/identity";
 import {
   DATA_ROW,
   EMPTY_STATE,
+  EMPTY_STATE_ICON,
   PAGE_SUBTITLE,
   PAGE_TITLE,
 } from "../layout/styles";
@@ -25,6 +28,7 @@ export async function TagManager({ user }: Props) {
 
       {tags.length === 0 ? (
         <div className={EMPTY_STATE}>
+          <Icon icon={Hash} size={24} className={EMPTY_STATE_ICON} />
           <h2 className="text-xl font-medium text-ink mb-2">
             タグがまだありません
           </h2>

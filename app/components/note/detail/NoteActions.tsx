@@ -2,6 +2,15 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import {
+  Copy,
+  Download,
+  FolderInput,
+  Globe,
+  History,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useState, useTransition } from "react";
 import {
   HOME_SEARCH,
@@ -9,6 +18,7 @@ import {
   TRASH_SEARCH,
 } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import {
   formError,
   pillBtn,
@@ -112,6 +122,7 @@ export function NoteActions({
           data-primary
           className={`${pillBtn} ${pillBtnPrimary}`}
         >
+          <Icon icon={Pencil} />
           編集
         </Link>
         <Link
@@ -119,6 +130,7 @@ export function NoteActions({
           params={{ noteId: noteIdStr }}
           className={pillBtn}
         >
+          <Icon icon={Globe} />
           公開設定
         </Link>
         <button
@@ -127,6 +139,7 @@ export function NoteActions({
           onClick={() => setOpen("move")}
           disabled={isPending}
         >
+          <Icon icon={FolderInput} />
           移動
         </button>
         <UrlCopyButton url={copyUrl} />
@@ -136,6 +149,7 @@ export function NoteActions({
           onClick={onDuplicate}
           disabled={isPending}
         >
+          <Icon icon={Copy} />
           複製
         </button>
         <Link
@@ -143,6 +157,7 @@ export function NoteActions({
           params={{ noteId: noteIdStr }}
           className={pillBtn}
         >
+          <Icon icon={Download} />
           エクスポート
         </Link>
         <Link
@@ -151,6 +166,7 @@ export function NoteActions({
           search={NOTE_HISTORY_SEARCH}
           className={pillBtn}
         >
+          <Icon icon={History} />
           履歴
         </Link>
         <button
@@ -159,6 +175,7 @@ export function NoteActions({
           onClick={() => setConfirmDeleteOpen(true)}
           disabled={isPending}
         >
+          <Icon icon={Trash2} />
           削除
         </button>
         {error !== null ? (

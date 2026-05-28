@@ -2,7 +2,9 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Download, Search, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import type { RebuildSearchIndexResultDTO } from "@/core/application/dto/adminSettings";
 import type { ExportJobDTO } from "@/core/application/dto/export";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
@@ -342,7 +344,10 @@ function CleanupSection() {
   return (
     <section className={SECTION_CLASS}>
       <div className={SECTION_HEADER_CLASS}>
-        <h2 className={SECTION_TITLE_CLASS}>クリーンアップ</h2>
+        <h2 className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}>
+          <Icon icon={Sparkles} />
+          クリーンアップ
+        </h2>
       </div>
       <p className={SECTION_DESC_CLASS}>
         以下は cron
@@ -397,7 +402,10 @@ function SearchIndexSection() {
   return (
     <section className={SECTION_CLASS}>
       <div className={SECTION_HEADER_CLASS}>
-        <h2 className={SECTION_TITLE_CLASS}>検索インデックスの再構築</h2>
+        <h2 className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}>
+          <Icon icon={Search} />
+          検索インデックスの再構築
+        </h2>
       </div>
       <p className={SECTION_DESC_CLASS}>
         Note を source of truth として `search_documents` を再投入します。host
@@ -458,7 +466,12 @@ export function JobsBoard({
     <>
       <section className={SECTION_CLASS}>
         <div className={SECTION_HEADER_CLASS}>
-          <h2 className={SECTION_TITLE_CLASS}>取り込みジョブ</h2>
+          <h2
+            className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}
+          >
+            <Icon icon={Upload} />
+            取り込みジョブ
+          </h2>
         </div>
         <p className={SECTION_DESC_CLASS}>
           最新 {ingestionJobs.length} 件。失敗ジョブを上部にピン留めします。
@@ -504,7 +517,12 @@ export function JobsBoard({
 
       <section className={SECTION_CLASS}>
         <div className={SECTION_HEADER_CLASS}>
-          <h2 className={SECTION_TITLE_CLASS}>エクスポートジョブ</h2>
+          <h2
+            className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}
+          >
+            <Icon icon={Download} />
+            エクスポートジョブ
+          </h2>
         </div>
         <p className={SECTION_DESC_CLASS}>
           最新 {exportJobs.length} 件。失敗ジョブを上部にピン留めします。

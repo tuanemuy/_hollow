@@ -1,12 +1,24 @@
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
-import type { EditorMode } from "./editorState";
+import type { EditorMode, EditorSurface } from "./editorState";
 
 /**
- * Pure tab control for the editor mode. All three modes (HTML /
- * FrontMatter / WYSIWYG) are enabled — the placeholder-disabled WYSIWYG
- * state from Issue #1 ADR-002 is resolved by P12 (Issue #9).
+ * Pure tab control for the editor mode. The set of visible tabs is
+ * driven by the render `surface` (Issue #233 ADR-001 / spec C2-4):
+ *
+ * - `surface === "new"`  → `wysiwyg` / `frontMatter` / `html` (no
+ *   `inline` because a brand-new note has no rendered HTML to keep
+ *   structurally intact).
+ * - `surface === "edit"` → `inline` / `frontMatter` / `html`. The
+ *   `inline` tab is labelled "ビジュアル" to mirror spec C2-4's
+ *   "ビジュアル ⇄ HTML" toggle nomenclature; `wysiwyg` is reserved for
+ *   the new-note surface.
+ *
+ * All HTML / FrontMatter / WYSIWYG modes were fully enabled by P12
+ * (Issue #9), resolving the placeholder-disabled WYSIWYG state from
+ * Issue #1 ADR-002.
  */
 export type EditorModeSwitchProps = Readonly<{
+  surface: EditorSurface;
   mode: EditorMode;
   onChange: (mode: EditorMode) => void;
 }>;
@@ -16,20 +28,31 @@ type Tab = Readonly<{
   label: string;
 }>;
 
-const TABS: readonly Tab[] = [
-  { mode: "html", label: "HTML" },
-  { mode: "frontMatter", label: "FrontMatter" },
+const TABS_NEW: readonly Tab[] = [
   { mode: "wysiwyg", label: "WYSIWYG" },
+  { mode: "frontMatter", label: "FrontMatter" },
+  { mode: "html", label: "HTML" },
 ];
 
-export function EditorModeSwitch({ mode, onChange }: EditorModeSwitchProps) {
+const TABS_EDIT: readonly Tab[] = [
+  { mode: "inline", label: "ビジュアル" },
+  { mode: "frontMatter", label: "FrontMatter" },
+  { mode: "html", label: "HTML" },
+];
+
+export function EditorModeSwitch({
+  surface,
+  mode,
+  onChange,
+}: EditorModeSwitchProps) {
+  const tabs = surface === "new" ? TABS_NEW : TABS_EDIT;
   return (
     <div
       className="inline-flex flex-wrap gap-1"
       role="tablist"
       aria-label="編集モード"
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = mode === tab.mode;
         return (
           <button

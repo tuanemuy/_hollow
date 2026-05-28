@@ -182,6 +182,12 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
   - LLM 提案（タイトル / 保存先ディレクトリ / メタデータ）の採用・修正
   - 個別保存・破棄。再生成ボタンは本画面の `IngestionJobRow` 上のみ（フォローアップ Issue で実装と spec を一致させる）
   - 対応外形式 / サイズ超過 / LLM 失敗のフィードバック
+  - フィードバックポリシー（#221）:
+    - アップロード操作直後にモーダル内でローディング状態（skeleton + `aria-live="polite"`）を提示し、推論完了までフィードバックを途切れさせない
+    - `/upload` 取り込みキュー画面は client polling（active job がある間は 4 秒間隔、無い間は 16 秒間隔）で自動更新し、フルリロードを要求しない
+    - すべての完了・失敗・対応外通知は `aria-live="polite"` 領域でスクリーンリーダーに伝える
+    - サーバーから返る `BusinessRuleError.code`（`unsupported_format` / `daily_upload_quota_exceeded` / `regeneration_limit_exceeded` 等）は `app/core/presentation/errorDisplay.ts` のマッピングテーブルを経由してユーザー向け文言に変換する
+    - 内部の stack / 原文 message / 内部 errorCode は UI には出さない（`redactForClient` と `displayJobErrorCode` の二重防御）
 - 関連シナリオ: B1, B2, B3, B4, B5
 
 ### P14 公開設定モーダル / 画面 (auth)

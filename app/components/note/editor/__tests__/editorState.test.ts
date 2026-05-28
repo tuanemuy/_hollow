@@ -10,6 +10,7 @@ import {
 } from "../editorState";
 
 const baseInit = {
+  surface: "edit" as const,
   title: "Hello",
   contentHtml: "<p>hi</p>",
   frontMatter: {} as Record<string, unknown>,
@@ -31,8 +32,20 @@ describe("createInitialEditorState", () => {
     expect(s.dirtyKeys.size).toBe(0);
     expect(s.autosave.kind).toBe("idle");
     expect(s.editLock.state).toBe("unknown");
-    expect(s.mode).toBe("html");
     expect(s.frontMatterMode).toBe("structured");
+  });
+
+  // Issue #233 ADR-001: `surface` picks the initial mode so new notes
+  // start on the WYSIWYG canvas (spec C1) and edits open in the
+  // structure-preserving inline editor (spec C2).
+  it("starts in wysiwyg when surface = new", () => {
+    const s = createInitialEditorState({ ...baseInit, surface: "new" });
+    expect(s.mode).toBe("wysiwyg");
+  });
+
+  it("starts in inline when surface = edit", () => {
+    const s = createInitialEditorState({ ...baseInit, surface: "edit" });
+    expect(s.mode).toBe("inline");
   });
 
   it("serialises a non-empty frontMatter for raw view", () => {
@@ -260,6 +273,35 @@ describe("editorReducer setters", () => {
       mode: "frontMatter",
     });
     expect(s.mode).toBe("frontMatter");
+  });
+
+  // Issue #233: `inline` is a first-class mode reachable from any
+  // other mode and back.
+  it("setMode transitions inline ⇄ html ⇄ wysiwyg without dirty", () => {
+    const s0 = createInitialEditorState({ ...baseInit, surface: "edit" });
+    expect(s0.mode).toBe("inline");
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    expect(s1.mode).toBe("html");
+    const s2 = editorReducer(s1, { type: "setMode", mode: "wysiwyg" });
+    expect(s2.mode).toBe("wysiwyg");
+    const s3 = editorReducer(s2, { type: "setMode", mode: "inline" });
+    expect(s3.mode).toBe("inline");
+    expect(s3.dirtyKeys.size).toBe(0);
+    expect(s3.autosave.kind).toBe("idle");
+  });
+
+  it("setMode to inline preserves in-flight autosave and dirty keys", () => {
+    let s: EditorState = editorReducer(freshState(), {
+      type: "setTitle",
+      value: "draft",
+    });
+    s = editorReducer(s, { type: "autosaveStart" });
+    expect(s.autosave.kind).toBe("saving");
+    expect(s.dirtyKeys.has("title")).toBe(true);
+    const next = editorReducer(s, { type: "setMode", mode: "inline" });
+    expect(next.mode).toBe("inline");
+    expect(next.autosave.kind).toBe("saving");
+    expect(next.dirtyKeys.has("title")).toBe(true);
   });
 
   it("setMode preserves an in-flight autosave and existing dirty keys (W-014)", () => {

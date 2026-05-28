@@ -112,6 +112,18 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 - **`object-fit: cover` を既定** にし、トリミングが顔や重要要素を切らないアスペクト比 (16/9, 4/3, 1/1) を選ぶ。
 - **画像読み込み**: `loading="lazy"` を基本、`decoding="async"`。`srcset` は将来導入する画像最適化レイヤーに合わせて空欄でも可（MVP では未対応）。
 
+### 7.1 アイコン運用ガイドライン
+
+- **使用ライブラリ**: `lucide-react` を `app/components/common/Icon.tsx` ラッパー経由で使用する。生 `lucide-react` を直接 import したり `import * as Icons from "lucide-react"` の barrel import を行ったりしない（tree-shake が効かなくなる）。
+- **使う場面**: 主要アクションボタン（ヘッダーのナビゲーション、ノート一覧ツールバー、一括操作バー、行アクション、ノート詳細アクション、確認ダイアログのアイキャッチ、空状態のアイキャッチ、管理画面セクションヘッダ）にはアイコン+テキストで表示する。**空状態のアイキャッチについては** 認証済み側の `EMPTY_STATE`（`layout/styles.ts`）を使う箇所を対象とし、公開側の `EMPTY_LIST`（`public/styles.ts`）は将来の対応とする（#231 の初期スコープ外）。
+- **使わない場面**: 本文（Markdown 描画領域）、チップ内部、サイドバーのセクションタイトル、絵文字代替の単なる装飾。情報伝達に不要な「賑やかし」を増やさない。
+- **a11y 契約**:
+  - 「アイコン+テキスト」のボタンでは、アイコンは装飾扱い（`Icon` の `label` 未指定 → `aria-hidden="true"`）にしてテキスト側で accessible name を担う。
+  - 「アイコンのみ」のボタンでは、`<button>` 側に `aria-label` を必ず付け、`Icon` 側は装飾扱い（`label` 未指定）のままにする。`Icon` を `<button>` の唯一の子にして `Icon.label` を渡すと accessible name が二重になるため避ける。
+- **サイズの選び方**: テキスト併用 / インラインは `size={16}`（デフォルト）。アイコンのみボタン・確認ダイアログのアイキャッチは `size={20}`。空状態のアイキャッチは `size={24}`。
+- **配色**: 親要素の `text-*` トークン（`text-ink` / `text-ink-secondary` / `text-ink-tertiary` / `text-warning` 等）を継承する（`currentColor`）。
+- **`className` の使い方**: `Icon` の `className` には ①色用の `text-*` トークン、②レイアウト用補助クラス（`absolute` / `left-*` / `top-*` / `translate-*` / `pointer-events-none` / `block` / `mx-auto` / `mb-*` 等）を渡してよい。一方で `w-*` / `h-*` / `size-*` のような寸法ユーティリティは渡さない（寸法の真実は `size` prop の SSOT）。空状態のアイキャッチには `EMPTY_STATE_ICON` 定数（`layout/styles.ts`）を使う。
+
 ---
 
 ## 8. アクセシビリティ
@@ -137,6 +149,19 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 - 各ページの構造的な共通要素（ヘッダー、サイドバー、ドロワー開閉スクリプト）は **画面ごとに同じマークアップ** を貼る。Phase 3 の段階ではコンポーネント化しない（あくまで設計の HTML プロトタイプ）。
 - レスポンシブは `min-width` ベース。例外として、グローバルな mobile fix（44px タップ領域の確保等）や、特定のブレークポイント範囲のみに適用したいスタイルでは `max-width` メディアクエリも使用してよい。
 - **アップロードモーダル**（P13 主動線）は `app/components/common/Dialog.tsx` primitive と既存 `MoveNoteDialog` / `SaveViewDialog` 等のパターンに準拠する。モーダル UI のビジュアルモックは [`pages/P13-upload-modal.html`](./pages/P13-upload-modal.html) に置き、フォールバックページは [`pages/P13-upload.html`](./pages/P13-upload.html) として並列に残す。
+
+---
+
+## フィードバック・エラー表示原則（#221）
+
+- **インタラクションの即時 feedback**: 非同期処理を伴うボタンは押下直後に disabled + ローディング状態を出す。スケルトンを優先し、スピナーは避ける。
+- **バックグラウンド進捗**: 取り込み・エクスポート等のジョブは client polling で進捗を可視化する。間隔は active job がある間は 1.5〜4 秒、無い間は 16 秒以上に伸ばす（負荷とフレッシュ感のバランス）。
+- **`aria-live`**: 状態遷移・完了・失敗の通知は `aria-live="polite"`（通常）／`assertive`（エラーで即時通知が必要な場合のみ）を使う。
+- **エラー文言**:
+  - サーバーからは `SerializedError`（`kind`-tagged union + `code`）が届く。UI 側は **`app/core/presentation/errorDisplay.ts`** のマッピングを単一の真実とし、`displayError(error)` / `displayJobErrorCode(code)` 経由でのみ文言化する。
+  - 文言は「何が起きたか + 何をすればいいか」の 2 部構成。例: 「このファイル形式には対応していません。HTML / Markdown / Office / PDF / 画像 / 音声 形式でお試しください」。
+  - 内部 stack / 原文 message / 内部 errorCode は **絶対に UI に出さない**（presentation 層の `redactForClient` で system/unknown を遮蔽、business code はマッピングテーブル経由のみ）。
+- **トースト基盤**: 現状はコンポーネント内 `aria-live` 領域で局所通知する。グローバルトーストはフォローアップ課題として保留。
 
 ---
 

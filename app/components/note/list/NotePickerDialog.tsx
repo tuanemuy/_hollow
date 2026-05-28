@@ -68,6 +68,7 @@ export function NotePickerDialog({
   const inputId = useId();
   const listboxId = useId();
   const optionIdBase = useId();
+  const titleId = useId();
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // The parent `Dialog` already unmounts this subtree when `open` becomes
@@ -193,10 +194,12 @@ export function NotePickerDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      ariaLabel="ノートを選択"
+      ariaLabelledBy={titleId}
       closable={!isPending}
     >
-      <h2 className={dialogTitle}>ノートを選択</h2>
+      <h2 id={titleId} className={dialogTitle}>
+        ノートを選択
+      </h2>
       <div className={field}>
         <label htmlFor={inputId} className={SR_ONLY}>
           ノートタイトル

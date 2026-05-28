@@ -37,7 +37,7 @@ export const PUBLIC_FOOTER_LINK =
   "transition-colors motion-reduce:transition-none hover:text-ink";
 
 export const SEARCH_ICON =
-  "absolute left-[13px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
+  "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 // ===== Note row / list (P30) =====
 export const NOTE_LIST = "mt-2 pb-16";
@@ -73,8 +73,6 @@ export const USER_TOOLS = "py-7 pb-3.5 flex flex-col gap-4";
 export const USER_SEARCH = "relative max-w-[560px]";
 export const USER_SEARCH_INPUT =
   "w-full h-10 border-0 bg-surface rounded-pill pl-10 pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:bg-surface-hover";
-export const USER_SEARCH_ICON =
-  "absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 // ===== P31 detail =====
 export const NOTE_DETAIL_WRAP =

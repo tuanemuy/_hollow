@@ -222,9 +222,10 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
     });
 
-    // The failed view shows the error code/reason and the two actions.
+    // The failed view shows a user-facing message (never the raw internal
+    // code) and the two actions.
     expect(document.body.textContent).toContain("取り込みに失敗しました");
-    expect(document.body.textContent).toContain("INGESTION_TIMEOUT");
+    expect(document.body.textContent).not.toContain("INGESTION_TIMEOUT");
     expect(document.body.textContent).toContain("破棄");
     expect(document.body.textContent).toContain("キュー画面で詳細を見る");
     // No "再試行" button on the modal failed view.
@@ -428,6 +429,364 @@ describe("UploadDialog state machine", () => {
     });
     expect(invalidateMock).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #256 A11y-H1: the dialog's accessible name comes from
+  // the visible `<h2 id={titleId}>` via `aria-labelledby`. We assert
+  // the wiring rather than the surface label so the test is robust
+  // against title-text tweaks.
+  it("wires aria-labelledby on the panel to the visible <h2> id", () => {
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const panel = document.body.querySelector<HTMLElement>('[role="dialog"]');
+    expect(panel).not.toBeNull();
+    const labelledBy = panel?.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    const heading = labelledBy ? document.getElementById(labelledBy) : null;
+    expect(heading).not.toBeNull();
+    expect(heading?.tagName).toBe("H2");
+    expect(heading?.textContent).toContain("アップロード");
+  });
+
+  // Issue #256 A11y-H3: the always-mounted status region drives view
+  // transitions to the SR. Existence + ARIA wiring is checked here;
+  // textContent updates are exercised in dedicated tests below.
+  it("renders an always-mounted role=status / aria-live=polite region", () => {
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status?.getAttribute("aria-live")).toBe("polite");
+    // `select` view: status region is silent (contract: no double-announce
+    // when an inline role=alert region is the error path).
+    expect(status?.textContent ?? "").toBe("");
+  });
+
+  it("updates the status region textContent on uploading → waiting → editing", async () => {
+    // Pin the upload mock to a hand-controlled promise so the `uploading`
+    // view is observable before the upload resolves and pushes the state
+    // forward to `waiting`.
+    let resolveUpload: (v: { jobId: string }) => void = () => {};
+    uploadMock.mockReturnValue(
+      new Promise<{ jobId: string }>((res) => {
+        resolveUpload = res;
+      }),
+    );
+    getJobMock
+      .mockResolvedValueOnce({ job: baseJob })
+      .mockResolvedValueOnce({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status).not.toBeNull();
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    // uploading — `setView({kind: "uploading"})` runs synchronously
+    // inside submitFiles before the upload await.
+    expect(status?.textContent).toBe("アップロード中");
+
+    // Resolve the upload to advance to `waiting`.
+    await act(async () => {
+      resolveUpload({ jobId: "job-1" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(status?.textContent).toBe("LLM がタイトルとメタデータを提案中");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // editing
+    expect(status?.textContent).toBe("プレビュー編集に進みました");
+  });
+
+  it("updates the status region textContent for multi-file uploads", async () => {
+    // Hand-controlled upload promises so we can observe both intermediate
+    // and terminal status announcements.
+    const resolvers: Array<(v: { jobId: string }) => void> = [];
+    uploadMock.mockImplementation(
+      () =>
+        new Promise<{ jobId: string }>((res) => {
+          resolvers.push(res);
+        }),
+    );
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    const files = [
+      new File(["a"], "a.md", { type: "text/markdown" }),
+      new File(["b"], "b.md", { type: "text/markdown" }),
+    ];
+    act(() => {
+      dispatchFile(findInputByAccept(), files);
+    });
+    // uploading view active before any upload resolves.
+    expect(status?.textContent).toBe("2 件のファイルをアップロード中");
+
+    // Drain both uploads.
+    await act(async () => {
+      // The submitFiles loop awaits the first upload before kicking off
+      // the second, so we resolve them in order. A bounded microtask
+      // flush avoids the infinite-loop risk if a future refactor of
+      // `submitFiles` ever inserts an extra microtask / setTimeout in
+      // front of the first `upload()` call.
+      const MAX_FLUSH = 50;
+      for (let i = 0; i < MAX_FLUSH && resolvers.length === 0; i++) {
+        await Promise.resolve();
+      }
+      if (resolvers.length === 0) {
+        throw new Error("first upload was not invoked within the flush budget");
+      }
+      resolvers[0]?.({ jobId: "job-a" });
+      await Promise.resolve();
+      await Promise.resolve();
+      for (let i = 0; i < MAX_FLUSH && resolvers.length < 2; i++) {
+        await Promise.resolve();
+      }
+      if (resolvers.length < 2) {
+        throw new Error(
+          "second upload was not invoked within the flush budget",
+        );
+      }
+      resolvers[1]?.({ jobId: "job-b" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // multiResult
+    expect(status?.textContent).toBe("2 件中 2 件をキューに追加しました");
+  });
+
+  it("includes the failed-count suffix in the status region on partial failure", async () => {
+    uploadMock
+      .mockResolvedValueOnce({ jobId: "job-1" })
+      .mockRejectedValueOnce(new Error("boom"));
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    const files = [
+      new File(["a"], "a.md", { type: "text/markdown" }),
+      new File(["b"], "b.md", { type: "text/markdown" }),
+    ];
+    act(() => {
+      dispatchFile(findInputByAccept(), files);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(status?.textContent).toBe(
+      "2 件中 1 件をキューに追加しました（1 件失敗）",
+    );
+  });
+
+  it("updates the status region textContent when polling observes failed", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: failedJob });
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(status?.textContent).toBe("取り込みに失敗しました");
+  });
+
+  it("updates the status region textContent on timeout", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: baseJob });
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    const startedAt = new Date(2026, 0, 1, 0, 0, 0).getTime();
+    vi.setSystemTime(startedAt);
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    vi.setSystemTime(startedAt + 181_000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(status?.textContent).toBe("推論の完了を待ちきれませんでした");
+  });
+
+  // C': re-open contract — when the dialog is re-opened the status
+  // region returns to silence so a fresh `select` view does not
+  // re-announce the previous run's terminal message.
+  it("resets the status region to empty on re-open (select view is silent)", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: failedJob });
+    let openProp = true;
+    const Renderer = ({ open }: { open: boolean }) => (
+      <UploadDialog open={open} onClose={() => {}} />
+    );
+    act(() => {
+      root.render(<Renderer open={openProp} />);
+    });
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("取り込みに失敗しました");
+
+    // Close → re-open
+    openProp = false;
+    act(() => {
+      root.render(<Renderer open={openProp} />);
+    });
+    openProp = true;
+    act(() => {
+      root.render(<Renderer open={openProp} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const status2 = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status2?.textContent ?? "").toBe("");
+  });
+
+  // D: editing view focuses the title input. The focus is committed
+  // via a `useEffect(view.kind)` so it fires synchronously after the
+  // state commit — no rAF involved on the focus path itself.
+  //
+  // This relies on React's effect ordering guarantee that child commits
+  // (IngestionPreviewForm mounting its `<input ref>`) complete before the
+  // parent's `useEffect([view.kind])` fires. If IngestionPreviewForm is
+  // ever moved behind a Suspense boundary or lazy-loaded, this contract
+  // may silently break.
+  it("moves focus to the title input when entering the editing view", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock
+      .mockResolvedValueOnce({ job: baseJob })
+      .mockResolvedValueOnce({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const titleInput =
+      document.body.querySelector<HTMLInputElement>('input[type="text"]');
+    expect(titleInput).not.toBeNull();
+    expect(document.activeElement).toBe(titleInput);
+  });
+
+  // E: a re-render that does NOT change `view.kind` must not re-fire
+  // the focus effect. We move focus elsewhere after editing landed,
+  // then trigger a benign re-render and assert focus stayed put.
+  it("does not re-steal focus on re-renders while still in editing view", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock
+      .mockResolvedValueOnce({ job: baseJob })
+      .mockResolvedValueOnce({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+
+    const Renderer = ({ tick: _tick }: { tick: number }) => (
+      <UploadDialog open={true} onClose={() => {}} />
+    );
+    act(() => {
+      root.render(<Renderer tick={0} />);
+    });
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const titleInput =
+      document.body.querySelector<HTMLInputElement>('input[type="text"]');
+    expect(titleInput).not.toBeNull();
+    // Move focus elsewhere (e.g. the cancel button).
+    const cancelBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "キャンセル");
+    expect(cancelBtn).toBeDefined();
+    cancelBtn?.focus();
+    expect(document.activeElement).toBe(cancelBtn);
+    // Force a re-render via parent prop change; `view.kind` stays
+    // `editing` so the focus effect must not fire.
+    act(() => {
+      root.render(<Renderer tick={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.activeElement).toBe(cancelBtn);
   });
 
   // W-T-008: multi-file partial failure surfaces a per-file failed
