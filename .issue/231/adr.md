@@ -88,7 +88,7 @@ Accepted (実装時に決定)
 
 1. **空状態アイキャッチの `block` 付与** — Plan Step 13 は `className="mx-auto mb-3 text-ink-tertiary"` を指定していたが、`lucide-react` の SVG はデフォルトで `display: inline` のため `mx-auto` が効かない。実装では `block mx-auto mb-3 text-ink-tertiary` とし、`display` を block に切り替えてから水平中央寄せする。`size` prop による寸法決定の真実性は保たれる（`w-*` / `h-*` は触らない）。
 
-2. **`ConfirmDialog` のタイトル領域構造変更** — Plan Step 12 は「タイトル `<h2 id={titleId}>` の左に `<Icon icon={AlertTriangle} size={20} />` を `aria-hidden` で配置」を要求。`dialogTitle` 定数 (`"text-lg font-medium mb-4"`) は `mb-4` を含み、`flex items-center gap-2` ラッパー内で `h2` に `mb-4` を残すと余白が二重になる。最小侵襲のため `dialogTitle` の利用をやめ、`<div className="flex items-center gap-2 mb-4">` のラッパー側に `mb-4` を寄せ、`h2` には `"text-lg font-medium"` を直接書く。視覚仕様は同じ (`text-lg font-medium` + 下マージン 16px)。`dialogActions` は引き続き定数経由。
+2. **`ConfirmDialog` のタイトル領域構造変更** — Plan Step 12 は「タイトル `<h2 id={titleId}>` の左に `<Icon icon={AlertTriangle} size={20} />` を `aria-hidden` で配置」を要求。`dialogTitle` 定数 (`"text-lg font-medium mb-4"`) は `mb-4` を含み、`flex items-center gap-2` ラッパー内で `h2` に `mb-4` を残すと余白が二重になる。最小侵襲のため **`ConfirmDialog` 内での `dialogTitle` の利用を停止**（定数自体は他 7 ファイル（`NotePickerDialog` / `MoveNoteDialog` / `SaveViewDialog` / `BulkVisibilityDialog` / `BulkExportDialog` / `UploadDialog` / `MergeTagDialog`）で生き残り）、`<div className="flex items-center gap-2 mb-4">` のラッパー側に `mb-4` を寄せ、`h2` には `"text-lg font-medium"` を直接書く。視覚仕様は同じ (`text-lg font-medium` + 下マージン 16px)。`dialogActions` は引き続き定数経由。
 
 3. **管理画面セクションヘッダのアイコン選定** — Plan Step 14 の例示（未完了ジョブ / 最近の失敗 / 最近の完了 / DLQ）は実装時の見出しと不一致（実際は「取り込みジョブ」「エクスポートジョブ」「検索インデックスの再構築」「クリーンアップ」）。それぞれの意味に合わせて `Upload` / `Download` / `Search` / `Sparkles` を採用した。`Sparkles` を「クリーンアップ」に選んだのは、`Eraser` がデザイン的に重く、`Broom` が lucide v1.16 に未収録のため。
 
@@ -103,5 +103,35 @@ Accepted (実装時に決定)
 ### Consequences
 - 良い点: 実装時の細かな判断が記録され、将来 spec/code を読む人が再現できる。
 - トレードオフ: なし。すべて plan.md の意図を維持する範囲の局所判断。
+
+---
+
+## ADR-005: review-001 を受けた追加修正
+
+### Status
+Accepted (review-001 対応)
+
+### Context
+review-001 で 4 視点（Frontend / Test / Accessibility / Design）の Warning が計 9 件出た（Blocker 0）。重複統合した上で、ガイドライン整合性と将来の保守性を高める追加修正を実施。
+
+### Decision
+
+1. **`Icon` を lucide の `size` prop 経由に変更** — 従来 `width={size} height={size}` を別個に渡していたのを `size={size}` の単一 prop に置き換え。lucide-react は内部でこれを `width`/`height` 属性の両方に展開するので動作上は等価だが、ラッパーが薄い層であるほど lucide の意図に沿うべきという指摘を採用。
+
+2. **空文字列 `label=""` を装飾扱いに正規化** — 従来 `label !== undefined` で分岐していたが、`<Icon label="" />` は `role="img" aria-label=""` を生成し WAI-ARIA 仕様上「アクセシブル名なし」と等価で `role="img"` と組み合わさると検証ツールエラーになる。`label !== undefined && label !== ""` に変更し、空文字列は `aria-hidden` 経路に流す。JSDoc も明文化。
+
+3. **`Icon` の `className` 契約を JSDoc / spec で緩める** — 実態では検索アイコンや空状態アイコンが位置決めユーティリティ（`absolute` / `left-*` / `top-*` / `translate-*` / `pointer-events-none` / `block` / `mx-auto` / `mb-*` 等）を `className` 経由で受けている。従来 JSDoc は「color 継承のみ」と書いていたが、これは実態と矛盾。JSDoc と `spec/design/index.md` §7.1 を「①色用の `text-*` トークン、②レイアウト用補助クラスは渡してよい。`w-*` / `h-*` / `size-*` のみ禁止」に書き換えて整合させた。
+
+4. **`EMPTY_STATE_ICON` 定数を新設** — `block mx-auto mb-3 text-ink-tertiary` が `IngestionQueue.tsx` / `TrashList.tsx` / `TagManager.tsx` の 3 箇所で完全一致していたため、`app/components/layout/styles.ts` に `EMPTY_STATE_ICON` を追加し 3 箇所から参照。CLAUDE.md の「Repeated utility strings can be hoisted into a module-scoped string constant」規約に沿う。
+
+5. **`Icon.test.tsx` のカバレッジ強化** — 以下のテストケースを追加: (a) 空文字列 label が装飾扱いに正規化されること、(b) 任意の lucide コンポーネント（Search / Trash2）で aria-hidden 経路が動くこと、(c) `className="w-10 h-10"` を渡しても `width`/`height` 属性は `size` 由来を維持すること。ADR-003 第二防衛線の網羅性向上。
+
+6. **`USER_SEARCH_ICON` 定数を削除** — `grep -rn` で参照が定義箇所のみ（dead export）と確認できたため、`SEARCH_ICON` の `left-[11px]` と整合しない `left-3.5` の dead code を削除して将来の混乱を防ぐ。
+
+7. **公開側 `EMPTY_LIST` のスコープ明文化** — `UserPublicTop.tsx` の空状態（`EMPTY_LIST`）にはアイコンが入っていない。本 PR の意図（認証済み側の `EMPTY_STATE` 利用箇所）を `spec/design/index.md` §7.1 に明記し、公開側は将来の対応として Phase 4 で Issue 起票する。
+
+### Consequences
+- 良い点: ガイドライン文言と実態が整合。ラッパーが lucide の API に素直になり、将来の互換性向上。テストが ADR-003 第二防衛線として網羅性のあるレベルに到達。
+- トレードオフ: なし。すべて review-001 の Warning 解消で、機能変更は無い（純粋な品質向上）。
 
 ---

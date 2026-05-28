@@ -42,6 +42,10 @@ export const NAV_ITEM =
 
 export const APP_MAIN = "px-6 pt-8 pb-20 max-w-[1100px] mx-auto w-full min-w-0";
 
+// Shared icon class for empty-state eyecatches (paired with `EMPTY_STATE`).
+// `block` makes `mx-auto` work for the inline-by-default SVG.
+export const EMPTY_STATE_ICON = "block mx-auto mb-3 text-ink-tertiary";
+
 export const PAGE_TITLE =
   "text-3xl font-normal tracking-tightest leading-tight text-ink mb-2.5 [overflow-wrap:anywhere] min-w-0";
 

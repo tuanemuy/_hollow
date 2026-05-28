@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/common/Icon";
 import { displayError } from "@/core/presentation/errorDisplay";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
-import { EMPTY_STATE, FORM_ERROR } from "../layout/styles";
+import { EMPTY_STATE, EMPTY_STATE_ICON, FORM_ERROR } from "../layout/styles";
 import { getIngestionJobsFn, type IngestionJobWire } from "./actions";
 import { IngestionJobRow } from "./IngestionJobRow";
 
@@ -139,11 +139,7 @@ export function IngestionQueue({ initialJobs }: Props) {
       ) : null}
       {jobs.length === 0 ? (
         <div className={EMPTY_STATE}>
-          <Icon
-            icon={Inbox}
-            size={24}
-            className="block mx-auto mb-3 text-ink-tertiary"
-          />
+          <Icon icon={Inbox} size={24} className={EMPTY_STATE_ICON} />
           <h2 className="text-xl font-medium text-ink mb-2">
             まだジョブがありません
           </h2>
