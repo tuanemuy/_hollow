@@ -140,7 +140,12 @@ export function NoteEditor(props: NoteEditorProps) {
     stateRef.current = state;
   }, [state]);
 
-  useAutosave({ noteId, state, dispatch, saveDraft });
+  const { abortInFlight } = useAutosave({
+    noteId,
+    state,
+    dispatch,
+    saveDraft,
+  });
   useEditLock({
     noteId,
     dispatch,
@@ -172,31 +177,43 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const surface: "new" | "edit" = props.mode === "new" ? "new" : "edit";
 
-  const onModeChange = useCallback((nextMode: EditorMode) => {
-    // ADR-003 (Issue #230): switching editor modes unmounts the
-    // currently focused FrontMatter input. Force a blur first so any
-    // pending key-rename / add commits run before the row disappears,
-    // instead of being silently dropped. Issue #233 ADR-004 fixes the
-    // order as: blur → re-evaluate dirty → confirm → dispatch, so any
-    // dirty flag that blur introduces (e.g. a committed rename) is
-    // visible to the confirm step. The latest `dirtyKeys` / `autosave`
-    // is read from `stateRef` rather than the closure to capture any
-    // dispatch that blur produced (Issue #233 ADR-008).
-    const active = document.activeElement;
-    if (active instanceof HTMLElement) active.blur();
-    const latest = stateRef.current;
-    const isDirty =
-      latest.dirtyKeys.size > 0 ||
-      latest.autosave.kind === "saving" ||
-      latest.autosave.kind === "error";
-    if (isDirty) {
-      const ok = window.confirm(
-        "未保存の変更があります。保存せずに切り替えますか？",
-      );
-      if (!ok) return;
-    }
-    dispatch({ type: "setMode", mode: nextMode });
-  }, []);
+  const onModeChange = useCallback(
+    (nextMode: EditorMode) => {
+      // ADR-003 (Issue #230): switching editor modes unmounts the
+      // currently focused FrontMatter input. Force a blur first so any
+      // pending key-rename / add commits run before the row disappears,
+      // instead of being silently dropped. Issue #233 ADR-004 fixes the
+      // order as: blur → re-evaluate dirty → confirm → dispatch, so any
+      // dirty flag that blur introduces (e.g. a committed rename) is
+      // visible to the confirm step. The latest `dirtyKeys` / `autosave`
+      // is read from `stateRef` rather than the closure to capture any
+      // dispatch that blur produced (Issue #233 ADR-008).
+      //
+      // Issue #286: when the user picks "discard", call
+      // `abortInFlight()` BEFORE `setMode` dispatches. The abort cancels
+      // the in-flight `saveDraft` fetch via AbortController and resets
+      // the autosave UI to `idle`. Doing it before `setMode` keeps the
+      // abort and the post-`setMode` effect re-evaluation (which may
+      // install a new controller on modes where `canFlush` flips) from
+      // racing on the same `controllerRef` slot.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+      const latest = stateRef.current;
+      const isDirty =
+        latest.dirtyKeys.size > 0 ||
+        latest.autosave.kind === "saving" ||
+        latest.autosave.kind === "error";
+      if (isDirty) {
+        const ok = window.confirm(
+          "未保存の変更があります。保存せずに切り替えますか？",
+        );
+        if (!ok) return;
+        abortInFlight();
+      }
+      dispatch({ type: "setMode", mode: nextMode });
+    },
+    [abortInFlight],
+  );
 
   const resolveDirectoryId = async (): Promise<string | null> => {
     if (state.pendingDirectoryName === null) return state.directoryId;

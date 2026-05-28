@@ -141,6 +141,7 @@ export type EditorAction =
   | Readonly<{ type: "autosaveStart" }>
   | Readonly<{ type: "autosaveSuccess"; at: number }>
   | Readonly<{ type: "autosaveError"; error: SerializedError }>
+  | Readonly<{ type: "autosaveDiscarded" }>
   | Readonly<{ type: "mediaInsertionAdded"; insertion: MediaInsertion }>
   | Readonly<{
       type: "editLockAcquired";
@@ -460,6 +461,20 @@ export function editorReducer(
         ...state,
         autosave: { kind: "error", error: action.error },
       };
+    }
+    case "autosaveDiscarded": {
+      // Issue #286: external reset action driven by the mode-switch
+      // "discard" path in NoteEditor.onModeChange. Pairs with
+      // useAutosave's `abortInFlight()`, which cancels any in-flight
+      // saveDraft fetch via AbortController and then dispatches this
+      // action so the AutosaveIndicator returns to `idle`. `dirtyKeys`
+      // is intentionally preserved — the user's edits themselves are
+      // not discarded; only the in-flight fetch and its UI status are.
+      // The preserved dirty set lets the next autosave cycle resend the
+      // content after the mode switches. `idle → idle` short-circuits to
+      // avoid pointless re-renders (ADR-004 of Issue #286).
+      if (state.autosave.kind === "idle") return state;
+      return { ...state, autosave: { kind: "idle" } };
     }
     case "mediaInsertionAdded": {
       return {
