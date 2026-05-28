@@ -4,6 +4,7 @@ import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteDetail, loadNoteRevisions } from "../loaders";
+import { historyNavSearch } from "./historyPagination";
 
 /**
  * P11h — list of past `NoteRevision` snapshots for a single note.
@@ -65,16 +66,10 @@ export async function NoteHistoryList({
   const { revisions, totalCount } = revisionsResult;
   const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / limit);
 
-  // Issue #215: drop default-equal pagination values from the URL.
-  // `noteHistorySearchSchema` defaults to `page=1` / `limit=20`, and the
-  // schema is input-optional, so omitting the matching keys yields a
-  // clean URL while the parsed values stay identical.
-  const HISTORY_DEFAULT_PAGE = 1;
-  const HISTORY_DEFAULT_LIMIT = 20;
-  const navSearch = (nextPage: number): { page?: number; limit?: number } => ({
-    ...(nextPage === HISTORY_DEFAULT_PAGE ? {} : { page: nextPage }),
-    ...(limit === HISTORY_DEFAULT_LIMIT ? {} : { limit }),
-  });
+  // Issue #215: pagination link payload is built by `historyNavSearch`
+  // so default-equal `page` / `limit` are dropped from the URL. The
+  // helper lives in `./historyPagination` to keep the normalisation
+  // unit-testable.
 
   return (
     <article className="max-w-[760px] mx-auto">
@@ -141,7 +136,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={navSearch(page - 1)}
+              search={historyNavSearch(page - 1, limit)}
               className={pillBtn}
             >
               前へ
@@ -156,7 +151,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={navSearch(page + 1)}
+              search={historyNavSearch(page + 1, limit)}
               className={pillBtn}
             >
               次へ

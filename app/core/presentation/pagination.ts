@@ -40,14 +40,17 @@ export const paginationSearchSchema = z.object({
 // boundary (Issue #215).
 type _PaginationSchemaMatches =
   z.infer<typeof paginationSchema> extends Pagination ? true : never;
-type _PaginationSearchSchemaMatches =
-  z.infer<typeof paginationSearchSchema> extends {
-    page?: number | undefined;
-    limit?: number | undefined;
-  }
+
+// Issue #215 guard: pin that `paginationSearchSchema`'s output keeps
+// `page` / `limit` **truly optional**. If a future change re-adds
+// `.default(...)` (which would resurrect the `?page=1&limit=20` URL),
+// `{}` would no longer extend the output and this check would fail.
+type _PaginationSearchSchemaIsPartial =
+  Record<string, never> extends z.infer<typeof paginationSearchSchema>
     ? true
     : never;
+
 const _paginationSchemaMatches: _PaginationSchemaMatches = true;
-const _paginationSearchSchemaMatches: _PaginationSearchSchemaMatches = true;
+const _paginationSearchSchemaIsPartial: _PaginationSearchSchemaIsPartial = true;
 void _paginationSchemaMatches;
-void _paginationSearchSchemaMatches;
+void _paginationSearchSchemaIsPartial;

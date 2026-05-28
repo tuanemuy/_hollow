@@ -3,6 +3,10 @@ import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
 import { isNotFoundError } from "@/core/application/errors";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_DEFAULT_PAGE,
+} from "@/core/presentation/pagination";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
@@ -182,12 +186,9 @@ export async function UserPublicTop({ username, page, limit }: Props) {
   );
 }
 
-// Issue #215: `/u/$username`'s search schema defaults to `page=1` /
-// `limit=20`. Omit the matching values from the URL so default-equal
-// pagination does not leak into the query string.
-const USER_PUBLIC_DEFAULT_PAGE = 1;
-const USER_PUBLIC_DEFAULT_LIMIT = 20;
-
+// Issue #215: `/u/$username`'s search schema mirrors `paginationSearchSchema`'s
+// defaults (`page=1` / `limit=20`). Reuse `PAGINATION_DEFAULT_*` directly
+// so the normalisation cannot drift if those defaults change.
 function Pagination({
   username,
   page,
@@ -201,8 +202,8 @@ function Pagination({
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const navSearch = (nextPage: number): { page?: number; limit?: number } => ({
-    ...(nextPage === USER_PUBLIC_DEFAULT_PAGE ? {} : { page: nextPage }),
-    ...(limit === USER_PUBLIC_DEFAULT_LIMIT ? {} : { limit }),
+    ...(nextPage === PAGINATION_DEFAULT_PAGE ? {} : { page: nextPage }),
+    ...(limit === PAGINATION_DEFAULT_LIMIT ? {} : { limit }),
   });
   return (
     <nav className={PAGINATION} aria-label="ページネーション">

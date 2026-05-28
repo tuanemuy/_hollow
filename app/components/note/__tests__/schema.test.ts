@@ -84,6 +84,11 @@ describe("noteListSearchSchema", () => {
     expect(parsed.limit).toBe(50);
   });
 
+  // Out-of-range / non-positive inputs land back at `undefined` via
+  // `.catch(undefined)`. The home loader re-defaults to
+  // `NOTE_LIST_PAGE_DEFAULT` / `NOTE_LIST_LIMIT_DEFAULT` at the
+  // boundary (Issue #215), so leaving the schema's output optional
+  // does not propagate `undefined` into the data layer.
   it("falls back to undefined when `limit` exceeds the cap (Issue #215)", () => {
     const parsed = noteListSearchSchema.parse({
       limit: NOTE_LIST_LIMIT_MAX + 1,

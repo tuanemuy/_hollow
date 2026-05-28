@@ -151,10 +151,13 @@ export const restoreNoteRevisionSchema = z.object({
  * the server side too. Both fields fall back to safe defaults when
  * absent or malformed.
  */
+export const NOTE_HISTORY_DEFAULT_PAGE = 1;
+export const NOTE_HISTORY_DEFAULT_LIMIT = 20;
+
 export const noteHistorySearchSchema = z.object({
   // Issue #215: same rationale as `noteListSearchSchema` above —
   // `.default(...)` is removed so the URL stays clean for default
-  // pagination. The loader supplies `1` / `20` fallbacks before
+  // pagination. The loader supplies `NOTE_HISTORY_DEFAULT_*` before
   // calling the server fn.
   page: z.coerce.number().int().min(1).optional().catch(undefined),
   limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),

@@ -3,7 +3,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
-import { noteHistorySearchSchema } from "@/components/note/schema";
+import {
+  NOTE_HISTORY_DEFAULT_LIMIT,
+  NOTE_HISTORY_DEFAULT_PAGE,
+  noteHistorySearchSchema,
+} from "@/components/note/schema";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { validateInput } from "@/core/presentation/validator";
@@ -50,14 +54,14 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/")({
   loaderDeps: ({ search }) => search,
   // Issue #215: `noteHistorySearchSchema` keeps `page` / `limit`
   // optional on its output to drop the default pagination from the
-  // URL; fall back to `1` / `20` here so the strict-typed server fn
-  // still receives concrete numbers.
+  // URL; re-default at the loader boundary so the strict-typed server
+  // fn keeps receiving concrete numbers.
   loader: ({ params, deps }) =>
     renderHistory({
       data: {
         noteId: params.noteId,
-        page: deps.page ?? 1,
-        limit: deps.limit ?? 20,
+        page: deps.page ?? NOTE_HISTORY_DEFAULT_PAGE,
+        limit: deps.limit ?? NOTE_HISTORY_DEFAULT_LIMIT,
       },
     }),
   component: NoteHistoryRoute,

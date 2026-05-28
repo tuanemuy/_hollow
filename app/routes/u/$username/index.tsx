@@ -6,6 +6,10 @@ import { ErrorPage } from "@/components/public/ErrorPage";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_DEFAULT_PAGE,
+} from "@/core/presentation/pagination";
 import { validateInput } from "@/core/presentation/validator";
 
 // Issue #215: `page` / `limit` are fully optional (input and output) so
@@ -45,8 +49,8 @@ export const Route = createFileRoute("/u/$username/")({
     renderUserPublicTop({
       data: {
         username: params.username,
-        page: deps.page ?? 1,
-        limit: deps.limit ?? 20,
+        page: deps.page ?? PAGINATION_DEFAULT_PAGE,
+        limit: deps.limit ?? PAGINATION_DEFAULT_LIMIT,
       },
     }),
   head: ({ match, params }) => {

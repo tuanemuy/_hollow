@@ -130,4 +130,29 @@ describe("DisplayModeSwitch", () => {
     const next = call.search({});
     expect(next).toEqual({ display: "calendar" });
   });
+
+  it("preserves non-default `prev` while swapping `display` (Issue #215)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    act(() => {
+      tabByLabel("カレンダー").click();
+    });
+
+    const call = navigateMock.mock.calls[0]?.[0] as {
+      replace: boolean;
+      search: (prev: Record<string, unknown>) => Record<string, unknown>;
+    };
+    // Issue #215: prev pass-through — user-supplied `page` / `limit`
+    // and other filters must survive the display switch so the URL
+    // still reflects the active state after the swap.
+    const next = call.search({ page: 2, limit: 30, q: "world" });
+    expect(next).toEqual({
+      page: 2,
+      limit: 30,
+      q: "world",
+      display: "calendar",
+    });
+  });
 });
