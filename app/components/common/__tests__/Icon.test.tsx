@@ -99,18 +99,18 @@ describe("Icon", () => {
     expect(svg.getAttribute("role")).toBeNull();
   });
 
-  it.each([Search, Trash2])(
-    "works with arbitrary lucide icons (aria-hidden path)",
-    (icon) => {
-      act(() => {
-        root.render(<Icon icon={icon} />);
-      });
-      const svg = getSvg();
-      expect(svg.getAttribute("aria-hidden")).toBe("true");
-      expect(svg.getAttribute("width")).toBe("16");
-      expect(svg.getAttribute("stroke-width")).toBe("1.5");
-    },
-  );
+  it.each([
+    Search,
+    Trash2,
+  ])("works with arbitrary lucide icons (aria-hidden path)", (icon) => {
+    act(() => {
+      root.render(<Icon icon={icon} />);
+    });
+    const svg = getSvg();
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.getAttribute("width")).toBe("16");
+    expect(svg.getAttribute("stroke-width")).toBe("1.5");
+  });
 
   it("keeps width/height from size even if className includes w-*/h-*", () => {
     act(() => {
