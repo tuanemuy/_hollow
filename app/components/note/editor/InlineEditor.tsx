@@ -74,6 +74,16 @@ export type InlineEditorProps = Readonly<{
   value: string;
   onChange: (html: string) => void;
   disabled?: boolean;
+  /**
+   * Called once when init cannot produce an editable DOM — i.e. the
+   * `DOMParser` throws, the parsed `body` is `null`, or a non-empty
+   * input parses to an empty body. The parent is expected to
+   * immediately switch the editor mode (e.g. dispatch `setMode →
+   * "html"`), which causes this component to unmount. `InlineEditor`
+   * does not retry init by itself; the internal once-only ref guards
+   * against double-fire if the parent stalls the unmount and props
+   * re-render arrives in the meantime.
+   */
   onInitFailed?: () => void;
 }>;
 
@@ -152,7 +162,27 @@ function clearEditable(host: HTMLElement): void {
   }
 }
 
-/** Quick structural signature: tag tree, ignoring text content. */
+/**
+ * Serialize the host's current content for the `onChange` boundary,
+ * stripped of `contenteditable` attributes we added at runtime. This
+ * is the value that crosses into `state.contentHtml` and ultimately
+ * the DB / read-only render — so the editor-only attribute must not
+ * leak (W-F-003 from PR #282 review-001).
+ */
+function serializeHostContent(host: HTMLElement): string {
+  const clone = host.cloneNode(true) as HTMLElement;
+  for (const el of clone.querySelectorAll("[contenteditable]")) {
+    el.removeAttribute("contenteditable");
+  }
+  return clone.innerHTML;
+}
+
+/**
+ * Build a deterministic tag-tree signature for structural comparison
+ * (used by `compositionend` to detect drift). Comparison-only — the
+ * returned string MUST NOT be re-injected as innerHTML, since attribute
+ * values are not escaped here.
+ */
 function structureSignature(root: Element | DocumentFragment): string {
   const parts: string[] = [];
   const walk = (node: Node) => {
@@ -213,7 +243,7 @@ export function InlineEditor({
   disabled,
   onInitFailed,
 }: InlineEditorProps) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const hostRef = useRef<HTMLElement | null>(null);
   const snapshotRef = useRef<HTMLBodyElement | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
   const isComposingRef = useRef(false);
@@ -293,7 +323,7 @@ export function InlineEditor({
     snapshotRef.current = body.cloneNode(true) as HTMLBodyElement;
     host.replaceChildren(...Array.from(body.childNodes));
     applyEditable(host, !disabledRef.current);
-    lastEmittedHtmlRef.current = host.innerHTML;
+    lastEmittedHtmlRef.current = serializeHostContent(host);
 
     const emit = () => {
       if (debounceTimerRef.current !== null) {
@@ -302,7 +332,7 @@ export function InlineEditor({
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = null;
         if (isComposingRef.current) return;
-        const next = host.innerHTML;
+        const next = serializeHostContent(host);
         if (next === lastEmittedHtmlRef.current) return;
         lastEmittedHtmlRef.current = next;
         onChangeRef.current(next);
@@ -321,7 +351,7 @@ export function InlineEditor({
       const fresh = snap.cloneNode(true) as HTMLBodyElement;
       host.replaceChildren(...Array.from(fresh.childNodes));
       applyEditable(host, !disabledRef.current);
-      lastEmittedHtmlRef.current = host.innerHTML;
+      lastEmittedHtmlRef.current = serializeHostContent(host);
       if (obs !== null) {
         obs.observe(host, {
           subtree: true,
@@ -459,7 +489,7 @@ export function InlineEditor({
     } else {
       applyEditable(host, true);
     }
-    lastEmittedHtmlRef.current = host.innerHTML;
+    lastEmittedHtmlRef.current = serializeHostContent(host);
     if (obs !== null) {
       obs.observe(host, {
         subtree: true,
@@ -472,8 +502,9 @@ export function InlineEditor({
 
   return (
     <div className="mt-4">
-      <div
+      <section
         ref={hostRef}
+        aria-label="ノート本文"
         data-disabled={disabled === true || undefined}
         className="note-detail-content min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed focus-within:border-accent data-[disabled]:opacity-60 data-[disabled]:cursor-not-allowed"
       />

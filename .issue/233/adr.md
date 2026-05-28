@@ -87,6 +87,7 @@ Proposed（1周目レビュー P-002 で IME 中間状態を考慮、2周目 P-0
   - 「許可された変化を含むバッチに禁止変化が混入したらバッチ全体をロールバック」は保守的すぎる挙動だが、許可分だけ通そうとすると DOM 状態の再構築が複雑になるため避ける
   - IME 確定処理が `compositionend` のリスナに依存（happy-dom テストでは `dispatchEvent(new CompositionEvent('compositionend'))` で再現可能）
   - **装飾要素削除の制約**: ブラウザによっては Backspace で装飾要素 (`<strong>` / `<em>` / `<a>` 等) の境界を跨いで削除した場合、要素そのものが `removedNodes` に含まれる `childList` 通知が出る。ルール (b) では Element の add/remove は不許可なのでロールバックされ、結果として「`<strong>` を Backspace で消せない」UX 制約が生じる。これは仕様 C2-3「構造を壊さない」と整合的だが、装飾要素自体を削除したい場合は `html` モードへ切替する必要がある
+  - **装飾範囲ペーストの制約**（review-001 W-F-002）: 装飾要素を含む選択範囲のペーストは現状の保守的バッチ rollback により反映されない（例: `<p>foo<strong>bar</strong>baz</p>` の "foo" 〜 "baz" を選択してペーストすると `<strong>` が `removedNodes` に Element として混入し、バッチ全体が rollback される）。テキスト編集領域内の caret 位置にのみカーソルを置いた状態でのペーストは正常にテキストとして挿入される。装飾範囲を含めて差し替えたい場合は `html` モードへ切替する必要がある
 
 ---
 
@@ -164,3 +165,30 @@ CLAUDE.md は「Utility-first only」「Repeated utility strings can be hoisted 
 ### Consequences
 - 良い点: 既存ノートの表示（`/notes/$noteId`）と編集（`/notes/$noteId/edit`）で同じ視覚スタイルを保てる。`.issue/70/adr.md` ADR-002 の documented exception の精神に沿う（dangerouslySetInnerHTML と同様、子孫に class を後付けできない経路）
 - トレードオフ: 既存の唯一の exception を別経路（DOM 注入）でも参照することになる。新規 utility-first 違反を増やさないため、ADR-002（of Issue #70）のレファレンスを `InlineEditor.tsx` の JSDoc に明記して誤読を防ぐ
+
+---
+
+## ADR-008: モード切替時の dirty 再評価に stateRef パターンを採用
+
+### Status
+Proposed（PR #282 review-001 W-S-001 / W-F-006 で発覚）
+
+### Context
+ADR-004 で「blur → dirty 再評価 → confirm → dispatch」の順序を主張したが、React のバッチ更新により `active.blur()` 由来の `dispatch` 結果は同イベントハンドラ内の `state` クロージャに反映されない。これにより blur で発生する dirty（FrontMatter の rename / add commit など）が confirm 評価時に見えないという論理欠陥があった。
+
+解決策の候補:
+1. `flushSync(() => active.blur())` で同期 flush → blur 由来の dispatch を即時 commit する
+2. `stateRef = useRef(state)` + `useEffect([state])` で常に最新 state を ref に書き戻し、ハンドラ内では ref を読む
+
+### Decision
+選択肢 2（stateRef パターン）を採用する。`NoteEditor` 内に `stateRef = useRef(state)` を導入し、`useEffect([state])` で commit phase に常に最新の state を ref に書き戻す。`onModeChange` は `stateRef.current.dirtyKeys` / `stateRef.current.autosave` を読むことで、blur 由来 dispatch 後の最新 dirty を捕捉する。
+
+### Consequences
+- 良い点:
+  - `flushSync` を使わないため React のレンダーを同期化しない。autosave 経路など他の effect への副作用が小さい
+  - React 公式パターン（"reading latest state in event handlers" のレシピ）に近く、複雑な同期境界を持ち込まない
+  - `useCallback` の依存配列を空にできるため、ハンドラ identity が安定し、子コンポーネントの memo を阻害しない
+- トレードオフ:
+  - `useEffect` は同イベントハンドラ内では実行されず、commit phase（ハンドラ return 後）に走る。よって **同一イベント内で `active.blur()` が起こす同期 dispatch を `onModeChange` のクロージャや stateRef で同期的に読み出すことはできない**。本パターンが解決するのは「**別イベント**で dirty 化 → モード切替タブをクリック」というメインの UX 経路で、ハンドラ間で stateRef が確実に最新を反映するケース
+  - 同一イベント内で blur → 即 confirm 経路を厳密に守りたい場合（FrontMatter の `commitKey` 由来の dispatch を含めて捕捉したい場合）は `flushSync(() => active.blur())` が別途必要。本 PR では実用上の影響を限定的とみて `flushSync` を採用せず stateRef のみとする。blur 由来の差分は次の autosave で確実に拾われるため致命的ではない
+  - `useCallback` の依存配列を空にできるため、ハンドラ identity が安定し、子コンポーネントの memo を阻害しない

@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import type { Editor } from "@tiptap/react";
 import {
   useCallback,
+  useEffect,
   useReducer,
   useRef,
   useState,
@@ -40,6 +41,7 @@ import { EditorModeSwitch } from "./EditorModeSwitch";
 import {
   createInitialEditorState,
   type EditLockState,
+  type EditorMode,
   editorReducer,
   parseTagInput,
 } from "./editorState";
@@ -125,6 +127,19 @@ export function NoteEditor(props: NoteEditorProps) {
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
 
+  // ADR-008 (Issue #233 review-001 W-S-001 / W-F-006): `onModeChange`
+  // needs to read post-blur `dirtyKeys` / `autosave` to decide whether
+  // to confirm. React batches the `dispatch` triggered by
+  // `active.blur()`, so the `state` closure inside the same event
+  // handler is stale. Mirror the latest state into a ref via a commit-
+  // phase effect so the handler can read the up-to-date snapshot
+  // without resorting to `flushSync` (which would force a synchronous
+  // render and risk interfering with the autosave path).
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   useAutosave({ noteId, state, dispatch, saveDraft });
   useEditLock({
     noteId,
@@ -157,31 +172,31 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const surface: "new" | "edit" = props.mode === "new" ? "new" : "edit";
 
-  const onModeChange = useCallback(
-    (nextMode: typeof state.mode) => {
-      // ADR-003 (Issue #230): switching editor modes unmounts the
-      // currently focused FrontMatter input. Force a blur first so any
-      // pending key-rename / add commits run before the row disappears,
-      // instead of being silently dropped. Issue #233 ADR-004 fixes the
-      // order as: blur → re-evaluate dirty → confirm → dispatch, so any
-      // dirty flag that blur introduces (e.g. a committed rename) is
-      // visible to the confirm step.
-      const active = document.activeElement;
-      if (active instanceof HTMLElement) active.blur();
-      const isDirty =
-        state.dirtyKeys.size > 0 ||
-        state.autosave.kind === "saving" ||
-        state.autosave.kind === "error";
-      if (isDirty) {
-        const ok = window.confirm(
-          "未保存の変更があります。保存せずに切り替えますか？",
-        );
-        if (!ok) return;
-      }
-      dispatch({ type: "setMode", mode: nextMode });
-    },
-    [state.dirtyKeys, state.autosave],
-  );
+  const onModeChange = useCallback((nextMode: EditorMode) => {
+    // ADR-003 (Issue #230): switching editor modes unmounts the
+    // currently focused FrontMatter input. Force a blur first so any
+    // pending key-rename / add commits run before the row disappears,
+    // instead of being silently dropped. Issue #233 ADR-004 fixes the
+    // order as: blur → re-evaluate dirty → confirm → dispatch, so any
+    // dirty flag that blur introduces (e.g. a committed rename) is
+    // visible to the confirm step. The latest `dirtyKeys` / `autosave`
+    // is read from `stateRef` rather than the closure to capture any
+    // dispatch that blur produced (Issue #233 ADR-008).
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+    const latest = stateRef.current;
+    const isDirty =
+      latest.dirtyKeys.size > 0 ||
+      latest.autosave.kind === "saving" ||
+      latest.autosave.kind === "error";
+    if (isDirty) {
+      const ok = window.confirm(
+        "未保存の変更があります。保存せずに切り替えますか？",
+      );
+      if (!ok) return;
+    }
+    dispatch({ type: "setMode", mode: nextMode });
+  }, []);
 
   const resolveDirectoryId = async (): Promise<string | null> => {
     if (state.pendingDirectoryName === null) return state.directoryId;

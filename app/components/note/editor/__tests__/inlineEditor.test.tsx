@@ -5,6 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineEditor } from "@/components/note/editor/InlineEditor";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 /**
  * Issue #233: pins the structural-preservation contract of the inline
  * editor.
@@ -115,16 +119,22 @@ describe("InlineEditor structural preservation", () => {
       bubbles: true,
       cancelable: true,
     });
-    let prevented = false;
-    host.addEventListener(
-      "keydown",
-      () => {
-        prevented = event.defaultPrevented;
-      },
-      { capture: false },
-    );
     host.dispatchEvent(event);
-    expect(prevented).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("prevents Tab at the host so focus does not escape into the next block", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    host.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("plain-text-ifies pasted HTML so the structure does not change", async () => {
@@ -155,6 +165,14 @@ describe("InlineEditor structural preservation", () => {
     await flushMutations();
     expect(host.querySelector("script")).toBeNull();
     expect(host.innerHTML).not.toContain("<script>");
+    // The pasted text is inserted as a literal text node into the
+    // <p> at the caret (W-T-007 / W-T-012). Pinning the insertion
+    // point — not just the host-wide textContent — guarantees the
+    // paste landed where the caret was, not at an outer fallback.
+    expect(host.textContent ?? "").toContain("<script>x</script>");
+    expect(host.querySelector("p")?.textContent ?? "").toContain(
+      "<script>x</script>",
+    );
   });
 
   it("does not call onInitFailed for an empty value and stays mounted with an empty host", async () => {
@@ -204,5 +222,208 @@ describe("InlineEditor structural preservation", () => {
     // disabled effect clears the attribute outright.
     expect(p?.getAttribute("contenteditable")).toBeNull();
     expect(host.hasAttribute("data-disabled")).toBe(true);
+  });
+
+  it("fires onInitFailed once when input is non-empty but parses to empty body", async () => {
+    const onInitFailed = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<!DOCTYPE html>"
+          onChange={vi.fn()}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    expect(onInitFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("guards onInitFailed so re-rendering with the same bad value does not re-fire", async () => {
+    const onInitFailed = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<!DOCTYPE html>"
+          onChange={vi.fn()}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    expect(onInitFailed).toHaveBeenCalledTimes(1);
+    // Parent stalls the unmount; we re-render with the same bad value.
+    // The once-only ref must not fire a second time.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<!DOCTYPE html>"
+          onChange={vi.fn()}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    expect(onInitFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("decorates both outer <blockquote> and inner <p> when mixed children appear", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<blockquote>foo<p>bar</p></blockquote>"
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const bq = host.querySelector("blockquote");
+    const p = host.querySelector("p");
+    expect(bq?.getAttribute("contenteditable")).toBe("true");
+    expect(p?.getAttribute("contenteditable")).toBe("true");
+  });
+
+  it("decorates only the inner <p> inside <li><p>foo</p></li>, not the outer <li>", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<ul><li><p>foo</p></li></ul>"
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const li = host.querySelector("li");
+    const p = host.querySelector("p");
+    expect(li?.getAttribute("contenteditable")).toBeNull();
+    expect(p?.getAttribute("contenteditable")).toBe("true");
+  });
+
+  it("does not decorate <pre> or <code> inside <pre><code>x</code></pre>", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>x</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const pre = host.querySelector("pre");
+    const code = host.querySelector("code");
+    expect(pre?.getAttribute("contenteditable")).toBeNull();
+    expect(code?.getAttribute("contenteditable")).toBeNull();
+  });
+
+  it("allows childList mutations during IME composition without rollback", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    expect(p).not.toBeNull();
+    // Start composition.
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+    });
+    // Force-append an element while composing — must NOT be rolled back.
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      p?.appendChild(extra);
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).not.toBeNull();
+  });
+
+  it("rolls back on compositionend when the structure drifted from the snapshot", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    expect(p).not.toBeNull();
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+    });
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      p?.appendChild(extra);
+    });
+    // compositionend → structural signature differs from snapshot → rollback.
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+    expect(host.querySelector("p")?.textContent).toBe("foo");
+  });
+
+  it("resets the composing flag on compositionend so later element appends are rolled back", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+    });
+    // No structural drift during composition.
+    await act(async () => {
+      host.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+    });
+    await flushMutations();
+    // Now (composing flag should be cleared) append an element — rollback.
+    const p = host.querySelector("p");
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      p?.appendChild(extra);
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+  });
+
+  it("rolls back when a leaf gets a new attribute added", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    expect(p).not.toBeNull();
+    await act(async () => {
+      p?.setAttribute("data-foo", "x");
+    });
+    await flushMutations();
+    // Rollback restores the snapshot which had no `data-foo`.
+    expect(host.querySelector("p")?.getAttribute("data-foo")).toBeNull();
+  });
+
+  it("emits onChange via debounced characterData mutation on leaf text", async () => {
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={onChange} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    const textNode = p?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    await act(async () => {
+      if (textNode !== null && textNode !== undefined) {
+        (textNode as Text).textContent = "foobar";
+      }
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalled();
+    const lastCallArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(typeof lastCallArg).toBe("string");
+    expect(lastCallArg).toContain("foobar");
+    // The emitted HTML must NOT carry the editor-only contenteditable
+    // attribute (W-F-003).
+    expect(lastCallArg).not.toContain("contenteditable");
   });
 });
