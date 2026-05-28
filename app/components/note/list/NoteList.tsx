@@ -2,16 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { SavedViewDTO } from "@/core/application/dto/view";
-import type { DisplayMode } from "../constants";
 import type { FlatDirectory, OwnedNotesResult } from "../loaders";
 import type { NoteListSearch } from "../schema";
 import { BulkActionBar } from "./BulkActionBar";
-import { CalendarView } from "./CalendarView";
 import { FilterBar } from "./FilterBar";
-import { ListView } from "./ListView";
 import { NoteListToolbar } from "./NoteListToolbar";
+import { NoteListViews } from "./NoteListViews";
 import { SelectionProvider } from "./SelectionContext";
-import { TileView } from "./TileView";
 
 type Props = {
   user: UserDTO;
@@ -53,7 +50,6 @@ export function NoteList({
   referencingNoteTitle,
 }: Props) {
   const { notes, count, kind } = data;
-  const display: DisplayMode = search.display ?? "list";
   const searchActive = kind === "search";
 
   const hasAnyFilter =
@@ -76,7 +72,6 @@ export function NoteList({
       <p className="text-md text-ink-secondary mb-7">{count} 件のノート</p>
 
       <NoteListToolbar
-        display={display}
         search={search}
         savedViews={savedViews}
         hasAnyFilter={hasAnyFilter || search.q !== undefined}
@@ -113,12 +108,8 @@ export function NoteList({
             最初のノートを作成
           </Link>
         </div>
-      ) : display === "tile" ? (
-        <TileView notes={notes} />
-      ) : display === "calendar" ? (
-        <CalendarView notes={notes} />
       ) : (
-        <ListView notes={notes} />
+        <NoteListViews notes={notes} />
       )}
     </SelectionProvider>
   );

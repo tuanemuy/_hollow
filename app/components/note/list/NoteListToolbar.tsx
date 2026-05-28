@@ -8,24 +8,17 @@ import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { SavedViewDTO } from "@/core/application/dto/view";
-import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
 import { DisplayModeSwitch } from "./DisplayModeSwitch";
 import { SaveViewDialog } from "./SaveViewDialog";
 
 type Props = {
-  display: DisplayMode;
   search: NoteListSearch;
   savedViews: readonly SavedViewDTO[];
   hasAnyFilter: boolean;
 };
 
-export function NoteListToolbar({
-  display,
-  search,
-  savedViews,
-  hasAnyFilter,
-}: Props) {
+export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -66,7 +59,7 @@ export function NoteListToolbar({
     <>
       <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
         <div className="inline-flex items-center gap-2 flex-wrap">
-          <DisplayModeSwitch current={display} />
+          <DisplayModeSwitch />
           {savedViews.length > 0 ? (
             <select
               aria-label="保存済みビュー"
