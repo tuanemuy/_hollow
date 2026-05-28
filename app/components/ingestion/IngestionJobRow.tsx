@@ -216,6 +216,7 @@ export function IngestionJobRow({ job }: Props) {
         title="ジョブを破棄"
         description="このジョブを破棄しますか？"
         confirmLabel="破棄"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={() => {
           setConfirmDiscardOpen(false);

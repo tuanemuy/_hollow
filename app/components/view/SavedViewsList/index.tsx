@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Trash2 } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -172,6 +173,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
         title="保存ビューを削除"
         description={`「${view.name}」を削除しますか？`}
         confirmLabel="削除"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={() => {
           setConfirmDeleteOpen(false);

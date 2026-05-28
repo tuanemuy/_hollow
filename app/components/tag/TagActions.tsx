@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -154,6 +155,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           noteCount,
         })}
         confirmLabel="削除"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={runDelete}
         onClose={() => setConfirmDeleteOpen(false)}

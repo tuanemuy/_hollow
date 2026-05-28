@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Search, Sparkles, Upload } from "lucide-react";
+import { Download, RefreshCw, Search, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -223,6 +223,7 @@ function IngestionRow({
             onClick={runRetry}
             disabled={isPending}
           >
+            <Icon icon={RefreshCw} />
             {isPending ? "再実行中…" : "再実行"}
           </button>
         ) : null}
@@ -308,6 +309,7 @@ function ExportRow({
             onClick={runRetry}
             disabled={isPending}
           >
+            <Icon icon={RefreshCw} />
             {isPending ? "再実行中…" : "再実行"}
           </button>
         ) : null}
@@ -422,6 +424,7 @@ function SearchIndexSection() {
           aria-busy={isPending || undefined}
           data-pending={isPending || undefined}
         >
+          <Icon icon={RefreshCw} />
           {isPending ? "再構築中…" : "再構築を実行"}
         </button>
         {result !== null ? (

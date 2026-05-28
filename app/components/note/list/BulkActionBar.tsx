@@ -154,6 +154,7 @@ export function BulkActionBar({ tree }: Props) {
         title="一括ゴミ箱移動"
         description={`${ids.length} 件のノートをゴミ箱に移動しますか？`}
         confirmLabel="ゴミ箱へ"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={() => {
           setConfirmTrashOpen(false);

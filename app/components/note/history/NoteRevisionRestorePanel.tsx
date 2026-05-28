@@ -2,6 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { RotateCcw } from "lucide-react";
 import { useState, useTransition } from "react";
 import { NOTE_HISTORY_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -94,6 +95,7 @@ export function NoteRevisionRestorePanel({
         open={confirmOpen}
         title="この版に復元しますか？"
         confirmLabel="復元する"
+        confirmIcon={RotateCcw}
         isPending={isPending}
         onConfirm={() => {
           setConfirmOpen(false);

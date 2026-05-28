@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, type LucideIcon } from "lucide-react";
 import { useId } from "react";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
@@ -11,6 +11,13 @@ export type ConfirmDialogProps = Readonly<{
   title: string;
   description?: React.ReactNode;
   confirmLabel?: string;
+  /**
+   * Optional lucide icon rendered before `confirmLabel` on the confirm button.
+   * Uses the `Icon` wrapper at default size (16) per spec §7.1 "icon + text"
+   * sizing rule. Kept rendered during `isPending` so the button form stays
+   * stable while only the label morphs (e.g. "リセット中...").
+   */
+  confirmIcon?: LucideIcon;
   isPending?: boolean;
   onConfirm: () => void;
   onClose: () => void;
@@ -33,6 +40,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = "OK",
+  confirmIcon,
   isPending = false,
   onConfirm,
   onClose,
@@ -83,6 +91,7 @@ export function ConfirmDialog({
             キャンセル
           </button>
           <button type="submit" className={pillBtnDanger} disabled={isPending}>
+            {confirmIcon !== undefined ? <Icon icon={confirmIcon} /> : null}
             {confirmLabel}
           </button>
         </div>

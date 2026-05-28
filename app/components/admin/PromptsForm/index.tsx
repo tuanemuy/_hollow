@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { RotateCcw } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -307,6 +308,7 @@ export function PromptsForm({
         title="すべてのプロンプトをリセットしますか？"
         description="すべての上書きが削除され、各プロンプトはプロバイダの既定指示に戻ります。この操作は取り消せません。"
         confirmLabel={isPending ? "リセット中..." : "リセット"}
+        confirmIcon={RotateCcw}
         isPending={isPending}
         onConfirm={onConfirmReset}
         onClose={() => setConfirmOpen(false)}

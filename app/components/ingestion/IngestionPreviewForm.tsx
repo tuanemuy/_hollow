@@ -2,6 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -366,6 +367,7 @@ export function IngestionPreviewForm({
         title="ジョブを破棄"
         description="このジョブを破棄しますか？"
         confirmLabel="破棄"
+        confirmIcon={Trash2}
         isPending={isPending}
         onConfirm={() => {
           setConfirmDiscardOpen(false);
