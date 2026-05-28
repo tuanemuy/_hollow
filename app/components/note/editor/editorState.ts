@@ -26,10 +26,17 @@
  *   `frontMatterJsonError` string and disables the save button at the
  *   UI level instead of failing the action. Duplicate-key errors from
  *   `renameFrontMatterKey` / `addFrontMatterKey` use the same channel.
- * - `setMode` accepts any `EditorMode` literal. All three modes are
- *   fully wired (HTML / FrontMatter / WYSIWYG); the WYSIWYG tab was
- *   previously rendered disabled (Issue #1 ADR-002) and is now enabled
- *   per Issue #9.
+ * - `setMode` accepts any `EditorMode` literal. All four modes are
+ *   fully wired (HTML / FrontMatter / WYSIWYG / inline). The WYSIWYG
+ *   tab was previously rendered disabled (Issue #1 ADR-002) and is now
+ *   enabled per Issue #9. The `inline` mode (Issue #233) supports
+ *   "edit decorated text in place" by making text-bearing block
+ *   elements (`<p>` / `<h1-6>` / `<li>` / `<td>` / `<th>` /
+ *   `<blockquote>` / `<figcaption>` / `<caption>` / `<dt>` / `<dd>`)
+ *   contentEditable while preserving structure via a MutationObserver.
+ * - `EditorInit.surface: "new" | "edit"` picks the initial mode (Issue
+ *   #233 ADR-001 / spec C1, C2): `new` → `wysiwyg`, `edit` → `inline`.
+ *   The branching lives here so a single helper can be unit-tested.
  * - `wysiwygUnsupportedDetected` is a *latch*: dispatching it with an
  *   empty `tags` array is a no-op (Issue #37 ADR-005). This makes it
  *   safe for callers to fan-out detection without worrying that a late
@@ -38,7 +45,16 @@
 
 import type { SerializedError } from "@/core/presentation/errorResponse";
 
-export type EditorMode = "html" | "frontMatter" | "wysiwyg";
+export type EditorMode = "html" | "frontMatter" | "wysiwyg" | "inline";
+
+/**
+ * Render surface the editor is mounted on. Drives the initial mode
+ * (Issue #233 ADR-001) and the set of mode tabs the user sees
+ * (`EditorModeSwitch`):
+ * - `"new"`  → starts in `wysiwyg`; tabs = `wysiwyg / frontMatter / html`
+ * - `"edit"` → starts in `inline`;  tabs = `inline / frontMatter / html`
+ */
+export type EditorSurface = "new" | "edit";
 
 export type AutosaveStatus =
   | { kind: "idle" }
@@ -140,6 +156,7 @@ export type EditorAction =
   | Readonly<{ type: "wysiwygUnsupportedAck" }>;
 
 export type EditorInit = Readonly<{
+  surface: EditorSurface;
   title: string;
   contentHtml: string;
   frontMatter: Record<string, unknown>;
@@ -171,7 +188,7 @@ export function stringifyFrontMatter(value: Record<string, unknown>): string {
 
 export function createInitialEditorState(init: EditorInit): EditorState {
   return {
-    mode: "html",
+    mode: init.surface === "new" ? "wysiwyg" : "inline",
     title: init.title,
     contentHtml: init.contentHtml,
     frontMatter: init.frontMatter,

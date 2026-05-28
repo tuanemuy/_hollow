@@ -11,6 +11,7 @@ import {
 } from "../useAutosave";
 
 const baseInit = {
+  surface: "edit" as const,
   title: "Hello",
   contentHtml: "<p>hi</p>",
   frontMatter: {} as Record<string, unknown>,
@@ -125,12 +126,34 @@ describe("shouldFlushAutosave", () => {
   // banner is up.
   it("returns true in HTML mode even when unsupported tags are detected and unacked", () => {
     let s = createInitialEditorState(baseInit);
+    s = editorReducer(s, { type: "setMode", mode: "html" });
     s = withDirtyTitle(s);
     s = editorReducer(s, {
       type: "wysiwygUnsupportedDetected",
       tags: ["mark"],
     });
     expect(s.mode).toBe("html");
+    expect(shouldFlushAutosave(s, "note-1")).toBe(true);
+  });
+
+  // Issue #233 ADR-006: `inline` mode is not gated either — the
+  // structure-preserving MutationObserver makes silent data loss
+  // impossible, so autosave passes through.
+  it("returns true in inline mode when dirty and FrontMatter is valid", () => {
+    let s = createInitialEditorState({ ...baseInit, surface: "edit" });
+    expect(s.mode).toBe("inline");
+    s = withDirtyTitle(s);
+    expect(shouldFlushAutosave(s, "note-1")).toBe(true);
+  });
+
+  it("returns true in inline mode even when unsupported tags are detected", () => {
+    let s = createInitialEditorState({ ...baseInit, surface: "edit" });
+    s = withDirtyTitle(s);
+    s = editorReducer(s, {
+      type: "wysiwygUnsupportedDetected",
+      tags: ["mark"],
+    });
+    expect(s.mode).toBe("inline");
     expect(shouldFlushAutosave(s, "note-1")).toBe(true);
   });
 
