@@ -453,6 +453,19 @@ function InlineRenameInput({
     input.select();
   }, []);
 
+  // Re-focus the input after a failed rename so keyboard / SR users can
+  // immediately edit and retry. Doing this from inside the startTransition
+  // catch is unreliable: React 19 keeps `isPending=true` until the async
+  // function returns, so the input is still rendered with `disabled` and
+  // `.focus()` is a no-op. Watching the error/pending edge here lets
+  // focus land after the disabled flag is gone.
+  const errorPresent = errorId !== undefined;
+  useEffect(() => {
+    if (errorPresent && !isPending) {
+      inputRef.current?.focus();
+    }
+  }, [errorPresent, isPending]);
+
   // Enter → commit() triggers `disabled=true` (isPending) on the input, which
   // causes the browser to blur it — and onBlur={commit} would then fire a
   // second commit in the same event loop. Guard with a ref so commit is a
@@ -487,11 +500,12 @@ function InlineRenameInput({
         // Keep the input mounted so the user can correct the value;
         // aria-describedby/aria-invalid (set on the input by the parent)
         // now points at a real, visible error message. Reset the
-        // single-shot guard so a retry submission can proceed. Restore
-        // focus to the input so keyboard / SR users can immediately edit.
+        // single-shot guard so a retry submission can proceed. Focus
+        // restoration is handled by the `errorPresent`/`isPending`
+        // effect above — calling `.focus()` here would no-op against
+        // the still-disabled input.
         onError(extractSerializedError(e));
         committedRef.current = false;
-        inputRef.current?.focus();
       }
     });
   };
