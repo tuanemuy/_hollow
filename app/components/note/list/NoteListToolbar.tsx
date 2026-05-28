@@ -40,6 +40,11 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
       });
       return;
     }
+    // `display` is intentionally dropped from the URL here. The server
+    // fn detects "viewId present + display absent" and redirects with
+    // `display = view.displayMode` (Issue #219 ADR-002), so the URL
+    // ends up normalised to the SavedView's stored mode. Keeping a
+    // stale `prev.display` would suppress that redirect.
     startTransition(() => {
       router.navigate({
         to: "/",

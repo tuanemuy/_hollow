@@ -1,10 +1,10 @@
 "use client";
 
 import { getRouteApi } from "@tanstack/react-router";
-import type { DisplayMode } from "../constants";
 import type { DisplayedNote } from "../loaders";
 import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
+import { selectDisplay } from "./listSelectors";
 import { TileView } from "./TileView";
 
 type Props = Readonly<{
@@ -13,11 +13,10 @@ type Props = Readonly<{
 
 const homeRoute = getRouteApi("/");
 
-const selectDisplay = (s: { display?: DisplayMode | undefined }): DisplayMode =>
-  s.display ?? "list";
-
 /**
- * Client-side render-mode switcher (Issue #219).
+ * Client-side render-mode switcher (Issue #219). Home-route only — the
+ * `getRouteApi("/")` binding hard-codes the home schema, so reusing
+ * this on another route would require parameterising the route key.
  *
  * The list/tile/calendar choice is URL-driven via `?display=...`, but
  * `display` is excluded from the home route's `loaderDeps` so switching

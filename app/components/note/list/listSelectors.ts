@@ -8,9 +8,46 @@
  */
 
 import type { SavedViewDTO, ViewQueryDTO } from "@/core/application/dto/view";
+import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
 
 export type NoteId = string;
+
+/**
+ * `useSearch({ select })` helper for the home route.
+ *
+ * Shared by every client component that needs the URL-driven display
+ * mode (Issue #219). Returning a literal value keeps `useSearch`'s
+ * referential-equality check stable so subscribers do not re-render
+ * unless the chosen mode actually changes.
+ */
+export const selectDisplay = (s: {
+  display?: DisplayMode | undefined;
+}): DisplayMode => s.display ?? "list";
+
+/**
+ * Pure predicate for the home-route SavedView URL normalisation
+ * (Issue #219 ADR-002). The handler should redirect to `/` with
+ * `display = view.displayMode` only when all three conditions hold:
+ *
+ * - `viewId` is present (we are restoring a SavedView)
+ * - `display` is absent from the URL (the user has not overridden it)
+ * - `view` was actually resolved (a deleted / foreign view falls back
+ *   to the URL value rather than looping on a missing resource)
+ *
+ * Extracted as a pure function so the branch is regression-tested
+ * without spinning up the server fn.
+ */
+export function shouldRedirectForSavedView(args: {
+  search: { viewId?: string | undefined; display?: DisplayMode | undefined };
+  view: { displayMode: DisplayMode } | null;
+}): boolean {
+  return (
+    args.search.viewId !== undefined &&
+    args.search.display === undefined &&
+    args.view !== null
+  );
+}
 
 export type SelectionState = Readonly<{
   ids: ReadonlySet<NoteId>;

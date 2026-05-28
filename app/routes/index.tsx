@@ -69,7 +69,7 @@ const renderHome = createServerFn({ method: "GET" })
         loadSavedViewById,
         loadReferencingNoteTitle,
       },
-      { viewQueryToSearch },
+      { shouldRedirectForSavedView, viewQueryToSearch },
     ] = await Promise.all([
       import("@/components/note/HomePage"),
       import("@/core/application/dto/identity"),
@@ -89,18 +89,18 @@ const renderHome = createServerFn({ method: "GET" })
         }),
         loadAllTags({ actorUserId: user.id }),
       ]);
+      // SavedView restore — normalise URL so the client `useSearch`-driven
+      // display can mirror the stored `displayMode` (Issue #219 ADR-002).
+      // `shouldRedirectForSavedView` encodes the full predicate (viewId
+      // present, display absent, view resolved) so the branch can be
+      // regression-tested as a pure function.
+      if (shouldRedirectForSavedView({ search, view })) {
+        throw redirect({
+          to: "/",
+          search: { ...search, display: view?.displayMode },
+        });
+      }
       if (view !== null) {
-        // SavedView restore — normalise URL so the client `useSearch`-driven
-        // display can mirror the stored `displayMode` (Issue #219 ADR-002).
-        // Only redirect when the URL omits `display` so we never overwrite a
-        // manual user switch, and only when the view itself was resolved so
-        // a deleted/foreign view falls back to the URL value.
-        if (search.viewId !== undefined && search.display === undefined) {
-          throw redirect({
-            to: "/",
-            search: { ...search, display: view.displayMode },
-          });
-        }
         const restored = viewQueryToSearch(view, (tagIds) =>
           tagIds
             .map((id) => tagNameById.get(id))
@@ -178,18 +178,19 @@ export const Route = createFileRoute("/")({
   // `search={HOME_SEARCH}` from `@/components/auth/links`.
   validateSearch: (search) => noteListSearchSchema.parse(search),
   loaderDeps: homeLoaderDeps,
-  // `display` is intentionally stripped from `deps` (Issue #219) so view
-  // switches do not re-run the loader. We still forward the current URL
-  // value to the server fn so the SavedView redirect can decide whether
-  // to normalise the URL — only the initial loader invocation observes
-  // a meaningful `display` value, and subsequent display-only changes
-  // do not re-enter the loader.
+  // `display` is intentionally stripped from `deps` (Issue #219 ADR-004)
+  // so view switches do not re-run the loader. We still forward the
+  // current URL value to the server fn so the SavedView redirect can
+  // decide whether to normalise the URL — only the initial loader
+  // invocation observes a meaningful `display` value, and subsequent
+  // display-only changes do not re-enter the loader.
   loader: ({ deps, location }) => {
     // `location.search` is generically typed as `{}` at this call site
     // because tanstack-router has not yet projected the validated search
     // through the loader signature. Cast back to `NoteListSearch` to
     // recover the `display` field — `validateSearch` above is the
-    // single source of truth for the shape and runs before the loader.
+    // single source of truth for the shape and runs before the loader
+    // (see Issue #219 ADR-004).
     const search = location.search as NoteListSearch;
     return renderHome({
       data: { ...deps, display: search.display },

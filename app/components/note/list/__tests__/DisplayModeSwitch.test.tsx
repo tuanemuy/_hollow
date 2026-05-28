@@ -15,6 +15,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *    `loaderDeps` filtering happens upstream (the router will not
  *    re-run the loader because `display` is excluded), so the click
  *    handler itself only has to express the URL transition.
+ *
+ * The click handler synchronously invokes `router.navigate`, so the
+ * test observes the call inside the same `act` tick as the click —
+ * no `useTransition` indirection to wait on.
  */
 
 (
