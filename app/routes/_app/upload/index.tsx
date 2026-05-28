@@ -5,39 +5,24 @@ import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 
-const renderNewNote = createServerFn({ method: "GET" })
+const renderUpload = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
-    const { AppShell } = await import("@/components/layout/AppShell");
-    const { NoteEditor } = await import("@/components/note/editor/NoteEditor");
-    const { loadDirectoryTreeFlat, loadAllTags } = await import(
-      "@/components/note/loaders"
-    );
+    const { UploadPage } = await import("@/components/ingestion/UploadPage");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
-
-    const [tree] = await Promise.all([
-      loadDirectoryTreeFlat({ actorUserId: userDto.id }),
-      // Tag list is preloaded so the autocomplete cache is warm when the
-      // editor renders; the component itself reads tags through the
-      // free-form text input today, but the cache primes future autocomplete.
-      loadAllTags({ actorUserId: userDto.id }),
-    ]);
-
-    return renderServerComponent(
-      <AppShell user={userDto}>
-        <NoteEditor mode="new" tree={tree.flat} />
-      </AppShell>,
-    );
+    return renderServerComponent(<UploadPage user={userDto} />);
   });
 
-export const Route = createFileRoute("/notes/new")({
+export const Route = createFileRoute("/_app/upload/")({
   staleTime: 0,
-  loader: () => renderNewNote(),
-  component: NewNoteRoute,
+  loader: () => renderUpload(),
+  component: UploadRoute,
   errorComponent: ({ error }) => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
@@ -46,6 +31,6 @@ export const Route = createFileRoute("/notes/new")({
   ),
 });
 
-function NewNoteRoute() {
+function UploadRoute() {
   return Route.useLoaderData();
 }

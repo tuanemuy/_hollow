@@ -4,36 +4,25 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
-import {
-  paginationSchema,
-  paginationSearchSchema,
-} from "@/core/presentation/pagination";
-import { validateInput } from "@/core/presentation/validator";
 
-const renderTrash = createServerFn({ method: "GET" })
+const renderTags = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(validateInput(paginationSchema))
-  .handler(async ({ data }) => {
+  .handler(async () => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
-    const { AppShell } = await import("@/components/layout/AppShell");
-    const { TrashList } = await import("@/components/trash/TrashList");
+    const { TagManager } = await import("@/components/tag/TagManager");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
-    return renderServerComponent(
-      <AppShell user={userDto}>
-        <TrashList user={userDto} page={data.page} limit={data.limit} />
-      </AppShell>,
-    );
+    return renderServerComponent(<TagManager user={userDto} />);
   });
 
-export const Route = createFileRoute("/trash/")({
+export const Route = createFileRoute("/_app/tags/")({
   staleTime: 0,
-  validateSearch: (search) => paginationSearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => renderTrash({ data: deps }),
-  component: TrashRoute,
+  loader: () => renderTags(),
+  component: TagsRoute,
   errorComponent: ({ error }) => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
@@ -42,6 +31,6 @@ export const Route = createFileRoute("/trash/")({
   ),
 });
 
-function TrashRoute() {
+function TagsRoute() {
   return Route.useLoaderData();
 }

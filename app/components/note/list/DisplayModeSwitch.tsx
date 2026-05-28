@@ -13,11 +13,11 @@ const LABELS: Record<DisplayMode, string> = {
   calendar: "カレンダー",
 };
 
-const homeRoute = getRouteApi("/");
+const homeRoute = getRouteApi("/_app/");
 
 /**
  * Client-only tab switcher for the list/tile/calendar display mode.
- * Home-route only (`getRouteApi("/")` binds the home schema).
+ * Home-route only (`getRouteApi("/_app/")` binds the home schema).
  *
  * Issue #219: `display` is excluded from the home route's `loaderDeps`,
  * so `router.navigate({ search: ... })` only updates the URL — no

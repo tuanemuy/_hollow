@@ -11,11 +11,11 @@ type Props = Readonly<{
   notes: readonly DisplayedNote[];
 }>;
 
-const homeRoute = getRouteApi("/");
+const homeRoute = getRouteApi("/_app/");
 
 /**
  * Client-side render-mode switcher (Issue #219). Home-route only — the
- * `getRouteApi("/")` binding hard-codes the home schema, so reusing
+ * `getRouteApi("/_app/")` binding hard-codes the home schema, so reusing
  * this on another route would require parameterising the route key.
  *
  * The list/tile/calendar choice is URL-driven via `?display=...`, but

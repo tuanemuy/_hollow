@@ -3,57 +3,36 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
-import { noteHistorySearchSchema } from "@/components/note/schema";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { validateInput } from "@/core/presentation/validator";
 
-const renderHistory = createServerFn({ method: "GET" })
+const renderNoteDetail = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(
-    validateInput(
-      z.object({
-        noteId: z.string().min(1),
-        page: z.number().int().min(1),
-        limit: z.number().int().min(1).max(100),
-      }),
-    ),
-  )
+  .inputValidator(validateInput(z.object({ noteId: z.string().min(1) })))
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
-    const { AppShell } = await import("@/components/layout/AppShell");
-    const { NoteHistoryList } = await import(
-      "@/components/note/history/NoteHistoryList"
-    );
+    const { NoteDetail } = await import("@/components/note/detail/NoteDetail");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
     return renderServerComponent(
-      <AppShell user={userDto}>
-        <NoteHistoryList
-          user={userDto}
-          noteId={
-            data.noteId as unknown as Parameters<
-              typeof NoteHistoryList
-            >[0]["noteId"]
-          }
-          page={data.page}
-          limit={data.limit}
-        />
-      </AppShell>,
+      <NoteDetail
+        user={userDto}
+        noteId={
+          data.noteId as unknown as Parameters<typeof NoteDetail>[0]["noteId"]
+        }
+      />,
     );
   });
 
-export const Route = createFileRoute("/notes/$noteId/history/")({
+export const Route = createFileRoute("/_app/notes/$noteId/")({
   staleTime: 0,
-  validateSearch: (search) => noteHistorySearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: ({ params, deps }) =>
-    renderHistory({
-      data: { noteId: params.noteId, page: deps.page, limit: deps.limit },
-    }),
-  component: NoteHistoryRoute,
+  loader: ({ params }) => renderNoteDetail({ data: { noteId: params.noteId } }),
+  component: NoteDetailRoute,
   errorComponent: ({ error }) => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
@@ -68,6 +47,6 @@ export const Route = createFileRoute("/notes/$noteId/history/")({
   ),
 });
 
-function NoteHistoryRoute() {
+function NoteDetailRoute() {
   return Route.useLoaderData();
 }

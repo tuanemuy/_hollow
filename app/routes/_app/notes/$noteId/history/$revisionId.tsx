@@ -20,52 +20,53 @@ const renderRevision = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
-    const { AppShell } = await import("@/components/layout/AppShell");
     const { NoteRevisionDetail } = await import(
       "@/components/note/history/NoteRevisionDetail"
     );
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
     return renderServerComponent(
-      <AppShell user={userDto}>
-        <NoteRevisionDetail
-          user={userDto}
-          noteId={
-            data.noteId as unknown as Parameters<
-              typeof NoteRevisionDetail
-            >[0]["noteId"]
-          }
-          revisionId={
-            data.revisionId as unknown as Parameters<
-              typeof NoteRevisionDetail
-            >[0]["revisionId"]
-          }
-        />
-      </AppShell>,
+      <NoteRevisionDetail
+        user={userDto}
+        noteId={
+          data.noteId as unknown as Parameters<
+            typeof NoteRevisionDetail
+          >[0]["noteId"]
+        }
+        revisionId={
+          data.revisionId as unknown as Parameters<
+            typeof NoteRevisionDetail
+          >[0]["revisionId"]
+        }
+      />,
     );
   });
 
-export const Route = createFileRoute("/notes/$noteId/history/$revisionId")({
-  staleTime: 0,
-  loader: ({ params }) =>
-    renderRevision({
-      data: { noteId: params.noteId, revisionId: params.revisionId },
-    }),
-  component: NoteRevisionRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
-  notFoundComponent: () => (
-    <div role="alert">
-      <h1>過去版が見つかりません</h1>
-      <p>削除されているか、アクセス権限がありません。</p>
-    </div>
-  ),
-});
+export const Route = createFileRoute("/_app/notes/$noteId/history/$revisionId")(
+  {
+    staleTime: 0,
+    loader: ({ params }) =>
+      renderRevision({
+        data: { noteId: params.noteId, revisionId: params.revisionId },
+      }),
+    component: NoteRevisionRoute,
+    errorComponent: ({ error }) => (
+      <div role="alert">
+        <h1>エラーが発生しました</h1>
+        <pre>{sanitizeRouteError(error)}</pre>
+      </div>
+    ),
+    notFoundComponent: () => (
+      <div role="alert">
+        <h1>過去版が見つかりません</h1>
+        <p>削除されているか、アクセス権限がありません。</p>
+      </div>
+    ),
+  },
+);
 
 function NoteRevisionRoute() {
   return Route.useLoaderData();

@@ -24,7 +24,7 @@ import {
 import type { NoteListSearch } from "../schema";
 import { searchToViewQuery, selectDisplay } from "./listSelectors";
 
-const homeRoute = getRouteApi("/");
+const homeRoute = getRouteApi("/_app/");
 
 type Props = {
   open: boolean;

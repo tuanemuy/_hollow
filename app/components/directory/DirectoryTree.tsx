@@ -19,11 +19,11 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { renameDirectoryFn } from "./actions";
-import { DIRECTORY_NAME_MAX_LENGTH } from "./schema";
 import { CreateDirectoryDialog } from "./CreateDirectoryDialog";
 import { DeleteDirectoryDialog } from "./DeleteDirectoryDialog";
 import { DirectoryActionsMenu } from "./DirectoryActionsMenu";
 import { MoveDirectoryDialog } from "./MoveDirectoryDialog";
+import { DIRECTORY_NAME_MAX_LENGTH } from "./schema";
 import {
   TREE_DISCLOSURE,
   TREE_ITEM_ERROR,
