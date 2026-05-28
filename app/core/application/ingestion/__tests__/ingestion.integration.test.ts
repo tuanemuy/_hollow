@@ -272,6 +272,39 @@ describe("uploadFile", () => {
     expect(tempStorage.has(row.tempStorageKey as string)).toBe(true);
   });
 
+  it("rejects an empty (0-byte) file with BusinessRuleError(InvalidByteSize) before reaching the unit-of-work", async () => {
+    // Without this guard the empty payload reaches IngestionJob.insert and
+    // the DB CHECK constraint surfaces as a `kind=conflict,
+    // code=CONSTRAINT_VIOLATION`, which renders as the misleading
+    // "他の操作と競合しました" message in the UI (#221).
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+
+    const { stream } = makeStream("");
+    try {
+      await uploadFile({
+        container,
+        input: {
+          actorUserId: owner,
+          originalFileName: "empty.md",
+          mimeType: "text/markdown",
+          byteSize: 0,
+          bodyStream: stream,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(IngestionErrorCode.InvalidByteSize);
+    }
+
+    const rows = await container.db.select().from(schema.ingestionJobs);
+    expect(rows).toHaveLength(0);
+  });
+
   it("rejects an unsupported format (e.g. application/zip) with BusinessRuleError(UnsupportedFormat)", async () => {
     const container = getContainer();
     await seedInstanceSettings(container);
