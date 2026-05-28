@@ -264,6 +264,7 @@ export function NoteEditor(props: NoteEditorProps) {
           dispatch({ type: "setPendingDirectoryName", value: name })
         }
         disabled={isPending}
+        allowExistingActions
       />
 
       <EditorModeSwitch
