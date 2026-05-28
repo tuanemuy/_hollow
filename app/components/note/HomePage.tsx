@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/layout/AppShell";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { NoteList } from "./list/NoteList";
@@ -35,20 +34,16 @@ export function HomePage({
   referencingNoteTitle,
 }: Props) {
   return (
-    <AppShell user={user}>
-      <NoteList
-        user={user}
-        page={page}
-        limit={limit}
-        data={owned}
-        tree={tree}
-        tags={tags}
-        savedViews={savedViews}
-        search={search}
-        {...(referencingNoteTitle !== undefined
-          ? { referencingNoteTitle }
-          : {})}
-      />
-    </AppShell>
+    <NoteList
+      user={user}
+      page={page}
+      limit={limit}
+      data={owned}
+      tree={tree}
+      tags={tags}
+      savedViews={savedViews}
+      search={search}
+      {...(referencingNoteTitle !== undefined ? { referencingNoteTitle } : {})}
+    />
   );
 }

@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 
-export const Route = createFileRoute("/notes/$noteId/history")({
+export const Route = createFileRoute("/_app/notes/$noteId/history")({
   component: NoteHistoryLayout,
   errorComponent: ({ error }) => (
     <div role="alert">

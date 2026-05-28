@@ -1,55 +1,46 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
-import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import {
+  paginationSchema,
+  paginationSearchSchema,
+} from "@/core/presentation/pagination";
 import { validateInput } from "@/core/presentation/validator";
 
-const renderNoteDetail = createServerFn({ method: "GET" })
+const renderTrash = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(validateInput(z.object({ noteId: z.string().min(1) })))
+  .inputValidator(validateInput(paginationSchema))
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
-    if (user === null) {
-      throw redirect({ to: "/", search: HOME_SEARCH });
-    }
-    const { NoteDetail } = await import("@/components/note/detail/NoteDetail");
-    const { AppShell } = await import("@/components/layout/AppShell");
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
+    if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
+    const { TrashList } = await import("@/components/trash/TrashList");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
     return renderServerComponent(
-      <AppShell user={userDto}>
-        <NoteDetail
-          user={userDto}
-          noteId={
-            data.noteId as unknown as Parameters<typeof NoteDetail>[0]["noteId"]
-          }
-        />
-      </AppShell>,
+      <TrashList user={userDto} page={data.page} limit={data.limit} />,
     );
   });
 
-export const Route = createFileRoute("/notes/$noteId/")({
+export const Route = createFileRoute("/_app/trash/")({
   staleTime: 0,
-  loader: ({ params }) => renderNoteDetail({ data: { noteId: params.noteId } }),
-  component: NoteDetailRoute,
+  validateSearch: (search) => paginationSearchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps }) => renderTrash({ data: deps }),
+  component: TrashRoute,
   errorComponent: ({ error }) => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
       <pre>{sanitizeRouteError(error)}</pre>
     </div>
   ),
-  notFoundComponent: () => (
-    <div role="alert">
-      <h1>ノートが見つかりません</h1>
-      <p>削除されているか、アクセス権限がありません。</p>
-    </div>
-  ),
 });
 
-function NoteDetailRoute() {
+function TrashRoute() {
   return Route.useLoaderData();
 }

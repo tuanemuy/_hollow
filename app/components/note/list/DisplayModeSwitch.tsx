@@ -13,7 +13,7 @@ const LABELS: Record<DisplayMode, string> = {
   calendar: "カレンダー",
 };
 
-const homeRoute = getRouteApi("/");
+const homeRoute = getRouteApi("/_app/");
 
 /**
  * Client-only tab switcher for the list/tile/calendar display mode.

@@ -33,7 +33,7 @@ vi.mock("@/components/view/actions", () => ({}));
 vi.mock("@/components/media/actions", () => ({}));
 vi.mock("@/components/publication/PublishSettings/action", () => ({}));
 
-const { homeLoaderDeps } = await import("../index");
+const { homeLoaderDeps } = await import("../_app/index");
 
 describe("homeLoaderDeps", () => {
   it("strips `display` from the returned deps", () => {

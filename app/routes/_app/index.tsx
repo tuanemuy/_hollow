@@ -11,22 +11,6 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
-// Pull server-fn provider modules into the server graph so the RSC
-// manifest registers them before the client build phase. Without these,
-// "use client" components that import the action files at runtime hit a
-// missing-handler error.
-import "@/components/note/actions";
-import "@/components/directory/actions";
-import "@/components/tag/actions";
-// Kept as a safety-net even though `AppShell` also registers the
-// ingestion actions: the home route is the most common entry path
-// for upload-from-modal, and explicit registration here insulates
-// the manifest from any future change to AppShell's import chain.
-import "@/components/ingestion/actions";
-import "@/components/view/actions";
-import "@/components/media/actions";
-import "@/components/publication/PublishSettings/action";
-
 /**
  * `loaderDeps` returns the search shape minus `display` so that
  * switching list/tile/calendar does not invalidate the loader cache
@@ -170,7 +154,7 @@ const renderHome = createServerFn({ method: "GET" })
     };
   });
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_app/")({
   staleTime: 0,
   // Unified with the rest of the routes via `schema.parse(search)`
   // (Issue #13 ADR-001 supersedes Issue #1 ADR-026). Callers using

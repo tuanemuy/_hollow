@@ -13,8 +13,9 @@ const renderNoteEditor = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
+    // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
+    // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
-    const { AppShell } = await import("@/components/layout/AppShell");
     const { NoteEditor } = await import("@/components/note/editor/NoteEditor");
     const { loadAllTags, loadDirectoryTreeFlat, loadNoteDetail } = await import(
       "@/components/note/loaders"
@@ -49,23 +50,21 @@ const renderNoteEditor = createServerFn({ method: "GET" })
           } as const);
 
     return renderServerComponent(
-      <AppShell user={userDto}>
-        <NoteEditor
-          mode="edit"
-          noteId={note.id as unknown as string}
-          initialTitle={note.title}
-          initialContentHtml={note.contentHtml}
-          initialFrontMatter={{ ...note.frontMatter }}
-          initialTagNames={initialTagNames}
-          initialDirectoryId={note.directoryId as unknown as string}
-          {...(initialEditLock !== undefined ? { initialEditLock } : {})}
-          tree={tree.flat}
-        />
-      </AppShell>,
+      <NoteEditor
+        mode="edit"
+        noteId={note.id as unknown as string}
+        initialTitle={note.title}
+        initialContentHtml={note.contentHtml}
+        initialFrontMatter={{ ...note.frontMatter }}
+        initialTagNames={initialTagNames}
+        initialDirectoryId={note.directoryId as unknown as string}
+        {...(initialEditLock !== undefined ? { initialEditLock } : {})}
+        tree={tree.flat}
+      />,
     );
   });
 
-export const Route = createFileRoute("/notes/$noteId/edit")({
+export const Route = createFileRoute("/_app/notes/$noteId/edit")({
   staleTime: 0,
   loader: ({ params }) => renderNoteEditor({ data: { noteId: params.noteId } }),
   component: NoteEditorRoute,

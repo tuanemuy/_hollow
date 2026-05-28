@@ -11,7 +11,7 @@ type Props = Readonly<{
   notes: readonly DisplayedNote[];
 }>;
 
-const homeRoute = getRouteApi("/");
+const homeRoute = getRouteApi("/_app/");
 
 /**
  * Client-side render-mode switcher (Issue #219). Home-route only — the
