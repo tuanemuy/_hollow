@@ -25,7 +25,7 @@
 - 失敗時の `<div role="alert">` で表示される。
 - `UploadDialog.tsx` の `UploadingView` / `WaitingView` には `aria-live="polite"` + `SkeletonBlock`（motion-safe pulse）が実装済み。
 - `/upload` ページの取り込みキューは `IngestionQueue` がクライアント側 `setTimeout` ループでポーリング（active 4s / idle 16s）。`router.invalidate()` や全ページ navigation を行わず `setState` のみで更新するため、フルリロード（白点滅）は発生しない。実測で 30 秒間に 5 回のポール、`performance.navigation` エントリは 1 のまま増加しなかった。
-- spec ドキュメント側にも `spec/pages/index.md` のフィードバックポリシーセクション、`spec/design/index.md` の §10b、`spec/scenario/ingest.md` の FrontMatter JSON エラー文言が反映済み。
+- spec ドキュメント側にも `spec/pages/index.md` のフィードバックポリシーセクション、`spec/design/index.md` の「フィードバック・エラー表示原則（#221）」節、`spec/scenario/ingest.md` の FrontMatter JSON エラー文言が反映済み。
 
 ## 検出した問題（修正済み）
 

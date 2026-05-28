@@ -275,7 +275,7 @@ export const getIngestionJobsFn = createServerFn({ method: "GET" })
 **設計ポイント:**
 
 - **依存配列に `activeCount` を入れない**（依存配列バグ回避）。`jobs` 状態変化のたびに effect が cleanup → 再実行される無限ループを避けるため、`jobsRef.current = jobs` を毎レンダーで更新し、`tick` 内で `jobsRef.current` から activeCount を算出する。`useEffect` の依存は `[fetchJobs]` のみ。
-- **fatal 検出後のポーリング停止保証**: `unauthorized` / `forbidden` / `notFound` を踏んだら `fatalRef.current = true` を立て、effect 冒頭で fatal なら return。timerRef を必ず clear する。これにより effect の再実行で polling が復活しない。
+- **fatal 検出後のポーリング停止保証**: `unauthorized` / `forbidden` を踏んだら `fatalRef.current = true` を立て、effect 冒頭で fatal なら return。timerRef を必ず clear する。これにより effect の再実行で polling が復活しない（ADR-009: `notFound` は一過性失敗扱いとして fatal から除外）。
 - **`visibilitychange` 対応**（S-2、後付け忘れ防止のため本 Issue で同時導入）: `document.visibilityState === "hidden"` のときは tick をスキップして再スケジュール、`visibilitychange` イベントで `visible` に戻った瞬間に即時 tick する。
 - **`extractSerializedError` 利用意図**: `fatal kind` を判定するためだけに使う。エラー表示自体は `displayError(e)` で行う（S-4）。
 - **変数名**: 取得結果と次回間隔を別名にする（`{ jobs: nextJobs }` と `nextInterval`）。
@@ -354,11 +354,9 @@ export function IngestionQueue({ initialJobs }: Props) {
         // extractSerializedError は fatal kind 判定のためにのみ使う。
         // 表示用文言は displayError(e) を使う。
         const err = extractSerializedError(e);
-        if (
-          err.kind === "unauthorized" ||
-          err.kind === "forbidden" ||
-          err.kind === "notFound"
-        ) {
+        if (err.kind === "unauthorized" || err.kind === "forbidden") {
+          // ADR-009: notFound は fatal から除外。一過性 404 は failures
+          // カウンタ経由で扱い、polling 永久停止のリスクを避ける。
           fatalRef.current = true;
           setPollErrorMessage(displayError(e));
           if (timerRef.current !== null) clearTimeout(timerRef.current);
@@ -501,10 +499,10 @@ export async function UploadPage({ user }: Props) {
 - `spec/scenario/ingest.md` L69 付近の「FRONT_MATTER_JSON_INVALID をエラーメッセージに表示」記述は、ユーザー向け文言に整形する原則（presentation 層の `errorDisplay.ts` で文言化）に沿った形に書き換える（例: 「FrontMatter の JSON が不正です。形式を確認してください」のようなユーザー向け文言で表示）。内部 code を spec に直書きするのは矛盾する。
 - `spec/manual-tests/ingest.md` も「生 errorCode を期待値にしている箇所」がないか確認し、ユーザー向け文言ベースに更新。
 
-**変更内容:** L141 の「10. スコープ外」直前に「10b. フィードバック・エラー表示原則」を新設:
+**変更内容:** 「10. スコープ外」直前に「フィードバック・エラー表示原則（#221）」を新設（番号体系を破壊しないよう見出しから番号を落とす — W-T-001 round-001-fix 適用済み）:
 
 ```md
-## 10b. フィードバック・エラー表示原則（#221）
+## フィードバック・エラー表示原則（#221）
 
 - **インタラクションの即時 feedback**: 非同期処理を伴うボタンは押下直後に disabled + ローディング状態を出す。スケルトンを優先し、スピナーは避ける。
 - **バックグラウンド進捗**: 取り込み・エクスポート等のジョブは client polling で進捗を可視化する。間隔は active job がある間は 1.5〜4 秒、無い間は 16 秒以上に伸ばす（負荷とフレッシュ感のバランス）。
@@ -567,7 +565,7 @@ pnpm typecheck && pnpm lint:fix && pnpm format
 ## リスクと注意点
 
 - **ポーリング負荷:** 全ユーザーが `/upload` を開きっぱなしにすると `getIngestionJobsFn` のリクエスト数が増える。間隔を可変（active あり: 4s、なし: 16s）にして緩和。**さらに `visibilitychange` でタブ非表示時の tick をスキップし、visible 復帰時に即時 tick する**（Step 4-2 で導入済み、後付け忘れ防止のため本 Issue で同時実装）。
-- **fatal 検出後の polling 復活防止:** `unauthorized` / `forbidden` / `notFound` を踏んだ後、`fatalRef.current = true` を立て、effect 冒頭で fatal なら return することで、jobs 状態変化等で effect が再実行されても polling が復活しない。timerRef は fatal 時に明示 clear する。
+- **fatal 検出後の polling 復活防止:** `unauthorized` / `forbidden` を踏んだ後、`fatalRef.current = true` を立て、effect 冒頭で fatal なら return することで、jobs 状態変化等で effect が再実行されても polling が復活しない。timerRef は fatal 時に明示 clear する（ADR-009: `notFound` は一過性失敗扱いとして fatal から除外）。
 - **`useEffect` 依存配列ループ回避:** activeCount を依存配列に入れると jobs 変化のたびに effect が cleanup → 再実行されるループになるため、`jobsRef` で最新 jobs を参照する設計に変更。依存は `[fetchJobs]` のみ。
 - **competing `router.invalidate` と client polling:** `IngestionJobRow.onCommit` / `onDiscard` / `onRegenerate` が `router.invalidate()` する一方、`IngestionQueue` は polling で独立に `setJobs` する。基本的には両者は最新状態に収束する設計だが、IngestionJobRow のアクション（commit/discard/regenerate）完了直後に polling tick が来ると **サーバー側の結果が一瞬古く見える微小な race window が理論上ある**（router invalidate の serverFn 結果がコミットされる前に polling tick が走り、未更新のジョブ一覧で上書きする可能性）。実装時に `IngestionJobRow` から `IngestionQueue` に「即時 tick 発火」のコールバックを props で渡す案（例えば `onLocalChange?: () => void` を IngestionQueue 経由で IngestionJobRow へ注入し、各アクション完了時に props で即時 tick を発火）を検討する余地あり。実装時に動作確認し、race が体感できるレベルなら本対策を入れる旨を testing.md にも明記する。なお、`IngestionJobRow` の `confirmDiscardOpen` 等の state は行コンポーネント内に閉じており、行が unmount されれば自動で消える。ConfirmDialog は body にポータルされるが、行 unmount で onClose が呼ばれなくなるだけで実害なし。テストで確認。
 - **`displayJobErrorCode` の fallback:** マッピングに無いコード（`InvalidId` 等の value-object 構築時エラー、もしくは将来追加された未マッピングコード）が wire 経由で漏れた場合、汎用文言「取り込みに失敗しました。時間をおいて再度お試しください」を出す。これは「内部コードを出さない」原則を守る最終防衛線。Step 9 のテストで `IngestionErrorCode` 列挙値 + pipeline 識別子の全網羅を保証。
@@ -626,7 +624,7 @@ pnpm typecheck && pnpm lint:fix && pnpm format
 - `app/components/ingestion/UploadPage.tsx`（`IngestionQueue` 差し替え）
 - `app/components/ingestion/__tests__/UploadDialog.test.tsx`（assertion 微調整、必要なら）
 - `spec/pages/index.md`（P13 節にフィードバックポリシー追記）
-- `spec/design/index.md`（10b セクション追加）
+- `spec/design/index.md`（「フィードバック・エラー表示原則（#221）」セクション追加）
 - `spec/scenario/ingest.md`（L69 付近の内部 code 直書きをユーザー向け文言に書き換え、S-3）
 - `spec/manual-tests/ingest.md`（生 errorCode を期待値にしている箇所の見直し、S-3）
 

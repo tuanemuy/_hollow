@@ -78,7 +78,7 @@ describe("displayJobErrorCode", () => {
   // (c) value-object 構築時エラー等、UI に届かない前提で fallback 許容するグループ。
   // EXPLICIT_INGESTION_CODES の差分が fallback を返すことだけ確認する
   // （内部 code を含まないことが最終防衛線）。
-  it("returns fallback for IngestionErrorCode values not in the explicit list", () => {
+  it("returns the generic fallback for value-object construction codes (group (c)) so internal codes never leak to the UI", () => {
     const allValues = Object.values(IngestionErrorCode);
     const explicitSet = new Set(EXPLICIT_INGESTION_CODES);
     const fallbackGroup = allValues.filter((v) => !explicitSet.has(v));
@@ -127,13 +127,29 @@ describe("renderErrorMessage business mapping", () => {
     expect(message).toContain("FrontMatter");
   });
 
-  it("falls through to the raw business message for unknown codes (no surprise translation)", () => {
+  it("returns a generic message and never leaks the raw business message for unknown codes", () => {
+    const internalMessage = "internal spec literal: foo_bar_baz";
     const message = renderErrorMessage({
       kind: "business",
       code: "__unknown_business_code__",
-      message: "humanish fallback",
+      message: internalMessage,
     });
-    expect(message).toBe("humanish fallback");
+    expect(message).not.toContain(internalMessage);
+    expect(message).not.toContain("__unknown_business_code__");
+    expect(message).toBe(
+      "操作を完了できませんでした。時間をおいて再度お試しください",
+    );
+  });
+
+  it("returns the generic message when business code is null", () => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code: null,
+      message: "ignored internal message",
+    });
+    expect(message).toBe(
+      "操作を完了できませんでした。時間をおいて再度お試しください",
+    );
   });
 });
 

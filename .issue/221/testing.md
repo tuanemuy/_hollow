@@ -194,7 +194,7 @@ pnpm deploy:production
   5. plan.md の Step 7 / Step 8 の追記内容と整合しているか確認
 - **期待結果:**
   - `spec/pages/index.md` P13 節に「フィードバックポリシー（#221）」項目が追記されている（ポーリング間隔、aria-live、エラーマッピングの言及）
-  - `spec/design/index.md` に「10b. フィードバック・エラー表示原則（#221）」セクションが追加されている
+  - `spec/design/index.md` に「フィードバック・エラー表示原則（#221）」セクションが追加されている
   - `spec/scenario/ingest.md` L69 付近の `FRONT_MATTER_JSON_INVALID` 直書きがユーザー向け文言に置き換わっている
   - `spec/manual-tests/ingest.md` の生 errorCode を期待値にしている箇所が更新されている
 - **確認ポイント:** plan.md の記述と spec の記述が文言レベルで整合していること

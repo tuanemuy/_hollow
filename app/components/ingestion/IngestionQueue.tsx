@@ -36,6 +36,7 @@ export function IngestionQueue({ initialJobs }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
   const fatalRef = useRef(false);
+  const inflightRef = useRef(false);
 
   useEffect(() => {
     // Re-runs (e.g. fast-refresh) must not revive polling after a fatal kind.
@@ -59,6 +60,11 @@ export function IngestionQueue({ initialJobs }: Props) {
 
     const tick = async () => {
       if (cancelledRef.current || fatalRef.current) return;
+      // Guard against `schedule(0)` from `visibilitychange` racing with an
+      // in-flight tick: a second tick is suppressed entirely (no re-schedule)
+      // because the currently in-flight call will re-schedule itself on
+      // completion via the `finally` block below.
+      if (inflightRef.current) return;
       if (
         typeof document !== "undefined" &&
         document.visibilityState === "hidden"
@@ -66,35 +72,36 @@ export function IngestionQueue({ initialJobs }: Props) {
         schedule(POLL_IDLE_MS);
         return;
       }
+      inflightRef.current = true;
       try {
-        const { jobs: nextJobs } = await fetchJobs({ data: { limit: 50 } });
-        if (cancelledRef.current || fatalRef.current) return;
-        setJobs(nextJobs);
-        setPollErrorMessage(null);
-        failuresRef.current = 0;
-      } catch (e) {
-        if (cancelledRef.current || fatalRef.current) return;
-        // extractSerializedError is used purely to classify the kind —
-        // display text is built via displayError(e).
-        const err = extractSerializedError(e);
-        if (
-          err.kind === "unauthorized" ||
-          err.kind === "forbidden" ||
-          err.kind === "notFound"
-        ) {
-          fatalRef.current = true;
-          setPollErrorMessage(displayError(e));
-          if (timerRef.current !== null) {
-            clearTimeout(timerRef.current);
-            timerRef.current = null;
+        try {
+          const { jobs: nextJobs } = await fetchJobs({ data: { limit: 50 } });
+          if (cancelledRef.current || fatalRef.current) return;
+          setJobs(nextJobs);
+          setPollErrorMessage(null);
+          failuresRef.current = 0;
+        } catch (e) {
+          if (cancelledRef.current || fatalRef.current) return;
+          // extractSerializedError is used purely to classify the kind —
+          // display text is built via displayError(e).
+          const err = extractSerializedError(e);
+          if (err.kind === "unauthorized" || err.kind === "forbidden") {
+            fatalRef.current = true;
+            setPollErrorMessage(displayError(e));
+            if (timerRef.current !== null) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
+            }
+            return;
           }
-          return;
+          failuresRef.current += 1;
+          if (failuresRef.current >= 3) setPollErrorMessage(displayError(e));
         }
-        failuresRef.current += 1;
-        if (failuresRef.current >= 3) setPollErrorMessage(displayError(e));
+        if (cancelledRef.current || fatalRef.current) return;
+        schedule(computeInterval());
+      } finally {
+        inflightRef.current = false;
       }
-      if (cancelledRef.current || fatalRef.current) return;
-      schedule(computeInterval());
     };
 
     const onVisibility = () => {

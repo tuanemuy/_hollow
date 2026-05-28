@@ -220,3 +220,79 @@ if (input.byteSize === 0) {
 - 0 バイトアップロードは UoW より前に弾かれ、UI には既存マッピング「ファイルが正しく読み取れませんでした。別のファイルでお試しください」が出る。
 - `app/core/application/ingestion/__tests__/ingestion.integration.test.ts` に "empty file rejected with InvalidByteSize before UoW" テストを追加（回帰防止）。
 - value-object 層の `validateByteSize` テストは無変更（0 許容のまま）。
+- 同種の問題（`renderConflictMessage` の `default` 経路が誤った retry 文言を返すリスク）は他コードでも将来起こり得る。W-P-002（review-001）対応で `CONSTRAINT_VIOLATION` 専用ケースを `renderConflictMessage` に追加し、リトライを促さない「データの形式に問題があります。入力を見直してください」を返すよう恒久対策した。
+
+---
+
+## ADR-008: 未マッピング business code の fallback はユーザー向け汎用文言に倒す
+
+### Status
+Accepted
+
+### Context
+
+`renderBusinessMessage` は当初、未マッピングの business code に対して `fallback = error.message`（=サーバー内部の spec 文言、英語）をそのまま返していた。これは Issue #221 の完了条件「内部のスタック／原文 message がユーザー画面に露出しない」と矛盾し得る。具体的には:
+
+- `BusinessRuleError(code, "Empty file: byteSize must be greater than zero")` のようなサーバー側ログ用 message が UI に出る可能性。
+- 将来 ingestion 以外の usecase が新しい business code を追加した時、マッピング忘れで internal message が即時 leak する。
+
+review-001 W-P-003 で指摘された。
+
+### Decision
+
+未マッピング business code に対しては、`error.message` を露出させず汎用文言「操作を完了できませんでした。時間をおいて再度お試しください」を返すよう変更する。`FRONT_MATTER_JSON_INVALID` および `renderIngestionBusinessMessage` でマッピング済みの code は影響を受けない（既存挙動のまま）。
+
+```ts
+const BUSINESS_FALLBACK_MESSAGE =
+  "操作を完了できませんでした。時間をおいて再度お試しください";
+
+function renderBusinessMessage(code: string | null): string {
+  if (code === null) return BUSINESS_FALLBACK_MESSAGE;
+  // ... マッピング分岐 ...
+  return BUSINESS_FALLBACK_MESSAGE;
+}
+```
+
+### Trade-offs
+
+- **採用案**: 「内部 message を絶対に出さない」原則を errorDisplay 単一ファイルで担保できる。マッピング忘れによる leak リスクがゼロになる。
+- **見送り案（従来通り fallback に message を流す）**: 開発者目線では情報量が多いが、ユーザー画面では英語の内部文言が出てしまい #221 完了条件に反する。
+
+### Consequences
+
+- マッピングテーブルに無い business code は「汎用文言」に潰れる。開発者がマッピング不足を気付くには `errorDisplay.test.ts` の `IngestionErrorCode` 列挙網羅テスト or 手動確認が頼り。
+- 将来 ingestion 以外の domain で `*ErrorCode` を追加する場合、`renderBusinessMessage` 側に case を増やすか、ingestion と同じ「列挙網羅テスト」スタイルを別 domain でも適用する必要がある。
+
+---
+
+## ADR-009: polling fatal kind を `unauthorized` / `forbidden` に絞る
+
+### Status
+Accepted
+
+### Context
+
+`IngestionQueue` の polling tick が catch する `SerializedError.kind` のうち、fatal（即時 polling 停止）扱いにすべきものを当初 `unauthorized` / `forbidden` / `notFound` の 3 種としていた。しかし `notFound` は通常は局所的・一過性のリソース消滅（特定ジョブ削除など）を示すことが多く、polling 全体を恒久停止する根拠としては過剰。
+
+review-001 W-F-004 で指摘された。
+
+### Decision
+
+`fatalRef` を立てるトリガーを `unauthorized` と `forbidden` の 2 種に限定する。`notFound` は通常の非 fatal エラー扱い（連続失敗時のみ表示）に戻す。
+
+```ts
+if (err.kind === "unauthorized" || err.kind === "forbidden") {
+  fatalRef.current = true;
+  // stop polling
+}
+```
+
+### Trade-offs
+
+- **採用案（unauthorized / forbidden のみ）**: 「認可が失効した」「権限が剥奪された」など、polling を続けても回復しない種別だけを fatal とする。意味論として明快。
+- **見送り案（notFound を含む）**: 過剰停止。jobs 一覧 API が一過性 404 を返した場合に polling が永久停止し、ユーザーが画面リロードしないと回復しない UX 退行のリスク。
+
+### Consequences
+
+- ADR-003（polling 設計）の補強。ADR-003 の「fatal 検出後の polling 復活防止」記述で言及している fatal kind の集合が `unauthorized` / `forbidden` の 2 種に絞られた。
+- 通常の API 一過性失敗（network / 5xx / 404）はすべて failures カウンタで扱い、連続 3 回失敗で UI 通知 → 次の tick で復活可能。

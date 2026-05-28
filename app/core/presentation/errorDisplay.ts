@@ -6,6 +6,13 @@ import {
 const JOB_ERROR_FALLBACK_MESSAGE =
   "取り込みに失敗しました。時間をおいて再度お試しください";
 
+// Generic fallback for business-kind errors whose `code` is not in the
+// explicit mapping. Returned in place of the raw `error.message` so that
+// internal spec strings / pipeline identifiers never leak to the UI.
+// See .issue/221/adr.md ADR-008.
+const BUSINESS_FALLBACK_MESSAGE =
+  "操作を完了できませんでした。時間をおいて再度お試しください";
+
 // Ingestion business / pipeline codes that may surface to the UI.
 // (a) IngestionErrorCode 列挙値（usecase が BusinessRuleError(code) で throw）
 // (b) pipeline 識別子（runIngestionJob.ts の classifyPipelineError 由来）
@@ -27,7 +34,7 @@ function renderIngestionBusinessMessage(code: string): string | null {
     case "ingestion_invalid_state_for_retry":
     case "ingestion_invalid_state_for_attach_preview":
     case "ingestion_invalid_state_for_start":
-      return "ジョブの状態が変わっています。画面を更新してから操作してください";
+      return "ジョブの状態が変わっています。画面を更新してから再度お試しください";
     case "ingestion_no_temp_storage_for_retry":
       return "再試行に必要なデータが見つかりません。再度アップロードしてください";
     case "ingestion_invalid_mime_type":
@@ -58,15 +65,15 @@ function renderIngestionBusinessMessage(code: string): string | null {
   }
 }
 
-function renderBusinessMessage(code: string | null, fallback: string): string {
-  if (code === null) return fallback;
+function renderBusinessMessage(code: string | null): string {
+  if (code === null) return BUSINESS_FALLBACK_MESSAGE;
   switch (code) {
     case "FRONT_MATTER_JSON_INVALID":
       return "FrontMatter の JSON が不正です。形式を確認してください";
   }
   const ingestionMessage = renderIngestionBusinessMessage(code);
   if (ingestionMessage !== null) return ingestionMessage;
-  return fallback;
+  return BUSINESS_FALLBACK_MESSAGE;
 }
 
 function renderConflictMessage(code: string | null): string {
@@ -77,6 +84,8 @@ function renderConflictMessage(code: string | null): string {
       return "すでに登録されています";
     case "FOREIGN_KEY_VIOLATION":
       return "依存関係があるため操作できません";
+    case "CONSTRAINT_VIOLATION":
+      return "データの形式に問題があります。入力を見直してください";
     default:
       return "他の操作と競合しました。もう一度お試しください";
   }
@@ -97,7 +106,7 @@ function formatFieldErrors(
 export function renderErrorMessage(error: SerializedError): string {
   switch (error.kind) {
     case "business":
-      return renderBusinessMessage(error.code, error.message);
+      return renderBusinessMessage(error.code);
     case "notFound":
       return "対象が見つかりません";
     case "conflict":
