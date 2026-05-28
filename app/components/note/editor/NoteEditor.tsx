@@ -45,6 +45,7 @@ import {
 } from "./editorState";
 import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
+import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
@@ -104,6 +105,7 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const [state, dispatch] = useReducer(editorReducer, undefined, () => {
     const base = {
+      surface: props.mode === "new" ? ("new" as const) : ("edit" as const),
       title: props.mode === "edit" ? props.initialTitle : "",
       contentHtml: props.mode === "edit" ? props.initialContentHtml : "",
       frontMatter:
@@ -143,10 +145,42 @@ export function NoteEditor(props: NoteEditorProps) {
         dispatch({ type: "mediaInsertionAdded", insertion });
         return;
       }
+      // `html` and `inline` (Issue #233 ADR-005) share the string-append
+      // path. For `inline`, the `InlineEditor`'s `useEffect([value])`
+      // resync rebuilds the DOM with the newly-appended `<img>` and
+      // re-takes the MutationObserver snapshot.
       dispatch({ type: "setContent", value: nextHtml });
       dispatch({ type: "mediaInsertionAdded", insertion });
     },
     [state.mode],
+  );
+
+  const surface: "new" | "edit" = props.mode === "new" ? "new" : "edit";
+
+  const onModeChange = useCallback(
+    (nextMode: typeof state.mode) => {
+      // ADR-003 (Issue #230): switching editor modes unmounts the
+      // currently focused FrontMatter input. Force a blur first so any
+      // pending key-rename / add commits run before the row disappears,
+      // instead of being silently dropped. Issue #233 ADR-004 fixes the
+      // order as: blur → re-evaluate dirty → confirm → dispatch, so any
+      // dirty flag that blur introduces (e.g. a committed rename) is
+      // visible to the confirm step.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+      const isDirty =
+        state.dirtyKeys.size > 0 ||
+        state.autosave.kind === "saving" ||
+        state.autosave.kind === "error";
+      if (isDirty) {
+        const ok = window.confirm(
+          "未保存の変更があります。保存せずに切り替えますか？",
+        );
+        if (!ok) return;
+      }
+      dispatch({ type: "setMode", mode: nextMode });
+    },
+    [state.dirtyKeys, state.autosave],
   );
 
   const resolveDirectoryId = async (): Promise<string | null> => {
@@ -267,16 +301,9 @@ export function NoteEditor(props: NoteEditorProps) {
       />
 
       <EditorModeSwitch
+        surface={surface}
         mode={state.mode}
-        onChange={(mode) => {
-          // ADR-003 (Issue #230): switching editor modes unmounts the
-          // currently focused FrontMatter input. Force a blur first so
-          // any pending key-rename / add commits run before the row
-          // disappears, instead of being silently dropped.
-          const active = document.activeElement;
-          if (active instanceof HTMLElement) active.blur();
-          dispatch({ type: "setMode", mode });
-        }}
+        onChange={onModeChange}
       />
 
       {state.mode === "html" ? (
@@ -285,6 +312,22 @@ export function NoteEditor(props: NoteEditorProps) {
             value={state.contentHtml}
             onChange={(v) => dispatch({ type: "setContent", value: v })}
             disabled={isPending}
+          />
+          <MediaUploader
+            contentHtml={state.contentHtml}
+            onInsert={onMediaInsert}
+            disabled={isPending}
+          />
+        </>
+      ) : null}
+
+      {state.mode === "inline" ? (
+        <>
+          <InlineEditor
+            value={state.contentHtml}
+            onChange={(v) => dispatch({ type: "setContent", value: v })}
+            disabled={isPending}
+            onInitFailed={() => dispatch({ type: "setMode", mode: "html" })}
           />
           <MediaUploader
             contentHtml={state.contentHtml}
