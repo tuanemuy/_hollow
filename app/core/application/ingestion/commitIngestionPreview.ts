@@ -135,7 +135,7 @@ export async function commitIngestionPreview({
 
       // Resolve target directory: explicit id > newly created directory >
       // preview's suggested id > owner's root.
-      let directoryId = await resolveDirectoryId({
+      const directoryId = await resolveDirectoryId({
         actor,
         explicitId:
           mods.directoryId === undefined
@@ -235,7 +235,6 @@ export async function commitIngestionPreview({
         await noteRepository.save(updated.entity, target.expectedVersion);
         collectEvents(updated.eventDrafts);
         noteId = target.entity.id;
-        directoryId = target.entity.directoryId;
       } else {
         const slug = await NoteService.generateUniqueSlug(
           actor,

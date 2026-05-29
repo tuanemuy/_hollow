@@ -189,6 +189,42 @@ describe("NoteService.resolveInternalLinks", () => {
     expect(out[0].resolvedNoteId).toBeNull();
   });
 
+  it("leaves a kind=id ref unresolved when the target note is trashed", async () => {
+    // findByIds is not status-filtered, so the domain must drop trashed
+    // notes itself — pins the `status === "active"` guard (ADR-007).
+    const trashed = Note.trash(makeNote(rawId(7), "Trashed"), T0).entity;
+    const refs = [idRefOf(rawId(7))];
+
+    const out = await NoteService.resolveInternalLinks(
+      refs,
+      OWNER,
+      stubRepo(
+        () => [],
+        () => [trashed],
+      ),
+    );
+
+    expect(out[0].resolvedNoteId).toBeNull();
+  });
+
+  it("does not resolve a kind=id ref to a note whose id differs from the target", async () => {
+    // Defensive guard: even if the port were to return an unrelated row,
+    // the domain only resolves when the returned note's id matches.
+    const unrelated = makeNote(rawId(0x70), "Unrelated");
+    const refs = [idRefOf(rawId(8))];
+
+    const out = await NoteService.resolveInternalLinks(
+      refs,
+      OWNER,
+      stubRepo(
+        () => [],
+        () => [unrelated],
+      ),
+    );
+
+    expect(out[0].resolvedNoteId).toBeNull();
+  });
+
   it("chooses deterministically by (title asc, id asc) among duplicate titles", async () => {
     // Same title; ids deliberately returned out of order from the port
     // so the test pins the domain-side sort, not the port order.

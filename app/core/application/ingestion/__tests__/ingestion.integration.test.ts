@@ -736,6 +736,64 @@ describe("commitIngestionPreview", () => {
     expect(types).toContain("ingestion.committed");
   });
 
+  it("throws ForbiddenError before assembly when overwriteNoteId targets another user's note (Issue #127, ADR-006)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const actor = await seedUser(container);
+    const stranger = await seedUser(container);
+    const strangerDir = await seedDirectory(container, stranger);
+    // Note owned by someone other than the actor.
+    const foreignNoteId = nextNoteId();
+    await container.db.insert(schema.notes).values({
+      id: foreignNoteId,
+      ownerId: stranger as unknown as string,
+      directoryId: strangerDir,
+      slug: `slug-${foreignNoteId.slice(-6)}`,
+      title: "Foreign",
+      contentHtml: "<p>foreign</p>",
+      frontMatterJson: "{}",
+      status: "active",
+      trashedAt: null,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+    const tempKey = `${actor}/ingestion/overwrite-forbidden`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: actor,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+
+    const error = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: actor,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {
+          overwriteNoteId: foreignNoteId as unknown as NoteId,
+        },
+      },
+    }).then(
+      () => null,
+      (e) => e,
+    );
+
+    expect(error).not.toBeNull();
+    expect(isForbiddenError(error)).toBe(true);
+    // The foreign note is untouched (no overwrite happened).
+    const rows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, foreignNoteId));
+    expect(rows[0]?.title).toBe("Foreign");
+    expect(rows[0]?.version).toBe(0);
+  });
+
   it("persists modifications.frontMatter on the resulting note (Issue #226)", async () => {
     const container = getContainer();
     await seedInstanceSettings(container);

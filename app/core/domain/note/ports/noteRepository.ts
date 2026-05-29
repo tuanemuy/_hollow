@@ -140,11 +140,20 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    *
    * Titles are not unique within an owner, so this returns **all**
    * matches ordered by title asc, id asc (mirroring
-   * `searchByTitlePrefix`). Picking a single note when several match —
-   * and deciding when "no match" means an unresolved link — is the
-   * caller's (domain service's) responsibility; the port stays neutral
-   * and does not assume the consumer's tie-break or self-exclusion
-   * rules. Trashed notes are excluded.
+   * `searchByTitlePrefix`). Unlike `searchByTitlePrefix` there is no
+   * `limit`: every exact match is returned, so callers must not rely on
+   * this for owners where a single title can repeat pathologically. The
+   * `(ownerId, status='active')` filter keeps the candidate set small in
+   * practice (see ADR-002/004 in `.issue/36/adr.md`). Picking a single
+   * note when several match — and deciding when "no match" means an
+   * unresolved link — is the caller's (domain service's) responsibility;
+   * the port stays neutral and does not assume the consumer's tie-break
+   * or self-exclusion rules. Trashed notes are excluded.
+   *
+   * `title` is matched verbatim (case-folded); the caller is responsible
+   * for trimming it — a value with leading/trailing whitespace will not
+   * match a stored title. In practice both `InternalLinkRef.target` and
+   * `NoteTitle` are already trimmed value objects, so the round-trip holds.
    */
   findActiveByOwnerAndTitle(
     ownerId: UserId,

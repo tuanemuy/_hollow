@@ -123,7 +123,7 @@ ADR-005 で `assembleFromInputs` に `selfNoteId` を渡す方針を決めたが
 
 ### Consequences
 - 良い点: ADR-005 の自己参照除外が ingestion 経路でも機能する。overwrite target の not-found / forbidden が assemble より前に出る。
-- トレードオフ: usecase 内のブロック順序が変わった（id 確定 → assemble → 永続化）。挙動は等価で、テストで担保。
+- トレードオフ: usecase 内のブロック順序が変わった（id 確定 → assemble → 永続化）。**永続化副作用は等価**（成功時の DB 状態・発行イベントは不変、失敗時はいずれも単一 UoW でロールバック）。一方で **エラー種別の surface 順序は意図的に変更**した: overwrite target が不正（NotFound/Forbidden）かつ本文 assemble も throw（例: MediaNotOwned）する入力では、従来は assemble 例外が先に出ていたが、巻き上げ後は overwrite の NotFound/Forbidden が先に出る。権限/存在エラーを早く返すのは望ましい挙動であり意図的。overwrite NotFound/Forbidden 自体は既存の ingestion 統合テストで担保。
 
 ---
 
