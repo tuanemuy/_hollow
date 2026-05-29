@@ -1,4 +1,5 @@
 import type { DomainEvent } from "@/core/domain/common/event";
+import { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportJobId as ExportJobIdVO } from "@/core/domain/export/valueObject";
 import { UserId } from "@/core/domain/identity/valueObject";
@@ -25,6 +26,7 @@ import { buildNoteSnapshots } from "../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../search/handlePublicationChangedEvent";
+import { handleDirectoryDeletedEvent as viewHandleDirectoryDeletedEvent } from "../view/handleDirectoryDeletedEvent";
 import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../view/handleNotePurgedEvent";
 import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../view/handleTagDeletedEvent";
 
@@ -77,12 +79,16 @@ export type DispatchOutcome =
  * - `note.publish_changed` → `handlePublicationChangedEvent` (re-build
  *   snapshot first)
  * - `tag.deleted` → `view.handleTagDeletedEvent`
+ * - `directory.deleted` → `view.handleDirectoryDeletedEvent` (Issue #181 —
+ *   `Directory.DeleteDirectory` now emits a physical `directory.deleted`
+ *   for every removed directory, including empty ones the `note.trashed`
+ *   fan-out cannot cover; supersedes Issue #159 ADR-003 for directories).
  * - `user.deleted` → fan-out to `publication.handleUserDeletedEvent` then
  *   `export.handleUserDeletedEvent` (Issue #159 ADR-004)
- * - Everything else → `skipped` (`share_link.*`, `directory.*`,
- *   `media.*`, `ingestion.previewAttached`, ...). `directory.deleted` /
- *   `media.uploaded` remain skipped because the physical events are
- *   never emitted (Issue #159 ADR-003).
+ * - Everything else → `skipped` (`share_link.*`, `media.*`,
+ *   `ingestion.previewAttached`, ...). `media.uploaded` remains skipped
+ *   because its physical event is never emitted (Issue #159 ADR-003 —
+ *   orphan monitoring is TTL/cron-based, not event-driven).
  *
  * Payload validation rule (Issue #159 ADR-005): for newly wired cases,
  * VO factories that validate payload fields the handlers will consume
@@ -273,6 +279,18 @@ export async function dispatchDomainEvent(
         await viewHandleTagDeletedEvent({
           container,
           input: { tagId: payload.tagId },
+        });
+        return { kind: "handled" };
+      }
+      case "directory.deleted": {
+        const payload = event.payload as Readonly<{ directoryId: string }>;
+        // validate-only — handler signature takes raw string but we want
+        // schema drift to surface as BusinessRuleError before any side
+        // effects (Issue #159 ADR-005).
+        void DirectoryId.create(payload.directoryId);
+        await viewHandleDirectoryDeletedEvent({
+          container,
+          input: { directoryId: payload.directoryId },
         });
         return { kind: "handled" };
       }

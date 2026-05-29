@@ -132,6 +132,37 @@ describe("handleDirectoryDeletedEvent", () => {
     expect(persisted?.entity.brokenConditions[0]?.kind).toBe("directory");
     expect(persisted?.entity.brokenConditions[0]?.id).toBe("d-1");
   });
+
+  it("is idempotent for the same directoryId (re-delivery is a no-op)", async () => {
+    const container = createViewTestContainer({
+      existingDirIds: ["d-1" as never],
+    });
+    const { view } = await createSavedView({
+      container,
+      input: baseInput({
+        query: {
+          directoryId: "d-1",
+          tagIds: [],
+          dateRange: null,
+          keyword: null,
+          referencingNoteId: null,
+          visibilityFilter: [],
+        },
+      }),
+    });
+
+    await handleDirectoryDeletedEvent({
+      container,
+      input: { directoryId: "d-1" },
+    });
+    await handleDirectoryDeletedEvent({
+      container,
+      input: { directoryId: "d-1" },
+    });
+
+    const persisted = await container.savedViewRepository.findById(view.id);
+    expect(persisted?.entity.brokenConditions).toHaveLength(1);
+  });
 });
 
 describe("handleNotePurgedEvent", () => {

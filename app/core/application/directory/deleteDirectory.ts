@@ -1,6 +1,7 @@
 import type { EventDraft } from "@/core/domain/common/event";
 import { Directory } from "@/core/domain/directory/entity";
 import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
+import { DirectoryEvents } from "@/core/domain/directory/events";
 import type { DirectoryRepository } from "@/core/domain/directory/ports/directoryRepository";
 import { DirectoryService } from "@/core/domain/directory/service";
 import { DirectoryId } from "@/core/domain/directory/valueObject";
@@ -86,6 +87,14 @@ export async function deleteDirectory({
             now,
           ),
         );
+      }
+      // Issue #181: emit `directory.deleted` for every directory actually
+      // removed (empty dirs included) so `view.handleDirectoryDeletedEvent`
+      // can mark SavedViews filtering on `directoryId` as broken. Merged
+      // into the same UoW / outbox batch as the `note.trashed` drafts so
+      // only committed deletes get an event.
+      for (const deletedDirectoryId of deletedDirectoryIds) {
+        drafts.push(DirectoryEvents.deleted(deletedDirectoryId, now));
       }
       collectEvents(drafts);
 
