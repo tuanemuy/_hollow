@@ -148,8 +148,14 @@ describe("IngestionJob state transitions (property)", () => {
         for (let i = 0; i < cap; i += 1) {
           const next = IngestionJob.regenerate(current, T0, cap);
           expect(next.entity.regenerationCount as number).toBe(i + 1);
-          current = IngestionJob.attachPreview(
+          // `regenerate` returns `pending` (Issue #253); the worker
+          // promotes it to `processing` before attaching the new preview.
+          const reprocessing = IngestionJob.startProcessing(
             next.entity,
+            T0,
+          ).entity;
+          current = IngestionJob.attachPreview(
+            reprocessing,
             samplePreview(`r${i}`),
             T0,
           ).entity;

@@ -43,7 +43,10 @@ export async function regenerateIngestionPreview({
       }
       // `IngestionJob.regenerate` validates status === 'previewing' and
       // the regeneration cap; both surface as `BusinessRuleError` with
-      // codes the presentation layer maps to 4xx.
+      // codes the presentation layer maps to 4xx. It transitions
+      // `previewing → pending` and emits `ingestion.regenerated`; the
+      // dispatcher routes that event to `runIngestionJob`, which re-drives
+      // the LLM pipeline (same path as admin retry — see Issue #253).
       const transition = IngestionJob.regenerate(
         found.entity,
         now,

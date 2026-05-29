@@ -7,7 +7,11 @@ import {
   NoteId,
   NoteTitle,
 } from "@/core/domain/note/valueObject";
-import { IngestionJob, type IngestionJob as IngestionJobType } from "../entity";
+import {
+  IngestionJob,
+  type IngestionJob as IngestionJobType,
+  type PreviewingIngestionJob,
+} from "../entity";
 import { IngestionErrorCode } from "../errorCode";
 import {
   IngestionPreview,
@@ -168,14 +172,14 @@ describe("IngestionJob.regenerate", () => {
       .entity;
   };
 
-  it("from previewing: increments regenerationCount, sets preview null, transitions to processing", () => {
+  it("from previewing: increments regenerationCount, sets preview null, transitions to pending", () => {
     const previewing = upToPreviewing(30);
     const { entity: next, eventDrafts } = IngestionJob.regenerate(
       previewing,
       at(3),
       5,
     );
-    expect(next.status).toBe("processing");
+    expect(next.status).toBe("pending");
     expect(next.preview).toBeNull();
     expect(next.regenerationCount as number).toBe(1);
     expect(next.version as number).toBe((previewing.version as number) + 1);
@@ -205,16 +209,22 @@ describe("IngestionJob.regenerate", () => {
     // walking attach/regenerate `max` times. Simpler: reconstruct a row
     // with `regenerationCount` pre-set.
     const previewing = upToPreviewing(32);
-    // Walk regenerate→attach 5 times to hit the cap on count.
-    let current: IngestionJobType = previewing;
+    // Walk regenerate→startProcessing→attach 5 times to hit the cap on
+    // count. `regenerate` now returns a `pending` job (Issue #253), so the
+    // worker promotion `startProcessing` must run before `attachPreview`.
+    let current: PreviewingIngestionJob = previewing;
     for (let i = 0; i < 5; i += 1) {
-      const regenerated: IngestionJobType = IngestionJob.regenerate(
+      const regenerated = IngestionJob.regenerate(
         current,
         at(10 + i),
         5,
       ).entity;
-      const attached: IngestionJobType = IngestionJob.attachPreview(
+      const processing = IngestionJob.startProcessing(
         regenerated,
+        at(15 + i),
+      ).entity;
+      const attached = IngestionJob.attachPreview(
+        processing,
         samplePreview(`g${i}`),
         at(20 + i),
       ).entity;

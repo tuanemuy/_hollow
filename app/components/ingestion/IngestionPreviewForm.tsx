@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Trash2 } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -12,6 +12,7 @@ import {
   useTransition,
 } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   field,
@@ -32,6 +33,7 @@ import {
   commitIngestionPreviewFn,
   discardIngestionPreviewFn,
   type IngestionJobWire,
+  regenerateIngestionPreviewFn,
 } from "./actions";
 
 type Props = Readonly<{
@@ -47,6 +49,13 @@ type Props = Readonly<{
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
   onCommitted: (noteId: string) => void;
   onDiscarded: () => void;
+  /**
+   * Notifies the parent that a regeneration was requested for `jobId`.
+   * The job has transitioned `previewing → pending` and the LLM pipeline
+   * is being re-driven asynchronously; the parent re-enters its `waiting`
+   * view to poll for the fresh preview (see .issue/253/adr.md ADR-003).
+   */
+  onRegenerated: (jobId: string) => void;
   onCancel: () => void;
 }>;
 
@@ -106,11 +115,13 @@ export function IngestionPreviewForm({
   titleInputRef,
   onCommitted,
   onDiscarded,
+  onRegenerated,
   onCancel,
 }: Props) {
   const router = useRouter();
   const commit = useServerFn(commitIngestionPreviewFn);
   const discard = useServerFn(discardIngestionPreviewFn);
+  const regenerate = useServerFn(regenerateIngestionPreviewFn);
 
   const preview = job.preview;
 
@@ -216,6 +227,22 @@ export function IngestionPreviewForm({
         await discard({ data: { jobId } });
         await routerInvalidate(router);
         onDiscarded();
+      } catch (e) {
+        setError(extractSerializedError(e));
+      }
+    });
+  };
+
+  const onRegenerate = () => {
+    if (isPending) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await regenerate({ data: { jobId } });
+        // The job is back in `pending`; the `/upload` list behind the modal
+        // also reflects that, so invalidate it (same as `runDiscard`).
+        await routerInvalidate(router);
+        onRegenerated(jobId);
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -356,6 +383,15 @@ export function IngestionPreviewForm({
             disabled={isPending}
           >
             破棄
+          </button>
+          <button
+            type="button"
+            className={PILL_BTN}
+            onClick={onRegenerate}
+            disabled={isPending}
+          >
+            <Icon icon={RefreshCw} />
+            再生成
           </button>
           <button
             type="submit"

@@ -420,7 +420,7 @@ describe("regenerateIngestionPreview", () => {
   // spec: spec/testcases/ingestion/index.md#RegenerateIngestionPreview
   const getContainer = setupTestContainer();
 
-  it("bumps regenerationCount, returns the job to processing, and emits ingestion.regenerated for a previewing job", async () => {
+  it("bumps regenerationCount, returns the job to pending, and emits ingestion.regenerated for a previewing job", async () => {
     const container = getContainer();
     await seedInstanceSettings(container);
     const owner = await seedUser(container);
@@ -442,7 +442,7 @@ describe("regenerateIngestionPreview", () => {
       .select()
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
-    expect(rows[0]?.status).toBe("processing");
+    expect(rows[0]?.status).toBe("pending");
     expect(rows[0]?.regenerationCount).toBe(3);
     expect(rows[0]?.previewJson).toBeNull();
 

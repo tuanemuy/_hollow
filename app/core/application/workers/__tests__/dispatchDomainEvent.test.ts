@@ -558,14 +558,18 @@ describe("dispatchDomainEvent — ingestion / export routing", () => {
     });
   });
 
-  it("skips ingestion.regenerated (regression guard: not in dispatch table per ADR-004)", async () => {
+  it("routes ingestion.regenerated to runIngestionJob and returns handled (Issue #253 reverses ADR-004)", async () => {
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(
       container,
       ingestionRegeneratedEvent(),
     );
-    expect(outcome).toEqual({ kind: "skipped" });
-    expect(mockedRunIngestionJob).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedRunIngestionJob).toHaveBeenCalledTimes(1);
+    expect(mockedRunIngestionJob).toHaveBeenCalledWith({
+      container,
+      input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
+    });
     expect(mockedRunExportJob).not.toHaveBeenCalled();
   });
 

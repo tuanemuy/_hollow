@@ -20,12 +20,14 @@ import type { IngestionJobWire } from "../actions";
 // commit vs discard behaviour independently (B-T-001 regression).
 const commitMock = vi.fn();
 const discardMock = vi.fn();
+const regenerateMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: useServerFnRouter(
     [
       [commitMock, commitMock],
       [discardMock, discardMock],
+      [regenerateMock, regenerateMock],
     ],
     vi.fn(),
   ),
@@ -36,6 +38,7 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("../actions", () => ({
   commitIngestionPreviewFn: commitMock,
   discardIngestionPreviewFn: discardMock,
+  regenerateIngestionPreviewFn: regenerateMock,
 }));
 
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);
@@ -105,6 +108,7 @@ let root: Root;
 beforeEach(() => {
   commitMock.mockReset();
   discardMock.mockReset();
+  regenerateMock.mockReset();
   routerInvalidate.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -165,6 +169,7 @@ function renderForm(props: {
   job?: IngestionJobWire;
   onCommitted?: (id: string) => void;
   onDiscarded?: () => void;
+  onRegenerated?: (jobId: string) => void;
   onCancel?: () => void;
 }) {
   act(() => {
@@ -175,6 +180,7 @@ function renderForm(props: {
         isTreeLoading={false}
         onCommitted={props.onCommitted ?? (() => {})}
         onDiscarded={props.onDiscarded ?? (() => {})}
+        onRegenerated={props.onRegenerated ?? (() => {})}
         onCancel={props.onCancel ?? (() => {})}
       />,
     );
@@ -331,6 +337,29 @@ describe("IngestionPreviewForm", () => {
     expect(commitMock).not.toHaveBeenCalled();
     expect(onDiscarded).toHaveBeenCalledTimes(1);
     expect(onCommitted).not.toHaveBeenCalled();
+  });
+
+  // Issue #253: the 再生成 button calls `regenerate` exactly once and
+  // then `onRegenerated(jobId)`; neither commit nor discard fire.
+  it("clicking 再生成 invokes regenerate once and calls onRegenerated; commit/discard never called", async () => {
+    regenerateMock.mockResolvedValue({ jobId: "job-1" });
+    const onRegenerated = vi.fn();
+    renderForm({ onRegenerated });
+
+    await act(async () => {
+      getButtonByText("再生成").click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(regenerateMock).toHaveBeenCalledTimes(1);
+    expect(regenerateMock).toHaveBeenCalledWith({ data: { jobId: "job-1" } });
+    expect(onRegenerated).toHaveBeenCalledTimes(1);
+    expect(onRegenerated).toHaveBeenCalledWith("job-1");
+    expect(commitMock).not.toHaveBeenCalled();
+    expect(discardMock).not.toHaveBeenCalled();
   });
 
   // W-T-003: cancel button invokes onCancel and triggers neither

@@ -29,7 +29,7 @@
 
 | 前提条件 | 操作 | 期待結果 |
 |---|---|---|
-| previewing 状態 | Regenerate | regenerationCount++、再 enqueue |
+| previewing 状態 | Regenerate | `previewing → pending` に遷移、regenerationCount++、preview を null に、`ingestion.regenerated` を発火（dispatch が `runIngestionJob` にルーティングして再駆動） |
 | 5 回到達後の 6 回目 | Regenerate | `BusinessRuleError('regeneration_limit_exceeded')` |
 | failed 状態 | Regenerate | `BusinessRuleError('invalid_status_for_regeneration')` |
 

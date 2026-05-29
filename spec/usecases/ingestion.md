@@ -66,8 +66,8 @@
 
 ### 処理フロー
 1. Job 取得、所有者確認、`status === 'previewing'`
-2. `job.regenerate(now, MAX_REGEN=5)` → save
-3. キューに RunIngestionJob を再 enqueue
+2. `job.regenerate(now, MAX_REGEN=5)` → `previewing → pending` に遷移（`preview` を null に戻し `regenerationCount` をインクリメント）、`ingestion.regenerated` を outbox に発火 → save
+3. dispatch が `ingestion.regenerated` を `runIngestionJob` にルーティングし、`pending → processing → previewing` で LLM を再駆動（admin retry と同一経路。usecase 戻り時点ではまだ `pending`）
 
 ### エラーケース
 - `BusinessRuleError('regeneration_limit_exceeded' | 'invalid_status_for_regeneration')`
