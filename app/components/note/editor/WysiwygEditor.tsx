@@ -123,7 +123,7 @@ export type WysiwygEditorProps = Readonly<{
  * state visually (.issue/309/adr.md ADR-006).
  */
 const EDITOR_TOOLBAR_BTN =
-  "inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px] data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed";
+  "inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover active:not-disabled:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px] data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:not-disabled:bg-accent-hover data-[primary]:active:not-disabled:bg-accent-pressed";
 
 const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
 
