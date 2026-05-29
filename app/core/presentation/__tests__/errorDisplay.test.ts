@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import {
   displayError,
@@ -150,6 +151,66 @@ describe("renderErrorMessage business mapping", () => {
     expect(message).toBe(
       "操作を完了できませんでした。時間をおいて再度お試しください",
     );
+  });
+});
+
+// Directory business codes reachable through the directory dialogs. These
+// MUST map to a dedicated Japanese message rather than the generic business
+// fallback. (Issue #290)
+const EXPLICIT_DIRECTORY_CODES: readonly string[] = [
+  "directory_name_conflict",
+  "directory_too_deep",
+  "directory_name_forbidden_character",
+  "directory_name_empty",
+  "directory_name_too_long",
+  "directory_cyclic_move",
+  "cannot_rename_root",
+  "cannot_delete_root",
+  "cannot_move_root",
+];
+
+const BUSINESS_FALLBACK_MESSAGE =
+  "操作を完了できませんでした。時間をおいて再度お試しください";
+
+describe("renderErrorMessage directory business mapping", () => {
+  it.each(
+    EXPLICIT_DIRECTORY_CODES,
+  )("maps directory business code %s to a dedicated message without leaking the code", (code) => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code,
+      message: code,
+    });
+    expect(message).not.toBe(BUSINESS_FALLBACK_MESSAGE);
+    expect(message).not.toBe(code);
+    expect(message).not.toContain(code);
+  });
+
+  it("maps the sibling-name conflict to the user-facing message", () => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code: DirectoryErrorCode.NameConflict,
+      message: 'Sibling directory named "docs" already exists',
+    });
+    expect(message).toBe("同名のディレクトリが既に存在します");
+  });
+
+  // Internal-invariant directory codes (not reachable from normal user input)
+  // fall back to the generic message so internal spec strings never leak.
+  it("returns the generic fallback for internal directory codes (group (c))", () => {
+    const allValues = Object.values(DirectoryErrorCode);
+    const explicitSet = new Set(EXPLICIT_DIRECTORY_CODES);
+    const fallbackGroup = allValues.filter((v) => !explicitSet.has(v));
+    expect(fallbackGroup.length).toBeGreaterThan(0);
+    for (const code of fallbackGroup) {
+      const message = renderErrorMessage({
+        kind: "business",
+        code,
+        message: code,
+      });
+      expect(message).toBe(BUSINESS_FALLBACK_MESSAGE);
+      expect(message).not.toContain(code);
+    }
   });
 });
 
