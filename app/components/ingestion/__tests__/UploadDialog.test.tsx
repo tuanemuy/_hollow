@@ -22,6 +22,7 @@ const uploadMock = vi.fn();
 const getJobMock = vi.fn();
 const discardMock = vi.fn();
 const getTreeMock = vi.fn();
+const regenerateMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   // Identity dispatch via the imported references below. The module
@@ -33,6 +34,7 @@ vi.mock("@tanstack/react-start", () => ({
       [getJobMock, getJobMock],
       [discardMock, discardMock],
       [getTreeMock, getTreeMock],
+      [regenerateMock, regenerateMock],
     ],
     vi.fn(),
   ),
@@ -45,7 +47,7 @@ vi.mock("../actions", () => ({
   getIngestionJobFn: getJobMock,
   discardIngestionPreviewFn: discardMock,
   commitIngestionPreviewFn: vi.fn(),
-  regenerateIngestionPreviewFn: vi.fn(),
+  regenerateIngestionPreviewFn: regenerateMock,
 }));
 
 vi.mock("../../note/actions", () => ({
@@ -111,6 +113,7 @@ beforeEach(() => {
   getJobMock.mockReset();
   discardMock.mockReset();
   getTreeMock.mockReset();
+  regenerateMock.mockReset();
   navigateMock.mockClear();
   invalidateMock.mockClear();
   vi.useFakeTimers();
@@ -429,6 +432,76 @@ describe("UploadDialog state machine", () => {
     });
     expect(invalidateMock).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #253 ADR-003: clicking 再生成 in the editing view re-enters the
+  // `waiting` view (via `onRegenerated`) so the existing poll loop watches
+  // the job back through `pending → processing → previewing` and lands on a
+  // fresh `editing` view. Regression guard for the modal-internal re-drive.
+  it("re-enters the `waiting` view and resumes polling when 再生成 is clicked in editing", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    // First poll lands directly on previewing → editing view.
+    getJobMock.mockResolvedValue({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+    regenerateMock.mockResolvedValue({ jobId: "job-1" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // We are in the editing view: the title input and the 再生成 button
+    // are present.
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("プレビュー編集に進みました");
+    const regenBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再生成");
+    expect(regenBtn).toBeDefined();
+    const pollsBeforeRegen = getJobMock.mock.calls.length;
+
+    // Click 再生成. The handler awaits regenerate + router.invalidate, then
+    // calls onRegenerated(jobId) which flips the view back to `waiting`.
+    await act(async () => {
+      regenBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(regenerateMock).toHaveBeenCalledTimes(1);
+    expect(regenerateMock.mock.calls[0]?.[0]).toMatchObject({
+      data: { jobId: "job-1" },
+    });
+    // Back in the waiting view: the status region announces the re-drive.
+    expect(status?.textContent).toBe("LLM がタイトルとメタデータを提案中");
+
+    // Polling resumes from the waiting view: advancing past the interval
+    // triggers a fresh getJob call, observes previewing, and returns to
+    // the editing view.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getJobMock.mock.calls.length).toBeGreaterThan(pollsBeforeRegen);
+    expect(status?.textContent).toBe("プレビュー編集に進みました");
   });
 
   // Issue #256 A11y-H1: the dialog's accessible name comes from

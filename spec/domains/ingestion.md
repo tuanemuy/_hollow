@@ -37,7 +37,7 @@
   - `startProcessing(now: Instant): IngestionJob` — `pending` → `processing`
   - `attachPreview(p: IngestionPreview, now: Instant): IngestionJob` — `processing` → `previewing`
   - `markFailed(code: string, reason: string, now: Instant): IngestionJob` — 任意 → `failed`
-  - `regenerate(now: Instant, maxRegenerations: number): IngestionJob` — `previewing` 必須、`regenerationCount` をインクリメント、超過は `BusinessRuleError('regeneration_limit_exceeded')`、状態を `processing` に戻す
+  - `regenerate(now: Instant, maxRegenerations: number): IngestionJob` — `previewing` 必須、`regenerationCount` をインクリメント、超過は `BusinessRuleError('regeneration_limit_exceeded')`、状態を `pending` に戻し `preview` を null に。`ingestion.regenerated` を発火し、dispatch 経由で `runIngestionJob` が `pending → processing → previewing` を再駆動する（admin retry と同一経路）
   - `commit(noteId: NoteId, now: Instant): IngestionJob` — `previewing` → `saved`、`savedAsNoteId` 設定
   - `discard(now: Instant): IngestionJob` — `previewing` / `failed` → `discarded`
 - 不変条件:

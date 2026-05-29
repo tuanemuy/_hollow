@@ -34,7 +34,7 @@ import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../view/hand
  * - `skipped` — the event type has no dispatch target. Treated the same
  *   way as `handled` by the consumer (stamp + ack), but kept as a
  *   distinct tag so unit tests can prove specific event types
- *   (e.g. `ingestion.regenerated`) are intentionally not dispatched —
+ *   (e.g. `ingestion.previewAttached`) are intentionally not dispatched —
  *   regression guard against silent re-wiring.
  * - `retry` — a transient failure (D1 throw, `LLMRateLimitError`, any
  *   unexpected error). The consumer should call `message.retry()`
@@ -49,7 +49,8 @@ export type DispatchOutcome =
  * Pure dispatch table for queue-delivered `DomainEvent`s.
  *
  * Routing:
- * - `ingestion.created` / `ingestion.retryRequested` → `runIngestionJob`
+ * - `ingestion.created` / `ingestion.retryRequested` /
+ *   `ingestion.regenerated` → `runIngestionJob`
  * - `export.job.requested` / `export.job.retryRequested` → `runExportJob`
  * - `note.created` / `note.content_updated` / `note.renamed` /
  *   `note.moved` / `note.restored` / `note.tags_replaced` →
@@ -81,9 +82,13 @@ export type DispatchOutcome =
  * leave a partial-commit state that no redelivery can recover, since
  * `handled+warn` ack-stamps the message).
  *
- * `ingestion.regenerated` is intentionally NOT routed: `regenerate`
- * transitions `previewing → processing` directly, so `runIngestionJob`'s
- * `isPending` guard would no-op the call (see ADR-004 on Issue #57).
+ * `ingestion.regenerated` IS now routed to `runIngestionJob` (Issue #253).
+ * Issue #57 ADR-004 had intentionally excluded it because `regenerate`
+ * transitioned `previewing → processing` directly, making the dispatch a
+ * no-op against `runIngestionJob`'s `isPending` guard. Issue #253 reversed
+ * that: `regenerate` now transitions `previewing → pending`, so the event
+ * re-drives the LLM pipeline through the same path as admin retry (see
+ * .issue/253/adr.md ADR-001 / ADR-002).
  *
  * Snapshot re-build is performed dispatcher-side (Issue #145 ADR-001)
  * because event payloads carry only `noteId` and the search handlers
@@ -124,7 +129,8 @@ export async function dispatchDomainEvent(
   try {
     switch (event.type) {
       case "ingestion.created":
-      case "ingestion.retryRequested": {
+      case "ingestion.retryRequested":
+      case "ingestion.regenerated": {
         const payload = event.payload as Readonly<{ jobId: string }>;
         // `IngestionJobId` is split into domain VO (validating brand)
         // and `dto/ingestion.IngestionJobId` (transport brand). Construct

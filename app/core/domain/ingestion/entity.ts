@@ -167,7 +167,7 @@ function regenerate(
   job: PreviewingIngestionJob,
   now: Date,
   maxRegenerations: number,
-): WithEventDrafts<ProcessingIngestionJob, IngestionEvent> {
+): WithEventDrafts<PendingIngestionJob, IngestionEvent> {
   if ((job.regenerationCount as number) >= maxRegenerations) {
     throw new BusinessRuleError(
       IngestionErrorCode.RegenerationLimitExceeded,
@@ -175,10 +175,17 @@ function regenerate(
     );
   }
   const nextCount = RegenerationCount.next(job.regenerationCount);
-  const next: ProcessingIngestionJob = {
+  // Return to `pending` (not `processing`) so the `ingestion.regenerated`
+  // event, dispatched to `runIngestionJob`, passes its `isPending` guard and
+  // re-drives the LLM pipeline — reusing the admin-retry path. See
+  // .issue/253/adr.md ADR-001.
+  const next: PendingIngestionJob = {
     ...job,
-    status: "processing",
+    status: "pending",
     preview: null,
+    errorCode: null,
+    errorReason: null,
+    savedAsNoteId: null,
     regenerationCount: nextCount,
     version: Version.next(job.version),
     updatedAt: now,
@@ -515,7 +522,7 @@ export const IngestionJob = {
     job: IngestionJob,
     now: Date,
     maxRegenerations: number,
-  ): WithEventDrafts<ProcessingIngestionJob, IngestionEvent> => {
+  ): WithEventDrafts<PendingIngestionJob, IngestionEvent> => {
     if (job.status !== "previewing") {
       throw new BusinessRuleError(
         IngestionErrorCode.InvalidStateForRegenerate,

@@ -347,6 +347,19 @@ export function UploadDialog({ open, onClose }: Props) {
     onClose();
   }, [onClose]);
 
+  // Regeneration returns the job to `pending` and re-drives the LLM
+  // asynchronously. Re-enter the `waiting` view so the existing polling
+  // loop tracks `pending → processing → previewing` and lands back in
+  // `editing` with the fresh preview (see .issue/253/adr.md ADR-003).
+  const onRegenerated = useCallback((jobId: string) => {
+    setView({
+      kind: "waiting",
+      jobId,
+      startedAt: Date.now(),
+      transientFailures: 0,
+    });
+  }, []);
+
   // While the user has a single job mid-flight, the dialog must keep
   // its body content laid out responsively — the inner stack scrolls
   // and the action bar inside `IngestionPreviewForm` sticks.
@@ -395,6 +408,7 @@ export function UploadDialog({ open, onClose }: Props) {
           titleInputRef={titleInputRef}
           onCommitted={onCommitted}
           onDiscarded={onDiscarded}
+          onRegenerated={onRegenerated}
           onCancel={onClose}
         />
       ) : null}
