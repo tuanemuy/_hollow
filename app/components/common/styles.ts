@@ -10,14 +10,25 @@
 
 /** Pill button base — apply to every variant. */
 export const pillBtn =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =
   "data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed";
 
-/** Pill button — danger variant (used directly via className, not via state). */
-export const pillBtnDanger = `${pillBtn} bg-error-surface text-error hover:bg-error-surface`;
+/**
+ * Append for danger pill button — drives "data-danger" variant.
+ *
+ * Apply as `` `${pillBtn} ${pillBtnDanger}` `` with `data-danger=""`, mirroring
+ * `pillBtnPrimary`. The `data-[danger]:` variant is required: a plain
+ * `bg-error-surface` appended to `pillBtn` does NOT reliably override the
+ * base `bg-surface` / `text-ink`, because same-property utilities are
+ * resolved by Tailwind's generated-CSS order, not class-string order.
+ * Variant utilities sort after base utilities and therefore win
+ * deterministically. See `.issue/273/adr.md` ADR-003.
+ */
+export const pillBtnDanger =
+  "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:bg-error-surface";
 
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";

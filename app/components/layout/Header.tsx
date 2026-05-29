@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Plus, Search, Upload } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { UserDTO } from "@/core/application/dto";
 import {
@@ -10,7 +11,6 @@ import {
   APP_HEADER_RIGHT,
   APP_LOGO,
   AVATAR,
-  PILL_BTN,
   SEARCH_BOX_ICON,
   SEARCH_BOX_INPUT,
   SEARCH_BOX_WRAPPER,
@@ -54,11 +54,15 @@ export function Header({ user }: Props) {
         </form>
       </div>
       <div className={APP_HEADER_RIGHT}>
-        <Link to="/notes/new" className={PILL_BTN} data-primary="">
+        <Link
+          to="/notes/new"
+          className={`${pillBtn} ${pillBtnPrimary}`}
+          data-primary=""
+        >
           <Icon icon={Plus} />
           新規作成
         </Link>
-        <UploadButton className={PILL_BTN}>
+        <UploadButton className={pillBtn}>
           <Icon icon={Upload} />
           アップロード
         </UploadButton>
