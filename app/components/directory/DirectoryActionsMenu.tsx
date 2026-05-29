@@ -33,21 +33,52 @@ export function DirectoryActionsMenu({
   onDelete,
 }: DirectoryActionsMenuProps) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
 
-  // When the menu opens, move focus to the first menuitem so keyboard
-  // users land on an actionable target (matches WAI-ARIA Menu Button
-  // pattern's minimum expectation; full roving navigation is follow-up
-  // Issue #289 / ADR-006).
+  const items: ReadonlyArray<{
+    label: string;
+    onSelect: () => void;
+    danger?: boolean;
+  }> = [
+    { label: "子ディレクトリを作成", onSelect: onCreateChild },
+    { label: "リネーム", onSelect: onRename },
+    { label: "移動", onSelect: onMove },
+    { label: "削除", onSelect: onDelete, danger: true },
+  ];
+
+  // Roving tabindex (WAI-ARIA Menu pattern, Issue #289 / ADR-006): exactly
+  // one menuitem carries `tabIndex=0` and DOM focus, the rest `tabIndex=-1`.
+  // Arrow / Home / End move `activeIndex`; this effect mirrors that into real
+  // focus whenever the menu is open. On open `activeIndex` is reset to 0 by
+  // the trigger handler so focus lands on the first item.
   useEffect(() => {
     if (!open) return;
-    const first =
-      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
-    first?.focus();
-  }, [open]);
+    const menuitems =
+      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    menuitems?.[activeIndex]?.focus();
+  }, [open, activeIndex]);
+
+  // Arrow / Home / End navigation within the open menu. preventDefault stops
+  // the arrow keys from scrolling the page; stopPropagation stops them from
+  // also reaching the enclosing treeitem's onKeyDown (DirectoryTree handles
+  // ArrowUp/Down for sibling navigation, which would double-fire otherwise).
+  // Escape is intentionally left to bubble to the document-level handler below.
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const count = items.length;
+    let next: number | null = null;
+    if (event.key === "ArrowDown") next = (activeIndex + 1) % count;
+    else if (event.key === "ArrowUp") next = (activeIndex - 1 + count) % count;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = count - 1;
+    if (next === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveIndex(next);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -114,6 +145,8 @@ export function DirectoryActionsMenu({
         onClick={(event) => {
           event.stopPropagation();
           event.preventDefault();
+          // Reset roving focus to the first item only when opening.
+          if (!open) setActiveIndex(0);
           setOpen((prev) => !prev);
         }}
       >
@@ -130,43 +163,24 @@ export function DirectoryActionsMenu({
           id={menuId}
           role="menu"
           className={ACTIONS_MENU_PANEL}
+          onKeyDown={onMenuKeyDown}
           onMouseDown={(event) => {
             event.preventDefault();
           }}
         >
-          <button
-            type="button"
-            role="menuitem"
-            className={ACTIONS_MENU_ITEM}
-            onClick={runAndClose(onCreateChild)}
-          >
-            子ディレクトリを作成
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={ACTIONS_MENU_ITEM}
-            onClick={runAndClose(onRename)}
-          >
-            リネーム
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={ACTIONS_MENU_ITEM}
-            onClick={runAndClose(onMove)}
-          >
-            移動
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-danger=""
-            className={ACTIONS_MENU_ITEM}
-            onClick={runAndClose(onDelete)}
-          >
-            削除
-          </button>
+          {items.map((item, index) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              tabIndex={index === activeIndex ? 0 : -1}
+              data-danger={item.danger || undefined}
+              className={ACTIONS_MENU_ITEM}
+              onClick={runAndClose(item.onSelect)}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       ) : null}
     </div>
