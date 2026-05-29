@@ -187,6 +187,31 @@ class StubNoteRepository implements NoteRepository {
   findReferrers(_n: NoteId): Promise<readonly Note[]> {
     throw new Error("not implemented");
   }
+  findUnresolvedTitleLinkRows(
+    _o: UserId,
+    _t: string,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]> {
+    throw new Error("not implemented");
+  }
+  findUnresolvedIdLinkRows(
+    _o: UserId,
+    _t: NoteId,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]> {
+    throw new Error("not implemented");
+  }
+  findResolvedLinkRowsByTarget(_t: NoteId): Promise<
+    readonly {
+      id: string;
+      fromNoteId: NoteId;
+      refKind: "id" | "title";
+      refTarget: string;
+    }[]
+  > {
+    throw new Error("not implemented");
+  }
+  setLinkResolution(_ids: readonly string[], _r: NoteId | null): Promise<void> {
+    throw new Error("not implemented");
+  }
   purge(_id: NoteId): Promise<void> {
     throw new Error("not implemented");
   }

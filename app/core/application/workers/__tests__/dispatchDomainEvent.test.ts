@@ -23,6 +23,8 @@ import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../../ex
 import { runExportJob } from "../../export/runExportJob";
 import { runIngestionJob } from "../../ingestion/runIngestionJob";
 import { handleNotePurgedEvent as mediaHandleNotePurgedEvent } from "../../media/handleNotePurgedEvent";
+import { handleLinkTargetResolution } from "../../note/handleLinkTargetResolution";
+import { handleLinkTargetTrashed } from "../../note/handleLinkTargetTrashed";
 import type { Logger } from "../../ports/logger";
 import { handleNotePurgedEvent as publicationHandleNotePurgedEvent } from "../../publication/handleNotePurgedEvent";
 import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../../publication/handleNoteTrashedEvent";
@@ -74,6 +76,12 @@ vi.mock("../../export/handleUserDeletedEvent", () => ({
 vi.mock("../../search/buildNoteSnapshot", () => ({
   buildNoteSnapshots: vi.fn(async () => []),
 }));
+vi.mock("../../note/handleLinkTargetResolution", () => ({
+  handleLinkTargetResolution: vi.fn(async () => undefined),
+}));
+vi.mock("../../note/handleLinkTargetTrashed", () => ({
+  handleLinkTargetTrashed: vi.fn(async () => undefined),
+}));
 
 const mockedRunIngestionJob = vi.mocked(runIngestionJob);
 const mockedRunExportJob = vi.mocked(runExportJob);
@@ -87,6 +95,8 @@ const mockedPublicationHandleNotePurged = vi.mocked(
   publicationHandleNotePurgedEvent,
 );
 const mockedMediaHandleNotePurged = vi.mocked(mediaHandleNotePurgedEvent);
+const mockedHandleLinkTargetResolution = vi.mocked(handleLinkTargetResolution);
+const mockedHandleLinkTargetTrashed = vi.mocked(handleLinkTargetTrashed);
 const mockedViewHandleNotePurged = vi.mocked(viewHandleNotePurgedEvent);
 const mockedViewHandleTagDeleted = vi.mocked(viewHandleTagDeletedEvent);
 const mockedPublicationHandleUserDeleted = vi.mocked(
@@ -479,7 +489,11 @@ beforeEach(() => {
   mockedPublicationHandleUserDeleted.mockReset();
   mockedExportHandleUserDeleted.mockReset();
   mockedBuildNoteSnapshots.mockReset();
+  mockedHandleLinkTargetResolution.mockReset();
+  mockedHandleLinkTargetTrashed.mockReset();
 
+  mockedHandleLinkTargetResolution.mockResolvedValue(undefined);
+  mockedHandleLinkTargetTrashed.mockResolvedValue(undefined);
   mockedRunIngestionJob.mockResolvedValue(undefined);
   mockedRunExportJob.mockResolvedValue({ job: null });
   mockedHandleNoteSavedEvent.mockResolvedValue(undefined);
@@ -609,6 +623,17 @@ describe("dispatchDomainEvent — note save routing (#145)", () => {
       expect(mockedHandleNoteSavedEvent).toHaveBeenCalledTimes(1);
       const callArg = mockedHandleNoteSavedEvent.mock.calls[0]?.[0];
       expect(callArg?.input.snapshot.noteId).toBe(NOTE_ID);
+      // Issue #321: link re-resolution runs for the title/id-affecting
+      // subset only; moved / tags_replaced leave title and id unchanged.
+      const expectsResolution = [
+        "note.created",
+        "note.content_updated",
+        "note.renamed",
+        "note.restored",
+      ].includes(name);
+      expect(mockedHandleLinkTargetResolution).toHaveBeenCalledTimes(
+        expectsResolution ? 1 : 0,
+      );
     });
   }
 
@@ -694,7 +719,7 @@ describe("dispatchDomainEvent — note save routing (#145)", () => {
 });
 
 describe("dispatchDomainEvent — note.trashed fan-out (#145 + #159)", () => {
-  it("calls search → publication → view handlers in order", async () => {
+  it("calls search → publication → view → link-trashed handlers in order", async () => {
     const callOrder: string[] = [];
     mockedSearchHandleNoteTrashed.mockImplementationOnce(async () => {
       callOrder.push("search");
@@ -705,10 +730,18 @@ describe("dispatchDomainEvent — note.trashed fan-out (#145 + #159)", () => {
     mockedViewHandleNotePurged.mockImplementationOnce(async () => {
       callOrder.push("view");
     });
+    mockedHandleLinkTargetTrashed.mockImplementationOnce(async () => {
+      callOrder.push("link-trashed");
+    });
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, noteTrashedEvent());
     expect(outcome).toEqual({ kind: "handled" });
-    expect(callOrder).toEqual(["search", "publication", "view"]);
+    expect(callOrder).toEqual([
+      "search",
+      "publication",
+      "view",
+      "link-trashed",
+    ]);
   });
 
   it("returns retry on fan-out partial failure (search ok, publication transient)", async () => {
