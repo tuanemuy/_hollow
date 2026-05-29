@@ -361,6 +361,26 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
+  findActiveByOwnerAndTitle(
+    ownerId: UserId,
+    title: string,
+  ): Promise<readonly Note[]> {
+    return mapDbError("Failed to find notes by owner/title", async () => {
+      const rows = await this.db
+        .select()
+        .from(notes)
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+            sql`lower(${notes.title}) = lower(${title})`,
+          ),
+        )
+        .orderBy(asc(notes.title), asc(notes.id));
+      return this.hydrateMany(rows);
+    });
+  }
+
   findByDirectory(
     directoryId: DirectoryId,
     opts: NoteListOpts,

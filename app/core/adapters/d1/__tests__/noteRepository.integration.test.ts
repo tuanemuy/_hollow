@@ -1789,6 +1789,86 @@ describe("D1NoteRepository.searchByTitlePrefix (integration)", () => {
   });
 });
 
+describe("D1NoteRepository.findActiveByOwnerAndTitle (integration)", () => {
+  it("returns the owner's active notes whose title matches exactly, case-insensitively", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "My Note" });
+    await seedNote(container, owner, dir, { title: "My Notebook" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findActiveByOwnerAndTitle(owner, "MY NOTE"),
+    );
+    expect(rows.map((n) => n.title)).toEqual(["My Note"]);
+  });
+
+  it("returns every match ordered by title asc, id asc when titles collide", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const first = await seedNote(container, owner, dir, { title: "Dup" });
+    const second = await seedNote(container, owner, dir, { title: "Dup" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findActiveByOwnerAndTitle(owner, "dup"),
+    );
+    // Both ids share the `nextId` monotonic counter, so `first < second`
+    // lexicographically; the adapter's id-asc tie-break must surface
+    // `first` ahead of `second`.
+    const ids = [first, second].sort();
+    expect(rows.map((n) => n.id)).toEqual(ids);
+  });
+
+  it("isolates owners", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const ownerDir = await seedDirectory(container, owner);
+    const strangerDir = await seedDirectory(container, stranger);
+    await seedNote(container, owner, ownerDir, { title: "Shared" });
+    await seedNote(container, stranger, strangerDir, { title: "Shared" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findActiveByOwnerAndTitle(owner, "Shared"),
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0].ownerId).toBe(owner);
+  });
+
+  it("excludes trashed notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, {
+      title: "Gone",
+      status: "trashed",
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findActiveByOwnerAndTitle(owner, "Gone"),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("returns [] when no title matches (prefix is not enough)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    await seedNote(container, owner, dir, { title: "Prefixed Title" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findActiveByOwnerAndTitle(owner, "Prefixed"),
+    );
+    expect(rows).toEqual([]);
+  });
+});
+
 // Pins Issue #42 / ADR-007: `findByOwnerAndSlug` is narrowed to
 // `status='active'` so a trashed note cannot be resolved by slug. If
 // the WHERE clause is ever loosened, `restoreNote`'s `assertSlugUnique`

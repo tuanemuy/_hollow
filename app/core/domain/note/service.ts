@@ -14,7 +14,7 @@ import {
   type ContentHtml,
   InternalLinkRef,
   type InternalLinkRef as InternalLinkRefType,
-  type NoteId,
+  NoteId,
   NoteSlug,
   NoteTitle,
 } from "./valueObject";
@@ -161,37 +161,77 @@ export const NoteService = {
   },
 
   /**
-   * Resolve `kind=title` references to ids by looking up the owner's
-   * note catalogue. References that do not match a current note stay
-   * `resolvedNoteId === null` (rendered as unresolved). `kind=id`
-   * references are not re-checked because their target is already
-   * canonical.
+   * Resolve both reference kinds to a `resolvedNoteId`:
+   *
+   * - `kind=title`: look up the owner's note catalogue by
+   *   case-insensitive exact title match. Titles are not unique within
+   *   an owner, so when several active notes share a title the
+   *   candidates are sorted (title asc, id asc — the same order the
+   *   suggest popup uses) and the first one is chosen, for a
+   *   deterministic result. The sort is applied here rather than relying
+   *   on the port's return order so the resolution stays correct even if
+   *   a port implementation changes its ordering (ADR-003).
+   * - `kind=id`: verify the target id refers to an existing **active**
+   *   note owned by the same owner and set `resolvedNoteId` to it. The
+   *   `resolved_note_id` column carries a FK to `notes.id`, so an id that
+   *   does not point at a live owned note must stay unresolved rather
+   *   than be trusted blindly — both for FK safety and to avoid
+   *   cross-owner backlink leakage (ADR-007).
+   *
+   * References that do not match a current note stay
+   * `resolvedNoteId === null` (rendered as unresolved / broken link).
+   *
+   * `exceptId` excludes a single note id from the candidates so a note
+   * that links to its own title or id does not resolve to itself once it
+   * exists in the store (ADR-005). I/O errors from the repository are
+   * intentionally not caught — they propagate to the UoW boundary
+   * (ADR-001).
    */
   async resolveInternalLinks(
     refs: readonly InternalLinkRefType[],
     ownerId: UserId,
     repo: NoteRepository,
+    exceptId: NoteId | null = null,
   ): Promise<readonly InternalLinkRefType[]> {
     const out: InternalLinkRefType[] = [];
     for (const ref of refs) {
       if (ref.kind === "id") {
-        out.push(ref);
-        continue;
-      }
-      try {
-        const slugLike = NoteSlug.create(ref.target);
-        const candidate = await repo.findByOwnerAndSlug(ownerId, slugLike);
+        const targetId = NoteId.create(ref.target);
+        const matches = await repo.findByIds([targetId]);
+        const target = matches.find(
+          (note) =>
+            note.id === targetId &&
+            note.status === "active" &&
+            note.ownerId === ownerId &&
+            note.id !== exceptId,
+        );
         out.push(
           InternalLinkRef.withResolved(
             ref,
-            candidate === null ? null : candidate.id,
+            target === undefined ? null : target.id,
           ),
         );
-      } catch {
-        // Target isn't a valid slug — keep the unresolved reference so
-        // the editor can still surface "broken link" to the user.
-        out.push(InternalLinkRef.withResolved(ref, null));
+        continue;
       }
+      const candidates = await repo.findActiveByOwnerAndTitle(
+        ownerId,
+        ref.target,
+      );
+      const eligible = candidates
+        .filter((note) => note.id !== exceptId)
+        .sort((a, b) => {
+          if (a.title !== b.title) {
+            return (a.title as string) < (b.title as string) ? -1 : 1;
+          }
+          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+        });
+      const chosen = eligible[0];
+      out.push(
+        InternalLinkRef.withResolved(
+          ref,
+          chosen === undefined ? null : chosen.id,
+        ),
+      );
     }
     return out;
   },
@@ -322,6 +362,11 @@ export const NoteService = {
       rawContent: string;
       declaredTagNames: readonly TagName[];
       declaredInternalLinkRefs: readonly InternalLinkRefType[];
+      // Excluded from internal-link title resolution so a note linking
+      // to its own title does not resolve to itself (ADR-005). Callers
+      // that already know the note id (save / overwrite / commit) pass
+      // it; create passes the freshly-minted id for a uniform contract.
+      selfNoteId?: NoteId;
     },
     deps: {
       sanitizer: HtmlSanitizer;
@@ -387,6 +432,7 @@ export const NoteService = {
       mergedLinks,
       input.ownerId,
       deps.noteRepo,
+      input.selfNoteId ?? null,
     );
 
     await NoteService.assertMediaOwnership(

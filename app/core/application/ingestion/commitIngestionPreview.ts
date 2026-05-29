@@ -135,7 +135,7 @@ export async function commitIngestionPreview({
 
       // Resolve target directory: explicit id > newly created directory >
       // preview's suggested id > owner's root.
-      let directoryId = await resolveDirectoryId({
+      const directoryId = await resolveDirectoryId({
         actor,
         explicitId:
           mods.directoryId === undefined
@@ -166,6 +166,36 @@ export async function commitIngestionPreview({
         ...preview.suggestedTagNames,
       ];
 
+      // Determine the destination note id up front so it can be excluded
+      // from internal-link title resolution (self-link, ADR-005). The
+      // overwrite target is fetched / authorised here; the create path
+      // mints its id ahead of assembly.
+      const overwriteRaw = mods.overwriteNoteId;
+      const overwriteTarget =
+        overwriteRaw === undefined
+          ? null
+          : await (async () => {
+              const targetId = NoteId.create(overwriteRaw);
+              const target = await noteRepository.findById(targetId);
+              if (target === null) {
+                throw new NotFoundError(
+                  "NOTE_NOT_FOUND",
+                  `Note not found: ${targetId}`,
+                );
+              }
+              if (target.entity.ownerId !== actor) {
+                throw new ForbiddenError(
+                  "NOTE_FORBIDDEN",
+                  `Note ${targetId} is not owned by ${actor}`,
+                );
+              }
+              return target;
+            })();
+      const selfNoteId =
+        overwriteTarget !== null
+          ? overwriteTarget.entity.id
+          : NoteId.create(container.idGenerator.next());
+
       const assembled = await NoteService.assembleFromInputs(
         {
           ownerId: actor,
@@ -175,6 +205,7 @@ export async function commitIngestionPreview({
             ...declaredLinks,
             ...preview.internalLinkRefs,
           ],
+          selfNoteId,
         },
         {
           sanitizer: container.htmlSanitizer,
@@ -188,21 +219,8 @@ export async function commitIngestionPreview({
       );
 
       let noteId: NoteIdBrand;
-      if (mods.overwriteNoteId !== undefined) {
-        const targetId = NoteId.create(mods.overwriteNoteId);
-        const target = await noteRepository.findById(targetId);
-        if (target === null) {
-          throw new NotFoundError(
-            "NOTE_NOT_FOUND",
-            `Note not found: ${targetId}`,
-          );
-        }
-        if (target.entity.ownerId !== actor) {
-          throw new ForbiddenError(
-            "NOTE_FORBIDDEN",
-            `Note ${targetId} is not owned by ${actor}`,
-          );
-        }
+      if (overwriteTarget !== null) {
+        const target = overwriteTarget;
         const updated = Note.updateContent(target.entity, {
           title,
           contentHtml: assembled.html,
@@ -217,17 +235,15 @@ export async function commitIngestionPreview({
         await noteRepository.save(updated.entity, target.expectedVersion);
         collectEvents(updated.eventDrafts);
         noteId = target.entity.id;
-        directoryId = target.entity.directoryId;
       } else {
         const slug = await NoteService.generateUniqueSlug(
           actor,
           title,
           noteRepository,
         );
-        const newId = container.idGenerator.next();
         const created = Note.create(
           {
-            id: newId,
+            id: selfNoteId,
             ownerId: actor,
             directoryId,
             slug,

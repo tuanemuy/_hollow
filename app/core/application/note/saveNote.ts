@@ -109,6 +109,7 @@ export async function saveNote({
           rawContent: input.contentHtml ?? (found.entity.contentHtml as string),
           declaredTagNames,
           declaredInternalLinkRefs: declaredLinks,
+          selfNoteId: found.entity.id,
         },
         {
           sanitizer: container.htmlSanitizer,
