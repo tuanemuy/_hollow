@@ -138,7 +138,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
         </>
       )}
       {error !== null ? (
-        <span className={FORM_ERROR} role="alert">
+        <span className={FORM_ERROR} role="alert" aria-live="polite">
           {displayError(error)}
         </span>
       ) : null}

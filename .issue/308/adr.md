@@ -195,3 +195,48 @@ description 末尾のヒントテキストに「ユーザー名が一致する�
 - または、`Dialog` に `forceInitialFocusRef?: React.RefObject<HTMLElement | null>` を追加して `role === "alertdialog"` でも明示的に上書きする
 
 `Dialog` 内部の rAF panel focus はすべての alertdialog caller に作用するため、AccountDeleteForm 単独の callback ref / `requestAnimationFrame` polling では本質的に対処できない。共通プリミティブ側で扱うのが正攻法。
+
+---
+
+## ADR-006: AccountDeleteForm の状態管理とエラー a11y 通知の補強（PR レビュー Round 1 対応）
+
+### Status
+Proposed
+
+### Context
+PR #313 のレビュー Round 1 で、ADR-002 / ADR-005 をベースにした初期実装が a11y / UX 観点で複数の Warning を受けた。特に重要な軸:
+
+1. **W-F-001 / W-F-004**: 非 validation エラーで dialog 閉じた後、`draft` と `error` が残り、再オープン時に「ユーザー名入力済み + outer summary + dialog 内 input」の三重表示で安全装置（ユーザー名一致確認）の摩擦が失われる
+2. **W-F-002**: validation エラー後、ユーザーが input を編集しても古い alert が次 submit まで残り、SR / 視覚双方で誤情報を提示し続ける
+3. **W-A-001 / W-A-004**: input に `aria-describedby` がなく、fieldErrors や hint テキストへの SR 上のリンクが断絶。「ユーザー名（確認）」だけでは「どのユーザー名を入れるべきか」が SR ユーザーに伝わらない
+4. **W-A-002**: 不一致時 Enter / クリックが無反応で、WCAG 3.3.1 Error Identification 違反相当。ADR-005 で受容した UX 退行のうち「破壊的でない操作」の論拠を超えて、SR / キーボードユーザーへの「動作しなかった」通知欠落は a11y 要件として独立に対処すべき
+5. **W-P-001**: `closeDialog` での `setError(null)` が、Esc クローズ後の summary 表示寿命を意図せず短縮する
+
+### Decision
+
+以下の修正を AccountDeleteForm 側だけで完結させる（共通プリミティブ API 拡張なし、ADR-005 の「scope 外」原則維持）:
+
+1. **トリガー「続けて削除する」開時に `setError(null); setDraft("")` を呼ぶ** — 再オープン時に pre-fill / outer summary 二重表示を解消（W-F-001 / W-F-004）
+2. **input の `onChange` で `error?.kind === "validation"` のときだけ `setError(null)` を呼ぶ** — validation エラーは編集で即時クリア、system / business エラーは編集で消えない（W-F-002）
+3. **`onConfirm` 早期 return パスで `SerializedValidationError` 相当の `setError({ kind: "validation", code: null, message: "ユーザー名が一致しません", fieldErrors: { confirmation: ["ユーザー名が一致しません"] } })` を立てる** — `<p role="alert">` 経路で SR / 視覚通知を発火（W-A-002）
+4. **`useId()` を 2 つ追加して `hintId` / `errorId` を作り、input の `aria-describedby` で参照** — fieldErrors / hint と input の SR 上の関係を明示（W-A-001）
+5. **`<label>` を「ユーザー名 `{user.username}` を入力」に変更** — accessible name 単独で「どの username を入れるか」を伝える（W-A-004）
+6. **`closeDialog` から `setError(null)` を削除** — summary 表示寿命は「次のトリガー開」または「次の submit 成功」まで延長（W-P-001）
+7. **TagActions / UsersTable / AccountDeleteForm の `<p role="alert">` summary に `aria-live="polite"` を追加** — 動的変化を SR が拾えるよう補強（W-A-005、最小変更）
+
+### Consequences
+- 良い点:
+  - WCAG 3.3.1 Error Identification を満たす（W-A-002）
+  - 破壊的アクションの安全装置（ユーザー名一致確認の摩擦）が再試行経路でも失われない（W-F-001）
+  - SR ユーザーが input にフォーカス時にエラー文言・hint テキストが再読み上げされる（W-A-001 / W-A-004）
+  - validation エラーがリアルタイム入力で消える（W-F-002）
+  - summary 表示寿命が一貫する（W-P-001）
+- トレードオフ:
+  - クライアント側で `SerializedValidationError` を立てるため、`code: null` のリテラルが入る（server 由来でない validation error）。型 narrowing は `kind === "validation"` で正しく機能する
+  - hint テキスト「Tab キーで入力欄に移動できます」は引き続き常時表示（W-F-003 は受容、初手 panel focus の状況でのみ意味があるが、消すと逆に「なぜ動かないか」がわからなくなる）
+  - `aria-live="polite"` 追加は他 caller の挙動には影響しないが、role="alert" は元々 assertive 寄りなので併用すると一部 SR で読み上げ順が変わる可能性 — 受容
+- スコープ外として継続:
+  - W-A-003 (SR multi-read concern) — VoiceOver / NVDA 実機確認が必要、別 Issue 候補
+  - W-A-006 (token contrast) — `spec/design/tokens.md` 追記、別 Issue
+  - W-P-002 (system error 経路の SKIP) — `progress.md` に記録、別途検証手段が必要
+  - W-P-003 (admin 自身の demote ボタン) — UsersTable のロジック変更、別 Issue

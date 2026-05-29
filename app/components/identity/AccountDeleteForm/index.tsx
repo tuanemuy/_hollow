@@ -27,6 +27,8 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
   const [isPending, startTransition] = useTransition();
 
   const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
 
   const fieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.confirmation : undefined;
@@ -34,7 +36,15 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
     error !== null && fieldErrors === undefined ? displayError(error) : "";
 
   const onConfirm = () => {
-    if (draft !== user.username) return;
+    if (draft !== user.username) {
+      setError({
+        kind: "validation",
+        code: null,
+        message: "ユーザー名が一致しません",
+        fieldErrors: { confirmation: ["ユーザー名が一致しません"] },
+      });
+      return;
+    }
     startTransition(async () => {
       try {
         await deleteAccount({ data: { confirmation: draft } });
@@ -58,7 +68,7 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
   const closeDialog = () => {
     setConfirmOpen(false);
     setDraft("");
-    setError(null);
+    // error は保持: summary 表示寿命は「次のトリガー開」または「次の submit 成功」まで
   };
 
   return (
@@ -73,13 +83,21 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
         type="button"
         className={PILL_BTN}
         data-danger=""
-        onClick={() => setConfirmOpen(true)}
+        onClick={() => {
+          setError(null);
+          setDraft("");
+          setConfirmOpen(true);
+        }}
         disabled={isPending}
       >
         <Icon icon={Trash2} />
         続けて削除する
       </button>
-      {summary !== "" ? <p role="alert">{summary}</p> : null}
+      {summary !== "" ? (
+        <p role="alert" aria-live="polite">
+          {summary}
+        </p>
+      ) : null}
       <ConfirmDialog
         open={confirmOpen}
         title="本当にアカウントを削除しますか？"
@@ -89,25 +107,43 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
               確認のため、ユーザー名 <code>{user.username}</code>{" "}
               をそのまま入力してください。
             </p>
-            <label htmlFor={inputId}>ユーザー名（確認）</label>
+            <label htmlFor={inputId}>
+              ユーザー名 <code>{user.username}</code> を入力
+            </label>
             <input
               id={inputId}
               name="confirmation"
               type="text"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (error?.kind === "validation") setError(null);
+              }}
               maxLength={USERNAME_MAX}
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
               required
               disabled={isPending}
-              aria-invalid={fieldErrors !== undefined}
+              aria-invalid={fieldErrors !== undefined && fieldErrors.length > 0}
+              aria-describedby={
+                // error 優先順で読み上げる: SR は aria-describedby の id 順に読む
+                [
+                  fieldErrors !== undefined && fieldErrors.length > 0
+                    ? errorId
+                    : null,
+                  hintId,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
             />
-            {fieldErrors !== undefined ? (
-              <p role="alert">{fieldErrors[0]}</p>
+            {fieldErrors !== undefined && fieldErrors.length > 0 ? (
+              <p id={errorId} role="alert">
+                {fieldErrors[0]}
+              </p>
             ) : null}
-            <p className="text-xs text-ink-tertiary">
+            <p id={hintId} className="text-xs text-ink-tertiary">
               ユーザー名が一致すると削除が実行されます。Tab
               キーで入力欄に移動できます。
             </p>

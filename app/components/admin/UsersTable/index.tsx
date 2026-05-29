@@ -204,6 +204,8 @@ function UserRow({
           <p
             className={`${FIELD_ERROR_CLASS} text-right`}
             style={{ marginTop: 6 }}
+            role="alert"
+            aria-live="polite"
           >
             {summary}
           </p>
