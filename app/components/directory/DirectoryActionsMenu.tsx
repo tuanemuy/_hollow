@@ -145,7 +145,8 @@ export function DirectoryActionsMenu({
         onClick={(event) => {
           event.stopPropagation();
           event.preventDefault();
-          setActiveIndex(0);
+          // Reset roving focus to the first item only when opening.
+          if (!open) setActiveIndex(0);
           setOpen((prev) => !prev);
         }}
       >
