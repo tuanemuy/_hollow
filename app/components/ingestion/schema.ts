@@ -21,6 +21,10 @@ export const regenerateIngestionPreviewSchema = z.object({
   jobId: z.string().min(1),
 });
 
+export const ownerRetryIngestionJobSchema = z.object({
+  jobId: z.string().min(1),
+});
+
 export const getIngestionJobSchema = z.object({
   jobId: z.string().min(1),
 });

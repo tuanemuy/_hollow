@@ -27,6 +27,7 @@ import {
   commitIngestionPreviewFn,
   discardIngestionPreviewFn,
   type IngestionJobWire,
+  ownerRetryIngestionJobFn,
   regenerateIngestionPreviewFn,
 } from "./actions";
 
@@ -69,6 +70,7 @@ export function IngestionJobRow({ job }: Props) {
   const commit = useServerFn(commitIngestionPreviewFn);
   const discard = useServerFn(discardIngestionPreviewFn);
   const regenerate = useServerFn(regenerateIngestionPreviewFn);
+  const ownerRetry = useServerFn(ownerRetryIngestionJobFn);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
@@ -126,6 +128,18 @@ export function IngestionJobRow({ job }: Props) {
     startTransition(async () => {
       try {
         await regenerate({ data: { jobId } });
+        await routerInvalidate(router);
+        setError(null);
+      } catch (e) {
+        setError(extractSerializedError(e));
+      }
+    });
+  };
+
+  const onRetry = () => {
+    startTransition(async () => {
+      try {
+        await ownerRetry({ data: { jobId } });
         await routerInvalidate(router);
         setError(null);
       } catch (e) {
@@ -202,16 +216,27 @@ export function IngestionJobRow({ job }: Props) {
           </>
         ) : null}
         {job.status === "failed" ? (
-          <button
-            type="button"
-            className={PILL_BTN}
-            data-danger=""
-            onClick={() => setConfirmDiscardOpen(true)}
-            disabled={isPending}
-          >
-            <Icon icon={Trash2} />
-            破棄
-          </button>
+          <>
+            <button
+              type="button"
+              className={PILL_BTN}
+              onClick={onRetry}
+              disabled={isPending}
+            >
+              <Icon icon={RefreshCw} />
+              再試行
+            </button>
+            <button
+              type="button"
+              className={PILL_BTN}
+              data-danger=""
+              onClick={() => setConfirmDiscardOpen(true)}
+              disabled={isPending}
+            >
+              <Icon icon={Trash2} />
+              破棄
+            </button>
+          </>
         ) : null}
         {job.status === "saved" && job.savedAsNoteId !== null ? (
           <Link

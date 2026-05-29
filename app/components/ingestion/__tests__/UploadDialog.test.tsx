@@ -23,6 +23,7 @@ const getJobMock = vi.fn();
 const discardMock = vi.fn();
 const getTreeMock = vi.fn();
 const regenerateMock = vi.fn();
+const ownerRetryMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   // Identity dispatch via the imported references below. The module
@@ -35,6 +36,7 @@ vi.mock("@tanstack/react-start", () => ({
       [discardMock, discardMock],
       [getTreeMock, getTreeMock],
       [regenerateMock, regenerateMock],
+      [ownerRetryMock, ownerRetryMock],
     ],
     vi.fn(),
   ),
@@ -48,6 +50,7 @@ vi.mock("../actions", () => ({
   discardIngestionPreviewFn: discardMock,
   commitIngestionPreviewFn: vi.fn(),
   regenerateIngestionPreviewFn: regenerateMock,
+  ownerRetryIngestionJobFn: ownerRetryMock,
 }));
 
 vi.mock("../../note/actions", () => ({
@@ -114,6 +117,7 @@ beforeEach(() => {
   discardMock.mockReset();
   getTreeMock.mockReset();
   regenerateMock.mockReset();
+  ownerRetryMock.mockReset();
   navigateMock.mockClear();
   invalidateMock.mockClear();
   vi.useFakeTimers();
@@ -226,13 +230,12 @@ describe("UploadDialog state machine", () => {
     });
 
     // The failed view shows a user-facing message (never the raw internal
-    // code) and the two actions.
+    // code) and the owner-facing actions (再試行 / キュー画面で詳細を見る / 破棄).
     expect(document.body.textContent).toContain("取り込みに失敗しました");
     expect(document.body.textContent).not.toContain("INGESTION_TIMEOUT");
+    expect(document.body.textContent).toContain("再試行");
     expect(document.body.textContent).toContain("破棄");
     expect(document.body.textContent).toContain("キュー画面で詳細を見る");
-    // No "再試行" button on the modal failed view.
-    expect(document.body.textContent ?? "").not.toMatch(/再試行/);
   });
 
   it("renders a multi-result summary for multi-file uploads", async () => {
@@ -500,6 +503,74 @@ describe("UploadDialog state machine", () => {
     });
     expect(invalidateMock).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #254: clicking 再試行 in the failed view calls
+  // `ownerRetryIngestionJobFn`, then re-enters the `waiting` view (via the
+  // same `onRegenerated` handler) so the existing poll loop watches the job
+  // back through `pending → processing → previewing` and lands on `editing`.
+  it("re-enters the `waiting` view and resumes polling when 再試行 is clicked in the failed view", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    // First poll lands on failed → failed view. After retry, the next poll
+    // observes previewing → editing view.
+    getJobMock
+      .mockResolvedValueOnce({ job: failedJob })
+      .mockResolvedValue({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+    ownerRetryMock.mockResolvedValue({ jobId: "job-1" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("取り込みに失敗しました");
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+    expect(retryBtn).toBeDefined();
+    const pollsBeforeRetry = getJobMock.mock.calls.length;
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    expect(ownerRetryMock.mock.calls[0]?.[0]).toMatchObject({
+      data: { jobId: "job-1" },
+    });
+    // Back in the waiting view: the status region announces the re-drive.
+    expect(status?.textContent).toBe("LLM がタイトルとメタデータを提案中");
+
+    // Polling resumes from the waiting view: advancing past the interval
+    // triggers a fresh getJob call, observes previewing, lands on editing.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getJobMock.mock.calls.length).toBeGreaterThan(pollsBeforeRetry);
+    expect(status?.textContent).toBe("プレビュー編集に進みました");
   });
 
   // Issue #253 ADR-003: clicking 再生成 in the editing view re-enters the

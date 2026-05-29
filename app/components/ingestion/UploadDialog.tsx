@@ -21,6 +21,7 @@ import {
   discardIngestionPreviewFn,
   getIngestionJobFn,
   type IngestionJobWire,
+  ownerRetryIngestionJobFn,
   uploadFileFn,
 } from "./actions";
 import { IngestionPreviewForm } from "./IngestionPreviewForm";
@@ -422,7 +423,11 @@ export function UploadDialog({ open, onClose }: Props) {
       ) : null}
 
       {view.kind === "failed" ? (
-        <FailedView job={view.job} onClose={onClose} />
+        <FailedView
+          job={view.job}
+          onClose={onClose}
+          onRetried={onRegenerated}
+        />
       ) : null}
 
       {view.kind === "multiResult" ? (
@@ -542,9 +547,15 @@ function SkeletonBlock() {
 function FailedView({
   job,
   onClose,
-}: Readonly<{ job: IngestionJobWire; onClose: () => void }>) {
+  onRetried,
+}: Readonly<{
+  job: IngestionJobWire;
+  onClose: () => void;
+  onRetried: (jobId: string) => void;
+}>) {
   const router = useRouter();
   const discard = useServerFn(discardIngestionPreviewFn);
+  const retry = useServerFn(ownerRetryIngestionJobFn);
   const [isPending, setIsPending] = useState(false);
   const [err, setErr] = useState<SerializedError | null>(null);
   const onDiscard = () => {
@@ -554,6 +565,21 @@ function FailedView({
         await discard({ data: { jobId: job.id } });
         await routerInvalidate(router);
         onClose();
+      } catch (e) {
+        setErr(extractSerializedError(e));
+        setIsPending(false);
+      }
+    })();
+  };
+  // Retry returns the job to `pending` and re-drives the LLM. Hand off to
+  // `onRetried` (same handler as regeneration) so the dialog re-enters the
+  // `waiting` view and the polling loop tracks it back to `editing`.
+  const onRetry = () => {
+    setIsPending(true);
+    void (async () => {
+      try {
+        await retry({ data: { jobId: job.id } });
+        onRetried(job.id);
       } catch (e) {
         setErr(extractSerializedError(e));
         setIsPending(false);
@@ -579,6 +605,14 @@ function FailedView({
         </p>
       ) : null}
       <div className="flex flex-wrap justify-end gap-2 mt-4">
+        <button
+          type="button"
+          className={pillBtn}
+          onClick={onRetry}
+          disabled={isPending}
+        >
+          再試行
+        </button>
         <Link to="/upload" hash={() => ""} className={pillBtn}>
           キュー画面で詳細を見る
         </Link>
