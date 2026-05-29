@@ -7,6 +7,7 @@ import {
   gte,
   inArray,
   isNotNull,
+  isNull,
   lt,
   notExists,
   type SQL,
@@ -48,7 +49,7 @@ import {
   noteTags,
   publicationStates,
 } from "../schema";
-import { selectInChunks } from "./_chunks";
+import { SAFE_CHUNK_SIZE, selectInChunks } from "./_chunks";
 import { escapeLikePattern, mapDbError } from "./helpers";
 
 type NoteRow = typeof notes.$inferSelect;
@@ -781,6 +782,105 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
+  findUnresolvedTitleLinkRows(
+    ownerId: UserId,
+    title: string,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]> {
+    return mapDbError("Failed to find unresolved title link rows", async () => {
+      // `note_internal_links` has no owner column, so join onto `notes`
+      // (the `from` note) to scope by owner + active status. The
+      // `lower(refTarget) = lower(?)` comparison is a function-expr
+      // filter — `idx_nil_target (refKind, refTarget)` only narrows on
+      // the `refKind='title'` prefix; the owner+active join keeps the
+      // candidate set small (see #127 ADR-002).
+      const rows = await this.db
+        .select({
+          id: noteInternalLinks.id,
+          fromNoteId: noteInternalLinks.fromNoteId,
+        })
+        .from(noteInternalLinks)
+        .innerJoin(notes, eq(notes.id, noteInternalLinks.fromNoteId))
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+            eq(noteInternalLinks.refKind, "title"),
+            isNull(noteInternalLinks.resolvedNoteId),
+            sql`lower(${noteInternalLinks.refTarget}) = lower(${title})`,
+          ),
+        );
+      return rows.map((r) => ({
+        id: r.id,
+        fromNoteId: r.fromNoteId as NoteId,
+      }));
+    });
+  }
+
+  findUnresolvedIdLinkRows(
+    ownerId: UserId,
+    targetNoteId: NoteId,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]> {
+    return mapDbError("Failed to find unresolved id link rows", async () => {
+      // Same owner/active join as the title variant. The id link's
+      // `refTarget` carries the raw target note id verbatim; exclude the
+      // self link so a note pointing at its own id never resolves
+      // (ADR-005).
+      const rows = await this.db
+        .select({
+          id: noteInternalLinks.id,
+          fromNoteId: noteInternalLinks.fromNoteId,
+        })
+        .from(noteInternalLinks)
+        .innerJoin(notes, eq(notes.id, noteInternalLinks.fromNoteId))
+        .where(
+          and(
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+            eq(noteInternalLinks.refKind, "id"),
+            isNull(noteInternalLinks.resolvedNoteId),
+            eq(noteInternalLinks.refTarget, targetNoteId),
+            sql`${noteInternalLinks.fromNoteId} <> ${targetNoteId}`,
+          ),
+        );
+      return rows.map((r) => ({
+        id: r.id,
+        fromNoteId: r.fromNoteId as NoteId,
+      }));
+    });
+  }
+
+  findResolvedLinkRowsByTarget(targetNoteId: NoteId): Promise<
+    readonly {
+      id: string;
+      fromNoteId: NoteId;
+      refKind: "id" | "title";
+      refTarget: string;
+    }[]
+  > {
+    return mapDbError(
+      "Failed to find resolved link rows by target",
+      async () => {
+        // Same `where` as `findReferrers` (`idx_nil_resolved`), but
+        // returns the raw link-row shape instead of hydrated notes.
+        const rows = await this.db
+          .select({
+            id: noteInternalLinks.id,
+            fromNoteId: noteInternalLinks.fromNoteId,
+            refKind: noteInternalLinks.refKind,
+            refTarget: noteInternalLinks.refTarget,
+          })
+          .from(noteInternalLinks)
+          .where(eq(noteInternalLinks.resolvedNoteId, targetNoteId));
+        return rows.map((r) => ({
+          id: r.id,
+          fromNoteId: r.fromNoteId as NoteId,
+          refKind: r.refKind as "id" | "title",
+          refTarget: r.refTarget,
+        }));
+      },
+    );
+  }
+
   countByOwner(ownerId: UserId, opts?: NoteOwnerCountOpts): Promise<number> {
     return mapDbError("Failed to count notes", async () => {
       const built = await this.buildOwnerListWhere(ownerId, opts ?? {});
@@ -925,6 +1025,27 @@ export class D1NoteRepository implements NoteRepository {
       }
       return candidates.map(({ id }) => id as NoteId);
     });
+  }
+
+  async setLinkResolution(
+    linkRowIds: readonly string[],
+    resolvedNoteId: NoteId | null,
+  ): Promise<void> {
+    if (linkRowIds.length === 0) return;
+    // Buffered onto the pending batch like the aggregate child writes so
+    // the resolution update commits atomically with the surrounding UoW
+    // (Issue #321 ADR-008). Chunk the `IN (...)` predicate under the D1
+    // host-var cap; `+1` host var for the `resolved_note_id` SET value
+    // stays within the `SAFE_CHUNK_SIZE` margin.
+    for (let i = 0; i < linkRowIds.length; i += SAFE_CHUNK_SIZE) {
+      const chunk = linkRowIds.slice(i, i + SAFE_CHUNK_SIZE);
+      this.pending.add(
+        this.db
+          .update(noteInternalLinks)
+          .set({ resolvedNoteId })
+          .where(inArray(noteInternalLinks.id, chunk)),
+      );
+    }
   }
 
   async purge(id: NoteId): Promise<void> {

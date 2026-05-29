@@ -220,6 +220,16 @@ function buildAssemblyDeps(
       async findReferrers() {
         return [];
       },
+      async findUnresolvedTitleLinkRows() {
+        return [];
+      },
+      async findUnresolvedIdLinkRows() {
+        return [];
+      },
+      async findResolvedLinkRowsByTarget() {
+        return [];
+      },
+      async setLinkResolution() {},
       async trashByDirectory() {
         return [];
       },

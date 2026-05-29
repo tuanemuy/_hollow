@@ -16,6 +16,8 @@ import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../expor
 import { runExportJob } from "../export/runExportJob";
 import { runIngestionJob } from "../ingestion/runIngestionJob";
 import { handleNotePurgedEvent as mediaHandleNotePurgedEvent } from "../media/handleNotePurgedEvent";
+import { handleLinkTargetResolution } from "../note/handleLinkTargetResolution";
+import { handleLinkTargetTrashed } from "../note/handleLinkTargetTrashed";
 import { handleNotePurgedEvent as publicationHandleNotePurgedEvent } from "../publication/handleNotePurgedEvent";
 import { handleNoteTrashedEvent as publicationHandleNoteTrashedEvent } from "../publication/handleNoteTrashedEvent";
 import { handleUserDeletedEvent as publicationHandleUserDeletedEvent } from "../publication/handleUserDeletedEvent";
@@ -54,13 +56,21 @@ export type DispatchOutcome =
  * - `export.job.requested` / `export.job.retryRequested` → `runExportJob`
  * - `note.created` / `note.content_updated` / `note.renamed` /
  *   `note.moved` / `note.restored` / `note.tags_replaced` →
- *   `search.handleNoteSavedEvent` (re-build snapshot from `noteId` first)
+ *   `search.handleNoteSavedEvent` (re-build snapshot from `noteId` first).
+ *   Additionally, for the title/id-affecting subset
+ *   (`note.created` / `note.content_updated` / `note.renamed` /
+ *   `note.restored`) → `note.handleLinkTargetResolution` (Issue #321),
+ *   invoked before the search-snapshot early return so it runs even when
+ *   the snapshot build skips. `moved` / `tags_replaced` are excluded
+ *   because they change neither title nor id.
  * - `note.trashed` → fan-out to `search.handleNoteTrashedEvent` then
  *   `publication.handleNoteTrashedEvent` then `view.handleNotePurgedEvent`
- *   (search-first so the delete index op is settled before publication
- *   emits `note.publish_changed`; view broken marker last because it does
- *   not depend on the other two — see Issue #159 ADR-002, the view
- *   handler is reused for both trash and purge)
+ *   then `note.handleLinkTargetTrashed` (Issue #321 — unresolve link rows
+ *   pointing at the trashed note; the FK set-null only fires on physical
+ *   delete). (search-first so the delete index op is settled before
+ *   publication emits `note.publish_changed`; view broken marker before
+ *   the link unresolve because it does not depend on the others — see
+ *   Issue #159 ADR-002, the view handler is reused for both trash and purge)
  * - `note.purged` → fan-out to `search.handleNoteTrashedEvent` then
  *   `publication.handleNotePurgedEvent` then `media.handleNotePurgedEvent`
  *   then `view.handleNotePurgedEvent` (Issue #159 ADR-001)
@@ -157,6 +167,31 @@ export async function dispatchDomainEvent(
       case "note.restored":
       case "note.tags_replaced": {
         const payload = event.payload as Readonly<{ noteId: string }>;
+        // Issue #321: re-resolve `note_internal_links.resolved_note_id`
+        // on other notes when a link target is created / renamed /
+        // restored (or its title changes via `content_updated`). This
+        // runs in its own UoW with its own `findById` + active-status
+        // guard, so it must be invoked BEFORE the search-snapshot early
+        // return below (snapshot is `null` for absent/trashed notes, but
+        // the resolution handler still needs to run — e.g. the title
+        // change carried by `content_updated` for an active note). The
+        // `moved` / `tags_replaced` events leave title and id unchanged,
+        // so they are excluded from this fan-out (the title/id-keyed
+        // resolution cannot change). NoteId VO is constructed before any
+        // side effect (Issue #159 ADR-005).
+        if (
+          [
+            "note.created",
+            "note.content_updated",
+            "note.renamed",
+            "note.restored",
+          ].includes(event.type)
+        ) {
+          await handleLinkTargetResolution({
+            container,
+            input: { noteId: NoteId.create(payload.noteId) },
+          });
+        }
         const snapshot = await buildSnapshotByNoteId(container, payload.noteId);
         if (snapshot === null) {
           container.logger.info(
@@ -193,6 +228,10 @@ export async function dispatchDomainEvent(
           container,
           input: { noteId: payload.noteId },
         });
+        // Issue #321: unresolve every link row currently pointing at the
+        // trashed note (FK set-null fires only on physical delete). Runs
+        // last; independent of the other handlers and idempotent.
+        await handleLinkTargetTrashed({ container, input: { noteId } });
         return { kind: "handled" };
       }
       case "note.purged": {
