@@ -32,6 +32,10 @@ export async function demoteAdmin({
     }
     const adminCount = await userRepository.countAdmins();
     IdentityService.assertNotLastAdmin(targetId, adminCount);
+    // last-admin is evaluated before self-operation on purpose: for demote,
+    // `last_admin_protected` is only reachable when actor === target, so
+    // guarding self first would make it dead code. See .issue/315 ADR-003.
+    IdentityService.assertNotSelf(actorId, targetId);
     const demoted = User.demoteToMember(target.entity, now);
     await userRepository.save(demoted, target.expectedVersion);
   });

@@ -1,4 +1,5 @@
 import { User } from "@/core/domain/identity/entity";
+import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { UserId } from "@/core/domain/identity/valueObject";
 import type { UserId as UserIdDTO } from "../dto/identity";
 import { ForbiddenError, NotFoundError } from "../errors";
@@ -26,6 +27,7 @@ export async function suspendUser({
           "Actor is not authorised to suspend users",
         );
       }
+      IdentityService.assertNotSelf(actorId, targetId);
       const target = await userRepository.findById(targetId);
       if (target === null) {
         throw new NotFoundError("user", `User not found: ${targetId}`);

@@ -90,11 +90,14 @@ function formatDate(value: string): string {
 
 function UserRow({
   user,
+  currentUserId,
   onChange,
 }: {
   user: UserDTO;
+  currentUserId: string;
   onChange: () => Promise<void>;
 }) {
+  const isSelf = user.id === currentUserId;
   const suspend = useServerFn(suspendUserFn);
   const reinstate = useServerFn(reinstateUserFn);
   const promote = useServerFn(promoteUserFn);
@@ -155,7 +158,7 @@ function UserRow({
       </td>
       <td className="px-4 py-3 text-right align-middle">
         <div className="flex gap-2 justify-end flex-wrap">
-          {user.status === "active" ? (
+          {user.status === "active" && !isSelf ? (
             <button
               type="button"
               className={BTN_SM_CLASS}
@@ -188,7 +191,7 @@ function UserRow({
               管理者に昇格
             </button>
           ) : null}
-          {user.status !== "deleted" && user.role === "admin" ? (
+          {user.status !== "deleted" && user.role === "admin" && !isSelf ? (
             <button
               type="button"
               className={BTN_SM_CLASS}
@@ -215,7 +218,13 @@ function UserRow({
   );
 }
 
-export function UsersTable({ users }: { users: readonly UserDTO[] }) {
+export function UsersTable({
+  users,
+  currentUserId,
+}: {
+  users: readonly UserDTO[];
+  currentUserId: string;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -300,7 +309,12 @@ export function UsersTable({ users }: { users: readonly UserDTO[] }) {
                 </tr>
               ) : (
                 filtered.map((user) => (
-                  <UserRow key={user.id} user={user} onChange={onChange} />
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    currentUserId={currentUserId}
+                    onChange={onChange}
+                  />
                 ))
               )}
             </tbody>

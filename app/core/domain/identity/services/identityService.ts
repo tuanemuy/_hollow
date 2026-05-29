@@ -34,6 +34,26 @@ export const IdentityService = {
   },
 
   /**
+   * Prevents an admin from running a moderation action (demote /
+   * suspend) against their own account. The actor already holds the
+   * admin authority for the action (checked separately at the usecase);
+   * what is rejected here is the actor and target being the same
+   * account — a rule about valid actor/target relationships, not an
+   * authorization failure.
+   *
+   * @throws BusinessRuleError("self_operation_not_allowed") when
+   *   `actorId` equals `targetUserId`.
+   */
+  assertNotSelf(actorId: UserId, targetUserId: UserId): void {
+    if (actorId === targetUserId) {
+      throw new BusinessRuleError(
+        IdentityErrorCode.SelfOperationNotAllowed,
+        "Admins cannot demote or suspend their own account",
+      );
+    }
+  },
+
+  /**
    * Uniqueness check at the transition point. The adapter's UNIQUE
    * constraint is the ultimate source of truth, but checking here lets
    * usecases surface a domain-shaped error before the write attempt.

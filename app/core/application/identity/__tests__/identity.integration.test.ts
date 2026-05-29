@@ -1445,6 +1445,53 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
     expect(row[0]?.role).toBe("member");
   });
 
+  it("rejects an admin demoting their own account (self-operation)", async () => {
+    // Two admins so last-admin protection does not preempt the self guard.
+    const { container, userId: adminA } = await activateAdmin("admon07");
+    const memberB = await activateMember(container, "mem0050");
+    await promoteUserToAdmin({
+      container,
+      input: {
+        actorAdminId: adminA as never,
+        targetUserId: memberB as never,
+      },
+    });
+    try {
+      await demoteAdmin({
+        container,
+        input: {
+          actorAdminId: adminA as never,
+          targetUserId: adminA as never,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("self_operation_not_allowed");
+      }
+    }
+  });
+
+  it("rejects an admin suspending their own account (self-operation)", async () => {
+    const { container, userId: adminId } = await activateAdmin("admon08");
+    try {
+      await suspendUser({
+        container,
+        input: {
+          actorAdminId: adminId as never,
+          targetUserId: adminId as never,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("self_operation_not_allowed");
+      }
+    }
+  });
+
   it("admin can suspend and reinstate an active member", async () => {
     const { container, userId: adminId } = await activateAdmin("admon04");
     const memberId = await activateMember(container, "mem0030");

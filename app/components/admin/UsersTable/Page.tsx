@@ -3,7 +3,7 @@ import { loadAdminUsers } from "./action";
 import { UsersTable } from "./index";
 
 export async function UsersPage() {
-  await requireAdminUser();
+  const me = await requireAdminUser();
   const { users } = await loadAdminUsers();
   const activeCount = users.filter((u) => u.status === "active").length;
   return (
@@ -14,7 +14,7 @@ export async function UsersPage() {
       <p className="text-md text-ink-secondary m-0 mb-8">
         {users.length} アカウント · うちアクティブ {activeCount}
       </p>
-      <UsersTable users={users} />
+      <UsersTable users={users} currentUserId={me.id} />
     </main>
   );
 }
