@@ -20,4 +20,4 @@
   - fatal error 自体が稀。
   - 初回アップロードと再生成で遷移先を出し分けるには `waiting` view machine に「起点（初回/再生成）」フラグを持たせる必要があり、初回アップロードの導線にも波及する。これは本 Issue の意図（再生成の LLM 再駆動復活）を超える UX リファクタリング。
 - **影響範囲:** 再生成後の稀な fatal error 時のみ。既存の初回アップロードの fatal 挙動と同一。
-- **フォローアップ:** Phase 4 で別 Issue 化を検討（再生成 / failed retry など「既存ジョブ起点」の waiting 遷移時は fatal 時に `select` ではなくキュー誘導する UX 改善）。
+- **フォローアップ:** **別 Issue #319 で対応**（再生成 / failed retry など「既存ジョブ起点」の waiting 遷移時は fatal 時に `select` ではなくキュー誘導する UX 改善）。

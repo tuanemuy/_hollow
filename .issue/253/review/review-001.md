@@ -53,7 +53,7 @@
 - **[W-F2]** 再生成後の `waiting` ポーリングで fatal error（notFound/business）が起きると `select` view（最初のドロップゾーン）へ戻り、編集対象を見失う UX になり得る。
   - 場所: `app/components/ingestion/UploadDialog.tsx:240-243`
   - 理由: 初回アップロードでは妥当だが、再生成は「既存ジョブ編集中」コンテキスト。ただしジョブはキューに永続化されており消失しない。fatal 自体が稀。
-  - 提案: 必須ではない（レビュアーも「許容範囲」と明記）。出し分けは waiting view machine 全体に波及するため本 PR では見送り、progress.md に記録。→ **見送り（progress.md 記録）**
+  - 提案: 必須ではない（レビュアーも「許容範囲」と明記）。出し分けは waiting view machine 全体に波及するため本 PR では見送り、progress.md に記録。→ **別 Issue #319 で対応**
 
 ### Notes
 - `onRegenerate` は計画ステップ4 / レビュー履歴 S-102 を正確に満たす（入口ガード + setError(null) + useTransition + try/catch + 成功時 routerInvalidate → onRegenerated）。全ボタン `disabled={isPending}`。
