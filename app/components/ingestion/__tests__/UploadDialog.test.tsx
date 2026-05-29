@@ -382,6 +382,74 @@ describe("UploadDialog state machine", () => {
     expect(document.body.querySelector('[role="alert"]')).not.toBeNull();
   });
 
+  // Issue #258 (Perf-H1): transient poll failures under the cap keep the
+  // same `waiting` session alive and resume polling at the regular interval,
+  // eventually reaching `editing`. After moving the failure counter to a ref
+  // (out of the `view` discriminant), a transient failure no longer rebuilds
+  // the `waiting` view — but the externally observable cadence (one getJob per
+  // POLL_INTERVAL) is unchanged either way, so this is a behavioral guard that
+  // the loop survives transient hiccups, not a detector of the internal
+  // re-mount itself. It pins: failures under the cap don't drop or duplicate a
+  // poll, and the count of polls equals the number of intervals advanced.
+  it("resumes polling at the regular interval through transient failures, then reaches editing", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    const transient = new AppServerError({
+      kind: "system",
+      code: null,
+      message: "transient backend error",
+    });
+    // Two transient failures (under the cap of 3), then previewing.
+    getJobMock
+      .mockRejectedValueOnce(transient)
+      .mockRejectedValueOnce(transient)
+      .mockResolvedValueOnce({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    // Each interval advance must trigger exactly one new poll — no burst.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getJobMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getJobMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(getJobMock).toHaveBeenCalledTimes(3);
+
+    // Still in `select`/`waiting` budget — the loop survived the transients
+    // and landed on the editing view.
+    const titleInput =
+      document.body.querySelector<HTMLInputElement>('input[type="text"]');
+    expect(titleInput?.value).toBe("Hello");
+  });
+
   // W-T-007: failed-view 破棄 button calls `discardIngestionPreviewFn`,
   // invalidates the router, then calls onClose.
   it("invokes discard + router.invalidate + onClose when failed-view 破棄 is clicked", async () => {
