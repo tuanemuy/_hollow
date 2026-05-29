@@ -30,6 +30,10 @@ import type {
   PDFExtractResult,
 } from "@/core/domain/ingestion/ports/pdfExtractor";
 import type {
+  IngestionPromptPurpose,
+  PromptResolver,
+} from "@/core/domain/ingestion/ports/promptResolver";
+import type {
   SpeechRecognitionProvider,
   SpeechTranscribeInput,
 } from "@/core/domain/ingestion/ports/speechRecognitionProvider";
@@ -39,6 +43,7 @@ import type {
   SanitizeResult,
 } from "@/core/domain/note/ports/htmlSanitizer";
 import type { ContentHtml } from "@/core/domain/note/valueObject";
+import { FakeLLMProvider } from "../../__tests__/fakes/fakeLLMProvider";
 import {
   setupTestContainer,
   type TestContainer,
@@ -88,6 +93,8 @@ async function seedPendingJob(
     mimeType: string;
     originalFileName: string;
     bodyBytes: ArrayBuffer;
+    structurePromptOverride?: string | null;
+    metadataPromptOverride?: string | null;
   },
 ): Promise<string> {
   const id = nextJobId();
@@ -102,6 +109,8 @@ async function seedPendingJob(
     kind: params.kind,
     status: "pending",
     tempStorageKey,
+    structurePromptOverride: params.structurePromptOverride ?? null,
+    metadataPromptOverride: params.metadataPromptOverride ?? null,
     previewJson: null,
     errorCode: null,
     errorReason: null,
@@ -196,6 +205,19 @@ class ThrowingLLMProvider implements LLMProvider {
   }
   async suggestMetadata(_input: LLMMetadataInput): Promise<LLMMetadataResult> {
     throw new LLMUnavailableError("llm down");
+  }
+}
+
+// Resolver returning a fixed sentinel per purpose so tests can assert
+// whether the per-upload override (#228) or the resolver fed the LLM.
+class SentinelPromptResolver implements PromptResolver {
+  readonly calls: IngestionPromptPurpose[] = [];
+  async resolveFor(
+    _userId: Parameters<PromptResolver["resolveFor"]>[0],
+    purpose: IngestionPromptPurpose,
+  ): Promise<string> {
+    this.calls.push(purpose);
+    return `RESOLVED:${purpose}`;
   }
 }
 
@@ -543,6 +565,134 @@ describe("runIngestionJob", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("failed");
     expect(rows[0]?.errorCode).toBe("sanitize_failure");
+  });
+
+  it("prefers per-upload prompt overrides over the resolver (LLM-structuring kind)", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const resolver = new SentinelPromptResolver();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+      promptResolver: resolver,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+      structurePromptOverride: "CUSTOM_STRUCTURE",
+      metadataPromptOverride: "CUSTOM_METADATA",
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    // Override reached the LLM verbatim; resolver was never consulted.
+    expect(llm.structureCalls[0]?.prompt).toBe("CUSTOM_STRUCTURE");
+    expect(llm.metadataCalls[0]?.prompt).toBe("CUSTOM_METADATA");
+    expect(resolver.calls).toHaveLength(0);
+  });
+
+  it("falls back to the resolver when no override is stored", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const resolver = new SentinelPromptResolver();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+      promptResolver: resolver,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    expect(llm.structureCalls[0]?.prompt).toBe("RESOLVED:structure");
+    expect(llm.metadataCalls[0]?.prompt).toBe("RESOLVED:metadata");
+    expect(resolver.calls).toContain("structure");
+    expect(resolver.calls).toContain("metadata");
+  });
+
+  it("keeps the same override after regenerate re-drives the pipeline", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const resolver = new SentinelPromptResolver();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+      promptResolver: resolver,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+      structurePromptOverride: "CUSTOM_STRUCTURE",
+      metadataPromptOverride: "CUSTOM_METADATA",
+    });
+
+    // First run lands the job in previewing carrying the override.
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    // Regenerate: return to pending (the override row is untouched — save
+    // never writes the provenance columns) and re-run the pipeline.
+    await container.unitOfWorkProvider.run(
+      async ({ ingestionJobRepository }) => {
+        const found = await ingestionJobRepository.findById(
+          jobId as unknown as Parameters<
+            typeof ingestionJobRepository.findById
+          >[0],
+        );
+        if (found === null || found.entity.status !== "previewing") {
+          throw new Error("expected previewing job to regenerate");
+        }
+        const { IngestionJob } = await import("@/core/domain/ingestion/entity");
+        const transition = IngestionJob.regenerate(found.entity, new Date(), 5);
+        await ingestionJobRepository.save(
+          transition.entity,
+          found.expectedVersion,
+        );
+      },
+    );
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    // The second structuring call (after regenerate) still carries the
+    // original override, and the resolver was never consulted.
+    expect(llm.structureCalls).toHaveLength(2);
+    expect(llm.structureCalls[1]?.prompt).toBe("CUSTOM_STRUCTURE");
+    expect(resolver.calls).toHaveLength(0);
   });
 });
 

@@ -11,6 +11,7 @@ export const IngestionErrorCode = {
   InvalidErrorReason: "ingestion_invalid_error_reason",
   InvalidIngestionLimits: "ingestion_invalid_limits",
   InvalidSuggestedDirectoryName: "ingestion_invalid_suggested_directory_name",
+  InvalidPromptOverride: "ingestion_invalid_prompt_override",
 
   // State-transition guards
   InvalidStateForStart: "ingestion_invalid_state_for_start",

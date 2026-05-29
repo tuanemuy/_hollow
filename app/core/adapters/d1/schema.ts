@@ -492,6 +492,8 @@ export const ingestionJobs = sqliteTable(
     kind: text("kind").notNull(),
     status: text("status").notNull(),
     tempStorageKey: text("temp_storage_key"),
+    structurePromptOverride: text("structure_prompt_override"),
+    metadataPromptOverride: text("metadata_prompt_override"),
     previewJson: text("preview_json"),
     errorCode: text("error_code"),
     errorReason: text("error_reason"),

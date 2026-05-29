@@ -21,6 +21,10 @@ const SUGGESTED_DIRECTORY_NAME_MAX_LENGTH = 200;
 // guard exists only to reject negative / non-integer / pathologically
 // large values at construction time.
 const BYTE_SIZE_ABSOLUTE_MAX = 5 * 1024 * 1024 * 1024 * 1024;
+// Matches the `PromptTemplate` cap in the adminSettings domain (16 KiB).
+// `PromptOverride` is the per-upload literal counterpart of that template,
+// so the upper bound is intentionally identical.
+const PROMPT_OVERRIDE_MAX_BYTES = 16 * 1024;
 
 declare const ingestionJobIdBrand: unique symbol;
 
@@ -397,5 +401,41 @@ export const IngestionPreview = {
       internalLinkRefs: Object.freeze([...params.internalLinkRefs]),
       mediaRefs: Object.freeze([...params.mediaRefs]),
     } as unknown as IngestionPreview;
+  },
+};
+
+// ---------- PromptOverride ----------
+
+declare const promptOverrideBrand: unique symbol;
+
+/**
+ * Per-upload custom prompt body that supersedes the resolver-provided
+ * template for one ingestion job. Unlike `adminSettings.PromptTemplate`
+ * this is an already-interpolated literal — no `{{variable}}` validation
+ * — but shares the same 16 KiB byte cap. Callers are responsible for
+ * treating empty input as "no override" (see `IngestionJob.create`); this
+ * factory assumes a non-empty body.
+ */
+export type PromptOverride = string & {
+  readonly [promptOverrideBrand]: true;
+};
+
+export const PromptOverride = {
+  maxBytes: PROMPT_OVERRIDE_MAX_BYTES,
+  create: (raw: string): PromptOverride => {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      throw new BusinessRuleError(
+        IngestionErrorCode.InvalidPromptOverride,
+        "Prompt override cannot be empty",
+      );
+    }
+    if (new TextEncoder().encode(trimmed).length > PROMPT_OVERRIDE_MAX_BYTES) {
+      throw new BusinessRuleError(
+        IngestionErrorCode.InvalidPromptOverride,
+        `Prompt override exceeds maximum size (${PROMPT_OVERRIDE_MAX_BYTES} bytes)`,
+      );
+    }
+    return trimmed as PromptOverride;
   },
 };

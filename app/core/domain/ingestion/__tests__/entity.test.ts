@@ -100,6 +100,157 @@ describe("IngestionJob.create", () => {
   });
 });
 
+describe("IngestionJob promptOverride", () => {
+  it("create() defaults both overrides to null when not supplied", () => {
+    const { entity } = seedPending(200);
+    expect(entity.promptOverride.structure).toBeNull();
+    expect(entity.promptOverride.metadata).toBeNull();
+  });
+
+  it("create() normalises empty / whitespace-only overrides to null", () => {
+    const { entity } = IngestionJob.create(
+      {
+        id: rawId(201),
+        ownerId,
+        originalFileName: "doc.html",
+        mimeType: "text/html",
+        byteSize: 8,
+        kind: "html",
+        tempStorageKey: null,
+        promptOverride: { structure: "   ", metadata: "" },
+      },
+      T0,
+    );
+    expect(entity.promptOverride.structure).toBeNull();
+    expect(entity.promptOverride.metadata).toBeNull();
+  });
+
+  it("create() brands non-empty overrides (trimmed) as PromptOverride", () => {
+    const { entity } = IngestionJob.create(
+      {
+        id: rawId(202),
+        ownerId,
+        originalFileName: "doc.html",
+        mimeType: "text/html",
+        byteSize: 8,
+        kind: "html",
+        tempStorageKey: null,
+        promptOverride: { structure: "  use H2  ", metadata: "tag it" },
+      },
+      T0,
+    );
+    expect(entity.promptOverride.structure as unknown as string).toBe("use H2");
+    expect(entity.promptOverride.metadata as unknown as string).toBe("tag it");
+  });
+
+  it("preserves overrides across startProcessing → attachPreview → regenerate", () => {
+    const { entity: pending } = IngestionJob.create(
+      {
+        id: rawId(203),
+        ownerId,
+        originalFileName: "doc.docx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        byteSize: 8,
+        kind: "office",
+        tempStorageKey: "tmp/o",
+        promptOverride: { structure: "S", metadata: "M" },
+      },
+      T0,
+    );
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: previewing } = IngestionJob.attachPreview(
+      processing,
+      samplePreview("o"),
+      at(2),
+    );
+    const { entity: regenerated } = IngestionJob.regenerate(
+      previewing,
+      at(3),
+      5,
+    );
+    expect(processing.promptOverride.structure as unknown as string).toBe("S");
+    expect(previewing.promptOverride.metadata as unknown as string).toBe("M");
+    expect(regenerated.promptOverride.structure as unknown as string).toBe("S");
+    expect(regenerated.promptOverride.metadata as unknown as string).toBe("M");
+  });
+
+  it("preserves overrides across markFailed → retry", () => {
+    const { entity: pending } = IngestionJob.create(
+      {
+        id: rawId(204),
+        ownerId,
+        originalFileName: "doc.docx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        byteSize: 8,
+        kind: "office",
+        tempStorageKey: "tmp/r",
+        promptOverride: { structure: "S2", metadata: "M2" },
+      },
+      T0,
+    );
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: failed } = IngestionJob.markFailed(
+      processing,
+      "llm_failure",
+      "boom",
+      at(2),
+    );
+    const { entity: retried } = IngestionJob.retry(failed, at(3));
+    expect(failed.promptOverride.structure as unknown as string).toBe("S2");
+    expect(retried.promptOverride.structure as unknown as string).toBe("S2");
+    expect(retried.promptOverride.metadata as unknown as string).toBe("M2");
+  });
+
+  it("reconstruct() round-trips override columns and normalises null", () => {
+    const withBoth = IngestionJob.reconstruct(
+      baseRowForOverride({
+        structurePromptOverride: "stored structure",
+        metadataPromptOverride: "stored metadata",
+      }),
+    );
+    expect(withBoth.promptOverride.structure as unknown as string).toBe(
+      "stored structure",
+    );
+    expect(withBoth.promptOverride.metadata as unknown as string).toBe(
+      "stored metadata",
+    );
+
+    const withNone = IngestionJob.reconstruct(baseRowForOverride({}));
+    expect(withNone.promptOverride.structure).toBeNull();
+    expect(withNone.promptOverride.metadata).toBeNull();
+  });
+});
+
+// Local row builder mirroring the adapter's reconstruct input, including
+// the #228 override columns.
+const baseRowForOverride = (
+  overrides: Partial<{
+    structurePromptOverride: string | null;
+    metadataPromptOverride: string | null;
+  }>,
+) => ({
+  id: rawId(210),
+  ownerId: ownerId as unknown as string,
+  originalFileName: "doc.html",
+  mimeType: "text/html",
+  byteSize: 1024,
+  kind: "html",
+  status: "pending",
+  tempStorageKey: "tmp/ov",
+  structurePromptOverride: overrides.structurePromptOverride ?? null,
+  metadataPromptOverride: overrides.metadataPromptOverride ?? null,
+  preview: null,
+  errorCode: null,
+  errorReason: null,
+  regenerationCount: 0,
+  savedAsNoteId: null,
+  version: 0,
+  createdAt: T0,
+  updatedAt: at(1),
+});
+
 describe("IngestionJob.startProcessing", () => {
   it("promotes pending → processing, bumps version, emits processingStarted", () => {
     const { entity: pending } = seedPending(10);
@@ -490,6 +641,8 @@ describe("IngestionJob.retry", () => {
       kind: "html",
       status: "failed",
       tempStorageKey: null,
+      structurePromptOverride: null,
+      metadataPromptOverride: null,
       preview: null,
       errorCode: "llm_failure",
       errorReason: "boom",
@@ -590,6 +743,8 @@ describe("IngestionJob.reconstruct", () => {
       regenerationCount: number;
       version: number;
       tempStorageKey: string | null;
+      structurePromptOverride: string | null;
+      metadataPromptOverride: string | null;
     }> = {},
   ) => ({
     id: rawId(100),
@@ -603,6 +758,8 @@ describe("IngestionJob.reconstruct", () => {
       overrides.tempStorageKey === undefined
         ? "tmp/abc"
         : overrides.tempStorageKey,
+    structurePromptOverride: overrides.structurePromptOverride ?? null,
+    metadataPromptOverride: overrides.metadataPromptOverride ?? null,
     preview: overrides.preview ?? null,
     errorCode: overrides.errorCode ?? null,
     errorReason: overrides.errorReason ?? null,

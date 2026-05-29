@@ -415,6 +415,98 @@ describe("uploadFile", () => {
       expect(error.code).toBe("daily_upload_quota_exceeded");
     }
   });
+
+  it("persists per-upload prompt overrides on insert and round-trips them via findById", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+
+    const { stream, byteSize } = makeStream("<p>hi</p>");
+    const { jobId } = await uploadFile({
+      container,
+      input: {
+        actorUserId: owner,
+        originalFileName: "ov.html",
+        mimeType: "text/html",
+        byteSize,
+        bodyStream: stream,
+        promptOverride: { structure: "  S-OVERRIDE  ", metadata: "M-OVERRIDE" },
+      },
+    });
+
+    // Raw columns carry the trimmed override.
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+    expect(rows[0]?.structurePromptOverride).toBe("S-OVERRIDE");
+    expect(rows[0]?.metadataPromptOverride).toBe("M-OVERRIDE");
+
+    // findById rehydrates them onto the aggregate.
+    const reloaded = await container.unitOfWorkProvider.run(
+      async ({ ingestionJobRepository }) =>
+        ingestionJobRepository.findById(
+          jobId as unknown as Parameters<
+            typeof ingestionJobRepository.findById
+          >[0],
+        ),
+    );
+    expect(reloaded?.entity.promptOverride.structure as unknown as string).toBe(
+      "S-OVERRIDE",
+    );
+    expect(reloaded?.entity.promptOverride.metadata as unknown as string).toBe(
+      "M-OVERRIDE",
+    );
+  });
+
+  it("leaves override columns unchanged across a save() lifecycle transition (provenance, ADR-002)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+
+    const { stream, byteSize } = makeStream("<p>hi</p>");
+    const { jobId } = await uploadFile({
+      container,
+      input: {
+        actorUserId: owner,
+        originalFileName: "ov2.html",
+        mimeType: "text/html",
+        byteSize,
+        bodyStream: stream,
+        promptOverride: { structure: "S-KEEP", metadata: "M-KEEP" },
+      },
+    });
+
+    // Run a save-path transition (pending → processing).
+    await container.unitOfWorkProvider.run(
+      async ({ ingestionJobRepository, collectEvents }) => {
+        const found = await ingestionJobRepository.findById(
+          jobId as unknown as Parameters<
+            typeof ingestionJobRepository.findById
+          >[0],
+        );
+        if (found === null) throw new Error("seed job missing");
+        const { IngestionJob } = await import("@/core/domain/ingestion/entity");
+        const transition = IngestionJob.startProcessing(
+          found.entity,
+          new Date(),
+        );
+        await ingestionJobRepository.save(
+          transition.entity,
+          found.expectedVersion,
+        );
+        collectEvents(transition.eventDrafts);
+      },
+    );
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+    expect(rows[0]?.status).toBe("processing");
+    expect(rows[0]?.structurePromptOverride).toBe("S-KEEP");
+    expect(rows[0]?.metadataPromptOverride).toBe("M-KEEP");
+  });
 });
 
 describe("regenerateIngestionPreview", () => {

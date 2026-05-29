@@ -272,6 +272,8 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
         kind: row.kind,
         status: row.status,
         tempStorageKey: row.tempStorageKey,
+        structurePromptOverride: row.structurePromptOverride,
+        metadataPromptOverride: row.metadataPromptOverride,
         preview,
         errorCode: row.errorCode,
         errorReason: row.errorReason,
@@ -310,6 +312,8 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
     kind: string;
     status: IngestionStatus;
     tempStorageKey: string | null;
+    structurePromptOverride: string | null;
+    metadataPromptOverride: string | null;
     previewJson: string | null;
     errorCode: string | null;
     errorReason: string | null;
@@ -329,6 +333,14 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
       status: job.status,
       tempStorageKey:
         job.tempStorageKey === null ? null : (job.tempStorageKey as string),
+      structurePromptOverride:
+        job.promptOverride.structure === null
+          ? null
+          : (job.promptOverride.structure as string),
+      metadataPromptOverride:
+        job.promptOverride.metadata === null
+          ? null
+          : (job.promptOverride.metadata as string),
       previewJson:
         job.preview === null
           ? null

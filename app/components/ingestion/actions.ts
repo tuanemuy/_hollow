@@ -38,6 +38,7 @@ export const uploadFileFn = createServerFn({ method: "POST" })
     if (!(file instanceof File)) {
       throw new Error("file field is required");
     }
+    const promptOverride = readPromptOverride(data);
     const user = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/ingestion/uploadFile"),
@@ -50,10 +51,42 @@ export const uploadFileFn = createServerFn({ method: "POST" })
         mimeType: file.type || "application/octet-stream",
         byteSize: file.size,
         bodyStream: file.stream(),
+        ...(promptOverride === undefined ? {} : { promptOverride }),
       },
     });
     return { jobId: result.jobId as unknown as string };
   });
+
+// Transport-boundary cap, byte-for-byte aligned with the `PromptOverride`
+// VO (16 KiB). Guards against pathologically large textarea payloads
+// before the bytes reach the usecase / VO construction.
+const PROMPT_OVERRIDE_MAX_BYTES = 16 * 1024;
+
+// Reads the optional `structurePrompt` / `metadataPrompt` form fields.
+// Only non-empty strings (after trim) become overrides; `File` values and
+// blanks are ignored. Over-cap values are rejected here (DoS guard) so the
+// huge body never reaches the usecase.
+function readPromptOverride(
+  data: FormData,
+): { structure?: string; metadata?: string } | undefined {
+  const pick = (field: string): string | undefined => {
+    const value = data.get(field);
+    if (typeof value !== "string") return undefined;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return undefined;
+    if (new TextEncoder().encode(trimmed).length > PROMPT_OVERRIDE_MAX_BYTES) {
+      throw new Error(`${field} exceeds maximum size`);
+    }
+    return trimmed;
+  };
+  const structure = pick("structurePrompt");
+  const metadata = pick("metadataPrompt");
+  if (structure === undefined && metadata === undefined) return undefined;
+  return {
+    ...(structure === undefined ? {} : { structure }),
+    ...(metadata === undefined ? {} : { metadata }),
+  };
+}
 
 export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
