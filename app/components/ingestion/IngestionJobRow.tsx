@@ -76,10 +76,30 @@ export function IngestionJobRow({ job }: Props) {
 
   const jobId = job.id;
 
+  const suggestedDirectoryId = job.preview?.suggestedDirectoryId ?? null;
+  const suggestedDirectoryName = job.preview?.suggestedDirectoryName ?? null;
+  const willCreateDirectory =
+    suggestedDirectoryId === null && suggestedDirectoryName !== null;
+
   const onCommit = () => {
     startTransition(async () => {
       try {
-        const result = await commit({ data: { jobId } });
+        const result = await commit({
+          data: {
+            jobId,
+            ...(suggestedDirectoryId === null
+              ? {}
+              : { directoryId: suggestedDirectoryId }),
+            ...(willCreateDirectory && suggestedDirectoryName !== null
+              ? { directoryNameToCreate: suggestedDirectoryName }
+              : {}),
+          },
+        });
+        if (willCreateDirectory) {
+          // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も
+          // invalidate（.issue/299/adr.md ADR-003）
+          await router.invalidate();
+        }
         await router.navigate({
           to: "/notes/$noteId",
           params: { noteId: result.noteId as unknown as string },
