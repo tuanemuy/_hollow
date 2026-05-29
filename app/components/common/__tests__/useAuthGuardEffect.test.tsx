@@ -88,6 +88,15 @@ describe("useAuthGuardEffect", () => {
       );
     });
     expect(invalidateMock).toHaveBeenCalledTimes(1);
+    // Indirect proof that the hook routes through `appShellInvalidate`
+    // (not raw `router.invalidate()`): the filter must accept `/_app`
+    // exactly and reject any `/_app/*` leaf. A refactor that bypasses
+    // the helper would change the filter shape and trip this assertion.
+    const filter = invalidateMock.mock.calls[0]?.[0]?.filter as
+      | ((m: { routeId: string }) => boolean)
+      | undefined;
+    expect(filter?.({ routeId: "/_app" })).toBe(true);
+    expect(filter?.({ routeId: "/_app/notes" })).toBe(false);
   });
 
   it("does not fire on the normal authenticated case (shell user × leaf true)", () => {
@@ -114,7 +123,11 @@ describe("useAuthGuardEffect", () => {
     expect(invalidateMock).toHaveBeenCalledTimes(1);
 
     // Different identity but same `.id`. The dep array is keyed on the id,
-    // so React must skip re-running the effect.
+    // so React must skip re-running the effect. This re-render also pins
+    // `router` stability: the `useRouter()` mock returns the same
+    // `routerStub`, mirroring TanStack Router's singleton invariant. If
+    // the router identity ever changed across renders, the dep array would
+    // pick it up and re-fire — keeping this assertion guards both axes.
     const sameIdNewObject = makeUser("u1");
     act(() => {
       root.render(

@@ -34,6 +34,13 @@ type UseAuthGuardEffectInput = {
  *
  * `useEffect` 内では await できないため `appShellInvalidate(router)` は
  * fire-and-forget で呼ぶ。背景は `.issue/300/adr.md` ADR-001。
+ *
+ * 実装注:
+ *   - user identity の判定は `shellUserDto.id` のみで行う（属性差異では
+ *     再発火しない）。`displayName` 等の更新は rule 3 mutation 側で
+ *     生 `router.invalidate()` を使い AppShell を再評価する
+ *   - `router` 自体は TanStack Router の singleton で referentially
+ *     stable なので、依存配列に入れても余計な再発火は発生しない
  */
 export function useAuthGuardEffect({
   leafAuthenticated,

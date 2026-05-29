@@ -88,7 +88,7 @@ export const Route = createFileRoute("/_app")({
   errorComponent: AppErrorFallback,
 });
 
-function AppErrorFallback({ error }: { error: unknown }) {
+export function AppErrorFallback({ error }: { error: unknown }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const handleRetry = () => {
@@ -106,6 +106,7 @@ function AppErrorFallback({ error }: { error: unknown }) {
         type="button"
         onClick={handleRetry}
         disabled={isPending}
+        aria-busy={isPending}
         data-primary=""
         className={`${pillBtn} ${pillBtnPrimary}`}
       >

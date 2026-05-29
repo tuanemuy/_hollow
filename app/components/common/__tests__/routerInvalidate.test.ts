@@ -11,6 +11,12 @@ import { appShellInvalidate, routerInvalidate } from "../routerInvalidate";
  * passed to the mock router for each `routeId`.
  */
 
+/**
+ * Both `routerInvalidate` and `appShellInvalidate` only inspect
+ * `match.routeId`. The minimal `FakeMatch` shape mirrors that contract;
+ * if the filter ever starts to read additional fields, the double
+ * `as unknown as` casts below MUST be revisited to keep the test honest.
+ */
 type FakeMatch = { routeId: string };
 
 function makeRouter() {
