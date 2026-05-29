@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { AppServerError } from "@/core/presentation/errorResponse";
 import type { IngestionJobWire } from "../actions";
 
 (
@@ -213,6 +214,43 @@ describe("IngestionJobRow", () => {
       data: { jobId: "job-1" },
     });
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #254 (review W-002): when 再試行 fails, the card does NOT invalidate
+  // the router and surfaces an inline error instead.
+  it("does not call router.invalidate and shows an inline error when 再試行 fails", async () => {
+    ownerRetryMock.mockRejectedValue(
+      new AppServerError({
+        kind: "business",
+        code: "ingestion_no_temp_storage_for_retry",
+        message: "Ingestion job has no staged upload to retry",
+      }),
+    );
+
+    await renderRow(failedJob);
+
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    expect(routerInvalidate).not.toHaveBeenCalled();
+    // The card renders two alert regions: the job's own failure reason and
+    // the action error. The retry-failure message must surface in one of them.
+    const alertText = Array.from(
+      document.body.querySelectorAll('[role="alert"]'),
+    )
+      .map((el) => el.textContent ?? "")
+      .join(" ");
+    expect(alertText).toContain("再試行に必要なデータが見つかりません");
   });
 
   it("does not call router.invalidate when commit fails", async () => {

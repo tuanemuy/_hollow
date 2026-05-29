@@ -613,7 +613,13 @@ function FailedView({
         >
           再試行
         </button>
-        <Link to="/upload" hash={() => ""} className={pillBtn}>
+        <Link
+          to="/upload"
+          hash={() => ""}
+          className={`${pillBtn} aria-disabled:pointer-events-none aria-disabled:opacity-50`}
+          aria-disabled={isPending || undefined}
+          tabIndex={isPending ? -1 : undefined}
+        >
           キュー画面で詳細を見る
         </Link>
         <button

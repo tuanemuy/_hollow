@@ -130,7 +130,9 @@ failed ジョブを管理者が再試行する経路（P46 / spec G3）。owner 
 4. dispatch が `ingestion.retryRequested` を `runIngestionJob` にルーティングし LLM を再駆動
 
 ### エラーケース
-- `ForbiddenError('INGESTION_JOB_FORBIDDEN')`（非 admin）
+- `ForbiddenError('FORBIDDEN_ADMIN_ONLY')`（非 admin — `assertAdmin` 由来）
+- `NotFoundError('USER_NOT_FOUND')`（actor 不在 — `assertAdmin` 由来）
+- `NotFoundError('INGESTION_JOB_NOT_FOUND')`（job 不在）
 - `BusinessRuleError('ingestion_invalid_state_for_retry' | 'ingestion_no_temp_storage_for_retry')`
 
 ---

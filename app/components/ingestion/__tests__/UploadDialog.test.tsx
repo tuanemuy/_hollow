@@ -573,6 +573,69 @@ describe("UploadDialog state machine", () => {
     expect(status?.textContent).toBe("プレビュー編集に進みました");
   });
 
+  // Issue #254 (review W-002): when 再試行 fails (e.g. the staged upload was
+  // already reclaimed → `ingestion_no_temp_storage_for_retry`), the failed
+  // view shows an inline error and does NOT transition to the waiting view.
+  it("keeps the failed view and surfaces an inline error when 再試行 fails", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: failedJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+    ownerRetryMock.mockRejectedValue(
+      new AppServerError({
+        kind: "business",
+        code: "ingestion_no_temp_storage_for_retry",
+        message: "Ingestion job has no staged upload to retry",
+      }),
+    );
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("取り込みに失敗しました");
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    // Still in the failed view (no waiting re-entry) with an inline alert
+    // carrying the user-facing temp-storage message — internal details
+    // are never leaked. The failed view renders two alert regions (the job's
+    // own failure reason and the action error); the retry-failure message
+    // must surface in one of them.
+    expect(status?.textContent).toBe("取り込みに失敗しました");
+    const alertText = Array.from(
+      document.body.querySelectorAll('[role="alert"]'),
+    )
+      .map((el) => el.textContent ?? "")
+      .join(" ");
+    expect(alertText).toContain("再試行に必要なデータが見つかりません");
+  });
+
   // Issue #253 ADR-003: clicking 再生成 in the editing view re-enters the
   // `waiting` view (via `onRegenerated`) so the existing poll loop watches
   // the job back through `pending → processing → previewing` and lands on a
