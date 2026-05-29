@@ -112,7 +112,7 @@
 | AdminSignUpForm FORM_ERROR | circle+!ドット | 18 | `AlertCircle` | 20 |
 | AdminSignUpForm REVEAL_BTN | eye | 18 | `Eye`/`EyeOff`（トグル） | 20 |
 | LoginForm FORM_ERROR | circle+!ドット | 18 | `AlertCircle` | 20 |
-| LoginForm 未確認 CALLOUT | phone path | 18 | `Phone`（形状維持） | 20 |
+| LoginForm 未確認 CALLOUT | phone path | 18 | `MailWarning`（review-001 W-001: 既存の phone は誤用、メール確認文脈に合わせ修正） | 20 |
 | LoginForm CALLOUT_ACTION | chevron | 11 | `ChevronRight` | 16 |
 | LandingPage PREVIEW_SIDE すべてのノート | 4分割 grid | 16 | `LayoutGrid` | 16 |
 | 同 最近更新 | clock | 16 | `Clock` | 16 |

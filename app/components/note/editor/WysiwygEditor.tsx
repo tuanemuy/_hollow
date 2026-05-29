@@ -114,10 +114,11 @@ export type WysiwygEditorProps = Readonly<{
 }>;
 
 /**
- * Square icon-only toolbar button (spec §7.1 "アイコンのみ"). Bespoke rather
- * than `pillBtn` because `pillBtn`'s `px-4` cannot be overridden to a square
- * shape via class order, and the icon-only tap-target needs both `min-w` and
- * `min-h` of 44px on mobile (§3). Mirrors `dialogCloseButton` / `REVEAL_BTN`.
+ * Circular icon-only toolbar button (spec §7.1 "アイコンのみ"). `rounded-pill`
+ * on a 36×36 box renders as a circle, matching the circular `dialogCloseButton`
+ * icon-button pattern. Bespoke rather than `pillBtn` because `pillBtn`'s `px-4`
+ * cannot be overridden via class order to drop the horizontal padding, and the
+ * icon-only tap-target needs both `min-w` and `min-h` of 44px on mobile (§3).
  * `data-[primary]:` background inversion conveys the `aria-pressed` active
  * state visually (.issue/309/adr.md ADR-006).
  */

@@ -70,7 +70,7 @@ LandingPage の HERO_EYEBROW の小円（11px）や PREVIEW_BAR_DOT（CSS の `w
 
 ---
 
-## ADR-006: サイズスナップと WysiwygEditor 正方形ボタンの方針
+## ADR-006: サイズスナップと WysiwygEditor 円形アイコンボタンの方針
 
 ### Status
 Accepted
@@ -80,7 +80,7 @@ Accepted
 
 ### Decision
 1. **サイズは §7.1 の 3 段階にスナップする**（plan.md「アイコンマッピング表」で各箇所を確定）。特に STATUS_ICON の 36px は最大 tier の `size={24}` にスナップする（72px 円の中で 36→24 に縮小する視覚変化を許容）。`strokeWidth` は `Icon` 固定の 1.5 に統一される。
-2. **WysiwygEditor の icon-only 化は共有 `pillBtn` を編集しない**。`pillBtn` の `px-4` は Tailwind の生成順で `px-0` を上書きできないため、WysiwygEditor 内に正方形の専用定数 `EDITOR_TOOLBAR_BTN`（`inline-flex items-center justify-center h-9 w-9 rounded-pill ...` + `max-sm:min-w-[44px] max-sm:min-h-[44px]` + `data-[primary]:` 状態）を定義する。これは既存の bespoke icon-button（`dialogCloseButton` / `REVEAL_BTN`）と同じ方針。`aria-pressed`/`data-primary` トグルの視覚状態は `data-[primary]:bg-accent data-[primary]:text-white` の背景反転で icon-only でも判別可能。
+2. **WysiwygEditor の icon-only 化は共有 `pillBtn` を編集しない**。`pillBtn` の `px-4` は Tailwind の生成順で `px-0` を上書きできないため、WysiwygEditor 内に専用定数 `EDITOR_TOOLBAR_BTN`（`inline-flex items-center justify-center h-9 w-9 rounded-pill ...` + `max-sm:min-w-[44px] max-sm:min-h-[44px]` + `data-[primary]:` 状態）を定義する。`rounded-pill` を 36×36 の正方形ボックスに適用すると**円形**になり、既存の `dialogCloseButton`（`rounded-full` の円形 icon-button）と同じ見た目になる。bespoke 化の方針は `dialogCloseButton` / `REVEAL_BTN` と同じ。`aria-pressed`/`data-primary` トグルの視覚状態は `data-[primary]:bg-accent data-[primary]:text-white` の背景反転で icon-only でも判別可能。
 
 ### Consequences
 - 良い点: SSOT（size 3 段階・strokeWidth 1.5）を一切緩めずに全 inline SVG を `Icon` に統合できる。icon-only ボタンが 44×44px（モバイル）を高さ・幅とも満たす

@@ -2,7 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, ChevronRight, Phone } from "lucide-react";
+import { AlertCircle, ChevronRight, MailWarning } from "lucide-react";
 import { useActionState, useId, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -196,7 +196,7 @@ export function LoginForm() {
       {isUnverified ? (
         <div className={`${CALLOUT} mt-6`} role="status">
           <span className={CALLOUT_ICON} aria-hidden="true">
-            <Icon icon={Phone} size={20} />
+            <Icon icon={MailWarning} size={20} />
           </span>
           <div className={CALLOUT_BODY}>
             <strong className="text-ink font-semibold">
