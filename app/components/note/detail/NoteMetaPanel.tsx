@@ -71,7 +71,7 @@ export function NoteMetaPanel({
 
   return (
     <section
-      className="my-4 mb-6 px-5 py-4 rounded-lg border border-hairline bg-surface"
+      className="my-4 mb-6 px-5 py-4 rounded-lg border border-hairline bg-surface-elevated"
       aria-label="ノートのメタ情報"
     >
       <dl className="grid grid-cols-1 gap-3 m-0">
