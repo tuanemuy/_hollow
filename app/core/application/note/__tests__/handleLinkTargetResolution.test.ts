@@ -163,8 +163,8 @@ describe("handleLinkTargetResolution", () => {
 });
 
 describe("handleLinkTargetTrashed", () => {
-  it("unresolves every row resolved to the target", async () => {
-    const a = makeNote(rawId(6), "A");
+  it("unresolves every row resolved to the target when it is trashed", async () => {
+    const a = makeNote(rawId(6), "A", "trashed");
     const { container, setLinkResolution } = fakeContainer({
       note: a,
       resolvedByTarget: [
@@ -186,5 +186,36 @@ describe("handleLinkTargetTrashed", () => {
     await handleLinkTargetTrashed({ container, input: { noteId: a.id } });
 
     expect(setLinkResolution).toHaveBeenCalledWith(["r1", "r2"], null);
+  });
+
+  it("no-ops when the note is active again (reordered / redelivered trash after restore)", async () => {
+    // A reordered or redelivered note.trashed must NOT clear rows once the
+    // note is active again — otherwise they would stay null forever with no
+    // event to repair them. Symmetric with handleLinkTargetResolution's guard.
+    const a = makeNote(rawId(7), "A", "active");
+    const { container, setLinkResolution } = fakeContainer({
+      note: a,
+      resolvedByTarget: [
+        {
+          id: "r1",
+          fromNoteId: rawId(0x96) as NoteId,
+          refKind: "title",
+          refTarget: "A",
+        },
+      ],
+    });
+
+    await handleLinkTargetTrashed({ container, input: { noteId: a.id } });
+
+    expect(setLinkResolution).not.toHaveBeenCalled();
+  });
+
+  it("no-ops when the note is absent (purged → FK already cleared)", async () => {
+    const { container, setLinkResolution } = fakeContainer({ note: null });
+    await handleLinkTargetTrashed({
+      container,
+      input: { noteId: rawId(8) as NoteId },
+    });
+    expect(setLinkResolution).not.toHaveBeenCalled();
   });
 });

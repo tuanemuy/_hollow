@@ -98,3 +98,24 @@ plan.md ステップ1 はポートに3メソッド（`findUnresolvedTitleLinkRow
 - 良い点: title / id それぞれの finder が単一責務で、where も戻り値も既存パターンと揃う。restore で trash 時に解除された id 行を確実に再解決できる。
 - トレードオフ: ポートのメソッド数が plan.md 想定の3から4に増える。影響は局所的（adapter 1実装 + 既存 stub の追従のみ）。
 - バックフィル運用 usecase（ADR-009 / ステップ6）は title 行のみを対象とし id 行は扱わない。kind=id は保存時（ADR-007）と restore handler で解決され、「active だった target を指す未解決 id 行」という滞留状態は実質発生しないため。
+
+---
+
+## ADR-012: trashed reaction handler も consume-time ステータス再読で「現在 trashed のときだけ解除」する
+
+### Status
+Accepted（review-002 B-1 で発覚 → 実装時判断）
+
+### Context
+`handleLinkTargetResolution`（created/content_updated/renamed/restored）は ADR-010 の通り consume 時に `findById` でステータスを再読し、absent / 非 active なら no-op する設計で、at-least-once・順序保証なしの配送下でも最新状態に収束する。一方 `handleLinkTargetTrashed` は当初、対象を指す解決済み行を**無条件で全解除**していた。
+
+この非対称が収束バグを生む。trash → restore は別 UoW・別 outbox 行として発行され、順序保証がない:
+- `note.restored` を先に処理（resolution が A=active と読み B のリンクを再解決）→ `note.trashed` が遅延処理（trashed が B のリンクを無条件 null 解除）。最終的に A は active のままなのに B のリンクが null になり、**修復するイベントが存在しない**（A を再保存/改名するかバックフィル usecase 手動実行まで残留）。
+- `note.trashed` の重複配送（restore 後に古い trashed が再配送）でも同じ。
+
+### Decision
+**`handleLinkTargetTrashed` も `findById` でステータスを再読し、解除は「現在 trashed のときだけ」行う。** `note === null`（purge 済み → FK の set null が既にクリア）または `status === 'active'`（restore が勝った / stale / 再配送）は no-op。これで resolution / trashed 両 handler が consume-time 再読で対称になり、任意順・重複配送でも DB の現アグリゲート状態（= 最後にコミットした usecase の結果）に収束する。
+
+### Consequences
+- 良い点: at-least-once・順序保証なしの配送モデルで両 handler が収束する。trash→restore の reorder / trashed 再配送でリンクが恒久的に壊れる経路を塞ぐ。
+- トレードオフ: trashed handler が解除前に `findById` を1回引く（従来は0回）。consume 経路のコストは resolution handler と同等で許容範囲。

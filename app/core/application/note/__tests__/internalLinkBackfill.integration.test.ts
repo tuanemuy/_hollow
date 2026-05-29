@@ -233,6 +233,33 @@ describe("internal link backfill / re-resolution (integration)", () => {
     expect(await getResolved(container, idLink)).toBe(a);
   });
 
+  it("reordered/redelivered trash while the note is active is a no-op (convergence)", async () => {
+    // at-least-once + no ordering: a note.trashed may arrive AFTER the
+    // matching note.restored (reorder) or be redelivered after a restore.
+    // The DB then holds the final aggregate state (active), and the trash
+    // handler must NOT clear the resolved rows — otherwise they would stay
+    // null with no event to repair them.
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const a = await seedNote(container, owner, dir, { title: "A" });
+    const b = await seedNote(container, owner, dir, { title: "B" });
+    const link = await seedLink(container, b, {
+      kind: "title",
+      target: "A",
+      resolvedNoteId: a,
+    });
+
+    // A is active (a restore already won / committed last). A stale or
+    // reordered note.trashed for A is dispatched now.
+    await dispatch(container, "note.trashed", a, owner);
+    expect(await getResolved(container, link)).toBe(a);
+
+    // Redelivery of the same trashed event while active stays a no-op.
+    await dispatch(container, "note.trashed", a, owner);
+    expect(await getResolved(container, link)).toBe(a);
+  });
+
   it("purge: FK set null clears resolved rows without a handler", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -338,7 +365,10 @@ describe("internal link backfill / re-resolution (integration)", () => {
     const dir = await seedDirectory(container, owner);
     // A's body links to [[A]] — its own title (#127 ADR-005: self never resolves).
     const a = await seedNote(container, owner, dir, { title: "A" });
-    const selfLink = await seedLink(container, a, { kind: "title", target: "A" });
+    const selfLink = await seedLink(container, a, {
+      kind: "title",
+      target: "A",
+    });
 
     await dispatch(container, "note.created", a, owner);
     expect(await getResolved(container, selfLink)).toBeNull();
