@@ -69,6 +69,8 @@ function renderIngestionBusinessMessage(code: string): string | null {
 // create / rename / move / delete dialogs. Codes that only fire on internal
 // invariant violations (e.g. `directory_invalid_id`, `directory_depth_mismatch`)
 // are intentionally left to the fallback so internal spec strings never leak.
+// When adding a case here, mirror it in `EXPLICIT_DIRECTORY_CODES` in
+// `__tests__/errorDisplay.test.ts` so the group (c) fallback test stays accurate.
 function renderDirectoryBusinessMessage(code: string): string | null {
   switch (code) {
     case "directory_name_conflict":

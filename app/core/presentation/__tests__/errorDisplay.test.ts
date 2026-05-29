@@ -157,17 +157,23 @@ describe("renderErrorMessage business mapping", () => {
 // Directory business codes reachable through the directory dialogs. These
 // MUST map to a dedicated Japanese message rather than the generic business
 // fallback. (Issue #290)
-const EXPLICIT_DIRECTORY_CODES: readonly string[] = [
-  "directory_name_conflict",
-  "directory_too_deep",
-  "directory_name_forbidden_character",
-  "directory_name_empty",
-  "directory_name_too_long",
-  "directory_cyclic_move",
-  "cannot_rename_root",
-  "cannot_delete_root",
-  "cannot_move_root",
-];
+//
+// Listed by `DirectoryErrorCode` member (not raw strings) so a typo cannot
+// silently desync this list from the enum, and so the `satisfies` below
+// type-errors if a referenced member is removed. When `renderDirectoryBusinessMessage`
+// gains a new explicit code, add the matching member here too — group (c)
+// below then proves every remaining enum value still falls back.
+const EXPLICIT_DIRECTORY_CODES = [
+  DirectoryErrorCode.NameConflict,
+  DirectoryErrorCode.TooDeep,
+  DirectoryErrorCode.NameForbiddenCharacter,
+  DirectoryErrorCode.NameEmpty,
+  DirectoryErrorCode.NameTooLong,
+  DirectoryErrorCode.CyclicMove,
+  DirectoryErrorCode.CannotRenameRoot,
+  DirectoryErrorCode.CannotDeleteRoot,
+  DirectoryErrorCode.CannotMoveRoot,
+] as const satisfies readonly string[];
 
 const BUSINESS_FALLBACK_MESSAGE =
   "操作を完了できませんでした。時間をおいて再度お試しください";
@@ -199,7 +205,7 @@ describe("renderErrorMessage directory business mapping", () => {
   // fall back to the generic message so internal spec strings never leak.
   it("returns the generic fallback for internal directory codes (group (c))", () => {
     const allValues = Object.values(DirectoryErrorCode);
-    const explicitSet = new Set(EXPLICIT_DIRECTORY_CODES);
+    const explicitSet = new Set<string>(EXPLICIT_DIRECTORY_CODES);
     const fallbackGroup = allValues.filter((v) => !explicitSet.has(v));
     expect(fallbackGroup.length).toBeGreaterThan(0);
     for (const code of fallbackGroup) {
