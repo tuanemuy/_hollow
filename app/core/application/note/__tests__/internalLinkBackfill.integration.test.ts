@@ -331,4 +331,54 @@ describe("internal link backfill / re-resolution (integration)", () => {
     expect(await getResolved(container, link1)).toBe(a);
     expect(await getResolved(container, link2)).toBe(b);
   });
+
+  it("self-reference (title): a note linking to its own title never resolves", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // A's body links to [[A]] — its own title (#127 ADR-005: self never resolves).
+    const a = await seedNote(container, owner, dir, { title: "A" });
+    const selfLink = await seedLink(container, a, { kind: "title", target: "A" });
+
+    await dispatch(container, "note.created", a, owner);
+    expect(await getResolved(container, selfLink)).toBeNull();
+
+    // A title-changing event for A must not resolve the self-link either.
+    await dispatch(container, "note.content_updated", a, owner);
+    expect(await getResolved(container, selfLink)).toBeNull();
+
+    // A second note B that also links to [[A]] still resolves to A — the
+    // self-exclusion is scoped to the referencing note, not to A globally.
+    const b = await seedNote(container, owner, dir, { title: "B" });
+    const bLink = await seedLink(container, b, { kind: "title", target: "A" });
+    await dispatch(container, "note.content_updated", a, owner);
+    expect(await getResolved(container, bLink)).toBe(a);
+    expect(await getResolved(container, selfLink)).toBeNull();
+  });
+
+  it("self-reference (id): a note linking to its own id never resolves", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // A's body carries [[<A's own id>]] (kind=id). findUnresolvedIdLinkRows
+    // excludes fromNoteId === targetNoteId at the SQL level (#127 ADR-005).
+    const a = await seedNote(container, owner, dir, { title: "A" });
+    const selfIdLink = await seedLink(container, a, {
+      kind: "id",
+      target: a as unknown as string,
+    });
+
+    await dispatch(container, "note.created", a, owner);
+    expect(await getResolved(container, selfIdLink)).toBeNull();
+
+    // But a different note B carrying [[<A's id>]] resolves to A on restore.
+    const b = await seedNote(container, owner, dir, { title: "B" });
+    const bIdLink = await seedLink(container, b, {
+      kind: "id",
+      target: a as unknown as string,
+    });
+    await dispatch(container, "note.restored", a, owner);
+    expect(await getResolved(container, bIdLink)).toBe(a);
+    expect(await getResolved(container, selfIdLink)).toBeNull();
+  });
 });

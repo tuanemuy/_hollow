@@ -1036,7 +1036,9 @@ export class D1NoteRepository implements NoteRepository {
     // the resolution update commits atomically with the surrounding UoW
     // (Issue #321 ADR-008). Chunk the `IN (...)` predicate under the D1
     // host-var cap; `+1` host var for the `resolved_note_id` SET value
-    // stays within the `SAFE_CHUNK_SIZE` margin.
+    // stays within the `SAFE_CHUNK_SIZE` margin. NOTE: if this statement
+    // ever grows extra bound predicates (owner/status filters, etc.),
+    // account for them on top of the SET var when sizing the chunk.
     for (let i = 0; i < linkRowIds.length; i += SAFE_CHUNK_SIZE) {
       const chunk = linkRowIds.slice(i, i + SAFE_CHUNK_SIZE);
       this.pending.add(

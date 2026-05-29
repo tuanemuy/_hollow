@@ -8,7 +8,13 @@ export type BackfillInternalLinkResolutionInput = Readonly<{
 }>;
 
 export type BackfillInternalLinkResolutionOutput = Readonly<{
-  /** Number of active notes scanned as potential link targets. */
+  /**
+   * Number of active-note *scans* performed (page rows read), not a
+   * distinct note count. Under concurrent mutation of the owner's active
+   * notes the offset paging may re-read or skip rows, so this can differ
+   * from the true note count — treat it as a progress figure, not a
+   * cardinality. See the function JSDoc for the convergence guarantee.
+   */
   scannedNotes: number;
   /** Number of `note_internal_links` rows newly resolved. */
   resolvedRows: number;
@@ -36,6 +42,16 @@ const PAGE_LIMIT = 100;
  * This is a projection-only repair (ADR-008): it never touches aggregates
  * or emits domain events. Each page runs in its own UoW with all reads
  * ordered before the buffered `setLinkResolution` write.
+ *
+ * Paging is offset/limit over the owner's active notes across independent
+ * UoWs. This usecase never changes a note's active status, so it induces
+ * no drift itself; but a *concurrent* trash/restore/create during a long
+ * run can make the offset window skip or re-read a note. That only affects
+ * single-run completeness, never correctness: because resolution is
+ * idempotent (resolved rows drop out of `findUnresolvedTitleLinkRows`) and
+ * deterministic (same decision rule everywhere), a re-run converges on the
+ * complete result. Intended as a re-runnable operational repair, not a
+ * one-shot snapshot.
  *
  * `kind=id` rows are not backfilled here: a `[[<uuid>]]` link resolves at
  * save time when its target is present (ADR-007), and the
