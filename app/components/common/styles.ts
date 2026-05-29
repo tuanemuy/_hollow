@@ -8,13 +8,22 @@
  * see `.issue/70/adr.md` (ADR-002) for the broader policy.
  */
 
-/** Pill button base — apply to every variant. */
+/**
+ * Pill button base — apply to every variant.
+ *
+ * hover/active utilities are guarded with `not-disabled:not-aria-disabled:`
+ * so disabled buttons show no hover/active visual change. Both guards are
+ * required because `pillBtn` is applied to anchors (`<Link>`) as well as
+ * `<button>`: anchors cannot match `:disabled` and express the disabled
+ * state via `aria-disabled` instead (hence the `aria-disabled:*` opacity
+ * rules below). See `.issue/152/adr.md` ADR-001.
+ */
 export const pillBtn =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =
-  "data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed";
+  "data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:not-disabled:not-aria-disabled:bg-accent-hover data-[primary]:active:not-disabled:not-aria-disabled:bg-accent-pressed";
 
 /**
  * Append for danger pill button — drives "data-danger" variant.
@@ -28,7 +37,7 @@ export const pillBtnPrimary =
  * deterministically. See `.issue/273/adr.md` ADR-003.
  */
 export const pillBtnDanger =
-  "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:bg-error-surface";
+  "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:not-disabled:not-aria-disabled:bg-error-surface";
 
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
@@ -74,7 +83,7 @@ export const dialog =
  * exclusion, `closable=false` disabling).
  */
 export const dialogCloseButton =
-  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:bg-surface hover:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Modal dialog title. */
 export const dialogTitle = "text-lg font-medium mb-4";
