@@ -276,6 +276,17 @@ describe("IngestionJobRow", () => {
     expect(container.querySelector("[data-discarded]")).toBeNull();
   });
 
+  // A discarded job is terminal: the card is read-only, so none of the
+  // status-gated action buttons (保存/再生成/破棄/再試行) render.
+  it("renders no action buttons on a discarded card", async () => {
+    await renderRow(discardedJob);
+
+    expect(
+      container.querySelectorAll("button").length,
+      "discarded card should expose no action buttons",
+    ).toBe(0);
+  });
+
   it("does not call router.invalidate when commit fails", async () => {
     commitMock.mockRejectedValue(new Error("commit failed"));
 

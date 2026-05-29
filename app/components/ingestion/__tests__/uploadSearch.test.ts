@@ -26,28 +26,32 @@ describe("uploadSearchSchema", () => {
     ).toBe(true);
   });
 
-  it("collapses non-truthy values to false", () => {
+  // Each of the three union members can carry a non-truthy value; all must
+  // collapse to false. Split by member so the union's coverage is explicit.
+  it.each([
+    ["boolean false", false],
+    ["number 0", 0],
+    ["string '0'", "0"],
+    ["string 'false'", "false"],
+    // An arbitrary hand-typed value must not error the route either.
+    ["string 'abc'", "abc"],
+  ])("collapses %s to false", (_label, value) => {
     expect(
-      uploadSearchSchema.parse({ includeDiscarded: false }).includeDiscarded,
-    ).toBe(false);
-    expect(
-      uploadSearchSchema.parse({ includeDiscarded: 0 }).includeDiscarded,
-    ).toBe(false);
-    expect(
-      uploadSearchSchema.parse({ includeDiscarded: "0" }).includeDiscarded,
-    ).toBe(false);
-    expect(
-      uploadSearchSchema.parse({ includeDiscarded: "false" }).includeDiscarded,
-    ).toBe(false);
-    // An arbitrary hand-typed value must not error the route.
-    expect(
-      uploadSearchSchema.parse({ includeDiscarded: "abc" }).includeDiscarded,
+      uploadSearchSchema.parse({ includeDiscarded: value }).includeDiscarded,
     ).toBe(false);
   });
 
-  it("never throws on an unexpected shape (belt-and-braces .catch)", () => {
-    expect(() =>
-      uploadSearchSchema.parse({ includeDiscarded: { nested: true } }),
-    ).not.toThrow();
+  // `.catch(undefined)` is the belt-and-braces fallback for a value that is
+  // present but outside the union (the parse throws, then `.catch` rescues).
+  it.each([
+    ["an object", { nested: true }],
+    ["null", null],
+    ["an array", [1]],
+  ])("never throws and yields undefined for %s", (_label, value) => {
+    let parsed: ReturnType<typeof uploadSearchSchema.parse> | undefined;
+    expect(() => {
+      parsed = uploadSearchSchema.parse({ includeDiscarded: value });
+    }).not.toThrow();
+    expect(parsed?.includeDiscarded).toBeUndefined();
   });
 });

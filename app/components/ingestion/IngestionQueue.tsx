@@ -25,8 +25,9 @@ type Props = Readonly<{
    * Mirrors the upload page's "show discarded" toggle. Forwarded to every
    * poll so a tick re-fetches with the same filter the server-rendered
    * `initialJobs` used. Toggling the URL remounts this component (keyed in
-   * `UploadPage`), so this value is fixed for the component's lifetime —
-   * no need to track it in effect deps.
+   * `UploadPage`), so in practice this value never changes within a mount;
+   * it is still listed in the polling effect's deps (the effect reads it via
+   * the `tick` closure) so the dependency is honest and lint-clean.
    */
   includeDiscarded: boolean;
 }>;
