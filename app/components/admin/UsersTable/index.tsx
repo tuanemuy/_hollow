@@ -2,7 +2,9 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Pause, Play, Shield, ShieldOff } from "lucide-react";
 import { useId, useMemo, useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -160,6 +162,7 @@ function UserRow({
               onClick={() => runAction(suspend)}
               disabled={isPending}
             >
+              <Icon icon={Pause} />
               一時停止
             </button>
           ) : null}
@@ -170,6 +173,7 @@ function UserRow({
               onClick={() => runAction(reinstate)}
               disabled={isPending}
             >
+              <Icon icon={Play} />
               復帰
             </button>
           ) : null}
@@ -180,6 +184,7 @@ function UserRow({
               onClick={() => runAction(promote)}
               disabled={isPending}
             >
+              <Icon icon={Shield} />
               管理者に昇格
             </button>
           ) : null}
@@ -190,6 +195,7 @@ function UserRow({
               onClick={() => runAction(demote)}
               disabled={isPending}
             >
+              <Icon icon={ShieldOff} />
               管理者を解除
             </button>
           ) : null}
@@ -198,6 +204,8 @@ function UserRow({
           <p
             className={`${FIELD_ERROR_CLASS} text-right`}
             style={{ marginTop: 6 }}
+            role="alert"
+            aria-live="polite"
           >
             {summary}
           </p>

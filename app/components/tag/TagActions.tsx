@@ -2,9 +2,10 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Trash2 } from "lucide-react";
+import { Check, Merge, Pencil, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -87,6 +88,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             onClick={onRename}
             disabled={isPending}
           >
+            <Icon icon={Check} />
             保存
           </button>
           <button
@@ -109,6 +111,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             onClick={() => setIsEditing(true)}
             disabled={isPending}
           >
+            <Icon icon={Pencil} />
             リネーム
           </button>
           {candidates.length > 0 ? (
@@ -118,6 +121,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
               onClick={() => setIsMergeOpen(true)}
               disabled={isPending}
             >
+              <Icon icon={Merge} />
               統合
             </button>
           ) : null}
@@ -128,12 +132,13 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
           >
+            <Icon icon={Trash2} />
             削除
           </button>
         </>
       )}
       {error !== null ? (
-        <span className={FORM_ERROR} role="alert">
+        <span className={FORM_ERROR} role="alert" aria-live="polite">
           {displayError(error)}
         </span>
       ) : null}

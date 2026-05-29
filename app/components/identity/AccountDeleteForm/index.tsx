@@ -2,8 +2,12 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useActionState, useId, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
+import { PILL_BTN } from "@/components/layout/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -13,113 +17,144 @@ import {
 import { USERNAME_MAX } from "../schema";
 import { deleteAccountFn } from "./action";
 
-type FormState = { error: SerializedError | null; ok: boolean };
-const initial: FormState = { error: null, ok: false };
-
 export function AccountDeleteForm({ user }: { user: UserDTO }) {
   const router = useRouter();
   const deleteAccount = useServerFn(deleteAccountFn);
-  const [confirmDialog, setConfirmDialog] = useState(false);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState<SerializedError | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
 
-  const [state, formAction, isPending] = useActionState<FormState, FormData>(
-    async (_prev, formData) => {
-      const confirmation = String(formData.get("confirmation") ?? "");
+  const fieldErrors =
+    error?.kind === "validation" ? error.fieldErrors?.confirmation : undefined;
+  const summary =
+    error !== null && fieldErrors === undefined ? displayError(error) : "";
+
+  const onConfirm = () => {
+    if (draft !== user.username) {
+      setError({
+        kind: "validation",
+        code: null,
+        message: "ユーザー名が一致しません",
+        fieldErrors: { confirmation: ["ユーザー名が一致しません"] },
+      });
+      return;
+    }
+    startTransition(async () => {
       try {
-        await deleteAccount({ data: { confirmation } });
+        await deleteAccount({ data: { confirmation: draft } });
         // 過去訪問の cached _app match に残る旧 userDto を破棄するため _app も invalidate（rule 1）
         await router.invalidate();
         await router.navigate({ to: "/", search: HOME_SEARCH });
-        return { error: null, ok: true };
+        setError(null);
       } catch (e) {
-        return { error: extractSerializedError(e), ok: false };
+        const next = extractSerializedError(e);
+        const isFieldValidation =
+          next.kind === "validation" &&
+          next.fieldErrors?.confirmation !== undefined;
+        if (!isFieldValidation) {
+          setConfirmOpen(false);
+        }
+        setError(next);
       }
-    },
-    initial,
-  );
+    });
+  };
 
-  const fieldErrors =
-    state.error?.kind === "validation"
-      ? state.error.fieldErrors?.confirmation
-      : undefined;
-  const summary =
-    state.error !== null && fieldErrors === undefined
-      ? displayError(state.error)
-      : "";
-
-  const canConfirm = draft === user.username;
-
-  if (!confirmDialog) {
-    return (
-      <section>
-        <h2>アカウント削除</h2>
-        <p>
-          アカウントを削除すると、ノート、メディア、公開リンク、進行中の
-          エクスポートジョブを含むすべてのデータが失われます。この操作は
-          取り消せません。
-        </p>
-        <button
-          type="button"
-          onClick={() => setConfirmDialog(true)}
-          disabled={isPending}
-        >
-          続けて削除する
-        </button>
-      </section>
-    );
-  }
+  const closeDialog = () => {
+    setConfirmOpen(false);
+    setDraft("");
+    // error は保持: summary 表示寿命は「次のトリガー開」または「次の submit 成功」まで
+  };
 
   return (
-    <section
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={`${inputId}-heading`}
-    >
-      <h2 id={`${inputId}-heading`}>本当にアカウントを削除しますか？</h2>
+    <section>
+      <h2>アカウント削除</h2>
       <p>
-        確認のため、ユーザー名 <code>{user.username}</code>{" "}
-        をそのまま入力してください。
+        アカウントを削除すると、ノート、メディア、公開リンク、進行中の
+        エクスポートジョブを含むすべてのデータが失われます。この操作は
+        取り消せません。
       </p>
-      <form action={formAction}>
-        <label htmlFor={inputId}>ユーザー名（確認）</label>
-        <input
-          id={inputId}
-          name="confirmation"
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          maxLength={USERNAME_MAX}
-          autoComplete="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          required
-          disabled={isPending}
-          aria-invalid={fieldErrors !== undefined}
-        />
-        {fieldErrors !== undefined ? (
-          <p role="alert">{fieldErrors[0]}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={isPending || !canConfirm}
-          aria-disabled={!canConfirm}
-        >
-          {isPending ? "削除中..." : "アカウントを完全に削除する"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setConfirmDialog(false);
-            setDraft("");
-          }}
-          disabled={isPending}
-        >
-          キャンセル
-        </button>
-        {summary !== "" ? <p role="alert">{summary}</p> : null}
-      </form>
+      <button
+        type="button"
+        className={PILL_BTN}
+        data-danger=""
+        onClick={() => {
+          setError(null);
+          setDraft("");
+          setConfirmOpen(true);
+        }}
+        disabled={isPending}
+      >
+        <Icon icon={Trash2} />
+        続けて削除する
+      </button>
+      {summary !== "" ? (
+        <p role="alert" aria-live="polite">
+          {summary}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="本当にアカウントを削除しますか？"
+        description={
+          <>
+            <p>
+              確認のため、ユーザー名 <code>{user.username}</code>{" "}
+              をそのまま入力してください。
+            </p>
+            <label htmlFor={inputId}>
+              ユーザー名 <code>{user.username}</code> を入力
+            </label>
+            <input
+              id={inputId}
+              name="confirmation"
+              type="text"
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (error?.kind === "validation") setError(null);
+              }}
+              maxLength={USERNAME_MAX}
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              required
+              disabled={isPending}
+              aria-invalid={fieldErrors !== undefined && fieldErrors.length > 0}
+              aria-describedby={
+                // error 優先順で読み上げる: SR は aria-describedby の id 順に読む
+                [
+                  fieldErrors !== undefined && fieldErrors.length > 0
+                    ? errorId
+                    : null,
+                  hintId,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+            />
+            {fieldErrors !== undefined && fieldErrors.length > 0 ? (
+              <p id={errorId} role="alert">
+                {fieldErrors[0]}
+              </p>
+            ) : null}
+            <p id={hintId} className="text-xs text-ink-tertiary">
+              ユーザー名が一致すると削除が実行されます。Tab
+              キーで入力欄に移動できます。
+            </p>
+          </>
+        }
+        confirmLabel="アカウントを完全に削除する"
+        confirmIcon={Trash2}
+        isPending={isPending}
+        onConfirm={onConfirm}
+        onClose={closeDialog}
+      />
     </section>
   );
 }
