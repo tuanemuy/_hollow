@@ -280,7 +280,7 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-hairline bg-surface p-5">
+    <div className="mt-4 rounded-lg border border-hairline bg-surface-elevated p-5">
       <div className="flex items-center gap-3 mb-4">
         <button
           type="button"

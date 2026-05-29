@@ -161,6 +161,40 @@ export const NoteService = {
   },
 
   /**
+   * Pick the note a `kind=title` reference resolves to among the
+   * candidate notes that share the referenced title.
+   *
+   * The decision rule (extracted from {@link NoteService.resolveInternalLinks}
+   * so the save-time and the post-hoc re-resolution paths — Issue #321 —
+   * stay in lock-step, ADR-003 / ADR-008):
+   * 1. Exclude `exceptId` (the referencing note itself never resolves to
+   *    itself — ADR-005).
+   * 2. Sort the survivors by title asc, then id asc (the same order the
+   *    suggest popup uses) for a deterministic winner that does not
+   *    depend on the port's return order.
+   * 3. Take the first; `null` when no candidate survives.
+   *
+   * The candidate set is supplied by the caller (typically
+   * `findActiveByOwnerAndTitle`); fetching it stays outside this pure
+   * function so callers control the query scope.
+   */
+  chooseResolutionForTitle(
+    candidates: readonly Note[],
+    exceptId: NoteId | null,
+  ): NoteId | null {
+    const eligible = candidates
+      .filter((note) => note.id !== exceptId)
+      .sort((a, b) => {
+        if (a.title !== b.title) {
+          return (a.title as string) < (b.title as string) ? -1 : 1;
+        }
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+    const chosen = eligible[0];
+    return chosen === undefined ? null : chosen.id;
+  },
+
+  /**
    * Resolve both reference kinds to a `resolvedNoteId`:
    *
    * - `kind=title`: look up the owner's note catalogue by
@@ -217,21 +251,8 @@ export const NoteService = {
         ownerId,
         ref.target,
       );
-      const eligible = candidates
-        .filter((note) => note.id !== exceptId)
-        .sort((a, b) => {
-          if (a.title !== b.title) {
-            return (a.title as string) < (b.title as string) ? -1 : 1;
-          }
-          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-        });
-      const chosen = eligible[0];
-      out.push(
-        InternalLinkRef.withResolved(
-          ref,
-          chosen === undefined ? null : chosen.id,
-        ),
-      );
+      const chosen = NoteService.chooseResolutionForTitle(candidates, exceptId);
+      out.push(InternalLinkRef.withResolved(ref, chosen));
     }
     return out;
   },

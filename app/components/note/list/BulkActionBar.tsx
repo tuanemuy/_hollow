@@ -106,7 +106,8 @@ export function BulkActionBar({ tree }: Props) {
           </button>
           <button
             type="button"
-            className={pillBtnDanger}
+            className={`${pillBtn} ${pillBtnDanger}`}
+            data-danger=""
             onClick={() => setConfirmTrashOpen(true)}
             disabled={isPending}
           >

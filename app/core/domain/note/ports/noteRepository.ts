@@ -171,6 +171,93 @@ export interface NoteRepository extends TransactionalRepository<Note> {
   findReferrers(targetNoteId: NoteId): Promise<readonly Note[]>;
 
   /**
+   * Owner-scoped unresolved `kind=title` link rows whose `refTarget`
+   * equals `title` case-insensitively. A row qualifies when
+   * `refKind='title'` AND `resolvedNoteId IS NULL` AND
+   * `lower(refTarget) = lower(title)` AND its `fromNoteId` points at an
+   * **active** note owned by `ownerId`. Used by the link-target
+   * resolution reaction handler (Issue #321) to backfill links that
+   * point at a note which has just been created / renamed / restored.
+   *
+   * `note_internal_links` carries no owner column, so the adapter joins
+   * onto `notes` (fromNoteId, status='active', ownerId) to scope the
+   * result. The `lower()` comparison cannot use `idx_nil_target`
+   * (which only covers `refKind` prefix); it degrades to a filter — the
+   * `(ownerId, status='active')` join keeps the candidate set small in
+   * practice (see #127 ADR-002).
+   *
+   * Returns only the data the caller needs to re-decide resolution: the
+   * link row `id` (for `setLinkResolution`) and its `fromNoteId` (for
+   * self-exclusion via the decision rule). Picking a single winning note
+   * among duplicate titles is the caller's (domain service's)
+   * responsibility — the port stays neutral.
+   */
+  findUnresolvedTitleLinkRows(
+    ownerId: UserId,
+    title: string,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]>;
+
+  /**
+   * Owner-scoped unresolved `kind=id` link rows whose `refTarget` equals
+   * `targetNoteId`. A row qualifies when `refKind='id'` AND
+   * `resolvedNoteId IS NULL` AND `refTarget = targetNoteId` AND its
+   * `fromNoteId` points at an **active** note owned by `ownerId` that is
+   * not `targetNoteId` itself (self links never resolve — ADR-005).
+   * Used by the resolution reaction handler to backfill `[[<uuid>]]`
+   * links after the target note is created / restored (Issue #321).
+   *
+   * The id mirror of `findUnresolvedTitleLinkRows`: `findResolvedLinkRowsByTarget`
+   * only surfaces rows that are already resolved to the target, so it
+   * cannot find the unresolved id rows this method targets. Like the
+   * title variant the adapter joins onto `notes` for the owner / active
+   * scope (no owner column on the link table).
+   */
+  findUnresolvedIdLinkRows(
+    ownerId: UserId,
+    targetNoteId: NoteId,
+  ): Promise<readonly { id: string; fromNoteId: NoteId }[]>;
+
+  /**
+   * Link rows whose `resolvedNoteId` equals `targetNoteId`, regardless
+   * of `refKind`. Shares the `idx_nil_resolved`-backed `where` of
+   * {@link NoteRepository.findReferrers}, but returns the raw link-row
+   * shape (`id` / `fromNoteId` / `refKind` / `refTarget`) rather than
+   * hydrated notes. Used by the resolution reaction handlers (Issue
+   * #321) to find the rows that must be **unresolved** when the target
+   * is renamed (stale `kind=title` rows whose `refTarget` no longer
+   * matches the current title) or trashed (every row, since the FK
+   * `set null` fires only on physical delete).
+   */
+  findResolvedLinkRowsByTarget(targetNoteId: NoteId): Promise<
+    readonly {
+      id: string;
+      fromNoteId: NoteId;
+      refKind: "id" | "title";
+      refTarget: string;
+    }[]
+  >;
+
+  /**
+   * Set (or clear, when `resolvedNoteId === null`) the `resolved_note_id`
+   * column on the link rows identified by `linkRowIds`. An empty
+   * `linkRowIds` short-circuits without touching the DB.
+   *
+   * `resolved_note_id` is a projection derived from the body's
+   * `internalLinkRefs`, not part of the referencing note's aggregate
+   * invariants, so it is updated row-wise outside the aggregate boundary
+   * (Issue #321 ADR-008). The write is buffered onto the surrounding
+   * UoW's pending batch like the aggregate child writes — callers must
+   * order their reads before this call so the deferred flush does not
+   * depend on its own write (D1 has no read-your-write within a UoW).
+   * The adapter chunks the `IN (...)` predicate under the D1 host-var
+   * cap.
+   */
+  setLinkResolution(
+    linkRowIds: readonly string[],
+    resolvedNoteId: NoteId | null,
+  ): Promise<void>;
+
+  /**
    * Bulk-trash every active note under `directoryId`. Returns the ids of
    * notes that were actually transitioned. Implementations must skip
    * already-trashed rows so the operation is idempotent.

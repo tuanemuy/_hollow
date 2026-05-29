@@ -19,13 +19,16 @@ import {
   fieldControl,
   fieldLabel,
   fieldTextarea,
+  pillBtn,
+  pillBtnDanger,
+  pillBtnPrimary,
 } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { FORM_ERROR, PILL_BTN } from "../layout/styles";
+import { FORM_ERROR } from "../layout/styles";
 import { DirectoryPicker } from "../note/editor/DirectoryPicker";
 import { parseTagInput } from "../note/editor/editorState";
 import type { FlatDirectory } from "../note/loaders";
@@ -369,7 +372,7 @@ export function IngestionPreviewForm({
         >
           <button
             type="button"
-            className={PILL_BTN}
+            className={pillBtn}
             onClick={onCancel}
             disabled={isPending}
           >
@@ -377,7 +380,7 @@ export function IngestionPreviewForm({
           </button>
           <button
             type="button"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
             onClick={() => setConfirmDiscardOpen(true)}
             disabled={isPending}
@@ -386,7 +389,7 @@ export function IngestionPreviewForm({
           </button>
           <button
             type="button"
-            className={PILL_BTN}
+            className={pillBtn}
             onClick={onRegenerate}
             disabled={isPending}
           >
@@ -395,7 +398,7 @@ export function IngestionPreviewForm({
           </button>
           <button
             type="submit"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
             disabled={isPending}
           >

@@ -7,7 +7,7 @@ import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
-import { PILL_BTN } from "@/components/layout/styles";
+import { pillBtn, pillBtnDanger } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -81,7 +81,7 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
       </p>
       <button
         type="button"
-        className={PILL_BTN}
+        className={`${pillBtn} ${pillBtnDanger}`}
         data-danger=""
         onClick={() => {
           setError(null);

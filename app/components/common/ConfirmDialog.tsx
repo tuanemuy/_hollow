@@ -90,7 +90,12 @@ export function ConfirmDialog({
           >
             キャンセル
           </button>
-          <button type="submit" className={pillBtnDanger} disabled={isPending}>
+          <button
+            type="submit"
+            className={`${pillBtn} ${pillBtnDanger}`}
+            data-danger=""
+            disabled={isPending}
+          >
             {confirmIcon !== undefined ? <Icon icon={confirmIcon} /> : null}
             {confirmLabel}
           </button>

@@ -4,17 +4,13 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import {
-  FIELD_INPUT,
-  FIELD_LABEL,
-  FORM_ERROR,
-  PILL_BTN,
-} from "../layout/styles";
+import { FIELD_INPUT, FIELD_LABEL, FORM_ERROR } from "../layout/styles";
 import { createTagFn } from "./actions";
 import { TAG_NAME_MAX_LENGTH } from "./schema";
 
@@ -60,7 +56,7 @@ export function CreateTagForm() {
       </div>
       <button
         type="submit"
-        className={PILL_BTN}
+        className={`${pillBtn} ${pillBtnPrimary}`}
         data-primary=""
         disabled={isPending}
       >

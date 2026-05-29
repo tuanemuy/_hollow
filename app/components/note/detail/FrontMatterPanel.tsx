@@ -80,7 +80,7 @@ export function FrontMatterPanel({ frontMatter }: FrontMatterPanelProps) {
 
   return (
     <section
-      className="mt-8 px-5 py-4 rounded-lg border border-hairline bg-surface"
+      className="mt-8 px-5 py-4 rounded-lg border border-hairline bg-surface-elevated"
       aria-label="FrontMatter"
     >
       <h2 className="text-lg font-semibold mb-3">FrontMatter</h2>
