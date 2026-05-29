@@ -33,6 +33,12 @@ type View =
       kind: "waiting";
       jobId: string;
       startedAt: number;
+      // Where this waiting session was entered from. Decides where a
+      // terminal poll failure (fatal error or transient cap) lands:
+      // `upload` (first-time upload) falls back to `select`; `existingJob`
+      // (regenerate / failed-retry of a persisted job) keeps the editing
+      // context by routing to `queueGuidance` instead. See .issue/319/adr.md.
+      origin: "upload" | "existingJob";
     }
   | {
       kind: "editing";
@@ -51,6 +57,14 @@ type View =
   | {
       kind: "timedOut";
       jobId: string;
+    }
+  | {
+      // Terminal poll failure for an `existingJob`-origin waiting session.
+      // The job is persisted in the queue, so instead of dumping the user
+      // back to the dropzone (`select`) we keep them oriented toward the
+      // job via the queue. The triggering error is surfaced from the
+      // `error` state. See .issue/319/adr.md.
+      kind: "queueGuidance";
     };
 
 type Props = {
@@ -115,6 +129,11 @@ function viewStatusText(view: View): string {
     }
     case "timedOut":
       return "推論の完了を待ちきれませんでした";
+    case "queueGuidance":
+      // The error itself is announced via the inline `role="alert"` region;
+      // the polite region carries only the non-duplicate guidance so the
+      // user is not double-announced (same rationale as `select`).
+      return "ジョブはキューに残っています";
     default:
       throw new Error(`unreachable view kind: ${JSON.stringify(view)}`);
   }
@@ -215,9 +234,27 @@ export function UploadDialog({ open, onClose }: Props) {
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const waitingJobId = view.kind === "waiting" ? view.jobId : null;
   const waitingStartedAt = view.kind === "waiting" ? view.startedAt : null;
+  const waitingOrigin = view.kind === "waiting" ? view.origin : null;
   useEffect(() => {
-    if (waitingJobId === null || waitingStartedAt === null) return;
+    if (
+      waitingJobId === null ||
+      waitingStartedAt === null ||
+      waitingOrigin === null
+    )
+      return;
     let cancelled = false;
+    // A terminal poll failure (fatal error or transient cap) abandons the
+    // waiting session. `upload`-origin sessions fall back to the dropzone;
+    // `existingJob`-origin sessions keep the user oriented toward the
+    // persisted job via the queue instead. See .issue/319/adr.md.
+    const failWaiting = (serialized: SerializedError) => {
+      setError(serialized);
+      setView(
+        waitingOrigin === "existingJob"
+          ? { kind: "queueGuidance" }
+          : { kind: "select" },
+      );
+    };
     const tick = async () => {
       if (cancelled) return;
       try {
@@ -249,14 +286,12 @@ export function UploadDialog({ open, onClose }: Props) {
         if (cancelled) return;
         const serialized = extractSerializedError(e);
         if (isPollFatalError(serialized)) {
-          setError(serialized);
-          setView({ kind: "select" });
+          failWaiting(serialized);
           return;
         }
         transientFailuresRef.current += 1;
         if (transientFailuresRef.current >= POLL_MAX_TRANSIENT_FAILURES) {
-          setError(serialized);
-          setView({ kind: "select" });
+          failWaiting(serialized);
           return;
         }
         // Transient failure under the cap: keep the same `waiting` session
@@ -273,7 +308,7 @@ export function UploadDialog({ open, onClose }: Props) {
         pollTimerRef.current = null;
       }
     };
-  }, [waitingJobId, waitingStartedAt, getJob, onClose]);
+  }, [waitingJobId, waitingStartedAt, waitingOrigin, getJob, onClose]);
 
   const submitFiles = useCallback(
     (files: FileList | null) => {
@@ -301,6 +336,7 @@ export function UploadDialog({ open, onClose }: Props) {
               kind: "waiting",
               jobId: jobId as unknown as string,
               startedAt: Date.now(),
+              origin: "upload",
             });
           } catch (e) {
             if (cancelledRef.current) return;
@@ -366,6 +402,10 @@ export function UploadDialog({ open, onClose }: Props) {
       kind: "waiting",
       jobId,
       startedAt: Date.now(),
+      // Both regenerate (editing view) and failed-retry (failed view) reach
+      // this handler — they act on a job already persisted in the queue, so
+      // a terminal poll failure should route to `queueGuidance`, not `select`.
+      origin: "existingJob",
     });
   }, []);
 
@@ -440,6 +480,10 @@ export function UploadDialog({ open, onClose }: Props) {
       ) : null}
 
       {view.kind === "timedOut" ? <TimedOutView onClose={onClose} /> : null}
+
+      {view.kind === "queueGuidance" ? (
+        <QueueGuidanceView error={error} onClose={onClose} />
+      ) : null}
     </Dialog>
   );
 }
@@ -664,6 +708,36 @@ function MultiResultView({
           ))}
         </ul>
       ) : null}
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
+        <button type="button" className={pillBtn} onClick={onClose}>
+          閉じる
+        </button>
+        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
+          キュー画面を開く
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function QueueGuidanceView({
+  error,
+  onClose,
+}: Readonly<{
+  error: SerializedError | null;
+  onClose: () => void;
+}>) {
+  return (
+    <div className="py-2">
+      <p className="text-sm text-ink mb-2">待機中にエラーが発生しました。</p>
+      {error !== null ? (
+        <p className={FORM_ERROR} role="alert">
+          {displayError(error)}
+        </p>
+      ) : null}
+      <p className="text-sm text-ink-secondary">
+        ジョブはキューに残っています。キュー画面から続きを操作できます。
+      </p>
       <div className="flex flex-wrap justify-end gap-2 mt-4">
         <button type="button" className={pillBtn} onClick={onClose}>
           閉じる

@@ -262,6 +262,9 @@ describe("UploadDialog state machine", () => {
     expect(document.body.textContent).toContain("2 件中 2 件をキューに追加");
   });
 
+  // Also the `upload`-origin regression guard for Issue #319: an initial
+  // upload (origin `upload`) that hits a fatal poll error still falls back to
+  // `select` — only `existingJob`-origin sessions route to queue guidance.
   it("stops polling and surfaces the error when a Business-kind error is returned", async () => {
     uploadMock.mockResolvedValue({ jobId: "job-1" });
     // `AppServerError` is the canonical channel used by the
@@ -704,6 +707,137 @@ describe("UploadDialog state machine", () => {
     });
     expect(getJobMock.mock.calls.length).toBeGreaterThan(pollsBeforeRegen);
     expect(status?.textContent).toBe("プレビュー編集に進みました");
+  });
+
+  // Issue #319: a fatal poll error during an `existingJob`-origin waiting
+  // session (entered via 再生成) must NOT dump the user back to the dropzone
+  // (`select`). The job is persisted in the queue, so the dialog routes to the
+  // `queueGuidance` view (queue link + the triggering error) so the editing
+  // context is not lost. See .issue/319/adr.md ADR-001/002.
+  it("routes a regenerate-origin waiting session to queue guidance (not select) on a fatal poll error", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    // First poll lands on previewing → editing. After 再生成 re-enters
+    // waiting, the next poll fails fatally (forbidden).
+    getJobMock.mockResolvedValueOnce({ job: previewingJob }).mockRejectedValue(
+      new AppServerError({
+        kind: "forbidden",
+        code: "INGESTION_JOB_FORBIDDEN",
+        message: "Ingestion job is not owned by actor",
+      }),
+    );
+    getTreeMock.mockResolvedValue({ flat: [] });
+    regenerateMock.mockResolvedValue({ jobId: "job-1" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // In the editing view — click 再生成 to re-enter waiting (existingJob).
+    const regenBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再生成");
+    expect(regenBtn).toBeDefined();
+    await act(async () => {
+      regenBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Next poll fails fatally → queueGuidance (not select).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Dropzone is NOT shown — we did not fall back to `select`.
+    expect(document.body.textContent).not.toContain("ファイルをドラッグ");
+    // Queue guidance is shown with a link to the queue and an inline alert.
+    expect(document.body.textContent).toContain("ジョブはキューに残っています");
+    expect(document.body.textContent).toContain("キュー画面を開く");
+    expect(document.body.querySelector('[role="alert"]')).not.toBeNull();
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("ジョブはキューに残っています");
+  });
+
+  // Issue #319: the retry path (failed view 再試行 → waiting via the shared
+  // `onRegenerated` handler) is also `existingJob` origin, so a fatal poll
+  // error there routes to queue guidance too.
+  it("routes a retry-origin waiting session to queue guidance on a fatal poll error", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    // First poll lands on failed → failed view. After 再試行 re-enters
+    // waiting, the next poll fails fatally.
+    getJobMock.mockResolvedValueOnce({ job: failedJob }).mockRejectedValue(
+      new AppServerError({
+        kind: "notFound",
+        code: "INGESTION_JOB_NOT_FOUND",
+        message: "Ingestion job not found",
+      }),
+    );
+    getTreeMock.mockResolvedValue({ flat: [] });
+    ownerRetryMock.mockResolvedValue({ jobId: "job-1" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // In the failed view — click 再試行 to re-enter waiting (existingJob).
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+    expect(retryBtn).toBeDefined();
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Next poll fails fatally → queueGuidance (not select).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(document.body.textContent).not.toContain("ファイルをドラッグ");
+    expect(document.body.textContent).toContain("ジョブはキューに残っています");
+    expect(document.body.textContent).toContain("キュー画面を開く");
   });
 
   // Issue #256 A11y-H1: the dialog's accessible name comes from
