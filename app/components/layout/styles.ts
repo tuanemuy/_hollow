@@ -15,9 +15,6 @@ export const SEARCH_BOX_INPUT =
 export const SEARCH_BOX_ICON =
   "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
-export const PILL_BTN =
-  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none whitespace-nowrap hover:bg-surface-hover active:bg-surface-hover active:scale-[0.985] motion-reduce:active:scale-100 data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed data-[danger]:bg-error-surface data-[danger]:text-error aria-disabled:opacity-55 aria-disabled:cursor-not-allowed disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
-
 export const ICON_BTN =
   "w-9 h-9 rounded-full bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
 

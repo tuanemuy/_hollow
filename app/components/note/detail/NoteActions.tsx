@@ -172,7 +172,8 @@ export function NoteActions({
         </Link>
         <button
           type="button"
-          className={pillBtnDanger}
+          className={`${pillBtn} ${pillBtnDanger}`}
+          data-danger=""
           onClick={() => setConfirmDeleteOpen(true)}
           disabled={isPending}
         >

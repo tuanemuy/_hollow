@@ -7,13 +7,14 @@ import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnDanger } from "@/components/common/styles";
 import { purgeNoteFn, restoreNoteFn } from "@/components/note/actions";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
+import { FORM_ERROR, ROW_ACTIONS } from "../layout/styles";
 
 type Props = {
   noteId: string;
@@ -56,7 +57,7 @@ export function TrashRowActions({ noteId }: Props) {
     <div className={ROW_ACTIONS}>
       <button
         type="button"
-        className={PILL_BTN}
+        className={pillBtn}
         onClick={onRestore}
         disabled={isPending}
       >
@@ -65,7 +66,7 @@ export function TrashRowActions({ noteId }: Props) {
       </button>
       <button
         type="button"
-        className={PILL_BTN}
+        className={`${pillBtn} ${pillBtnDanger}`}
         data-danger=""
         onClick={() => setConfirmPurgeOpen(true)}
         disabled={isPending}

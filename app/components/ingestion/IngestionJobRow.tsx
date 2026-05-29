@@ -8,6 +8,11 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
+  pillBtn,
+  pillBtnDanger,
+  pillBtnPrimary,
+} from "@/components/common/styles";
+import {
   displayError,
   displayJobErrorCode,
 } from "@/core/presentation/errorDisplay";
@@ -21,7 +26,6 @@ import {
   CHIP_SUCCESS,
   CHIP_WARNING,
   FORM_ERROR,
-  PILL_BTN,
 } from "../layout/styles";
 import {
   commitIngestionPreviewFn,
@@ -172,7 +176,7 @@ export function IngestionJobRow({ job }: Props) {
           <>
             <button
               type="button"
-              className={PILL_BTN}
+              className={`${pillBtn} ${pillBtnPrimary}`}
               data-primary=""
               onClick={onCommit}
               disabled={isPending}
@@ -182,7 +186,7 @@ export function IngestionJobRow({ job }: Props) {
             </button>
             <button
               type="button"
-              className={PILL_BTN}
+              className={pillBtn}
               onClick={onRegenerate}
               disabled={isPending}
             >
@@ -191,7 +195,7 @@ export function IngestionJobRow({ job }: Props) {
             </button>
             <button
               type="button"
-              className={PILL_BTN}
+              className={`${pillBtn} ${pillBtnDanger}`}
               data-danger=""
               onClick={() => setConfirmDiscardOpen(true)}
               disabled={isPending}
@@ -204,7 +208,7 @@ export function IngestionJobRow({ job }: Props) {
         {job.status === "failed" ? (
           <button
             type="button"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
             onClick={() => setConfirmDiscardOpen(true)}
             disabled={isPending}
@@ -219,7 +223,7 @@ export function IngestionJobRow({ job }: Props) {
             params={{
               noteId: job.savedAsNoteId,
             }}
-            className={PILL_BTN}
+            className={pillBtn}
           >
             <Icon icon={ArrowRight} />
             ノートを開く

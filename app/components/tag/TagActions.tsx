@@ -7,12 +7,17 @@ import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import {
+  pillBtn,
+  pillBtnDanger,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { FORM_ERROR, PILL_BTN, ROW_ACTIONS } from "../layout/styles";
+import { FORM_ERROR, ROW_ACTIONS } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
 import { MergeTagDialog } from "./MergeTagDialog";
 import { progressBarIndeterminate, progressTrack } from "./styles";
@@ -83,7 +88,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           />
           <button
             type="button"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
             onClick={onRename}
             disabled={isPending}
@@ -93,7 +98,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           </button>
           <button
             type="button"
-            className={PILL_BTN}
+            className={pillBtn}
             onClick={() => {
               setIsEditing(false);
               setDraft(name);
@@ -107,7 +112,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
         <>
           <button
             type="button"
-            className={PILL_BTN}
+            className={pillBtn}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
           >
@@ -117,7 +122,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           {candidates.length > 0 ? (
             <button
               type="button"
-              className={PILL_BTN}
+              className={pillBtn}
               onClick={() => setIsMergeOpen(true)}
               disabled={isPending}
             >
@@ -127,7 +132,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           ) : null}
           <button
             type="button"
-            className={PILL_BTN}
+            className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
             onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
