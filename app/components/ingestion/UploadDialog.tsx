@@ -616,7 +616,7 @@ function FailedView({
         <Link
           to="/upload"
           hash={() => ""}
-          className={`${pillBtn} aria-disabled:pointer-events-none aria-disabled:opacity-50`}
+          className={`${pillBtn} aria-disabled:pointer-events-none`}
           aria-disabled={isPending || undefined}
           tabIndex={isPending ? -1 : undefined}
         >
