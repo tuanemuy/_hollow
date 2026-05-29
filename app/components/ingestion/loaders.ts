@@ -9,6 +9,7 @@ export const loadIngestionJobs = cache(
       { container },
       { getIngestionJobs },
       actorUserId: string,
+      options?: { includeDiscarded?: boolean },
     ): Promise<{ jobs: readonly IngestionJobWire[] }> => {
       const { jobs } = await getIngestionJobs({
         container,
@@ -17,6 +18,9 @@ export const loadIngestionJobs = cache(
             typeof getIngestionJobs
           >[0]["input"]["actorUserId"],
           limit: 50,
+          ...(options?.includeDiscarded === true
+            ? { includeDiscarded: true }
+            : {}),
         },
       });
       return { jobs: jobs.map(toIngestionJobWire) };

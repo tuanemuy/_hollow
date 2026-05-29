@@ -97,6 +97,12 @@ const failedJob: IngestionJobWire = {
   errorCode: "ingestion_invalid_state_for_retry",
 };
 
+const discardedJob: IngestionJobWire = {
+  ...previewingJobExistingDir,
+  status: "discarded",
+  preview: null,
+};
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -251,6 +257,23 @@ describe("IngestionJobRow", () => {
       .map((el) => el.textContent ?? "")
       .join(" ");
     expect(alertText).toContain("再試行に必要なデータが見つかりません");
+  });
+
+  // Issue #238: a discarded card is visually distinguished (data-discarded
+  // drives the dimmed Tailwind variant) and shows the "破棄済み" badge so it
+  // cannot be confused with a retained job once the toggle reveals it.
+  it("marks a discarded card with data-discarded and the 破棄済み badge", async () => {
+    await renderRow(discardedJob);
+
+    const card = container.querySelector("[data-discarded]");
+    expect(card).not.toBeNull();
+    expect(document.body.textContent ?? "").toContain("破棄済み");
+  });
+
+  it("does NOT mark a non-discarded card with data-discarded", async () => {
+    await renderRow(failedJob);
+
+    expect(container.querySelector("[data-discarded]")).toBeNull();
   });
 
   it("does not call router.invalidate when commit fails", async () => {

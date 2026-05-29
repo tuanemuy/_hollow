@@ -121,6 +121,10 @@ export const getIngestionJobsFn = createServerFn({ method: "GET" })
     validateInput(
       z.object({
         limit: z.number().int().positive().max(200).optional(),
+        // Polling honours the upload page's "show discarded" toggle so a
+        // tick never strips discarded jobs the user opted to see. Omitted
+        // means OFF — the usecase keeps the default-hidden contract.
+        includeDiscarded: z.boolean().optional(),
       }),
     ),
   )
@@ -134,6 +138,7 @@ export const getIngestionJobsFn = createServerFn({ method: "GET" })
       input: {
         actorUserId: toDtoUserId(user.id),
         limit: data.limit ?? 50,
+        ...(data.includeDiscarded === true ? { includeDiscarded: true } : {}),
       },
     });
     return { jobs: result.jobs.map(toIngestionJobWire) };

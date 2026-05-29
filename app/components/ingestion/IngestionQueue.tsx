@@ -21,9 +21,17 @@ const ACTIVE_STATUSES: ReadonlySet<IngestionJobWire["status"]> = new Set([
 
 type Props = Readonly<{
   initialJobs: readonly IngestionJobWire[];
+  /**
+   * Mirrors the upload page's "show discarded" toggle. Forwarded to every
+   * poll so a tick re-fetches with the same filter the server-rendered
+   * `initialJobs` used. Toggling the URL remounts this component (keyed in
+   * `UploadPage`), so this value is fixed for the component's lifetime —
+   * no need to track it in effect deps.
+   */
+  includeDiscarded: boolean;
 }>;
 
-export function IngestionQueue({ initialJobs }: Props) {
+export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
   const fetchJobs = useServerFn(getIngestionJobsFn);
   const [jobs, setJobs] = useState<readonly IngestionJobWire[]>(initialJobs);
   const [pollErrorMessage, setPollErrorMessage] = useState<string | null>(null);
@@ -77,7 +85,12 @@ export function IngestionQueue({ initialJobs }: Props) {
       inflightRef.current = true;
       try {
         try {
-          const { jobs: nextJobs } = await fetchJobs({ data: { limit: 50 } });
+          const { jobs: nextJobs } = await fetchJobs({
+            data: {
+              limit: 50,
+              ...(includeDiscarded ? { includeDiscarded: true } : {}),
+            },
+          });
           if (cancelledRef.current || fatalRef.current) return;
           setJobs(nextJobs);
           setPollErrorMessage(null);
@@ -128,7 +141,7 @@ export function IngestionQueue({ initialJobs }: Props) {
         document.removeEventListener("visibilitychange", onVisibility);
       }
     };
-  }, [fetchJobs]);
+  }, [fetchJobs, includeDiscarded]);
 
   return (
     <>
