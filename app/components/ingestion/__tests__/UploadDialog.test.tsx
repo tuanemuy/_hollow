@@ -382,14 +382,16 @@ describe("UploadDialog state machine", () => {
     expect(document.body.querySelector('[role="alert"]')).not.toBeNull();
   });
 
-  // Issue #258 (Perf-H1): transient poll failures under the cap must NOT
-  // accelerate polling. The failure counter lives on a ref (not the `view`
-  // discriminant), so a transient failure no longer re-creates the `waiting`
-  // view / re-mounts the polling effect — it reschedules the next tick inline
-  // at the regular interval. This pins one getJob call per POLL_INTERVAL, so a
-  // regression that re-introduces per-tick rescheduling bursts is caught, and
-  // confirms the loop still reaches `editing` after transient hiccups.
-  it("keeps one poll per interval through transient failures, then reaches editing", async () => {
+  // Issue #258 (Perf-H1): transient poll failures under the cap keep the
+  // same `waiting` session alive and resume polling at the regular interval,
+  // eventually reaching `editing`. After moving the failure counter to a ref
+  // (out of the `view` discriminant), a transient failure no longer rebuilds
+  // the `waiting` view — but the externally observable cadence (one getJob per
+  // POLL_INTERVAL) is unchanged either way, so this is a behavioral guard that
+  // the loop survives transient hiccups, not a detector of the internal
+  // re-mount itself. It pins: failures under the cap don't drop or duplicate a
+  // poll, and the count of polls equals the number of intervals advanced.
+  it("resumes polling at the regular interval through transient failures, then reaches editing", async () => {
     uploadMock.mockResolvedValue({ jobId: "job-1" });
     const transient = new AppServerError({
       kind: "system",

@@ -82,11 +82,11 @@
 - **変更内容:** effect 上部の JSDoc 風コメントを、re-mount しない新しいセマンティクス（カウンタは ref、依存はセッションスカラー）に合わせて更新する。
 - **理由:** audit が「コード意図と実装の認知的距離が大きい」と指摘した点の解消。
 
-### 6. リグレッションテストの追加
+### 6. 振る舞いテストの追加
 
 - **対象ファイル:** `app/components/ingestion/__tests__/UploadDialog.test.tsx`
-- **変更内容:** 「transient 失敗が POLL_INTERVAL より高頻度のポーリングを誘発しない」ことを保証するケースを追加する。たとえば waiting 中に 1〜2 回の transient 失敗を挟んでも、`POLL_INTERVAL_MS` ごとにしか `getJobMock` が呼ばれない（フェイクタイマーで時間を進めた回数 = 呼び出し回数になる）ことを assert する。既存の W-T-002（3 連続 transient → select）は仕様不変。
-- **理由:** Issue の「既存テストのリグレッション確認」+ 再発防止。view 全体依存に戻ると高頻度ポーリングが復活することを検知できるガードにする。
+- **変更内容:** waiting 中に cap 未満（2 回）の transient 失敗を挟んでも、同一 waiting セッションが維持され `POLL_INTERVAL_MS` ごとに 1 回 `getJobMock` が呼ばれ（フェイクタイマーで進めた interval 数 = 呼び出し回数）、最終的に editing に到達することを assert する。既存の W-T-002（3 連続 transient → select）は仕様不変。
+- **理由:** Issue の「既存テストのリグレッション確認」。transient 失敗でループが脱落・重複しない振る舞いを固定する。**注意:** 旧実装（view 全体依存）も同期フェイクタイマー上では同一ケイデンスを示すため、このテストは re-mount（timer churn）そのものを検知するガードではなく、ループが transient 障害を生き延びる振る舞いの回帰テストである（review-001 W-001 を反映）。
 
 ## 設計判断
 
