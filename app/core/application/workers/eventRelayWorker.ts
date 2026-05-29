@@ -3,6 +3,7 @@ import {
   type EventDecoder,
   EventId,
 } from "@/core/domain/common/event";
+import type { DirectoryEvent } from "@/core/domain/directory/events";
 import type { ExportEvent } from "@/core/domain/export/events";
 import type { IdentityEvent } from "@/core/domain/identity/events";
 import type { IngestionEvent } from "@/core/domain/ingestion/events";
@@ -11,6 +12,7 @@ import type { NoteEvent } from "@/core/domain/note/events";
 import type { PublicationEvent } from "@/core/domain/publication/events";
 import type { TagEvent } from "@/core/domain/tag/events";
 import type { WorkerContainer } from "../di/types";
+import { directoryEventDecoders } from "../directory/eventDecoders";
 import { exportEventDecoders } from "../export/eventDecoders";
 import { identityEventDecoders } from "../identity/eventDecoders";
 import { ingestionEventDecoders } from "../ingestion/eventDecoders";
@@ -66,6 +68,7 @@ type AllDomainEvents =
   | MediaEvent
   | NoteEvent
   | TagEvent
+  | DirectoryEvent
   | IngestionEvent
   | ExportEvent;
 
@@ -87,6 +90,7 @@ export const defaultEventDecoderRegistry = {
   ...mediaEventDecoders,
   ...noteEventDecoders,
   ...tagEventDecoders,
+  ...directoryEventDecoders,
   ...ingestionEventDecoders,
   ...exportEventDecoders,
 } satisfies DefaultEventDecoderRegistry;

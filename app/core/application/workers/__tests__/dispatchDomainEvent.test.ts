@@ -33,6 +33,7 @@ import { buildNoteSnapshots } from "../../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../../search/handlePublicationChangedEvent";
+import { handleDirectoryDeletedEvent as viewHandleDirectoryDeletedEvent } from "../../view/handleDirectoryDeletedEvent";
 import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../../view/handleNotePurgedEvent";
 import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../../view/handleTagDeletedEvent";
 import { dispatchDomainEvent } from "../dispatchDomainEvent";
@@ -67,6 +68,9 @@ vi.mock("../../view/handleNotePurgedEvent", () => ({
 vi.mock("../../view/handleTagDeletedEvent", () => ({
   handleTagDeletedEvent: vi.fn(async () => undefined),
 }));
+vi.mock("../../view/handleDirectoryDeletedEvent", () => ({
+  handleDirectoryDeletedEvent: vi.fn(async () => undefined),
+}));
 vi.mock("../../publication/handleUserDeletedEvent", () => ({
   handleUserDeletedEvent: vi.fn(async () => undefined),
 }));
@@ -99,6 +103,9 @@ const mockedHandleLinkTargetResolution = vi.mocked(handleLinkTargetResolution);
 const mockedHandleLinkTargetTrashed = vi.mocked(handleLinkTargetTrashed);
 const mockedViewHandleNotePurged = vi.mocked(viewHandleNotePurgedEvent);
 const mockedViewHandleTagDeleted = vi.mocked(viewHandleTagDeletedEvent);
+const mockedViewHandleDirectoryDeleted = vi.mocked(
+  viewHandleDirectoryDeletedEvent,
+);
 const mockedPublicationHandleUserDeleted = vi.mocked(
   publicationHandleUserDeletedEvent,
 );
@@ -437,22 +444,26 @@ function tagDeletedEvent(): DomainEvent {
   };
 }
 
-// `directory.deleted` / `media.uploaded` are physical events that are
-// NEVER emitted by the production code (Issue #159 ADR-003: `Directory.
-// DeleteDirectory` emits only `note.trashed` for children, and Media's
-// orphan monitoring is TTL-based rather than event-driven). They remain
-// as `as never` fake events so the skipped-regression-guard tests can
-// still exercise the default branch of the dispatcher switch.
+const DIRECTORY_ID = "01938f00-fff1-7000-8000-000000000001";
+
+// `directory.deleted` is now a physical event (Issue #181), so the
+// `AllDomainEvents` union covers its `type` and no `as never` cast is
+// needed here.
 function directoryDeletedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
-    type: "directory.deleted" as never,
-    payload: { directoryId: "01938f00-fff1-7000-8000-000000000001" } as never,
+    type: "directory.deleted",
+    payload: { directoryId: DIRECTORY_ID },
     occurredAt: new Date(0),
-    aggregateId: "01938f00-fff1-7000-8000-000000000001",
-  } as DomainEvent;
+    aggregateId: DIRECTORY_ID,
+  };
 }
 
+// `media.uploaded` is a physical event that is NEVER emitted by the
+// production code (Issue #159 ADR-003: Media's orphan monitoring is
+// TTL-based rather than event-driven). It remains an `as never` fake
+// event so the skipped-regression-guard test can still exercise the
+// default branch of the dispatcher switch.
 function mediaUploadedEvent(): DomainEvent {
   return {
     id: EVENT_ID,
@@ -486,6 +497,7 @@ beforeEach(() => {
   mockedMediaHandleNotePurged.mockReset();
   mockedViewHandleNotePurged.mockReset();
   mockedViewHandleTagDeleted.mockReset();
+  mockedViewHandleDirectoryDeleted.mockReset();
   mockedPublicationHandleUserDeleted.mockReset();
   mockedExportHandleUserDeleted.mockReset();
   mockedBuildNoteSnapshots.mockReset();
@@ -504,6 +516,7 @@ beforeEach(() => {
   mockedMediaHandleNotePurged.mockResolvedValue(undefined);
   mockedViewHandleNotePurged.mockResolvedValue(undefined);
   mockedViewHandleTagDeleted.mockResolvedValue(undefined);
+  mockedViewHandleDirectoryDeleted.mockResolvedValue(undefined);
   mockedPublicationHandleUserDeleted.mockResolvedValue(undefined);
   mockedExportHandleUserDeleted.mockResolvedValue({ cancelled: 0 });
   // Default: snapshot builder returns a single sentinel snapshot. Tests
@@ -946,6 +959,49 @@ describe("dispatchDomainEvent — tag.deleted routing (#159)", () => {
   });
 });
 
+describe("dispatchDomainEvent — directory.deleted routing (#181)", () => {
+  it("routes directory.deleted to view handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      directoryDeletedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedViewHandleDirectoryDeleted).toHaveBeenCalledTimes(1);
+    expect(mockedViewHandleDirectoryDeleted).toHaveBeenCalledWith({
+      container,
+      input: { directoryId: DIRECTORY_ID },
+    });
+  });
+
+  it("returns handled+warn when payload directoryId is empty (ADR-159-005 head validation)", async () => {
+    const { container } = makeStubContainer({});
+    const event: DomainEvent = {
+      id: EVENT_ID,
+      type: "directory.deleted",
+      payload: { directoryId: "   " },
+      occurredAt: new Date(0),
+      aggregateId: DIRECTORY_ID,
+    };
+    const outcome = await dispatchDomainEvent(container, event);
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedViewHandleDirectoryDeleted).not.toHaveBeenCalled();
+    expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns retry when view handler throws a transient error", async () => {
+    mockedViewHandleDirectoryDeleted.mockRejectedValueOnce(
+      new Error("d1 transient"),
+    );
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      directoryDeletedEvent(),
+    );
+    expect(outcome.kind).toBe("retry");
+  });
+});
+
 describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
   it("routes user.deleted to publication then export in order", async () => {
     const callOrder: string[] = [];
@@ -1070,18 +1126,6 @@ describe("dispatchDomainEvent — skipped regression guards", () => {
     const outcome = await dispatchDomainEvent(
       container,
       shareLinkRevokedEvent(),
-    );
-    expect(outcome).toEqual({ kind: "skipped" });
-  });
-
-  it("skips directory.deleted (physical event never emitted — Issue #159 ADR-003)", async () => {
-    // `Directory.DeleteDirectory` only emits `note.trashed` for children;
-    // there is no `directory.deleted` physical event. The spec table lists
-    // it for completeness but no production code path enqueues it.
-    const { container } = makeStubContainer({});
-    const outcome = await dispatchDomainEvent(
-      container,
-      directoryDeletedEvent(),
     );
     expect(outcome).toEqual({ kind: "skipped" });
   });

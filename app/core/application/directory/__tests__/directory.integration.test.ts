@@ -513,16 +513,13 @@ describe("moveDirectory (integration)", () => {
 describe("deleteDirectory (integration)", () => {
   const getContainer = setupTestContainer();
 
-  it("deletes an empty directory and emits no outbox events", async () => {
+  it("deletes an empty directory and emits one directory.deleted event (Issue #181)", async () => {
     const container = getContainer();
     const userId = await seedUser(container);
     const { directory } = await createDirectory({
       container,
       input: { actorUserId: userId, parentId: null, name: "empty" },
     });
-
-    const outboxBefore = await container.db.select().from(schema.outboxEvents);
-    const beforeCount = outboxBefore.length;
 
     const result = await deleteDirectory({
       container,
@@ -541,11 +538,25 @@ describe("deleteDirectory (integration)", () => {
       .where(eq(schema.directories.id, directory.id as unknown as string));
     expect(rows).toHaveLength(0);
 
+    // Issue #181: even an empty directory (no child notes → no note.trashed)
+    // emits a directory.deleted so the view broken-marker path is reachable.
     const outboxAfter = await container.db.select().from(schema.outboxEvents);
-    expect(outboxAfter).toHaveLength(beforeCount);
+    const directoryDeleted = outboxAfter.filter(
+      (r) => r.eventType === "directory.deleted",
+    );
+    expect(directoryDeleted).toHaveLength(1);
+    expect(directoryDeleted[0]?.aggregateId).toBe(
+      directory.id as unknown as string,
+    );
+    expect(directoryDeleted[0]?.payload).toEqual({
+      directoryId: directory.id as unknown as string,
+    });
+    expect(
+      outboxAfter.filter((r) => r.eventType === "note.trashed"),
+    ).toHaveLength(0);
   });
 
-  it("recursively deletes child directories", async () => {
+  it("recursively deletes child directories and emits one directory.deleted per removed node (Issue #181)", async () => {
     const container = getContainer();
     const userId = await seedUser(container);
     const { directory: a } = await createDirectory({
@@ -584,6 +595,21 @@ describe("deleteDirectory (integration)", () => {
     expect(ids).not.toContain(a.id);
     expect(ids).not.toContain(b.id);
     expect(ids).not.toContain(c.id);
+
+    // Issue #181: one directory.deleted per removed directory, addressed by
+    // its own directoryId.
+    const outboxAfter = await container.db.select().from(schema.outboxEvents);
+    const deletedAggregateIds = outboxAfter
+      .filter((r) => r.eventType === "directory.deleted")
+      .map((r) => r.aggregateId);
+    expect(deletedAggregateIds).toHaveLength(3);
+    expect(new Set(deletedAggregateIds)).toEqual(
+      new Set([
+        a.id as unknown as string,
+        b.id as unknown as string,
+        c.id as unknown as string,
+      ]),
+    );
   });
 
   it("throws CannotDeleteRoot when targeting the root", async () => {
