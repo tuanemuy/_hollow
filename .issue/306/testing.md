@@ -33,9 +33,15 @@ pnpm dev
 - **期待結果:** 入力した新規ディレクトリ名が Sidebar に表示されている。
 - **確認ポイント:** ページリロードしなくても Sidebar に反映されること。
 
-### 2. ~~IngestionJobRow: 新規ディレクトリ系 commit~~ → 削除
+### 2. IngestionJobRow: 新規ディレクトリ系 commit → Sidebar 即時反映
 
-`IngestionJobRow.onCommit` は `directoryNameToCreate` を送らない設計のため、新規ディレクトリ作成自体が発生しない。詳細は `adr.md` ADR-001 を参照。
+- **目的:** `IngestionJobRow` の commit パスで preview が新規ディレクトリ作成系（`suggestedDirectoryId === null && suggestedDirectoryName !== null`）のとき、Sidebar の tree が即座に反映されることを確認する。
+- **手順:**
+  1. ingestion ジョブ一覧画面で、preview 状態かつ `suggestedDirectoryId === null` かつ `suggestedDirectoryName !== null` のジョブを用意（LLM が新規ディレクトリ名を提案したケース）
+  2. 「ノートとして保存」ボタンをクリック
+  3. ノート詳細ページに遷移後、Sidebar の directory tree を確認
+- **期待結果:** LLM が提案した新規ディレクトリ名が Sidebar に表示されている。
+- **確認ポイント:** ページリロードなしで反映されること。
 
 ### 3. 既存ディレクトリ選択 commit パスでの挙動
 
@@ -67,6 +73,7 @@ pnpm dev
 ## 確認チェックリスト
 
 - [ ] IngestionPreviewForm で新規ディレクトリ指定 commit → Sidebar 即時反映
+- [ ] IngestionJobRow で新規ディレクトリ系 preview commit → Sidebar 即時反映
 - [ ] 既存ディレクトリ選択 commit では Sidebar が変わらない
 - [ ] commit エラー時に invalidate が走らない
 - [ ] discard / regenerate パスの既存挙動が変わらない
