@@ -133,6 +133,24 @@ export interface NoteRepository extends TransactionalRepository<Note> {
     limit: number,
   ): Promise<readonly Note[]>;
 
+  /**
+   * Owner-scoped active notes whose `title` equals `title` under a
+   * case-insensitive exact match (`lower(title) = lower(?)`). Used to
+   * resolve `kind=title` internal links (`[[title]]`) to a note id.
+   *
+   * Titles are not unique within an owner, so this returns **all**
+   * matches ordered by title asc, id asc (mirroring
+   * `searchByTitlePrefix`). Picking a single note when several match —
+   * and deciding when "no match" means an unresolved link — is the
+   * caller's (domain service's) responsibility; the port stays neutral
+   * and does not assume the consumer's tie-break or self-exclusion
+   * rules. Trashed notes are excluded.
+   */
+  findActiveByOwnerAndTitle(
+    ownerId: UserId,
+    title: string,
+  ): Promise<readonly Note[]>;
+
   /** Trashed notes older than `before`. Used by the purge worker. */
   findTrashedOlderThan(ownerId: UserId, before: Date): Promise<readonly Note[]>;
 

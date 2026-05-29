@@ -9,6 +9,7 @@ import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
+import type { NoteId } from "@/core/domain/note/valueObject";
 import { isSystemError, SystemErrorCode } from "../../errors";
 import { createNote } from "../createNote";
 
@@ -267,6 +268,142 @@ describe("createNote (integration)", () => {
       }
       expect(cause.code).toBe(NoteErrorCode.ContentTooLarge);
     }
+  });
+
+  // Issue #127: `[[Title]]` tokens resolve to an existing note by
+  // case-insensitive exact title match, filling `resolved_note_id`.
+  it("resolves [[Existing Title]] to the target note's id (case-insensitive)", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+
+    const { note: target } = await createNote({
+      container,
+      input: {
+        actorUserId: owner,
+        directoryId: null,
+        title: "Target Note",
+        contentHtml: "<p>target</p>",
+        frontMatter: {},
+        tagNames: [],
+        internalLinkRefs: [],
+      },
+    });
+
+    const { note: linker } = await createNote({
+      container,
+      input: {
+        actorUserId: owner,
+        directoryId: null,
+        title: "Linker",
+        contentHtml: "<p>see [[target note]] please</p>",
+        frontMatter: {},
+        tagNames: [],
+        internalLinkRefs: [],
+      },
+    });
+
+    const links = await container.db
+      .select()
+      .from(schema.noteInternalLinks)
+      .where(
+        eq(schema.noteInternalLinks.fromNoteId, linker.id as unknown as string),
+      );
+    expect(links).toHaveLength(1);
+    expect(links[0]?.refKind).toBe("title");
+    expect(links[0]?.resolvedNoteId).toBe(target.id as unknown as string);
+
+    // The target note now sees the linker as a backlink.
+    const referrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(target.id as unknown as NoteId),
+    );
+    expect(referrers.map((n) => n.id)).toContain(linker.id);
+  });
+
+  it("does not resolve a self-referencing [[own title]] link (no self-backlink)", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+
+    const { note } = await createNote({
+      container,
+      input: {
+        actorUserId: owner,
+        directoryId: null,
+        title: "Selfie",
+        contentHtml: "<p>see [[Selfie]]</p>",
+        frontMatter: {},
+        tagNames: [],
+        internalLinkRefs: [],
+      },
+    });
+
+    const links = await container.db
+      .select()
+      .from(schema.noteInternalLinks)
+      .where(
+        eq(schema.noteInternalLinks.fromNoteId, note.id as unknown as string),
+      );
+    expect(links).toHaveLength(1);
+    expect(links[0]?.resolvedNoteId).toBeNull();
+
+    const referrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(note.id as unknown as NoteId),
+    );
+    expect(referrers).toHaveLength(0);
+  });
+
+  // Issue #127: `[[<uuid>]]` (kind=id) resolves to the target note when
+  // it is an existing active note owned by the same user, filling
+  // `resolved_note_id` so backlinks work uniformly with kind=title.
+  it("resolves a [[<uuid>]] (kind=id) link to the target note's id", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+
+    const { note: target } = await createNote({
+      container,
+      input: {
+        actorUserId: owner,
+        directoryId: null,
+        title: "Id Target",
+        contentHtml: "<p>target</p>",
+        frontMatter: {},
+        tagNames: [],
+        internalLinkRefs: [],
+      },
+    });
+
+    const { note: linker } = await createNote({
+      container,
+      input: {
+        actorUserId: owner,
+        directoryId: null,
+        title: "Id Linker",
+        contentHtml: `<p>see [[${target.id as unknown as string}]]</p>`,
+        frontMatter: {},
+        tagNames: [],
+        internalLinkRefs: [],
+      },
+    });
+
+    const links = await container.db
+      .select()
+      .from(schema.noteInternalLinks)
+      .where(
+        eq(schema.noteInternalLinks.fromNoteId, linker.id as unknown as string),
+      );
+    expect(links).toHaveLength(1);
+    expect(links[0]?.refKind).toBe("id");
+    expect(links[0]?.resolvedNoteId).toBe(target.id as unknown as string);
+
+    const referrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(target.id as unknown as NoteId),
+    );
+    expect(referrers.map((n) => n.id)).toContain(linker.id);
   });
 
   it("appends a numeric suffix when the derived slug collides with an existing note", async () => {

@@ -4,6 +4,7 @@ import * as schema from "@/core/adapters/d1/schema";
 import { isForbiddenError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
+import type { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
 import {
   setupTestContainer,
   type TestContainer,
@@ -562,6 +563,77 @@ describe("commitIngestionPreview", () => {
       .where(eq(schema.outboxEvents.aggregateId, jobId));
     const types = events.map((e) => e.eventType);
     expect(types).toContain("ingestion.committed");
+  });
+
+  // Issue #127: the ingestion commit path runs the same
+  // `assembleFromInputs` pipeline, so `[[Existing Title]]` in the
+  // preview body must resolve to the target note id and produce a
+  // backlink.
+  it("resolves [[Existing Title]] in the ingested body to the target note id (backlink connected)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const dirId = await seedDirectory(container, owner);
+    const targetNoteId = nextNoteId();
+    await container.db.insert(schema.notes).values({
+      id: targetNoteId,
+      ownerId: owner as unknown as string,
+      directoryId: dirId,
+      slug: `slug-${targetNoteId.slice(-6)}`,
+      title: "Target Note",
+      contentHtml: "<p>target</p>",
+      frontMatterJson: "{}",
+      status: "active",
+      trashedAt: null,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+
+    const tempKey = `${owner}/ingestion/committed-link`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      previewJson: JSON.stringify({
+        title: "Ingested",
+        contentHtml: "<p>see [[target note]]</p>",
+        suggestedDirectoryId: dirId,
+        suggestedDirectoryName: null,
+        frontMatter: {},
+        suggestedTagNames: [],
+        internalLinkRefs: [],
+        mediaRefs: [],
+      }),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {},
+      },
+    });
+
+    const links = await container.db
+      .select()
+      .from(schema.noteInternalLinks)
+      .where(
+        eq(schema.noteInternalLinks.fromNoteId, noteId as unknown as string),
+      );
+    expect(links).toHaveLength(1);
+    expect(links[0]?.resolvedNoteId).toBe(targetNoteId);
+
+    const referrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(targetNoteId as unknown as DomainNoteId),
+    );
+    expect(referrers.map((n) => n.id)).toContain(noteId);
   });
 
   it("creates a new directory under root when modifications.directoryNameToCreate is set", async () => {

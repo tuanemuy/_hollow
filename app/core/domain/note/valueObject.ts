@@ -325,9 +325,12 @@ export type InternalLinkKind = "id" | "title";
 /**
  * Reference from a note's body to another note. The reference is captured
  * post-sanitisation so the body keeps its `[[...]]` token while the
- * structured form lives alongside the aggregate. Title-keyed references
- * may carry `resolvedNoteId === null` until `NoteService.resolveInternalLinks`
- * matches them; id-keyed references always carry the matching id.
+ * structured form lives alongside the aggregate. Both kinds carry
+ * `resolvedNoteId === null` until `NoteService.resolveInternalLinks`
+ * matches them against the owner's catalogue: a title-keyed reference
+ * resolves when an active owned note shares the title, an id-keyed
+ * reference when the target id points at an active owned note. References
+ * with no live owned match stay unresolved (broken link).
  */
 export type InternalLinkRef = Readonly<{
   kind: InternalLinkKind;

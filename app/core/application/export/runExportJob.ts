@@ -211,6 +211,9 @@ function buildAssemblyDeps(
       async searchByTitlePrefix() {
         return [];
       },
+      async findActiveByOwnerAndTitle() {
+        return [];
+      },
       async findTrashedOlderThan() {
         return [];
       },

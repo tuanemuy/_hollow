@@ -61,6 +61,7 @@ async function seedDirectory(
 
 type SeedNoteOpts = Readonly<{
   status?: "active" | "trashed";
+  title?: string;
   contentHtml?: string;
   tagIds?: readonly string[];
   editLockUserId?: UserId | null;
@@ -82,7 +83,7 @@ async function seedNote(
     ownerId,
     directoryId,
     slug: `n-${id.slice(9, 13)}`,
-    title: "seeded",
+    title: opts.title ?? "seeded",
     contentHtml: opts.contentHtml ?? "<p>seed</p>",
     frontMatterJson: "{}",
     status,
@@ -442,5 +443,51 @@ describe("saveNote (integration)", () => {
       .where(eq(schema.mediaAssets.id, mediaId));
     expect(rows[0]?.refCount).toBe(1);
     expect(rows[0]?.status).toBe("attached");
+  });
+
+  // Issue #127: saving a body that contains `[[Existing Title]]` resolves
+  // the link to the target note id; a `[[own title]]` link does not
+  // self-resolve (ADR-005).
+  it("resolves [[Existing Title]] on save and excludes a self-reference", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const targetId = await seedNote(container, owner, dir, {
+      title: "Target Note",
+    });
+    const editorId = await seedNote(container, owner, dir, {
+      title: "Editor",
+    });
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId: editorId,
+        contentHtml: "<p>link to [[target note]] and [[Editor]]</p>",
+        requireLock: false,
+      },
+    });
+
+    const links = await container.db
+      .select()
+      .from(schema.noteInternalLinks)
+      .where(
+        eq(schema.noteInternalLinks.fromNoteId, editorId as unknown as string),
+      );
+    const byTarget = new Map(links.map((l) => [l.refTarget, l.resolvedNoteId]));
+    expect(byTarget.get("target note")).toBe(targetId as unknown as string);
+    // Self-reference stays unresolved.
+    expect(byTarget.get("Editor")).toBeNull();
+
+    const referrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(targetId),
+    );
+    expect(referrers.map((n) => n.id)).toContain(editorId);
+
+    const selfReferrers = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(editorId),
+    );
+    expect(selfReferrers).toHaveLength(0);
   });
 });

@@ -12,6 +12,7 @@ import {
   type FrontMatterRecord,
   InternalLinkRef,
   type InternalLinkRef as InternalLinkRefType,
+  NoteId,
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
@@ -107,6 +108,7 @@ export async function createNote({
           rawContent: input.contentHtml,
           declaredTagNames,
           declaredInternalLinkRefs: declaredLinks,
+          selfNoteId: NoteId.create(id),
         },
         {
           sanitizer: container.htmlSanitizer,
