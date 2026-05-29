@@ -1,6 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
+import { useAuthGuardEffect } from "@/components/common/useAuthGuardEffect";
 import { LandingPage } from "@/components/landing/LandingPage";
 import {
   NOTE_LIST_LIMIT_DEFAULT,
@@ -207,8 +208,18 @@ export const Route = createFileRoute("/_app/")({
   ),
 });
 
+const appLayoutRoute = getRouteApi("/_app");
+
 function HomeRoute() {
   const data = Route.useLoaderData();
+  const { userDto: shellUserDto } = appLayoutRoute.useLoaderData();
+  // Call the hook unconditionally above the conditional return to comply
+  // with the rules of hooks. The hook itself is no-op unless the
+  // `shell cached user × leaf observed unauthenticated` mismatch holds.
+  useAuthGuardEffect({
+    leafAuthenticated: data.authenticated,
+    shellUserDto,
+  });
   if (!data.authenticated) return <LandingPage />;
   return data.Home;
 }
