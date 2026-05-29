@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
+import { AppServerError } from "@/core/presentation/errorResponse";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -60,13 +61,13 @@ export const uploadFileFn = createServerFn({ method: "POST" })
 // Transport-boundary cap, byte-for-byte aligned with the `PromptOverride`
 // VO (16 KiB). Guards against pathologically large textarea payloads
 // before the bytes reach the usecase / VO construction.
-const PROMPT_OVERRIDE_MAX_BYTES = 16 * 1024;
+export const PROMPT_OVERRIDE_MAX_BYTES = 16 * 1024;
 
 // Reads the optional `structurePrompt` / `metadataPrompt` form fields.
 // Only non-empty strings (after trim) become overrides; `File` values and
 // blanks are ignored. Over-cap values are rejected here (DoS guard) so the
 // huge body never reaches the usecase.
-function readPromptOverride(
+export function readPromptOverride(
   data: FormData,
 ): { structure?: string; metadata?: string } | undefined {
   const pick = (field: string): string | undefined => {
@@ -75,7 +76,18 @@ function readPromptOverride(
     const trimmed = value.trim();
     if (trimmed.length === 0) return undefined;
     if (new TextEncoder().encode(trimmed).length > PROMPT_OVERRIDE_MAX_BYTES) {
-      throw new Error(`${field} exceeds maximum size`);
+      // Transport-boundary cap breach is a shape/DoS violation, surfaced as
+      // a `validation` kind so the UI shows the field message (422) rather
+      // than the generic "エラーが発生しました".
+      throw new AppServerError({
+        kind: "validation",
+        code: "INVALID_INPUT",
+        message: "カスタムプロンプトが長すぎます（上限 16 KiB）",
+        retryable: false,
+        fieldErrors: {
+          [field]: ["カスタムプロンプトは 16 KiB 以内で入力してください"],
+        },
+      });
     }
     return trimmed;
   };

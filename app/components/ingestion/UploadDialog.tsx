@@ -598,6 +598,7 @@ function SelectView({
             <textarea
               id={structureId}
               className={`${fieldControl} min-h-[96px] resize-y`}
+              maxLength={16 * 1024}
               value={structurePrompt}
               onChange={(e) => onStructurePromptChange(e.target.value)}
             />
@@ -609,6 +610,7 @@ function SelectView({
             <textarea
               id={metadataId}
               className={`${fieldControl} min-h-[96px] resize-y`}
+              maxLength={16 * 1024}
               value={metadataPrompt}
               onChange={(e) => onMetadataPromptChange(e.target.value)}
             />

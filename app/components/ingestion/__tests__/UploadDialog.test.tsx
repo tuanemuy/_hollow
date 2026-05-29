@@ -1198,6 +1198,117 @@ describe("UploadDialog state machine", () => {
     expect(document.activeElement).toBe(cancelBtn);
   });
 
+  // #228: the `select` view's advanced-options textareas are wired into the
+  // submitted FormData as `structurePrompt` / `metadataPrompt`. The
+  // `<details>` is uncontrolled so the textareas are in the DOM regardless of
+  // open state; we set their values directly and read back the FormData the
+  // upload mock received.
+  function setPromptTextareas(structure: string, metadata: string) {
+    const textareas = Array.from(
+      document.body.querySelectorAll<HTMLTextAreaElement>("textarea"),
+    );
+    expect(textareas.length).toBeGreaterThanOrEqual(2);
+    const [structureTa, metadataTa] = textareas;
+    if (structureTa === undefined || metadataTa === undefined) {
+      throw new Error("prompt textareas not rendered");
+    }
+    setReactValue(structureTa, structure);
+    setReactValue(metadataTa, metadata);
+  }
+
+  // React controls the textarea value via its own setter, so a plain
+  // `.value =` assignment is clobbered on the next render. Use the native
+  // value setter then dispatch `input` so React's onChange sees the update.
+  function setReactValue(el: HTMLTextAreaElement, value: string) {
+    const proto = Object.getPrototypeOf(el) as object;
+    const desc = Object.getOwnPropertyDescriptor(proto, "value");
+    desc?.set?.call(el, value);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  it("wires the custom prompts into the upload FormData (single file)", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: baseJob });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    act(() => {
+      setPromptTextareas("  my structure prompt  ", "  my metadata prompt  ");
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const formData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect(formData).toBeInstanceOf(FormData);
+    expect(formData.get("structurePrompt")).toBe("my structure prompt");
+    expect(formData.get("metadataPrompt")).toBe("my metadata prompt");
+  });
+
+  it("applies the same custom prompts to every file (multi-file)", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    act(() => {
+      setPromptTextareas("shared structure", "shared metadata");
+    });
+
+    const files = [
+      new File(["a"], "a.md", { type: "text/markdown" }),
+      new File(["b"], "b.md", { type: "text/markdown" }),
+    ];
+    act(() => {
+      dispatchFile(findInputByAccept(), files);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(uploadMock).toHaveBeenCalledTimes(2);
+    for (const call of uploadMock.mock.calls) {
+      const formData = call[0]?.data as FormData;
+      expect(formData.get("structurePrompt")).toBe("shared structure");
+      expect(formData.get("metadataPrompt")).toBe("shared metadata");
+    }
+  });
+
+  it("omits the override fields from FormData when both prompts are empty", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: baseJob });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const formData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect(formData.has("structurePrompt")).toBe(false);
+    expect(formData.has("metadataPrompt")).toBe(false);
+  });
+
   // W-T-008: multi-file partial failure surfaces a per-file failed
   // name list. uploadMock resolves once then rejects once.
   it("reports failed file names in the multi-result view on partial failure", async () => {
