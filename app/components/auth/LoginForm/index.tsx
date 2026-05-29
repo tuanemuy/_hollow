@@ -2,7 +2,9 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, ChevronRight, Phone } from "lucide-react";
 import { useActionState, useId, useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -176,22 +178,7 @@ export function LoginForm() {
 
         {summary !== null ? (
           <div className={FORM_ERROR} role="alert">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className="shrink-0 mt-0.5"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+            <Icon icon={AlertCircle} size={20} className="shrink-0 mt-0.5" />
             <span>
               <strong className="font-semibold">
                 ログインできませんでした。
@@ -209,19 +196,7 @@ export function LoginForm() {
       {isUnverified ? (
         <div className={`${CALLOUT} mt-6`} role="status">
           <span className={CALLOUT_ICON} aria-hidden="true">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-            </svg>
+            <Icon icon={Phone} size={20} />
           </span>
           <div className={CALLOUT_BODY}>
             <strong className="text-ink font-semibold">
@@ -242,19 +217,7 @@ export function LoginForm() {
                 disabled={resendState === "pending"}
               >
                 {resendState === "pending" ? "送信中..." : "確認メールを再送"}
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <Icon icon={ChevronRight} size={16} />
               </button>
             )}
           </div>

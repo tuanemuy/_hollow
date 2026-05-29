@@ -14,7 +14,21 @@ import type {
   SuggestionKeyDownProps,
   SuggestionProps,
 } from "@tiptap/suggestion";
+import {
+  Bold,
+  Code,
+  Heading2,
+  Heading3,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  type LucideIcon,
+  Quote,
+  Strikethrough,
+} from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { searchInternalLinkTargetsFn } from "@/components/note/actions";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
@@ -98,6 +112,17 @@ export type WysiwygEditorProps = Readonly<{
   /** Acknowledge callback for the "了解した" button. */
   onAcknowledge?: () => void;
 }>;
+
+/**
+ * Square icon-only toolbar button (spec §7.1 "アイコンのみ"). Bespoke rather
+ * than `pillBtn` because `pillBtn`'s `px-4` cannot be overridden to a square
+ * shape via class order, and the icon-only tap-target needs both `min-w` and
+ * `min-h` of 44px on mobile (§3). Mirrors `dialogCloseButton` / `REVEAL_BTN`.
+ * `data-[primary]:` background inversion conveys the `aria-pressed` active
+ * state visually (.issue/309/adr.md ADR-006).
+ */
+const EDITOR_TOOLBAR_BTN =
+  "inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover active:bg-surface-hover disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px] data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[primary]:active:bg-accent-pressed";
 
 const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
 
@@ -384,6 +409,7 @@ export function WysiwygEditor({
   type FormatButton = Readonly<{
     label: string;
     ariaLabel: string;
+    icon: LucideIcon;
     isActive: () => boolean;
     onClick: () => void;
   }>;
@@ -395,24 +421,28 @@ export function WysiwygEditor({
           {
             label: "Bold",
             ariaLabel: "太字",
+            icon: Bold,
             isActive: () => editor.isActive("bold"),
             onClick: () => editor.chain().focus().toggleBold().run(),
           },
           {
             label: "Italic",
             ariaLabel: "斜体",
+            icon: Italic,
             isActive: () => editor.isActive("italic"),
             onClick: () => editor.chain().focus().toggleItalic().run(),
           },
           {
             label: "Strike",
             ariaLabel: "取り消し線",
+            icon: Strikethrough,
             isActive: () => editor.isActive("strike"),
             onClick: () => editor.chain().focus().toggleStrike().run(),
           },
           {
             label: "H2",
             ariaLabel: "見出し 2",
+            icon: Heading2,
             isActive: () => editor.isActive("heading", { level: 2 }),
             onClick: () =>
               editor.chain().focus().toggleHeading({ level: 2 }).run(),
@@ -420,6 +450,7 @@ export function WysiwygEditor({
           {
             label: "H3",
             ariaLabel: "見出し 3",
+            icon: Heading3,
             isActive: () => editor.isActive("heading", { level: 3 }),
             onClick: () =>
               editor.chain().focus().toggleHeading({ level: 3 }).run(),
@@ -427,24 +458,28 @@ export function WysiwygEditor({
           {
             label: "UL",
             ariaLabel: "箇条書き",
+            icon: List,
             isActive: () => editor.isActive("bulletList"),
             onClick: () => editor.chain().focus().toggleBulletList().run(),
           },
           {
             label: "OL",
             ariaLabel: "番号付きリスト",
+            icon: ListOrdered,
             isActive: () => editor.isActive("orderedList"),
             onClick: () => editor.chain().focus().toggleOrderedList().run(),
           },
           {
             label: "Quote",
             ariaLabel: "引用",
+            icon: Quote,
             isActive: () => editor.isActive("blockquote"),
             onClick: () => editor.chain().focus().toggleBlockquote().run(),
           },
           {
             label: "Code",
             ariaLabel: "インラインコード",
+            icon: Code,
             isActive: () => editor.isActive("code"),
             onClick: () => editor.chain().focus().toggleCode().run(),
           },
@@ -512,26 +547,28 @@ export function WysiwygEditor({
               key={btn.label}
               type="button"
               aria-label={btn.ariaLabel}
+              title={btn.ariaLabel}
               aria-pressed={active}
               data-primary={active || undefined}
-              className={`${pillBtn} ${pillBtnPrimary}`}
+              className={EDITOR_TOOLBAR_BTN}
               disabled={isDisabled}
               onClick={btn.onClick}
             >
-              {btn.label}
+              <Icon icon={btn.icon} size={20} />
             </button>
           );
         })}
         <button
           type="button"
           aria-label="リンク"
+          title="リンク"
           aria-pressed={linkActive}
           data-primary={linkActive || undefined}
-          className={`${pillBtn} ${pillBtnPrimary}`}
+          className={EDITOR_TOOLBAR_BTN}
           disabled={isDisabled}
           onClick={onAddLink}
         >
-          Link
+          <Icon icon={Link2} size={20} />
         </button>
       </div>
       <EditorContent

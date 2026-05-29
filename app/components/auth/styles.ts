@@ -38,7 +38,7 @@ export const INPUT_MONO = "font-mono";
 export const INPUT_WITH_ACTION = "relative flex items-center";
 
 export const REVEAL_BTN =
-  "absolute right-1 w-9 h-9 inline-flex items-center justify-center text-ink-tertiary rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface-hover";
+  "absolute right-1 w-9 h-9 max-sm:min-w-[44px] max-sm:min-h-[44px] inline-flex items-center justify-center text-ink-tertiary rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface-hover";
 
 export const CHECKBOX_ROW =
   "flex items-start gap-3 text-sm text-ink-secondary leading-normal cursor-pointer";

@@ -1,5 +1,17 @@
 import { Link } from "@tanstack/react-router";
+import {
+  ChevronRight,
+  Clock,
+  Download,
+  Folder,
+  Globe,
+  LayoutGrid,
+  Star,
+  Tag,
+  Upload,
+} from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
 
 const HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
@@ -143,91 +155,45 @@ export function LandingPage() {
               <aside className={PREVIEW_SIDE}>
                 <div className={PREVIEW_SIDE_TITLE}>ライブラリ</div>
                 <div className={PREVIEW_SIDE_ITEM} data-active="">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+                  <Icon
+                    icon={LayoutGrid}
+                    size={16}
                     className="text-ink-secondary shrink-0"
-                  >
-                    <path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z" />
-                  </svg>
+                  />
                   すべてのノート
                   <span className="ml-auto text-xs text-ink-tertiary">127</span>
                 </div>
                 <div className={PREVIEW_SIDE_ITEM}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+                  <Icon
+                    icon={Clock}
+                    size={16}
                     className="text-ink-secondary shrink-0"
-                  >
-                    <circle cx="12" cy="12" r="9" />
-                    <polyline points="12 7 12 12 15 14" />
-                  </svg>
+                  />
                   最近更新
                 </div>
                 <div className={PREVIEW_SIDE_ITEM}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+                  <Icon
+                    icon={Star}
+                    size={16}
                     className="text-ink-secondary shrink-0"
-                  >
-                    <polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9" />
-                  </svg>
+                  />
                   お気に入り
                 </div>
                 <div className={`${PREVIEW_SIDE_TITLE} mt-6`}>ディレクトリ</div>
                 <div className={PREVIEW_SIDE_ITEM}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+                  <Icon
+                    icon={Folder}
+                    size={16}
                     className="text-ink-secondary shrink-0"
-                  >
-                    <path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z" />
-                  </svg>
+                  />
                   Research
                 </div>
                 <div className={PREVIEW_SIDE_ITEM}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
+                  <Icon
+                    icon={Folder}
+                    size={16}
                     className="text-ink-secondary shrink-0"
-                  >
-                    <path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z" />
-                  </svg>
+                  />
                   日記
                 </div>
               </aside>
@@ -309,21 +275,7 @@ export function LandingPage() {
           <div className={FEATURES}>
             <article className={FEATURE_CARD}>
               <div className={FEATURE_ICON} aria-hidden="true">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
+                <Icon icon={Upload} size={24} />
               </div>
               <h3 className={FEATURE_TITLE}>アップロードして構造化</h3>
               <p className={FEATURE_BODY}>
@@ -333,20 +285,7 @@ export function LandingPage() {
 
             <article className={FEATURE_CARD}>
               <div className={FEATURE_ICON} aria-hidden="true">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                  <line x1="7" y1="7" x2="7.01" y2="7" />
-                </svg>
+                <Icon icon={Tag} size={24} />
               </div>
               <h3 className={FEATURE_TITLE}>メタデータ管理</h3>
               <p className={FEATURE_BODY}>
@@ -356,21 +295,7 @@ export function LandingPage() {
 
             <article className={FEATURE_CARD}>
               <div className={FEATURE_ICON} aria-hidden="true">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z" />
-                </svg>
+                <Icon icon={Globe} size={24} />
               </div>
               <h3 className={FEATURE_TITLE}>公開・限定共有</h3>
               <p className={FEATURE_BODY}>
@@ -381,21 +306,7 @@ export function LandingPage() {
 
             <article className={FEATURE_CARD}>
               <div className={FEATURE_ICON} aria-hidden="true">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
+                <Icon icon={Download} size={24} />
               </div>
               <h3 className={FEATURE_TITLE}>いつでもエクスポート</h3>
               <p className={FEATURE_BODY}>
@@ -411,19 +322,7 @@ export function LandingPage() {
             </p>
             <Link to="/" search={HOME_SEARCH} className={TEASER_LINK}>
               公開検索を試す
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              <Icon icon={ChevronRight} size={16} />
             </Link>
           </div>
         </section>

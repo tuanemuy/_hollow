@@ -2,7 +2,9 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Eye, EyeOff, Info } from "lucide-react";
 import { useActionState, useId, useState } from "react";
+import { Icon } from "@/components/common/Icon";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -133,22 +135,11 @@ export function AdminSignUpForm() {
       </p>
 
       <div className={CALLOUT}>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+        <Icon
+          icon={Info}
+          size={20}
           className="shrink-0 text-ink-tertiary mt-0.5"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+        />
         <span>
           <strong className="text-ink font-semibold">
             このページは特権操作です。
@@ -281,21 +272,9 @@ export function AdminSignUpForm() {
               className={REVEAL_BTN}
               onClick={() => setShowToken((v) => !v)}
               aria-label={showToken ? "トークンを隠す" : "トークンを表示"}
+              title={showToken ? "トークンを隠す" : "トークンを表示"}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <Icon icon={showToken ? EyeOff : Eye} size={20} />
             </button>
           </div>
           <span
@@ -315,22 +294,7 @@ export function AdminSignUpForm() {
 
         {isSetupTokenError ? (
           <div className={FORM_ERROR} role="alert">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className="shrink-0 mt-0.5"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+            <Icon icon={AlertCircle} size={20} className="shrink-0 mt-0.5" />
             <span>
               <strong className="font-semibold">
                 {state.error?.code === "setup_token_disabled"

@@ -2,7 +2,9 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Check, Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/common/Icon";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -79,19 +81,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           className={`${STATUS_ICON} ${STATUS_ICON_SUCCESS}`}
           aria-hidden="true"
         >
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <Icon icon={Check} size={24} />
         </div>
         <h1 className={AUTH_TITLE}>メールアドレスを変更しました</h1>
         <p className={AUTH_BODY}>
@@ -103,21 +93,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           role="status"
         >
           <span className="text-warning shrink-0 mt-0.5" aria-hidden="true">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <line x1="12" y1="8" x2="12" y2="13" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
+            <Icon icon={AlertCircle} size={20} />
           </span>
           <div>
             旧アドレスではログインできなくなりました。今後は新しいアドレスをご利用ください。
@@ -138,20 +114,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
           aria-hidden="true"
         >
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <polyline points="12 7 12 12 15 14" />
-          </svg>
+          <Icon icon={Clock} size={24} />
         </div>
         <h1 className={AUTH_TITLE}>リンクの期限が切れています</h1>
         <p className={AUTH_BODY}>
@@ -171,21 +134,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
           aria-hidden="true"
         >
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <Icon icon={AlertCircle} size={24} />
         </div>
         <h1 className={AUTH_TITLE}>このリンクは使用済みです</h1>
         <p className={AUTH_BODY}>このリンクは既に使用されています。</p>
@@ -203,21 +152,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`}
           aria-hidden="true"
         >
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <Icon icon={AlertCircle} size={24} />
         </div>
         <h1 className={AUTH_TITLE}>無効なリンクです</h1>
         <p className={AUTH_BODY}>
@@ -233,21 +168,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
   return (
     <>
       <div className={`${STATUS_ICON} ${STATUS_ICON_ERROR}`} aria-hidden="true">
-        <svg
-          width="36"
-          height="36"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+        <Icon icon={AlertCircle} size={24} />
       </div>
       <h1 className={AUTH_TITLE}>確認に失敗しました</h1>
       <p className={AUTH_BODY}>{status.message}</p>
