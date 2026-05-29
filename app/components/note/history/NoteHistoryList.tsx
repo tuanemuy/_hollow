@@ -4,6 +4,7 @@ import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteDetail, loadNoteRevisions } from "../loaders";
+import { historyNavSearch } from "./historyPagination";
 
 /**
  * P11h — list of past `NoteRevision` snapshots for a single note.
@@ -64,6 +65,11 @@ export async function NoteHistoryList({
   const { note } = detail;
   const { revisions, totalCount } = revisionsResult;
   const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / limit);
+
+  // Issue #215: pagination link payload is built by `historyNavSearch`
+  // so default-equal `page` / `limit` are dropped from the URL. The
+  // helper lives in `./historyPagination` to keep the normalisation
+  // unit-testable.
 
   return (
     <article className="max-w-[760px] mx-auto">
@@ -130,7 +136,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={{ page: page - 1, limit }}
+              search={historyNavSearch(page - 1, limit)}
               className={pillBtn}
             >
               前へ
@@ -145,7 +151,7 @@ export async function NoteHistoryList({
             <Link
               to="/notes/$noteId/history"
               params={{ noteId: noteIdStr }}
-              search={{ page: page + 1, limit }}
+              search={historyNavSearch(page + 1, limit)}
               className={pillBtn}
             >
               次へ

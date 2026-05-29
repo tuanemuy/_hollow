@@ -10,6 +10,13 @@
 export const DISPLAY_MODES = ["list", "tile", "calendar"] as const;
 export type DisplayMode = (typeof DISPLAY_MODES)[number];
 
+/**
+ * Issue #215: 1-based page index. Exported so loaders can re-default
+ * `noteListSearchSchema.parse(...).page` (now optional after
+ * `.default(...)` removal) without hard-coding `1`.
+ */
+export const NOTE_LIST_PAGE_DEFAULT = 1;
+
 export const NOTE_LIST_LIMIT_DEFAULT = 20;
 export const NOTE_LIST_LIMIT_MAX = 100;
 

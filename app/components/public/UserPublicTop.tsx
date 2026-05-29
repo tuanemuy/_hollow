@@ -3,6 +3,10 @@ import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
 import { isNotFoundError } from "@/core/application/errors";
+import {
+  PAGINATION_DEFAULT_LIMIT,
+  PAGINATION_DEFAULT_PAGE,
+} from "@/core/presentation/pagination";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
@@ -182,6 +186,9 @@ export async function UserPublicTop({ username, page, limit }: Props) {
   );
 }
 
+// Issue #215: `/u/$username`'s search schema mirrors `paginationSearchSchema`'s
+// defaults (`page=1` / `limit=20`). Reuse `PAGINATION_DEFAULT_*` directly
+// so the normalisation cannot drift if those defaults change.
 function Pagination({
   username,
   page,
@@ -194,6 +201,10 @@ function Pagination({
   total: number;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const navSearch = (nextPage: number): { page?: number; limit?: number } => ({
+    ...(nextPage === PAGINATION_DEFAULT_PAGE ? {} : { page: nextPage }),
+    ...(limit === PAGINATION_DEFAULT_LIMIT ? {} : { limit }),
+  });
   return (
     <nav className={PAGINATION} aria-label="ページネーション">
       <span className="text-ink-tertiary text-[13px]">
@@ -204,7 +215,7 @@ function Pagination({
           <Link
             to="/u/$username"
             params={{ username }}
-            search={{ page: page - 1, limit }}
+            search={navSearch(page - 1)}
             className={PILL_BTN}
           >
             前へ
@@ -214,7 +225,7 @@ function Pagination({
           <Link
             to="/u/$username"
             params={{ username }}
-            search={{ page: page + 1, limit }}
+            search={navSearch(page + 1)}
             className={PILL_BTN}
           >
             次へ

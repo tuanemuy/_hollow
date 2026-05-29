@@ -110,7 +110,7 @@ describe("DisplayModeSwitch", () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it("forwards the calendar mode through the search function", () => {
+  it("forwards the calendar mode through the search function (Issue #215)", () => {
     act(() => {
       root.render(<DisplayModeSwitch />);
     });
@@ -124,9 +124,35 @@ describe("DisplayModeSwitch", () => {
       search: (prev: Record<string, unknown>) => Record<string, unknown>;
     };
     expect(call.replace).toBe(true);
-    // Empty prev: HOME_SEARCH defaults must kick in so the home schema's
-    // required `page` / `limit` are satisfied after the URL update.
+    // Issue #215: empty prev → no `page` / `limit` added to the search
+    // payload so the URL stays clean. The home schema leaves the fields
+    // optional on its output and the loader re-defaults at the boundary.
     const next = call.search({});
-    expect(next).toMatchObject({ display: "calendar", page: 1, limit: 20 });
+    expect(next).toEqual({ display: "calendar" });
+  });
+
+  it("preserves non-default `prev` while swapping `display` (Issue #215)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    act(() => {
+      tabByLabel("カレンダー").click();
+    });
+
+    const call = navigateMock.mock.calls[0]?.[0] as {
+      replace: boolean;
+      search: (prev: Record<string, unknown>) => Record<string, unknown>;
+    };
+    // Issue #215: prev pass-through — user-supplied `page` / `limit`
+    // and other filters must survive the display switch so the URL
+    // still reflects the active state after the swap.
+    const next = call.search({ page: 2, limit: 30, q: "world" });
+    expect(next).toEqual({
+      page: 2,
+      limit: 30,
+      q: "world",
+      display: "calendar",
+    });
   });
 });
