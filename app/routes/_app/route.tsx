@@ -1,8 +1,16 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
+import { useTransition } from "react";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { appShellInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { AppShellFrame } from "@/components/layout/AppShellFrame";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
@@ -77,15 +85,35 @@ export const Route = createFileRoute("/_app")({
   loader: ({ context }) =>
     loadAppShell({ data: { isLandingPath: context.isLandingPath } }),
   component: AppLayout,
-  errorComponent: ({ error }) => (
+  errorComponent: AppErrorFallback,
+});
+
+function AppErrorFallback({ error }: { error: unknown }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const handleRetry = () => {
+    startTransition(async () => {
+      await appShellInvalidate(router);
+    });
+  };
+  return (
     <div role="alert" className="p-6">
       <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
-      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
+      <pre className="text-sm text-ink-secondary whitespace-pre-wrap mb-4">
         {sanitizeRouteError(error)}
       </pre>
+      <button
+        type="button"
+        onClick={handleRetry}
+        disabled={isPending}
+        data-primary=""
+        className={`${pillBtn} ${pillBtnPrimary}`}
+      >
+        再読み込み
+      </button>
     </div>
-  ),
-});
+  );
+}
 
 function AppLayout() {
   const { userDto, header, sidebar } = Route.useLoaderData();

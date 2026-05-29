@@ -1,3 +1,18 @@
+/**
+ * `_app` AppShell に対する `router.invalidate()` 制御を集約するモジュール。
+ *
+ * 公開 API は 2 つあり、補完関係にある:
+ *   - `routerInvalidate(router, filter?)`: `_app` を **常に除外** して invalidate
+ *   - `appShellInvalidate(router)`: `_app` のみを **狙って** invalidate
+ *
+ * AppShell loader (`_app.loader`) の `staleTime: Infinity` を mutation 後にも
+ * 維持しつつ、セッション失効・errorComponent retry など「明示的に AppShell を
+ * 再評価したい」場面では `appShellInvalidate` を使う、という意味分担で
+ * routeId のリネームにも 1 ファイル / 1 定数で追従できる。
+ *
+ * `.issue/293/adr.md` ADR-010 / `.issue/299/adr.md` / `.issue/300/adr.md`
+ * ADR-005 を参照。
+ */
 import type { AnyRouter } from "@tanstack/react-router";
 
 const APP_SHELL_ROUTE_ID = "/_app";
@@ -29,5 +44,29 @@ export function routerInvalidate(
   return router.invalidate({
     filter: (match) =>
       match.routeId !== APP_SHELL_ROUTE_ID && (filter?.(match) ?? true),
+  });
+}
+
+/**
+ * `router.invalidate()` のラッパー。`_app` layout route **のみ**
+ * を狙って invalidate する。leaf match や `/_app/notes` のような
+ * prefix 一致 leaf は通さず、`routeId === "/_app"` の厳密一致のみ通る。
+ *
+ * セッション失効を leaf 側で観測したタイミング（`useAuthGuardEffect`）や
+ * `_app.errorComponent` の retry 動線など、AppShell loader の cached
+ * `userDto` を明示的に破棄して再評価したい場面で使う。
+ *
+ * `routerInvalidate` と補完関係にある:
+ *   - `routerInvalidate(router)` = `_app` 除外（mutation 後の通常経路）
+ *   - `appShellInvalidate(router)` = `_app` 専用（AppShell 再評価専用）
+ *
+ * 3 rule 例外（auth / directory / displayName mutation）は **AppShell の
+ * 依存データ自体が変わる** ため、引き続き生の `router.invalidate()` を
+ * 使う（leaf も併せて再評価される必要があるため）。経緯は
+ * `.issue/300/adr.md` ADR-005 を参照。
+ */
+export function appShellInvalidate(router: AnyRouter): Promise<void> {
+  return router.invalidate({
+    filter: (match) => match.routeId === APP_SHELL_ROUTE_ID,
   });
 }
