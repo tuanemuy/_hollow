@@ -32,7 +32,6 @@ type View =
       kind: "waiting";
       jobId: string;
       startedAt: number;
-      transientFailures: number;
     }
   | {
       kind: "editing";
@@ -197,20 +196,31 @@ export function UploadDialog({ open, onClose }: Props) {
     };
   }, [view, tree.length, getTree]);
 
-  // Polling loop driven by the `waiting` view. The recursive
-  // `setTimeout` is tracked on a ref so the effect cleanup can
-  // `clearTimeout` whichever timer is currently outstanding —
-  // without that ref a tick scheduled mid-flight would survive
-  // a view change / unmount.
+  // Transient (system / unknown) poll-failure counter for the current
+  // `waiting` session. Held on a ref — not in the `view` discriminant —
+  // so incrementing it never changes `view`'s identity and never
+  // re-runs the polling effect. Reset to 0 at each entry into `waiting`
+  // (see `submitFiles` / `onRegenerated`). See .issue/258/adr.md.
+  const transientFailuresRef = useRef(0);
+
+  // Polling loop driven by the `waiting` view. The effect depends only on
+  // the scalars that identify a `waiting` session (`jobId` / `startedAt`),
+  // so it mounts exactly once per session and stays mounted through
+  // transient failures — those reschedule the next tick inline rather than
+  // re-creating the `view` object. The recursive `setTimeout` is tracked on
+  // a ref so the effect cleanup can `clearTimeout` whichever timer is
+  // currently outstanding; without that ref a tick scheduled mid-flight
+  // would survive a view change / unmount.
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waitingJobId = view.kind === "waiting" ? view.jobId : null;
+  const waitingStartedAt = view.kind === "waiting" ? view.startedAt : null;
   useEffect(() => {
-    if (view.kind !== "waiting") return;
+    if (waitingJobId === null || waitingStartedAt === null) return;
     let cancelled = false;
-    const waitingView = view;
     const tick = async () => {
       if (cancelled) return;
       try {
-        const { job } = await getJob({ data: { jobId: waitingView.jobId } });
+        const { job } = await getJob({ data: { jobId: waitingJobId } });
         if (cancelled) return;
         if (job.status === "previewing") {
           setView({ kind: "editing", job });
@@ -229,8 +239,8 @@ export function UploadDialog({ open, onClose }: Props) {
         }
         // Still pending / processing — schedule the next poll if we
         // have not run out of time.
-        if (Date.now() - waitingView.startedAt > POLL_TIMEOUT_MS) {
-          setView({ kind: "timedOut", jobId: waitingView.jobId });
+        if (Date.now() - waitingStartedAt > POLL_TIMEOUT_MS) {
+          setView({ kind: "timedOut", jobId: waitingJobId });
           return;
         }
         pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
@@ -242,18 +252,16 @@ export function UploadDialog({ open, onClose }: Props) {
           setView({ kind: "select" });
           return;
         }
-        const nextFailures = waitingView.transientFailures + 1;
-        if (nextFailures >= POLL_MAX_TRANSIENT_FAILURES) {
+        transientFailuresRef.current += 1;
+        if (transientFailuresRef.current >= POLL_MAX_TRANSIENT_FAILURES) {
           setError(serialized);
           setView({ kind: "select" });
           return;
         }
-        setView({
-          kind: "waiting",
-          jobId: waitingView.jobId,
-          startedAt: waitingView.startedAt,
-          transientFailures: nextFailures,
-        });
+        // Transient failure under the cap: keep the same `waiting` session
+        // and reschedule the next tick at the regular interval — same path
+        // as the pending branch, so the cadence stays at POLL_INTERVAL_MS.
+        pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
       }
     };
     pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
@@ -264,7 +272,7 @@ export function UploadDialog({ open, onClose }: Props) {
         pollTimerRef.current = null;
       }
     };
-  }, [view, getJob, onClose]);
+  }, [waitingJobId, waitingStartedAt, getJob, onClose]);
 
   const submitFiles = useCallback(
     (files: FileList | null) => {
@@ -287,11 +295,11 @@ export function UploadDialog({ open, onClose }: Props) {
             formData.append("file", file);
             const { jobId } = await upload({ data: formData });
             if (cancelledRef.current) return;
+            transientFailuresRef.current = 0;
             setView({
               kind: "waiting",
               jobId: jobId as unknown as string,
               startedAt: Date.now(),
-              transientFailures: 0,
             });
           } catch (e) {
             if (cancelledRef.current) return;
@@ -352,11 +360,11 @@ export function UploadDialog({ open, onClose }: Props) {
   // loop tracks `pending → processing → previewing` and lands back in
   // `editing` with the fresh preview (see .issue/253/adr.md ADR-003).
   const onRegenerated = useCallback((jobId: string) => {
+    transientFailuresRef.current = 0;
     setView({
       kind: "waiting",
       jobId,
       startedAt: Date.now(),
-      transientFailures: 0,
     });
   }, []);
 
