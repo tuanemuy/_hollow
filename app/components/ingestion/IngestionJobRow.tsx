@@ -40,7 +40,7 @@ type Props = {
 };
 
 const JOB_CARD =
-  "border border-hairline rounded-lg px-5 py-4 mb-3 bg-surface-elevated";
+  "border border-hairline rounded-lg px-5 py-4 mb-3 bg-surface-elevated data-[discarded]:opacity-60 data-[discarded]:bg-surface";
 const JOB_CARD_HEAD =
   "flex justify-between gap-3 mb-2 items-baseline flex-wrap";
 const JOB_CARD_NAME = "text-[15px] font-medium text-ink break-words";
@@ -153,7 +153,10 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   return (
-    <div className={JOB_CARD}>
+    <div
+      className={JOB_CARD}
+      data-discarded={job.status === "discarded" || undefined}
+    >
       <div className={JOB_CARD_HEAD}>
         <div>
           <div className={JOB_CARD_NAME}>{job.originalFileName}</div>

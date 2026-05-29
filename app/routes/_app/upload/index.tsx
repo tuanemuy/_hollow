@@ -1,13 +1,20 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
+import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { uploadSearchSchema } from "@/components/ingestion/uploadSearch";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { validateInput } from "@/core/presentation/validator";
 
 const renderUpload = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .handler(async () => {
+  // Strict boolean for the RPC boundary — no `.default()`: the loader is
+  // the single re-default point (`deps.includeDiscarded ?? false`), keeping
+  // the URL-coercing search schema and this RPC schema separate contracts.
+  .inputValidator(validateInput(z.object({ includeDiscarded: z.boolean() })))
+  .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const user = await getCurrentUser();
     // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
@@ -16,12 +23,19 @@ const renderUpload = createServerFn({ method: "GET" })
     const { UploadPage } = await import("@/components/ingestion/UploadPage");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
-    return renderServerComponent(<UploadPage user={userDto} />);
+    return renderServerComponent(
+      <UploadPage user={userDto} includeDiscarded={data.includeDiscarded} />,
+    );
   });
 
 export const Route = createFileRoute("/_app/upload/")({
   staleTime: 0,
-  loader: () => renderUpload(),
+  validateSearch: (search) => uploadSearchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps }) =>
+    renderUpload({
+      data: { includeDiscarded: deps.includeDiscarded ?? false },
+    }),
   component: UploadRoute,
   errorComponent: ({ error }) => (
     <div role="alert">

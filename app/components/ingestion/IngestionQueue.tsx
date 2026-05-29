@@ -21,9 +21,18 @@ const ACTIVE_STATUSES: ReadonlySet<IngestionJobWire["status"]> = new Set([
 
 type Props = Readonly<{
   initialJobs: readonly IngestionJobWire[];
+  /**
+   * Mirrors the upload page's "show discarded" toggle. Forwarded to every
+   * poll so a tick re-fetches with the same filter the server-rendered
+   * `initialJobs` used. Toggling the URL remounts this component (keyed in
+   * `UploadPage`), so in practice this value never changes within a mount;
+   * it is still listed in the polling effect's deps (the effect reads it via
+   * the `tick` closure) so the dependency is honest and lint-clean.
+   */
+  includeDiscarded: boolean;
 }>;
 
-export function IngestionQueue({ initialJobs }: Props) {
+export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
   const fetchJobs = useServerFn(getIngestionJobsFn);
   const [jobs, setJobs] = useState<readonly IngestionJobWire[]>(initialJobs);
   const [pollErrorMessage, setPollErrorMessage] = useState<string | null>(null);
@@ -77,7 +86,12 @@ export function IngestionQueue({ initialJobs }: Props) {
       inflightRef.current = true;
       try {
         try {
-          const { jobs: nextJobs } = await fetchJobs({ data: { limit: 50 } });
+          const { jobs: nextJobs } = await fetchJobs({
+            data: {
+              limit: 50,
+              ...(includeDiscarded ? { includeDiscarded: true } : {}),
+            },
+          });
           if (cancelledRef.current || fatalRef.current) return;
           setJobs(nextJobs);
           setPollErrorMessage(null);
@@ -128,7 +142,7 @@ export function IngestionQueue({ initialJobs }: Props) {
         document.removeEventListener("visibilitychange", onVisibility);
       }
     };
-  }, [fetchJobs]);
+  }, [fetchJobs, includeDiscarded]);
 
   return (
     <>
