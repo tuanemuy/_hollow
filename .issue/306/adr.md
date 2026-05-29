@@ -43,7 +43,8 @@ explicit directoryId → directoryNameToCreate → preview.suggestedDirectoryId 
   - Issue #306 の意図（「commit パスで Sidebar が stale」問題の解消）が両動線で完全に達成される
 - **トレードオフ:**
   - `IngestionJobRow` の「ノートとして保存」がユーザー確認なしで directory を作成するようになる。意図せず directory tree が変わるリスクはあるが、もともと preview 段階で LLM 提案を確認できる UI（regenerate / discard / `IngestionPreviewForm` 経由の編集）が存在するため許容範囲と判断
-  - 既存テスト（`IngestionJobRow.test.tsx` がもしあれば）の commit payload アサーションを更新する必要があるかもしれない（既存テストが payload を厳密に検証していなければ影響なし）
+  - **Semantic shift**: サーバー側 `commitIngestionPreview.resolveDirectoryId` は意図的な非対称設計で、`directoryId`（explicit）は missing/foreign で throw、`preview.suggestedDirectoryId`（fallback）は missing/foreign で root に graceful fallback する。本 PR で `IngestionJobRow.onCommit` は preview の `suggestedDirectoryId` を **explicit** の `directoryId` として送るため、preview 生成〜commit の間に suggested ディレクトリが削除 / 他人に移譲されたケースで commit が `DIRECTORY_NOT_FOUND` / `DIRECTORY_FORBIDDEN` で落ちる挙動に変わる。`IngestionPreviewForm` 側も初期 state を `suggestedDirectoryId` で埋めて explicit 送信しているため同じ brittleness を既に抱えており、PR 後は両動線で挙動が「明示エラー化」で揃う。サーバー側 `suggested → root` graceful fallback は UI 経路では事実上 dead path となり、直接 API 呼び出しや preview の suggested が両方 null のケースのみが該当する
+  - 既存テスト（`IngestionJobRow.test.tsx`）は不在のため、新 payload 構築 + 条件付き invalidate のレグレッションガードを別途追加（`.issue/306/review/review-002.md` W-002 対応）
 
 ### Notes
 別 Issue として起票していた **#312 は本 PR で close**（PR description に `Closes #312` を追記する）。
