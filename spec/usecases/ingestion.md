@@ -113,6 +113,54 @@
 
 ---
 
+## RetryIngestionJob（admin）
+
+failed ジョブを管理者が再試行する経路（P46 / spec G3）。owner retry とはドメイン遷移 `job.retry` を共有するが、認可セマンティクスが異なる（全 job 対象 vs 自分の job のみ）ため別 usecase。
+
+### 入力DTO
+- `actorUserId: UserId`, `jobId: IngestionJobId`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+1. `assertAdmin(actorUserId)`（admin 認可。owner 一致は不要 — 全 job を retry できる）
+2. Job 取得
+3. `job.retry(now)` → `failed → pending`（`preview` / `errorCode` / `errorReason` を null に戻し `tempStorageKey` を保持、`regenerationCount` も保持）、`ingestion.retryRequested` を outbox に発火 → save
+4. dispatch が `ingestion.retryRequested` を `runIngestionJob` にルーティングし LLM を再駆動
+
+### エラーケース
+- `ForbiddenError('FORBIDDEN_ADMIN_ONLY')`（非 admin — `assertAdmin` 由来）
+- `NotFoundError('USER_NOT_FOUND')`（actor 不在 — `assertAdmin` 由来）
+- `NotFoundError('INGESTION_JOB_NOT_FOUND')`（job 不在）
+- `BusinessRuleError('ingestion_invalid_state_for_retry' | 'ingestion_no_temp_storage_for_retry')`
+
+---
+
+## OwnerRetryIngestionJob（owner）
+
+failed ジョブを所有者が再試行する経路（spec/scenario/ingest.md B1 異常系）。`regenerateIngestionPreview` / `discardIngestionPreview` と同じ owner 認可。
+
+### 入力DTO
+- `actorUserId: UserId`, `jobId: IngestionJobId`
+
+### 出力DTO
+- `jobId: IngestionJobId`
+
+### 処理フロー
+1. Job 取得、所有者確認（`found.entity.ownerId === actor`）
+2. `job.retry(now)` → `failed → pending`（admin retry と同一のドメイン遷移）、`ingestion.retryRequested` を outbox に発火 → save
+3. dispatch が `ingestion.retryRequested` を `runIngestionJob` にルーティングし LLM を再駆動（usecase 戻り時点ではまだ `pending`）
+
+owner retry には per-job の retry 回数上限は無い。コスト制御はインスタンス単位の利用上限（B2 異常系の「同一日のアップロード上限」）に委ねる方針（.issue/254/adr.md ADR-002）。
+
+### エラーケース
+- `NotFoundError('INGESTION_JOB_NOT_FOUND')`
+- `ForbiddenError('INGESTION_JOB_FORBIDDEN')`（他人の job）
+- `BusinessRuleError('ingestion_invalid_state_for_retry' | 'ingestion_no_temp_storage_for_retry')`
+
+---
+
 ## GetIngestionJobs / GetIngestionJob
 
 ### 入力DTO

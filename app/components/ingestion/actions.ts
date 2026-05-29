@@ -10,6 +10,7 @@ import {
   commitIngestionPreviewSchema,
   discardIngestionPreviewSchema,
   getIngestionJobSchema,
+  ownerRetryIngestionJobSchema,
   regenerateIngestionPreviewSchema,
 } from "./schema";
 import {
@@ -172,6 +173,26 @@ export const regenerateIngestionPreviewFn = createServerFn({ method: "POST" })
         actorUserId: toDtoUserId(user.id),
         jobId: data.jobId as unknown as Parameters<
           typeof module.regenerateIngestionPreview
+        >[0]["input"]["jobId"],
+      },
+    });
+    return { jobId: result.jobId as unknown as string };
+  });
+
+export const ownerRetryIngestionJobFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(ownerRetryIngestionJobSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/ingestion/ownerRetryIngestionJob"),
+    );
+    const result = await module.ownerRetryIngestionJob({
+      container,
+      input: {
+        actorUserId: toDtoUserId(user.id),
+        jobId: data.jobId as unknown as Parameters<
+          typeof module.ownerRetryIngestionJob
         >[0]["input"]["jobId"],
       },
     });

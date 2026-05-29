@@ -45,7 +45,7 @@ function renderIngestionBusinessMessage(code: string): string | null {
       return "保存処理が完了していません。しばらくしてから再度お試しください";
     // ---- (b) pipeline 識別子（runIngestionJob.ts の classifyPipelineError 由来） ----
     case "llm_failure":
-      return "AIによる要約・構造化に失敗しました。しばらくしてから再生成をお試しください";
+      return "AIによる要約・構造化に失敗しました。しばらくしてから再試行をお試しください";
     case "ocr_failure":
       return "画像からの文字認識に失敗しました。別のファイルでお試しください";
     case "speech_failure":

@@ -38,11 +38,13 @@
   - `attachPreview(p: IngestionPreview, now: Instant): IngestionJob` — `processing` → `previewing`
   - `markFailed(code: string, reason: string, now: Instant): IngestionJob` — 任意 → `failed`
   - `regenerate(now: Instant, maxRegenerations: number): IngestionJob` — `previewing` 必須、`regenerationCount` をインクリメント、超過は `BusinessRuleError('regeneration_limit_exceeded')`、状態を `pending` に戻し `preview` を null に。`ingestion.regenerated` を発火し、dispatch 経由で `runIngestionJob` が `pending → processing → previewing` を再駆動する（admin retry と同一経路）
+  - `retry(now: Instant): IngestionJob` — `failed` 必須、`failed → pending` に戻し `preview` / `errorCode` / `errorReason` を null に。`tempStorageKey` と `regenerationCount` は保持する（retry は回数を参照も加算もしない）。`tempStorageKey === null`（reclaimed 済み）のときは `BusinessRuleError('ingestion_no_temp_storage_for_retry')`、`failed` 以外からの呼び出しは `BusinessRuleError('ingestion_invalid_state_for_retry')`。`ingestion.retryRequested` を発火し dispatch 経由で `runIngestionJob` が再駆動。認可非依存で、admin retry（`RetryIngestionJob`）と owner retry（`OwnerRetryIngestionJob`）の両 usecase が共有する
   - `commit(noteId: NoteId, now: Instant): IngestionJob` — `previewing` → `saved`、`savedAsNoteId` 設定
   - `discard(now: Instant): IngestionJob` — `previewing` / `failed` → `discarded`
 - 不変条件:
   - `status === 'saved'` のとき `savedAsNoteId !== null`
   - `regenerationCount <= maxRegenerations`（既定 5）
+  - retry には per-job の回数上限が無く、`regenerationCount` は retry の終端条件として機能しない。owner retry のコスト制御はインスタンス単位の利用上限に委ねる（.issue/254/adr.md ADR-002）
   - `byteSize <= MAX_BYTES`（既定 50 MiB、`kind` によって細分化）
 
 ### IngestionPreview（値オブジェクトに近いが Job に内包）

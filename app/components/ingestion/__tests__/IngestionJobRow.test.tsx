@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { AppServerError } from "@/core/presentation/errorResponse";
 import type { IngestionJobWire } from "../actions";
 
 (
@@ -16,6 +17,7 @@ import type { IngestionJobWire } from "../actions";
 const commitMock = vi.fn();
 const discardMock = vi.fn();
 const regenerateMock = vi.fn();
+const ownerRetryMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: useServerFnRouter(
@@ -23,6 +25,7 @@ vi.mock("@tanstack/react-start", () => ({
       [commitMock, commitMock],
       [discardMock, discardMock],
       [regenerateMock, regenerateMock],
+      [ownerRetryMock, ownerRetryMock],
     ],
     vi.fn(),
   ),
@@ -34,6 +37,7 @@ vi.mock("../actions", () => ({
   commitIngestionPreviewFn: commitMock,
   discardIngestionPreviewFn: discardMock,
   regenerateIngestionPreviewFn: regenerateMock,
+  ownerRetryIngestionJobFn: ownerRetryMock,
 }));
 
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);
@@ -86,6 +90,13 @@ const previewingJobNewDir: IngestionJobWire = {
   },
 };
 
+const failedJob: IngestionJobWire = {
+  ...previewingJobExistingDir,
+  status: "failed",
+  preview: null,
+  errorCode: "ingestion_invalid_state_for_retry",
+};
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -93,6 +104,7 @@ beforeEach(() => {
   commitMock.mockReset();
   discardMock.mockReset();
   regenerateMock.mockReset();
+  ownerRetryMock.mockReset();
   routerInvalidate.mockClear();
   routerNavigate.mockClear();
   container = document.createElement("div");
@@ -174,6 +186,71 @@ describe("IngestionJobRow", () => {
     // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
     expect(routerNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #254: the failed card exposes an owner-facing 再試行 action that
+  // calls `ownerRetryIngestionJobFn` and invalidates the router so the card
+  // re-renders back to its `pending` state.
+  it("calls ownerRetryIngestionJobFn + router.invalidate when 再試行 is clicked on a failed card", async () => {
+    ownerRetryMock.mockResolvedValue({ jobId: "job-1" });
+
+    await renderRow(failedJob);
+
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+    expect(retryBtn).toBeDefined();
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    expect(ownerRetryMock.mock.calls[0]?.[0]).toMatchObject({
+      data: { jobId: "job-1" },
+    });
+    expect(routerInvalidate).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #254 (review W-002): when 再試行 fails, the card does NOT invalidate
+  // the router and surfaces an inline error instead.
+  it("does not call router.invalidate and shows an inline error when 再試行 fails", async () => {
+    ownerRetryMock.mockRejectedValue(
+      new AppServerError({
+        kind: "business",
+        code: "ingestion_no_temp_storage_for_retry",
+        message: "Ingestion job has no staged upload to retry",
+      }),
+    );
+
+    await renderRow(failedJob);
+
+    const retryBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再試行");
+
+    await act(async () => {
+      retryBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    expect(routerInvalidate).not.toHaveBeenCalled();
+    // The card renders two alert regions: the job's own failure reason and
+    // the action error. The retry-failure message must surface in one of them.
+    const alertText = Array.from(
+      document.body.querySelectorAll('[role="alert"]'),
+    )
+      .map((el) => el.textContent ?? "")
+      .join(" ");
+    expect(alertText).toContain("再試行に必要なデータが見つかりません");
   });
 
   it("does not call router.invalidate when commit fails", async () => {
