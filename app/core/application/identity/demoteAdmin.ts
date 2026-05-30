@@ -26,10 +26,8 @@ export async function demoteAdmin({
         "Actor is not authorised to demote admins",
       );
     }
-    // No explicit last-admin check here: the last admin can only be demoted
-    // via self-demote (count <= 1 implies the sole admin is the actor), which
-    // this guard already blocks. The dedicated last-admin protection lives in
-    // `deleteAccount`, where it is reachable. See .issue/315 ADR-003.
+    // No last-admin check: demoting the last admin requires self-demote,
+    // which this guard already blocks (see .issue/315 ADR-003).
     IdentityService.assertNotSelf(actorId, targetId);
     const target = await userRepository.findById(targetId);
     if (target === null) {

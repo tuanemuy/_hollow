@@ -1402,9 +1402,8 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
   });
 
   it("rejects an admin demoting their own account (sole admin)", async () => {
-    // The sole admin demoting themselves is rejected as a self-operation;
-    // demote no longer carries a separate last-admin check (it is only
-    // reachable via self-demote, which this guard blocks). See ADR-003.
+    // Expects self_operation_not_allowed, not last_admin_protected: demote
+    // has no last-admin check — it is only reachable via self-demote (ADR-003).
     const { container, userId: adminId } = await activateAdmin("admon02");
     try {
       await demoteAdmin({
@@ -1449,8 +1448,8 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
   });
 
   it("rejects an admin demoting their own account (another admin present)", async () => {
-    // Self-demote is rejected regardless of admin count — here a second admin
-    // exists, so the rejection is purely the self-operation guard.
+    // A second admin exists so the rejection is the self-operation guard,
+    // not last-admin protection (proves self-demote is blocked at any count).
     const { container, userId: adminA } = await activateAdmin("admon07");
     const memberB = await activateMember(container, "mem0050");
     await promoteUserToAdmin({
