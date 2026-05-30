@@ -10,21 +10,15 @@ import {
   APP_HEADER_LEFT,
   APP_HEADER_RIGHT,
   APP_LOGO,
-  AVATAR,
   SEARCH_BOX_ICON,
   SEARCH_BOX_INPUT,
   SEARCH_BOX_WRAPPER,
 } from "./styles";
+import { UserMenu } from "./UserMenu";
 
 type Props = {
   user: UserDTO;
 };
-
-function initials(name: string): string {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return "?";
-  return trimmed.slice(0, 1).toUpperCase();
-}
 
 export function Header({ user }: Props) {
   return (
@@ -66,15 +60,7 @@ export function Header({ user }: Props) {
           <Icon icon={Upload} />
           アップロード
         </UploadButton>
-        <Link
-          to="/"
-          search={HOME_SEARCH}
-          className={AVATAR}
-          title={user.displayName}
-          aria-label={`${user.displayName} のメニュー`}
-        >
-          {initials(user.displayName)}
-        </Link>
+        <UserMenu user={user} />
       </div>
     </header>
   );

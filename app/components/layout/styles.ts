@@ -19,7 +19,27 @@ export const ICON_BTN =
   "w-9 h-9 rounded-full bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
 export const AVATAR =
-  "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline";
+  "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";
+
+// User menu (header avatar dropdown). Mirrors the WAI-ARIA menu pattern used
+// by `directory/DirectoryActionsMenu`, anchored to the right edge under the
+// avatar.
+export const USER_MENU_WRAPPER = "relative";
+
+export const USER_MENU_PANEL =
+  "absolute right-0 mt-2 z-50 min-w-[220px] rounded-md border border-hairline bg-bg shadow-md py-1";
+
+export const USER_MENU_INFO =
+  "flex flex-col gap-0.5 px-3 py-2.5 border-b border-hairline";
+
+export const USER_MENU_INFO_NAME = "text-sm font-medium text-ink truncate";
+
+export const USER_MENU_INFO_EMAIL = "text-xs text-ink-secondary truncate";
+
+export const USER_MENU_INFO_ROLE = "text-xs text-ink-tertiary";
+
+export const USER_MENU_ITEM =
+  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-55 disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
 
 export const APP_LAYOUT =
   "grid grid-cols-1 min-h-[calc(100vh-var(--header-height))]";
