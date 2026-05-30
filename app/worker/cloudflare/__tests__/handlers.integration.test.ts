@@ -588,7 +588,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     expect(stamped).toHaveLength(1);
   });
 
-  it("does NOT stamp when runIngestionJob throws LLMRateLimitError; redelivery re-enters dispatch but no-ops via isPending guard (ADR-003 既知の限界)", async () => {
+  it("auto-re-drives after LLMRateLimitError: rolls processing → pending, then redelivery reaches previewing (Issue #109)", async () => {
     const ownerId = nextOwnerId();
     const jobId = nextIngestionJobId();
     await seedOwner(ownerId);
@@ -596,16 +596,19 @@ describe("consumer Worker — handleQueue dispatch", () => {
 
     // `runIngestionJob` for kind="html" sanitises the body then asks
     // the LLM for metadata; surface a transient rate limit there so
-    // the usecase rethrows and `dispatchDomainEvent` classifies it
-    // as `retry`. The stamp must not be recorded — otherwise a queue
-    // redelivery would be skipped by `hasProcessed` and the retry
-    // would be silently dropped (ADR-003).
+    // the usecase rolls `processing → pending` (Issue #109) and rethrows,
+    // and `dispatchDomainEvent` classifies it as `retry`. The stamp must
+    // not be recorded — otherwise a queue redelivery would be skipped by
+    // `hasProcessed` and the auto-re-drive would never happen (Issue #57
+    // ADR-003 stamp ordering).
     //
     // The R2 `TEMP_FILES` binding is wired in the miniflare config
     // (Issue #110), so seed bytes directly via the binding — the
     // dispatcher's `tempFileStorage.get` will read them through
     // `R2TempFileStorage` and the pipeline reaches the metadata step
-    // where the rate-limit injection lives.
+    // where the rate-limit injection lives. The same bytes are re-read on
+    // redelivery from the unchanged `tempStorageKey` (preserved by the
+    // rollback transition).
     const tempStorageKey = `${ownerId}/ingestion/${jobId}`;
     await tempFilesBinding().put(
       tempStorageKey,
@@ -615,7 +618,10 @@ describe("consumer Worker — handleQueue dispatch", () => {
       StubLLMProvider.prototype,
       "suggestMetadata",
     );
-    suggestMetadataSpy.mockRejectedValue(new LLMRateLimitError("rate limited"));
+    // First delivery: rate-limited.
+    suggestMetadataSpy.mockRejectedValueOnce(
+      new LLMRateLimitError("rate limited"),
+    );
 
     const event: DomainEvent = {
       id: nextEventId(),
@@ -653,23 +659,26 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .where(eq(processedEvents.id, event.id));
     expect(stamped).toHaveLength(0);
 
-    // The usecase committed `pending → processing` before the LLM call
-    // rethrew. ADR-003 "既知の限界": the row is now in `processing`,
-    // and the next redelivery will hit `runIngestionJob`'s `isPending`
-    // guard and no-op. The queue retry path is intentionally documented
-    // here so a future change to `runIngestionJob`'s entry guard
-    // (re-entry from `processing`) would fail this assertion.
+    // Issue #109: the usecase committed `pending → processing`, then the
+    // rate-limit injection triggered the `processing → pending` rollback
+    // before rethrowing. The row must now be back in `pending` so the
+    // redelivery's `isPending` guard re-drives the pipeline.
     const jobAfterRetry = await db
       .select()
       .from(ingestionJobs)
       .where(eq(ingestionJobs.id, jobId));
-    expect(jobAfterRetry[0]?.status).toBe("processing");
+    expect(jobAfterRetry[0]?.status).toBe("pending");
+    // promote (pending → processing) + rollback (processing → pending)
+    // each bump the version, so the rolled-back row outranks the seed.
+    const versionAfterRetry = jobAfterRetry[0]?.version ?? 0;
+    expect(versionAfterRetry).toBeGreaterThan(0);
 
     // Redelivery: hasProcessed=false (no stamp), so handleQueue enters
-    // dispatch again. runIngestionJob's `isPending` guard short-circuits
-    // (job is `processing` now), so the LLM is NOT called a second
-    // time. Stamp + ack regardless — the message is finally drained.
-    suggestMetadataSpy.mockClear();
+    // dispatch again. The job is `pending`, so `runIngestionJob` re-runs
+    // the pipeline. This time the LLM succeeds (metadata returned), so
+    // for kind="html" the pipeline only needs `suggestMetadata` (no
+    // `structureToHtml`) to reach `previewing`. Stamp + ack.
+    suggestMetadataSpy.mockResolvedValueOnce({ tags: [], aliases: [] });
     const redeliverBatch = createMessageBatch<DomainEvent>(
       "tanstack-start-template-events",
       [
@@ -685,7 +694,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     await handleQueue(redeliverBatch, consumerEnv(), redeliverCtx);
     const redeliverResult = await getQueueResult(redeliverBatch, redeliverCtx);
     expect(redeliverResult.explicitAcks).toContain("msg-ingestion-retry-2");
-    expect(suggestMetadataSpy).not.toHaveBeenCalled();
+    expect(suggestMetadataSpy).toHaveBeenCalledTimes(2);
     const stampedAfterRedeliver = await db
       .select()
       .from(processedEvents)
@@ -695,7 +704,12 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .select()
       .from(ingestionJobs)
       .where(eq(ingestionJobs.id, jobId));
-    expect(jobAfterRedeliver[0]?.status).toBe("processing");
+    expect(jobAfterRedeliver[0]?.status).toBe("previewing");
+    // The re-drive (promote + attachPreview) bumps the version further,
+    // confirming OCC stays monotonic across the rollback boundary.
+    expect(jobAfterRedeliver[0]?.version ?? 0).toBeGreaterThan(
+      versionAfterRetry,
+    );
   });
 
   it("skips already-processed events via hasProcessed (no re-dispatch)", async () => {

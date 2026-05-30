@@ -688,6 +688,94 @@ describe("IngestionJob.retry", () => {
   });
 });
 
+describe("IngestionJob.rollbackToPending", () => {
+  it("from processing: returns to pending, bumps version, preserves tempStorageKey / regenerationCount, emits no event", () => {
+    const { entity: pending } = seedPending(90);
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: rolledBack, eventDrafts } = IngestionJob.rollbackToPending(
+      processing,
+      at(2),
+    );
+
+    expect(rolledBack.status).toBe("pending");
+    expect(rolledBack.preview).toBeNull();
+    expect(rolledBack.errorCode).toBeNull();
+    expect(rolledBack.errorReason).toBeNull();
+    expect(rolledBack.savedAsNoteId).toBeNull();
+    expect(rolledBack.tempStorageKey).toBe(processing.tempStorageKey);
+    expect(rolledBack.regenerationCount).toBe(processing.regenerationCount);
+    expect(rolledBack.version as number).toBe(
+      (processing.version as number) + 1,
+    );
+    expect(rolledBack.updatedAt.getTime()).toBe(at(2).getTime());
+    expect(eventDrafts).toHaveLength(0);
+  });
+
+  it("rejects rollback from non-processing states with InvalidStateForRollback", () => {
+    const { entity: pending } = seedPending(91);
+    try {
+      IngestionJob.rollbackToPending(pending, at(1));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRollback);
+      }
+    }
+
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: previewing } = IngestionJob.attachPreview(
+      processing,
+      samplePreview("rb"),
+      at(2),
+    );
+    try {
+      IngestionJob.rollbackToPending(previewing, at(3));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRollback);
+      }
+    }
+
+    // `failed` is the entry state for `retry`; rollback must reject it so
+    // the two re-drive paths stay mutually exclusive.
+    const { entity: failed } = IngestionJob.markFailed(
+      processing,
+      "llm_failure",
+      "boom",
+      at(3),
+    );
+    try {
+      IngestionJob.rollbackToPending(failed, at(4));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRollback);
+      }
+    }
+  });
+
+  it("rolled-back pending job can start processing again", () => {
+    const { entity: pending } = seedPending(92);
+    const { entity: processing } = IngestionJob.startProcessing(pending, at(1));
+    const { entity: rolledBack } = IngestionJob.rollbackToPending(
+      processing,
+      at(2),
+    );
+    const { entity: reprocessing } = IngestionJob.startProcessing(
+      rolledBack,
+      at(3),
+    );
+    expect(reprocessing.status).toBe("processing");
+    expect(reprocessing.version as number).toBe(
+      (rolledBack.version as number) + 1,
+    );
+  });
+});
+
 describe("IngestionJob type guards", () => {
   it("isPending narrows to PendingIngestionJob", () => {
     const { entity: pending } = seedPending(70);

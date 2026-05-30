@@ -131,12 +131,14 @@ export async function runIndexJobTick(
  * `runIngestionJob` / `runExportJob`: an `isPending` guard plus an OCC
  * `expectedVersion` check converge to a no-op on the second run.
  *
- * Known limitation: the aggregate-side `isPending` guard means that
- * `LLMRateLimitError` rethrown after the usecase has committed
- * `pending → processing` cannot be auto-recovered. The next redelivery
- * no-ops, and after `max_retries` the message lands in the DLQ.
- * Operator recovery is the admin manual-retry button (Issue #3 —
- * `retryIngestionJob` / `retryExportJob` re-emit `*.retryRequested`).
+ * `LLMRateLimitError` rethrown after the usecase committed
+ * `pending → processing` is auto-recovered: `runIngestionJob` rolls the
+ * job back `processing → pending` before rethrowing (Issue #109), so the
+ * next redelivery passes the `isPending` guard and re-drives the pipeline
+ * once the rate limit clears. A persistently throttled job still lands in
+ * the DLQ after `max_retries`; operator recovery there is the admin
+ * manual-retry button (Issue #3 — `retryIngestionJob` / `retryExportJob`
+ * re-emit `*.retryRequested`).
  */
 export async function handleQueue(
   batch: MessageBatch<DomainEvent>,

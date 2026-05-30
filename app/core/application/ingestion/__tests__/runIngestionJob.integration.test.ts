@@ -10,6 +10,7 @@ import {
   type LLMMetadataInput,
   type LLMMetadataResult,
   type LLMProvider,
+  LLMRateLimitError,
   type LLMStructureInput,
   type LLMStructureResult,
   LLMUnavailableError,
@@ -205,6 +206,24 @@ class ThrowingLLMProvider implements LLMProvider {
   }
   async suggestMetadata(_input: LLMMetadataInput): Promise<LLMMetadataResult> {
     throw new LLMUnavailableError("llm down");
+  }
+}
+
+// Throws `LLMRateLimitError` from `suggestMetadata` (the only LLM call on
+// the `html` path) so the rate-limit rollback branch (Issue #109) can be
+// exercised at the usecase boundary. An optional `onBeforeThrow` hook lets
+// a test mutate the job row mid-pipeline to drive the concurrent-transition
+// skip branch.
+class RateLimitLLMProvider implements LLMProvider {
+  constructor(private readonly onBeforeThrow?: () => Promise<void>) {}
+  async structureToHtml(
+    _input: LLMStructureInput,
+  ): Promise<LLMStructureResult> {
+    throw new LLMRateLimitError("rate limited");
+  }
+  async suggestMetadata(_input: LLMMetadataInput): Promise<LLMMetadataResult> {
+    if (this.onBeforeThrow) await this.onBeforeThrow();
+    throw new LLMRateLimitError("rate limited");
   }
 }
 
@@ -706,6 +725,10 @@ describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    // The rate-limit rollback tests spy on the shared `ConsoleLogger`
+    // singleton and the per-test UoW provider — restore so spies do not
+    // leak across tests.
+    vi.restoreAllMocks();
   });
 
   function structureEnvelope(html: string): unknown {
@@ -935,5 +958,139 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     // which classifyPipelineError surfaces verbatim as the markFailed
     // code (`INGESTION_UNSUPPORTED_FORMAT`).
     expect(rows[0]?.errorCode).toBe(IngestionErrorCode.UnsupportedFormat);
+  });
+
+  // ---------- LLMRateLimitError rollback (Issue #109) ----------
+
+  it("rolls processing → pending and rethrows when the LLM raises LLMRateLimitError", async () => {
+    const baseContainer = getContainer();
+    const container: TestContainer = {
+      ...baseContainer,
+      llmProvider: new RateLimitLLMProvider(),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "html",
+      mimeType: "text/html",
+      originalFileName: "doc.html",
+      bodyBytes: utf8("<p>hello</p>"),
+    });
+
+    // The usecase must rethrow so the queue consumer classifies the
+    // dispatch as `retry` and re-delivers.
+    await expect(
+      runIngestionJob({
+        container,
+        input: { jobId: jobId as unknown as IngestionJobId },
+      }),
+    ).rejects.toBeInstanceOf(LLMRateLimitError);
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    // Back in `pending` (not `processing`), so the redelivery passes the
+    // `isPending` guard and re-drives the pipeline. seed=0 → promote=1 →
+    // rollback=2.
+    expect(rows[0]?.status).toBe("pending");
+    expect(rows[0]?.version).toBe(2);
+    expect(rows[0]?.errorCode).toBeNull();
+    expect(rows[0]?.tempStorageKey).not.toBeNull();
+  });
+
+  it("skips the rollback (and still rethrows) when the job already left processing", async () => {
+    const baseContainer = getContainer();
+    const jobIdHolder: { id: string | null } = { id: null };
+    const container: TestContainer = {
+      ...baseContainer,
+      // Concurrently move the row off `processing` (raw discard) before the
+      // rate-limit throw, so the rollback's `isProcessing` re-check skips.
+      llmProvider: new RateLimitLLMProvider(async () => {
+        if (jobIdHolder.id === null) return;
+        await baseContainer.db
+          .update(schema.ingestionJobs)
+          .set({ status: "discarded", version: 9 })
+          .where(eq(schema.ingestionJobs.id, jobIdHolder.id));
+      }),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "html",
+      mimeType: "text/html",
+      originalFileName: "doc.html",
+      bodyBytes: utf8("<p>hello</p>"),
+    });
+    jobIdHolder.id = jobId;
+
+    await expect(
+      runIngestionJob({
+        container,
+        input: { jobId: jobId as unknown as IngestionJobId },
+      }),
+    ).rejects.toBeInstanceOf(LLMRateLimitError);
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    // Untouched by the rollback: still `discarded` at the version the
+    // concurrent writer left, proving the `isProcessing` guard skipped.
+    expect(rows[0]?.status).toBe("discarded");
+    expect(rows[0]?.version).toBe(9);
+  });
+
+  it("logs a warning and still rethrows when the rollback save fails", async () => {
+    const baseContainer = getContainer();
+    const container: TestContainer = {
+      ...baseContainer,
+      llmProvider: new RateLimitLLMProvider(),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "html",
+      mimeType: "text/html",
+      originalFileName: "doc.html",
+      bodyBytes: utf8("<p>hello</p>"),
+    });
+
+    // run #1 promotes pending → processing; the pipeline then throws the
+    // rate-limit error; run #2 is the rollback — force it to reject so the
+    // catch's logger.warn + rethrow path is exercised.
+    const originalRun = baseContainer.unitOfWorkProvider.run.bind(
+      baseContainer.unitOfWorkProvider,
+    );
+    let runCalls = 0;
+    vi.spyOn(container.unitOfWorkProvider, "run").mockImplementation((fn) => {
+      runCalls += 1;
+      if (runCalls === 2) return Promise.reject(new Error("d1 boom"));
+      return originalRun(fn);
+    });
+    const warnSpy = vi.spyOn(container.logger, "warn");
+
+    await expect(
+      runIngestionJob({
+        container,
+        input: { jobId: jobId as unknown as IngestionJobId },
+      }),
+    ).rejects.toBeInstanceOf(LLMRateLimitError);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "ingestion.rateLimitRollback.persistence_failed",
+      expect.objectContaining({ jobId }),
+    );
+    // The rollback never committed, so the row is still `processing`; the
+    // next redelivery re-attempts the rollback (ADR-001 two-stage
+    // convergence).
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(rows[0]?.status).toBe("processing");
   });
 });

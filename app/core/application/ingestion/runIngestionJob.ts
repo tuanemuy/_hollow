@@ -150,7 +150,53 @@ export async function runIngestionJob({
     );
   } catch (error) {
     if (isLLMRateLimitError(error)) {
-      // Surface so the queue consumer can re-deliver with backoff.
+      // Roll `processing → pending` back before rethrowing so the queue
+      // redelivery re-enters the `isPending` guard and re-drives the
+      // pipeline once the rate limit clears (Issue #109). Without this
+      // the row would sit `processing` and the redelivery would no-op,
+      // stalling the job until DLQ → admin manual retry.
+      const nowRollback = container.clock.now();
+      try {
+        await container.unitOfWorkProvider.run(
+          async ({ ingestionJobRepository, collectEvents }) => {
+            const found = await ingestionJobRepository.findById(
+              input.jobId as unknown as IngestionJobIdBrand,
+            );
+            if (found === null) return;
+            if (!IngestionJob.isProcessing(found.entity)) {
+              // Concurrent transition (discard / fail) already moved the
+              // job off `processing`; nothing to roll back.
+              return;
+            }
+            const transition = IngestionJob.rollbackToPending(
+              found.entity,
+              nowRollback,
+            );
+            await ingestionJobRepository.save(
+              transition.entity,
+              found.expectedVersion,
+            );
+            collectEvents(transition.eventDrafts);
+          },
+        );
+      } catch (rollbackError) {
+        // A transient persistence failure here leaves the row in
+        // `processing`; the next redelivery re-attempts the rollback
+        // before the rate limit clears (the two-stage convergence in
+        // ADR-001). Log so this rate-limit rollback is observable.
+        container.logger.warn(
+          "ingestion.rateLimitRollback.persistence_failed",
+          {
+            jobId: input.jobId,
+            cause:
+              rollbackError instanceof Error
+                ? rollbackError.message
+                : String(rollbackError),
+          },
+        );
+      }
+      // Always rethrow the original rate-limit error so the consumer
+      // classifies it as `retry` and re-delivers with backoff.
       throw error;
     }
     const code = classifyPipelineError(error);

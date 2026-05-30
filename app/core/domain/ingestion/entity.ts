@@ -173,6 +173,35 @@ function startProcessing(
   };
 }
 
+function rollbackToPending(
+  job: ProcessingIngestionJob,
+  now: Date,
+): WithEventDrafts<PendingIngestionJob, IngestionEvent> {
+  // `tempStorageKey` is spread through (the re-run needs the staged
+  // payload) and `regenerationCount` is preserved (this is not a
+  // regeneration).
+  //
+  // Unlike `retry` there is no `tempStorageKey === null` guard: only
+  // `commit` / `discard` reclaim the blob, and both move the job out of
+  // `processing`, so a `processing` job always still holds its key.
+  // `retry` needs the guard because it acts on `failed` jobs whose key
+  // may already have been reclaimed.
+  const next: PendingIngestionJob = {
+    ...job,
+    status: "pending",
+    preview: null,
+    errorCode: null,
+    errorReason: null,
+    savedAsNoteId: null,
+    version: Version.next(job.version),
+    updatedAt: now,
+  };
+  return {
+    entity: next,
+    eventDrafts: [],
+  };
+}
+
 function attachPreview(
   job: ProcessingIngestionJob,
   preview: IngestionPreview,
@@ -637,6 +666,28 @@ export const IngestionJob = {
       );
     }
     return retry(job, now);
+  },
+
+  /**
+   * Rolls an interrupted `processing` job back to `pending` so the queue
+   * consumer can re-drive it. Used when the LLM pipeline rethrows a
+   * transient `LLMRateLimitError` mid-`processing` (Issue #109): without
+   * this rollback the row would sit `processing` and the redelivery's
+   * `isPending` guard would no-op it into a stall. Emits no event — the
+   * re-drive rides the queue's `message.retry()` (.issue/109/adr.md
+   * ADR-002).
+   */
+  rollbackToPending: (
+    job: IngestionJob,
+    now: Date,
+  ): WithEventDrafts<PendingIngestionJob, IngestionEvent> => {
+    if (job.status !== "processing") {
+      throw new BusinessRuleError(
+        IngestionErrorCode.InvalidStateForRollback,
+        `Cannot rollback to pending from state: ${job.status}`,
+      );
+    }
+    return rollbackToPending(job, now);
   },
 
   // Value objects throw `BusinessRuleError` from fresh-input paths; the
