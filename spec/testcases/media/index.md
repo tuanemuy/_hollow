@@ -44,8 +44,9 @@
 | 前提条件 | 操作 | 期待結果 |
 |---|---|---|
 | 24h 以上前の orphan | Purge | status=deleting → R2 削除 → DB 削除 |
-| 24h 未満 | Purge | スキップ |
-| R2 削除失敗 | Purge | `status=deleting` で停止、failed カウントに計上（現状は次の sweep で再試行されない。リトライ強化は別 Issue で追跡） |
+| 24h 以上前の deleting（前回 R2 失敗で stuck） | Purge | markDeleting を skip し 2nd UoW（R2 削除 → DB 削除）から再開 |
+| 24h 未満（orphan / deleting とも） | Purge | スキップ |
+| R2 削除失敗 | Purge | `status=deleting` のまま failed カウントに計上。猶予期間経過後の次の sweep で `deleting` 行も再試行対象となり、R2 復旧後に purge 完了（再試行回数の上限なし） |
 
 ## HandleNotePurgedEvent
 

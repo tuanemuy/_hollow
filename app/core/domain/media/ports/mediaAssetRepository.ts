@@ -28,7 +28,14 @@ export interface MediaAssetRepository {
     ownerId: UserId,
     opts: MediaListOpts,
   ): Promise<readonly MediaAsset[]>;
-  findOrphansOlderThan(
+  /**
+   * Purge candidates whose `updatedAt` predates `before`: `orphan` rows
+   * awaiting their first purge, plus `deleting` rows whose earlier purge
+   * was interrupted (e.g. a transient R2 delete failure) and must be
+   * resumed. `markDeleting` re-stamps `updatedAt`, so a freshly-marked
+   * row stays out of this window until the grace period lapses again.
+   */
+  findPurgeableOlderThan(
     before: Date,
     limit: number,
   ): Promise<readonly MediaAsset[]>;

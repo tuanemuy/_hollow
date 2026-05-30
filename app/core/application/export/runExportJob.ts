@@ -260,7 +260,7 @@ function buildAssemblyDeps(
       async findByOwner() {
         return [];
       },
-      async findOrphansOlderThan() {
+      async findPurgeableOlderThan() {
         return [];
       },
       async save() {},

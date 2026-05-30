@@ -59,9 +59,10 @@ type OrphanSeedOptions = Readonly<{
   kind?: MediaKind;
 }>;
 
-async function seedOrphan(
+async function seedAsset(
   container: TestContainer,
   opts: OrphanSeedOptions,
+  status: "orphan" | "deleting",
 ): Promise<MediaAssetId> {
   const id = nextMediaId();
   const kind: MediaKind = opts.kind ?? "image";
@@ -78,11 +79,30 @@ async function seedOrphan(
     height: null,
     durationMs: null,
     refCount: 0,
-    status: "orphan",
+    status,
     createdAt: opts.updatedAt.toISOString(),
     updatedAt: opts.updatedAt.toISOString(),
   });
   return id;
+}
+
+function seedOrphan(
+  container: TestContainer,
+  opts: OrphanSeedOptions,
+): Promise<MediaAssetId> {
+  return seedAsset(container, opts, "orphan");
+}
+
+/**
+ * Seeds a row already in `deleting` — the state a row is left in when an
+ * earlier sweep transitioned it but the R2/DB delete failed. Used to
+ * exercise the retry-resume path.
+ */
+function seedDeleting(
+  container: TestContainer,
+  opts: OrphanSeedOptions,
+): Promise<MediaAssetId> {
+  return seedAsset(container, opts, "deleting");
 }
 
 /**
@@ -177,12 +197,81 @@ describe("purgeOrphans (integration)", () => {
     const rows = await base.db.select().from(schema.mediaAssets);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(orphanId as unknown as string);
-    // ADR-004 #15: the first UoW transitions `orphan → deleting` and
-    // commits before the failing `storage.delete`, so the asset row
-    // remains in `deleting`. The next sweep filters on
-    // `status === 'orphan'` and will NOT retry — diverging from the
-    // spec's "counted as failed, retried next tick" wording. Pinned to
-    // the implementation reality; Phase 4 will reconcile.
+    // The first UoW transitions `orphan → deleting` and commits before
+    // the failing `storage.delete`, so within this sweep the row remains
+    // in `deleting`. Unlike before #162, the next sweep WILL retry it
+    // (see the retry test below) because the candidate query now matches
+    // `status IN ('orphan','deleting')`. `markDeleting` re-stamped
+    // `updatedAt = SWEEP_TIME`, so the retry only fires once the grace
+    // window lapses again.
     expect(rows[0]?.status).toBe("deleting");
+  });
+
+  it("skips `deleting` rows whose grace window has not lapsed yet", async () => {
+    const base = getContainer();
+    const ownerId = await seedUser(base);
+    const recentAt = new Date(SWEEP_TIME.getTime() - 60 * 60 * 1000); // 1h ago
+    const deletingId = await seedDeleting(base, {
+      ownerId,
+      updatedAt: recentAt,
+    });
+    const container = withFixedClock(base, SWEEP_TIME);
+
+    const result = await purgeOrphans(container);
+
+    expect(result.purged).toBe(0);
+    expect(result.failed).toBe(0);
+    const rows = await base.db.select().from(schema.mediaAssets);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(deletingId as unknown as string);
+    expect(rows[0]?.status).toBe("deleting");
+  });
+
+  it("retries a `deleting` row stuck past the grace window and finalises the purge", async () => {
+    const base = getContainer();
+    const ownerId = await seedUser(base);
+    const oldAt = new Date(SWEEP_TIME.getTime() - (24 * 60 * 60 + 60) * 1000);
+    const deletingId = await seedDeleting(base, { ownerId, updatedAt: oldAt });
+    const container = withFixedClock(base, SWEEP_TIME);
+
+    const result = await purgeOrphans(container);
+
+    expect(result.purged).toBe(1);
+    expect(result.failed).toBe(0);
+    const rows = await base.db.select().from(schema.mediaAssets);
+    expect(rows).toHaveLength(0);
+    void deletingId;
+  });
+
+  it("retries on a later sweep after a transient R2 failure, once storage recovers", async () => {
+    const base = getContainer();
+    const ownerId = await seedUser(base);
+    const oldAt = new Date(SWEEP_TIME.getTime() - (24 * 60 * 60 + 60) * 1000);
+    const orphanId = await seedOrphan(base, { ownerId, updatedAt: oldAt });
+
+    // Sweep 1: R2 is down. The row transitions to `deleting` (updatedAt =
+    // SWEEP_TIME) but the storage delete fails, so it stays `deleting`.
+    const failing = withFixedClock(
+      { ...base, objectStorage: new ThrowingObjectStorage(base.objectStorage) },
+      SWEEP_TIME,
+    );
+    const first = await purgeOrphans(failing);
+    expect(first.purged).toBe(0);
+    expect(first.failed).toBe(1);
+
+    // Sweep 2: clock advanced past another grace window so the stuck
+    // `deleting` row is eligible again; storage has recovered, so the
+    // purge resumes from the 2nd UoW and completes.
+    const laterTime = new Date(
+      SWEEP_TIME.getTime() + (24 * 60 * 60 + 60) * 1000,
+    );
+    const recovered = withFixedClock(base, laterTime);
+    const second = await purgeOrphans(recovered);
+    expect(second.purged).toBe(1);
+    expect(second.failed).toBe(0);
+
+    const rows = await base.db.select().from(schema.mediaAssets);
+    expect(rows).toHaveLength(0);
+    void orphanId;
   });
 });

@@ -65,18 +65,20 @@ async function reconcileRefs(
 }
 
 /**
- * Returns orphans whose `updatedAt` is older than `now - ageSec`. The
- * adapter implements the filter; this wrapper just expresses the
- * domain-level semantics ("orphan grace period").
+ * Returns purge candidates whose `updatedAt` is older than `now - ageSec`:
+ * fresh `orphan` rows and `deleting` rows whose earlier purge stalled.
+ * The adapter implements the status filter; this wrapper expresses the
+ * domain-level grace window, which doubles as the retry interval for
+ * stalled `deleting` rows.
  */
-async function listOrphanCandidates(
+async function listPurgeCandidates(
   now: Date,
   ageSec: number,
   repo: MediaAssetRepository,
   limit = 100,
 ): Promise<readonly MediaAsset[]> {
   const cutoff = new Date(now.getTime() - ageSec * 1000);
-  return repo.findOrphansOlderThan(cutoff, limit);
+  return repo.findPurgeableOlderThan(cutoff, limit);
 }
 
 /**
@@ -133,7 +135,7 @@ function assertViewableBy(args: {
 
 export const MediaService = {
   reconcileRefs,
-  listOrphanCandidates,
+  listPurgeCandidates,
   purge,
   assertViewableBy,
 };
