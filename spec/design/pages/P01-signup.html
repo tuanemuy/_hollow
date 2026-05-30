@@ -283,6 +283,37 @@
   }
   .field.has-error .field-hint { color: var(--color-error); }
 
+  /* Form-level error callout (copied from P01b-admin-setup .form-error) */
+  .form-error {
+    display: flex;
+    gap: var(--space-3);
+    background: var(--color-error-surface);
+    color: var(--color-error);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    align-items: flex-start;
+  }
+  .form-error svg { flex-shrink: 0; margin-top: 2px; }
+  .form-error strong { font-weight: var(--weight-semibold); }
+
+  /* Error-state variant blocks pack tightly (no full-viewport min-height) */
+  .auth-shell.is-variant { min-height: 0; }
+
+  /* Error-state variant caption (Issue #198) */
+  .variant-label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    font-weight: var(--weight-medium);
+    margin: var(--space-12) auto var(--space-4);
+    max-width: 440px;
+    width: 100%;
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-hairline);
+  }
+
   /* Checkbox */
   .checkbox-row {
     display: flex;
@@ -379,6 +410,218 @@
         <input type="checkbox" required>
         <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
       </label>
+
+      <button type="submit" class="btn-primary">アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      すでにアカウントをお持ちですか? <a href="#">ログイン</a>
+    </div>
+  </div>
+</main>
+
+<!--
+  ===== エラー状態バリアント (Issue #198) =====
+  以下は設計成果物としてのエラー状態モック。上の成功状態ブロックと並べて
+  視覚的一貫性を確認するためのもの。文言の真実のソースは2系統:
+    - callout の <strong> プレフィックス（「登録に失敗しました。」）は
+      app/components/auth/SignUpForm/index.tsx のJSXハードコード由来
+    - 後段の本文（「すでに登録されています」「システムエラーが発生しました」等）は
+      app/core/presentation/errorDisplay.ts 由来
+  両方を一字一句現実装どおり転記している。
+-->
+
+<!--
+  (a) validation エラー: field 直下エラー + aria-invalid + 入力保持(value)。
+  注意: 以下の日本語 field hint は「あるべき」設計提案であり、現行実装の文言転記ではない。
+  現行 app/components/auth/schema.ts の Zod スキーマは message 未指定で、
+  app/core/presentation/validator.ts は Zod デフォルト（英語）の issue.message を
+  そのまま fieldErrors に格納する（errorMap/i18n 層なし）。
+  validation 文言の日本語化は実装 Issue #201 の申し送り事項。
+-->
+<!-- (a) validation エラー: field 直下エラー + aria-invalid + 入力保持(value) -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (a) — validation（入力検証エラー・入力保持）</span>
+    <h1 class="auth-title">アカウント作成</h1>
+    <p class="auth-subtitle">頭の中にある言葉を、静かな場所に置いていきましょう。</p>
+
+    <form class="form" novalidate>
+      <div class="field has-error">
+        <label class="field-label" for="username-a">ユーザー名</label>
+        <input class="input" id="username-a" name="username" type="text" placeholder="yumenaut" autocomplete="username" required aria-invalid="true" value="yume naut">
+        <span class="field-hint">英数字とハイフンのみ使用できます。</span>
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="email-a">メールアドレス</label>
+        <input class="input" id="email-a" name="email" type="email" placeholder="you@example.com" autocomplete="email" required aria-invalid="true" value="yumenaut@">
+        <span class="field-hint">メールアドレスの形式が正しくありません。</span>
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="password-a">パスワード</label>
+        <input class="input" id="password-a" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required aria-invalid="true" value="123">
+        <span class="field-hint">8文字以上で入力してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-a">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-a" name="displayName" type="text" placeholder="ユメナウト" autocomplete="nickname" value="ユメナウト">
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      すでにアカウントをお持ちですか? <a href="#">ログイン</a>
+    </div>
+  </div>
+</main>
+
+<!-- (b) conflict — なし版（fallback / 現実装の既定）: フィールド非紐付けの汎用 summary callout -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (b) — conflict（なし版 / fallback・現実装の既定）</span>
+    <h1 class="auth-title">アカウント作成</h1>
+    <p class="auth-subtitle">頭の中にある言葉を、静かな場所に置いていきましょう。</p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-b">ユーザー名</label>
+        <input class="input" id="username-b" name="username" type="text" placeholder="yumenaut" autocomplete="username" required value="yumenaut">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-b">メールアドレス</label>
+        <input class="input" id="email-b" name="email" type="email" placeholder="you@example.com" autocomplete="email" required value="yumenaut@example.com">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-b">パスワード</label>
+        <input class="input" id="password-b" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">8文字以上。英数字と記号を組み合わせると安全です。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-b">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-b" name="displayName" type="text" placeholder="ユメナウト" autocomplete="nickname">
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>登録に失敗しました。</strong> すでに登録されています</span>
+      </div>
+
+      <button type="submit" class="btn-primary">アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      すでにアカウントをお持ちですか? <a href="#">ログイン</a>
+    </div>
+  </div>
+</main>
+
+<!--
+  (c) conflict — あり版（field 直下開示）: 設計提案。
+  email を重複と特定して field 直下に赤エラーを出す案。ただし未ログインの第三者に
+  アカウント存在を教える列挙攻撃のリスクがある。採否は実装 Issue #201 に委ねる。
+  現実装の既定は上の (b) なし版（汎用 summary）であることに注意。
+-->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (c) — conflict（あり版 / field 直下開示・設計提案、採否は #201）</span>
+    <h1 class="auth-title">アカウント作成</h1>
+    <p class="auth-subtitle">頭の中にある言葉を、静かな場所に置いていきましょう。</p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-c">ユーザー名</label>
+        <input class="input" id="username-c" name="username" type="text" placeholder="yumenaut" autocomplete="username" required value="yumenaut">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="email-c">メールアドレス</label>
+        <input class="input" id="email-c" name="email" type="email" placeholder="you@example.com" autocomplete="email" required aria-invalid="true" value="yumenaut@example.com">
+        <span class="field-hint">すでに登録されています</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-c">パスワード</label>
+        <input class="input" id="password-c" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">8文字以上。英数字と記号を組み合わせると安全です。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-c">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-c" name="displayName" type="text" placeholder="ユメナウト" autocomplete="nickname">
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      すでにアカウントをお持ちですか? <a href="#">ログイン</a>
+    </div>
+  </div>
+</main>
+
+<!-- (d) system / unknown 汎用エラー: 抽象文言を維持した summary callout -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6); padding-bottom: var(--space-20);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (d) — system / unknown（汎用エラー・抽象化維持）</span>
+    <h1 class="auth-title">アカウント作成</h1>
+    <p class="auth-subtitle">頭の中にある言葉を、静かな場所に置いていきましょう。</p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-d">ユーザー名</label>
+        <input class="input" id="username-d" name="username" type="text" placeholder="yumenaut" autocomplete="username" required value="yumenaut">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-d">メールアドレス</label>
+        <input class="input" id="email-d" name="email" type="email" placeholder="you@example.com" autocomplete="email" required value="yumenaut@example.com">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-d">パスワード</label>
+        <input class="input" id="password-d" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">8文字以上。英数字と記号を組み合わせると安全です。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-d">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-d" name="displayName" type="text" placeholder="ユメナウト" autocomplete="nickname">
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>登録に失敗しました。</strong> システムエラーが発生しました</span>
+      </div>
 
       <button type="submit" class="btn-primary">アカウントを作成</button>
     </form>
