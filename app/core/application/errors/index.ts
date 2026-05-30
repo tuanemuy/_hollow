@@ -1,9 +1,18 @@
-import { CodedError, type SerializedErrorBase } from "@/lib/error";
+import {
+  CodedError,
+  type FieldErrors,
+  type SerializedErrorBase,
+} from "@/lib/error";
 
 export type { FieldErrors } from "@/lib/error";
 
 export type SerializedNotFoundError = SerializedErrorBase & {
   kind: "notFound";
+};
+
+export type SerializedValidationError = SerializedErrorBase & {
+  kind: "validation";
+  fieldErrors?: FieldErrors;
 };
 
 export type SerializedConflictError = SerializedErrorBase & {
@@ -64,6 +73,40 @@ export class ConflictError extends ApplicationError {
 
 export function isConflictError(error: unknown): error is ConflictError {
   return error instanceof ConflictError;
+}
+
+/**
+ * Field-scoped input failure raised by usecases. Serialises identically to
+ * the presentation-layer `InputValidationError` (`kind: "validation"` with
+ * `fieldErrors`) so the UI's `fieldErrorOf` lookup surfaces the message
+ * directly under the offending field.
+ *
+ * Used to convert specific `BusinessRuleError`s that carry a clear field
+ * association (e.g. `username_taken` / `email_taken` at sign-up) into a
+ * field-bound validation error. The translation lives in the usecase so the
+ * presentation layer never needs to know which domain code maps to which
+ * field. See `.issue/201/adr.md` ADR-004.
+ */
+export class ValidationError extends ApplicationError {
+  override readonly name = "ValidationError";
+
+  constructor(public readonly fieldErrors: FieldErrors) {
+    super("INVALID_INPUT", "Invalid input");
+  }
+
+  override toSerialized(): SerializedValidationError {
+    return {
+      kind: "validation",
+      code: this.code,
+      message: this.message,
+      retryable: false,
+      fieldErrors: this.fieldErrors,
+    };
+  }
+}
+
+export function isValidationError(error: unknown): error is ValidationError {
+  return error instanceof ValidationError;
 }
 
 /**

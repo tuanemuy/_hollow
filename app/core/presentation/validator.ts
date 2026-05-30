@@ -1,9 +1,7 @@
 import type { ZodType, z } from "zod";
+import type { SerializedValidationError } from "@/core/application/errors";
 import { CodedError, type FieldErrors } from "@/lib/error";
-import {
-  AppServerError,
-  type SerializedValidationError,
-} from "./errorResponse";
+import { AppServerError } from "./errorResponse";
 
 class InputValidationError extends CodedError {
   override readonly name = "InputValidationError";

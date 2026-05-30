@@ -96,6 +96,44 @@ function renderDirectoryBusinessMessage(code: string): string | null {
   }
 }
 
+// Identity value-object construction failures (`IdentityErrorCode`) that may
+// reach the UI through the auth forms. These are transport-passing business
+// invariants (character set, reserved word, password variety, length) that
+// the value-object factories enforce — Zod intentionally does not duplicate
+// them (see .issue/201/adr.md ADR-003). Mapping them here avoids the generic
+// business fallback so the summary tells the user what to fix. They are not
+// converted into field-bound validation errors (that would split the 2-point
+// validation contract); only `username_taken` / `email_taken` are field-bound,
+// and that conversion happens in the usecase layer, not here.
+// When adding a case, mirror it in `EXPLICIT_IDENTITY_CODES` in
+// `__tests__/errorDisplay.test.ts` so the group (c) fallback test stays accurate.
+function renderIdentityBusinessMessage(code: string): string | null {
+  switch (code) {
+    case "username_invalid":
+      return "ユーザー名は英数字とハイフンのみ使用できます";
+    case "username_too_short":
+      return "ユーザー名が短すぎます";
+    case "username_too_long":
+      return "ユーザー名が長すぎます";
+    case "username_reserved":
+      return "このユーザー名は使用できません";
+    case "email_invalid":
+      return "メールアドレスの形式が正しくありません";
+    case "email_too_long":
+      return "メールアドレスが長すぎます";
+    case "password_too_short":
+      return "パスワードが短すぎます";
+    case "password_too_long":
+      return "パスワードが長すぎます";
+    case "password_insufficient_variety":
+      return "パスワードは英字と数字を組み合わせてください";
+    case "display_name_too_long":
+      return "表示名が長すぎます";
+    default:
+      return null;
+  }
+}
+
 function renderBusinessMessage(code: string | null): string {
   if (code === null) return BUSINESS_FALLBACK_MESSAGE;
   switch (code) {
@@ -106,6 +144,8 @@ function renderBusinessMessage(code: string | null): string {
   if (ingestionMessage !== null) return ingestionMessage;
   const directoryMessage = renderDirectoryBusinessMessage(code);
   if (directoryMessage !== null) return directoryMessage;
+  const identityMessage = renderIdentityBusinessMessage(code);
+  if (identityMessage !== null) return identityMessage;
   return BUSINESS_FALLBACK_MESSAGE;
 }
 
@@ -128,10 +168,12 @@ function formatFieldErrors(
   fieldErrors: Readonly<Record<string, readonly string[]>>,
 ): string | null {
   const parts: string[] = [];
-  for (const [field, messages] of Object.entries(fieldErrors)) {
+  for (const messages of Object.values(fieldErrors)) {
     const first = messages[0];
     if (first === undefined) continue;
-    parts.push(field ? `${field}: ${first}` : first);
+    // フィールドキー（英語）は露出せずメッセージのみを結合する。フィールドと
+    // メッセージの紐付けは各フォームの field 直下表示（fieldErrorOf）が担う。
+    parts.push(first);
   }
   return parts.length > 0 ? parts.join(" / ") : null;
 }

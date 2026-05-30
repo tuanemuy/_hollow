@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
+import { IdentityErrorCode } from "@/core/domain/identity/errorCode";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import {
   displayError,
@@ -217,6 +218,91 @@ describe("renderErrorMessage directory business mapping", () => {
       expect(message).toBe(BUSINESS_FALLBACK_MESSAGE);
       expect(message).not.toContain(code);
     }
+  });
+});
+
+// Identity value-object construction business codes reachable through the
+// auth forms (#201). These MUST map to a dedicated Japanese message rather
+// than the generic business fallback so the summary tells the user what to
+// fix. `username_taken` / `email_taken` are intentionally NOT listed: they
+// are converted to field-bound validation errors in the usecase layer, so
+// they never reach `renderBusinessMessage` as a business kind — they stay in
+// the group (c) fallback set here, which proves they would fall back if they
+// ever did surface as business.
+const EXPLICIT_IDENTITY_CODES = [
+  IdentityErrorCode.InvalidUsername,
+  IdentityErrorCode.UsernameTooShort,
+  IdentityErrorCode.UsernameTooLong,
+  IdentityErrorCode.UsernameReserved,
+  IdentityErrorCode.InvalidEmail,
+  IdentityErrorCode.EmailTooLong,
+  IdentityErrorCode.PasswordTooShort,
+  IdentityErrorCode.PasswordTooLong,
+  IdentityErrorCode.PasswordInsufficientVariety,
+  IdentityErrorCode.DisplayNameTooLong,
+] as const satisfies readonly string[];
+
+describe("renderErrorMessage identity business mapping", () => {
+  it.each(
+    EXPLICIT_IDENTITY_CODES,
+  )("maps identity business code %s to a dedicated message without leaking the code", (code) => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code,
+      message: code,
+    });
+    expect(message).not.toBe(BUSINESS_FALLBACK_MESSAGE);
+    expect(message).not.toBe(code);
+    expect(message).not.toContain(code);
+  });
+
+  // Remaining identity codes (internal invariants, taken codes converted to
+  // validation upstream, token/state codes) fall back to the generic message
+  // so internal spec strings never leak.
+  it("returns the generic fallback for the remaining identity codes (group (c))", () => {
+    const allValues = Object.values(IdentityErrorCode);
+    const explicitSet = new Set<string>(EXPLICIT_IDENTITY_CODES);
+    const fallbackGroup = allValues.filter((v) => !explicitSet.has(v));
+    expect(fallbackGroup.length).toBeGreaterThan(0);
+    for (const code of fallbackGroup) {
+      const message = renderErrorMessage({
+        kind: "business",
+        code,
+        message: code,
+      });
+      expect(message).toBe(BUSINESS_FALLBACK_MESSAGE);
+      expect(message).not.toContain(code);
+    }
+  });
+});
+
+describe("renderErrorMessage validation field-error formatting", () => {
+  it("joins only the messages (never the field keys) with a separator", () => {
+    const message = renderErrorMessage({
+      kind: "validation",
+      code: "INVALID_INPUT",
+      message: "Invalid input",
+      fieldErrors: {
+        username: ["ユーザー名を入力してください。"],
+        email: ["メールアドレスの形式が正しくありません。"],
+      },
+    });
+    expect(message).toBe(
+      "ユーザー名を入力してください。 / メールアドレスの形式が正しくありません。",
+    );
+    // The English field keys must not leak into the summary.
+    expect(message).not.toContain("username");
+    expect(message).not.toContain("email");
+  });
+
+  it("falls back to the error message when fieldErrors is empty", () => {
+    const message = renderErrorMessage({
+      kind: "validation",
+      code: "INVALID_INPUT",
+      message: "Invalid input",
+      fieldErrors: {},
+    });
+    expect(message).toBe("Invalid input");
   });
 });
 

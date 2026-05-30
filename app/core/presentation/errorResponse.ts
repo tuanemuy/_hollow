@@ -4,24 +4,17 @@ import type {
   SerializedNotFoundError,
   SerializedSystemError,
   SerializedUnauthorizedError,
+  SerializedValidationError,
 } from "@/core/application/errors";
 import type { SerializedBusinessError } from "@/core/domain/error";
-import {
-  type FieldErrors,
-  isSerializableError,
-  type SerializedErrorBase,
-} from "@/lib/error";
+import { isSerializableError, type SerializedErrorBase } from "@/lib/error";
 
+export type { SerializedValidationError } from "@/core/application/errors";
 export type {
   FieldErrors,
   SerializableError,
   SerializedErrorBase,
 } from "@/lib/error";
-
-export type SerializedValidationError = SerializedErrorBase & {
-  kind: "validation";
-  fieldErrors?: FieldErrors;
-};
 
 export type SerializedUnknownError = SerializedErrorBase & {
   kind: "unknown";

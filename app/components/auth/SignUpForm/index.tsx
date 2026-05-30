@@ -33,9 +33,22 @@ import {
 } from "../styles";
 import { signUpFn } from "./action";
 
-type FormState = { error: SerializedError | null; success: boolean };
+type FormState = {
+  error: SerializedError | null;
+  success: boolean;
+  values: {
+    username: string;
+    email: string;
+    displayName: string;
+    acceptTerms: boolean;
+  };
+};
 
-const initialState: FormState = { error: null, success: false };
+const initialState: FormState = {
+  error: null,
+  success: false,
+  values: { username: "", email: "", displayName: "", acceptTerms: false },
+};
 
 function fieldErrorOf(
   error: SerializedError | null,
@@ -55,27 +68,37 @@ export function SignUpForm() {
   const displayNameId = useId();
   const acceptTermsId = useId();
   const summaryId = useId();
+  const usernameHintId = useId();
+  const emailHintId = useId();
+  const passwordHintId = useId();
+  const displayNameHintId = useId();
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
+      const username = String(formData.get("username") ?? "");
+      const email = String(formData.get("email") ?? "");
+      const displayName = String(formData.get("displayName") ?? "");
       const acceptTerms = formData.get("acceptTerms") === "on";
+      // password は機微フィールドのため復元しない（ADR-001）。
+      const values = { username, email, displayName, acceptTerms };
       try {
         await signUp({
           data: {
-            username: String(formData.get("username") ?? ""),
-            email: String(formData.get("email") ?? ""),
+            username,
+            email,
             password: String(formData.get("password") ?? ""),
-            displayName: String(formData.get("displayName") ?? ""),
+            displayName,
             acceptTerms: acceptTerms as true,
           },
         });
         // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
         await router.invalidate();
-        return { error: null, success: true };
+        return { error: null, success: true, values };
       } catch (error) {
         return {
           error: extractSerializedError(error),
           success: false,
+          values,
         };
       }
     },
@@ -130,10 +153,15 @@ export function SignUpForm() {
             maxLength={USERNAME_MAX_LENGTH}
             required
             disabled={isPending}
+            defaultValue={state.values.username}
             aria-invalid={usernameError !== undefined}
+            aria-describedby={usernameHintId}
             data-error={usernameError ? "" : undefined}
           />
-          <span className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}>
+          <span
+            id={usernameHintId}
+            className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {usernameError ?? "英数字とハイフン。後から変更できません。"}
           </span>
         </div>
@@ -151,11 +179,15 @@ export function SignUpForm() {
             autoComplete="email"
             required
             disabled={isPending}
+            defaultValue={state.values.email}
             aria-invalid={emailError !== undefined}
+            aria-describedby={emailError ? emailHintId : undefined}
             data-error={emailError ? "" : undefined}
           />
           {emailError ? (
-            <span className={FIELD_HINT_ERROR}>{emailError}</span>
+            <span id={emailHintId} className={FIELD_HINT_ERROR}>
+              {emailError}
+            </span>
           ) : null}
         </div>
 
@@ -175,9 +207,13 @@ export function SignUpForm() {
             required
             disabled={isPending}
             aria-invalid={passwordError !== undefined}
+            aria-describedby={passwordHintId}
             data-error={passwordError ? "" : undefined}
           />
-          <span className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}>
+          <span
+            id={passwordHintId}
+            className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {passwordError ??
               `${PASSWORD_MIN_LENGTH}文字以上。英数字と記号を組み合わせると安全です。`}
           </span>
@@ -196,11 +232,15 @@ export function SignUpForm() {
             autoComplete="nickname"
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             disabled={isPending}
+            defaultValue={state.values.displayName}
             aria-invalid={displayNameError !== undefined}
+            aria-describedby={displayNameError ? displayNameHintId : undefined}
             data-error={displayNameError ? "" : undefined}
           />
           {displayNameError ? (
-            <span className={FIELD_HINT_ERROR}>{displayNameError}</span>
+            <span id={displayNameHintId} className={FIELD_HINT_ERROR}>
+              {displayNameError}
+            </span>
           ) : null}
         </div>
 
@@ -211,6 +251,7 @@ export function SignUpForm() {
             name="acceptTerms"
             required
             disabled={isPending}
+            defaultChecked={state.values.acceptTerms}
             aria-invalid={acceptTermsError !== undefined}
             className={CHECKBOX_INPUT}
           />

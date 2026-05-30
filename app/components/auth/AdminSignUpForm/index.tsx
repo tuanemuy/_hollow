@@ -41,9 +41,22 @@ import {
 } from "../styles";
 import { adminSignUpFn } from "./action";
 
-type FormState = { error: SerializedError | null; success: boolean };
+type FormState = {
+  error: SerializedError | null;
+  success: boolean;
+  values: {
+    username: string;
+    email: string;
+    displayName: string;
+    acceptTerms: boolean;
+  };
+};
 
-const initialState: FormState = { error: null, success: false };
+const initialState: FormState = {
+  error: null,
+  success: false,
+  values: { username: "", email: "", displayName: "", acceptTerms: false },
+};
 
 function fieldErrorOf(
   error: SerializedError | null,
@@ -63,30 +76,41 @@ export function AdminSignUpForm() {
   const displayNameId = useId();
   const setupTokenId = useId();
   const acceptTermsId = useId();
+  const usernameHintId = useId();
+  const emailHintId = useId();
+  const passwordHintId = useId();
+  const displayNameHintId = useId();
+  const setupTokenHintId = useId();
 
   const [showToken, setShowToken] = useState(false);
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
+      const username = String(formData.get("username") ?? "");
+      const email = String(formData.get("email") ?? "");
+      const displayName = String(formData.get("displayName") ?? "");
       const acceptTerms = formData.get("acceptTerms") === "on";
+      // password / setupToken は機微フィールドのため復元しない（ADR-001）。
+      const values = { username, email, displayName, acceptTerms };
       try {
         await adminSignUp({
           data: {
-            username: String(formData.get("username") ?? ""),
-            email: String(formData.get("email") ?? ""),
+            username,
+            email,
             password: String(formData.get("password") ?? ""),
-            displayName: String(formData.get("displayName") ?? ""),
+            displayName,
             setupToken: String(formData.get("setupToken") ?? ""),
             acceptTerms: acceptTerms as true,
           },
         });
         // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
         await router.invalidate();
-        return { error: null, success: true };
+        return { error: null, success: true, values };
       } catch (error) {
         return {
           error: extractSerializedError(error),
           success: false,
+          values,
         };
       }
     },
@@ -170,10 +194,15 @@ export function AdminSignUpForm() {
             maxLength={USERNAME_MAX_LENGTH}
             required
             disabled={isPending}
+            defaultValue={state.values.username}
             aria-invalid={usernameError !== undefined}
+            aria-describedby={usernameHintId}
             data-error={usernameError ? "" : undefined}
           />
-          <span className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}>
+          <span
+            id={usernameHintId}
+            className={usernameError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {usernameError ?? "英数字とハイフン。後から変更できません。"}
           </span>
         </div>
@@ -191,10 +220,15 @@ export function AdminSignUpForm() {
             autoComplete="email"
             required
             disabled={isPending}
+            defaultValue={state.values.email}
             aria-invalid={emailError !== undefined}
+            aria-describedby={emailHintId}
             data-error={emailError ? "" : undefined}
           />
-          <span className={emailError ? FIELD_HINT_ERROR : FIELD_HINT}>
+          <span
+            id={emailHintId}
+            className={emailError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {emailError ??
               "確認メールを送信します。受信できるアドレスを指定してください。"}
           </span>
@@ -216,9 +250,13 @@ export function AdminSignUpForm() {
             required
             disabled={isPending}
             aria-invalid={passwordError !== undefined}
+            aria-describedby={passwordHintId}
             data-error={passwordError ? "" : undefined}
           />
-          <span className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}>
+          <span
+            id={passwordHintId}
+            className={passwordError ? FIELD_HINT_ERROR : FIELD_HINT}
+          >
             {passwordError ?? "英数字と記号を組み合わせてください。"}
           </span>
         </div>
@@ -236,11 +274,15 @@ export function AdminSignUpForm() {
             autoComplete="nickname"
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             disabled={isPending}
+            defaultValue={state.values.displayName}
             aria-invalid={displayNameError !== undefined}
+            aria-describedby={displayNameError ? displayNameHintId : undefined}
             data-error={displayNameError ? "" : undefined}
           />
           {displayNameError ? (
-            <span className={FIELD_HINT_ERROR}>{displayNameError}</span>
+            <span id={displayNameHintId} className={FIELD_HINT_ERROR}>
+              {displayNameError}
+            </span>
           ) : null}
         </div>
 
@@ -263,6 +305,7 @@ export function AdminSignUpForm() {
               aria-invalid={
                 isSetupTokenError || setupTokenValidationError !== undefined
               }
+              aria-describedby={setupTokenHintId}
               data-error={
                 isSetupTokenError || setupTokenValidationError ? "" : undefined
               }
@@ -278,6 +321,7 @@ export function AdminSignUpForm() {
             </button>
           </div>
           <span
+            id={setupTokenHintId}
             className={
               setupTokenValidationError ? FIELD_HINT_ERROR : FIELD_HINT
             }
@@ -322,6 +366,7 @@ export function AdminSignUpForm() {
             name="acceptTerms"
             required
             disabled={isPending}
+            defaultChecked={state.values.acceptTerms}
             className={CHECKBOX_INPUT}
           />
           <span>
