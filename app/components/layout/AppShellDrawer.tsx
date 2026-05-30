@@ -176,6 +176,7 @@ export function AppShellDrawer({ header, sidebar, children }: Props) {
           className={APP_SIDEBAR}
           data-open={open || undefined}
           aria-label="サイドバー"
+          tabIndex={-1}
           {...(isMobile ? { role: "dialog", "aria-modal": open } : {})}
           {...(inert ? { inert: true } : {})}
         >
