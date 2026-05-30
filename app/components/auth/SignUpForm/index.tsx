@@ -72,6 +72,7 @@ export function SignUpForm() {
   const emailHintId = useId();
   const passwordHintId = useId();
   const displayNameHintId = useId();
+  const acceptTermsHintId = useId();
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -253,6 +254,7 @@ export function SignUpForm() {
             disabled={isPending}
             defaultChecked={state.values.acceptTerms}
             aria-invalid={acceptTermsError !== undefined}
+            aria-describedby={acceptTermsError ? acceptTermsHintId : undefined}
             className={CHECKBOX_INPUT}
           />
           <span>
@@ -273,7 +275,9 @@ export function SignUpForm() {
           </span>
         </label>
         {acceptTermsError ? (
-          <span className={FIELD_HINT_ERROR}>{acceptTermsError}</span>
+          <span id={acceptTermsHintId} className={FIELD_HINT_ERROR}>
+            {acceptTermsError}
+          </span>
         ) : null}
 
         {summary !== null ? (

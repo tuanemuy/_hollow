@@ -81,6 +81,7 @@ export function AdminSignUpForm() {
   const passwordHintId = useId();
   const displayNameHintId = useId();
   const setupTokenHintId = useId();
+  const acceptTermsHintId = useId();
 
   const [showToken, setShowToken] = useState(false);
 
@@ -122,6 +123,7 @@ export function AdminSignUpForm() {
   const passwordError = fieldErrorOf(state.error, "password");
   const displayNameError = fieldErrorOf(state.error, "displayName");
   const setupTokenValidationError = fieldErrorOf(state.error, "setupToken");
+  const acceptTermsError = fieldErrorOf(state.error, "acceptTerms");
 
   const isSetupTokenError =
     state.error?.kind === "unauthorized" &&
@@ -367,6 +369,8 @@ export function AdminSignUpForm() {
             required
             disabled={isPending}
             defaultChecked={state.values.acceptTerms}
+            aria-invalid={acceptTermsError !== undefined}
+            aria-describedby={acceptTermsError ? acceptTermsHintId : undefined}
             className={CHECKBOX_INPUT}
           />
           <span>
@@ -386,6 +390,11 @@ export function AdminSignUpForm() {
             に同意します
           </span>
         </label>
+        {acceptTermsError ? (
+          <span id={acceptTermsHintId} className={FIELD_HINT_ERROR}>
+            {acceptTermsError}
+          </span>
+        ) : null}
 
         <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
           {isPending ? "送信中..." : "管理者アカウントを作成"}
