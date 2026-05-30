@@ -58,7 +58,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - 責務: 参照カウントの整合維持と孤児サーチ、配信アクセス制御
 - メソッド:
   - `reconcileRefs(noteBeforeIds: MediaAssetId[], noteAfterIds: MediaAssetId[], now: Instant, repo: MediaAssetRepository): Promise<void>` — 差分計算して inc/dec
-  - `listOrphanCandidates(now: Instant, ageSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>`
+  - `listPurgeCandidates(now: Instant, ageSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — orphan に加え、前回 purge が中断した `deleting` 行も返す（再試行対象）
   - `purge(asset: MediaAsset, storage: ObjectStorage, repo: MediaAssetRepository): Promise<void>` — R2 削除 + DB 物理削除
   - `assertViewableBy(args: { asset: MediaAsset; viewerOwnerId: UserId | null; relatedNoteVisibility: Visibility | null }): void` — `viewerOwnerId === asset.ownerId` なら常に可。`viewerOwnerId === null` のとき、`relatedNoteVisibility === 'public'` または limited リンク経由（呼び出し側で別途トークン検証済み）でなければ `BusinessRuleError('media_not_viewable')`
 
@@ -68,7 +68,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - `findById(id: MediaAssetId): Promise<MediaAsset | null>`
 - `findByIds(ids: MediaAssetId[]): Promise<MediaAsset[]>`
 - `findByOwner(ownerId: UserId, opts: ListOpts): Promise<MediaAsset[]>`
-- `findOrphansOlderThan(before: Instant, limit: number): Promise<MediaAsset[]>`
+- `findPurgeableOlderThan(before: Instant, limit: number): Promise<MediaAsset[]>` — `status IN ('orphan','deleting') AND updatedAt < before`
 - `save(asset: MediaAsset): Promise<void>`
 - `delete(id: MediaAssetId): Promise<void>`
 

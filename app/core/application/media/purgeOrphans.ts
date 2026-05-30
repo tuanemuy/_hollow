@@ -23,12 +23,14 @@ const DEFAULT_ORPHAN_AGE_SEC = 24 * 60 * 60; // 24h
 const DEFAULT_BATCH_SIZE = 100;
 
 /**
- * Cron-driven sweep: find orphaned media whose grace window has lapsed,
- * transition them to `deleting`, and finalise purge (R2 delete + DB
+ * Cron-driven sweep: find purge candidates whose grace window has lapsed
+ * — fresh `orphan` rows plus `deleting` rows whose earlier purge stalled
+ * — transition orphans to `deleting`, and finalise purge (R2 delete + DB
  * delete). Per-asset failures are isolated so one bad row does not stop
- * the rest of the batch — each is logged and counted; the next cron
- * tick will retry whatever did not succeed (orphans stay orphans until
- * deleted).
+ * the rest of the batch — each is logged and counted. A failed 2nd UoW
+ * leaves the row in `deleting`; because `markDeleting` re-stamps
+ * `updatedAt`, that row drops out of the candidate window and is retried
+ * on a later sweep once the grace period lapses again (no attempt cap).
  */
 export async function purgeOrphans(
   container: RequestContainer,
@@ -41,7 +43,7 @@ export async function purgeOrphans(
 
   const candidates = await container.unitOfWorkProvider.run(
     async ({ mediaAssetRepository }) =>
-      MediaService.listOrphanCandidates(
+      MediaService.listPurgeCandidates(
         now,
         ageSec,
         mediaAssetRepository,
@@ -53,16 +55,25 @@ export async function purgeOrphans(
   let failed = 0;
 
   for (const candidate of candidates) {
-    if (!MediaAsset.isOrphan(candidate)) continue;
+    if (!MediaAsset.isOrphan(candidate) && !MediaAsset.isDeleting(candidate)) {
+      continue;
+    }
     try {
       const deleting = await container.unitOfWorkProvider.run(
         async ({ mediaAssetRepository, collectEvents }) => {
           const fresh = await mediaAssetRepository.findById(candidate.id);
-          if (fresh === null || !MediaAsset.isOrphan(fresh)) return null;
-          const { entity, eventDrafts } = MediaAsset.markDeleting(fresh, now);
-          await mediaAssetRepository.save(entity);
-          collectEvents(eventDrafts);
-          return entity;
+          if (fresh === null) return null;
+          if (MediaAsset.isOrphan(fresh)) {
+            const { entity, eventDrafts } = MediaAsset.markDeleting(fresh, now);
+            await mediaAssetRepository.save(entity);
+            collectEvents(eventDrafts);
+            return entity;
+          }
+          // Resume a purge interrupted by an earlier R2 failure: the row is
+          // already `deleting`, so re-run only the storage + DB delete —
+          // no re-mark, no duplicate `media.deleting` event.
+          if (MediaAsset.isDeleting(fresh)) return fresh;
+          return null;
         },
       );
       if (deleting === null) continue;

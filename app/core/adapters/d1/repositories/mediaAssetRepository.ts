@@ -125,18 +125,18 @@ export class D1MediaAssetRepository implements MediaAssetRepository {
     });
   }
 
-  findOrphansOlderThan(
+  findPurgeableOlderThan(
     before: Date,
     limit: number,
   ): Promise<readonly MediaAsset[]> {
-    return mapDbError("Failed to find orphan media assets", async () => {
+    return mapDbError("Failed to find purgeable media assets", async () => {
       const cutoff = before.toISOString();
       const rows = await this.db
         .select()
         .from(mediaAssets)
         .where(
           and(
-            eq(mediaAssets.status, "orphan"),
+            inArray(mediaAssets.status, ["orphan", "deleting"]),
             lt(mediaAssets.updatedAt, cutoff),
           ),
         )

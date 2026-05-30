@@ -56,14 +56,15 @@ class InMemoryRepo implements MediaAssetRepository {
     return Array.from(this.store.values()).filter((a) => a.ownerId === ownerId);
   }
 
-  async findOrphansOlderThan(
+  async findPurgeableOlderThan(
     before: Date,
     limit: number,
   ): Promise<readonly MediaAsset[]> {
     return Array.from(this.store.values())
       .filter(
         (a) =>
-          a.status === "orphan" && a.updatedAt.getTime() < before.getTime(),
+          (a.status === "orphan" || a.status === "deleting") &&
+          a.updatedAt.getTime() < before.getTime(),
       )
       .slice(0, limit);
   }
@@ -224,7 +225,7 @@ describe("MediaService.reconcileRefs", () => {
   });
 });
 
-describe("MediaService.listOrphanCandidates", () => {
+describe("MediaService.listPurgeCandidates", () => {
   it("returns orphans whose updatedAt is strictly older than now - ageSec", async () => {
     const repo = new InMemoryRepo();
     const pending = seedPending(repo, 1);
@@ -233,20 +234,32 @@ describe("MediaService.listOrphanCandidates", () => {
 
     // ageSec = 1s → cutoff = now - 1s. updatedAt = 1_000ms = 1s.
     // Strict `<` so updatedAt == cutoff is excluded.
-    const tooYoung = await MediaService.listOrphanCandidates(
-      at(2_000),
-      1,
-      repo,
-    );
+    const tooYoung = await MediaService.listPurgeCandidates(at(2_000), 1, repo);
     expect(tooYoung).toHaveLength(0);
 
-    const oldEnough = await MediaService.listOrphanCandidates(
+    const oldEnough = await MediaService.listPurgeCandidates(
       at(3_000),
       1,
       repo,
     );
     expect(oldEnough).toHaveLength(1);
     expect(oldEnough[0]?.id).toBe(orphan.id);
+  });
+
+  it("also returns `deleting` rows whose earlier purge stalled (retry candidates)", async () => {
+    const repo = new InMemoryRepo();
+    const pending = seedPending(repo, 1);
+    const { entity: orphan } = MediaAsset.decrementRef(pending, at(1_000));
+    const { entity: deleting } = MediaAsset.markDeleting(
+      orphan as OrphanMedia,
+      at(1_000),
+    );
+    repo.put(deleting);
+
+    const result = await MediaService.listPurgeCandidates(at(3_000), 1, repo);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe(deleting.id);
+    expect(result[0]?.status).toBe("deleting");
   });
 
   it("respects the limit", async () => {
@@ -256,7 +269,7 @@ describe("MediaService.listOrphanCandidates", () => {
       const { entity } = MediaAsset.decrementRef(pending, at(0));
       repo.put(entity);
     }
-    const result = await MediaService.listOrphanCandidates(
+    const result = await MediaService.listPurgeCandidates(
       at(10_000),
       1,
       repo,
