@@ -13,6 +13,7 @@ import {
   IngestionStatus,
   MimeType,
   OriginalFileName,
+  PromptOverride,
   RegenerationCount,
   SourceFileKind,
   TempStorageKey,
@@ -333,6 +334,48 @@ describe("IngestionLimits", () => {
     });
     expect(IngestionLimits.maxBytesFor(limits, "image")).toBe(4096);
     expect(IngestionLimits.maxBytesFor(limits, "html")).toBe(1024);
+  });
+});
+
+describe("PromptOverride", () => {
+  it("trims and brands a non-empty body", () => {
+    const ov = PromptOverride.create("  structure please  ");
+    expect(ov as unknown as string).toBe("structure please");
+  });
+
+  it("rejects empty / whitespace-only input with InvalidPromptOverride", () => {
+    expectBR(
+      () => PromptOverride.create(""),
+      IngestionErrorCode.InvalidPromptOverride,
+    );
+    expectBR(
+      () => PromptOverride.create("   "),
+      IngestionErrorCode.InvalidPromptOverride,
+    );
+  });
+
+  it("accepts a body at exactly the 16 KiB byte cap", () => {
+    const body = "a".repeat(PromptOverride.maxBytes);
+    expect((PromptOverride.create(body) as unknown as string).length).toBe(
+      PromptOverride.maxBytes,
+    );
+  });
+
+  it("rejects a body exceeding the 16 KiB byte cap", () => {
+    expectBR(
+      () => PromptOverride.create("a".repeat(PromptOverride.maxBytes + 1)),
+      IngestionErrorCode.InvalidPromptOverride,
+    );
+  });
+
+  it("measures bytes (not chars) so multi-byte input hits the cap sooner", () => {
+    // Each "あ" is 3 UTF-8 bytes; just over the cap by byte count while
+    // well under it by character count.
+    const charCount = Math.floor(PromptOverride.maxBytes / 3) + 1;
+    expectBR(
+      () => PromptOverride.create("あ".repeat(charCount)),
+      IngestionErrorCode.InvalidPromptOverride,
+    );
   });
 });
 

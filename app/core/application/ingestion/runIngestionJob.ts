@@ -31,6 +31,7 @@ import {
 import {
   type IngestionJobId as IngestionJobIdBrand,
   IngestionPreview,
+  type PromptOverride,
   type SourceFileKind,
 } from "@/core/domain/ingestion/valueObject";
 import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
@@ -113,6 +114,7 @@ export async function runIngestionJob({
       sanitizer: container.htmlSanitizer,
       markdown: container.markdownConverter,
       promptResolver: container.promptResolver,
+      promptOverride: promoted.promptOverride,
       mimeType: promoted.mimeType,
       originalFileName: promoted.originalFileName,
     });
@@ -170,6 +172,10 @@ type PipelineDeps = Readonly<{
   sanitizer: HtmlSanitizer;
   markdown: { toHtml(markdown: string): Promise<string> };
   promptResolver: PromptResolver;
+  promptOverride: Readonly<{
+    structure: PromptOverride | null;
+    metadata: PromptOverride | null;
+  }>;
   mimeType: string;
   originalFileName: string;
 }>;
@@ -177,10 +183,16 @@ type PipelineDeps = Readonly<{
 async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
   const { kind } = deps;
   const text = await extractText(deps);
-  const structurePrompt = await deps.promptResolver.resolveFor(
-    deps.ownerId,
-    "structure" satisfies IngestionPromptPurpose,
-  );
+  // Prefer the per-upload override; only hit the resolver when none was
+  // supplied for this purpose (#228). `structurePrompt` is consumed only
+  // by the LLM-structuring branch below.
+  const structurePrompt =
+    deps.promptOverride.structure !== null
+      ? (deps.promptOverride.structure as string)
+      : await deps.promptResolver.resolveFor(
+          deps.ownerId,
+          "structure" satisfies IngestionPromptPurpose,
+        );
   let html: string;
   let titleSuggestion: string;
   let directorySuggestion: string | null;
@@ -217,10 +229,13 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
     directorySuggestion = structured.directorySuggestion;
   }
 
-  const metadataPrompt = await deps.promptResolver.resolveFor(
-    deps.ownerId,
-    "metadata" satisfies IngestionPromptPurpose,
-  );
+  const metadataPrompt =
+    deps.promptOverride.metadata !== null
+      ? (deps.promptOverride.metadata as string)
+      : await deps.promptResolver.resolveFor(
+          deps.ownerId,
+          "metadata" satisfies IngestionPromptPurpose,
+        );
   const metadata = await deps.llm.suggestMetadata({
     html,
     prompt: metadataPrompt,

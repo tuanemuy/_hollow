@@ -11,6 +11,7 @@ import {
   IngestionStatus,
   MimeType,
   OriginalFileName,
+  PromptOverride,
   RegenerationCount,
   SourceFileKind,
   TempStorageKey,
@@ -27,6 +28,13 @@ type IngestionJobBase = Readonly<{
   byteSize: number;
   kind: SourceFileKind;
   tempStorageKey: TempStorageKey | null;
+  // Per-upload prompt overrides, fixed at `create` time and preserved
+  // across every transition (provenance — see #228 ADR-002). `null`
+  // means "fall back to the resolver" for that purpose.
+  promptOverride: Readonly<{
+    structure: PromptOverride | null;
+    metadata: PromptOverride | null;
+  }>;
   regenerationCount: RegenerationCount;
   version: Version;
   createdAt: Date;
@@ -107,6 +115,12 @@ type CreateInput = Readonly<{
   byteSize: number;
   kind: SourceFileKind;
   tempStorageKey: string | null;
+  // Optional per-upload prompt overrides. Empty / whitespace-only /
+  // undefined entries normalise to `null` (resolver fallback).
+  promptOverride?: {
+    structure?: string | null;
+    metadata?: string | null;
+  };
 }>;
 
 // Loose-typed: persistence rows are untrusted and re-validated below.
@@ -119,6 +133,8 @@ type ReconstructInput = Readonly<{
   kind: string;
   status: string;
   tempStorageKey: string | null;
+  structurePromptOverride: string | null;
+  metadataPromptOverride: string | null;
   preview: IngestionPreview | null;
   errorCode: string | null;
   errorReason: string | null;
@@ -128,6 +144,18 @@ type ReconstructInput = Readonly<{
   createdAt: Date;
   updatedAt: Date;
 }>;
+
+// Normalises a raw override entry: empty / whitespace-only / null /
+// undefined → `null`; otherwise constructs the `PromptOverride` VO
+// (which trims and enforces the byte cap).
+function toPromptOverride(
+  raw: string | null | undefined,
+): PromptOverride | null {
+  if (raw === null || raw === undefined || raw.trim().length === 0) {
+    return null;
+  }
+  return PromptOverride.create(raw);
+}
 
 function startProcessing(
   job: PendingIngestionJob,
@@ -309,6 +337,8 @@ function buildBase(
     | "byteSize"
     | "kind"
     | "tempStorageKey"
+    | "structurePromptOverride"
+    | "metadataPromptOverride"
     | "regenerationCount"
     | "version"
     | "createdAt"
@@ -329,6 +359,10 @@ function buildBase(
       input.tempStorageKey === null
         ? null
         : TempStorageKey.create(input.tempStorageKey),
+    promptOverride: {
+      structure: toPromptOverride(input.structurePromptOverride),
+      metadata: toPromptOverride(input.metadataPromptOverride),
+    },
     regenerationCount: RegenerationCount.create(input.regenerationCount),
     version: Version.create(input.version),
     createdAt: input.createdAt,
@@ -476,6 +510,10 @@ export const IngestionJob = {
         params.tempStorageKey === null
           ? null
           : TempStorageKey.create(params.tempStorageKey),
+      promptOverride: {
+        structure: toPromptOverride(params.promptOverride?.structure),
+        metadata: toPromptOverride(params.promptOverride?.metadata),
+      },
       preview: null,
       errorCode: null,
       errorReason: null,

@@ -5,7 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { dialogTitle, pillBtn } from "@/components/common/styles";
+import {
+  dialogTitle,
+  field,
+  fieldControl,
+  fieldLabel,
+  pillBtn,
+} from "@/components/common/styles";
 import {
   displayError,
   displayJobErrorCode,
@@ -154,6 +160,12 @@ export function UploadDialog({ open, onClose }: Props) {
   const [tree, setTree] = useState<readonly FlatDirectory[]>([]);
   const [isTreeLoading, setIsTreeLoading] = useState(false);
 
+  // Per-upload custom prompts entered in the `select` view's "advanced
+  // options" accordion. Applied to every file of the current submission
+  // (single or batch) and reset when the dialog re-opens. See #228.
+  const [structurePrompt, setStructurePrompt] = useState("");
+  const [metadataPrompt, setMetadataPrompt] = useState("");
+
   const inputId = useId();
   const titleId = useId();
 
@@ -184,6 +196,8 @@ export function UploadDialog({ open, onClose }: Props) {
       setView({ kind: "select" });
       setError(null);
       setIsDragOver(false);
+      setStructurePrompt("");
+      setMetadataPrompt("");
       if (fileInputRef.current !== null) fileInputRef.current.value = "";
     }
     return () => {
@@ -321,6 +335,20 @@ export function UploadDialog({ open, onClose }: Props) {
       }
       if (list.length === 0) return;
 
+      // Snapshot the override inputs at submit time so the same prompt
+      // applies to every file of this submission. Non-empty (trimmed)
+      // values only — blanks fall back to the resolver server-side.
+      const trimmedStructure = structurePrompt.trim();
+      const trimmedMetadata = metadataPrompt.trim();
+      const appendOverride = (formData: FormData) => {
+        if (trimmedStructure.length > 0) {
+          formData.append("structurePrompt", trimmedStructure);
+        }
+        if (trimmedMetadata.length > 0) {
+          formData.append("metadataPrompt", trimmedMetadata);
+        }
+      };
+
       if (list.length === 1) {
         const file = list[0];
         if (file === undefined) return;
@@ -329,6 +357,7 @@ export function UploadDialog({ open, onClose }: Props) {
           try {
             const formData = new FormData();
             formData.append("file", file);
+            appendOverride(formData);
             const { jobId } = await upload({ data: formData });
             if (cancelledRef.current) return;
             transientFailuresRef.current = 0;
@@ -356,6 +385,7 @@ export function UploadDialog({ open, onClose }: Props) {
           try {
             const formData = new FormData();
             formData.append("file", f);
+            appendOverride(formData);
             await upload({ data: formData });
             if (cancelledRef.current) return;
             succeeded += 1;
@@ -374,7 +404,7 @@ export function UploadDialog({ open, onClose }: Props) {
         });
       })();
     },
-    [upload, router],
+    [upload, router, structurePrompt, metadataPrompt],
   );
 
   const onCommitted = useCallback(
@@ -442,6 +472,10 @@ export function UploadDialog({ open, onClose }: Props) {
           onDragLeave={() => setIsDragOver(false)}
           onFiles={submitFiles}
           error={error}
+          structurePrompt={structurePrompt}
+          metadataPrompt={metadataPrompt}
+          onStructurePromptChange={setStructurePrompt}
+          onMetadataPromptChange={setMetadataPrompt}
         />
       ) : null}
 
@@ -496,6 +530,10 @@ function SelectView({
   onDragLeave,
   onFiles,
   error,
+  structurePrompt,
+  metadataPrompt,
+  onStructurePromptChange,
+  onMetadataPromptChange,
 }: Readonly<{
   inputId: string;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -504,7 +542,13 @@ function SelectView({
   onDragLeave: () => void;
   onFiles: (files: FileList | null) => void;
   error: SerializedError | null;
+  structurePrompt: string;
+  metadataPrompt: string;
+  onStructurePromptChange: (value: string) => void;
+  onMetadataPromptChange: (value: string) => void;
 }>) {
+  const structureId = useId();
+  const metadataId = useId();
   return (
     <>
       <p className="text-sm text-ink-secondary mb-4">
@@ -539,6 +583,40 @@ function SelectView({
           onChange={(e) => onFiles(e.target.files)}
         />
       </label>
+      <details className="mt-4 rounded-md border border-hairline bg-surface-elevated">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm text-ink-secondary list-none [&::-webkit-details-marker]:hidden">
+          詳細オプション（カスタムプロンプト）
+        </summary>
+        <div className="px-4 pb-4">
+          <p className="text-xs text-ink-tertiary mb-3">
+            このアップロードだけに適用するプロンプトを指定できます。空欄の場合は通常の設定が使われます。
+          </p>
+          <div className={field}>
+            <label htmlFor={structureId} className={fieldLabel}>
+              構造化プロンプト
+            </label>
+            <textarea
+              id={structureId}
+              className={`${fieldControl} min-h-[96px] resize-y`}
+              maxLength={16 * 1024}
+              value={structurePrompt}
+              onChange={(e) => onStructurePromptChange(e.target.value)}
+            />
+          </div>
+          <div className={field}>
+            <label htmlFor={metadataId} className={fieldLabel}>
+              メタデータ抽出プロンプト
+            </label>
+            <textarea
+              id={metadataId}
+              className={`${fieldControl} min-h-[96px] resize-y`}
+              maxLength={16 * 1024}
+              value={metadataPrompt}
+              onChange={(e) => onMetadataPromptChange(e.target.value)}
+            />
+          </div>
+        </div>
+      </details>
       {error !== null ? (
         <p className={FORM_ERROR} role="alert">
           {displayError(error)}

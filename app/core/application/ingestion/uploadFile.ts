@@ -14,6 +14,12 @@ export type UploadFileInput = Readonly<{
   mimeType: string;
   byteSize: number;
   bodyStream: ReadableStream<Uint8Array>;
+  // Optional per-upload prompt overrides. Empty / whitespace-only
+  // entries are normalised to "no override" by `IngestionJob.create`.
+  promptOverride?: {
+    structure?: string;
+    metadata?: string;
+  };
 }>;
 
 export type UploadFileOutput = Readonly<{
@@ -88,6 +94,9 @@ export async function uploadFile({
           byteSize: input.byteSize,
           kind,
           tempStorageKey,
+          ...(input.promptOverride === undefined
+            ? {}
+            : { promptOverride: input.promptOverride }),
         },
         now,
       );
