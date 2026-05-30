@@ -199,11 +199,10 @@ describe("purgeOrphans (integration)", () => {
     expect(rows[0]?.id).toBe(orphanId as unknown as string);
     // The first UoW transitions `orphan → deleting` and commits before
     // the failing `storage.delete`, so within this sweep the row remains
-    // in `deleting`. Unlike before #162, the next sweep WILL retry it
-    // (see the retry test below) because the candidate query now matches
-    // `status IN ('orphan','deleting')`. `markDeleting` re-stamped
-    // `updatedAt = SWEEP_TIME`, so the retry only fires once the grace
-    // window lapses again.
+    // in `deleting`. A later sweep retries it (see the retry test below):
+    // the candidate query matches `status IN ('orphan','deleting')`, and
+    // `markDeleting` re-stamped `updatedAt = SWEEP_TIME`, so the retry
+    // only fires once the grace window lapses again.
     expect(rows[0]?.status).toBe("deleting");
   });
 
