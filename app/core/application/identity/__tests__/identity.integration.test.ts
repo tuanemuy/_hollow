@@ -116,6 +116,37 @@ async function readVerificationToken(
   return decoded.token;
 }
 
+// Builds a legacy `pbkdf2-sha256-v1$...` encoded hash so tests can seed
+// an account written before the scrypt migration. Generation and verify
+// share `legacyVerifyPbkdf2Hash`'s wire format (Issue #206).
+async function makeLegacyPbkdf2Hash(
+  raw: string,
+  iterations: number,
+): Promise<string> {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(raw),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"],
+  );
+  const derived = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    key,
+    256,
+  );
+  const toB64 = (bytes: Uint8Array): string => {
+    let s = "";
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i] ?? 0);
+    return btoa(s);
+  };
+  return `pbkdf2-sha256-v1$${iterations}$${toB64(salt)}$${toB64(
+    new Uint8Array(derived),
+  )}`;
+}
+
 describe("SignUp", () => {
   const getContainer = setupTestContainer();
   beforeEach(async () => {
@@ -677,35 +708,6 @@ describe("LogIn / LogOut", () => {
   // adapter rewrites the row to scrypt in the same UoW. Subsequent
   // logins must continue to succeed against the upgraded hash.
   describe("lazy upgrade from legacy PBKDF2 to scrypt", () => {
-    async function makeLegacyPbkdf2Hash(
-      raw: string,
-      iterations: number,
-    ): Promise<string> {
-      const salt = new Uint8Array(16);
-      crypto.getRandomValues(salt);
-      const key = await crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(raw),
-        { name: "PBKDF2" },
-        false,
-        ["deriveBits"],
-      );
-      const derived = await crypto.subtle.deriveBits(
-        { name: "PBKDF2", hash: "SHA-256", salt, iterations },
-        key,
-        256,
-      );
-      const toB64 = (bytes: Uint8Array): string => {
-        let s = "";
-        for (let i = 0; i < bytes.length; i++)
-          s += String.fromCharCode(bytes[i] ?? 0);
-        return btoa(s);
-      };
-      return `pbkdf2-sha256-v1$${iterations}$${toB64(salt)}$${toB64(
-        new Uint8Array(derived),
-      )}`;
-    }
-
     for (const iterations of [100_000, 600_000] as const) {
       it(`re-hashes a verified iter=${iterations} legacy account to scrypt on logIn`, async () => {
         const container = getContainer();
@@ -980,6 +982,20 @@ describe("ChangePassword", () => {
     } catch (error) {
       expect(isAuthenticationError(error)).toBe(true);
     }
+
+    // New password actually works — guards the adapter's write path, which
+    // an old-password-fails assertion alone cannot (the old hash failing is
+    // also consistent with a broken-but-cleared credential).
+    const reloggedIn = await logIn({
+      container,
+      input: {
+        email: uniqueEmail("paul01"),
+        password: "NewPass2345!",
+        userAgent: null,
+        ipAddress: null,
+      },
+    });
+    expect(reloggedIn.userId).toBe(userId);
   });
 
   it("rejects an incorrect current password with invalid_credentials", async () => {
@@ -1035,6 +1051,67 @@ describe("ChangePassword", () => {
       if (isAuthenticationError(error)) {
         expect(error.code).toBe("invalid_credentials");
       }
+    }
+  });
+
+  // Issue #208 core path: a legacy PBKDF2 account changing its password.
+  // The rehash-free verify helper must still accept a legacy current
+  // password (it routes through `verifyHash`, not scrypt-only), and the
+  // row must end up holding the new scrypt hash — the new password write
+  // supersedes any lazy upgrade, so the result is a single scrypt row.
+  it("changes a legacy PBKDF2 account's password to a scrypt hash", async () => {
+    const container = getContainer();
+    const seed = "sten01";
+    const { userId, sessionToken } = await activeUser(seed);
+
+    const currentPassword = strongPassword(seed);
+    const legacyHash = await makeLegacyPbkdf2Hash(currentPassword, 600_000);
+    await container.db
+      .update(schema.accounts)
+      .set({ password: legacyHash })
+      .where(eq(schema.accounts.userId, userId));
+
+    await changePassword({
+      container,
+      input: {
+        actorUserId: userId as never,
+        currentPassword,
+        newPassword: "NewPass2345!",
+        revokeOtherSessions: false,
+        currentSessionToken: sessionToken,
+      },
+    });
+
+    const after = await container.db
+      .select({ password: schema.accounts.password })
+      .from(schema.accounts)
+      .where(eq(schema.accounts.userId, userId));
+    expect(after[0]?.password?.startsWith("$scrypt$")).toBe(true);
+
+    const reloggedIn = await logIn({
+      container,
+      input: {
+        email: uniqueEmail(seed),
+        password: "NewPass2345!",
+        userAgent: null,
+        ipAddress: null,
+      },
+    });
+    expect(reloggedIn.userId).toBe(userId);
+
+    try {
+      await logIn({
+        container,
+        input: {
+          email: uniqueEmail(seed),
+          password: currentPassword,
+          userAgent: null,
+          ipAddress: null,
+        },
+      });
+      expect.fail("expected the legacy password to fail");
+    } catch (error) {
+      expect(isAuthenticationError(error)).toBe(true);
     }
   });
 });
