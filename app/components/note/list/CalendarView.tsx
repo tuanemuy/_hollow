@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import type { DisplayedNote } from "../loaders";
 import { groupNotesByDay } from "./listSelectors";
+import { NoteCheckbox } from "./NoteCheckbox";
 import { useSelection } from "./SelectionContext";
 
 type Props = Readonly<{
@@ -31,6 +32,7 @@ function formatDay(dateKey: string): string {
  */
 export function CalendarView({ notes }: Props) {
   const { state, dispatch } = useSelection();
+  const mode = state.mode;
 
   const tz =
     typeof Intl !== "undefined"
@@ -52,28 +54,32 @@ export function CalendarView({ notes }: Props) {
           <ul className="flex flex-col gap-1 list-none p-0 m-0">
             {bucket.notes.map((note) => {
               const checked = state.ids.has(note.id);
+              const toggle = () => dispatch({ type: "toggle", id: note.id });
               return (
                 <li
                   key={note.id}
                   data-selected={checked || undefined}
-                  className="grid grid-cols-[auto_1fr] gap-2 px-2 py-[6px] rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
+                  data-mode={mode || undefined}
+                  className="grid grid-cols-[1fr] data-[mode]:grid-cols-[auto_1fr] items-center gap-2 px-2 py-[6px] rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
                 >
-                  <label>
-                    <input
-                      type="checkbox"
-                      aria-label={`${note.title} を選択`}
+                  {mode ? (
+                    <NoteCheckbox
                       checked={checked}
-                      onChange={() => dispatch({ type: "toggle", id: note.id })}
-                      className="w-[14px] h-[14px] accent-accent"
+                      onToggle={toggle}
+                      label={`${note.title} を選択`}
                     />
-                  </label>
-                  <Link
-                    to="/notes/$noteId"
-                    params={{ noteId: note.id }}
-                    className="text-sm text-ink hover:text-accent"
-                  >
-                    {note.title}
-                  </Link>
+                  ) : null}
+                  {mode ? (
+                    <span className="text-sm text-ink">{note.title}</span>
+                  ) : (
+                    <Link
+                      to="/notes/$noteId"
+                      params={{ noteId: note.id }}
+                      className="text-sm text-ink hover:text-accent"
+                    >
+                      {note.title}
+                    </Link>
+                  )}
                 </li>
               );
             })}

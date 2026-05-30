@@ -6,11 +6,18 @@ import type { ReactNode } from "react";
 type Props = {
   className?: string;
   children: ReactNode;
+  // Forwarded to the anchor so the icon-only (mobile) variant keeps an
+  // accessible name when the visible label is hidden.
+  "aria-label"?: string;
 };
 
 const UPLOAD_HASH = "upload";
 
-export function UploadButton({ className, children }: Props) {
+export function UploadButton({
+  className,
+  children,
+  "aria-label": ariaLabel,
+}: Props) {
   // Mirror the navigation `activeProps` pattern used by other sidebar
   // links: when the modal is open (`#upload`), surface that state to
   // both screen readers (`aria-current="page"`) and styling
@@ -25,6 +32,7 @@ export function UploadButton({ className, children }: Props) {
       className={className}
       data-active={active || undefined}
       aria-current={active ? "page" : undefined}
+      aria-label={ariaLabel}
     >
       {children}
     </Link>

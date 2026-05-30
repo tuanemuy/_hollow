@@ -3,12 +3,7 @@ import { HOME_SEARCH, TRASH_SEARCH } from "@/components/auth/links";
 import { DirectorySidebarSection } from "@/components/directory/DirectorySidebarSection";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
-import {
-  APP_SIDEBAR,
-  NAV_ITEM,
-  SIDEBAR_SECTION,
-  SIDEBAR_SECTION_TITLE,
-} from "./styles";
+import { NAV_ITEM, SIDEBAR_SECTION, SIDEBAR_SECTION_TITLE } from "./styles";
 
 type Props = {
   user: UserDTO;
@@ -22,8 +17,11 @@ const ACTIVE_NAV_PROPS = {
 export async function Sidebar({ user }: Props) {
   const { tree } = await loadDirectoryTree(user.id);
 
+  // The positioned `<aside>` (drawer on mobile, sticky column on desktop)
+  // is provided by `AppShellDrawer`; this component renders only the inner
+  // sections so the drawer can drive `data-open` from client state.
   return (
-    <aside className={APP_SIDEBAR}>
+    <>
       <div className={SIDEBAR_SECTION}>
         <div className={SIDEBAR_SECTION_TITLE}>ライブラリ</div>
         <ul className="list-none m-0 p-0">
@@ -76,6 +74,6 @@ export async function Sidebar({ user }: Props) {
           </li>
         </ul>
       </div>
-    </aside>
+    </>
   );
 }

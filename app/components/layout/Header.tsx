@@ -5,6 +5,7 @@ import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { UserDTO } from "@/core/application/dto";
+import { MenuButton } from "./MenuButton";
 import {
   APP_HEADER,
   APP_HEADER_LEFT,
@@ -24,7 +25,12 @@ export function Header({ user }: Props) {
   return (
     <header className={APP_HEADER}>
       <div className={APP_HEADER_LEFT}>
-        <Link to="/" search={HOME_SEARCH} className={APP_LOGO}>
+        <MenuButton />
+        <Link
+          to="/"
+          search={HOME_SEARCH}
+          className={`${APP_LOGO} max-sm:hidden`}
+        >
           Hollow
         </Link>
       </div>
@@ -52,13 +58,14 @@ export function Header({ user }: Props) {
           to="/notes/new"
           className={`${pillBtn} ${pillBtnPrimary}`}
           data-primary=""
+          aria-label="新規作成"
         >
           <Icon icon={Plus} />
-          新規作成
+          <span className="max-sm:hidden">新規作成</span>
         </Link>
-        <UploadButton className={pillBtn}>
+        <UploadButton className={pillBtn} aria-label="アップロード">
           <Icon icon={Upload} />
-          アップロード
+          <span className="max-sm:hidden">アップロード</span>
         </UploadButton>
         <UserMenu user={user} />
       </div>

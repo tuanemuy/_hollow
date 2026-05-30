@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useRouter } from "@tanstack/react-router";
-import { Bookmark, Plus, Upload } from "lucide-react";
+import { Bookmark, CheckSquare, Plus, Upload } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
@@ -10,6 +10,11 @@ import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { NoteListSearch } from "../schema";
 import { DisplayModeSwitch } from "./DisplayModeSwitch";
 import { SaveViewDialog } from "./SaveViewDialog";
+import { useSelection } from "./SelectionContext";
+
+// CTA labels collapse to icon-only below the `sm` breakpoint
+// (`spec/design/pages/P10-home.html` @media max-width:640px).
+const CTA_LABEL = "max-sm:hidden";
 
 type Props = {
   search: NoteListSearch;
@@ -19,6 +24,7 @@ type Props = {
 
 export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
   const router = useRouter();
+  const { state, dispatch } = useSelection();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -81,6 +87,17 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
         <div className="inline-flex items-center gap-2 flex-wrap">
           <button
             type="button"
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-primary={state.mode || undefined}
+            aria-pressed={state.mode}
+            aria-label="選択モード"
+            onClick={() => dispatch({ type: "toggleSelectMode" })}
+          >
+            <Icon icon={CheckSquare} />
+            <span className={CTA_LABEL}>{state.mode ? "選択中" : "選択"}</span>
+          </button>
+          <button
+            type="button"
             className={pillBtn}
             onClick={() => setOpen(true)}
             disabled={!hasAnyFilter && search.q === undefined}
@@ -91,19 +108,20 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             }
           >
             <Icon icon={Bookmark} />
-            ビューとして保存
+            <span className={CTA_LABEL}>ビューとして保存</span>
           </button>
           <Link
             to="/notes/new"
             data-primary
+            aria-label="新規作成"
             className={`${pillBtn} ${pillBtnPrimary}`}
           >
             <Icon icon={Plus} />
-            新規作成
+            <span className={CTA_LABEL}>新規作成</span>
           </Link>
-          <UploadButton className={pillBtn}>
+          <UploadButton className={pillBtn} aria-label="アップロード">
             <Icon icon={Upload} />
-            アップロード
+            <span className={CTA_LABEL}>アップロード</span>
           </UploadButton>
         </div>
       </div>

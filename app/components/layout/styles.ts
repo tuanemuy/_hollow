@@ -46,8 +46,22 @@ export const APP_LAYOUT =
 
 export const APP_LAYOUT_WITH_SIDEBAR = `${APP_LAYOUT} lg:grid-cols-[var(--sidebar-width)_1fr]`;
 
+// Below `lg` the sidebar is an off-canvas drawer (Issue #354): fixed, slid
+// out by default, revealed via `data-open`. At `lg` and up it returns to the
+// in-flow sticky column. New media queries are avoided in favour of
+// `max-lg:` / `lg:` variants so the `--breakpoint-*` duplication does not
+// need touching (see CLAUDE.md styling notes).
 export const APP_SIDEBAR =
-  "px-4 pt-3 pb-8 overflow-y-auto bg-bg border-b border-hairline lg:border-b-0 lg:border-r";
+  "px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
+
+// Scrim behind the mobile drawer; clicking it closes the drawer.
+export const SIDEBAR_BACKDROP =
+  "lg:hidden fixed inset-0 z-[90] bg-black/20 hidden data-[open]:block";
+
+// Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
+// `lg`.
+export const MENU_BTN =
+  "lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md text-ink transition-colors motion-reduce:transition-none hover:bg-surface max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
 export const SIDEBAR_SECTION = "mb-7";
 

@@ -77,6 +77,63 @@ describe("selectionReducer", () => {
     });
     expect(s1.ids.size).toBe(0);
   });
+
+  // Issue #354: explicit selection mode. The flag lives alongside the ids
+  // so "leave mode" and "clear selection" are a single atomic transition.
+  it("starts with selection mode off", () => {
+    expect(emptySelection.mode).toBe(false);
+  });
+
+  it("enterSelectMode turns the flag on and preserves ids", () => {
+    const s1 = selectionReducer(emptySelection, { type: "toggle", id: "a" });
+    const s2 = selectionReducer(s1, { type: "enterSelectMode" });
+    expect(s2.mode).toBe(true);
+    expect(s2.ids.has("a")).toBe(true);
+  });
+
+  it("enterSelectMode is a no-op when already on (referential equality)", () => {
+    const s1 = selectionReducer(emptySelection, { type: "enterSelectMode" });
+    const s2 = selectionReducer(s1, { type: "enterSelectMode" });
+    expect(s2).toBe(s1);
+  });
+
+  it("exitSelectMode turns the flag off and clears the selection", () => {
+    const s1 = selectionReducer(emptySelection, { type: "enterSelectMode" });
+    const s2 = selectionReducer(s1, { type: "toggle", id: "a" });
+    expect(s2.mode).toBe(true);
+    expect(s2.ids.size).toBe(1);
+    const s3 = selectionReducer(s2, { type: "exitSelectMode" });
+    expect(s3.mode).toBe(false);
+    expect(s3.ids.size).toBe(0);
+  });
+
+  it("toggleSelectMode flips on then clears back off", () => {
+    const s1 = selectionReducer(emptySelection, { type: "toggleSelectMode" });
+    expect(s1.mode).toBe(true);
+    const s2 = selectionReducer(s1, { type: "toggle", id: "a" });
+    const s3 = selectionReducer(s2, { type: "toggleSelectMode" });
+    expect(s3.mode).toBe(false);
+    expect(s3.ids.size).toBe(0);
+  });
+
+  it("clear preserves selection mode", () => {
+    const s1 = selectionReducer(emptySelection, { type: "enterSelectMode" });
+    const s2 = selectionReducer(s1, { type: "toggle", id: "a" });
+    const s3 = selectionReducer(s2, { type: "clear" });
+    expect(s3.mode).toBe(true);
+    expect(s3.ids.size).toBe(0);
+  });
+
+  it("toggle / selectMany / selectAll preserve the current mode", () => {
+    const on = selectionReducer(emptySelection, { type: "enterSelectMode" });
+    expect(selectionReducer(on, { type: "toggle", id: "a" }).mode).toBe(true);
+    expect(selectionReducer(on, { type: "selectMany", ids: ["a"] }).mode).toBe(
+      true,
+    );
+    expect(selectionReducer(on, { type: "selectAll", ids: ["a"] }).mode).toBe(
+      true,
+    );
+  });
 });
 
 describe("groupNotesByDay", () => {
