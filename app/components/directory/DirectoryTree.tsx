@@ -107,24 +107,9 @@ export function DirectoryTree({ tree }: DirectoryTreeProps) {
   return (
     <>
       {children.length === 0 ? (
-        <div className="px-3 text-[13px] text-ink-tertiary flex flex-col gap-2">
-          <p>まだディレクトリがありません</p>
-          <button
-            type="button"
-            disabled={root === undefined}
-            className="self-start text-accent text-[13px] hover:underline disabled:opacity-55 disabled:cursor-not-allowed disabled:no-underline"
-            onClick={() => {
-              if (root === undefined) return;
-              setDialog({
-                kind: "createChild",
-                parentId: root.id as unknown as string,
-                parentName: "（ルート）",
-              });
-            }}
-          >
-            + ディレクトリを作成
-          </button>
-        </div>
+        <p className="px-3 text-[13px] text-ink-tertiary">
+          まだディレクトリがありません。右上の + から作成できます。
+        </p>
       ) : (
         <div
           ref={treeRef}
