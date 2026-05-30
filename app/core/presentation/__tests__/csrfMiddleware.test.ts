@@ -67,6 +67,20 @@ describe("isSameOrigin", () => {
     expect(isSameOrigin("https://app.example.com:8443", APP_URL)).toBe(false);
   });
 
+  it("treats an explicit default port as equal to the implicit one", () => {
+    expect(isSameOrigin("https://app.example.com:443", APP_URL)).toBe(true);
+  });
+
+  it("matches when the app URL carries an explicit non-default port", () => {
+    expect(
+      isSameOrigin("http://localhost:8787", "http://localhost:8787/"),
+    ).toBe(true);
+  });
+
+  it("returns false for the literal string 'null' (sandboxed/opaque origin)", () => {
+    expect(isSameOrigin("null", APP_URL)).toBe(false);
+  });
+
   it("matches when the candidate is a full Referer URL with a path", () => {
     expect(isSameOrigin("https://app.example.com/admin/users", APP_URL)).toBe(
       true,
@@ -139,6 +153,35 @@ describe("csrfMiddleware body", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("rejects a forged Origin even when Referer is same-origin (Origin is authoritative)", async () => {
+    mocks.getRequest.mockReturnValue({ method: "POST" });
+    mocks.getRequestHeader.mockImplementation((name) => {
+      if (name === "origin") return "https://evil.example.com";
+      if (name === "referer") return `${APP_URL}/admin/users`;
+      return undefined;
+    });
+    const next = vi.fn();
+
+    await expect(csrfServer({ next })).rejects.toMatchObject({
+      name: "ForbiddenError",
+      code: "FORBIDDEN_CROSS_ORIGIN",
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Referer when Origin is an empty string", async () => {
+    mocks.getRequest.mockReturnValue({ method: "POST" });
+    mocks.getRequestHeader.mockImplementation((name) => {
+      if (name === "origin") return "";
+      if (name === "referer") return `${APP_URL}/admin/settings`;
+      return undefined;
+    });
+    const next = vi.fn().mockResolvedValue("ok");
+
+    await expect(csrfServer({ next })).resolves.toBe("ok");
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   it("throws ForbiddenError when both Origin and Referer are absent", async () => {
     mocks.getRequest.mockReturnValue({ method: "POST" });
     mocks.getRequestHeader.mockReturnValue(undefined);
@@ -155,6 +198,12 @@ describe("csrfMiddleware body", () => {
 // (it is first in the `.middleware([...])` array). Chain them in the real
 // array order — errorResponse's `next` runs csrf's body — and assert a
 // cross-origin POST surfaces as a serialized 403, not a bare ForbiddenError.
+//
+// Scope: this fixes the *semantics* — "when errorResponse wraps csrf, a
+// cross-origin throw becomes a serialized 403". It does NOT read the actual
+// `.middleware([...])` arrays in the admin action.ts files, so a future edit
+// that reorders one of those arrays would not be caught here. The arrays are
+// kept correct by review + the convention that errorResponseMiddleware leads.
 describe("errorResponseMiddleware + csrfMiddleware chain (array order)", () => {
   it("turns a cross-origin POST into a serialized 403", async () => {
     mocks.getRequest.mockReturnValue({ method: "POST" });

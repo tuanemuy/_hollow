@@ -46,13 +46,14 @@ export const csrfMiddleware = createMiddleware({ type: "function" }).server(
     }
 
     const origin = getRequestHeader("origin");
-    const referer = getRequestHeader("referer");
     const { config } = await getContainer();
 
-    const ok =
-      origin !== undefined
-        ? isSameOrigin(origin, config.appUrl)
-        : isSameOrigin(referer, config.appUrl);
+    // A present `Origin` is authoritative — a forged Origin must never slip
+    // through on the strength of a matching Referer. Only when `Origin` is
+    // absent or empty do we fall back to `Referer`.
+    const ok = origin
+      ? isSameOrigin(origin, config.appUrl)
+      : isSameOrigin(getRequestHeader("referer"), config.appUrl);
 
     if (!ok) {
       throw new ForbiddenError(
