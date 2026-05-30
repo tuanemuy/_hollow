@@ -1,6 +1,5 @@
 import { RawPassword, UserId } from "@/core/domain/identity/valueObject";
 import type { UserId as UserIdDTO } from "../dto/identity";
-import { AuthenticationError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type ChangePasswordInput = {
@@ -18,22 +17,10 @@ export async function changePassword({
   const actor = UserId.create(input.actorUserId);
   const newPassword = RawPassword.create(input.newPassword);
 
-  // Pre-verify so a mismatching current password fails with
-  // `invalid_credentials` rather than an adapter-shaped error. The
-  // CredentialStore contract only guarantees `null`/`throw` for
-  // its own write path; explicit verification here gives us a
-  // deterministic 401 surface.
-  const verified = await container.unitOfWorkProvider.run(
-    ({ credentialStore }) =>
-      credentialStore.verifyPasswordForUser(actor, input.currentPassword),
-  );
-  if (!verified) {
-    throw new AuthenticationError(
-      "invalid_credentials",
-      "Current password is incorrect",
-    );
-  }
-
+  // `changePassword` verifies the current password and writes the new hash
+  // in a single UoW, throwing `AuthenticationError('invalid_credentials')`
+  // on mismatch. A separate pre-verify here would double the scrypt work
+  // (verify twice + a wasted legacy rehash); the adapter owns the 401.
   await container.unitOfWorkProvider.run(({ credentialStore }) =>
     credentialStore.changePassword(actor, input.currentPassword, newPassword),
   );
