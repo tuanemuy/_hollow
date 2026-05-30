@@ -99,3 +99,20 @@ promote 直後・`runPipeline` 直前に**独立した `unitOfWorkProvider.run`*
 ### Consequences
 - 良い点: 取り込みパイプラインの純粋性（`runPipeline` は DB アクセスを持たない）を保ちつつ、ツリー取得の失敗を局所化できる。
 - トレードオフ: `unitOfWorkProvider.run` の呼び出し順が promote→findTree→(rollback) に変わり、`run` 呼び出し回数に依存していた既存テスト（rate-limit rollback の save 失敗ケース）の spy インデックスを #2→#3 に更新した。順番に依存する mock は脆いが、本 Issue ではテスト側のインデックス調整で対応した。
+
+---
+
+## ADR-007: JSON-envelope LLM アダプターのプロンプトビルダーを共有モジュールに抽出する（レビュー時判断）
+
+### Status
+Accepted（レビュー時）
+
+### Context
+Issue 本文は anthropic アダプターのプロンプト改善のみを対象としていたが、`llmProviderFactory` は admin 設定で anthropic / openai / gemini を選択可能。anthropic だけ改善すると、provider 切替時に要件2〜4（タイトル/ディレクトリ/タグ提案）の改善が片肺になる（レビュー W-B-002）。3アダプターは元々プロンプトビルダーが完全に同一だった。
+
+### Decision
+プロンプトビルダー（`buildStructure*` / `buildMetadata*`）を `app/core/adapters/llm/prompts.ts`（既存共有 `jsonEnvelope.ts` と同じ場所）に純粋関数として抽出し、anthropic / openai / gemini の3アダプターすべてが参照する。各アダプターの private メソッドは削除。
+
+### Consequences
+- 良い点: 提案品質の改善が provider 非依存になり、三重複も解消。将来のドリフトを防ぐ。テストは public な `structureToHtml`/`suggestMetadata` 経由で検証しているため破壊なし。
+- トレードオフ: Issue が名指しした anthropic 以外のファイルにも変更が及ぶ（スコープを最小限に超える）が、要件の本質（provider に依らず提案品質を上げる）に沿う判断。
