@@ -65,6 +65,37 @@ function renderIngestionBusinessMessage(code: string): string | null {
   }
 }
 
+// Directory business codes (`DirectoryErrorCode`) reachable through the
+// create / rename / move / delete dialogs. Codes that only fire on internal
+// invariant violations (e.g. `directory_invalid_id`, `directory_depth_mismatch`)
+// are intentionally left to the fallback so internal spec strings never leak.
+// When adding a case here, mirror it in `EXPLICIT_DIRECTORY_CODES` in
+// `__tests__/errorDisplay.test.ts` so the group (c) fallback test stays accurate.
+function renderDirectoryBusinessMessage(code: string): string | null {
+  switch (code) {
+    case "directory_name_conflict":
+      return "同名のディレクトリが既に存在します";
+    case "directory_too_deep":
+      return "ディレクトリの階層が深すぎます（最大10階層まで）";
+    case "directory_name_forbidden_character":
+      return "使用できない文字が含まれています";
+    case "directory_name_empty":
+      return "ディレクトリ名を入力してください";
+    case "directory_name_too_long":
+      return "ディレクトリ名が長すぎます（80文字以内で入力してください）";
+    case "directory_cyclic_move":
+      return "移動先が不正です。自分自身またはその子孫には移動できません";
+    case "cannot_rename_root":
+      return "ルートディレクトリの名前は変更できません";
+    case "cannot_delete_root":
+      return "ルートディレクトリは削除できません";
+    case "cannot_move_root":
+      return "ルートディレクトリは移動できません";
+    default:
+      return null;
+  }
+}
+
 function renderBusinessMessage(code: string | null): string {
   if (code === null) return BUSINESS_FALLBACK_MESSAGE;
   switch (code) {
@@ -73,6 +104,8 @@ function renderBusinessMessage(code: string | null): string {
   }
   const ingestionMessage = renderIngestionBusinessMessage(code);
   if (ingestionMessage !== null) return ingestionMessage;
+  const directoryMessage = renderDirectoryBusinessMessage(code);
+  if (directoryMessage !== null) return directoryMessage;
   return BUSINESS_FALLBACK_MESSAGE;
 }
 
