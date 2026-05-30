@@ -1096,11 +1096,10 @@ describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
       .mock.calls.find(
         ([msg]) => msg === "[dispatch] user.deleted fan-out complete",
       )?.[1] as { durationMs: number };
-    // Monotonic fake clock advances 1s per `now()` call, so the measured
-    // span (start → end) is strictly positive — proving the duration is
-    // taken across the fan-out rather than from a single timestamp. The
-    // span is bounded by exactly two reads (start before publication, end
-    // after export), guarding against a stray `now()` skewing the metric.
+    // The advancing fake clock makes the span strictly positive (proving
+    // the duration spans the fan-out, not a single timestamp) and bounded
+    // by exactly two reads — start before publication, end after export —
+    // guarding against a stray `now()` skewing the metric.
     expect(meta.durationMs).toBeGreaterThan(0);
     expect(clockNow).toHaveBeenCalledTimes(2);
   });
