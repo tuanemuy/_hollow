@@ -5,6 +5,7 @@ import * as schema from "@/core/adapters/d1/schema";
 import {
   isAuthenticationError,
   isForbiddenError,
+  isValidationError,
 } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import {
@@ -198,7 +199,7 @@ describe("SignUp", () => {
     }
   });
 
-  it("rejects duplicate username", async () => {
+  it("rejects duplicate username as a field-bound validation error", async () => {
     const container = getContainer();
     await signUp({ container, input: baseSignUp("charlie") });
     try {
@@ -211,14 +212,16 @@ describe("SignUp", () => {
       });
       expect.fail("should have thrown");
     } catch (error) {
-      expect(isBusinessRuleError(error)).toBe(true);
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("username_taken");
+      expect(isValidationError(error)).toBe(true);
+      if (isValidationError(error)) {
+        expect(error.fieldErrors.username).toBeDefined();
+        expect(error.fieldErrors.email).toBeUndefined();
+        expect(error.toSerialized().kind).toBe("validation");
       }
     }
   });
 
-  it("rejects duplicate email", async () => {
+  it("rejects duplicate email as a field-bound validation error", async () => {
     const container = getContainer();
     await signUp({ container, input: baseSignUp("dave1") });
     try {
@@ -228,9 +231,11 @@ describe("SignUp", () => {
       });
       expect.fail("should have thrown");
     } catch (error) {
-      expect(isBusinessRuleError(error)).toBe(true);
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("email_taken");
+      expect(isValidationError(error)).toBe(true);
+      if (isValidationError(error)) {
+        expect(error.fieldErrors.email).toBeDefined();
+        expect(error.fieldErrors.username).toBeUndefined();
+        expect(error.toSerialized().kind).toBe("validation");
       }
     }
   });
@@ -308,6 +313,68 @@ describe("AdminSignUp", () => {
     if (!u) return;
     expect(u.role).toBe("admin");
     expect(deriveStatus(u)).toBe("pending");
+  });
+
+  it("rejects duplicate username as a field-bound validation error", async () => {
+    const container: TestContainer = {
+      ...getContainer(),
+      setupTokenVerifier: new EnvSetupTokenVerifier({
+        ADMIN_SETUP_TOKEN: "secret-token",
+      }),
+    };
+    await adminSignUp({
+      container,
+      input: { ...baseSignUp("admin4"), setupToken: "secret-token" },
+    });
+    try {
+      await adminSignUp({
+        container,
+        input: {
+          ...baseSignUp("admin4"),
+          email: "admin4-dup@example.com",
+          setupToken: "secret-token",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isValidationError(error)).toBe(true);
+      if (isValidationError(error)) {
+        expect(error.fieldErrors.username).toBeDefined();
+        expect(error.fieldErrors.email).toBeUndefined();
+        expect(error.toSerialized().kind).toBe("validation");
+      }
+    }
+  });
+
+  it("rejects duplicate email as a field-bound validation error", async () => {
+    const container: TestContainer = {
+      ...getContainer(),
+      setupTokenVerifier: new EnvSetupTokenVerifier({
+        ADMIN_SETUP_TOKEN: "secret-token",
+      }),
+    };
+    await adminSignUp({
+      container,
+      input: { ...baseSignUp("admin5"), setupToken: "secret-token" },
+    });
+    try {
+      await adminSignUp({
+        container,
+        input: {
+          ...baseSignUp("admin5"),
+          username: "uadmin5dup",
+          setupToken: "secret-token",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isValidationError(error)).toBe(true);
+      if (isValidationError(error)) {
+        expect(error.fieldErrors.email).toBeDefined();
+        expect(error.fieldErrors.username).toBeUndefined();
+        expect(error.toSerialized().kind).toBe("validation");
+      }
+    }
   });
 });
 
@@ -1683,9 +1750,12 @@ describe("DeleteAccount", () => {
       });
       expect.fail("should have thrown");
     } catch (error) {
-      expect(isBusinessRuleError(error)).toBe(true);
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("username_taken");
+      // signUp converts the `username_taken` business rule into a
+      // field-bound validation error (#201). The reservation invariant is
+      // still asserted, now via the converted shape.
+      expect(isValidationError(error)).toBe(true);
+      if (isValidationError(error)) {
+        expect(error.fieldErrors.username).toBeDefined();
       }
     }
   });

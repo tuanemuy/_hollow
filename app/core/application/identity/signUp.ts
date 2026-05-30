@@ -1,7 +1,6 @@
 import { DirectoryService } from "@/core/domain/directory/service";
 import { BusinessRuleError } from "@/core/domain/error";
 import { User } from "@/core/domain/identity/entity";
-import { IdentityService } from "@/core/domain/identity/services/identityService";
 import {
   EmailAddress,
   RawPassword,
@@ -9,6 +8,7 @@ import {
 } from "@/core/domain/identity/valueObject";
 import type { UserId as UserIdDTO } from "../dto/identity";
 import type { ServiceArgs } from "../types";
+import { assertSignUpAvailability } from "./signUpAvailability";
 
 export type SignUpInput = {
   username: string;
@@ -61,8 +61,7 @@ export async function signUp({
           );
         }
 
-        await IdentityService.assertUsernameAvailable(username, userRepository);
-        await IdentityService.assertEmailAvailable(email, userRepository);
+        await assertSignUpAvailability(username, email, userRepository);
 
         const { entity: user, eventDrafts } = User.create(
           {
