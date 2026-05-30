@@ -104,12 +104,12 @@ Note 保存後に呼ばれ、参照差分をメディア側に反映する。
 - なし（Cron 起動）
 
 ### 処理フロー
-1. `MediaAssetRepository.findOrphansOlderThan(now - 24h, batch=100)`
-2. 各々について UoW: `MediaService.purge`
+1. `MediaService.listPurgeCandidates(now, 24h, repo, batch=100)`（内部で `findPurgeableOlderThan` を呼び、`status IN ('orphan','deleting') AND updatedAt < now-24h` を取得）
+2. 各々について: `orphan` は 1st UoW で `markDeleting`（`orphan → deleting`）→ 2nd UoW で `MediaService.purge`。前回 R2 失敗で `deleting` のまま残った行は markDeleting を skip し 2nd UoW から再開
 3. ログとメトリクス記録
 
 ### エラーケース
-- 個別失敗はリトライ、ジョブログに記録
+- 個別失敗は `deleting` のまま failed に計上。`markDeleting` が `updatedAt` を再スタンプするため、猶予期間経過後の次の sweep で再試行される（再試行回数の上限なし）
 
 ---
 
