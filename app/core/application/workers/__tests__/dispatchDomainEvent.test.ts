@@ -180,8 +180,20 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
         publicationStateRepository: {},
       }),
   };
+  // Monotonic fake clock: each `now()` advances 1s so the `user.deleted`
+  // fan-out duration (`end - start`) is a positive, deterministic value.
+  // Only the `user.deleted` case reads `clock`, so this is inert for the
+  // other dispatch branches.
+  let clockTick = 0;
+  const clock = {
+    now: () => {
+      clockTick += 1000;
+      return new Date(clockTick);
+    },
+  };
   const container = {
     logger: stubLogger,
+    clock,
     htmlSanitizer: {
       sanitize: vi.fn(),
       toPlainText: vi.fn(),
@@ -1062,6 +1074,29 @@ describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
     expect(mockedPublicationHandleUserDeleted).not.toHaveBeenCalled();
     expect(mockedExportHandleUserDeleted).not.toHaveBeenCalled();
     expect(stubLogger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs fan-out duration with userId after both handlers complete (#182)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userDeletedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(stubLogger.info).toHaveBeenCalledWith(
+      "[dispatch] user.deleted fan-out complete",
+      expect.objectContaining({
+        eventId: EVENT_ID,
+        userId: OWNER_ID,
+        durationMs: expect.any(Number),
+      }),
+    );
+    const meta = vi
+      .mocked(stubLogger.info)
+      .mock.calls.find(
+        ([msg]) => msg === "[dispatch] user.deleted fan-out complete",
+      )?.[1] as { durationMs: number };
+    // Monotonic fake clock advances 1s per `now()` call, so the measured
+    // span (start → end) is strictly positive — proving the duration is
+    // taken across the fan-out rather than from a single timestamp.
+    expect(meta.durationMs).toBeGreaterThan(0);
   });
 });
 

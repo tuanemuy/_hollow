@@ -301,6 +301,21 @@ export async function dispatchDomainEvent(
         // (publication first so "公開停止 → export 取消" logical order is
         // preserved). publication is idempotent (already-private notes
         // produce empty drafts) so retry replays cleanly.
+        //
+        // Issue #182: this fan-out iterates every public note + every
+        // in-flight export job of the deleted user, so its latency scales
+        // with the user's footprint. A push consumer invocation is capped
+        // at 30s CPU / 15min wall-clock — exceeding either fails and
+        // retries the whole batch. Push consumers have no mid-flight
+        // visibility-timeout redelivery, so we measure the wall-clock
+        // duration here and emit it as a structured `durationMs` so an
+        // operator can watch (tail / Logpush) how close a heavy user gets
+        // to those ceilings before deciding whether further mitigation
+        // (handler optimization / fan-out decomposition / limits.cpu_ms)
+        // is warranted. `startedAt` is taken AFTER `UserId.create` so a
+        // payload-drift BusinessRuleError never enters the measured span
+        // (Issue #159 ADR-005). See .issue/182/adr.md.
+        const startedAt = container.clock.now();
         await publicationHandleUserDeletedEvent({
           container,
           input: { userId },
@@ -308,6 +323,13 @@ export async function dispatchDomainEvent(
         await exportHandleUserDeletedEvent({
           container,
           input: { userId },
+        });
+        const durationMs =
+          container.clock.now().getTime() - startedAt.getTime();
+        container.logger.info("[dispatch] user.deleted fan-out complete", {
+          eventId: event.id,
+          userId: payload.userId,
+          durationMs,
         });
         return { kind: "handled" };
       }

@@ -241,7 +241,17 @@ Two queues per stage:
 - `events` — the main event stream produced by the relay and consumed by the consumer Worker.
 - `events-dlq` — receives messages that the consumer's `1 + max_retries` budget could not deliver.
 
-Queue parameters (visibility timeout, `max_retries`, `max_batch_size`, `max_batch_timeout`) live in the `[[queues.consumers]]` blocks of the per-stage `wrangler.<stage>.toml`. Adjust them per stage and re-deploy the consumer / DLQ Workers to pick up the new settings.
+Queue parameters (`max_retries`, `max_batch_size`, `max_batch_timeout`, `max_concurrency`, `retry_delay`) live in the `[[queues.consumers]]` blocks of the per-stage `wrangler.<stage>.toml`. Adjust them per stage and re-deploy the consumer / DLQ Workers to pick up the new settings.
+
+### Push consumer redelivery semantics (Issue #182)
+
+The consumer is a **push** (Worker) consumer, not a pull consumer. This matters for reasoning about redelivery:
+
+- **`visibility_timeout_ms` does not apply.** It is a *pull*-consumer parameter (default 12h there) and is not a valid key in a push `[[queues.consumers]]` block. There is no per-batch visibility timeout that redelivers messages mid-flight while the Worker is still running.
+- A push consumer invocation is bounded by **15 min wall-clock** and **30s CPU time** (CPU excludes I/O / network wait; raise it up to 5 min with `limits.cpu_ms` if a handler is genuinely CPU-bound). Exceeding either limit fails the invocation and retries the batch.
+- `handleQueue` calls `message.ack()` / `message.retry()` **per message**, so a slow or failing event does not drag already-acked siblings into a whole-batch redelivery. The residual risk is only an invocation-wide kill (CPU / wall limit), which discards the un-committed acks and retries everything.
+
+The `user.deleted` fan-out (`publication → export`) iterates every public note + in-flight export job of the deleted user, so its latency scales with the user's footprint. The dispatcher emits a `[dispatch] user.deleted fan-out complete` log with a structured `durationMs` (wall-clock) so an operator can watch — via tail / Logpush — how close a heavy user gets to those ceilings. `durationMs` measures wall-clock, not CPU; pair it with the platform `cpuTime` metric to tell a CPU-bound case (raise `limits.cpu_ms`) from an I/O-bound one (handler optimization / fan-out decomposition). See `.issue/182/adr.md`.
 
 ## Cron triggers
 
