@@ -29,6 +29,7 @@ export const IdentityErrorCode = {
   UsernameTaken: "username_taken",
   EmailTaken: "email_taken",
   LastAdminProtected: "last_admin_protected",
+  SelfOperationNotAllowed: "self_operation_not_allowed",
   NoCredentialRemaining: "no_credential_remaining",
   CannotRemoveLastCredential: "cannot_remove_last_credential",
   PasswordAlreadySet: "password_already_set",

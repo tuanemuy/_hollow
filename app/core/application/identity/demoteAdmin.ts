@@ -26,12 +26,13 @@ export async function demoteAdmin({
         "Actor is not authorised to demote admins",
       );
     }
+    // No last-admin check: demoting the last admin requires self-demote,
+    // which this guard already blocks (see .issue/315 ADR-003).
+    IdentityService.assertNotSelf(actorId, targetId);
     const target = await userRepository.findById(targetId);
     if (target === null) {
       throw new NotFoundError("user", `User not found: ${targetId}`);
     }
-    const adminCount = await userRepository.countAdmins();
-    IdentityService.assertNotLastAdmin(targetId, adminCount);
     const demoted = User.demoteToMember(target.entity, now);
     await userRepository.save(demoted, target.expectedVersion);
   });

@@ -1401,7 +1401,9 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
     }
   });
 
-  it("rejects demoting the last admin", async () => {
+  it("rejects an admin demoting their own account", async () => {
+    // Expects self_operation_not_allowed, not last_admin_protected: demote
+    // has no last-admin check — it is only reachable via self-demote (ADR-003).
     const { container, userId: adminId } = await activateAdmin("admon02");
     try {
       await demoteAdmin({
@@ -1415,7 +1417,7 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
     } catch (error) {
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("last_admin_protected");
+        expect(error.code).toBe("self_operation_not_allowed");
       }
     }
   });
@@ -1443,6 +1445,25 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
       .from(schema.users)
       .where(eq(schema.users.id, memberB));
     expect(row[0]?.role).toBe("member");
+  });
+
+  it("rejects an admin suspending their own account", async () => {
+    const { container, userId: adminId } = await activateAdmin("admon08");
+    try {
+      await suspendUser({
+        container,
+        input: {
+          actorAdminId: adminId as never,
+          targetUserId: adminId as never,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("self_operation_not_allowed");
+      }
+    }
   });
 
   it("admin can suspend and reinstate an active member", async () => {

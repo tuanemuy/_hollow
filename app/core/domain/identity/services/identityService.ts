@@ -34,6 +34,23 @@ export const IdentityService = {
   },
 
   /**
+   * Modelled as a business rule, not an authorization failure: the actor
+   * already holds admin authority; what is rejected is acting on one's own
+   * account. Hence `BusinessRuleError`, mirroring `assertNotLastAdmin`.
+   *
+   * @throws BusinessRuleError("self_operation_not_allowed") when
+   *   `actorId` equals `targetUserId`.
+   */
+  assertNotSelf(actorId: UserId, targetUserId: UserId): void {
+    if (actorId === targetUserId) {
+      throw new BusinessRuleError(
+        IdentityErrorCode.SelfOperationNotAllowed,
+        "Admins cannot demote or suspend their own account",
+      );
+    }
+  },
+
+  /**
    * Uniqueness check at the transition point. The adapter's UNIQUE
    * constraint is the ultimate source of truth, but checking here lets
    * usecases surface a domain-shaped error before the write attempt.
