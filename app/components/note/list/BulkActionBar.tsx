@@ -90,7 +90,9 @@ export function BulkActionBar({ tree }: Props) {
   return (
     <>
       <section className={BULK_BAR} aria-label="一括操作">
-        <span className={BULK_COUNT}>{state.ids.size} 件選択中</span>
+        <span className={BULK_COUNT} aria-live="polite">
+          {state.ids.size} 件選択中
+        </span>
         <div className={BULK_ACTIONS}>
           <button
             type="button"

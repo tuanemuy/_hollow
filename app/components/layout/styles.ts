@@ -54,9 +54,10 @@ export const APP_LAYOUT_WITH_SIDEBAR = `${APP_LAYOUT} lg:grid-cols-[var(--sideba
 export const APP_SIDEBAR =
   "px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
 
-// Scrim behind the mobile drawer; clicking it closes the drawer.
+// Scrim behind the mobile drawer; clicking it closes the drawer. Shown only
+// below `lg` and only while open, regardless of generated-CSS source order.
 export const SIDEBAR_BACKDROP =
-  "lg:hidden fixed inset-0 z-[90] bg-black/20 hidden data-[open]:block";
+  "fixed inset-0 z-[90] bg-black/20 hidden data-[open]:max-lg:block";
 
 // Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
 // `lg`.

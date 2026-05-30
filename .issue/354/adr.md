@@ -91,11 +91,34 @@ List/Calendar はタイトルが `<Link>`、Tile はカード全体が `<Link>`�
 
 ### Decision
 - **Link 競合（view 別に確定）**:
-  - **Tile**: mode ON 時はカード外側の `<Link>` を `<button type="button">` にスワップし、カード全面で選択トグル。mode OFF 時のみ `<Link>` で遷移。
-  - **List / Calendar**: 行コンテナを mode ON 時に選択トグル可能にし、タイトル `<Link>` は mode ON 時 `pointer-events-none`（行 onClick が選択を担う）。mode OFF 時は従来どおりリンク遷移。
-  - 条件分岐は可能な限り `data-mode` 属性 + Tailwind variant で表現し、DOM 構造そのものの差し替え（Link↔button）が必要な箇所のみ JSX 分岐する。
-- **BulkActionBar 表示条件**: `state.mode` が true の間は常にマウントする（選択件数を live 表示、0件時はアクションを disabled）。末尾の × は「選択解除」ではなく **選択モード終了（`exitSelectMode`、ids も clear）** に割り当てる。これにより mode ON 中はバーが安定したアンカーとして残り、0件で消えて再選択でちらつく挙動を避ける。
+  - **Tile**: mode ON 時はカード外側の `<Link>` を `<button type="button">` にスワップし、カード全面で選択トグル。mode OFF 時のみ `<Link>` で遷移。チェックボックスはカードボタンの**兄弟**として絶対配置し（入れ子 button を避ける）、`NoteCheckbox` 内の `stopPropagation` で二重発火を防ぐ。
+  - **List / Calendar**: mode ON 時はチェックボックス（`NoteCheckbox`、44px タッチターゲット・キーボード操作可）を選択操作の単一導線とし、タイトル `<Link>` を**プレーン `<span>` に差し替える**（mode OFF 時のみ `<Link>` で遷移）。
+    - 当初は「行コンテナを onClick でトグル」を検討したが、Biome の `recommended` a11y ルール（`useKeyWithClickEvents` / 非 interactive 要素への onClick）が `<li onClick>` を弾く。行を `<button>` 化すると List 行内の DOM/レイアウト（grid 3列・更新日）と相性が悪く、二重タブストップ（行＋checkbox）も生む。チェックボックス単独導線は lint クリーンで、明示的選択モードの意図（44px の明確なターゲット）とも合致するためこちらを採用。
+  - 条件分岐は可能な限り `data-mode` 属性 + Tailwind variant で表現し、DOM 構造そのものの差し替え（Link↔button / Link↔span）が必要な箇所のみ JSX 分岐する。
+- **BulkActionBar 表示条件**: `state.mode` が true の間は常にマウントする（選択件数を `aria-live` で live 表示、0件時はアクションを disabled）。末尾の × は「選択解除」ではなく **選択モード終了（`exitSelectMode`、ids も clear）** に割り当てる。これにより mode ON 中はバーが安定したアンカーとして残り、0件で消えて再選択でちらつく挙動を避ける。
 
 ### Consequences
-- 良い点: view ごとに最適なタップ導線。バーが mode 中ずっと表示され UX が安定。アクセシビリティ（mode OFF 時はリンクの意味を保持）。
-- トレードオフ: view 別に分岐ロジックが分かれるが、選択 UX の質を優先。
+- 良い点: view ごとに最適なタップ導線。バーが mode 中ずっと表示され UX が安定。lint クリーンかつアクセシブル（checkbox がキーボード/タッチ両対応の単一トグル）。
+- トレードオフ: List / Calendar では mode ON 時にタイトルがリンクでなくなる（選択モード中は遷移より選択が主目的なので許容）。view 別に分岐ロジックが分かれる。
+
+---
+
+## ADR-006: モバイルドロワーにモーダル相当のフォーカス管理を実装する
+
+### Status
+Accepted
+
+### Context
+PR レビューで、off-canvas ドロワー（lg 未満で backdrop + 背面スクロールロックを伴うモーダル相当）に、`common/Dialog.tsx` が持つフォーカストラップ・初期フォーカス移動・フォーカス復帰・`role`/`aria-modal`/`aria-label` が無いことが指摘された（閉時もドロワー内リンクがフォーカス可能で、開時もフォーカスが背面へ抜ける）。一方でドロワーは lg 以上では in-flow の sticky カラムであり、そこにモーダル挙動を持たせてはならない。
+
+### Decision
+`AppShellDrawer` に**モバイル時のみ**有効なモーダル挙動を実装する。`matchMedia("(max-width: 1023px)")` で `isMobile` を解決（SSR/初回はデスクトップ前提＝inert を付けない）し、
+- 開時（mobile）: ドロワー内先頭要素へ初期フォーカス、Tab を `<aside>` 内にトラップ、Esc / lg 到達で close、close 時に起点（`MenuButton`）へフォーカス復帰。
+- `<aside>` に `aria-label="サイドバー"` を常時付与し、mobile 時のみ `role="dialog"` + `aria-modal={open}` を付ける。
+- 閉時（mobile）は `<aside>` を `inert` にし、画面外のリンクをタブ順・a11yツリーから除外する。デスクトップでは `isMobile=false` なので inert/trap/role は一切付かない。
+
+`common/Dialog.tsx` はポータル + 常時モーダル前提で構造が異なるため直接再利用はせず、同等のトラップロジックをドロワー向けに実装した。
+
+### Consequences
+- 良い点: モバイルでドロワーがモーダルとして正しく振る舞う（フォーカスが漏れない・支援技術に伝わる・閉時に背面が操作不能）。デスクトップの in-flow サイドバーは無改変。
+- トレードオフ: Dialog とトラップロジックが重複する。将来 off-canvas が増えるなら共通フックへの抽出を検討。

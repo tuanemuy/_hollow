@@ -41,11 +41,13 @@ export function NoteListViews({ notes }: Props) {
     ) : (
       <ListView notes={notes} />
     );
+  // Dim (not disable) the stale list during a filter fetch: selection is
+  // client-side state, so it must stay operable while results update.
   return (
     <div
       aria-busy={isLoading || undefined}
       data-pending={isLoading || undefined}
-      className="transition-opacity motion-reduce:transition-none data-[pending]:opacity-60 data-[pending]:pointer-events-none"
+      className="transition-opacity motion-reduce:transition-none data-[pending]:opacity-60"
     >
       {view}
     </div>
