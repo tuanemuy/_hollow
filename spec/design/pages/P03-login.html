@@ -375,7 +375,6 @@
     font-size: var(--text-xs);
     color: var(--color-ink-tertiary);
     font-weight: var(--weight-medium);
-    letter-spacing: 0.02em;
     margin: var(--space-12) auto var(--space-4);
     max-width: 440px;
     width: 100%;
@@ -469,6 +468,14 @@
   ADR-004: 未認証 callout の正準配色は neutral surface + accent アイコン（.callout-neutral）。
 -->
 
+<!--
+  (a) validation エラー: email / password の field 直下エラー、email は入力保持。
+  注意: 以下の日本語 field hint は「あるべき」設計提案であり、現行実装の文言転記ではない。
+  現行 app/components/auth/schema.ts の Zod スキーマは message 未指定で、
+  app/core/presentation/validator.ts は Zod デフォルト（英語）の issue.message を
+  そのまま fieldErrors に格納する（errorMap/i18n 層なし）。
+  validation 文言の日本語化は実装 Issue #201 の申し送り事項。
+-->
 <!-- (a) validation エラー: email / password の field 直下エラー、email は入力保持 -->
 <main class="auth-shell is-variant" style="padding-top: var(--space-6);">
   <div class="auth-card">
