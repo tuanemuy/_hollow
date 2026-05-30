@@ -113,9 +113,7 @@ describe("readPromptOverride", () => {
   // (e') a value exactly at the cap is accepted (boundary, not over).
   it("accepts a value exactly at the byte cap", () => {
     const exact = "a".repeat(PROMPT_OVERRIDE_MAX_BYTES);
-    const result = readPromptOverride(
-      formDataWith({ structurePrompt: exact }),
-    );
+    const result = readPromptOverride(formDataWith({ structurePrompt: exact }));
     expect(result?.structure).toBe(exact);
   });
 
