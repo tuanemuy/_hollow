@@ -53,10 +53,10 @@ admin の UsersTable で、ログイン中の admin user が **自分自身に�
 ### 3. application: usecase で自己操作ガードを呼ぶ
 
 - **対象ファイル:** `app/core/application/identity/demoteAdmin.ts`, `app/core/application/identity/suspendUser.ts`
-- **変更内容（配置はあえて非対称。ADR-003 で根拠を記録）:**
-  - `suspendUser`: actor の admin チェック直後・`findById(target)` の **前** に `IdentityService.assertNotSelf(actorId, targetId)` を呼ぶ。suspend には last-admin 不変条件が無く、自己 suspend は常に拒否したいので最速で弾く。`IdentityService` の import を追加。
-  - `demoteAdmin`: 既存の `assertNotLastAdmin(targetId, adminCount)` の **後** に `IdentityService.assertNotSelf(actorId, targetId)` を呼ぶ。`demoteAdmin` は `IdentityService` を既に import 済み。
-- **理由（demote で last-admin を先に評価する根拠）:** demote で `last_admin_protected` に到達できるのは **actor===target（唯一の admin が自分を demote）の時だけ**（count<=1 なら actor になれる admin は自分しかいない＝not_admin チェックの帰結）。よって self を先に評価すると `assertNotLastAdmin` が demote では到達不能（dead code）になり、既存テスト `rejects demoting the last admin`（actor===target）も落ちる。last-admin を先に置けば、(a) 単独 admin が自分を demote→`last_admin_protected`（既存テスト維持・dead code 化なし）、(b) admin 複数で自分を demote→`self_operation_not_allowed`（新ガード）、と両ルールが生き残る。`last_admin_protected` 全体のカバレッジは自己アカウント削除 `deleteAccount`（同じく self-operation が設計上の正・別テスト 1582 行）でも担保される。
+- **変更内容（suspend / demote とも対称・早期評価。ADR-003 最終決定）:**
+  - `suspendUser`: actor の admin チェック直後・`findById(target)` の **前** に `IdentityService.assertNotSelf(actorId, targetId)` を呼ぶ。`IdentityService` の import を追加。
+  - `demoteAdmin`: 同じく actor の admin チェック直後・`findById(target)` の **前** に `IdentityService.assertNotSelf(actorId, targetId)` を呼ぶ。**既存の `assertNotLastAdmin(targetId, adminCount)` と `countAdmins()` は除去**（冗長なため。下記理由）。`IdentityService` は import 済み。
+- **理由（demote の last-admin チェックを除去する根拠）:** demote で `last_admin_protected` に到達できるのは **actor===target（唯一の admin が自分を demote）の時だけ**（count<=1 なら admin は自分一人＝not_admin チェックの帰結。member への demote は手前の `demoteToMember` が `AlreadyMember` で弾く）。`assertNotSelf` が actor===target を全て塞ぐため、最後の admin は demote では二度と落とせず、`demoteAdmin` 内の `assertNotLastAdmin` は完全に冗長（発火経路なし）になる。よって除去し suspend と対称化する。last-admin 保護のドメインヘルパー自体は `deleteAccount`（自己アカウント削除＝自己操作が設計上の正で `assertNotSelf` を持たない）で引き続き到達・必要なので残す。
 
 ### 4. presentation: current user id を UI へ伝播
 
@@ -81,7 +81,7 @@ admin の UsersTable で、ログイン中の admin user が **自分自身に�
 - **変更内容（最小構成）:**
   1. 「admin が **2 人以上**いる状態で actor===target で demote → `self_operation_not_allowed`」: admin A（actor=self）+ admin B（count>=2 にする）。既存の `can demote when another admin exists` の足場（admon03 + 昇格）を流用できる。
   2. 「actor===target で suspend → `self_operation_not_allowed`」: admin A（actor=self、active）。
-  3. 既存 `rejects demoting the last admin`（actor===target・admin 1 人）は **last_admin_protected のまま据え置き**（ADR-003 の順序決定により変更不要）。
+  3. 既存 `rejects demoting the last admin`（actor===target・admin 1 人）は **`self_operation_not_allowed` 期待に更新**し、テスト名も `rejects an admin demoting their own account (sole admin)` に変更（ADR-003 最終決定で demote の last-admin チェックを除去したため。demote 経由の `last_admin_protected` は発生しなくなり、`deleteAccount` 経由でのみ担保される）。
 - **errorCodeNaming.test.ts:** 新コードは `import.meta.glob` で自動 discover されるため `EXPECTED_ERROR_CODE_NAMES` の手動更新は不要。命名規約（key=PascalCase / value=lower_snake_case）チェックのみ通過すればよい。
 - **理由:** 多重防御の振る舞いを固定。既存テストを壊さず新ルールを追加カバー。
 
@@ -100,7 +100,7 @@ admin の UsersTable で、ログイン中の admin user が **自分自身に�
 
 ## リスクと注意点
 
-- **既存テスト `rejects demoting the last admin` との干渉 → ADR-003 で解消済み。** demote では last-admin を self より先に評価する（ステップ 3 の理由参照）。これにより既存テストは無変更で green、`assertNotLastAdmin` も dead code 化しない。
+- **既存テスト `rejects demoting the last admin` との干渉 → ADR-003 で解消済み。** demote の last-admin チェックは冗長なため除去し、当該テストを `self_operation_not_allowed` 期待に更新（ステップ 3・6 参照）。
 - **`currentUserId` の型整合 → ステップ 4 で確定。** prop を `string` で受け素の文字列等価比較。
 - **promote/reinstate に `!isSelf` を付けない → ADR-002 で確定。** 構造上自己行に出ないため冗長を避ける。
 - **エラー文言とコード値の一致。** CLAUDE.md の `*ErrorCode` 規約: value は lower_snake_case で `BusinessRuleError('...')` の spec 文言と整合。`errorCodeNaming.test.ts` が機械チェック（新コードは glob 自動 discover、EXPECTED 手動更新不要）。

@@ -54,14 +54,15 @@ Accepted
 - demote で `last_admin_protected`（`adminCount <= 1`）に到達できるのは **actor===target の時のみ**。理由: count<=1 なら admin は 1 人だけで、actor は admin でなければならない（`not_admin` チェック）ので、その唯一の admin = target = actor となる。つまり「他の admin が最後の admin を demote」は構造上起こり得ない。
 - `assertNotLastAdmin` は `deleteAccount`（**自己アカウント削除**、actor 自身を削除するのが設計上の正）でも使われ、そちらの結合テスト（identity.integration.test.ts:1582）で `last_admin_protected` のカバレッジが独立に担保されている。
 
-### Decision
-**案B を採用**: demote では `assertNotLastAdmin(targetId, adminCount)` を `assertNotSelf(actorId, targetId)` より **前** に評価する。
-- 単独 admin が自分を demote（count==1, actor===target）→ `last_admin_protected`（既存テスト無変更で green）。
-- admin 複数で自分を demote（count>=2, actor===target）→ `self_operation_not_allowed`（新ガード）。
-- suspend は last-admin 不変条件を持たないため、`assertNotSelf` を最速（`findById` 前）で評価し、自己 suspend は常に `self_operation_not_allowed`。
+### Decision（最終）
+**`demoteAdmin` から `assertNotLastAdmin` + `countAdmins()` を除去し、`assertNotSelf` を早期（authz チェック直後・`findById(target)` 前）に評価する。suspend と対称。**
 
-案A（self を先に評価）を退けた理由: demote で `assertNotLastAdmin` が**到達不能（dead code）**になり、かつ既存テストの改変を要する。案B は両ルールを生かし、既存テストを壊さない。
+根拠: 上記「到達可能性」より、demote で last-admin に到達するには actor===target が必須。`assertNotSelf` が actor===target をすべて塞ぐので、**最後の admin は demote では二度と落とせない**（落とすには自己 demote が要り、それが禁止される）。よって `demoteAdmin` の `assertNotLastAdmin` は `assertNotSelf` 導入後は完全に冗長（demote では発火経路が無い）。last-admin 保護のドメインヘルパー自体は `deleteAccount`（自己アカウント削除＝自己操作が設計上の正で、`assertNotSelf` を持たない）で引き続き到達・必要なので残す。
+
+#### 検討の経緯
+- 初稿では「案B（demote で last-admin を先に評価し既存テストを無改変に保つ）」を採用した。これは既存テストを壊さず多重防御の保険になる一方、(1) `demoteAdmin` 内の `assertNotLastAdmin` が冗長（デッド）になり、(2) suspend(早期)／demote(後置) のガード配置が非対称になる、という代償があった。
+- PR #338 のレビュー（ユーザー指摘）でこの冗長・非対称が問題視されたため、最終的に冗長を除去する本決定へ改めた。
 
 ### Consequences
-- 良い点: 既存テスト無変更。`demoteAdmin` の last-admin / self 両ガードが共に到達可能で意味を持つ。`deleteAccount` の last-admin 保護とも干渉しない。
-- トレードオフ: 単独 admin が自分を demote した場合のメッセージが `self_operation_not_allowed` ではなく `last_admin_protected` になる（count==1 ではどちらも真であり、表示としては許容範囲）。usecase 間でガード配置が非対称（suspend=早期 / demote=last-admin 後）になるが、demote にのみ last-admin 不変条件があるためで、plan.md ステップ 3 に根拠を記載。
+- 良い点: `demoteAdmin` の冗長な防御と `countAdmins()` の無駄な読み取りが消え、suspend と配置が対称になりコードが読みやすい。自己 demote は admin 数に関わらず常に `self_operation_not_allowed`。
+- トレードオフ: 既存テスト `rejects demoting the last admin` を更新（単独 admin の自己 demote の期待エラーが `last_admin_protected` → `self_operation_not_allowed`、テスト名も `rejects an admin demoting their own account (sole admin)` に変更）。demote 経由の `last_admin_protected` は発生しなくなる（`deleteAccount` 経由でのみ発生・テスト済み）。多重防御の保険は1枚減るが、その保険は「`assertNotSelf` が壊れたとき」にしか効かず、デッドコードとして意図を曇らせる弊害の方が大きいと判断。
