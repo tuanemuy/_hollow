@@ -57,4 +57,6 @@ Issue #182 は `user.deleted` の fan-out（`publication.handleUserDeletedEvent`
 
 いずれの対処も本 Issue のスコープ外であり、観測データが上限近接を示した時点で**別 Issue として起票**して再評価する（本 Issue は観測基盤の導入とドキュメント是正で完了とする）。
 
+**観測の限界（運用者向け注記）:** `durationMs` ログは fan-out が**正常完了したときのみ**出力される。いずれかのハンドラが throw した場合（= invocation が CPU/wall 上限超過で kill された場合を含む）は外側 catch で `retry`/`handled` 分類に落ち、所要時間ログには到達しない。つまり「重すぎて落ちた」最悪ケースそのものは `durationMs` には現れず、`[queue] dispatch retry` / DLQ 到達 / Cloudflare の invocation kill メトリクスで間接的に観測する必要がある。`try/finally` で失敗時も計測する案は候補4軽量版のスコープを超えるため採らない。
+
 ---

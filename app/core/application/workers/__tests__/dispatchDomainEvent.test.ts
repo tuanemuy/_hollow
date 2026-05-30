@@ -160,6 +160,7 @@ type FindByIdResult = { entity: Note; expectedVersion: never } | null;
 function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
   container: ConsumerContainer;
   uowFindById: ReturnType<typeof vi.fn>;
+  clockNow: ReturnType<typeof vi.fn>;
 } {
   const uowFindById = vi.fn(async () =>
     opts.findByIdResult === undefined ? null : opts.findByIdResult,
@@ -183,24 +184,23 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
   // Monotonic fake clock: each `now()` advances 1s so the `user.deleted`
   // fan-out duration (`end - start`) is a positive, deterministic value.
   // Only the `user.deleted` case reads `clock`, so this is inert for the
-  // other dispatch branches.
+  // other dispatch branches. Exposed as a spy so a test can assert the
+  // measured span is bounded by exactly two `now()` reads.
   let clockTick = 0;
-  const clock = {
-    now: () => {
-      clockTick += 1000;
-      return new Date(clockTick);
-    },
-  };
+  const clockNow = vi.fn(() => {
+    clockTick += 1000;
+    return new Date(clockTick);
+  });
   const container = {
     logger: stubLogger,
-    clock,
+    clock: { now: clockNow },
     htmlSanitizer: {
       sanitize: vi.fn(),
       toPlainText: vi.fn(),
     },
     unitOfWorkProvider,
   } as unknown as ConsumerContainer;
-  return { container, uowFindById };
+  return { container, uowFindById, clockNow };
 }
 
 const EVENT_ID = "01938f00-0000-7000-8000-aaaaaaaaaaaa" as EventId;
@@ -1077,7 +1077,10 @@ describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
   });
 
   it("logs fan-out duration with userId after both handlers complete (#182)", async () => {
-    const { container } = makeStubContainer({});
+    // Default mocks resolve immediately (publication → undefined, export →
+    // { cancelled: 0 }), i.e. an empty footprint (no public notes, no
+    // in-flight jobs) — the log must still fire in that case.
+    const { container, clockNow } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, userDeletedEvent());
     expect(outcome).toEqual({ kind: "handled" });
     expect(stubLogger.info).toHaveBeenCalledWith(
@@ -1095,8 +1098,11 @@ describe("dispatchDomainEvent — user.deleted routing (#159)", () => {
       )?.[1] as { durationMs: number };
     // Monotonic fake clock advances 1s per `now()` call, so the measured
     // span (start → end) is strictly positive — proving the duration is
-    // taken across the fan-out rather than from a single timestamp.
+    // taken across the fan-out rather than from a single timestamp. The
+    // span is bounded by exactly two reads (start before publication, end
+    // after export), guarding against a stray `now()` skewing the metric.
     expect(meta.durationMs).toBeGreaterThan(0);
+    expect(clockNow).toHaveBeenCalledTimes(2);
   });
 });
 
