@@ -378,6 +378,23 @@
   .form-error svg { flex-shrink: 0; margin-top: 2px; }
   .form-error strong { font-weight: var(--weight-semibold); }
 
+  /* Error-state variant blocks pack tightly (no full-viewport min-height) */
+  .auth-shell.is-variant { min-height: 0; }
+
+  /* Error-state variant caption (Issue #198) */
+  .variant-label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    font-weight: var(--weight-medium);
+    letter-spacing: 0.02em;
+    margin: var(--space-12) auto var(--space-4);
+    max-width: 460px;
+    width: 100%;
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-hairline);
+  }
+
   /* Checkbox */
   .checkbox-row {
     display: flex;
@@ -527,6 +544,340 @@
 
     <div class="ref-footer">
       <a href="#">ADR-007: 管理者登録は Setup Token で行う</a>
+    </div>
+  </div>
+</main>
+
+<!--
+  ===== エラー状態バリアント (Issue #198) =====
+  上の本体ブロックは既に Setup Token 不一致のエラー状態を埋め込んでいる。
+  以下はエラーケースを設計成果物として整理し直したもの。文言の真実のソースは2系統:
+    - callout の <strong> プレフィックス（「登録に失敗しました。」/
+      「Setup Token が正しくありません。」「Setup Token が設定されていません。」+
+      「値を確認してもう一度入力してください。」）は
+      app/components/auth/AdminSignUpForm/index.tsx のJSXハードコード由来
+    - 後段の本文（「すでに登録されています」「システムエラーが発生しました」等）は
+      app/core/presentation/errorDisplay.ts 由来
+  両方を一字一句現実装どおり転記している。
+-->
+
+<!-- (a) validation エラー: username / email / password / setupToken の field 直下エラー + 入力保持 -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (a) — validation（入力検証エラー・入力保持）</span>
+    <span class="admin-eyebrow">管理者セットアップ</span>
+    <h1 class="auth-title">初期管理者を作成</h1>
+    <p class="auth-subtitle">
+      このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
+    </p>
+
+    <form class="form" novalidate>
+      <div class="field has-error">
+        <label class="field-label" for="username-a">ユーザー名</label>
+        <input class="input" id="username-a" name="username" type="text" placeholder="admin" autocomplete="username" required aria-invalid="true" value="admin user">
+        <span class="field-hint">英数字とハイフンのみ使用できます。</span>
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="email-a">メールアドレス</label>
+        <input class="input" id="email-a" name="email" type="email" placeholder="admin@example.com" autocomplete="email" required aria-invalid="true" value="admin@">
+        <span class="field-hint">メールアドレスの形式が正しくありません。</span>
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="password-a">パスワード</label>
+        <input class="input" id="password-a" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required aria-invalid="true" value="123">
+        <span class="field-hint">8文字以上で入力してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-a">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-a" name="displayName" type="text" placeholder="運用チーム" autocomplete="nickname" value="運用チーム">
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="setupToken-a">Setup Token</label>
+        <div class="input-with-action">
+          <input class="input input-mono" id="setupToken-a" name="setupToken" type="password" placeholder="env: ADMIN_SETUP_TOKEN" autocomplete="off" spellcheck="false" required aria-invalid="true" value="">
+          <button type="button" class="reveal-btn" aria-label="トークンを表示">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-hint">Setup Token を入力してください。</span>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">管理者アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      管理者ではないですか? <a href="#">通常のサインアップへ</a>
+    </div>
+  </div>
+</main>
+
+<!-- (b) unauthorized — Setup Token 不一致（特殊 callout）。実装の2分岐を両方示す。 -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (b) — unauthorized（Setup Token 不一致・特殊 callout / 実装の2分岐）</span>
+    <span class="admin-eyebrow">管理者セットアップ</span>
+    <h1 class="auth-title">初期管理者を作成</h1>
+    <p class="auth-subtitle">
+      このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
+    </p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-b">ユーザー名</label>
+        <input class="input" id="username-b" name="username" type="text" placeholder="admin" autocomplete="username" required value="admin">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-b">メールアドレス</label>
+        <input class="input" id="email-b" name="email" type="email" placeholder="admin@example.com" autocomplete="email" required value="admin@example.com">
+        <span class="field-hint">確認メールを送信します。受信できるアドレスを指定してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-b">パスワード</label>
+        <input class="input" id="password-b" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">英数字と記号を組み合わせてください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-b">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-b" name="displayName" type="text" placeholder="運用チーム" autocomplete="nickname">
+      </div>
+
+      <div class="field has-error">
+        <label class="field-label" for="setupToken-b">Setup Token</label>
+        <div class="input-with-action">
+          <input class="input input-mono" id="setupToken-b" name="setupToken" type="password" placeholder="env: ADMIN_SETUP_TOKEN" autocomplete="off" spellcheck="false" required aria-invalid="true" value="wrong-token">
+          <button type="button" class="reveal-btn" aria-label="トークンを表示">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
+      </div>
+
+      <!-- 分岐1: invalid_setup_token（値が不一致） -->
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>Setup Token が正しくありません。</strong> 値を確認してもう一度入力してください。</span>
+      </div>
+
+      <!-- 分岐2: setup_token_disabled（サーバーに Setup Token が未設定）。実際には一度に片方のみ表示される。両分岐を並べて文言を提示するためのモック。 -->
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>Setup Token が設定されていません。</strong> 値を確認してもう一度入力してください。</span>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">管理者アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      管理者ではないですか? <a href="#">通常のサインアップへ</a>
+    </div>
+  </div>
+</main>
+
+<!-- (c) conflict — なし版（fallback / 現実装の既定）: フィールド非紐付けの汎用 summary callout -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (c) — conflict（なし版 / fallback・現実装の既定）</span>
+    <span class="admin-eyebrow">管理者セットアップ</span>
+    <h1 class="auth-title">初期管理者を作成</h1>
+    <p class="auth-subtitle">
+      このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
+    </p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-c">ユーザー名</label>
+        <input class="input" id="username-c" name="username" type="text" placeholder="admin" autocomplete="username" required value="admin">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-c">メールアドレス</label>
+        <input class="input" id="email-c" name="email" type="email" placeholder="admin@example.com" autocomplete="email" required value="admin@example.com">
+        <span class="field-hint">確認メールを送信します。受信できるアドレスを指定してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-c">パスワード</label>
+        <input class="input" id="password-c" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">英数字と記号を組み合わせてください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-c">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-c" name="displayName" type="text" placeholder="運用チーム" autocomplete="nickname">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="setupToken-c">Setup Token</label>
+        <div class="input-with-action">
+          <input class="input input-mono" id="setupToken-c" name="setupToken" type="password" placeholder="env: ADMIN_SETUP_TOKEN" autocomplete="off" spellcheck="false" required value="correct-token">
+          <button type="button" class="reveal-btn" aria-label="トークンを表示">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
+      </div>
+
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>登録に失敗しました。</strong> すでに登録されています</span>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">管理者アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      管理者ではないですか? <a href="#">通常のサインアップへ</a>
+    </div>
+  </div>
+</main>
+
+<!--
+  (d) conflict — あり版（field 直下開示）: 設計提案。
+  username / email を重複と特定して field 直下に赤エラーを出す案。列挙攻撃リスクがあるため
+  採否は実装 Issue #201 に委ねる。現実装の既定は上の (c) なし版（汎用 summary）。
+-->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (d) — conflict（あり版 / field 直下開示・設計提案、採否は #201）</span>
+    <span class="admin-eyebrow">管理者セットアップ</span>
+    <h1 class="auth-title">初期管理者を作成</h1>
+    <p class="auth-subtitle">
+      このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
+    </p>
+
+    <form class="form" novalidate>
+      <div class="field has-error">
+        <label class="field-label" for="username-d">ユーザー名</label>
+        <input class="input" id="username-d" name="username" type="text" placeholder="admin" autocomplete="username" required aria-invalid="true" value="admin">
+        <span class="field-hint">すでに登録されています</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-d">メールアドレス</label>
+        <input class="input" id="email-d" name="email" type="email" placeholder="admin@example.com" autocomplete="email" required value="admin@example.com">
+        <span class="field-hint">確認メールを送信します。受信できるアドレスを指定してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-d">パスワード</label>
+        <input class="input" id="password-d" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">英数字と記号を組み合わせてください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-d">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-d" name="displayName" type="text" placeholder="運用チーム" autocomplete="nickname">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="setupToken-d">Setup Token</label>
+        <div class="input-with-action">
+          <input class="input input-mono" id="setupToken-d" name="setupToken" type="password" placeholder="env: ADMIN_SETUP_TOKEN" autocomplete="off" spellcheck="false" required value="correct-token">
+          <button type="button" class="reveal-btn" aria-label="トークンを表示">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">管理者アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      管理者ではないですか? <a href="#">通常のサインアップへ</a>
+    </div>
+  </div>
+</main>
+
+<!-- (e) system / unknown 汎用エラー: 抽象文言を維持した summary callout -->
+<main class="auth-shell is-variant" style="padding-top: var(--space-6); padding-bottom: var(--space-20);">
+  <div class="auth-card">
+    <span class="variant-label">エラー状態 (e) — system / unknown（汎用エラー・抽象化維持）</span>
+    <span class="admin-eyebrow">管理者セットアップ</span>
+    <h1 class="auth-title">初期管理者を作成</h1>
+    <p class="auth-subtitle">
+      このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
+    </p>
+
+    <form class="form" novalidate>
+      <div class="field">
+        <label class="field-label" for="username-e">ユーザー名</label>
+        <input class="input" id="username-e" name="username" type="text" placeholder="admin" autocomplete="username" required value="admin">
+        <span class="field-hint">英数字とハイフン。後から変更できません。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="email-e">メールアドレス</label>
+        <input class="input" id="email-e" name="email" type="email" placeholder="admin@example.com" autocomplete="email" required value="admin@example.com">
+        <span class="field-hint">確認メールを送信します。受信できるアドレスを指定してください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password-e">パスワード</label>
+        <input class="input" id="password-e" name="password" type="password" placeholder="8文字以上" autocomplete="new-password" required value="password123">
+        <span class="field-hint">英数字と記号を組み合わせてください。</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="displayName-e">表示名 <span class="optional">(任意)</span></label>
+        <input class="input" id="displayName-e" name="displayName" type="text" placeholder="運用チーム" autocomplete="nickname">
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="setupToken-e">Setup Token</label>
+        <div class="input-with-action">
+          <input class="input input-mono" id="setupToken-e" name="setupToken" type="password" placeholder="env: ADMIN_SETUP_TOKEN" autocomplete="off" spellcheck="false" required value="correct-token">
+          <button type="button" class="reveal-btn" aria-label="トークンを表示">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
+      </div>
+
+      <div class="form-error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span><strong>登録に失敗しました。</strong> システムエラーが発生しました</span>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" required checked>
+        <span><a href="#">利用規約</a> と <a href="#">プライバシーポリシー</a> に同意します</span>
+      </label>
+
+      <button type="submit" class="btn-primary">管理者アカウントを作成</button>
+    </form>
+
+    <div class="auth-footer">
+      管理者ではないですか? <a href="#">通常のサインアップへ</a>
     </div>
   </div>
 </main>
