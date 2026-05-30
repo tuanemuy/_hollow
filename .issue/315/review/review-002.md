@@ -28,10 +28,15 @@ review-001 で APPROVED 後、ユーザーから「冗長になっていない�
   - last-admin 保護のドメインヘルパーは `deleteAccount`（自己アカウント削除）で引き続き到達・必要なため残置。
   - ADR-003 を最終決定に改訂、plan.md ステップ 3・6・リスク節を更新。
 
+#### [W-002] 自己 demote テストの重複（修正済み）
+- 場所: `identity.integration.test.ts`
+- 理由: last-admin チェック除去後、`assertNotSelf` は admin 数を参照しない（`actorId === targetId` のみ）。そのため「単独 admin の自己 demote」と「別 admin 在席での自己 demote」は同一コードパスを叩くだけの重複テストになった。
+- 対応: 「別 admin 在席」テスト（admon07 + 昇格セットアップ）を削除。残す自己 demote テストは 1 本（テスト名も `rejects an admin demoting their own account` に簡素化）。非自己 demote は既存 `can demote when another admin exists` が担保。
+
 ## 検証
 
 - `pnpm typecheck` / `pnpm lint:fix` クリーン（`countAdmins` 未使用エラーなし）。
-- `pnpm test`（unit 2783 + integration 469）全 green。自己 demote（単独 admin / 別 admin 在席）・自己 suspend の各ケース緑。
+- `pnpm test`（unit 2783 + integration 468）全 green。自己 demote・自己 suspend・非自己 demote の各ケース緑。
 
 ## Design Decisions
 

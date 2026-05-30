@@ -1401,7 +1401,7 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
     }
   });
 
-  it("rejects an admin demoting their own account (sole admin)", async () => {
+  it("rejects an admin demoting their own account", async () => {
     // Expects self_operation_not_allowed, not last_admin_protected: demote
     // has no last-admin check — it is only reachable via self-demote (ADR-003).
     const { container, userId: adminId } = await activateAdmin("admon02");
@@ -1447,36 +1447,7 @@ describe("Promote / Demote / Suspend / Reinstate", () => {
     expect(row[0]?.role).toBe("member");
   });
 
-  it("rejects an admin demoting their own account (another admin present)", async () => {
-    // A second admin exists so the rejection is the self-operation guard,
-    // not last-admin protection (proves self-demote is blocked at any count).
-    const { container, userId: adminA } = await activateAdmin("admon07");
-    const memberB = await activateMember(container, "mem0050");
-    await promoteUserToAdmin({
-      container,
-      input: {
-        actorAdminId: adminA as never,
-        targetUserId: memberB as never,
-      },
-    });
-    try {
-      await demoteAdmin({
-        container,
-        input: {
-          actorAdminId: adminA as never,
-          targetUserId: adminA as never,
-        },
-      });
-      expect.fail("should have thrown");
-    } catch (error) {
-      expect(isBusinessRuleError(error)).toBe(true);
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe("self_operation_not_allowed");
-      }
-    }
-  });
-
-  it("rejects an admin suspending their own account (self-operation)", async () => {
+  it("rejects an admin suspending their own account", async () => {
     const { container, userId: adminId } = await activateAdmin("admon08");
     try {
       await suspendUser({

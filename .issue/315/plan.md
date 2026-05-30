@@ -79,9 +79,9 @@ admin の UsersTable で、ログイン中の admin user が **自分自身に�
 
 - **対象ファイル:** `app/core/application/identity/__tests__/identity.integration.test.ts`（または対応する単体テスト）
 - **変更内容（最小構成）:**
-  1. 「admin が **2 人以上**いる状態で actor===target で demote → `self_operation_not_allowed`」: admin A（actor=self）+ admin B（count>=2 にする）。既存の `can demote when another admin exists` の足場（admon03 + 昇格）を流用できる。
-  2. 「actor===target で suspend → `self_operation_not_allowed`」: admin A（actor=self、active）。
-  3. 既存 `rejects demoting the last admin`（actor===target・admin 1 人）は **`self_operation_not_allowed` 期待に更新**し、テスト名も `rejects an admin demoting their own account (sole admin)` に変更（ADR-003 最終決定で demote の last-admin チェックを除去したため。demote 経由の `last_admin_protected` は発生しなくなり、`deleteAccount` 経由でのみ担保される）。
+  1. 既存 `rejects demoting the last admin` を **自己 demote 拒否テストへ転用**（テスト名 `rejects an admin demoting their own account`、期待を `self_operation_not_allowed` に変更）。demote の last-admin チェックを除去したため `last_admin_protected` は demote 経由では発生せず `deleteAccount` 経由でのみ担保。
+  2. 「actor===target で suspend → `self_operation_not_allowed`」を新規追加。
+  3. 非自己 demote が通ることは既存 `can demote when another admin exists` が担保。自己 demote の拒否は `assertNotSelf`（admin 数非依存）なので admin 数違いの重複テストは作らない。
 - **errorCodeNaming.test.ts:** 新コードは `import.meta.glob` で自動 discover されるため `EXPECTED_ERROR_CODE_NAMES` の手動更新は不要。命名規約（key=PascalCase / value=lower_snake_case）チェックのみ通過すればよい。
 - **理由:** 多重防御の振る舞いを固定。既存テストを壊さず新ルールを追加カバー。
 
