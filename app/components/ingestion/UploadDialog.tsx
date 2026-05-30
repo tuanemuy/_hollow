@@ -2,8 +2,10 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { CheckCircle2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   dialogTitle,
@@ -63,6 +65,16 @@ type View =
   | {
       kind: "timedOut";
       jobId: string;
+    }
+  | {
+      // Successful commit. The note is persisted; instead of immediately
+      // navigating away we keep the user in the modal with a success
+      // confirmation and an explicit link to the new note (ADR-003).
+      // `title` is the user's edited title, threaded up from the form
+      // since the commit server-fn only returns `{ noteId }`.
+      kind: "committed";
+      noteId: string;
+      title: string;
     }
   | {
       // Terminal poll failure for an `existingJob`-origin waiting session.
@@ -135,6 +147,8 @@ function viewStatusText(view: View): string {
     }
     case "timedOut":
       return "推論の完了を待ちきれませんでした";
+    case "committed":
+      return "ノートを登録しました";
     case "queueGuidance":
       // The error itself is announced via the inline `role="alert"` region;
       // the polite region carries only the non-duplicate guidance so the
@@ -407,16 +421,12 @@ export function UploadDialog({ open, onClose }: Props) {
     [upload, router, structurePrompt, metadataPrompt],
   );
 
-  const onCommitted = useCallback(
-    (noteId: string) => {
-      void router.navigate({
-        to: "/notes/$noteId",
-        params: { noteId },
-      });
-      onClose();
-    },
-    [router, onClose],
-  );
+  // Successful commit lands on the `committed` view (instead of an
+  // immediate navigate) so the user gets an explicit success confirmation
+  // and a link to the new note. See ADR-003.
+  const onCommitted = useCallback((noteId: string, title: string) => {
+    setView({ kind: "committed", noteId, title });
+  }, []);
 
   const onDiscarded = useCallback(() => {
     onClose();
@@ -509,6 +519,14 @@ export function UploadDialog({ open, onClose }: Props) {
           total={view.total}
           succeeded={view.succeeded}
           failedNames={view.failedNames}
+          onClose={onClose}
+        />
+      ) : null}
+
+      {view.kind === "committed" ? (
+        <CommittedView
+          noteId={view.noteId}
+          title={view.title}
           onClose={onClose}
         />
       ) : null}
@@ -822,6 +840,44 @@ function QueueGuidanceView({
         </button>
         <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
           キュー画面を開く
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function CommittedView({
+  noteId,
+  title,
+  onClose,
+}: Readonly<{
+  noteId: string;
+  title: string;
+  onClose: () => void;
+}>) {
+  return (
+    <div className="py-4">
+      <div className="flex items-center gap-2 text-success mb-2">
+        <span className="inline-flex motion-safe:animate-pulse">
+          <Icon icon={CheckCircle2} size={20} />
+        </span>
+        <p className="text-sm font-medium text-ink">ノートを登録しました</p>
+      </div>
+      <p className="text-sm text-ink-secondary break-words">
+        「{title.length > 0 ? title : "無題のノート"}」を作成しました。
+      </p>
+      <div className="flex flex-wrap justify-end gap-2 mt-6">
+        <button type="button" className={pillBtn} onClick={onClose}>
+          閉じる
+        </button>
+        <Link
+          to="/notes/$noteId"
+          params={{ noteId }}
+          className={pillBtn}
+          data-primary=""
+          onClick={onClose}
+        >
+          ノートを開く
         </Link>
       </div>
     </div>

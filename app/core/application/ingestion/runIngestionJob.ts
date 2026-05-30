@@ -1,3 +1,4 @@
+import type { Directory } from "@/core/domain/directory/entity";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
@@ -101,11 +102,31 @@ export async function runIngestionJob({
     return;
   }
 
+  // Fetch the owner's directory tree once so the LLM can propose an
+  // existing placement and the pipeline can resolve a match to a concrete
+  // `DirectoryId`. A `findTree` failure must not abort ingestion — fall
+  // back to an empty tree (no existing-directory context) so the job still
+  // completes (see plan step 5 / リスク欄).
+  let existingDirectories: readonly ExistingDirectory[] = [];
+  try {
+    const tree = await container.unitOfWorkProvider.run(
+      ({ directoryRepository }) =>
+        directoryRepository.findTree(promoted.ownerId),
+    );
+    existingDirectories = canonicalizeDirectoryPaths(tree);
+  } catch (cause) {
+    container.logger.warn("ingestion.directoryTree.fetch_failed", {
+      jobId: input.jobId,
+      cause: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
+
   try {
     const preview = await runPipeline({
       bytes,
       kind: promoted.kind,
       ownerId: promoted.ownerId,
+      existingDirectories,
       llm: container.llmProvider,
       ocr: container.ocrProvider,
       speech: container.speechRecognitionProvider,
@@ -206,10 +227,22 @@ export async function runIngestionJob({
   }
 }
 
+/**
+ * Canonical directory path projection used both as LLM context and as the
+ * left-hand side of `directorySuggestion` matching. `path` is the
+ * slash-joined name chain (root excluded, no leading slash); `id` resolves
+ * a match back to a concrete `DirectoryId`.
+ */
+type ExistingDirectory = Readonly<{
+  id: DirectoryId;
+  path: string;
+}>;
+
 type PipelineDeps = Readonly<{
   bytes: ArrayBuffer;
   kind: SourceFileKind;
   ownerId: UserId;
+  existingDirectories: readonly ExistingDirectory[];
   llm: LLMProvider;
   ocr: OCRProvider;
   speech: SpeechRecognitionProvider;
@@ -265,6 +298,7 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
       rawText: text,
       prompt: structurePrompt,
       locale: "ja",
+      existingDirectories: deps.existingDirectories.map((d) => d.path),
     });
     const sanitized = deps.sanitizer.sanitize(structured.html, {
       allowMedia: true,
@@ -297,6 +331,13 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
     }
   }
 
+  // Resolve the LLM's path suggestion against the existing tree. A match
+  // (case-insensitive, slash-normalised) resolves to a concrete
+  // `DirectoryId` and clears the new-name field; a miss falls back to the
+  // trailing segment as a new single top-level directory name (ADR-004).
+  const { suggestedDirectoryId, suggestedDirectoryName } =
+    resolveDirectorySuggestion(directorySuggestion, deps.existingDirectories);
+
   return IngestionPreview.create({
     title: NoteTitle.create(
       titleSuggestion.trim().length > 0
@@ -304,18 +345,100 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
         : fallbackTitle(deps.originalFileName),
     ),
     contentHtml: ContentHtml.create(html),
-    suggestedDirectoryId: null as DirectoryId | null,
-    suggestedDirectoryName:
-      directorySuggestion === null
-        ? null
-        : directorySuggestion.trim().length === 0
-          ? null
-          : directorySuggestion,
+    suggestedDirectoryId,
+    suggestedDirectoryName,
     frontMatter: FrontMatter.empty(),
     suggestedTagNames: tagNames,
     internalLinkRefs: [] as readonly InternalLinkRef[],
     mediaRefs: [],
   });
+}
+
+/**
+ * Projects the owner's directory forest into canonical `{ id, path }`
+ * rows. `path` is the slash-joined chain of `DirectoryName`s from the
+ * top-level directory down to the node, with the virtual root (empty
+ * name) excluded and no leading slash — e.g. `親名/子名`. This canonical
+ * form is the single source for both the LLM context and the matching
+ * left-hand side (ADR-005), so the two never drift on slash / root
+ * representation.
+ */
+function canonicalizeDirectoryPaths(
+  tree: readonly Directory[],
+): readonly ExistingDirectory[] {
+  const byId = new Map<string, Directory>();
+  for (const dir of tree) {
+    byId.set(dir.id as unknown as string, dir);
+  }
+  const result: ExistingDirectory[] = [];
+  for (const dir of tree) {
+    // Skip the virtual root (empty name); only navigable directories are
+    // valid placement targets.
+    if (dir.parentId === null) continue;
+    const segments: string[] = [];
+    let cursor: Directory | undefined = dir;
+    // Walk up to the root, collecting names. The depth cap bounds this.
+    while (cursor !== undefined && cursor.parentId !== null) {
+      segments.unshift(cursor.name as unknown as string);
+      cursor = byId.get(cursor.parentId as unknown as string);
+    }
+    result.push({ id: dir.id, path: segments.join("/") });
+  }
+  return result;
+}
+
+/**
+ * Normalise a path for matching: lower-case (mirrors
+ * `DirectoryName.equals`), trim, and collapse leading/trailing/repeated
+ * slashes so `/a//b/` and `a/b` compare equal. Kept deliberately
+ * conservative so a near-miss falls back to a new directory rather than
+ * over-matching an unrelated existing one (リスク欄).
+ */
+function normalizePathForMatch(path: string): string {
+  return path
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .join("/")
+    .toLowerCase();
+}
+
+function resolveDirectorySuggestion(
+  directorySuggestion: string | null,
+  existingDirectories: readonly ExistingDirectory[],
+): {
+  suggestedDirectoryId: DirectoryId | null;
+  suggestedDirectoryName: string | null;
+} {
+  if (directorySuggestion === null || directorySuggestion.trim().length === 0) {
+    return { suggestedDirectoryId: null, suggestedDirectoryName: null };
+  }
+  const normalizedSuggestion = normalizePathForMatch(directorySuggestion);
+  if (normalizedSuggestion.length === 0) {
+    return { suggestedDirectoryId: null, suggestedDirectoryName: null };
+  }
+  for (const existing of existingDirectories) {
+    if (normalizePathForMatch(existing.path) === normalizedSuggestion) {
+      // Existing match: resolve the id and clear the new-name field so the
+      // VO's length validation (which only applies to new names) is not hit.
+      return {
+        suggestedDirectoryId: existing.id,
+        suggestedDirectoryName: null,
+      };
+    }
+  }
+  // Miss: adopt the trailing segment as a new single top-level name. The
+  // commit path only ever creates a single directory under root, so a
+  // nested path collapses to its leaf (ADR-004).
+  const segments = directorySuggestion
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+  const leaf = segments[segments.length - 1] ?? null;
+  return {
+    suggestedDirectoryId: null,
+    suggestedDirectoryName: leaf,
+  };
 }
 
 async function extractText(deps: PipelineDeps): Promise<string> {

@@ -288,6 +288,91 @@ describe("AnthropicLLMProvider", () => {
     });
   });
 
+  describe("prompt formatting (Issue #355)", () => {
+    it("structureToHtml: instructs a content-based title and a single-segment directory when no existingDirectories are supplied", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({
+          html: "<p/>",
+          titleSuggestion: "T",
+          directorySuggestion: null,
+        }),
+      );
+      setFetch(mock);
+      await makeProvider().structureToHtml(STRUCTURE_INPUT);
+      const body = parseRequestBody(mock, 0) as {
+        system: string;
+        messages: Array<{ content: Array<{ text: string }> }>;
+      };
+      expect(body.system).toContain("do not reuse the file name");
+      expect(body.system).toContain("single top-level name");
+      // No existing-directories list is appended to the user message.
+      expect(body.messages[0]?.content[0]?.text).not.toContain(
+        "Existing directories:",
+      );
+    });
+
+    it("structureToHtml: lists existingDirectories in the user message and instructs verbatim reuse", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({
+          html: "<p/>",
+          titleSuggestion: "T",
+          directorySuggestion: "Work/Reports",
+        }),
+      );
+      setFetch(mock);
+      await makeProvider().structureToHtml({
+        ...STRUCTURE_INPUT,
+        existingDirectories: ["Work", "Work/Reports"],
+      });
+      const body = parseRequestBody(mock, 0) as {
+        system: string;
+        messages: Array<{ content: Array<{ text: string }> }>;
+      };
+      expect(body.system).toContain("existing directories");
+      expect(body.system).toContain("verbatim");
+      const userText = body.messages[0]?.content[0]?.text ?? "";
+      expect(userText).toContain("Existing directories:");
+      expect(userText).toContain("- Work");
+      expect(userText).toContain("- Work/Reports");
+    });
+
+    it("structureToHtml: an empty existingDirectories list behaves like an omitted one", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({
+          html: "<p/>",
+          titleSuggestion: "T",
+          directorySuggestion: null,
+        }),
+      );
+      setFetch(mock);
+      await makeProvider().structureToHtml({
+        ...STRUCTURE_INPUT,
+        existingDirectories: [],
+      });
+      const body = parseRequestBody(mock, 0) as {
+        system: string;
+        messages: Array<{ content: Array<{ text: string }> }>;
+      };
+      expect(body.system).toContain("single top-level name");
+      expect(body.messages[0]?.content[0]?.text).not.toContain(
+        "Existing directories:",
+      );
+    });
+
+    it("suggestMetadata: instructs a meaningful, abstraction-aligned tag set of about 3-5 tags", async () => {
+      const mock = vi.fn(async () =>
+        envelopeResponse({ tags: [], aliases: [] }),
+      );
+      setFetch(mock);
+      await makeProvider().suggestMetadata(METADATA_INPUT);
+      const body = parseRequestBody(mock, 0) as { system: string };
+      expect(body.system).toContain("3 to 5");
+      expect(body.system).toContain("abstraction");
+      // aliases instruction is retained.
+      expect(body.system).toContain("aliases");
+    });
+  });
+
   describe("retry on broken envelope", () => {
     it("recovers when the first reply is non-JSON and the retry returns a valid envelope", async () => {
       const mock = vi
