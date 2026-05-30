@@ -4,6 +4,11 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import type { UserDTO } from "@/core/application/dto";
+import { displayError } from "@/core/presentation/errorDisplay";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
 import { logOutFn } from "./action";
 import {
   AVATAR,
@@ -45,6 +50,7 @@ export function UserMenu({ user }: Props) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [logoutError, setLogoutError] = useState<SerializedError | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -65,12 +71,17 @@ export function UserMenu({ user }: Props) {
       label: "ログアウト",
       danger: true,
       onSelect: () => {
+        setLogoutError(null);
         startTransition(async () => {
-          await logOut({ data: undefined });
-          // 認証状態が変わるため _app loader の userDto キャッシュを破棄し、
-          // /login へ遷移させる（LoginForm と対称。ADR-001）。
-          await router.invalidate();
-          await router.navigate({ to: "/login" });
+          try {
+            await logOut({ data: undefined });
+            // 認証状態が変わるため _app loader の userDto キャッシュを破棄し、
+            // /login へ遷移させる（LoginForm と対称。ADR-001）。
+            await router.invalidate();
+            await router.navigate({ to: "/login" });
+          } catch (error) {
+            setLogoutError(extractSerializedError(error));
+          }
         });
       },
     },
@@ -186,6 +197,11 @@ export function UserMenu({ user }: Props) {
               {item.label}
             </button>
           ))}
+          {logoutError && (
+            <div className="px-3 py-2 text-xs text-error">
+              {displayError(logoutError)}
+            </div>
+          )}
         </div>
       ) : null}
     </div>
