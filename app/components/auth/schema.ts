@@ -9,8 +9,11 @@ import { z } from "zod";
  */
 
 export const USERNAME_MAX_LENGTH = 64;
-export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 256;
+// Mirror the identity domain RawPassword bounds (12..128) so the transport
+// boundary rejects out-of-range lengths as field errors before the usecase
+// reaches RawPassword.create (which would surface them in the summary area).
+export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_LENGTH = 128;
 export const DISPLAY_NAME_MAX_LENGTH = 64;
 export const SETUP_TOKEN_MAX_LENGTH = 256;
 export const EMAIL_MAX_LENGTH = 320;
