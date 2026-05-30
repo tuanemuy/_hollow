@@ -139,7 +139,8 @@ async function makeLegacyPbkdf2Hash(
   );
   const toB64 = (bytes: Uint8Array): string => {
     let s = "";
-    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i] ?? 0);
+    for (let i = 0; i < bytes.length; i++)
+      s += String.fromCharCode(bytes[i] ?? 0);
     return btoa(s);
   };
   return `pbkdf2-sha256-v1$${iterations}$${toB64(salt)}$${toB64(
