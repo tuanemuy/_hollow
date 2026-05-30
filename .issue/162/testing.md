@@ -60,8 +60,8 @@ pnpm typecheck          # tsgo（port リネームの追従漏れ検出）
 
 - **目的:** resume パスで R2/DB delete が冪等に振る舞うこと（並行 tick 二重処理の許容）。
 - **手順:**
-  1. 上記統合テスト群で deleting 行の再 purge が `StorageNotFoundError` を無視し DB delete まで到達することを確認。
-- **期待結果:** 二重実行してもエラーにならず行が削除される。
+  1. deleting 行の再 purge を統合テストで確認する。
+- **期待結果:** 二重実行してもデータ破損しない。冪等性の根拠は (a) R2 アダプターの `bucket.delete` が存在しないキーでも成功する（`MediaService.purge` 自体は NotFound を伝播するが、R2 が NotFound を投げない）こと、(b) 並行 tick が同一行を拾っても先行 tick が DB 行を消した後は 1st UoW の `findById` が null を返し purge に進まないこと、の 2 点。
 
 ## 既存機能への影響確認
 

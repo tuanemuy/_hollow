@@ -54,6 +54,7 @@ Accepted
 
 ### Consequences
 - 良い点: ドメインに余計な遷移を足さない、再試行が猶予期間に縛られず迅速、実装が最小。
-- トレードオフ: overlapping tick で同一行を二重処理した場合 `purged` カウントが二重計上され得る（データ破損はなし）。Cloudflare cron の tick 間隔と purge 所要時間からも実害はまれと判断。
+- トレードオフ: overlapping tick で同一行を二重処理した場合、`purged` カウントが二重計上され、`media.purged` イベントも 2 回 outbox に積まれ得る（データ破損はなし）。後者は outbox の at-least-once 配信前提（consumer は冪等必須、CLAUDE.md）で吸収される。Cloudflare cron の tick 間隔と purge 所要時間からも実害はまれと判断。
+- 補足（W-001）: resume パスで `media.deleting` を再発火しないため、最初の `markDeleting` のイベントが何らかの理由で配送されないと当該行の `media.deleting` consumer は起動しないが、`media.deleting` は purge 完了の前提条件ではなく（consumer は装飾的・冪等）、purge 自体は 2nd UoW の `media.purged` で完結する。`media.deleting` を「purge の必須トリガー」とする consumer を将来追加する場合は本判断を見直すこと。
 
 ---

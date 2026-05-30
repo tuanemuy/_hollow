@@ -84,8 +84,11 @@ async function listPurgeCandidates(
 /**
  * Storage delete + DB delete. Caller is expected to have transitioned
  * the asset to `deleting` already; this service finalises the purge.
- * `StorageNotFoundError` on the storage delete is swallowed so a partial
- * prior failure does not block the DB cleanup.
+ * Storage errors (incl. `StorageNotFoundError`) are NOT swallowed —
+ * they propagate so the orchestrator (`purgeOrphans`) can log + count
+ * the failure and leave the row in `deleting` for a later sweep to
+ * retry. The storage delete runs first so a failed R2 delete never
+ * orphans the row's bytes behind a missing DB record.
  */
 async function purge(
   asset: MediaAsset,

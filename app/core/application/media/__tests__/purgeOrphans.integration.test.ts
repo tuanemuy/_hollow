@@ -272,6 +272,37 @@ describe("purgeOrphans (integration)", () => {
 
     const rows = await base.db.select().from(schema.mediaAssets);
     expect(rows).toHaveLength(0);
+
+    // Core Option A invariant: the resume path must NOT re-mark the row,
+    // so `media.deleting` fires exactly once (sweep 1's markDeleting) and
+    // `media.purged` exactly once (sweep 2's finalise) — never a
+    // duplicate `media.deleting` from a re-run markDeleting.
+    const events = await base.db.select().from(schema.outboxEvents);
+    const ofType = (t: string) =>
+      events.filter(
+        (e) =>
+          e.eventType === t &&
+          e.aggregateId === (orphanId as unknown as string),
+      );
+    expect(ofType("media.deleting")).toHaveLength(1);
+    expect(ofType("media.purged")).toHaveLength(1);
+  });
+
+  it("purges a fresh orphan and a stuck `deleting` row in the same sweep", async () => {
+    const base = getContainer();
+    const ownerId = await seedUser(base);
+    const oldAt = new Date(SWEEP_TIME.getTime() - (24 * 60 * 60 + 60) * 1000);
+    const orphanId = await seedOrphan(base, { ownerId, updatedAt: oldAt });
+    const deletingId = await seedDeleting(base, { ownerId, updatedAt: oldAt });
+    const container = withFixedClock(base, SWEEP_TIME);
+
+    const result = await purgeOrphans(container);
+
+    expect(result.purged).toBe(2);
+    expect(result.failed).toBe(0);
+    const rows = await base.db.select().from(schema.mediaAssets);
+    expect(rows).toHaveLength(0);
     void orphanId;
+    void deletingId;
   });
 });
