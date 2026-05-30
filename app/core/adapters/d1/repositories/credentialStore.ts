@@ -4,7 +4,11 @@ import {
   isScryptEncoded,
   verifyScrypt,
 } from "@/core/adapters/security/scrypt";
-import { SystemError, SystemErrorCode } from "@/core/application/errors";
+import {
+  AuthenticationError,
+  SystemError,
+  SystemErrorCode,
+} from "@/core/application/errors";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import { BusinessRuleError } from "@/core/domain/error";
@@ -139,6 +143,10 @@ async function verifyHash(raw: string, encoded: string): Promise<boolean> {
  * `spec/adr/011-argon2id-migration.md` (ADR-003) for the rationale and
  * the deliberately-unhandled `users.status === 'pending'` case (the
  * rehash still fires, the subsequent `logIn` still rejects).
+ * `changePassword` deliberately opts out of this lazy upgrade — it uses a
+ * dedicated rehash-free verify because it overwrites the row with the new
+ * scrypt hash regardless, so rehashing the current password first is wasted
+ * work (Issue #208).
  *
  * better-auth integration scope. better-auth is not wired in this wave;
  * the adapter therefore writes the `accounts` table directly per the
@@ -306,20 +314,58 @@ export class D1CredentialStore implements CredentialStore {
     );
   }
 
+  // Verify the current password WITHOUT the legacy lazy-upgrade rehash
+  // that `verifyPasswordForUser` performs. `changePassword` overwrites the
+  // row with the new scrypt hash immediately, so rehashing the current
+  // password first is pure wasted scrypt work (Issue #208). Do NOT collapse
+  // this into `verifyPasswordForUser` — that re-introduces `maybeRehashLegacy`.
+  private async verifyCurrentForChange(
+    userId: UserId,
+    raw: string,
+  ): Promise<boolean> {
+    try {
+      const rows = await this.db
+        .select({
+          deletedAt: users.deletedAt,
+          password: accounts.password,
+        })
+        .from(users)
+        .leftJoin(
+          accounts,
+          and(
+            eq(accounts.userId, users.id),
+            eq(accounts.providerId, CREDENTIAL_PROVIDER_ID),
+          ),
+        )
+        .where(eq(users.id, userId))
+        .limit(1);
+      const row = rows[0];
+      if (!row) return false;
+      if (row.deletedAt !== null) return false;
+      if (row.password === null) return false;
+      return verifyHash(raw, row.password);
+    } catch (error) {
+      throw new SystemError(
+        SystemErrorCode.DatabaseError,
+        "Failed to verify current password",
+        error,
+      );
+    }
+  }
+
   async changePassword(
     userId: UserId,
     currentRaw: string,
     newRaw: RawPassword,
   ): Promise<void> {
-    const ok = await this.verifyPasswordForUser(userId, currentRaw);
+    const ok = await this.verifyCurrentForChange(userId, currentRaw);
     if (!ok) {
-      // Per the port contract, the application layer raises
-      // `AuthenticationError('invalid_credentials')` for this case. The
-      // adapter signals it with a `BusinessRuleError` carrying a
-      // distinctive code so the usecase can translate; this is a
-      // deliberate channel since the application layer's
-      // `UnauthorizedError` is not visible inward.
-      throw new BusinessRuleError(
+      // Port contract: a mismatching current password surfaces as
+      // `AuthenticationError('invalid_credentials')` (HTTP 401). Throwing it
+      // here lets the usecase skip its own pre-verify round-trip; a
+      // `BusinessRuleError` would serialize as `kind:"business"` (422) and
+      // break the 401 contract.
+      throw new AuthenticationError(
         "invalid_credentials",
         "Current password does not match",
       );

@@ -21,7 +21,9 @@ import type {
  * - `linkProvider` on a `(providerId, providerAccountId)` already linked
  *   → `BusinessRuleError('provider_already_linked')`.
  * - `changePassword` with mismatching current password →
- *   `AuthenticationError('invalid_credentials')` (application layer).
+ *   `AuthenticationError('invalid_credentials')` (application layer). It
+ *   does not legacy-rehash the current password — the new hash overwrites
+ *   the row regardless, so any lazy upgrade would be wasted work.
  * - `verifyPassword` / `verifyPasswordForUser` return `null` / `false`
  *   for any failure (wrong password, unknown user, soft-deleted user)
  *   — never throw — so callers cannot leak existence via timing or

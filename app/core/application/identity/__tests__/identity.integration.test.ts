@@ -1004,6 +1004,39 @@ describe("ChangePassword", () => {
       }
     }
   });
+
+  it("rejects a soft-deleted actor even with the correct password", async () => {
+    const container = getContainer();
+    const { userId, sessionToken } = await activeUser("rhea01");
+
+    // Soft-delete while keeping the password row intact, so the change path
+    // is exercised against the `deletedAt` guard rather than a missing
+    // credential. Locks the dedicated rehash-free verify helper's row
+    // selection to `verifyPasswordForUser`'s (Issue #208).
+    await container.db
+      .update(schema.users)
+      .set({ deletedAt: "2026-01-01T00:00:00.000Z" })
+      .where(eq(schema.users.id, userId));
+
+    try {
+      await changePassword({
+        container,
+        input: {
+          actorUserId: userId as never,
+          currentPassword: strongPassword("rhea01"),
+          newPassword: "NewPass2345!",
+          revokeOtherSessions: false,
+          currentSessionToken: sessionToken,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isAuthenticationError(error)).toBe(true);
+      if (isAuthenticationError(error)) {
+        expect(error.code).toBe("invalid_credentials");
+      }
+    }
+  });
 });
 
 describe("RequestEmailChange", () => {
