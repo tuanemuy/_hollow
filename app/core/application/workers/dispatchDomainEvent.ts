@@ -116,12 +116,12 @@ export type DispatchOutcome =
  * (propagated as a thrown error to the outer catch).
  *
  * Error classification (see ADR-005):
- * - `LLMRateLimitError` → `retry`. Note: in the ingestion path this only
- *   helps when the job is still in `pending` at the time of throw; once
- *   the usecase has committed `pending → processing`, the next
- *   redelivery's `isPending` guard no-ops the call and the job sits
- *   `processing` until `max_retries → DLQ → admin manual retry`
- *   (ADR-003 "既知の限界").
+ * - `LLMRateLimitError` → `retry`. In the ingestion path, `runIngestionJob`
+ *   rolls the job `processing → pending` before rethrowing (Issue #109),
+ *   so the next redelivery passes the `isPending` guard and auto-re-drives
+ *   the pipeline once the rate limit clears. A persistently throttled job
+ *   eventually lands in the DLQ after `max_retries` (the queue's intended
+ *   backoff behaviour, not a stall).
  * - `NotFoundError` (`INGESTION_JOB_NOT_FOUND` / `EXPORT_JOB_NOT_FOUND`)
  *   → `handled` — the row is gone, redelivery cannot resurrect it.
  *   Note: `runExportJob` swallows this internally, so the `EXPORT_JOB_NOT_FOUND`

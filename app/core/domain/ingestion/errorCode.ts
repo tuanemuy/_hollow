@@ -20,6 +20,7 @@ export const IngestionErrorCode = {
   InvalidStateForCommit: "invalid_status_for_commit",
   InvalidStateForDiscard: "invalid_status_for_discard",
   InvalidStateForRetry: "ingestion_invalid_state_for_retry",
+  InvalidStateForRollback: "ingestion_invalid_state_for_rollback",
   NoTempStorageForRetry: "ingestion_no_temp_storage_for_retry",
 
   RegenerationLimitExceeded: "regeneration_limit_exceeded",

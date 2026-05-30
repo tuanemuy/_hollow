@@ -175,6 +175,54 @@ describe("IngestionJob state transitions (property)", () => {
     );
   });
 
+  it("startProcessing → rollbackToPending → startProcessing round-trips and bumps version by +1 each step", () => {
+    fc.assert(
+      fc.property(kindArb, (kind) => {
+        const { entity: pending } = IngestionJob.create(
+          {
+            id: nextRawId(),
+            ownerId,
+            originalFileName: "x.html",
+            mimeType: "text/html",
+            byteSize: 8,
+            kind,
+            tempStorageKey: "tmp/rb",
+          },
+          T0,
+        );
+
+        const start1 = IngestionJob.startProcessing(pending, T0);
+        expect(start1.entity.status).toBe("processing");
+        expect(start1.entity.version as number).toBe(
+          (pending.version as number) + 1,
+        );
+
+        const rollback = IngestionJob.rollbackToPending(start1.entity, T0);
+        expect(rollback.entity.status).toBe("pending");
+        expect(rollback.eventDrafts).toHaveLength(0);
+        // tempStorageKey survives the round-trip so the re-run has a payload.
+        expect(rollback.entity.tempStorageKey).toBe(pending.tempStorageKey);
+        expect(rollback.entity.regenerationCount).toBe(
+          pending.regenerationCount,
+        );
+        expect(rollback.entity.version as number).toBe(
+          (start1.entity.version as number) + 1,
+        );
+
+        // Rolled-back job re-enters `processing` (the redelivery re-drive).
+        const start2 = IngestionJob.startProcessing(rollback.entity, T0);
+        expect(start2.entity.status).toBe("processing");
+        expect(start2.entity.version as number).toBe(
+          (rollback.entity.version as number) + 1,
+        );
+        // Monotonic version: +1, +1, +1 over the three transitions.
+        expect(start2.entity.version as number).toBe(
+          (pending.version as number) + 3,
+        );
+      }),
+    );
+  });
+
   it("discard from previewing or failed always reaches discarded and emits one draft", () => {
     fc.assert(
       fc.property(fc.boolean(), (failFirst) => {
