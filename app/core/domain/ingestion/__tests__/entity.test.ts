@@ -738,6 +738,24 @@ describe("IngestionJob.rollbackToPending", () => {
         expect(error.code).toBe(IngestionErrorCode.InvalidStateForRollback);
       }
     }
+
+    // `failed` is the entry state for `retry`; rollback must reject it so
+    // the two re-drive paths stay mutually exclusive.
+    const { entity: failed } = IngestionJob.markFailed(
+      processing,
+      "llm_failure",
+      "boom",
+      at(3),
+    );
+    try {
+      IngestionJob.rollbackToPending(failed, at(4));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(IngestionErrorCode.InvalidStateForRollback);
+      }
+    }
   });
 
   it("rolled-back pending job can start processing again", () => {

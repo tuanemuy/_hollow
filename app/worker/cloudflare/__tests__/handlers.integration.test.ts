@@ -668,6 +668,10 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .from(ingestionJobs)
       .where(eq(ingestionJobs.id, jobId));
     expect(jobAfterRetry[0]?.status).toBe("pending");
+    // promote (pending → processing) + rollback (processing → pending)
+    // each bump the version, so the rolled-back row outranks the seed.
+    const versionAfterRetry = jobAfterRetry[0]?.version ?? 0;
+    expect(versionAfterRetry).toBeGreaterThan(0);
 
     // Redelivery: hasProcessed=false (no stamp), so handleQueue enters
     // dispatch again. The job is `pending`, so `runIngestionJob` re-runs
@@ -701,6 +705,11 @@ describe("consumer Worker — handleQueue dispatch", () => {
       .from(ingestionJobs)
       .where(eq(ingestionJobs.id, jobId));
     expect(jobAfterRedeliver[0]?.status).toBe("previewing");
+    // The re-drive (promote + attachPreview) bumps the version further,
+    // confirming OCC stays monotonic across the rollback boundary.
+    expect(jobAfterRedeliver[0]?.version ?? 0).toBeGreaterThan(
+      versionAfterRetry,
+    );
   });
 
   it("skips already-processed events via hasProcessed (no re-dispatch)", async () => {

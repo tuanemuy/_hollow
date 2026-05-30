@@ -184,6 +184,12 @@ function rollbackToPending(
   // preserved (this is not a regeneration). No event is emitted —
   // re-drive rides the existing `LLMRateLimitError → message.retry()`
   // path, not the outbox (see .issue/109/adr.md ADR-002).
+  //
+  // Unlike `retry` there is no `tempStorageKey === null` guard: only
+  // `commit` / `discard` reclaim the blob, and both move the job out of
+  // `processing`, so a `processing` job always still holds its key.
+  // `retry` needs the guard because it acts on `failed` jobs whose key
+  // may already have been reclaimed.
   const next: PendingIngestionJob = {
     ...job,
     status: "pending",
