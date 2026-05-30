@@ -8,7 +8,7 @@ import {
 const validSignUp = {
   username: "yumenaut",
   email: "you@example.com",
-  password: "Passw0rd!23",
+  password: "Passw0rd!234",
   displayName: "ユメナウト",
   acceptTerms: true as const,
 };
