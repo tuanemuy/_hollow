@@ -168,6 +168,54 @@ async function seedDirectory(
   return { id: childId, path: params.name };
 }
 
+// Seeds root → parent → child so the canonical path is multi-segment
+// (`parent/child`), exercising the parentId walk-up in
+// `canonicalizeDirectoryPaths` (ADR-005) that single-level seeds never hit.
+async function seedNestedDirectory(
+  container: TestContainer,
+  params: { ownerId: UserId; parent: string; child: string },
+): Promise<{ childId: string; path: string }> {
+  const rootId = nextDirId();
+  const parentId = nextDirId();
+  const childId = nextDirId();
+  await container.db.insert(schema.directories).values([
+    {
+      id: rootId,
+      ownerId: params.ownerId as unknown as string,
+      parentId: null,
+      name: "",
+      slug: "",
+      depth: 0,
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    },
+    {
+      id: parentId,
+      ownerId: params.ownerId as unknown as string,
+      parentId: rootId,
+      name: params.parent,
+      slug: params.parent.toLowerCase(),
+      depth: 1,
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    },
+    {
+      id: childId,
+      ownerId: params.ownerId as unknown as string,
+      parentId,
+      name: params.child,
+      slug: params.child.toLowerCase(),
+      depth: 2,
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    },
+  ]);
+  return { childId, path: `${params.parent}/${params.child}` };
+}
+
 async function seedInstanceSettings(container: TestContainer): Promise<void> {
   const limits = {
     maxUploadBytesPerDay: 1_073_741_824,
@@ -922,6 +970,151 @@ describe("runIngestionJob", () => {
     // No tree to match against → the suggestion becomes a new directory name.
     expect(preview.suggestedDirectoryId).toBeNull();
     expect(preview.suggestedDirectoryName).toBe("Inbox");
+  });
+
+  it("does not over-match a near-miss spelling (Worked ≠ existing Work)", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, { ownerId: owner, name: "Work" });
+    // "Worked" is a near-miss of the existing "Work": matching is exact
+    // (after normalisation), so it must NOT resolve to the existing id —
+    // it falls back to a new directory instead (リスク欄 / ADR-005).
+    llm.setStructureResult({
+      html: "<p>x</p>",
+      titleSuggestion: "T",
+      directorySuggestion: "Worked",
+    });
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      suggestedDirectoryId: string | null;
+      suggestedDirectoryName: string | null;
+    };
+    expect(preview.suggestedDirectoryId).toBeNull();
+    expect(preview.suggestedDirectoryName).toBe("Worked");
+  });
+
+  it("projects a nested directory tree into multi-segment canonical paths and matches them", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const nested = await seedNestedDirectory(container, {
+      ownerId: owner,
+      parent: "Work",
+      child: "Reports",
+    });
+    // The LLM returns the multi-segment path; the canonical projection must
+    // have built "Work/Reports" from the parentId chain for this to match.
+    llm.setStructureResult({
+      html: "<p>x</p>",
+      titleSuggestion: "T",
+      directorySuggestion: "Work/Reports",
+    });
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    // Both the parent ("Work") and the child ("Work/Reports") are navigable
+    // placement targets, so both canonical paths are offered to the LLM.
+    expect(llm.structureCalls[0]?.existingDirectories).toEqual([
+      "Work",
+      nested.path,
+    ]);
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      suggestedDirectoryId: string | null;
+      suggestedDirectoryName: string | null;
+    };
+    expect(preview.suggestedDirectoryId).toBe(nested.childId);
+    expect(preview.suggestedDirectoryName).toBeNull();
+  });
+
+  it("drops an over-long new directory name instead of failing the job", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    // No existing match → fallback to leaf, but the leaf exceeds the
+    // suggested-name length cap. It must be dropped (name=null) rather than
+    // throwing in `IngestionPreview.create` and failing the whole job.
+    llm.setStructureResult({
+      html: "<p>x</p>",
+      titleSuggestion: "T",
+      directorySuggestion: "x".repeat(201),
+    });
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    // The job reached the preview stage (preview persisted), not failed.
+    expect(rows[0]?.status).toBe("previewing");
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      suggestedDirectoryId: string | null;
+      suggestedDirectoryName: string | null;
+    };
+    expect(preview.suggestedDirectoryId).toBeNull();
+    expect(preview.suggestedDirectoryName).toBeNull();
   });
 });
 

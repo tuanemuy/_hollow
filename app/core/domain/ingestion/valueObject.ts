@@ -15,7 +15,7 @@ const MIME_TYPE_MAX_LENGTH = 255;
 const TEMP_STORAGE_KEY_MAX_LENGTH = 1024;
 const ERROR_REASON_MAX_LENGTH = 2048;
 const ERROR_CODE_MAX_LENGTH = 128;
-const SUGGESTED_DIRECTORY_NAME_MAX_LENGTH = 200;
+export const SUGGESTED_DIRECTORY_NAME_MAX_LENGTH = 200;
 // Conservative absolute upper bound for a single upload — far above the
 // per-kind `IngestionLimits.maxBytes` cap that gates real ingestion. This
 // guard exists only to reject negative / non-integer / pathologically

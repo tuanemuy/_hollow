@@ -870,12 +870,16 @@ function CommittedView({
         <button type="button" className={pillBtn} onClick={onClose}>
           閉じる
         </button>
+        {/* No onClick={onClose} here: onClose runs router.navigate({to:"."})
+            + replaceState, which would race the Link's own navigation to
+            the note. Navigating to /notes/$noteId drops the #upload hash,
+            so `open` flips false and the dialog closes on its own — same
+            convention as the other views' Links. */}
         <Link
           to="/notes/$noteId"
           params={{ noteId }}
           className={pillBtn}
           data-primary=""
-          onClick={onClose}
         >
           ノートを開く
         </Link>

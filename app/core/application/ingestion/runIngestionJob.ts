@@ -34,6 +34,7 @@ import {
   IngestionPreview,
   type PromptOverride,
   type SourceFileKind,
+  SUGGESTED_DIRECTORY_NAME_MAX_LENGTH,
 } from "@/core/domain/ingestion/valueObject";
 import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
 import {
@@ -377,11 +378,23 @@ function canonicalizeDirectoryPaths(
     if (dir.parentId === null) continue;
     const segments: string[] = [];
     let cursor: Directory | undefined = dir;
-    // Walk up to the root, collecting names. The depth cap bounds this.
+    // Walk up to the root, collecting names. `visited` guards against a
+    // corrupt parent cycle (A.parent=B, B.parent=A) which would otherwise
+    // spin forever — mirrors the d1 `findAncestors` guard. On a cycle we
+    // drop the partial path and skip the row rather than hang the worker.
+    const visited = new Set<string>();
+    let broken = false;
     while (cursor !== undefined && cursor.parentId !== null) {
+      const cursorId = cursor.id as unknown as string;
+      if (visited.has(cursorId)) {
+        broken = true;
+        break;
+      }
+      visited.add(cursorId);
       segments.unshift(cursor.name as unknown as string);
       cursor = byId.get(cursor.parentId as unknown as string);
     }
+    if (broken) continue;
     result.push({ id: dir.id, path: segments.join("/") });
   }
   return result;
@@ -435,6 +448,13 @@ function resolveDirectorySuggestion(
     .map((segment) => segment.trim())
     .filter((segment) => segment.length > 0);
   const leaf = segments[segments.length - 1] ?? null;
+  // Drop an over-long leaf rather than letting `IngestionPreview.create`
+  // throw and fail the whole ingestion job. Mirrors the best-effort
+  // handling of tag tokens (an over-eager LLM directory name must not be
+  // fatal); the user can still pick a directory in the preview form.
+  if (leaf !== null && leaf.length > SUGGESTED_DIRECTORY_NAME_MAX_LENGTH) {
+    return { suggestedDirectoryId: null, suggestedDirectoryName: null };
+  }
   return {
     suggestedDirectoryId: null,
     suggestedDirectoryName: leaf,

@@ -1,5 +1,11 @@
 import { extractJsonObject } from "@/core/adapters/llm/jsonEnvelope";
 import {
+  buildMetadataSystemPrompt,
+  buildMetadataUserMessage,
+  buildStructureSystemPrompt,
+  buildStructureUserMessage,
+} from "@/core/adapters/llm/prompts";
+import {
   type LLMMetadataInput,
   type LLMMetadataResult,
   type LLMProvider,
@@ -91,8 +97,8 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
-    const system = this.buildStructureSystemPrompt(input);
-    const userMessage = this.buildStructureUserMessage(input);
+    const system = buildStructureSystemPrompt(input);
+    const userMessage = buildStructureUserMessage(input);
     const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
       const parsed = extractJsonObject(raw);
       if (parsed === null) return null;
@@ -120,8 +126,8 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   async suggestMetadata(input: LLMMetadataInput): Promise<LLMMetadataResult> {
-    const system = this.buildMetadataSystemPrompt(input);
-    const userMessage = this.buildMetadataUserMessage(input);
+    const system = buildMetadataSystemPrompt(input);
+    const userMessage = buildMetadataUserMessage(input);
     const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
       const parsed = extractJsonObject(raw);
       if (parsed === null) return null;
@@ -133,58 +139,6 @@ export class AnthropicLLMProvider implements LLMProvider {
     const tags = this.requireStringArray(envelope, "tags");
     const aliases = this.requireStringArray(envelope, "aliases");
     return { tags, aliases };
-  }
-
-  private buildStructureSystemPrompt(input: LLMStructureInput): string {
-    const base =
-      input.prompt.trim().length > 0
-        ? input.prompt
-        : "You convert raw note material into a sanitised HTML draft.";
-    const hasExisting =
-      input.existingDirectories !== undefined &&
-      input.existingDirectories.length > 0;
-    const directoryGuidance = hasExisting
-      ? 'For "directorySuggestion": prefer placing the note under one of the existing directories listed in the user message — when one fits, return that path verbatim (exactly as listed). Only when none of them fits, propose a new directory as a single top-level name (one segment, no slashes).'
-      : 'For "directorySuggestion": propose a fitting directory as a single top-level name (one segment, no slashes), or null when no clear placement applies.';
-    return [
-      base,
-      `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,
-      'For "titleSuggestion": do not reuse the file name. Derive a concise, meaningful title from the note content itself.',
-      directoryGuidance,
-      `Locale for natural-language output (including the title): ${input.locale}.`,
-      "Do not include code fences. Do not include any text before or after the JSON object.",
-    ].join("\n");
-  }
-
-  private buildStructureUserMessage(input: LLMStructureInput): string {
-    const hasExisting =
-      input.existingDirectories !== undefined &&
-      input.existingDirectories.length > 0;
-    const sections = [`Source text:\n${input.rawText}`];
-    if (hasExisting) {
-      const list = (input.existingDirectories as readonly string[])
-        .map((path) => `- ${path}`)
-        .join("\n");
-      sections.push(`Existing directories:\n${list}`);
-    }
-    return sections.join("\n\n");
-  }
-
-  private buildMetadataSystemPrompt(input: LLMMetadataInput): string {
-    const base =
-      input.prompt.trim().length > 0
-        ? input.prompt
-        : "You extract tag names and aliases from an HTML note body.";
-    return [
-      base,
-      `Respond with a single JSON object on one line with the keys "tags" (string[]) and "aliases" (string[]).`,
-      'For "tags": do not mechanically extract words from the text. Consider the overall content and propose a meaningful set of about 3 to 5 tags at a consistent level of abstraction (avoid mixing overly specific and broad tags).',
-      "Do not include code fences. Do not include any text before or after the JSON object.",
-    ].join("\n");
-  }
-
-  private buildMetadataUserMessage(input: LLMMetadataInput): string {
-    return `HTML body:\n${input.html}`;
   }
 
   private async invoke(

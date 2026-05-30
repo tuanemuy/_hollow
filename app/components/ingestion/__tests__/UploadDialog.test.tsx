@@ -24,6 +24,7 @@ const discardMock = vi.fn();
 const getTreeMock = vi.fn();
 const regenerateMock = vi.fn();
 const ownerRetryMock = vi.fn();
+const commitMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   // Identity dispatch via the imported references below. The module
@@ -37,6 +38,7 @@ vi.mock("@tanstack/react-start", () => ({
       [getTreeMock, getTreeMock],
       [regenerateMock, regenerateMock],
       [ownerRetryMock, ownerRetryMock],
+      [commitMock, commitMock],
     ],
     vi.fn(),
   ),
@@ -48,7 +50,7 @@ vi.mock("../actions", () => ({
   uploadFileFn: uploadMock,
   getIngestionJobFn: getJobMock,
   discardIngestionPreviewFn: discardMock,
-  commitIngestionPreviewFn: vi.fn(),
+  commitIngestionPreviewFn: commitMock,
   regenerateIngestionPreviewFn: regenerateMock,
   ownerRetryIngestionJobFn: ownerRetryMock,
 }));
@@ -118,6 +120,7 @@ beforeEach(() => {
   getTreeMock.mockReset();
   regenerateMock.mockReset();
   ownerRetryMock.mockReset();
+  commitMock.mockReset();
   navigateMock.mockClear();
   invalidateMock.mockClear();
   vi.useFakeTimers();
@@ -204,6 +207,83 @@ describe("UploadDialog state machine", () => {
     const titleInput =
       document.body.querySelector<HTMLInputElement>('input[type="text"]');
     expect(titleInput?.value).toBe("Hello");
+  });
+
+  it("transitions editing → committed on a successful commit and links to the note", async () => {
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock
+      .mockResolvedValueOnce({ job: baseJob })
+      .mockResolvedValueOnce({ job: previewingJob });
+    getTreeMock.mockResolvedValue({ flat: [] });
+    commitMock.mockResolvedValue({ noteId: "note-99" });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // editing view: edit the title, then submit the form.
+    const titleInput =
+      document.body.querySelector<HTMLInputElement>('input[type="text"]');
+    if (titleInput === null) throw new Error("title input not rendered");
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(titleInput, "Edited Title");
+      titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const form = document.body.querySelector("form");
+    if (form === null) throw new Error("preview form not rendered");
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // committed view: the edited title is echoed and a link to the new note
+    // is rendered. The commit was called with the edited title.
+    expect(commitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          jobId: "job-1",
+          title: "Edited Title",
+        }),
+      }),
+    );
+    expect(document.body.textContent).toContain("ノートを登録しました");
+    expect(document.body.textContent).toContain("Edited Title");
+    const status = document.body.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toBe("ノートを登録しました");
+    // The mocked Link renders its props as attributes; the "ノートを開く"
+    // link targets the new note's route.
+    const openLink = Array.from(document.body.querySelectorAll("a")).find((a) =>
+      a.textContent?.includes("ノートを開く"),
+    );
+    expect(openLink?.getAttribute("to")).toBe("/notes/$noteId");
+    // Successful commit must NOT immediately navigate (it stays in the modal).
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it("transitions to `failed` view when poll observes status=failed", async () => {
