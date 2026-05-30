@@ -177,13 +177,9 @@ function rollbackToPending(
   job: ProcessingIngestionJob,
   now: Date,
 ): WithEventDrafts<PendingIngestionJob, IngestionEvent> {
-  // Return an interrupted `processing` job to `pending` so the queue
-  // redelivery re-enters `runIngestionJob`'s `isPending` guard and
-  // re-drives the LLM pipeline. `tempStorageKey` is spread through
-  // (the re-run needs the staged payload) and `regenerationCount` is
-  // preserved (this is not a regeneration). No event is emitted —
-  // re-drive rides the existing `LLMRateLimitError → message.retry()`
-  // path, not the outbox (see .issue/109/adr.md ADR-002).
+  // `tempStorageKey` is spread through (the re-run needs the staged
+  // payload) and `regenerationCount` is preserved (this is not a
+  // regeneration).
   //
   // Unlike `retry` there is no `tempStorageKey === null` guard: only
   // `commit` / `discard` reclaim the blob, and both move the job out of
