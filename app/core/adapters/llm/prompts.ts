@@ -7,9 +7,8 @@ import type {
  * Shared prompt builders for the JSON-envelope LLM adapters (Anthropic /
  * OpenAI / Gemini). The three providers speak the same structuring /
  * metadata contract, so the prompt text lives here once — keeping the
- * suggestion-quality guidance (#355) identical regardless of which
- * provider an admin selects, and preventing the three copies from
- * drifting.
+ * suggestion-quality guidance identical regardless of which provider an
+ * admin selects, and preventing the three copies from drifting.
  */
 
 function hasExistingDirectories(input: LLMStructureInput): boolean {

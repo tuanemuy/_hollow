@@ -69,7 +69,7 @@ type View =
   | {
       // Successful commit. The note is persisted; instead of immediately
       // navigating away we keep the user in the modal with a success
-      // confirmation and an explicit link to the new note (ADR-003).
+      // confirmation and an explicit link to the new note.
       // `title` is the user's edited title, threaded up from the form
       // since the commit server-fn only returns `{ noteId }`.
       kind: "committed";
@@ -423,7 +423,7 @@ export function UploadDialog({ open, onClose }: Props) {
 
   // Successful commit lands on the `committed` view (instead of an
   // immediate navigate) so the user gets an explicit success confirmation
-  // and a link to the new note. See ADR-003.
+  // and a link to the new note.
   const onCommitted = useCallback((noteId: string, title: string) => {
     setView({ kind: "committed", noteId, title });
   }, []);

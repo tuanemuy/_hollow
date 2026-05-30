@@ -107,7 +107,7 @@ export async function runIngestionJob({
   // existing placement and the pipeline can resolve a match to a concrete
   // `DirectoryId`. A `findTree` failure must not abort ingestion — fall
   // back to an empty tree (no existing-directory context) so the job still
-  // completes (see plan step 5 / リスク欄).
+  // completes.
   let existingDirectories: readonly ExistingDirectory[] = [];
   try {
     const tree = await container.unitOfWorkProvider.run(
@@ -335,7 +335,8 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
   // Resolve the LLM's path suggestion against the existing tree. A match
   // (case-insensitive, slash-normalised) resolves to a concrete
   // `DirectoryId` and clears the new-name field; a miss falls back to the
-  // trailing segment as a new single top-level directory name (ADR-004).
+  // trailing segment as a new single top-level directory name (the commit
+  // path only ever creates one directory under root).
   const { suggestedDirectoryId, suggestedDirectoryName } =
     resolveDirectorySuggestion(directorySuggestion, deps.existingDirectories);
 
@@ -361,8 +362,7 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
  * top-level directory down to the node, with the virtual root (empty
  * name) excluded and no leading slash — e.g. `親名/子名`. This canonical
  * form is the single source for both the LLM context and the matching
- * left-hand side (ADR-005), so the two never drift on slash / root
- * representation.
+ * left-hand side, so the two never drift on slash / root representation.
  */
 function canonicalizeDirectoryPaths(
   tree: readonly Directory[],
@@ -405,7 +405,7 @@ function canonicalizeDirectoryPaths(
  * `DirectoryName.equals`), trim, and collapse leading/trailing/repeated
  * slashes so `/a//b/` and `a/b` compare equal. Kept deliberately
  * conservative so a near-miss falls back to a new directory rather than
- * over-matching an unrelated existing one (リスク欄).
+ * over-matching an unrelated existing one.
  */
 function normalizePathForMatch(path: string): string {
   return path
@@ -442,7 +442,7 @@ function resolveDirectorySuggestion(
   }
   // Miss: adopt the trailing segment as a new single top-level name. The
   // commit path only ever creates a single directory under root, so a
-  // nested path collapses to its leaf (ADR-004).
+  // nested path collapses to its leaf.
   const segments = directorySuggestion
     .split("/")
     .map((segment) => segment.trim())

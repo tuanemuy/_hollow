@@ -133,7 +133,7 @@ function nextDirId(): string {
 /**
  * Seed a per-owner root directory plus one child directory, returning the
  * child's id and slash-joined path (root excluded). Used by the
- * directory-suggestion matching tests (Issue #355).
+ * directory-suggestion matching tests.
  */
 async function seedDirectory(
   container: TestContainer,
@@ -170,7 +170,7 @@ async function seedDirectory(
 
 // Seeds root → parent → child so the canonical path is multi-segment
 // (`parent/child`), exercising the parentId walk-up in
-// `canonicalizeDirectoryPaths` (ADR-005) that single-level seeds never hit.
+// `canonicalizeDirectoryPaths` that single-level seeds never hit.
 async function seedNestedDirectory(
   container: TestContainer,
   params: { ownerId: UserId; parent: string; child: string },
@@ -806,7 +806,7 @@ describe("runIngestionJob", () => {
     expect(resolver.calls).toHaveLength(0);
   });
 
-  // ---------- Directory suggestion matching (Issue #355) ----------
+  // ---------- Directory suggestion matching ----------
 
   it("passes the owner's existing directory paths to the LLM as context", async () => {
     const baseContainer = getContainer();
@@ -985,7 +985,7 @@ describe("runIngestionJob", () => {
     await seedDirectory(container, { ownerId: owner, name: "Work" });
     // "Worked" is a near-miss of the existing "Work": matching is exact
     // (after normalisation), so it must NOT resolve to the existing id —
-    // it falls back to a new directory instead (リスク欄 / ADR-005).
+    // it falls back to a new directory instead.
     llm.setStructureResult({
       html: "<p>x</p>",
       titleSuggestion: "T",
@@ -1463,9 +1463,9 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     });
 
     // run #1 promotes pending → processing; run #2 is the directory-tree
-    // fetch (Issue #355); the pipeline then throws the rate-limit error;
-    // run #3 is the rollback — force it to reject so the catch's
-    // logger.warn + rethrow path is exercised.
+    // fetch; the pipeline then throws the rate-limit error; run #3 is the
+    // rollback — force it to reject so the catch's logger.warn + rethrow
+    // path is exercised.
     const originalRun = baseContainer.unitOfWorkProvider.run.bind(
       baseContainer.unitOfWorkProvider,
     );

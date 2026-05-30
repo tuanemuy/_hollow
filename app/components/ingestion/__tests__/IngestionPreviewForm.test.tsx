@@ -234,8 +234,8 @@ describe("IngestionPreviewForm", () => {
         tagNames: ["alpha", "beta"],
       }),
     });
-    // onCommitted now receives the edited title alongside the noteId so the
-    // parent's `committed` view can show it (Issue #355).
+    // onCommitted receives the edited title alongside the noteId so the
+    // parent's `committed` view can show it.
     expect(onCommitted).toHaveBeenCalledWith("note-1", "My Title");
   });
 
@@ -501,8 +501,8 @@ describe("IngestionPreviewForm", () => {
   //    scroll wrapper or the `flex-shrink-0` action bar, which would
   //    pass a pure absence-based test even though the structural
   //    contract is broken. The assertions below cover both directions.
-  // (The read-only body preview was removed in Issue #355, so its
-  //  height-bound class is no longer part of this contract.)
+  // There is no read-only body preview, so its height-bound class is not
+  // part of this contract.
   it("keeps the single scroll container + fixed footer structure (Issue #257)", () => {
     renderForm({});
 
