@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps, serverData } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -14,7 +15,7 @@ export const loadInstanceSettings = cache(
 );
 
 export const updateLLMConfigFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(updateLLMConfigSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -35,7 +36,7 @@ export const updateLLMConfigFn = createServerFn({ method: "POST" })
   });
 
 export const testLLMConnectionFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(testLLMConnectionSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");

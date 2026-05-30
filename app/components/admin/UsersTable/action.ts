@@ -5,6 +5,7 @@ import {
   type UserDTO,
   type UserId as UserIdDTO,
 } from "@/core/application/dto/identity";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps, serverData } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -43,7 +44,7 @@ function toUserIdDTO(value: string): UserIdDTO {
 }
 
 export const suspendUserFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetUserSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -62,7 +63,7 @@ export const suspendUserFn = createServerFn({ method: "POST" })
   });
 
 export const reinstateUserFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetUserSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -81,7 +82,7 @@ export const reinstateUserFn = createServerFn({ method: "POST" })
   });
 
 export const promoteUserFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetUserSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -100,7 +101,7 @@ export const promoteUserFn = createServerFn({ method: "POST" })
   });
 
 export const demoteUserFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetUserSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");

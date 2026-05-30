@@ -15,6 +15,7 @@ import {
   type IngestionJobId as IngestionJobIdDTO,
   toIngestionJobDTO,
 } from "@/core/application/dto/ingestion";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps, serverData } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -75,7 +76,7 @@ function toExportJobIdDTO(value: string): ExportJobIdDTO {
 }
 
 export const retryIngestionJobFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetIngestionJobSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -94,7 +95,7 @@ export const retryIngestionJobFn = createServerFn({ method: "POST" })
   });
 
 export const retryExportJobFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetExportJobSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -113,7 +114,7 @@ export const retryExportJobFn = createServerFn({ method: "POST" })
   });
 
 export const rebuildSearchIndexFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .handler(async (): Promise<RebuildSearchIndexResultDTO> => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
     const actor = await requireAdminUser();

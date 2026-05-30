@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -9,7 +10,7 @@ import {
 } from "../schema";
 
 export const updatePromptTemplateFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(updatePromptTemplateSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -31,7 +32,7 @@ export const updatePromptTemplateFn = createServerFn({ method: "POST" })
   });
 
 export const resetPromptTemplateFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(resetPromptTemplateSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -49,7 +50,7 @@ export const resetPromptTemplateFn = createServerFn({ method: "POST" })
   });
 
 export const resetAllPromptTemplatesFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(resetAllPromptTemplatesSchema))
   .handler(async () => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
