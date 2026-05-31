@@ -23,6 +23,12 @@ export {
   rebuildSearchIndex,
 } from "./rebuildSearchIndex";
 export {
+  type ReencryptApiKeyInput,
+  type ReencryptApiKeyOutput,
+  type ReencryptApiKeySkipReason,
+  reencryptApiKey,
+} from "./reencryptApiKey";
+export {
   type ResetAllPromptTemplatesInput,
   type ResetAllPromptTemplatesOutput,
   resetAllPromptTemplates,

@@ -26,12 +26,16 @@ import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
-import { selectSecretBox } from "@/core/adapters/security/secretBox";
+import {
+  selectPreviousSecretBox,
+  selectSecretBox,
+} from "@/core/adapters/security/secretBox";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
+import { decryptWithFallback } from "@/core/application/adminSettings/decryptWithFallback";
 import {
   isSecretBoxError,
   type SecretBox,
@@ -114,6 +118,12 @@ export type RequestServerConfig = AppConfig &
     // operations that actually need encryption (saving a DB-sourced
     // LLM api key) surface `SecretBoxError(KeyUnavailable)` on call.
     secretBoxMasterKey?: string;
+    // Optional `SECRET_BOX_MASTER_KEY_PREVIOUS` secret — the outgoing
+    // master key during a rotation window. Present only while a rotation
+    // is in flight; the DI layer constructs a `SecretBox | null` from it
+    // so `decryptWithFallback` can read rows still encrypted under the old
+    // key. Unset in the common case. See `.issue/370/adr.md` ADR-003/004.
+    secretBoxMasterKeyPrevious?: string;
     // Resolved from the `REQUIRE_SECRET_BOX_KEY` var. When `true`,
     // `selectSecretBox` fails fast at container build if the master key
     // is unset / blank / the shipped dev placeholder (production /
@@ -199,6 +209,11 @@ export type ServerEnv = Readonly<{
   // Optional base64-encoded 32-byte master key for `WebCryptoSecretBox`.
   // Absent → DI falls back to `NullSecretBox` (operation-time fail).
   SECRET_BOX_MASTER_KEY?: string;
+  // Optional outgoing master key during a rotation window (Issue #370).
+  // Temporary secret — absent in the common case, put manually via
+  // `wrangler secret put` on both the web and consumer workers while a
+  // rotation is in flight, then deleted once re-encryption completes.
+  SECRET_BOX_MASTER_KEY_PREVIOUS?: string;
   // Public wrangler `[vars]` flag (not a secret). `"true"` on staging /
   // production makes the master key mandatory: DI fails fast at boot if
   // it is unset / blank / the shipped dev placeholder. Unset on local
@@ -312,6 +327,9 @@ export function readRequestServerConfig(
       : {}),
     ...(env.SECRET_BOX_MASTER_KEY
       ? { secretBoxMasterKey: env.SECRET_BOX_MASTER_KEY }
+      : {}),
+    ...(env.SECRET_BOX_MASTER_KEY_PREVIOUS
+      ? { secretBoxMasterKeyPrevious: env.SECRET_BOX_MASTER_KEY_PREVIOUS }
       : {}),
     requireSecretBoxKey: env.REQUIRE_SECRET_BOX_KEY === "true",
     ...(env.RESEND_API_KEY ? { resendApiKey: env.RESEND_API_KEY } : {}),
@@ -536,6 +554,7 @@ export function createRequestContainer(
     waitUntil,
     adminSetupToken,
     secretBoxMasterKey,
+    secretBoxMasterKeyPrevious,
     requireSecretBoxKey,
     resendApiKey,
     emailFrom,
@@ -612,6 +631,9 @@ export function createRequestContainer(
       { SECRET_BOX_MASTER_KEY: secretBoxMasterKey },
       { requireKey: requireSecretBoxKey ?? false },
     ),
+    secretBoxPrevious: selectPreviousSecretBox({
+      SECRET_BOX_MASTER_KEY_PREVIOUS: secretBoxMasterKeyPrevious,
+    }),
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
     adminSettingsEnv: {
@@ -730,6 +752,7 @@ export async function createConsumerContainer(
   const resolved = await resolveConsumerLlmConfig(
     env,
     requestContainer.secretBox,
+    requestContainer.secretBoxPrevious,
   );
   const llmOverrides: Partial<{
     llmProvider: LLMProvider;
@@ -796,11 +819,16 @@ type ResolvedConsumerLlmConfig = Readonly<{
  * 3. `apiKey`:
  *    - `ADMIN_LLM_API_KEY` env set & non-empty → env value (DB ciphertext
  *      ignored).
- *    - else if `llm_api_key_ciphertext` row column present → `SecretBox.decrypt`.
+ *    - else if `llm_api_key_ciphertext` row column present →
+ *      `decryptWithFallback(secretBox, secretBoxPrevious, cipher)`. During a
+ *      master-key rotation the previous key decrypts rows not yet
+ *      re-encrypted, so the consumer keeps working instead of degrading to
+ *      Stub (Issue #370 ADR-004).
  *    - decrypt failure (`SecretBoxError`, e.g. `NullSecretBox` raises
- *      `KeyUnavailable`; wrong master key raises `DecryptFailed`) → return
- *      `null` and warn-log so the consumer container keeps the
- *      request-side Stub adapters rather than crashing the queue handler.
+ *      `KeyUnavailable`; wrong master key with no previous key raises
+ *      `DecryptFailed`) → return `null` and warn-log so the consumer
+ *      container keeps the request-side Stub adapters rather than crashing
+ *      the queue handler.
  *    - else (no ciphertext, no env) → return `null` (Stub fallback).
  *
  * Returns `null` when any of `(provider, model, apiKey)` is missing, which
@@ -815,6 +843,7 @@ type ResolvedConsumerLlmConfig = Readonly<{
 async function resolveConsumerLlmConfig(
   env: ServerEnv,
   secretBox: SecretBox,
+  secretBoxPrevious: SecretBox | null,
 ): Promise<ResolvedConsumerLlmConfig | null> {
   // A read failure (missing table during migration, transient D1 hiccup)
   // collapses to "no DB value" so the env-only path or Stub fallback
@@ -846,7 +875,11 @@ async function resolveConsumerLlmConfig(
     apiKey = envApiKey;
   } else if (dbRow?.llmApiKeyCiphertext) {
     try {
-      apiKey = await secretBox.decrypt(dbRow.llmApiKeyCiphertext);
+      apiKey = await decryptWithFallback(
+        secretBox,
+        secretBoxPrevious,
+        dbRow.llmApiKeyCiphertext,
+      );
     } catch (cause) {
       if (isSecretBoxError(cause)) {
         ConsoleLogger.warn(

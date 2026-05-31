@@ -188,4 +188,55 @@ describe("createConsumerContainer — ADR-007 env override > DB > Stub", () => {
     expect(container.ocrProvider).toBeInstanceOf(StubOCRProvider);
     expect(container.pdfExtractor).toBeInstanceOf(StubPDFExtractor);
   });
+
+  it("rotation fallback (Issue #370): DB ciphertext under the previous key + new key set → decrypts via SECRET_BOX_MASTER_KEY_PREVIOUS, wires the real adapter", async () => {
+    // A distinct previous key. The DB row is encrypted under it (the
+    // pre-rotation state); the new key cannot decrypt it directly.
+    const PREVIOUS_KEY = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+    const previousBox = new WebCryptoSecretBox(PREVIOUS_KEY);
+    const ciphertext = await previousBox.encrypt("sk-openai-from-old-key");
+
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      baseURL: "https://api.openai.com/v1",
+      apiKeySource: "db",
+      apiKeyCiphertext: ciphertext,
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+        SECRET_BOX_MASTER_KEY_PREVIOUS: PREVIOUS_KEY,
+      }),
+    );
+
+    // Old-key row still decrypts via the previous-key fallback → real
+    // adapter is wired rather than degrading to Stub.
+    expect(container.llmProvider).toBeInstanceOf(OpenAILLMProvider);
+  });
+
+  it("rotation gap (Issue #370): DB ciphertext under the previous key but no previous key configured → Stub fallback", async () => {
+    const PREVIOUS_KEY = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+    const previousBox = new WebCryptoSecretBox(PREVIOUS_KEY);
+    const ciphertext = await previousBox.encrypt("sk-openai-from-old-key");
+
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      baseURL: "https://api.openai.com/v1",
+      apiKeySource: "db",
+      apiKeyCiphertext: ciphertext,
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        // New key only, no previous key → old-key row fails to decrypt →
+        // warn-log and Stub fallback (existing degradation path).
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+      }),
+    );
+
+    expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
+  });
 });

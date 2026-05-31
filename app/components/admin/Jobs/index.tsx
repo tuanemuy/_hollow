@@ -2,11 +2,21 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, RefreshCw, Search, Sparkles, Upload } from "lucide-react";
+import {
+  Download,
+  KeyRound,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import type { RebuildSearchIndexResultDTO } from "@/core/application/dto/adminSettings";
+import type {
+  RebuildSearchIndexResultDTO,
+  ReencryptApiKeyResultDTO,
+} from "@/core/application/dto/adminSettings";
 import type { ExportJobDTO } from "@/core/application/dto/export";
 import type { IngestionJobDTO } from "@/core/application/dto/ingestion";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -16,6 +26,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import {
   rebuildSearchIndexFn,
+  reencryptApiKeyFn,
   retryExportJobFn,
   retryIngestionJobFn,
 } from "./action";
@@ -447,6 +458,88 @@ function SearchIndexSection() {
   );
 }
 
+function reencryptResultLabel(result: ReencryptApiKeyResultDTO): string {
+  if (result.reencrypted) {
+    return "API キーを新しいマスターキーで再暗号化しました。";
+  }
+  switch (result.skipped) {
+    case "already-new-key":
+      return "すでに現在のマスターキーで暗号化済みです（処理なし）。";
+    case "not-db":
+      return "API キーは環境変数管理のため、再暗号化対象がありません。";
+    case "no-ciphertext":
+      return "保存された API キーがないため、再暗号化対象がありません。";
+    default:
+      return "処理なし。";
+  }
+}
+
+function SecretRotationSection() {
+  const reencrypt = useServerFn(reencryptApiKeyFn);
+  const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<ReencryptApiKeyResultDTO | null>(null);
+  const [error, setError] = useState<SerializedError | null>(null);
+
+  const runReencrypt = () => {
+    startTransition(async () => {
+      setError(null);
+      try {
+        const out = await reencrypt();
+        setResult(out);
+      } catch (caught) {
+        setError(extractSerializedError(caught));
+      }
+    });
+  };
+
+  const summary = error !== null ? displayError(error) : "";
+
+  return (
+    <section className={SECTION_CLASS}>
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}>
+          <Icon icon={KeyRound} />
+          マスターキーの再暗号化
+        </h2>
+      </div>
+      <p className={SECTION_DESC_CLASS}>
+        `SECRET_BOX_MASTER_KEY` をローテーションした後に実行します。DB
+        保存された LLM API
+        キーを旧マスターキーで復号し、新マスターキーで再暗号化します。新キーをデプロイし、旧キーを
+        `SECRET_BOX_MASTER_KEY_PREVIOUS`
+        に設定した状態で実行してください。完了後は旧キーを削除します。冪等のため複数回実行しても安全です。
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className={BTN_SM_CLASS}
+          onClick={runReencrypt}
+          disabled={isPending}
+          aria-busy={isPending || undefined}
+          data-pending={isPending || undefined}
+        >
+          <Icon icon={KeyRound} />
+          {isPending ? "再暗号化中…" : "再暗号化を実行"}
+        </button>
+        {result !== null ? (
+          <p
+            className="text-xs text-ink-secondary m-0"
+            role="status"
+            aria-live="polite"
+          >
+            {reencryptResultLabel(result)}
+          </p>
+        ) : null}
+      </div>
+      {summary !== "" ? (
+        <p className={`${FIELD_ERROR_CLASS} mt-1.5`} role="alert">
+          {summary}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export function JobsBoard({
   ingestionJobs,
   exportJobs,
@@ -571,6 +664,8 @@ export function JobsBoard({
       </section>
 
       <SearchIndexSection />
+
+      <SecretRotationSection />
 
       <CleanupSection />
     </>

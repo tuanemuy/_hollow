@@ -281,3 +281,39 @@ export function selectSecretBox(
   }
   return new WebCryptoSecretBox(raw);
 }
+
+/**
+ * Select the previous-master-key `SecretBox` for a master-key rotation.
+ *
+ * `SECRET_BOX_MASTER_KEY_PREVIOUS` is a *temporary* secret present only
+ * during a rotation window (see `.issue/370/adr.md` ADR-003): the
+ * operator puts the outgoing key here so rows still encrypted under it
+ * can be decrypted (consumer fallback) and re-encrypted under the new
+ * master key (admin re-encrypt usecase). Once re-encryption completes
+ * the secret is deleted.
+ *
+ * - unset / blank → `null` (the common, non-rotation case). Unlike
+ *   `selectSecretBox` there is no `requireKey` axis: the previous key is
+ *   never mandatory, so its absence is not an error.
+ * - the shipped dev placeholder → throws `SecretBoxError(KeyUnavailable)`.
+ *   A previous key is operator-supplied during rotation; the placeholder
+ *   would never be a legitimate value here, so reject it eagerly to catch
+ *   a copy-paste mistake.
+ * - a present, non-placeholder key → `WebCryptoSecretBox` (its
+ *   constructor still throws eagerly on a malformed key shape).
+ */
+export function selectPreviousSecretBox(env: {
+  readonly SECRET_BOX_MASTER_KEY_PREVIOUS?: string | undefined;
+}): SecretBox | null {
+  const raw = env.SECRET_BOX_MASTER_KEY_PREVIOUS;
+  if (raw === undefined || raw.trim().length === 0) {
+    return null;
+  }
+  if (raw.trim() === SHIPPED_DEV_PLACEHOLDER_KEY) {
+    throw new SecretBoxError(
+      SecretBoxErrorCode.KeyUnavailable,
+      "refusing the shipped dev placeholder for SECRET_BOX_MASTER_KEY_PREVIOUS",
+    );
+  }
+  return new WebCryptoSecretBox(raw);
+}
