@@ -1,6 +1,6 @@
 "use client";
 
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, useRouterState } from "@tanstack/react-router";
 import type { DisplayedNote } from "../loaders";
 import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
@@ -29,7 +29,27 @@ const homeRoute = getRouteApi("/_app/");
  */
 export function NoteListViews({ notes }: Props) {
   const display = homeRoute.useSearch({ select: selectDisplay });
-  if (display === "tile") return <TileView notes={notes} />;
-  if (display === "calendar") return <CalendarView notes={notes} />;
-  return <ListView notes={notes} />;
+  // While a filter navigation re-runs the loader, the FilterBar reflects the
+  // new selection optimistically; dim the still-stale result list so the
+  // pending state reads as "results updating" (Issue #354).
+  const isLoading = useRouterState({ select: (s) => s.isLoading });
+  const view =
+    display === "tile" ? (
+      <TileView notes={notes} />
+    ) : display === "calendar" ? (
+      <CalendarView notes={notes} />
+    ) : (
+      <ListView notes={notes} />
+    );
+  // Dim (not disable) the stale list during a filter fetch: selection is
+  // client-side state, so it must stay operable while results update.
+  return (
+    <div
+      aria-busy={isLoading || undefined}
+      data-pending={isLoading || undefined}
+      className="transition-opacity motion-reduce:transition-none data-[pending]:opacity-60"
+    >
+      {view}
+    </div>
+  );
 }

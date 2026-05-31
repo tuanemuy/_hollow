@@ -51,15 +51,26 @@ export function shouldRedirectForSavedView(args: {
 
 export type SelectionState = Readonly<{
   ids: ReadonlySet<NoteId>;
+  // Whether the explicit selection mode is active. Checkboxes and the
+  // BulkActionBar are only shown while `mode` is true (Issue #354). The
+  // flag is a purely client-side display concern, kept here alongside the
+  // ids so "exit mode clears the selection" is a single atomic transition.
+  mode: boolean;
 }>;
 
 export type SelectionAction =
   | Readonly<{ type: "toggle"; id: NoteId }>
   | Readonly<{ type: "selectMany"; ids: readonly NoteId[] }>
   | Readonly<{ type: "selectAll"; ids: readonly NoteId[] }>
-  | Readonly<{ type: "clear" }>;
+  | Readonly<{ type: "clear" }>
+  | Readonly<{ type: "enterSelectMode" }>
+  | Readonly<{ type: "exitSelectMode" }>
+  | Readonly<{ type: "toggleSelectMode" }>;
 
-export const emptySelection: SelectionState = { ids: new Set<NoteId>() };
+export const emptySelection: SelectionState = {
+  ids: new Set<NoteId>(),
+  mode: false,
+};
 
 export function selectionReducer(
   state: SelectionState,
@@ -70,19 +81,32 @@ export function selectionReducer(
       const next = new Set(state.ids);
       if (next.has(action.id)) next.delete(action.id);
       else next.add(action.id);
-      return { ids: next };
+      return { ids: next, mode: state.mode };
     }
     case "selectMany": {
       const next = new Set(state.ids);
       for (const id of action.ids) next.add(id);
-      return { ids: next };
+      return { ids: next, mode: state.mode };
     }
     case "selectAll": {
-      return { ids: new Set(action.ids) };
+      return { ids: new Set(action.ids), mode: state.mode };
     }
     case "clear": {
       if (state.ids.size === 0) return state;
+      return { ids: new Set<NoteId>(), mode: state.mode };
+    }
+    case "enterSelectMode": {
+      if (state.mode) return state;
+      return { ids: state.ids, mode: true };
+    }
+    case "exitSelectMode": {
+      // Leaving selection mode discards the pending selection so re-entering
+      // starts clean.
+      if (!state.mode && state.ids.size === 0) return state;
       return emptySelection;
+    }
+    case "toggleSelectMode": {
+      return state.mode ? emptySelection : { ids: state.ids, mode: true };
     }
   }
 }

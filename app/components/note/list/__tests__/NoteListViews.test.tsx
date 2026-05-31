@@ -17,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let currentDisplay: "list" | "tile" | "calendar" | undefined;
 
+let currentIsLoading = false;
+
 vi.mock("@tanstack/react-router", () => ({
   getRouteApi: () => ({
     useSearch: <T,>({
@@ -25,6 +27,11 @@ vi.mock("@tanstack/react-router", () => ({
       select: (s: { display?: "list" | "tile" | "calendar" | undefined }) => T;
     }) => select({ display: currentDisplay }),
   }),
+  useRouterState: <T,>({
+    select,
+  }: {
+    select: (s: { isLoading: boolean }) => T;
+  }) => select({ isLoading: currentIsLoading }),
 }));
 
 vi.mock("../ListView", () => ({
@@ -55,6 +62,7 @@ let root: Root;
 
 beforeEach(() => {
   currentDisplay = undefined;
+  currentIsLoading = false;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);

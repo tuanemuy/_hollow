@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { UploadDialogMount } from "../ingestion/UploadDialogMount";
-import { APP_LAYOUT_WITH_SIDEBAR, APP_MAIN } from "./styles";
+import { AppShellDrawer } from "./AppShellDrawer";
 
 // Register the ingestion server-fn handlers with the RSC manifest before
 // the client bundle freezes it. `UploadDialogMount` is mounted here, so
@@ -14,14 +14,16 @@ type Props = {
   children: ReactNode;
 };
 
+// Server component: composes the RSC header/sidebar payloads with the
+// routed children via the client `AppShellDrawer` (which owns the mobile
+// drawer state). Kept server-side so the ingestion side-effect import and
+// `UploadDialogMount` stay out of the client bundle (Issue #354 ADR-002).
 export function AppShellFrame({ header, sidebar, children }: Props) {
   return (
     <>
-      {header}
-      <div className={APP_LAYOUT_WITH_SIDEBAR}>
-        {sidebar}
-        <main className={APP_MAIN}>{children}</main>
-      </div>
+      <AppShellDrawer header={header} sidebar={sidebar}>
+        {children}
+      </AppShellDrawer>
       <UploadDialogMount />
     </>
   );

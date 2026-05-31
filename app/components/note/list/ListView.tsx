@@ -2,6 +2,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
+import { NoteCheckbox } from "./NoteCheckbox";
 import { useSelection } from "./SelectionContext";
 
 type Props = Readonly<{
@@ -48,31 +49,38 @@ function NoteListRow({
 }>) {
   const { state, dispatch } = useSelection();
   const checked = state.ids.has(note.id);
+  const mode = state.mode;
   const updatedAtDisplay = formatDate(note.updatedAt);
+  const toggle = () => dispatch({ type: "toggle", id: note.id });
   return (
     <li
       key={note.id}
       data-selected={checked || undefined}
-      className="grid grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
+      data-mode={mode || undefined}
+      className="grid grid-cols-[1fr_auto] data-[mode]:grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface max-sm:px-2 max-sm:py-4 max-sm:gap-3"
     >
-      <div className="self-start pt-1">
-        <input
-          type="checkbox"
-          aria-label={`${note.title} を選択`}
-          checked={checked}
-          onChange={() => dispatch({ type: "toggle", id: note.id })}
-          className="w-4 h-4 accent-accent"
-        />
-      </div>
+      {mode ? (
+        <div className="self-start pt-1">
+          <NoteCheckbox
+            checked={checked}
+            onToggle={toggle}
+            label={`${note.title} を選択`}
+          />
+        </div>
+      ) : null}
       <div className="min-w-0">
         <div className="mb-1 text-base font-medium text-ink tracking-tight overflow-hidden text-ellipsis whitespace-nowrap">
-          <Link
-            to="/notes/$noteId"
-            params={{ noteId: note.id }}
-            className="text-inherit hover:text-accent"
-          >
-            {note.title}
-          </Link>
+          {mode ? (
+            <span className="text-inherit">{note.title}</span>
+          ) : (
+            <Link
+              to="/notes/$noteId"
+              params={{ noteId: note.id }}
+              className="text-inherit hover:text-accent"
+            >
+              {note.title}
+            </Link>
+          )}
         </div>
         {note.excerpt.length > 0 ? (
           <div className="mb-[6px] text-sm text-ink-secondary leading-[1.45] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">

@@ -90,8 +90,6 @@ export function NoteList({
           : {})}
       />
 
-      <BulkActionBar tree={tree} />
-
       {notes.length === 0 ? (
         <div className="mt-6 rounded-lg border border-dashed border-hairline-strong px-6 py-12 text-center text-ink-secondary">
           <h2 className="mb-2 text-xl font-medium text-ink">
@@ -111,6 +109,8 @@ export function NoteList({
       ) : (
         <NoteListViews notes={notes} />
       )}
+
+      <BulkActionBar tree={tree} />
     </SelectionProvider>
   );
 }
