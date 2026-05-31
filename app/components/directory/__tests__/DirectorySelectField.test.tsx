@@ -113,6 +113,40 @@ describe("DirectorySelectField", () => {
     expect(onChange).toHaveBeenCalledWith("work");
   });
 
+  it("collapses the listbox and clears the query on commit, then reopens with all options", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value={null}
+          onChange={onChange}
+        />,
+      );
+    });
+
+    open();
+    // Narrow then commit the sole remaining row.
+    act(() => {
+      typeQuery("2024");
+    });
+    act(() => {
+      pressKey("Enter");
+    });
+
+    // (a) the listbox is gone, (b) the input value is cleared.
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+    expect(getInput().value).toBe("");
+
+    // (c) reopening the input (focus stays after commit, so re-trigger via
+    // mousedown like a real click) shows the full list again.
+    act(() => {
+      getInput().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(listOptions().length).toBe(3);
+  });
+
   it("ignores Enter fired during IME composition", () => {
     const onChange = vi.fn();
     act(() => {
@@ -285,5 +319,79 @@ describe("DirectorySelectField", () => {
       clearBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it("collapses the listbox on Escape", () => {
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value={null}
+          onChange={() => {}}
+        />,
+      );
+    });
+    open();
+    expect(document.body.querySelector('[role="listbox"]')).not.toBeNull();
+    act(() => {
+      pressKey("Escape");
+    });
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it("stops Escape from bubbling while the listbox is open, but lets it bubble when closed", () => {
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value={null}
+          onChange={() => {}}
+        />,
+      );
+    });
+    const documentListener = vi.fn();
+    document.addEventListener("keydown", documentListener);
+    try {
+      // Listbox open → Escape collapses it and is stopped before reaching
+      // the document (so a parent Dialog would NOT close).
+      open();
+      act(() => {
+        pressKey("Escape");
+      });
+      expect(documentListener).not.toHaveBeenCalled();
+      expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+
+      // Listbox now closed → a second Escape bubbles to the document, where
+      // the Dialog's own handler would close the dialog.
+      act(() => {
+        pressKey("Escape");
+      });
+      expect(documentListener).toHaveBeenCalledTimes(1);
+    } finally {
+      document.removeEventListener("keydown", documentListener);
+    }
+  });
+
+  it("never opens the listbox or shows the 解除 button when disabled", () => {
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value="work"
+          onChange={() => {}}
+          clearable
+          disabled
+        />,
+      );
+    });
+    open();
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull();
+    expect(listOptions().length).toBe(0);
+    expect(
+      document.body.querySelector('button[aria-label="選択を解除"]'),
+    ).toBeNull();
   });
 });

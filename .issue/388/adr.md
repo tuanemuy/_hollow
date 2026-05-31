@@ -105,4 +105,8 @@ PR レビュー1周目で2つの回帰/UX 課題が出た（review-001.md W-L1 /
 - 良い点: `<select>` に近い「畳む」体感が戻り、null 復帰の動線も回復。disabled 時の二択 UI 崩れと APG 準拠の `aria-selected` も解消。
 - トレードオフ: ピッカーの状態が1つ（`open`）増えるが、ADR-002 の「表示・検索・単一選択」責務の範囲内に収まる。`clearable` はオプトインで既定挙動は不変。
 
+### レビュー2周目修正（review-002 W-001 / W-002）
+- **Escape の二段挙動**: Escape は listbox 表示時（`hasListbox === true`）のみ `preventDefault`＋`stopPropagation`＋`setOpen(false)` で候補を畳む。listbox 非表示時は何もせずバブルさせ、Dialog の document レベル close ハンドラに委ねる（1回目=候補を畳む、2回目=ダイアログを閉じる）。`stopPropagation` を欠くと native イベントが Dialog まで届き候補とダイアログが同時に閉じる回帰となるため必須。
+- **clear 後のフォーカス復帰**: 「解除」ボタンは value 選択時のサマリ行内にのみ描画されるため、`onChange(null)` でサマリ行ごとアンマウントしフォーカスが body へ落ちる。`inputRef` を input に張り、`clear()` 末尾で `inputRef.current?.focus()` して検索 input にフォーカスを戻す。
+
 ---

@@ -86,6 +86,7 @@ export function DirectorySelectField({
   const listboxId = useId();
   const optionIdBase = useId();
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo<Row[]>(() => {
     const base: Row[] = options.map((opt) => ({
@@ -146,6 +147,10 @@ export function DirectorySelectField({
     onChange(null);
     setQuery("");
     setOpen(false);
+    // The 解除 button lives in the summary row, which unmounts the moment
+    // `onChange(null)` clears the selection — return focus to the search input
+    // so it does not fall back to <body>.
+    inputRef.current?.focus();
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -168,7 +173,13 @@ export function DirectorySelectField({
       return;
     }
     if (event.key === "Escape") {
+      // Only consume Escape while the listbox is open: first Escape collapses
+      // the candidates here; when the listbox is already closed we let the
+      // event bubble to the Dialog's document-level handler so the dialog
+      // closes (two-stage behavior, no double-close).
+      if (!hasListbox) return;
       event.preventDefault();
+      event.stopPropagation();
       setOpen(false);
       return;
     }
@@ -213,6 +224,7 @@ export function DirectorySelectField({
         </p>
       ) : null}
       <input
+        ref={inputRef}
         id={inputId}
         type="search"
         inputMode="search"
