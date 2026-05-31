@@ -48,7 +48,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
             {owner.displayName} (@{owner.username})
           </Link>
           <span aria-hidden="true">›</span>
-          <span className="text-ink font-medium overflow-hidden text-ellipsis whitespace-nowrap max-w-[60ch]">
+          <span className="text-ink font-medium overflow-hidden text-ellipsis whitespace-nowrap max-w-[30rem]">
             {note.title}
           </span>
         </nav>

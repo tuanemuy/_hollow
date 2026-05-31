@@ -28,9 +28,9 @@ const HERO = `pt-16 pb-12 text-center md:pt-20 md:pb-16 ${CONTAINER}`;
 const HERO_EYEBROW =
   "inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium mb-6 tracking-normal";
 const HERO_TITLE =
-  "text-[clamp(36px,6vw,64px)] font-normal tracking-tightest leading-tight text-ink mx-auto mb-6 max-w-[14ch]";
+  "text-[clamp(36px,6vw,64px)] font-normal tracking-tightest leading-tight text-ink mx-auto mb-6 text-balance";
 const HERO_SUBTITLE =
-  "text-[clamp(16px,1.4vw+12px,20px)] text-ink-secondary leading-relaxed max-w-[40ch] mx-auto mb-8";
+  "text-[clamp(16px,1.4vw+12px,20px)] text-ink-secondary leading-relaxed max-w-[34rem] mx-auto mb-8 text-pretty";
 const HERO_ACTIONS =
   "flex flex-col gap-3 items-center justify-center sm:flex-row";
 const HERO_BTN_PRIMARY =
@@ -65,9 +65,9 @@ const SECTION_HEADING = "text-center mb-12";
 const SECTION_EYEBROW =
   "text-sm text-accent font-medium mb-2 uppercase tracking-[0.06em]";
 const SECTION_TITLE =
-  "text-[clamp(28px,3.6vw,40px)] font-normal tracking-tightest leading-tight text-ink mx-auto mb-4 max-w-[22ch]";
+  "text-[clamp(28px,3.6vw,40px)] font-normal tracking-tightest leading-tight text-ink mx-auto mb-4 text-balance";
 const SECTION_LEAD =
-  "text-md text-ink-secondary leading-relaxed max-w-[56ch] mx-auto";
+  "text-md text-ink-secondary leading-relaxed max-w-[44rem] mx-auto text-pretty";
 const FEATURES =
   "grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-4";
 const FEATURE_CARD =
@@ -81,7 +81,7 @@ const FEATURE_BODY = "text-sm text-ink-secondary leading-relaxed";
 const TEASER = "mt-16 py-10 px-6 rounded-xl bg-accent-surface text-center";
 const TEASER_TITLE = "text-xl font-semibold tracking-tighter text-ink mb-2";
 const TEASER_BODY =
-  "text-sm text-ink-secondary leading-relaxed mx-auto mb-5 max-w-[44ch]";
+  "text-sm text-ink-secondary leading-relaxed mx-auto mb-5 max-w-[34rem] text-pretty";
 const TEASER_LINK =
   "inline-flex items-center gap-2 px-5 py-3 rounded-pill bg-bg text-accent text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-surface";
 
@@ -89,7 +89,7 @@ const SITE_FOOTER = "border-t border-hairline pt-12 pb-10 mt-16";
 const FOOTER_GRID =
   "grid grid-cols-1 gap-8 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:gap-12";
 const FOOTER_TAGLINE =
-  "text-sm text-ink-secondary leading-relaxed max-w-[36ch] m-0";
+  "text-sm text-ink-secondary leading-relaxed max-w-[30rem] m-0 text-pretty";
 const FOOTER_COL_TITLE =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em] mb-3";
 const FOOTER_LIST = "flex flex-col gap-2 list-none m-0 p-0";
@@ -335,7 +335,8 @@ export function LandingPage() {
               <span className={`${LOGO} block mb-3`}>Hollow</span>
               <p className={FOOTER_TAGLINE}>
                 散らかった頭の中に、静かな置き場所を。
-                <br />
+              </p>
+              <p className={`${FOOTER_TAGLINE} mt-2`}>
                 個人のための、ひっそりとしたノートサーバーです。
               </p>
             </div>
