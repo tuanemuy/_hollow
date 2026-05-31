@@ -37,10 +37,13 @@ export type NoteListOpts = Readonly<{
  * (i.e. rows in `noteInternalLinks` with `resolvedNoteId === id`).
  * Unresolved `[[title]]` links do not count.
  *
- * `directoryId` restricts to notes whose `directoryId` equals the
- * supplied id — a simple equality match on the **direct** directory
- * only. Descendant directories are not included (subtree matching is
- * intentionally out of scope; see `.issue/387/adr.md` ADR-001).
+ * `directoryIds` restricts to notes whose `directoryId` is **any** of
+ * the supplied ids — an `IN (...)` match. The caller resolves the
+ * subtree (selected directory + every descendant) and passes the
+ * flattened id set, so both this filter path and the search path agree
+ * on subtree semantics (`.issue/392/adr.md` ADR-001). An empty array
+ * matches nothing (the adapter short-circuits); `undefined` applies no
+ * directory filter.
  */
 export type NoteOwnerListOpts = NoteListOpts &
   Readonly<{
@@ -49,7 +52,7 @@ export type NoteOwnerListOpts = NoteListOpts &
     dateRange?: DateRange;
     visibility?: readonly PublicationVisibility[];
     referencingNoteId?: NoteId;
-    directoryId?: DirectoryId;
+    directoryIds?: readonly DirectoryId[];
   }>;
 
 /**
@@ -68,7 +71,7 @@ export type NoteOwnerCountOpts = Pick<
   | "dateRange"
   | "visibility"
   | "referencingNoteId"
-  | "directoryId"
+  | "directoryIds"
 >;
 
 /**

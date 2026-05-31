@@ -614,6 +614,126 @@ describe("DirectoryService.ensureNestedPath", () => {
   });
 });
 
+describe("DirectoryService.collectSubtreeIds", () => {
+  const asStr = (id: DirectoryId): string => id as unknown as string;
+
+  it("returns just the root id for a single-node subtree", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const root = seedRoot(repo, OWNER_A);
+    const a = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c1",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("a"),
+      },
+      T0,
+    );
+    repo.add(a);
+
+    const ids = await DirectoryService.collectSubtreeIds(a.id, OWNER_A, repo);
+    expect(ids.map(asStr)).toEqual([asStr(a.id)]);
+  });
+
+  it("collects the root plus every descendant (parent + child + grandchild)", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const root = seedRoot(repo, OWNER_A);
+    const parent = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c2",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("parent"),
+      },
+      T0,
+    );
+    repo.add(parent);
+    const child = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c3",
+        ownerId: OWNER_A,
+        parent,
+        name: DirectoryName.create("child"),
+      },
+      T0,
+    );
+    repo.add(child);
+    const grandchild = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c4",
+        ownerId: OWNER_A,
+        parent: child,
+        name: DirectoryName.create("grandchild"),
+      },
+      T0,
+    );
+    repo.add(grandchild);
+
+    const ids = await DirectoryService.collectSubtreeIds(
+      parent.id,
+      OWNER_A,
+      repo,
+    );
+    expect(new Set(ids.map(asStr))).toEqual(
+      new Set([asStr(parent.id), asStr(child.id), asStr(grandchild.id)]),
+    );
+  });
+
+  it("does not include a sibling subtree", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const root = seedRoot(repo, OWNER_A);
+    const a = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c5",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("a"),
+      },
+      T0,
+    );
+    repo.add(a);
+    const aChild = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c6",
+        ownerId: OWNER_A,
+        parent: a,
+        name: DirectoryName.create("a-child"),
+      },
+      T0,
+    );
+    repo.add(aChild);
+    const sibling = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000c7",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("sibling"),
+      },
+      T0,
+    );
+    repo.add(sibling);
+
+    const ids = await DirectoryService.collectSubtreeIds(a.id, OWNER_A, repo);
+    const set = new Set(ids.map(asStr));
+    expect(set).toEqual(new Set([asStr(a.id), asStr(aChild.id)]));
+    expect(set.has(asStr(sibling.id))).toBe(false);
+  });
+
+  it("returns an empty array for a rootId absent from the owner's tree", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    seedRoot(repo, OWNER_A);
+
+    const missing =
+      "f0000000-0000-7000-8000-0000000000c8" as unknown as DirectoryId;
+    const ids = await DirectoryService.collectSubtreeIds(
+      missing,
+      OWNER_A,
+      repo,
+    );
+    expect(ids).toEqual([]);
+  });
+});
+
 describe("DirectoryService.deleteSubtree", () => {
   it("throws CannotDeleteRoot when invoked on the root", async () => {
     const repo = new InMemoryDirectoryRepository();

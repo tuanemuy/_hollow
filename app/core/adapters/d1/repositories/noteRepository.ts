@@ -587,11 +587,31 @@ export class D1NoteRepository implements NoteRepository {
     if (opts.dateRange?.to) {
       conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
     }
-    // Direct-equality directory filter (ADR-001): a simple `conditions`
-    // predicate, not a candidate set, so it is not subject to the empty
-    // candidate-set short-circuit. Rides `idx_notes_directory_status`.
-    if (opts.directoryId !== undefined) {
-      conditions.push(eq(notes.directoryId, opts.directoryId));
+    // Subtree directory filter (`.issue/392/adr.md` ADR-001): the caller
+    // resolves the selected directory + descendants and passes the flat
+    // id set, so this is a `notes.directory_id IN (...)` match, *not* a
+    // note-id candidate set. The empty set is the "match nothing"
+    // short-circuit. For the common small set we push a single `inArray`
+    // predicate so the fast single-query path (`idScope === null`) still
+    // applies. Host-var budget: this `IN` contributes `directoryIds.length`
+    // (<= SAFE_CHUNK_SIZE = 90) and shares the statement with the other
+    // bound predicates here — owner + status + dateRange (<=2) + the
+    // visibility `NOT EXISTS` subquery (<=3) — so the worst case is ~97,
+    // still within D1's ~100 cap (`SAFE_CHUNK_SIZE` is sized to leave room
+    // for exactly this layering). Only when the set exceeds
+    // `SAFE_CHUNK_SIZE` do we resolve it to a note-id candidate set so the
+    // `IN` predicate stays chunked under the cap — that set is a *note-id*
+    // set, fit to merge with the other candidate sets below.
+    let directoryNoteIds: ReadonlySet<string> | null = null;
+    if (opts.directoryIds !== undefined) {
+      if (opts.directoryIds.length === 0) return null;
+      if (opts.directoryIds.length <= SAFE_CHUNK_SIZE) {
+        conditions.push(inArray(notes.directoryId, [...opts.directoryIds]));
+      } else {
+        directoryNoteIds = await this.resolveDirectoryNoteCandidates(
+          opts.directoryIds,
+        );
+      }
     }
 
     // Each filter that needs a multi-row lookup contributes a candidate
@@ -600,6 +620,13 @@ export class D1NoteRepository implements NoteRepository {
     // nested subqueries) preserves Drizzle's type inference and matches
     // the existing tagIds pattern.
     const candidateSets: Array<ReadonlySet<string>> = [];
+
+    // Large-subtree fallback: the directory filter was resolved to a
+    // note-id set above to avoid an over-cap `IN (directory_id...)`.
+    if (directoryNoteIds !== null) {
+      if (directoryNoteIds.size === 0) return null;
+      candidateSets.push(directoryNoteIds);
+    }
 
     if (opts.visibility !== undefined) {
       if (opts.visibility.length === 0) return null;
@@ -726,6 +753,27 @@ export class D1NoteRepository implements NoteRepository {
           ),
         ),
     );
+  }
+
+  // Large-subtree fallback (`.issue/392/adr.md` ADR-001): when the
+  // resolved subtree holds more than `SAFE_CHUNK_SIZE` directories, a
+  // single `IN (directory_id...)` would overflow the D1 host-var cap, so
+  // chunk the lookup into a *note-id* candidate set that merges with the
+  // other candidate sets and rides the existing `idScope` chunk path.
+  private async resolveDirectoryNoteCandidates(
+    directoryIds: readonly DirectoryId[],
+  ): Promise<ReadonlySet<string>> {
+    const rows = await selectInChunks(
+      directoryIds as readonly string[],
+      (chunk) =>
+        this.db
+          .select({ id: notes.id })
+          .from(notes)
+          .where(inArray(notes.directoryId, [...chunk])),
+    );
+    const out = new Set<string>();
+    for (const r of rows) out.add(r.id);
+    return out;
   }
 
   private async resolveReferrerCandidates(
