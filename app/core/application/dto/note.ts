@@ -60,6 +60,7 @@ export type BacklinkDTO = Readonly<{
   noteId: NoteId;
   title: string;
   slug: string;
+  snippet: string | null;
 }>;
 
 /**

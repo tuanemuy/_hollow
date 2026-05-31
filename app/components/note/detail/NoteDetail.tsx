@@ -22,9 +22,9 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
  * and the tag dictionary in parallel via `Promise.all`, then assembles
  * the view-model passed to the pure presentation panels.
  *
- * `loadNoteDetail` already returns the directory path; the tree is
- * loaded separately because `NoteActions`' move dialog needs the full
- * flattened tree as `<select>` options.
+ * `loadNoteDetail` already returns the structured directory segments; the
+ * tree is loaded separately because `NoteActions`' move dialog needs the
+ * full flattened tree as `<select>` options.
  */
 export type NoteDetailProps = Readonly<{
   user: UserDTO;
@@ -64,7 +64,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
     throw e;
   }
 
-  const { note, backlinks, directoryPath } = detail;
+  const { note, backlinks, directorySegments } = detail;
 
   const tagNames = note.tagIds
     .map((id) => tags.byId.get(id as unknown as string))
@@ -77,11 +77,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
   return (
     <article className="max-w-[760px] mx-auto">
       <header>
-        <NoteBreadcrumb
-          directoryPath={directoryPath}
-          directoryId={note.directoryId as unknown as string}
-          noteTitle={note.title}
-        />
+        <NoteBreadcrumb segments={directorySegments} noteTitle={note.title} />
         <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">
           {note.title}
         </h1>

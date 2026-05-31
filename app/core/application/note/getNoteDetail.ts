@@ -4,7 +4,7 @@ import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import type { BacklinkDTO, NoteDTO } from "./view";
-import { toBacklink, toNoteView } from "./view";
+import { buildBacklinkSnippet, toBacklink, toNoteView } from "./view";
 
 export type GetNoteDetailInput = Readonly<{
   actorUserId: UserId;
@@ -15,6 +15,7 @@ export type GetNoteDetailOutput = Readonly<{
   note: NoteDTO;
   backlinks: readonly BacklinkDTO[];
   directoryPath: string;
+  directorySegments: readonly { id: string; name: string }[];
 }>;
 
 export async function getNoteDetail({
@@ -42,10 +43,26 @@ export async function getNoteDetail({
     const directoryPath = dir
       ? await DirectoryService.computePath(dir.entity, ctx.directoryRepository)
       : "/";
+    const directorySegments = dir
+      ? (
+          await DirectoryService.computeSegments(
+            dir.entity,
+            ctx.directoryRepository,
+          )
+        ).map((seg) => ({
+          id: seg.id as string,
+          name: seg.name as string,
+        }))
+      : [];
     return {
       note: toNoteView(found.entity),
-      backlinks: referrers.map(toBacklink),
+      backlinks: referrers.map((referrer) =>
+        toBacklink(referrer, {
+          snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
+        }),
+      ),
       directoryPath: directoryPath as string,
+      directorySegments,
     };
   });
 }
