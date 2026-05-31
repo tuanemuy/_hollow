@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderExportJobsPage = createServerFn({ method: "GET" })
@@ -29,6 +30,8 @@ export const Route = createFileRoute("/exports/")({
   staleTime: 0,
   validateSearch: (search) => exportsSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
+  head: ({ match }) =>
+    internalRouteHead(match.context?.config, "エクスポート", "/exports"),
   loader: ({ deps }) => renderExportJobsPage({ data: { offset: deps.offset } }),
   component: ExportsRoute,
 });

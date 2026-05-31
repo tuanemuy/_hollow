@@ -6,5 +6,6 @@ export const content: Omit<AppConfig, "appUrl"> = {
   defaultDescription:
     "Hexagonal-architecture starter for TanStack Start with React Server Components.",
   themeColor: "#ffffff",
+  locale: "ja_JP",
   // twitterHandle: "@example",
 };

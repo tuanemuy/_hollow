@@ -6,6 +6,7 @@ import { HOME_SEARCH } from "@/components/auth/links";
 import { uploadSearchSchema } from "@/components/ingestion/uploadSearch";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderUpload = createServerFn({ method: "GET" })
@@ -32,6 +33,15 @@ export const Route = createFileRoute("/_app/upload/")({
   staleTime: 0,
   validateSearch: (search) => uploadSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `アップロード — ${config.siteName}`,
+      path: "/upload",
+      noIndex: true,
+    });
+  },
   loader: ({ deps }) =>
     renderUpload({
       data: { includeDiscarded: deps.includeDiscarded ?? false },

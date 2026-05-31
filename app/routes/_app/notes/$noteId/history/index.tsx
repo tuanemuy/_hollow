@@ -10,6 +10,7 @@ import {
 } from "@/components/note/schema";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderHistory = createServerFn({ method: "GET" })
@@ -52,6 +53,15 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/")({
   staleTime: 0,
   validateSearch: (search) => noteHistorySearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
+  head: ({ match, params }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `変更履歴 — ${config.siteName}`,
+      path: `/notes/${params.noteId}/history`,
+      noIndex: true,
+    });
+  },
   // Issue #215: `noteHistorySearchSchema` keeps `page` / `limit`
   // optional on its output to drop the default pagination from the
   // URL; re-default at the loader boundary so the strict-typed server

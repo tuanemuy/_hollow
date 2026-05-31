@@ -1,11 +1,20 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { buildHead } from "@/core/presentation/head";
 
 import "@/components/view/SavedViewsList/action";
 
 export const Route = createFileRoute("/views")({
   beforeLoad: requireAuthenticatedRoute,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `ビュー — ${config.siteName}`,
+      noIndex: true,
+    });
+  },
   component: ViewsLayout,
   errorComponent: ({ error }) => (
     <div role="alert">

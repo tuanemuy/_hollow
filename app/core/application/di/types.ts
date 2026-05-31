@@ -62,6 +62,8 @@ export type AppConfig = Readonly<{
   defaultDescription: string;
   twitterHandle?: string;
   themeColor: string;
+  /** OGP locale tag (`og:locale`), e.g. `ja_JP`. */
+  locale: string;
 }>;
 
 /**

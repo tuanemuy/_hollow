@@ -5,6 +5,7 @@ import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderRevision = createServerFn({ method: "GET" })
@@ -48,6 +49,15 @@ const renderRevision = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/_app/notes/$noteId/history/$revisionId")(
   {
     staleTime: 0,
+    head: ({ match, params }) => {
+      const config = match.context?.config;
+      if (!config) return {};
+      return buildHead(config, {
+        title: `過去版 — ${config.siteName}`,
+        path: `/notes/${params.noteId}/history/${params.revisionId}`,
+        noIndex: true,
+      });
+    },
     loader: ({ params }) =>
       renderRevision({
         data: { noteId: params.noteId, revisionId: params.revisionId },

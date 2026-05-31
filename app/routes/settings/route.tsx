@@ -7,6 +7,7 @@ import {
 import { HOME_SEARCH } from "@/components/auth/links";
 import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { buildHead } from "@/core/presentation/head";
 
 // Register server-fn handlers with the RSC manifest before the client
 // bundle freezes it.
@@ -33,6 +34,14 @@ const NAV: readonly NavItem[] = [
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: requireAuthenticatedRoute,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `設定 — ${config.siteName}`,
+      noIndex: true,
+    });
+  },
   component: SettingsLayout,
   errorComponent: ({ error }) => (
     <div role="alert">
