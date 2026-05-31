@@ -85,6 +85,87 @@ sops infra/secrets/staging.enc.json
 place. Key set is unchanged so `checkSecrets.ts` is not required for
 rotations, but running it never hurts. Commit the resulting diff.
 
+## SecretBox master key (`SECRET_BOX_MASTER_KEY`)
+
+This secret needs handling beyond the generic flows above because the runtime
+**fails fast** when it is missing in a key-required stage (see below). It is the
+symmetric master key the `SecretBox` adapter uses to encrypt / decrypt
+credentials stored in the DB (`apiKeySource='db'` rows).
+
+### Generating the master key
+
+The key is 32 random bytes, base64-encoded. Generate it with either:
+
+```sh
+# OpenSSL
+openssl rand -base64 32
+```
+
+```sh
+# Web Crypto (same getRandomValues the Worker / browser runtime uses)
+node -e "console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64'))"
+```
+
+Use a **separate key per stage** — never share one between staging and
+production. A shared key would make ciphertext DB rows interoperable across
+stages, defeating stage isolation.
+
+### Setting it for production / staging
+
+Two equivalent paths:
+
+```sh
+# One-off: set the secret directly on the Worker
+wrangler secret put SECRET_BOX_MASTER_KEY --config wrangler.production.toml
+# (use wrangler.staging.toml for staging)
+```
+
+Or via the SOPS bundle (preferred — it is what CI uses):
+
+1. `sops infra/secrets/production.enc.json` and set `SECRET_BOX_MASTER_KEY` to
+   the generated value (use `staging.enc.json` for staging).
+2. The deploy workflow's **Inject secrets** step decrypts the bundle and runs
+   `wrangler secret bulk` against every Worker, which uploads it. See the
+   [Deployment SOPS workflow](#ci) and `.github/workflows/deploy-{staging,production}.yml`.
+
+### Fail-fast precondition
+
+Stages whose wrangler `[vars]` carry `REQUIRE_SECRET_BOX_KEY = "true"`
+(staging / production) treat the master key as mandatory. If it is **unset,
+empty, or the shipped dev placeholder**, the per-request container fails to
+build and **every route returns 500** — not just `/admin`, because the
+`SecretBox` is wired into the whole request container.
+
+Consequences:
+
+- **Order matters: set the secret _before_ deploying** to a key-required stage.
+  Deploying first leaves the stage hard-down until the secret lands.
+- Never copy the shipped dev placeholder
+  (`ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE=`, base64 of
+  `dev-only-do-not-use-in-prod-do-1`) into a production / staging secret. It is
+  rejected both at runtime and by CI (`pnpm infra:check-secrets`) — a two-layer
+  defense.
+- `dev` (`wrangler.toml`, no `REQUIRE_SECRET_BOX_KEY`) keeps the `NullSecretBox`
+  fallback and needs no master key.
+
+### Rotating the master key
+
+Master-key rotation is **not an instant cut-over**, because existing DB
+ciphertext was written with the current key.
+
+1. **Keep the old key until re-encryption finishes.** Every existing
+   `apiKeySource='db'` row must still be decryptable with the old key while you
+   migrate; you cannot drop it the moment the new key is set.
+2. **Re-encryption strategy.** The wire format reserves a leading version byte
+   (`0x01`) for exactly this kind of key / algorithm migration. Either bump to a
+   new version and migrate rows incrementally, or run a batch that decrypts each
+   `apiKeySource='db'` row with the old key and re-encrypts with the new key.
+   The batch tool itself is **out of scope for this Issue (a separate Issue
+   candidate)**.
+3. **Keep stages isolated.** Rotate each stage's key independently with its own
+   freshly generated value — do not reuse one key across staging and production
+   (see [Generating the master key](#generating-the-master-key) above).
+
 ## Removing a secret
 
 1. Delete the key from `workerSecretSpecs()` (`infra/src/secrets.ts`).

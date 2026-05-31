@@ -26,10 +26,7 @@ import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
 import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
-import {
-  NullSecretBox,
-  WebCryptoSecretBox,
-} from "@/core/adapters/security/secretBox";
+import { selectSecretBox } from "@/core/adapters/security/secretBox";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
@@ -117,6 +114,12 @@ export type RequestServerConfig = AppConfig &
     // operations that actually need encryption (saving a DB-sourced
     // LLM api key) surface `SecretBoxError(KeyUnavailable)` on call.
     secretBoxMasterKey?: string;
+    // Resolved from the `REQUIRE_SECRET_BOX_KEY` var. When `true`,
+    // `selectSecretBox` fails fast at container build if the master key
+    // is unset / blank / the shipped dev placeholder (production /
+    // staging). When falsy (local dev), an unset key degrades to
+    // `NullSecretBox`. See `.issue/102/adr.md`.
+    requireSecretBoxKey?: boolean;
     // Optional `RESEND_API_KEY` secret. Paired with `emailFrom`, both
     // present → DI wires `ResendEmailSender` for real transactional email;
     // either missing → DI keeps `ConsoleEmailSender` (dev fallback that
@@ -196,6 +199,11 @@ export type ServerEnv = Readonly<{
   // Optional base64-encoded 32-byte master key for `WebCryptoSecretBox`.
   // Absent → DI falls back to `NullSecretBox` (operation-time fail).
   SECRET_BOX_MASTER_KEY?: string;
+  // Public wrangler `[vars]` flag (not a secret). `"true"` on staging /
+  // production makes the master key mandatory: DI fails fast at boot if
+  // it is unset / blank / the shipped dev placeholder. Unset on local
+  // dev (`wrangler.toml`), so dev keeps the `NullSecretBox` fallback.
+  REQUIRE_SECRET_BOX_KEY?: string;
   // Optional Resend HTTP API key. Paired with `EMAIL_FROM`, both present
   // → DI wires `ResendEmailSender` (real transactional email). Either
   // missing → DI keeps `ConsoleEmailSender` as the dev fallback. See
@@ -305,6 +313,7 @@ export function readRequestServerConfig(
     ...(env.SECRET_BOX_MASTER_KEY
       ? { secretBoxMasterKey: env.SECRET_BOX_MASTER_KEY }
       : {}),
+    requireSecretBoxKey: env.REQUIRE_SECRET_BOX_KEY === "true",
     ...(env.RESEND_API_KEY ? { resendApiKey: env.RESEND_API_KEY } : {}),
     ...(env.EMAIL_FROM ? { emailFrom: env.EMAIL_FROM } : {}),
     ...(env.ADMIN_LLM_API_KEY ? { adminLlmApiKey: env.ADMIN_LLM_API_KEY } : {}),
@@ -527,6 +536,7 @@ export function createRequestContainer(
     waitUntil,
     adminSetupToken,
     secretBoxMasterKey,
+    requireSecretBoxKey,
     resendApiKey,
     emailFrom,
     adminLlmApiKey,
@@ -598,9 +608,10 @@ export function createRequestContainer(
       ? new R2TempFileStorage(tempFilesBucket)
       : createUnavailableTempFileStorage(),
     promptResolver: new D1PromptResolver(db),
-    secretBox: secretBoxMasterKey
-      ? new WebCryptoSecretBox(secretBoxMasterKey)
-      : new NullSecretBox(),
+    secretBox: selectSecretBox(
+      { SECRET_BOX_MASTER_KEY: secretBoxMasterKey },
+      { requireKey: requireSecretBoxKey ?? false },
+    ),
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
     adminSettingsEnv: {

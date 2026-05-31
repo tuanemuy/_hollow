@@ -116,19 +116,6 @@ export class WebCryptoSecretBox implements SecretBox {
     decodeMasterKey(masterKeyBase64);
   }
 
-  static fromEnv(env: {
-    readonly SECRET_BOX_MASTER_KEY?: string;
-  }): WebCryptoSecretBox {
-    const raw = env.SECRET_BOX_MASTER_KEY;
-    if (raw === undefined) {
-      throw new SecretBoxError(
-        SecretBoxErrorCode.KeyUnavailable,
-        "SECRET_BOX_MASTER_KEY is not set",
-      );
-    }
-    return new WebCryptoSecretBox(raw);
-  }
-
   private getKey(): Promise<CryptoKey> {
     if (this.cachedKey === null) {
       const rawKey = decodeMasterKey(this.masterKeyBase64);
@@ -211,12 +198,16 @@ export class WebCryptoSecretBox implements SecretBox {
 }
 
 /**
- * MVP {@link SecretBox} placeholder used when `SECRET_BOX_MASTER_KEY`
- * is not configured. Both operations reject with `KeyUnavailable` so
- * the admin UI can still render — the failure only surfaces when an
- * operator actually tries to encrypt / decrypt a secret (e.g. saving
- * a DB-sourced LLM api key). The DI layer swaps this for
- * {@link WebCryptoSecretBox} once the master key is supplied.
+ * `SecretBox` placeholder for dev / staging fallback when
+ * `SECRET_BOX_MASTER_KEY` is not configured. Both operations reject
+ * with `KeyUnavailable` so the admin UI can still render — the failure
+ * only surfaces when an operator actually tries to encrypt / decrypt a
+ * secret (e.g. saving a DB-sourced LLM api key).
+ *
+ * Reached only via {@link selectSecretBox} with `requireKey: false`. In
+ * a key-required environment (`requireKey: true`) `selectSecretBox`
+ * fails fast instead of falling back here, so this class is unreachable
+ * in production.
  */
 export class NullSecretBox implements SecretBox {
   async encrypt(_plain: string): Promise<string> {
@@ -232,4 +223,61 @@ export class NullSecretBox implements SecretBox {
       "SECRET_BOX_MASTER_KEY is not configured",
     );
   }
+}
+
+/**
+ * The base64 32-byte placeholder shipped in `.dev.vars.example` for
+ * `SECRET_BOX_MASTER_KEY`. It decodes to a valid AES-256 key shape, so
+ * `decodeMasterKey` accepts it and a copy-paste into a real stage secret
+ * would NOT be caught by the shape check alone. {@link selectSecretBox}
+ * therefore refuses this exact value in key-required environments.
+ *
+ * Keep this in sync with the `SECRET_BOX_MASTER_KEY` line in
+ * `.dev.vars.example` (verified by a test) and with the duplicated copy in
+ * `infra/scripts/placeholderGuard.ts` (the `infra` workspace cannot import
+ * this module, so the value is intentionally mirrored there).
+ */
+export const SHIPPED_DEV_PLACEHOLDER_KEY =
+  "ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE=";
+
+export type SelectSecretBoxOptions = { requireKey: boolean };
+
+/**
+ * Select the `SecretBox` implementation for an environment.
+ *
+ * - dev / staging (`requireKey: false`): an unset / blank master key
+ *   falls back to {@link NullSecretBox} so the app still boots and only
+ *   fails at the first encrypt / decrypt. The shipped dev placeholder is
+ *   accepted here for local convenience.
+ * - key-required environments such as production (`requireKey: true`):
+ *   an unset / blank master key, or the shipped dev placeholder, throws
+ *   `SecretBoxError(KeyUnavailable)` at container build so the operator
+ *   misconfiguration surfaces at boot rather than silently as runtime
+ *   decrypt failures.
+ *
+ * A present, non-placeholder key always constructs a
+ * {@link WebCryptoSecretBox}; a malformed key (non-base64 / wrong byte
+ * length) still throws eagerly in that constructor.
+ */
+export function selectSecretBox(
+  env: { readonly SECRET_BOX_MASTER_KEY?: string | undefined },
+  opts: SelectSecretBoxOptions,
+): SecretBox {
+  const raw = env.SECRET_BOX_MASTER_KEY;
+  if (raw === undefined || raw.trim().length === 0) {
+    if (opts.requireKey) {
+      throw new SecretBoxError(
+        SecretBoxErrorCode.KeyUnavailable,
+        "SECRET_BOX_MASTER_KEY is required in this environment but is unset",
+      );
+    }
+    return new NullSecretBox();
+  }
+  if (opts.requireKey && raw.trim() === SHIPPED_DEV_PLACEHOLDER_KEY) {
+    throw new SecretBoxError(
+      SecretBoxErrorCode.KeyUnavailable,
+      "refusing the shipped dev placeholder for SECRET_BOX_MASTER_KEY in a key-required environment",
+    );
+  }
+  return new WebCryptoSecretBox(raw);
 }

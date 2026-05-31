@@ -22,9 +22,14 @@
  * documented on `workerSecretSpecs()` in `../src/secrets.ts`.
  *
  * Scope (intentional non-goals):
- * - **Key set only.** Value validity (empty string, placeholder text,
- *   `null`, whitespace, etc.) is not checked. The CI `wrangler secret
- *   bulk` push surfaces such issues at the Worker invocation site.
+ * - **Key set only, with one value exception.** Value validity (empty
+ *   string, placeholder text, `null`, whitespace, etc.) is generally not
+ *   checked — the CI `wrangler secret bulk` push surfaces such issues at
+ *   the Worker invocation site. The sole exception is the shipped dev
+ *   placeholder for `SECRET_BOX_MASTER_KEY` (W-003 / Issue #102): a
+ *   copy-paste of the `.dev.vars.example` value into a real stage secret
+ *   passes the AES-256 shape check and would silently disable at-rest
+ *   encryption, so it is refused here before deploy.
  * - **No duplicate-key detection.** `JSON.parse` silently keeps the
  *   last occurrence on duplicate keys, so a `sops` editor session that
  *   accidentally produces two entries with the same name is not caught
@@ -40,6 +45,7 @@ import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { workerSecretSpecs } from "../src/secrets.ts";
+import { assertNoShippedPlaceholders } from "./placeholderGuard.ts";
 
 type Stage = "staging" | "production";
 
@@ -98,13 +104,20 @@ if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
   process.exit(1);
 }
 
+const decoded = parsed as Record<string, unknown>;
+
+const placeholderViolations = assertNoShippedPlaceholders(decoded);
+if (placeholderViolations.length > 0) {
+  console.error(`✗ secrets check failed (stage=${stage})`);
+  for (const v of placeholderViolations) console.error(`    - ${v}`);
+  process.exit(1);
+}
+
 const specs = workerSecretSpecs({ appName: "check", stage });
 const expected = new Set<string>(specs.flatMap((s) => [...s.secrets]));
 
 const actual = new Set<string>(
-  Object.keys(parsed as Record<string, unknown>).filter(
-    (k) => !k.startsWith("_"),
-  ),
+  Object.keys(decoded).filter((k) => !k.startsWith("_")),
 );
 
 const missing = [...expected].filter((k) => !actual.has(k)).sort();
