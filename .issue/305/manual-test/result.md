@@ -3,8 +3,8 @@
 ## サマリー
 - 実行日時: 2026-05-31
 - 対象: アカウント削除フロー（AccountDeleteForm の `router.invalidate` → `router.clearCache` 化）
-- 検証環境: `pnpm db:migrate` → `pnpm db:seed` → `pnpm dev`（http://localhost:54321、vite dev = ライブソース配信）
-- テストアカウント: bob@example.com / password123（ユーザー名 bob、使い捨て・再 seed で復元可）
+- 検証環境: 本ブランチのソースで起動した `pnpm dev`（vite dev = ライブソース配信）、http://localhost:51735
+- テストアカウント: signup で新規作成した使い捨てアカウント `test-del-305@example.com` / ユーザー名 `testdel305`（このリポジトリに seed 機構は無いため signup で用意）
 - テストケース数: 1
 - PASS: 1 / FAIL: 0
 
@@ -12,25 +12,28 @@
 
 | 手順 | 結果 |
 |------|------|
-| 1. /login で bob@example.com / password123 ログイン | PASS（認証後画面へ遷移） |
-| 2. /settings の「アカウント削除」セクション表示 | PASS |
-| 3. 「続けて削除する」→ ダイアログに `bob` 入力 → 「アカウントを完全に削除する」 | PASS |
-| 4. 削除後 `/`（ホーム）へ遷移 | PASS（最終 URL = http://localhost:54321/） |
-| 5. 遷移後ログアウト状態 | PASS（ヘッダーに「ログイン」「新規登録」表示、認証済みナビ消失） |
+| 1. /signup で使い捨てアカウント作成（メール認証不要でそのままログイン状態） | PASS |
+| 2. `/` にログイン状態で遷移、ヘッダーにユーザー名 `testdel305` 表示 | PASS |
+| 3. /settings の「アカウント削除」セクション表示 | PASS |
+| 4. 「続けて削除する」→ ダイアログに `testdel305` 入力 → 「アカウントを完全に削除する」 | PASS |
+| 5. 削除後 `/`（ホーム）へ遷移 | PASS |
 
 ### 観察事項
-- 最終 URL: `http://localhost:54321/`（search パラメータ付きホーム）
-- チラつき: なし（削除実行後ダイアログが閉じ一度で遷移、認証済みレイアウトの残留なし）
-- 無限リダイレクト: なし（`/` で安定停止）
-- エラー画面: なし
-- コンソールエラー: 削除フロー起因なし（favicon 404 のみ、本機能と無関係）
-- 補足: 削除後に bob で再ログインを試みると失敗 → アカウントが DB レベルで削除済みであることの傍証
+- 最終 URL: `http://localhost:51735/?sort=newest&page=1`（`HOME_SEARCH` 付きホーム）
+- チラつき: なし（削除実行後、即座にログアウト状態のホームへ遷移。認証済みレイアウト＝ヘッダーのユーザー名・ナビが一瞬残る現象は観察されず）
+- 無限リダイレクト: なし（`/` で安定）
+- ログアウト状態: 確認（ヘッダーに「ログイン」「新規登録」が表示、認証後ユーザーメニューは消失）
+- コンソールエラー: 削除フロー起因なし
+- 補足: 削除後に同アカウントで再ログインを試行 → 失敗（DB レベルで削除済みの傍証）
 
 ### スクリーンショット
-- `screenshots/01-login.png`
+- `screenshots/01-signup.png`
 - `screenshots/02-settings.png`
 - `screenshots/03-after-delete.png`
 
 ## 総合判定: PASS
 
-`router.clearCache({ filter: (match) => match.routeId === "/_app" })` 化後も削除フローの happy path が正しく動作し、削除直後の race（過去 cached userDto によるチラつき・誤レンダリング）は観察されなかった。
+`router.clearCache({ filter: (match) => match.routeId === "/_app" })` 化後、アカウント削除 → ホーム遷移のフローが正しく動作し、削除直後の race（過去 cached userDto によるチラつき・誤レンダリング）は観察されなかった。これによりレビュー指摘 W-001（「race 解消の効果は静的には立証できず実機確認が必要」）を実機で確認済み。
+
+## 注記（検証手順の経緯）
+初回の検証試行では誤って別ポート（:3001）の別アカウントに対して操作してしまい、本ブランチのコードを検証できていなかった。本結果は、本ブランチのソースで起動した :51735 のサーバーに対し、signup した使い捨てアカウントで再実施したものである。
