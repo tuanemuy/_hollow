@@ -1319,6 +1319,89 @@ describe("updateDesignTokens / resetDesignTokens", () => {
     };
     expect(Object.keys(stored.tokens)).toHaveLength(0);
   });
+
+  it("drops entries equal to the built-in default, persists only deviations (Issue #397)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateDesignTokens({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        tokens: {
+          // Equal to the built-in default — must be dropped.
+          "--color-accent": "oklch(37.1% 0 0)",
+          // Differs from the default — must be persisted.
+          "--color-bg": "#000000",
+          // Outside the curated set — must be persisted.
+          "--color-primary": "#abc",
+        },
+      },
+    });
+    const rows = await container.db.select().from(schema.instanceSettings);
+    const stored = JSON.parse(rows[0]?.designTokensJson ?? '{"tokens":{}}') as {
+      tokens: Record<string, string>;
+    };
+    expect(stored.tokens["--color-accent"]).toBeUndefined();
+    expect(stored.tokens["--color-bg"]).toBe("#000000");
+    expect(stored.tokens["--color-primary"]).toBe("#abc");
+  });
+
+  it("getInstanceSettings surfaces built-in defaults and override flags (Issue #397)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+
+    // No overrides yet: every curated default is surfaced with
+    // `isOverridden: false`.
+    const before = await getInstanceSettings({
+      container,
+      input: { actorUserId: ADMIN_ID },
+    });
+    expect(before.settings.designTokens["--color-accent"]).toEqual({
+      value: "oklch(37.1% 0 0)",
+      isOverridden: false,
+    });
+    expect(before.settings.designTokenDefaults["--color-accent"]).toBe(
+      "oklch(37.1% 0 0)",
+    );
+
+    await updateDesignTokens({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        tokens: { "--color-bg": "#000000", "--color-primary": "#abc" },
+      },
+    });
+
+    const after = await getInstanceSettings({
+      container,
+      input: { actorUserId: ADMIN_ID },
+    });
+    // Overridden curated key.
+    expect(after.settings.designTokens["--color-bg"]).toEqual({
+      value: "#000000",
+      isOverridden: true,
+    });
+    // Untouched curated key still reflects the default.
+    expect(after.settings.designTokens["--color-accent"]).toEqual({
+      value: "oklch(37.1% 0 0)",
+      isOverridden: false,
+    });
+    // Ad-hoc override key outside the curated set is surfaced too.
+    expect(after.settings.designTokens["--color-primary"]).toEqual({
+      value: "#abc",
+      isOverridden: true,
+    });
+  });
 });
 
 // ---------- ToggleRegistrationPolicy / UpdateInstanceLimits ----------
@@ -1578,7 +1661,10 @@ describe("InstanceSettings persistence round-trip", () => {
       container,
       input: { actorUserId: ADMIN_ID },
     });
-    expect(settings.designTokens["--accent"]).toBe("#111111");
+    // `--accent` is outside the curated default subset, so it is surfaced as
+    // an ad-hoc override (`isOverridden: true`) rather than as a string value.
+    expect(settings.designTokens["--accent"]?.value).toBe("#111111");
+    expect(settings.designTokens["--accent"]?.isOverridden).toBe(true);
     expect(settings.registration.open).toBe(false);
     expect(settings.registration.closedReason).toBe("soon");
 

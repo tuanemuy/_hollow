@@ -37,7 +37,11 @@
 ### 既定値（SSOT）
 
 - プロンプト: `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_PROMPT_DEFAULTS`。`text` は空文字を保持し、`promptResolver` の「空文字 = LLM プロバイダの既定指示にフォールバック」契約と整合する（Issue #218 ADR-002）。
-- デザイントークン: `app/styles/tokens.css`（CLAUDE.md と一致、`spec/design/tokens.md` にミラー）。コード SSOT は作らない（Issue #218 ADR-003）。
+- デザイントークン:
+  - CSS の既定値そのものは `app/styles/tokens.css`（CLAUDE.md と一致、`spec/design/tokens.md` にミラー）が SSOT。
+  - 管理画面で上書き可能なトークンの「キー → 既定値」は `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_DESIGN_TOKENS`（curated subset・計 27 キー）が SSOT（Issue #397）。`tokens.css` との値整合は `defaults.test.ts` が CI で機械検証する（手書き定数 + 整合性テスト方式、ランタイム CSS パース / codegen は不採用）。
+  - 既定値は管理画面に初期表示され、override（既定値と異なる値）のみが永続化される。既定値と同値の行は `UpdateDesignTokens` ユースケースで除外する（`DesignTokens` VO は「永続化される override 集合」という意味を純粋に保ち、既定マップ知識を持たない）。
+  - `var(...)` 参照値（`--code-comment`, `--color-info`）と breakpoints は curated subset から除外（`spec/design/tokens.md` §12 参照）。
 
 ### UserPromptOverride（ユーザー個別、別集約）
 
