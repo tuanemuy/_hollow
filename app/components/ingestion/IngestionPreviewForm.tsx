@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -50,7 +50,7 @@ type Props = Readonly<{
    * focus on the appropriate element.
    */
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
-  onCommitted: (noteId: string) => void;
+  onCommitted: (noteId: string, title: string) => void;
   onDiscarded: () => void;
   /**
    * Notifies the parent that a regeneration was requested for `jobId`.
@@ -61,9 +61,6 @@ type Props = Readonly<{
   onRegenerated: (jobId: string) => void;
   onCancel: () => void;
 }>;
-
-const READONLY_CONTENT =
-  "note-detail-content rounded-md border border-hairline bg-surface-elevated p-4 text-sm text-ink";
 
 const FRONT_MATTER_SUMMARY =
   "list-none inline-flex items-center gap-2 cursor-pointer select-none text-[13px] font-medium text-ink-secondary [&::-webkit-details-marker]:hidden";
@@ -195,13 +192,14 @@ export function IngestionPreviewForm({
     if (isPending) return;
     setError(null);
     const trimmedJson = frontMatterJson.trim();
+    const trimmedTitle = title.trim();
     const tagNames = parseTagInput(tagInput);
     startTransition(async () => {
       try {
         const result = await commit({
           data: {
             jobId,
-            title: title.trim(),
+            title: trimmedTitle,
             ...(directoryId === null ? {} : { directoryId }),
             ...(pendingDirectoryName === null
               ? {}
@@ -217,7 +215,7 @@ export function IngestionPreviewForm({
           // invalidate（.issue/299/adr.md ADR-003）
           await router.invalidate();
         }
-        onCommitted(result.noteId as unknown as string);
+        onCommitted(result.noteId as unknown as string, trimmedTitle);
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -278,17 +276,6 @@ export function IngestionPreviewForm({
               maxLength={200}
               disabled={isPending}
               className={fieldControl}
-            />
-          </div>
-
-          <div className={field}>
-            <p className={fieldLabel}>
-              本文プレビュー（LLM 抽出・読み取り専用）
-            </p>
-            <div
-              className={READONLY_CONTENT}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: preview HTML is sanitised upstream by the ingestion pipeline
-              dangerouslySetInnerHTML={{ __html: preview.contentHtml }}
             />
           </div>
 
@@ -401,8 +388,16 @@ export function IngestionPreviewForm({
             className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
             disabled={isPending}
+            aria-busy={isPending || undefined}
           >
-            登録
+            {isPending ? (
+              <>
+                <Icon icon={Loader2} className="motion-safe:animate-spin" />
+                登録中...
+              </>
+            ) : (
+              "登録"
+            )}
           </button>
         </div>
       </form>

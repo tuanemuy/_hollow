@@ -79,11 +79,28 @@ export type LLMStructureInput = Readonly<{
   rawText: string;
   prompt: string;
   locale: string;
+  /**
+   * Existing directory paths for the owner, supplied as context so the
+   * model can propose an existing placement. When the model matches one
+   * of these, the application resolves it to a `suggestedDirectoryId`;
+   * when nothing matches it falls back to proposing a new single
+   * top-level directory name via `directorySuggestion`. Optional for
+   * backward compatibility — the `html` / `markdown` branches that do not
+   * call the LLM omit it.
+   */
+  existingDirectories?: readonly string[];
 }>;
 
 export type LLMStructureResult = Readonly<{
   html: string;
   titleSuggestion: string;
+  /**
+   * Proposed target directory as a path string. When it matches one of
+   * the supplied `existingDirectories` (after normalisation) the caller
+   * resolves it to an existing `DirectoryId`; otherwise the caller treats
+   * the trailing segment as a new single top-level directory name. `null`
+   * means the model offered no placement.
+   */
   directorySuggestion: string | null;
 }>;
 

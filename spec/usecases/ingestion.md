@@ -45,7 +45,9 @@
    - audio: `SpeechRecognitionProvider.transcribe` → `LLMProvider.structureToHtml`
    - plain: テキストをそのまま `LLMProvider.structureToHtml`
    - 加えて、`LLMProvider.suggestMetadata` でタグ・aliases 取得
+   - LLM 構造化分岐では、事前に `DirectoryRepository.findTree(ownerId)` で取得した既存ディレクトリのパス列（正準形）を `structureToHtml` の `existingDirectories` に渡す。`findTree` 失敗時は空配列にフォールバックして取り込みを継続する。
 5. `IngestionPreview` を組み立てて `job.attachPreview(p, now)` → save
+   - `LLMProvider.structureToHtml` の `directorySuggestion`（パス）を既存ディレクトリ列と正規化（大小無視・スラッシュ正規化）して突き合わせる。一致した場合は `suggestedDirectoryId` に解決し `suggestedDirectoryName=null`、不一致の場合は末尾セグメントを新規の単一ディレクトリ名として `suggestedDirectoryName` に採用する（深いネスト新規作成はコミット経路の制約によりスコープ外）。
 6. 失敗時は `job.markFailed(code, reason, now)` → save。失敗もユーザーに通知できる状態にする
 
 ### エラーケース

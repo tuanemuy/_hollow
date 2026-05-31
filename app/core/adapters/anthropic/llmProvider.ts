@@ -1,5 +1,11 @@
 import { extractJsonObject } from "@/core/adapters/llm/jsonEnvelope";
 import {
+  buildMetadataSystemPrompt,
+  buildMetadataUserMessage,
+  buildStructureSystemPrompt,
+  buildStructureUserMessage,
+} from "@/core/adapters/llm/prompts";
+import {
   type LLMMetadataInput,
   type LLMMetadataResult,
   type LLMProvider,
@@ -91,8 +97,8 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   async structureToHtml(input: LLMStructureInput): Promise<LLMStructureResult> {
-    const system = this.buildStructureSystemPrompt(input);
-    const userMessage = this.buildStructureUserMessage(input);
+    const system = buildStructureSystemPrompt(input);
+    const userMessage = buildStructureUserMessage(input);
     const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
       const parsed = extractJsonObject(raw);
       if (parsed === null) return null;
@@ -120,8 +126,8 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   async suggestMetadata(input: LLMMetadataInput): Promise<LLMMetadataResult> {
-    const system = this.buildMetadataSystemPrompt(input);
-    const userMessage = this.buildMetadataUserMessage(input);
+    const system = buildMetadataSystemPrompt(input);
+    const userMessage = buildMetadataUserMessage(input);
     const envelope = await this.invokeWithRetry(system, userMessage, (raw) => {
       const parsed = extractJsonObject(raw);
       if (parsed === null) return null;
@@ -133,39 +139,6 @@ export class AnthropicLLMProvider implements LLMProvider {
     const tags = this.requireStringArray(envelope, "tags");
     const aliases = this.requireStringArray(envelope, "aliases");
     return { tags, aliases };
-  }
-
-  private buildStructureSystemPrompt(input: LLMStructureInput): string {
-    const base =
-      input.prompt.trim().length > 0
-        ? input.prompt
-        : "You convert raw note material into a sanitised HTML draft.";
-    return [
-      base,
-      `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,
-      `Locale for natural-language output: ${input.locale}.`,
-      "Do not include code fences. Do not include any text before or after the JSON object.",
-    ].join("\n");
-  }
-
-  private buildStructureUserMessage(input: LLMStructureInput): string {
-    return `Source text:\n${input.rawText}`;
-  }
-
-  private buildMetadataSystemPrompt(input: LLMMetadataInput): string {
-    const base =
-      input.prompt.trim().length > 0
-        ? input.prompt
-        : "You extract tag names and aliases from an HTML note body.";
-    return [
-      base,
-      `Respond with a single JSON object on one line with the keys "tags" (string[]) and "aliases" (string[]).`,
-      "Do not include code fences. Do not include any text before or after the JSON object.",
-    ].join("\n");
-  }
-
-  private buildMetadataUserMessage(input: LLMMetadataInput): string {
-    return `HTML body:\n${input.html}`;
   }
 
   private async invoke(

@@ -234,7 +234,9 @@ describe("IngestionPreviewForm", () => {
         tagNames: ["alpha", "beta"],
       }),
     });
-    expect(onCommitted).toHaveBeenCalledWith("note-1");
+    // onCommitted receives the edited title alongside the noteId so the
+    // parent's `committed` view can show it.
+    expect(onCommitted).toHaveBeenCalledWith("note-1", "My Title");
   });
 
   it("surfaces a server-returned error (e.g. FRONT_MATTER_JSON_INVALID) in the inline alert region without dismissing the form", async () => {
@@ -494,12 +496,13 @@ describe("IngestionPreviewForm", () => {
   // "single scroll container + fixed footer" structure introduced
   // by Issue #257. Two regressions in particular must stay caught:
   //  - re-introducing `sticky bottom-0` on the action bar (which
-  //    caused the floating-action-bar bug), or any height-bound class
-  //    on the body preview (which caused the double-scroll bug);
+  //    caused the floating-action-bar bug);
   //  - silently removing the inner `flex-1 min-h-0 overflow-y-auto`
   //    scroll wrapper or the `flex-shrink-0` action bar, which would
   //    pass a pure absence-based test even though the structural
   //    contract is broken. The assertions below cover both directions.
+  // There is no read-only body preview, so its height-bound class is not
+  // part of this contract.
   it("keeps the single scroll container + fixed footer structure (Issue #257)", () => {
     renderForm({});
 
@@ -518,11 +521,6 @@ describe("IngestionPreviewForm", () => {
     expect(scrollWrapperClass).toContain("flex-1");
     expect(scrollWrapperClass).toContain("min-h-0");
     expect(scrollWrapperClass).toContain("overflow-y-auto");
-
-    const bodyPreview = document.body.querySelector(".note-detail-content");
-    expect(bodyPreview).not.toBeNull();
-    const previewClass = bodyPreview?.className ?? "";
-    expect(previewClass).not.toMatch(/max-h-\[\d+px\]/);
   });
 
   // Issue #256 A11y-H2: the form no longer owns a focus side-effect.

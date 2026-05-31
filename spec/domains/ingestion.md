@@ -111,7 +111,8 @@ type IngestionCommitDeps = {
 
 ### LLMProvider（ポート）
 - メソッド:
-  - `structureToHtml(input: { rawText: string; prompt: string; locale: string }): Promise<{ html: string; titleSuggestion: string; directorySuggestion: string | null }>`
+  - `structureToHtml(input: { rawText: string; prompt: string; locale: string; existingDirectories?: string[] }): Promise<{ html: string; titleSuggestion: string; directorySuggestion: string | null }>`
+    - `existingDirectories`（任意）: 既存ディレクトリのパス列。非空なら LLM は既存の配置先をそのままの表記で `directorySuggestion` に提案し、該当が無い場合のみ新規の単一トップレベル名を提案する。アプリ層が一致を `suggestedDirectoryId` に解決、不一致を新規名にフォールバックする。
   - `suggestMetadata(input: { html: string; prompt: string }): Promise<{ tags: string[]; aliases: string[] }>`
 - エラーケース: `LLMRateLimitError` / `LLMUnavailableError` / `LLMTimeoutError` / `LLMQuotaExceededError`
 
