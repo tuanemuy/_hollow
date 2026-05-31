@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 
 const renderNewNote = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
@@ -33,6 +34,15 @@ const renderNewNote = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/_app/notes/new")({
   staleTime: 0,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `新規ノート — ${config.siteName}`,
+      path: "/notes/new",
+      noIndex: true,
+    });
+  },
   loader: () => renderNewNote(),
   component: NewNoteRoute,
   errorComponent: ({ error }) => (

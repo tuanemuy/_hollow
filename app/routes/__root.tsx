@@ -70,7 +70,12 @@ export const Route = createRootRoute({
     const config = match.context?.config;
     if (!config) return { links: baseLinks };
     const { meta, links } = buildHead(config);
-    return { meta, links: [...baseLinks, ...links] };
+    // `canonical` is page-specific; this root layout cannot know the real
+    // path, and every route-level `head` emits its own. Drop the root's "/"
+    // canonical so pages don't render duplicate `<link rel="canonical">`
+    // (crawlers ignore a page that declares more than one canonical).
+    const linksWithoutCanonical = links.filter((l) => l.rel !== "canonical");
+    return { meta, links: [...baseLinks, ...linksWithoutCanonical] };
   },
   component: RootComponent,
   errorComponent: ({ error }) => (

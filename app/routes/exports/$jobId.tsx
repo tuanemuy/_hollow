@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import type { ExportJobId } from "@/core/domain/export/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 import "@/components/export/ExportForm/action";
@@ -22,6 +23,12 @@ const renderExportJobDetail = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/exports/$jobId")({
   staleTime: 0,
+  head: ({ match, params }) =>
+    internalRouteHead(
+      match.context?.config,
+      "エクスポートジョブ",
+      `/exports/${params.jobId}`,
+    ),
   loader: ({ params }) =>
     renderExportJobDetail({ data: { jobId: params.jobId } }),
   component: ExportJobDetailRoute,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderNoteDetail = createServerFn({ method: "GET" })
@@ -31,6 +32,15 @@ const renderNoteDetail = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/_app/notes/$noteId/")({
   staleTime: 0,
+  head: ({ match, params }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `ノート — ${config.siteName}`,
+      path: `/notes/${params.noteId}`,
+      noIndex: true,
+    });
+  },
   loader: ({ params }) => renderNoteDetail({ data: { noteId: params.noteId } }),
   component: NoteDetailRoute,
   errorComponent: ({ error }) => (

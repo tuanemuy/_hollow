@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 
 const renderTags = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
@@ -21,6 +22,15 @@ const renderTags = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/_app/tags/")({
   staleTime: 0,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `タグ — ${config.siteName}`,
+      path: "/tags",
+      noIndex: true,
+    });
+  },
   loader: () => renderTags(),
   component: TagsRoute,
   errorComponent: ({ error }) => (

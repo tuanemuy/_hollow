@@ -1,7 +1,7 @@
 import type { AppConfig } from "@/core/application/di/types";
 
 // 1200x630 — `summary_large_image` 互換サイズ。
-const DEFAULT_OG_IMAGE_PATH = "/og-image.png";
+export const DEFAULT_OG_IMAGE_PATH = "/og-image.png";
 const DEFAULT_LOCALE = "ja_JP";
 
 export type HeadOverrides = Readonly<{
@@ -10,6 +10,16 @@ export type HeadOverrides = Readonly<{
   path?: string;
   ogImage?: string;
   ogType?: "website" | "article";
+  /** Emit `<meta name="robots" content="noindex, nofollow">` when true. */
+  noIndex?: boolean;
+  /** ISO-8601 string for `article:published_time` (article type only). */
+  publishedTime?: string;
+  /** ISO-8601 string for `article:modified_time` (article type only). */
+  modifiedTime?: string;
+  /** `article:author` (article type only). */
+  authorName?: string;
+  /** `article:tag` entries (article type only, one meta per tag). */
+  tags?: readonly string[];
 }>;
 
 type MetaTag =
@@ -70,7 +80,7 @@ export function buildHead(
     { property: "og:description", content: description },
     { property: "og:image", content: ogImage },
     { property: "og:site_name", content: config.siteName },
-    { property: "og:locale", content: DEFAULT_LOCALE },
+    { property: "og:locale", content: config.locale ?? DEFAULT_LOCALE },
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
@@ -79,8 +89,65 @@ export function buildHead(
   if (config.twitterHandle !== undefined) {
     meta.push({ name: "twitter:site", content: config.twitterHandle });
   }
+  if (overrides.noIndex === true) {
+    meta.push({ name: "robots", content: "noindex, nofollow" });
+  }
+  if (ogType === "article") {
+    if (overrides.publishedTime !== undefined) {
+      meta.push({
+        property: "article:published_time",
+        content: overrides.publishedTime,
+      });
+    }
+    if (overrides.modifiedTime !== undefined) {
+      meta.push({
+        property: "article:modified_time",
+        content: overrides.modifiedTime,
+      });
+    }
+    if (overrides.authorName !== undefined) {
+      meta.push({ property: "article:author", content: overrides.authorName });
+    }
+    for (const tag of overrides.tags ?? []) {
+      meta.push({ property: "article:tag", content: tag });
+    }
+  }
 
   const links: LinkTag[] = [{ rel: "canonical", href: url }];
 
   return { meta, links };
+}
+
+/**
+ * `head` for an authenticated / internal route: emits a `<title>` for tab
+ * identification plus `noindex, nofollow`. Returns `{}` when `config` is not
+ * yet on the match context (SSR boot / first paint) so the route never throws.
+ */
+export function internalRouteHead(
+  config: AppConfig | undefined,
+  title: string,
+  path: string,
+): HeadConfig | Record<string, never> {
+  if (!config) return {};
+  return buildHead(config, {
+    title: `${title} — ${config.siteName}`,
+    path,
+    noIndex: true,
+  });
+}
+
+export type JsonLdScript = {
+  type: "application/ld+json";
+  children: string;
+};
+
+/**
+ * Serializes a structured-data object into a `<script type="application/ld+json">`
+ * payload. The `<` → `<` escape prevents a `</script>` sequence embedded
+ * in user content (note title / body) from breaking out of the script element
+ * (XSS). The escape is JSON-transparent: `<` parses back to `<`.
+ */
+export function buildJsonLdScript(data: object): JsonLdScript {
+  const children = JSON.stringify(data).replace(/</g, "\\u003c");
+  return { type: "application/ld+json", children };
 }

@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 // Register publish-settings server-fn handlers with the RSC manifest.
@@ -30,6 +31,12 @@ const renderPublishSettings = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/notes/$noteId/publish")({
   staleTime: 0,
+  head: ({ match, params }) =>
+    internalRouteHead(
+      match.context?.config,
+      "公開設定",
+      `/notes/${params.noteId}/publish`,
+    ),
   loader: ({ params }) =>
     renderPublishSettings({ data: { noteId: params.noteId } }),
   component: PublishRoute,

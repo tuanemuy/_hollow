@@ -5,7 +5,13 @@ import { z } from "zod";
 import { ErrorPage } from "@/components/public/ErrorPage";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
-import { buildHead } from "@/core/presentation/head";
+import {
+  buildHead,
+  buildJsonLdScript,
+  DEFAULT_OG_IMAGE_PATH,
+  joinUrl,
+} from "@/core/presentation/head";
+import { loadPublicNoteMeta } from "@/core/presentation/publicNoteMeta";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderInputSchema = z.object({
@@ -27,20 +33,74 @@ const renderPublicNote = createServerFn({ method: "GET" })
     );
   });
 
+// Lightweight head-only metadata fetch (loader two-stage; see ADR-003).
+// The RSC `loader` above returns an opaque element, so `head` cannot read
+// note fields from `loaderData` — it calls this instead.
+const loadNoteMeta = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(renderInputSchema))
+  .handler(async ({ data }) => {
+    const { getContainer } = await import(
+      "@/core/application/di/containerStore"
+    );
+    const container = await getContainer();
+    return loadPublicNoteMeta(container, {
+      kind: "bySlug",
+      username: data.username,
+      slug: data.noteSlug,
+    });
+  });
+
 export const Route = createFileRoute("/u/$username/$noteSlug")({
   staleTime: 10_000,
   loader: ({ params }) =>
     renderPublicNote({
       data: { username: params.username, noteSlug: params.noteSlug },
     }),
-  head: ({ match, params }) => {
+  head: async ({ match, params }) => {
     const config = match.context?.config;
     if (!config) return {};
-    return buildHead(config, {
-      title: `${params.noteSlug} — @${params.username}`,
-      path: `/u/${params.username}/${params.noteSlug}`,
+    const path = `/u/${params.username}/${params.noteSlug}`;
+    const meta = await loadNoteMeta({
+      data: { username: params.username, noteSlug: params.noteSlug },
+    }).catch(() => null);
+    if (meta === null) {
+      return buildHead(config, {
+        title: `@${params.username} — ${config.siteName}`,
+        path,
+        ogType: "article",
+      });
+    }
+    const { meta: metaTags, links } = buildHead(config, {
+      title: `${meta.title} — ${config.siteName}`,
+      ...(meta.description ? { description: meta.description } : {}),
+      path,
       ogType: "article",
+      ...(meta.publishedTime !== undefined
+        ? { publishedTime: meta.publishedTime }
+        : {}),
+      modifiedTime: meta.modifiedTime,
+      authorName: meta.authorName,
+      tags: meta.tags,
     });
+    const url = joinUrl(config.appUrl, path);
+    const article = buildJsonLdScript({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: meta.title,
+      ...(meta.description ? { description: meta.description } : {}),
+      image: joinUrl(config.appUrl, DEFAULT_OG_IMAGE_PATH),
+      ...(meta.publishedTime !== undefined
+        ? { datePublished: meta.publishedTime }
+        : {}),
+      dateModified: meta.modifiedTime,
+      author: { "@type": "Person", name: meta.authorName },
+      // `article:tag` meta collapses to one entry (TanStack dedups meta by
+      // `property`), so carry the full tag set here where it does not.
+      ...(meta.tags.length > 0 ? { keywords: meta.tags } : {}),
+      mainEntityOfPage: url,
+    });
+    return { meta: metaTags, links, scripts: [article] };
   },
   component: PublicNotePage,
   notFoundComponent: () => <ErrorPage kind="gone" />,

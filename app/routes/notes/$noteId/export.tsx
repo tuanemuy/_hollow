@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
 import "@/components/export/ExportForm/action";
@@ -21,6 +22,12 @@ const renderSingleExportPage = createServerFn({ method: "GET" })
 export const Route = createFileRoute("/notes/$noteId/export")({
   beforeLoad: requireAuthenticatedRoute,
   staleTime: 0,
+  head: ({ match, params }) =>
+    internalRouteHead(
+      match.context?.config,
+      "ノートをエクスポート",
+      `/notes/${params.noteId}/export`,
+    ),
   loader: ({ params }) =>
     renderSingleExportPage({ data: { noteId: params.noteId } }),
   component: SingleExportRoute,

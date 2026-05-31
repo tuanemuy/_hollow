@@ -4,6 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { buildHead } from "@/core/presentation/head";
 import {
   PAGINATION_DEFAULT_LIMIT,
   PAGINATION_DEFAULT_PAGE,
@@ -33,6 +34,15 @@ export const Route = createFileRoute("/_app/trash/")({
   staleTime: 0,
   validateSearch: (search) => paginationSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
+  head: ({ match }) => {
+    const config = match.context?.config;
+    if (!config) return {};
+    return buildHead(config, {
+      title: `ゴミ箱 — ${config.siteName}`,
+      path: "/trash",
+      noIndex: true,
+    });
+  },
   // Issue #215: `paginationSearchSchema` now leaves `page` / `limit`
   // optional on its output, so fall back to the defaults here before
   // calling the strict-typed server fn.

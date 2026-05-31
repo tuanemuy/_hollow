@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
+import { internalRouteHead } from "@/core/presentation/head";
 
 const renderDesignTokensPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
@@ -14,6 +15,12 @@ const renderDesignTokensPage = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/admin/design")({
   staleTime: 0,
+  head: ({ match }) =>
+    internalRouteHead(
+      match.context?.config,
+      "デザイントークン",
+      "/admin/design",
+    ),
   loader: () => renderDesignTokensPage(),
   component: AdminDesignPage,
 });
