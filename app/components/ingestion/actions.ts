@@ -140,6 +140,38 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
     return { noteId: result.noteId as unknown as string };
   });
 
+export type EffectiveIngestionPromptsWire = {
+  structure: { text: string; isUserOverride: boolean };
+  metadata: { text: string; isUserOverride: boolean };
+};
+
+// Read-only GET, no transport input: the actor is resolved server-side
+// from `requireCurrentUser`. Mirrors `getDirectoryTreeFn` (note/actions),
+// the established input-less GET server-fn, so `inputValidator` is
+// intentionally omitted.
+export const getEffectiveIngestionPromptsFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .handler(async (): Promise<EffectiveIngestionPromptsWire> => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/ingestion/getEffectiveIngestionPrompts"),
+    );
+    const result = await module.getEffectiveIngestionPrompts({
+      container,
+      input: { actorUserId: toDtoUserId(user.id) },
+    });
+    return {
+      structure: {
+        text: result.structure.text,
+        isUserOverride: result.structure.isUserOverride,
+      },
+      metadata: {
+        text: result.metadata.text,
+        isUserOverride: result.metadata.isUserOverride,
+      },
+    };
+  });
+
 export const getIngestionJobFn = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(getIngestionJobSchema))
