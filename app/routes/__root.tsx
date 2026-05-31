@@ -36,15 +36,14 @@ export const loadAppContext = createServerFn({ method: "GET" })
   });
 
 // `beforeLoad` re-runs on every navigation and is not gated by `staleTime`,
-// so calling `loadAppContext()` directly fired a `_serverFn` round trip per
+// so calling `loadAppContext()` directly costs a `_serverFn` round trip per
 // navigation (Issue #296). `config` is env-derived and immutable within a
 // session, so the client fetches it once and reuses the promise. SSR must
-// bypass this cache — the worker module scope is shared across requests, so
-// caching here would leak one request's config into another.
+// bypass the cache: the worker module scope is shared across requests, so a
+// cached value would leak one request's config into another.
 //
-// Only a resolved promise is cached: a rejected fetch (transient 5xx, network
-// blip) clears the slot so the next navigation retries, rather than poisoning
-// every subsequent navigation with the same failure.
+// A rejected fetch clears the slot so the next navigation retries, instead of
+// poisoning every later navigation with the same cached failure.
 let clientAppContext: ReturnType<typeof loadAppContext> | undefined;
 
 function resolveAppContext(): ReturnType<typeof loadAppContext> {
