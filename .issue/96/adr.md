@@ -57,6 +57,10 @@ Proposed
   - master key 未設定状態で admin LLM 設定保存に到達すると `SecretBoxError(KeyUnavailable)` が発生する → これは正しい挙動（鍵が無ければ暗号化できない）
   - 将来「本番では master key 必須化したい」場合は、別 Issue で `readRequestServerConfig` 内で fail-fast に切り替える（本Issueはスコープを限定）
 
+### Supersede note (Issue #102)
+
+本 ADR が先送りした「production での master key 必須化」を Issue #102 で確定・実装した（`.issue/102/adr.md` ADR-001〜004）。`selectSecretBox(env, { requireKey })` ファクトリを新設し、`REQUIRE_SECRET_BOX_KEY="true"` の stage（staging/production）では未設定/空文字/shipped dev placeholder で `createRequestContainer` が throw（fail-fast）するよう `readRequestServerConfig` 内で分岐する。dev（`requireKey:false`）は本 ADR の `NullSecretBox` fallback を維持。「未設定で運用継続」は dev/staging 用途に限定され、production では fail-fast が正となる。
+
 ### 未設定 vs 不正値の挙動差
 
 `SECRET_BOX_MASTER_KEY` の状態は 3 つに分かれる:
