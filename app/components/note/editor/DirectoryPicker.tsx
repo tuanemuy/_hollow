@@ -17,8 +17,8 @@ import type { FlatDirectory } from "../loaders";
 /**
  * Directory selector for the editor.
  *
- * Two-mode UI: pick an existing directory from a depth-indented
- * `<select>`, or type a brand-new directory name. The new name is held
+ * Two-mode UI: pick an existing directory from the searchable
+ * `DirectorySelectField`, or type a brand-new directory name. The new name is held
  * by the orchestrator as `pendingDirectoryName` until save, at which
  * point it is created via `createDirectoryFn` and the resolved id is
  * passed to `createNoteFn` / `saveNoteFn`.
@@ -99,7 +99,7 @@ export function DirectoryPicker({
               value={directoryId}
               onChange={onSelectExisting}
               disabled={disabled === true || usingNew}
-              emptyLabel="未選択"
+              clearable
             />
           </div>
           {canShowActions ? (

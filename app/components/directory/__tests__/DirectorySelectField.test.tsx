@@ -57,8 +57,16 @@ function listOptions(): HTMLButtonElement[] {
   );
 }
 
+// The listbox is closed until the combobox is focused / typed into, so each
+// test opens it before querying for options.
+function open() {
+  act(() => {
+    getInput().focus();
+  });
+}
+
 describe("DirectorySelectField", () => {
-  it("renders every option initially and narrows via the filter", () => {
+  it("renders every option once opened and narrows via the filter", () => {
     act(() => {
       root.render(
         <DirectorySelectField
@@ -69,6 +77,7 @@ describe("DirectorySelectField", () => {
         />,
       );
     });
+    open();
     expect(listOptions().length).toBe(3);
 
     act(() => {
@@ -92,8 +101,8 @@ describe("DirectorySelectField", () => {
       );
     });
 
+    open();
     act(() => {
-      getInput().focus();
       pressKey("ArrowDown");
     });
     act(() => {
@@ -117,13 +126,14 @@ describe("DirectorySelectField", () => {
       );
     });
 
+    open();
     act(() => {
       pressKey("Enter", { isComposing: true });
     });
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("marks the matching option aria-selected for the current value", () => {
+  it("marks the active row aria-selected while navigating", () => {
     act(() => {
       root.render(
         <DirectorySelectField
@@ -134,11 +144,13 @@ describe("DirectorySelectField", () => {
         />,
       );
     });
+    open();
     const selected = listOptions().filter(
       (o) => o.getAttribute("aria-selected") === "true",
     );
     expect(selected.length).toBe(1);
-    expect(selected[0].textContent ?? "").toContain("Work");
+    // The first row (root) is active by default, not the value-selected row.
+    expect(selected[0]).toBe(listOptions()[0]);
   });
 
   it("synthesizes a root option from includeRootOption at the top", () => {
@@ -153,9 +165,30 @@ describe("DirectorySelectField", () => {
         />,
       );
     });
+    open();
     const opts = listOptions();
     expect(opts.length).toBe(2);
     expect(opts[0].textContent ?? "").toContain("（ルート）");
+  });
+
+  it("commits includeRootOption via onChange(rootId)", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={[{ id: "work", name: "Work", path: "/Work", depth: 1 }]}
+          value={null}
+          onChange={onChange}
+          includeRootOption={{ id: "root", label: "（ルート）" }}
+        />,
+      );
+    });
+    open();
+    act(() => {
+      pressKey("Enter");
+    });
+    expect(onChange).toHaveBeenCalledWith("root");
   });
 
   it("shows the empty label and renders no listbox when nothing matches", () => {
@@ -166,16 +199,91 @@ describe("DirectorySelectField", () => {
           options={options}
           value={null}
           onChange={() => {}}
-          emptyLabel="未選択"
+          emptyLabel="該当なし"
         />,
       );
     });
+    open();
     act(() => {
       typeQuery("zzz");
     });
     expect(listOptions().length).toBe(0);
     expect(document.body.querySelector('[role="listbox"]')).toBeNull();
     const live = document.body.querySelector("[data-empty]");
-    expect(live?.textContent ?? "").toBe("未選択");
+    expect(live?.textContent ?? "").toBe("該当なし");
+  });
+
+  it("clamps the active index to the post-filter first row on commit", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value={null}
+          onChange={onChange}
+        />,
+      );
+    });
+    open();
+    // Move to the last row (index 2 = y2024).
+    act(() => {
+      pressKey("ArrowDown");
+      pressKey("ArrowDown");
+    });
+    // Narrow to a single row; the active index must clamp to 0 (the only row).
+    act(() => {
+      typeQuery("2024");
+    });
+    act(() => {
+      pressKey("Enter");
+    });
+    expect(onChange).toHaveBeenCalledWith("y2024");
+  });
+
+  it("wraps ArrowUp from the first row to the last row", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value={null}
+          onChange={onChange}
+        />,
+      );
+    });
+    open();
+    // Initial index 0 → ArrowUp wraps to the last row (y2024).
+    act(() => {
+      pressKey("ArrowUp");
+    });
+    act(() => {
+      pressKey("Enter");
+    });
+    expect(onChange).toHaveBeenCalledWith("y2024");
+  });
+
+  it("clears the selection via the 解除 button when clearable", () => {
+    const onChange = vi.fn();
+    act(() => {
+      root.render(
+        <DirectorySelectField
+          label="移動先"
+          options={options}
+          value="work"
+          onChange={onChange}
+          clearable
+        />,
+      );
+    });
+    const clearBtn = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="選択を解除"]',
+    );
+    if (clearBtn === null) throw new Error("clear button not rendered");
+    act(() => {
+      clearBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledWith(null);
   });
 });

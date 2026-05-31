@@ -81,3 +81,28 @@ Accepted
 - トレードオフ: inline `paddingLeft` は唯一の非ユーティリティ指定だが、動的 `depth` 起因で不可避（クラス文字列ではない）。
 
 ---
+
+## ADR-005: open 開閉状態の導入と `clearable` による null 復帰手段（レビュー1周目修正）
+
+### Status
+Accepted
+
+### Context
+PR レビュー1周目で2つの回帰/UX 課題が出た（review-001.md W-L1 / W-L2）:
+
+- combobox+listbox は listbox が常時開いたまま・確定後も query が残るため、`<select>` の「選んだら畳んで確定値だけ見える」体感と乖離する（W-L2）。
+- 旧 `DirectoryPicker` の `<select>` は `<option value="">未選択</option>` で null へ戻せた（＝ノートをルート直下＝ディレクトリ未所属へ移せた）が、新ピッカーは `commit(rowId)` でしか onChange を呼ばず常に非 null id を渡すため、編集中ノートをルートへ戻す動線が UI から消失する（W-L1）。MoveNote/MoveDirectory（初期 null→片方向）は影響なし。
+
+あわせて W-F1（disabled 時に listbox が tabbable に残る）・W-F2（アクティブ行に `aria-selected` が寄らない）も同コンポーネントで修正する。
+
+### Decision
+- **開閉状態 `open` を導入**する。`hasListbox = !disabled && open && filtered.length > 0`。focus / mousedown / typing / ArrowUp・ArrowDown で開き、commit と Escape で閉じる。commit 時は query をクリアして次回オープン時に全件へ戻す。`aria-expanded` / `aria-controls` / `aria-activedescendant` は従来どおり `hasListbox` ベースの参照ガードを維持（存在しない要素を参照しない）。
+- **`clearable?: boolean`（既定 false）prop** を追加し、true かつ value 選択中かつ非 disabled のとき、サマリ行に「解除」ボタン（`aria-label="選択を解除"`）を出して `onChange(null)` で null へ戻す。`DirectoryPicker` は `clearable` を渡して旧「未選択」option の機能を回復し、`emptyLabel="未選択"` のオーバーライドは外して既定の0件文言に戻す（W-F3）。
+- **W-F1**: disabled 時は listbox を描画せず（`hasListbox` に `!disabled`）、option `<button>` にも `disabled={disabled}` を付与。
+- **W-F2**: option の `aria-selected` をアクティブ行（`isActive`）に寄せる。確定値の視覚は `data-selected` とサマリ行で維持する。
+
+### Consequences
+- 良い点: `<select>` に近い「畳む」体感が戻り、null 復帰の動線も回復。disabled 時の二択 UI 崩れと APG 準拠の `aria-selected` も解消。
+- トレードオフ: ピッカーの状態が1つ（`open`）増えるが、ADR-002 の「表示・検索・単一選択」責務の範囲内に収まる。`clearable` はオプトインで既定挙動は不変。
+
+---

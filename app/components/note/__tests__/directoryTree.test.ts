@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DirectoryTreeNode } from "@/core/application/dto/directory";
+import type { DirectoryTreeNode } from "@/core/application/directory/view";
 import {
   excludeSubtree,
   flattenDirectoryTree,
@@ -112,5 +112,41 @@ describe("getDescendantIds / excludeSubtree", () => {
     const flat = flattenDirectoryTree(tree);
     const excluded = excludeSubtree(flat, getDescendantIds(tree, "work"));
     expect(excluded.map((d) => d.id)).toEqual(["root"]);
+  });
+});
+
+// Two independent root trees (a forest). Names include whitespace to smoke
+// the path join without trimming surprises.
+const forest: DirectoryTreeNode[] = [
+  node({
+    id: "a",
+    parentId: null,
+    name: "Alpha One",
+    depth: 0,
+    children: [node({ id: "a1", parentId: "a", name: "child", depth: 1 })],
+  }),
+  node({
+    id: "b",
+    parentId: null,
+    name: "Beta",
+    depth: 0,
+    children: [node({ id: "b1", parentId: "b", name: "nested", depth: 1 })],
+  }),
+];
+
+describe("flattenDirectoryTree / getDescendantIds across a forest", () => {
+  it("normalizes each root tree independently", () => {
+    const flat = flattenDirectoryTree(forest);
+    const byId = new Map(flat.map((d) => [d.id, d]));
+
+    expect(byId.get("a")?.path).toBe("/Alpha One");
+    expect(byId.get("a1")?.path).toBe("/Alpha One/child");
+    expect(byId.get("b")?.path).toBe("/Beta");
+    expect(byId.get("b1")?.path).toBe("/Beta/nested");
+  });
+
+  it("resolves ids under the second root (no early break before reaching it)", () => {
+    expect(getDescendantIds(forest, "b")).toEqual(new Set(["b", "b1"]));
+    expect(getDescendantIds(forest, "b1")).toEqual(new Set(["b1"]));
   });
 });

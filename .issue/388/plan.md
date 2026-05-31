@@ -83,7 +83,7 @@
 
 詳細は `adr.md` 参照。要点:
 
-- **UI 方式**: 検索フィルタ付き＋階層インデント表示の単一選択リスト（combobox+listbox ベース）。完全な展開/折りたたみ tree は移動先選択にはオーバースペック。`aria-level` で階層情報は保持。
+- **UI 方式**: 検索フィルタ付き＋階層インデント表示の単一選択リスト（combobox+listbox ベース）。完全な展開/折りたたみ tree は移動先選択にはオーバースペック。階層情報は `path` 表示で a11y に伝える（`role="option"` は `aria-level` 非サポートのため付与しない）。
 - **共通化の粒度**: 1つの汎用ピッカーに集約し、3ダイアログ固有の事情（cyclic 除外・root ラベル・新規作成との二択）はすべて呼び出し側で吸収。ピッカー自身はフィルタ/除外/root合成のロジックを持たない。
 - **配置**: ディレクトリ関連 UI なので `app/components/directory/` 配下（sidebar の `DirectoryTree.tsx` と同居）。
 - **外部ライブラリ**: 追加しない。React 19 プリミティブと既存パターンで完結。
@@ -99,7 +99,7 @@
 ## テスト方針
 
 - **ユニットテスト（必須・新規）**: `flattenDirectoryTree` のパス正規化（root 配下 `/X`、連続/末尾スラッシュなし、`depth`/`id`/`parentId` 保全）。`getDescendantIds`/`excludeSubtree` のスモーク。
-- **コンポーネントテスト（推奨）**: 新ピッカーの (a) フィルタ入力で option 絞り込み、(b) ArrowDown/Enter で `onChange` 確定、(c) `role="option"` に `aria-selected`/`aria-level`、(d) `includeRootOption` でルート表示、を `NotePickerDialog.test.tsx` の様式に倣って追加。
+- **コンポーネントテスト（推奨）**: 新ピッカーの (a) フィルタ入力で option 絞り込み、(b) ArrowDown/Enter で `onChange` 確定、(c) アクティブ行に `aria-selected` が寄る（`aria-level` は付与しない）、(d) `includeRootOption` でルート表示、を `NotePickerDialog.test.tsx` の様式に倣って追加。
 - **既存テストの追従**: `<select>` 前提のテストを combobox/option ベースに更新。
 - **手動確認**: 3ダイアログを開き (1) 多階層での絞り込み・キーボード操作、(2) root 配下が `/Documents/Work` 表示で先頭スラッシュ重複が消えている、(3) `MoveDirectoryDialog` で移動中ディレクトリの子孫が候補に出ない（cyclic 除外維持）、を確認。最後に `pnpm typecheck && pnpm lint:fix && pnpm format`。
 

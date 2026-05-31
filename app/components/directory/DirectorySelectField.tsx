@@ -34,6 +34,12 @@ type DirectoryOption = Readonly<{
  * and the existing-vs-new two-mode structure are all handled by callers
  * (see #388 ADR-002). `null` is the canonical "nothing selected" value; no
  * explicit empty option is rendered.
+ *
+ * Open/close behaves like a `<select>`: focus / click / typing / Arrow keys
+ * open the listbox; committing a row or Escape closes it (committing also
+ * clears the query so the next open shows the full list). When `clearable`
+ * is set and a value is selected, the summary row exposes a "解除" button
+ * that resets the selection to `null` (see #388 ADR-005).
  */
 export type DirectorySelectFieldProps = Readonly<{
   options: readonly DirectoryOption[];
@@ -47,6 +53,8 @@ export type DirectorySelectFieldProps = Readonly<{
   /** Status text shown when the filter matches nothing. */
   emptyLabel?: string;
   disabled?: boolean;
+  /** When true, exposes a "解除" button to reset the selection to `null`. */
+  clearable?: boolean;
 }>;
 
 type Row = Readonly<{
@@ -66,9 +74,11 @@ export function DirectorySelectField({
   placeholder = "ディレクトリを検索",
   emptyLabel = "該当するディレクトリが見つかりません",
   disabled = false,
+  clearable = false,
 }: DirectorySelectFieldProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [open, setOpen] = useState(false);
 
   const generatedInputId = useId();
   const inputId = id ?? generatedInputId;
@@ -112,7 +122,7 @@ export function DirectorySelectField({
     );
   }, [filtered.length]);
 
-  const hasListbox = filtered.length > 0;
+  const hasListbox = !disabled && open && filtered.length > 0;
   const activeOptionId = hasListbox
     ? `${optionIdBase}-${activeIndex}`
     : undefined;
@@ -127,12 +137,22 @@ export function DirectorySelectField({
   const commit = (rowId: string) => {
     if (disabled) return;
     onChange(rowId);
+    setQuery("");
+    setOpen(false);
+  };
+
+  const clear = () => {
+    if (disabled) return;
+    onChange(null);
+    setQuery("");
+    setOpen(false);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       if (filtered.length === 0) return;
       event.preventDefault();
+      setOpen(true);
       setActiveIndex((current) =>
         nextSuggestionIndex(current, "down", filtered.length),
       );
@@ -141,9 +161,15 @@ export function DirectorySelectField({
     if (event.key === "ArrowUp") {
       if (filtered.length === 0) return;
       event.preventDefault();
+      setOpen(true);
       setActiveIndex((current) =>
         nextSuggestionIndex(current, "up", filtered.length),
       );
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
       return;
     }
     if (event.key === "Enter") {
@@ -174,6 +200,16 @@ export function DirectorySelectField({
               （{selectedRow.secondary}）
             </span>
           ) : null}
+          {clearable && value !== null && !disabled ? (
+            <button
+              type="button"
+              aria-label="選択を解除"
+              className="ml-2 text-[12px] text-ink-tertiary underline"
+              onClick={clear}
+            >
+              解除
+            </button>
+          ) : null}
         </p>
       ) : null}
       <input
@@ -188,7 +224,12 @@ export function DirectorySelectField({
           ? { "aria-activedescendant": activeOptionId }
           : {})}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onMouseDown={() => setOpen(true)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         disabled={disabled}
@@ -221,7 +262,8 @@ export function DirectorySelectField({
                 }}
                 type="button"
                 role="option"
-                aria-selected={isSelected}
+                disabled={disabled}
+                aria-selected={isActive}
                 data-active={isActive || undefined}
                 data-selected={isSelected || undefined}
                 style={{ paddingLeft: `${12 + row.depth * 16}px` }}
