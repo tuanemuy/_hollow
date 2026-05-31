@@ -36,6 +36,11 @@ export type NoteListOpts = Readonly<{
  * `referencingNoteId` restricts to notes that link to the target note
  * (i.e. rows in `noteInternalLinks` with `resolvedNoteId === id`).
  * Unresolved `[[title]]` links do not count.
+ *
+ * `directoryId` restricts to notes whose `directoryId` equals the
+ * supplied id — a simple equality match on the **direct** directory
+ * only. Descendant directories are not included (subtree matching is
+ * intentionally out of scope; see `.issue/387/adr.md` ADR-001).
  */
 export type NoteOwnerListOpts = NoteListOpts &
   Readonly<{
@@ -44,6 +49,7 @@ export type NoteOwnerListOpts = NoteListOpts &
     dateRange?: DateRange;
     visibility?: readonly PublicationVisibility[];
     referencingNoteId?: NoteId;
+    directoryId?: DirectoryId;
   }>;
 
 /**
@@ -57,7 +63,12 @@ export type NoteOwnerListOpts = NoteListOpts &
  */
 export type NoteOwnerCountOpts = Pick<
   NoteOwnerListOpts,
-  "status" | "tagIds" | "dateRange" | "visibility" | "referencingNoteId"
+  | "status"
+  | "tagIds"
+  | "dateRange"
+  | "visibility"
+  | "referencingNoteId"
+  | "directoryId"
 >;
 
 /**

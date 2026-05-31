@@ -26,6 +26,7 @@ type Props = {
   to: string | undefined;
   visibility: NoteListSearch["visibility"];
   directoryId: string | undefined;
+  directoryName?: string;
   referencingNoteId: string | undefined;
   referencingNoteTitle?: string | null;
 };
@@ -35,6 +36,7 @@ type OptimisticFilters = Readonly<{
   from: string | undefined;
   to: string | undefined;
   visibility: NoteListSearch["visibility"];
+  directoryId: string | undefined;
   referencingNoteId: string | undefined;
 }>;
 
@@ -43,6 +45,7 @@ type FilterAction =
   | Readonly<{ type: "setDate"; key: "from" | "to"; value: string | undefined }>
   | Readonly<{ type: "setVisibility"; value: NoteListSearch["visibility"] }>
   | Readonly<{ type: "setReferencing"; id: string | undefined }>
+  | Readonly<{ type: "clearDirectory" }>
   | Readonly<{ type: "clearAll" }>;
 
 function reduceFilters(
@@ -62,12 +65,15 @@ function reduceFilters(
       return { ...cur, visibility: action.value };
     case "setReferencing":
       return { ...cur, referencingNoteId: action.id };
+    case "clearDirectory":
+      return { ...cur, directoryId: undefined };
     case "clearAll":
       return {
         tagNames: new Set<string>(),
         from: undefined,
         to: undefined,
         visibility: undefined,
+        directoryId: undefined,
         referencingNoteId: undefined,
       };
   }
@@ -80,6 +86,7 @@ export function FilterBar({
   to,
   visibility,
   directoryId,
+  directoryName,
   referencingNoteId,
   referencingNoteTitle,
 }: Props) {
@@ -99,6 +106,7 @@ export function FilterBar({
     from,
     to,
     visibility,
+    directoryId,
     referencingNoteId,
   };
   const [optimistic, applyOptimistic] = useOptimistic(baseline, reduceFilters);
@@ -152,6 +160,13 @@ export function FilterBar({
     }));
   };
 
+  const clearDirectory = () => {
+    run({ type: "clearDirectory" }, (prev) => ({
+      ...(prev as Partial<NoteListSearch>),
+      directoryId: undefined,
+    }));
+  };
+
   const handlePick = (noteId: string) => {
     setPickerOpen(false);
     run({ type: "setReferencing", id: noteId }, (prev) => ({
@@ -175,13 +190,14 @@ export function FilterBar({
 
   const selected = optimistic.tagNames;
   const optimisticReferencingNoteId = optimistic.referencingNoteId;
+  const optimisticDirectoryId = optimistic.directoryId;
 
   const hasAnyFilter =
     selected.size > 0 ||
     optimistic.from !== undefined ||
     optimistic.to !== undefined ||
     optimistic.visibility !== undefined ||
-    directoryId !== undefined ||
+    optimisticDirectoryId !== undefined ||
     optimisticReferencingNoteId !== undefined;
 
   const inputSm =
@@ -278,6 +294,25 @@ export function FilterBar({
           <option value="public">公開</option>
         </select>
       </div>
+
+      {optimisticDirectoryId !== undefined ? (
+        <div className="inline-flex items-center gap-2 flex-wrap">
+          <span className={FILTER_LABEL}>ディレクトリ</span>
+          <span data-active className={CHIP}>
+            {optimisticDirectoryId === directoryId
+              ? (directoryName ?? "ディレクトリ")
+              : "ディレクトリ"}
+            <button
+              type="button"
+              aria-label="ディレクトリフィルタを解除"
+              onClick={clearDirectory}
+              className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white/85 hover:text-white"
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      ) : null}
 
       <div className="inline-flex items-center gap-2 flex-wrap">
         <span className={FILTER_LABEL}>内部リンク参照</span>

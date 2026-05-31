@@ -5,6 +5,7 @@ import {
 } from "@/components/tag/loaders";
 import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
+import { DirectoryId as DomainDirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
 import {
   NoteId as DomainNoteId,
@@ -241,6 +242,20 @@ export const loadOwnedNotes = cache(
         }
       }
 
+      // Transport boundary: a malformed `?directoryId=...` is silently
+      // dropped rather than failing the whole loader (mirrors the
+      // `referencingNoteId` fallback above). Sidebar selection only needs
+      // the listing to switch; a bad id falls back to "no directory
+      // filter" instead of an error.
+      let directoryId: DomainDirectoryId | undefined;
+      if (input.directoryId !== undefined && input.directoryId !== null) {
+        try {
+          directoryId = DomainDirectoryId.create(input.directoryId);
+        } catch {
+          directoryId = undefined;
+        }
+      }
+
       const { notes, count } = await listMod.listNotesByOwner({
         container,
         input: {
@@ -254,6 +269,7 @@ export const loadOwnedNotes = cache(
           ...(dateRange !== undefined ? { dateRange } : {}),
           ...(visibilityArr !== undefined ? { visibility: visibilityArr } : {}),
           ...(referencingNoteId !== undefined ? { referencingNoteId } : {}),
+          ...(directoryId !== undefined ? { directoryId } : {}),
         },
       });
 

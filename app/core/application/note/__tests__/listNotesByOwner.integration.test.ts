@@ -70,6 +70,26 @@ async function seedDirectory(
   return id;
 }
 
+async function seedChildDirectory(
+  container: Container,
+  ownerId: UserId,
+  parentId: string,
+): Promise<string> {
+  const id = nextId(0x0b);
+  await container.db.insert(schema.directories).values({
+    id,
+    ownerId,
+    parentId,
+    name: "child",
+    slug: `d-${id.slice(9, 13)}`,
+    depth: 1,
+    version: 0,
+    createdAt: TZ,
+    updatedAt: TZ,
+  });
+  return id;
+}
+
 async function seedNote(
   container: Container,
   ownerId: UserId,
@@ -284,6 +304,84 @@ describe("listNotesByOwner — input filters (integration)", () => {
       },
     });
     expect(notes.map((n) => n.id as string)).toEqual([referrer]);
+  });
+
+  // Issue #387 — `directoryId` must restrict the listing to notes living
+  // directly under the supplied directory (and `count` must agree).
+  it("passes `directoryId` through to the adapter — only direct-child notes returned, count matches", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const child = await seedChildDirectory(container, owner, root);
+    const inRoot = await seedNote(container, owner, root, "in-root");
+    await seedNote(container, owner, child, "in-child");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        directoryId: root as unknown as DirectoryId,
+      },
+    });
+    expect(notes.map((n) => n.id as string)).toEqual([inRoot]);
+    expect(count).toBe(1);
+  });
+
+  // Issue #387 ADR-001 — direct-equality only: selecting a parent
+  // directory must NOT surface notes that live in a child directory.
+  it("does not return child-directory notes when the parent `directoryId` is supplied", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const child = await seedChildDirectory(container, owner, root);
+    const inChild = await seedNote(container, owner, child, "in-child");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        directoryId: root as unknown as DirectoryId,
+      },
+    });
+    expect(notes.map((n) => n.id as string)).not.toContain(inChild);
+    expect(notes).toHaveLength(0);
+    expect(count).toBe(0);
+  });
+
+  // Issue #387 (S-002) — `directoryId` rides the `conditions`
+  // (single-query) path while `tagIds` resolves a candidate set; the two
+  // must intersect correctly.
+  it("combines `directoryId` with `tagIds` — only notes in the directory carrying the tag are returned", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const child = await seedChildDirectory(container, owner, root);
+    const tag = await seedTag(container, owner, "a");
+    // In root, tagged — the only match.
+    const match = await seedNote(container, owner, root, "match");
+    await linkTag(container, match, tag);
+    // In root but untagged.
+    await seedNote(container, owner, root, "root-untagged");
+    // In child, tagged — excluded by the directory filter.
+    const childTagged = await seedNote(container, owner, child, "child-tagged");
+    await linkTag(container, childTagged, tag);
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        directoryId: root as unknown as DirectoryId,
+        tagIds: [tag],
+      },
+    });
+    expect(notes.map((n) => n.id as string)).toEqual([match]);
+    expect(count).toBe(1);
   });
 });
 
