@@ -15,7 +15,7 @@ const OWNER = "01950000-0000-7000-8000-000000000fff" as UserId;
 const name = (raw: string) => TagName.create(raw);
 
 describe("Tag.create", () => {
-  it("creates a tag with version 0, noteCount 0 and matching timestamps", () => {
+  it("creates a tag with version 0 and matching timestamps", () => {
     const tag = Tag.create(
       { id: rawId(1), ownerId: OWNER, name: name("hello") },
       at(5),
@@ -23,7 +23,6 @@ describe("Tag.create", () => {
     expect(tag.id as unknown as string).toBe(rawId(1));
     expect(tag.ownerId).toBe(OWNER);
     expect(tag.name as unknown as string).toBe("hello");
-    expect(tag.noteCount).toBe(0);
     expect(tag.version).toBe(0);
     expect(tag.createdAt.getTime()).toBe(at(5).getTime());
     expect(tag.updatedAt.getTime()).toBe(at(5).getTime());
@@ -57,7 +56,6 @@ describe("Tag.rename", () => {
     // structural fields preserved
     expect(renamed.id).toBe(original.id);
     expect(renamed.ownerId).toBe(original.ownerId);
-    expect(renamed.noteCount).toBe(original.noteCount);
     expect(renamed.createdAt.getTime()).toBe(original.createdAt.getTime());
   });
 
@@ -71,46 +69,11 @@ describe("Tag.rename", () => {
   });
 });
 
-describe("Tag.incrementNoteCount / decrementNoteCount", () => {
-  const fresh = () =>
-    Tag.create({ id: rawId(20), ownerId: OWNER, name: name("c") }, T0);
-
-  it("increment bumps noteCount, version, and updatedAt", () => {
-    const tag = fresh();
-    const next = Tag.incrementNoteCount(tag, at(1));
-    expect(next.noteCount).toBe(1);
-    expect(next.version).toBe(tag.version + 1);
-    expect(next.updatedAt.getTime()).toBe(at(1).getTime());
-  });
-
-  it("decrement bumps version and lowers noteCount", () => {
-    const tag = Tag.incrementNoteCount(fresh(), at(1));
-    const next = Tag.decrementNoteCount(tag, at(2));
-    expect(next.noteCount).toBe(0);
-    expect(next.version).toBe(tag.version + 1);
-    expect(next.updatedAt.getTime()).toBe(at(2).getTime());
-  });
-
-  it("decrement at zero raises BusinessRuleError(NoteCountNegative)", () => {
-    const tag = fresh();
-    try {
-      Tag.decrementNoteCount(tag, at(1));
-      expect.fail("should have thrown");
-    } catch (error) {
-      expect(isBusinessRuleError(error)).toBe(true);
-      if (isBusinessRuleError(error)) {
-        expect(error.code).toBe(TagErrorCode.NoteCountNegative);
-      }
-    }
-  });
-});
-
 describe("Tag.reconstruct", () => {
   const validRow = () => ({
     id: rawId(100),
     ownerId: OWNER as string,
     name: "rehydrated",
-    noteCount: 3,
     version: 4,
     createdAt: T0,
     updatedAt: at(1),
@@ -122,7 +85,6 @@ describe("Tag.reconstruct", () => {
     expect(tag.id as unknown as string).toBe(row.id);
     expect(tag.ownerId as unknown as string).toBe(row.ownerId);
     expect(tag.name as unknown as string).toBe("rehydrated");
-    expect(tag.noteCount).toBe(3);
     expect(tag.version).toBe(4);
   });
 
@@ -142,24 +104,6 @@ describe("Tag.reconstruct", () => {
   it("throws RehydrationError when stored name exceeds 50 chars", () => {
     try {
       Tag.reconstruct({ ...validRow(), name: "a".repeat(51) });
-      expect.fail("should have thrown");
-    } catch (error) {
-      expect(isRehydrationError(error)).toBe(true);
-    }
-  });
-
-  it("throws RehydrationError when stored noteCount is negative", () => {
-    try {
-      Tag.reconstruct({ ...validRow(), noteCount: -1 });
-      expect.fail("should have thrown");
-    } catch (error) {
-      expect(isRehydrationError(error)).toBe(true);
-    }
-  });
-
-  it("throws RehydrationError when stored noteCount is not an integer", () => {
-    try {
-      Tag.reconstruct({ ...validRow(), noteCount: 1.5 });
       expect.fail("should have thrown");
     } catch (error) {
       expect(isRehydrationError(error)).toBe(true);

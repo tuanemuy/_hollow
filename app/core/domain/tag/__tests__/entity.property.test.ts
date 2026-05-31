@@ -54,34 +54,3 @@ describe("Tag.rename (property)", () => {
     );
   });
 });
-
-describe("Tag.incrementNoteCount / decrementNoteCount (property)", () => {
-  it("increment then decrement returns noteCount to the original value", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 0, max: 50 }), (n) => {
-        let tag = Tag.create(
-          { id: nextRawId(), ownerId: OWNER, name: TagName.create("c") },
-          NOW,
-        );
-        for (let i = 0; i < n; i++) tag = Tag.incrementNoteCount(tag, NOW);
-        expect(tag.noteCount).toBe(n);
-        for (let i = 0; i < n; i++) tag = Tag.decrementNoteCount(tag, NOW);
-        expect(tag.noteCount).toBe(0);
-      }),
-    );
-  });
-
-  it("each mutating call increments version by 1", () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 0, max: 20 }), (n) => {
-        let tag = Tag.create(
-          { id: nextRawId(), ownerId: OWNER, name: TagName.create("v") },
-          NOW,
-        );
-        const startVersion = tag.version;
-        for (let i = 0; i < n; i++) tag = Tag.incrementNoteCount(tag, NOW);
-        expect(tag.version).toBe(startVersion + n);
-      }),
-    );
-  });
-});

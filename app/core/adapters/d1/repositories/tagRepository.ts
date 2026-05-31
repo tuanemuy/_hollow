@@ -15,6 +15,7 @@ import { Tag } from "@/core/domain/tag/entity";
 import type {
   TagListOpts,
   TagRepository,
+  TagWithNoteCount,
 } from "@/core/domain/tag/ports/tagRepository";
 import type { TagId, TagName } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
@@ -71,7 +72,6 @@ export class D1TagRepository implements TagRepository {
         id: row.id,
         ownerId: row.ownerId,
         name: row.name,
-        noteCount: row.noteCount,
         version: row.version,
         createdAt: new Date(row.createdAt),
         updatedAt: new Date(row.updatedAt),
@@ -126,11 +126,10 @@ export class D1TagRepository implements TagRepository {
 
   /**
    * Lists an owner's tags with `noteCount` computed at read time by
-   * aggregating `note_tags` against active `notes`, rather than reading
-   * the denormalised `tags.note_count` cache column (which is left
-   * unmaintained — see Issue #365 / `spec/domains/tag.md`). The
-   * `tags.note_count` column is intentionally ignored here; the
-   * `COUNT(notes.id)` aggregate is the source of truth for display.
+   * aggregating `note_tags` against active `notes` (Issue #365). The
+   * `COUNT(notes.id)` aggregate is the sole source of truth for the
+   * displayed count — there is no denormalised cache column (the former
+   * `tags.note_count` was removed in Issue #372).
    *
    * The aggregate counts only `status = 'active'` notes so the displayed
    * count matches what the FilterBar tag facet returns. `COUNT(notes.id)`
@@ -139,7 +138,10 @@ export class D1TagRepository implements TagRepository {
    * count can never include another owner's note (write paths only link a
    * note to its own owner's tags, but the predicate makes that explicit).
    */
-  findByOwner(ownerId: UserId, opts: TagListOpts): Promise<readonly Tag[]> {
+  findByOwner(
+    ownerId: UserId,
+    opts: TagListOpts,
+  ): Promise<readonly TagWithNoteCount[]> {
     return mapDbError("Failed to list tags by owner", async () => {
       const sortKey = opts.sort ?? "name";
       const order = opts.order ?? "asc";
@@ -195,12 +197,12 @@ export class D1TagRepository implements TagRepository {
         .limit(opts.limit)
         .offset(opts.offset);
       // D1 may return the COUNT aggregate as a string rather than a
-      // number (see `ingestionJobRepository.sumByteSizeByOwnerSince`); a
-      // string would fail `Tag.reconstruct`'s `noteCount >= 0` check, so
-      // coerce before reconstructing.
-      return rows.map((row) =>
-        this.toTag({ ...row, noteCount: Number(row.noteCount) }),
-      );
+      // number (see `ingestionJobRepository.sumByteSizeByOwnerSince`), so
+      // coerce before exposing it as the read-time count.
+      return rows.map((row) => ({
+        tag: this.toTag(row),
+        noteCount: Number(row.noteCount),
+      }));
     });
   }
 
@@ -249,7 +251,6 @@ export class D1TagRepository implements TagRepository {
         ownerId: tag.ownerId,
         name: tag.name,
         nameNormalized: normalizeName(tag.name),
-        noteCount: tag.noteCount,
         version: tag.version,
         createdAt: tag.createdAt.toISOString(),
         updatedAt: tag.updatedAt.toISOString(),
@@ -265,7 +266,6 @@ export class D1TagRepository implements TagRepository {
         .set({
           name: tag.name,
           nameNormalized: normalizeName(tag.name),
-          noteCount: tag.noteCount,
           version: tag.version,
           updatedAt: tag.updatedAt.toISOString(),
         })

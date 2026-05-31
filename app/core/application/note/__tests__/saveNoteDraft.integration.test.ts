@@ -113,7 +113,6 @@ async function seedTag(
     ownerId,
     name,
     nameNormalized: name,
-    noteCount: 1,
     version: 0,
     createdAt: TZ,
     updatedAt: TZ,

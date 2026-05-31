@@ -47,15 +47,18 @@ export async function listTags({
     ...(input.order === undefined ? {} : { order: input.order }),
   };
 
-  const tags = await container.unitOfWorkProvider.run(({ tagRepository }) =>
+  const entries = await container.unitOfWorkProvider.run(({ tagRepository }) =>
     tagRepository.findByOwner(ownerId, opts),
   );
 
-  const hasMore = tags.length > limit;
-  const page = hasMore ? tags.slice(0, limit) : tags;
+  const hasMore = entries.length > limit;
+  const page = hasMore ? entries.slice(0, limit) : entries;
   const nextCursor = hasMore ? encodeCursor(offset + limit) : null;
 
-  return { tags: page.map(toTagView), nextCursor };
+  return {
+    tags: page.map((entry) => toTagView(entry.tag, entry.noteCount)),
+    nextCursor,
+  };
 }
 
 function clampLimit(value: number | undefined): number {

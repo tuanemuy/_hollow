@@ -97,7 +97,9 @@ export async function renameTag({
   );
 
   return {
-    tag: toTagView(result.tag),
+    // The returned `noteCount` is not read by the frontend (display counts
+    // come from `listTags`), so 0 is passed; a rename does not change usage.
+    tag: toTagView(result.tag, 0),
     affectedNoteIds: result.affectedNoteIds,
   };
 }
