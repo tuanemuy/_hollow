@@ -10,6 +10,7 @@ import {
 } from "../loaders";
 import { FrontMatterPanel } from "./FrontMatterPanel";
 import { NoteActions } from "./NoteActions";
+import { NoteBreadcrumb } from "./NoteBreadcrumb";
 import { NoteMetaPanel } from "./NoteMetaPanel";
 
 /**
@@ -61,35 +62,38 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
   return (
     <article className="max-w-[760px] mx-auto">
       <header>
+        <NoteBreadcrumb
+          directoryPath={directoryPath}
+          directoryId={note.directoryId as unknown as string}
+          noteTitle={note.title}
+        />
         <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">
           {note.title}
         </h1>
+
+        <NoteActions
+          noteId={note.id}
+          status={note.status}
+          visibility={publishState.visibility}
+          publicShareUrl={publicShareUrl}
+          tree={tree.flat}
+        />
       </header>
-
-      <NoteMetaPanel
-        noteId={note.id}
-        createdAt={note.createdAt}
-        updatedAt={note.updatedAt}
-        directoryPath={directoryPath}
-        tagNames={tagNames}
-        visibility={publishState.visibility}
-        publishedAt={publishState.publishedAt}
-        status={note.status}
-        backlinks={backlinks}
-      />
-
-      <NoteActions
-        noteId={note.id}
-        status={note.status}
-        visibility={publishState.visibility}
-        publicShareUrl={publicShareUrl}
-        tree={tree.flat}
-      />
 
       <div
         className="note-detail-content"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
         dangerouslySetInnerHTML={{ __html: note.contentHtml }}
+      />
+
+      <NoteMetaPanel
+        noteId={note.id}
+        createdAt={note.createdAt}
+        updatedAt={note.updatedAt}
+        tagNames={tagNames}
+        publishedAt={publishState.publishedAt}
+        status={note.status}
+        backlinks={backlinks}
       />
 
       <FrontMatterPanel frontMatter={note.frontMatter} />

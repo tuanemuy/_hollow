@@ -47,6 +47,28 @@ export type NoteActionsProps = Readonly<{
 
 type OpenDialog = "move" | null;
 
+function visibilityLabel(v: Visibility): string {
+  switch (v) {
+    case "public":
+      return "公開";
+    case "unlisted":
+      return "限定公開";
+    case "private":
+      return "非公開";
+  }
+}
+
+/**
+ * Status dot color driven by a `data-visibility` value-match variant rather
+ * than a conditional class string (CLAUDE.md state-style convention). The
+ * three variant utilities are kept in a single string literal so Tailwind's
+ * JIT can see them; splitting them across branches would hide the tokens.
+ * The `aria-[current=page]` precedent in `directory/styles.ts` confirms
+ * value-match variants generate correctly under Tailwind v4.
+ */
+const VISIBILITY_DOT =
+  "inline-block w-[6px] h-[6px] rounded-full data-[visibility=public]:bg-status-public data-[visibility=unlisted]:bg-status-link data-[visibility=private]:bg-status-private";
+
 export function NoteActions({
   noteId,
   status,
@@ -130,9 +152,16 @@ export function NoteActions({
           to="/notes/$noteId/publish"
           params={{ noteId: noteIdStr }}
           className={pillBtn}
+          aria-label={`公開状態: ${visibilityLabel(visibility)} — 公開設定を開く`}
         >
+          <span
+            className={VISIBILITY_DOT}
+            data-visibility={visibility}
+            aria-hidden="true"
+          />
           <Icon icon={Globe} />
-          公開設定
+          {visibilityLabel(visibility)}
+          <span className="text-ink-tertiary">· 公開設定</span>
         </Link>
         <button
           type="button"
