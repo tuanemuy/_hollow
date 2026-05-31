@@ -36,6 +36,16 @@ export async function Sidebar({ user }: Props) {
               <span>すべてのノート</span>
             </Link>
           </li>
+          <li>
+            <Link
+              to="/views"
+              search={{ kind: "personal" }}
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
+              <span>保存ビュー</span>
+            </Link>
+          </li>
         </ul>
       </div>
 
@@ -61,6 +71,16 @@ export async function Sidebar({ user }: Props) {
               activeProps={ACTIVE_NAV_PROPS}
             >
               <span>ゴミ箱</span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/exports"
+              search={{ offset: 0 }}
+              className={NAV_ITEM}
+              activeProps={ACTIVE_NAV_PROPS}
+            >
+              <span>エクスポートジョブ</span>
             </Link>
           </li>
           <li>

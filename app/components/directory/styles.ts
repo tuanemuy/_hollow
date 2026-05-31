@@ -7,21 +7,28 @@
  * the static utility tokens, identical bundle to inline strings.
  */
 
-/** Wrapper row for a single treeitem (link + actions trigger). */
+/**
+ * Wrapper row for a single treeitem (link + actions trigger).
+ *
+ * The selection highlight is painted on this row (not the inner Link) so it
+ * spans the full row box — caret column and action column included — matching
+ * the hover highlight. The `a[...]` tag qualifier on the `:has()` variants
+ * keeps the disclosure button's `data-open` from being mistaken for the
+ * active state (only the active Link carries `data-active` / `aria-current`).
+ */
 export const TREE_ITEM_ROW =
-  "group flex items-center gap-1 pr-1 rounded-md hover:bg-surface";
+  "group flex items-center gap-1 pr-1 rounded-md hover:bg-surface has-[a[data-active]]:bg-surface has-[a[aria-current=page]]:bg-surface";
 
 /**
  * The directory name link inside a treeitem.
  *
- * Active state styles are on the Link itself because TanStack Router's
- * `activeProps` attaches `data-active` / `aria-current` to the Link, not
- * to ancestors; placing the modifiers here lets the styles actually take
- * effect (and matches the legacy `NAV_ITEM` shape used by the old
- * read-only Sidebar tree).
+ * Active text decoration (font-weight) stays on the Link because TanStack
+ * Router's `activeProps` attaches `data-active` / `aria-current` here, not to
+ * ancestors. The selection background lives on `TREE_ITEM_ROW` instead so the
+ * highlight spans the whole row rather than just this `flex-1` link.
  */
 export const TREE_ITEM_LINK =
-  "flex-1 min-w-0 flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline truncate data-[active]:bg-surface data-[active]:font-medium aria-[current=page]:bg-surface aria-[current=page]:font-medium";
+  "flex-1 min-w-0 flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline truncate data-[active]:font-medium aria-[current=page]:font-medium";
 
 /** Disclosure caret button (expand / collapse children). */
 export const TREE_DISCLOSURE =
