@@ -44,3 +44,19 @@ Accepted
 - トレードオフ: redirect 先がルートごとに変わる将来要件が出たら、ヘルパーを引数化するかルート側に戻す必要がある。現状2系統で安定しているため許容。authMiddleware の既存 `requireCurrentUser` / `redirectIfAuthenticated`（throw 型・server-only・`createServerFn` 非経由で client から呼べない）とは別物として、`createServerFn` ラップ版を authGuard に新設する。
 
 ---
+## ADR-003: authMiddleware の未使用 throw 型ヘルパーを削除する
+
+### Status
+Accepted
+
+### Context
+PR レビュー（review-001）で、`authMiddleware.ts` の `requireCurrentUser`（UserDTO を返す throw 型）と `redirectIfAuthenticated`（throw 型）がいずれも全コードベースから未参照（static/dynamic とも import なし）であることが判明。実使用される `requireCurrentUser` はすべて `@/lib/server/currentUser` 由来（entity 版）で、authMiddleware 版とは別物。本Issueで新設した `authGuard.requireAuthenticatedRoute` / `redirectAuthenticatedRoute`（`createServerFn` ラップ版）と同じ振る舞いの dead な双子が残ると、どちらを使うべきか紛らわしい。
+
+### Decision
+authMiddleware から `requireCurrentUser` と `redirectIfAuthenticated` の両 throw 型ヘルパー、および未使用化する `redirect`・`HOME_SEARCH` import を削除する。認証ガードという同一機能の中で完結し、本Issueの新コードと直接混同されうるため、別Issueに切り出さず本PRで掃除する。authMiddleware は cookie 操作（`setSessionCookie`/`clearSessionCookie`）と DTO 解決（`getCurrentUser`）に責務を絞る。
+
+### Consequences
+- 良い点: 認証ガードのエントリポイントが `authGuard`（beforeLoad 用）と `lib/server/currentUser`（RSC/action 用）に明確化され、紛らわしい dead な双子が消える。
+- トレードオフ: 将来 DTO を返す throw 型ヘルパーが必要になれば再追加が要るが、現状 YAGNI。
+
+---
