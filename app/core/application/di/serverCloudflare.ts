@@ -797,7 +797,7 @@ export async function createConsumerContainer(
  * returns `null` and the consumer container keeps the request-side
  * adapters the env-only / Stub fallback already wired.
  */
-type ResolvedConsumerLlmConfig = Readonly<{
+export type ResolvedConsumerLlmConfig = Readonly<{
   provider: string;
   model: string;
   baseURL: string | null;
@@ -840,7 +840,7 @@ type ResolvedConsumerLlmConfig = Readonly<{
  * primary key, and the cost of constructing a UoW for a single read would
  * dwarf the read itself. Mirrors `D1PromptResolver`'s direct-read pattern.
  */
-async function resolveConsumerLlmConfig(
+export async function resolveConsumerLlmConfig(
   env: ServerEnv,
   secretBox: SecretBox,
   secretBoxPrevious: SecretBox | null,

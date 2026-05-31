@@ -1,6 +1,4 @@
-import { pingAnthropic } from "@/core/adapters/anthropic/connectionPing";
-import { pingGemini } from "@/core/adapters/gemini/connectionPing";
-import { pingOpenAI } from "@/core/adapters/openai/connectionPing";
+import { factoryProviderRegistry } from "@/core/adapters/llm/registry";
 import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
 import type {
   LLMConnectionPingResult,
@@ -9,9 +7,9 @@ import type {
 import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
 
 /**
- * Application-layer HTTP-based `LLMConnectionTester`. Branches on
- * `cfg.provider` and dispatches to the matching provider-specific probe
- * exported from each `adapters/<provider>/connectionPing.ts`.
+ * Application-layer HTTP-based `LLMConnectionTester`. Looks the configured
+ * provider up in `factoryProviderRegistry` and delegates to its unified
+ * `ping` probe.
  *
  * Promoted from `app/core/adapters/anthropic/llmConnectionTester.ts` to
  * the application layer in Issue #101 (ADR-003). The previous location
@@ -20,16 +18,17 @@ import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
  * adapter group. Issue #122 ADR-005 acknowledged the smell and deferred
  * the move; this dispatcher is the resolution.
  *
- * Result-shape unification: per-provider probes return slightly different
- * envelopes — Anthropic uses `{ ok, error? }`, OpenAI / Gemini use
- * `{ ok, reason? }`. The dispatcher folds both into the port-defined
- * {@link LLMConnectionPingResult} (`{ ok, latencyMs, error? }`) so the
- * admin UI renders outcomes uniformly. The probes never throw; transport
- * / provider failures arrive as `ok: false` carrying a human-readable
- * detail string.
+ * Result-shape unification: each provider barrel's `ProviderAdapter.ping`
+ * normalizes its native probe envelope (Anthropic `{ ok, error? }`,
+ * OpenAI / Gemini `{ ok, reason? }`) into `{ ok, error? }`. The dispatcher
+ * folds that into the port-defined {@link LLMConnectionPingResult}
+ * (`{ ok, latencyMs, error? }`) so the admin UI renders outcomes
+ * uniformly. The probes never throw; transport / provider failures arrive
+ * as `ok: false` carrying a human-readable detail string.
  *
- * New providers are added by extending the `switch` together with the
- * corresponding `pingXxx` helper.
+ * New providers are added by exporting a `ProviderAdapter` from
+ * `adapters/<provider>/index.ts` and registering it in
+ * `factoryProviderRegistry`; no change here is needed.
  */
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -49,53 +48,19 @@ export class HttpLLMConnectionTester implements LLMConnectionTester {
       return { ok: false, latencyMs: 0, error: "API key is empty" };
     }
     const start = Date.now();
+    const adapter = factoryProviderRegistry[cfg.provider];
     let outcome: { ok: boolean; error?: string };
-    switch (cfg.provider) {
-      case "anthropic":
-        outcome = await pingAnthropic(cfg, trimmedKey, this.timeoutMs);
-        break;
-      case "openai": {
-        const result = await pingOpenAI(
-          cfg.baseURL !== null
-            ? {
-                apiKey: trimmedKey,
-                model: cfg.model,
-                baseURL: cfg.baseURL,
-                timeoutMs: this.timeoutMs,
-              }
-            : {
-                apiKey: trimmedKey,
-                model: cfg.model,
-                timeoutMs: this.timeoutMs,
-              },
-        );
-        outcome = result.ok
-          ? { ok: true }
-          : { ok: false, error: result.reason };
-        break;
-      }
-      case "gemini": {
-        const result = await pingGemini({
-          apiKey: trimmedKey,
-          model: cfg.model,
-          timeoutMs: this.timeoutMs,
-        });
-        outcome = result.ok
-          ? { ok: true }
-          : { ok: false, error: result.reason };
-        break;
-      }
-      default: {
-        // `cfg.provider` is a closed literal union on the domain side;
-        // this branch is reached only if a new provider is added to
-        // `LLMConfig` without a matching probe here. The TypeScript
-        // `never` cast surfaces the gap at compile time.
-        const exhaustive: never = cfg.provider;
-        outcome = {
-          ok: false,
-          error: `Unsupported LLM provider: ${String(exhaustive)}`,
-        };
-      }
+    if (adapter === undefined) {
+      // `cfg.provider` is a closed literal union on the domain side, so this
+      // is unreachable — but the guard is required to narrow the `| undefined`
+      // from the indexed access (`noUncheckedIndexedAccess`) and preserves the
+      // former `default` branch's outcome. Do not remove it.
+      outcome = {
+        ok: false,
+        error: `Unsupported LLM provider: ${String(cfg.provider)}`,
+      };
+    } else {
+      outcome = await adapter.ping(cfg, trimmedKey, this.timeoutMs);
     }
     const latencyMs = Date.now() - start;
     if (outcome.ok) {
