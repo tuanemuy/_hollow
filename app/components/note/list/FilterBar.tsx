@@ -300,7 +300,7 @@ export function FilterBar({
           <span className={FILTER_LABEL}>ディレクトリ</span>
           <span data-active className={CHIP}>
             {optimisticDirectoryId === directoryId
-              ? (directoryName ?? "ディレクトリ")
+              ? directoryName || "ディレクトリ"
               : "ディレクトリ"}
             <button
               type="button"

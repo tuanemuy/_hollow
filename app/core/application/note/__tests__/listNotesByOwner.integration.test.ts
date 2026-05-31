@@ -590,6 +590,39 @@ describe("listNotesByOwner — count reflects filters", () => {
     expect(count).toBe(3);
   });
 
+  // Issue #387 — `directoryId` must ride the `count` query's WHERE clause,
+  // not just the items query. With more direct-child notes than the page
+  // limit, the visible slice is capped at `limit` while `count` must report
+  // the full direct-child total. This pins the runtime count>limit behaviour;
+  // the `NoteOwnerCountOpts` Pick that carries `directoryId` to the count
+  // path is guarded separately at the type level (dropping it fails
+  // typecheck in the adapter's where builder).
+  it("returns count > limit reflecting only the directory's direct children", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const child = await seedChildDirectory(container, owner, root);
+    const LIMIT = 2;
+    const DIRECT_TOTAL = 3;
+    for (let i = 0; i < DIRECT_TOTAL; i += 1) {
+      await seedNote(container, owner, root, `root-${i}`);
+    }
+    // Notes outside the directory must not inflate the count.
+    await seedNote(container, owner, child, "in-child");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: LIMIT,
+        directoryId: root as unknown as DirectoryId,
+      },
+    });
+    expect(notes).toHaveLength(LIMIT);
+    expect(count).toBe(DIRECT_TOTAL);
+  });
+
   it("returns count = 0 when an empty visibility array is supplied", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
