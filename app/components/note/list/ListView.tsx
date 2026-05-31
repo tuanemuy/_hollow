@@ -12,10 +12,9 @@ type Props = Readonly<{
 }>;
 
 /**
- * Shared row renderer. Since Issue #48 both filter and search rows
- * carry a real `updatedAt` and the visibility chip is rendered
- * unconditionally, so the previous discriminated branch with an `—`
- * substitute and the `showVisibilityBadge` guard are gone.
+ * Shared row renderer. Both filter and search rows carry a real
+ * `updatedAt` and the visibility chip is rendered unconditionally, so no
+ * discriminated branch or visibility guard is needed.
  */
 function NoteListRow({
   note,
