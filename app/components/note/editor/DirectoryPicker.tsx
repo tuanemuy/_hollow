@@ -9,6 +9,7 @@ import {
   pillBtn,
 } from "@/components/common/styles";
 import { DeleteDirectoryDialog } from "@/components/directory/DeleteDirectoryDialog";
+import { DirectorySelectField } from "@/components/directory/DirectorySelectField";
 import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
 import { MAX_DIRECTORY_DEPTH } from "@/core/domain/directory/valueObject";
 import type { FlatDirectory } from "../loaders";
@@ -89,28 +90,18 @@ export function DirectoryPicker({
         {legendSlot}
       </legend>
       <div className={field}>
-        <label htmlFor={selectId} className={fieldLabel}>
-          既存ディレクトリ
-        </label>
-        <div className="flex items-center gap-2">
-          <select
-            id={selectId}
-            value={directoryId ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              onSelectExisting(v.length === 0 ? null : v);
-            }}
-            disabled={disabled === true || usingNew}
-            className={fieldControl}
-          >
-            <option value="">未選択</option>
-            {tree.map((node) => (
-              <option key={node.id} value={node.id}>
-                {"  ".repeat(node.depth)}
-                {node.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <DirectorySelectField
+              id={selectId}
+              label="既存ディレクトリ"
+              options={tree}
+              value={directoryId}
+              onChange={onSelectExisting}
+              disabled={disabled === true || usingNew}
+              emptyLabel="未選択"
+            />
+          </div>
           {canShowActions ? (
             <div className="inline-flex gap-2">
               <button

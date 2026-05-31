@@ -23,8 +23,14 @@ export function flattenDirectoryTree(
   tree: ReadonlyArray<DirectoryTreeNode>,
 ): FlatDirectory[] {
   const flat: FlatDirectory[] = [];
-  const walk = (node: DirectoryTreeNode, parentPath: string): void => {
-    const path = `${parentPath}/${node.name}`;
+  const walk = (
+    node: DirectoryTreeNode,
+    ancestors: readonly string[],
+  ): void => {
+    // root carries name="" — drop the empty segment so its children render
+    // as `/Documents` rather than `//Documents`. root itself stays `/`.
+    const segments = node.name === "" ? ancestors : [...ancestors, node.name];
+    const path = `/${segments.join("/")}`;
     flat.push({
       id: node.id as unknown as string,
       parentId:
@@ -33,9 +39,9 @@ export function flattenDirectoryTree(
       depth: node.depth,
       path,
     });
-    for (const child of node.children) walk(child, path);
+    for (const child of node.children) walk(child, segments);
   };
-  for (const root of tree) walk(root, "");
+  for (const root of tree) walk(root, []);
   return flat;
 }
 
