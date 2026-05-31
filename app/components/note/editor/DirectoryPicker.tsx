@@ -10,6 +10,7 @@ import {
 } from "@/components/common/styles";
 import { DeleteDirectoryDialog } from "@/components/directory/DeleteDirectoryDialog";
 import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
+import { MAX_DIRECTORY_DEPTH } from "@/core/domain/directory/valueObject";
 import type { FlatDirectory } from "../loaders";
 
 /**
@@ -32,6 +33,13 @@ import type { FlatDirectory } from "../loaders";
  * deleting an LLM-suggested directory mid-preview would break the
  * preview state contract (commit would NotFoundError, AI badges would
  * desync). See ADR-007.
+ *
+ * `allowNestedPath` (default `false`) is an ingestion-only opt-in: when
+ * true the new-name input accepts a `/`-delimited nested path (e.g.
+ * `技術/AI`) and the hint reflects that. NoteEditor leaves it false — its
+ * `pendingDirectoryName` flows straight into `DirectoryName.create`, which
+ * rejects `/` as a forbidden char, so a single name is the only valid
+ * input there. See .issue/363/adr.md ADR-004.
  */
 export type DirectoryPickerProps = Readonly<{
   tree: readonly FlatDirectory[];
@@ -42,6 +50,7 @@ export type DirectoryPickerProps = Readonly<{
   disabled?: boolean;
   legendSlot?: ReactNode;
   allowExistingActions?: boolean;
+  allowNestedPath?: boolean;
 }>;
 
 export function DirectoryPicker({
@@ -53,6 +62,7 @@ export function DirectoryPicker({
   disabled,
   legendSlot,
   allowExistingActions = false,
+  allowNestedPath = false,
 }: DirectoryPickerProps) {
   const selectId = useId();
   const newId = useId();
@@ -125,7 +135,9 @@ export function DirectoryPicker({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor={newId} className={fieldLabel}>
-          または新規ディレクトリ名
+          {allowNestedPath
+            ? "または新規ディレクトリパス"
+            : "または新規ディレクトリ名"}
         </label>
         <input
           id={newId}
@@ -135,10 +147,19 @@ export function DirectoryPicker({
             const v = e.target.value;
             onSetPendingName(v.length === 0 ? null : v);
           }}
-          placeholder="新しいディレクトリ名を入力すると保存時に自動作成"
+          placeholder={
+            allowNestedPath
+              ? "例: 技術/AI（/ 区切りで階層を指定）保存時に自動作成"
+              : "新しいディレクトリ名を入力すると保存時に自動作成"
+          }
           disabled={disabled}
           className={fieldControl}
         />
+        {allowNestedPath ? (
+          <p className="text-[11px] text-ink-tertiary">
+            {`「/」区切りで階層（最大${MAX_DIRECTORY_DEPTH}階層）を指定できます（例: 技術/AI）。`}
+          </p>
+        ) : null}
       </div>
 
       {canShowActions ? (

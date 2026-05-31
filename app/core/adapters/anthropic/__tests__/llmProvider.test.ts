@@ -289,7 +289,7 @@ describe("AnthropicLLMProvider", () => {
   });
 
   describe("prompt formatting (Issue #355)", () => {
-    it("structureToHtml: instructs a content-based title and a single-segment directory when no existingDirectories are supplied", async () => {
+    it("structureToHtml: instructs a content-based title and allows a nested directory path when no existingDirectories are supplied", async () => {
       const mock = vi.fn(async () =>
         envelopeResponse({
           html: "<p/>",
@@ -304,7 +304,7 @@ describe("AnthropicLLMProvider", () => {
         messages: Array<{ content: Array<{ text: string }> }>;
       };
       expect(body.system).toContain("do not reuse the file name");
-      expect(body.system).toContain("single top-level name");
+      expect(body.system).toContain("nested path");
       // No existing-directories list is appended to the user message.
       expect(body.messages[0]?.content[0]?.text).not.toContain(
         "Existing directories:",
@@ -353,7 +353,7 @@ describe("AnthropicLLMProvider", () => {
         system: string;
         messages: Array<{ content: Array<{ text: string }> }>;
       };
-      expect(body.system).toContain("single top-level name");
+      expect(body.system).toContain("nested path");
       expect(body.messages[0]?.content[0]?.text).not.toContain(
         "Existing directories:",
       );

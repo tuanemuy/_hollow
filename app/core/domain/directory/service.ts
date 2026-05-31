@@ -130,6 +130,50 @@ export const DirectoryService = {
   },
 
   /**
+   * Idempotently ensure a nested directory path exists under the owner's
+   * root, returning the id of the deepest segment.
+   *
+   * Walks `segments` top-down from the root: for each segment it reuses an
+   * existing case-insensitive sibling when present, otherwise mints a new
+   * `ChildDirectory` (which enforces the depth cap via `DirectoryDepth.next`
+   * and throws `DirectoryErrorCode.TooDeep` past `MAX_DIRECTORY_DEPTH`) and
+   * inserts it. An empty `segments` returns the root id, so callers can
+   * route the "no new path / root fallback" case through here uniformly.
+   *
+   * The `ensureRoot`-symmetric counterpart for multi-segment creation:
+   * intermediate reuse gives idempotent partial-path merging (an existing
+   * `親` is reused while a missing `子` is created).
+   */
+  async ensureNestedPath(
+    ownerId: UserId,
+    segments: readonly DirectoryName[],
+    now: Date,
+    idGen: IdGenerator,
+    repo: DirectoryRepository,
+  ): Promise<DirectoryId> {
+    const root = await this.ensureRoot(ownerId, now, idGen, repo);
+    let parent: Directory = root;
+    for (const segment of segments) {
+      const existing = await repo.findBySiblingName(
+        parent.id,
+        ownerId,
+        segment,
+      );
+      if (existing !== null) {
+        parent = existing;
+        continue;
+      }
+      const child = Directory.create(
+        { id: idGen.next(), ownerId, parent, name: segment },
+        now,
+      );
+      await repo.insert(child);
+      parent = child;
+    }
+    return parent.id;
+  },
+
+  /**
    * Delete `dir` and every descendant directory depth-first, trashing
    * each directory's active notes along the way. The caller (usecase)
    * is responsible for emitting `note.deleted` Outbox events using the

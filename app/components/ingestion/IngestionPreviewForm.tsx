@@ -292,6 +292,7 @@ export function IngestionPreviewForm({
               if (name !== null) setDirectoryId(null);
             }}
             disabled={isPending || isTreeLoading}
+            allowNestedPath
             legendSlot={
               <AiSuggestionBadge edited={isDirectoryEdited} field="directory" />
             }

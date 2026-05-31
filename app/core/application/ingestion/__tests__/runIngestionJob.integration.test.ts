@@ -886,7 +886,7 @@ describe("runIngestionJob", () => {
     expect(preview.suggestedDirectoryName).toBeNull();
   });
 
-  it("falls back to the trailing segment as a new directory name when the suggestion matches nothing", async () => {
+  it("carries the full canonical path as a new nested directory name when the suggestion matches nothing", async () => {
     const baseContainer = getContainer();
     const llm = new FakeLLMProvider();
     const container: TestContainer = {
@@ -900,7 +900,8 @@ describe("runIngestionJob", () => {
     llm.setStructureResult({
       html: "<p>x</p>",
       titleSuggestion: "T",
-      // A nested path with no existing match collapses to its leaf segment.
+      // A nested path with no existing match is carried forward verbatim as
+      // a new nested path for the commit to create (Issue #363).
       directorySuggestion: "Research/Papers",
     });
     const jobId = await seedPendingJob(container, {
@@ -926,7 +927,7 @@ describe("runIngestionJob", () => {
       suggestedDirectoryName: string | null;
     };
     expect(preview.suggestedDirectoryId).toBeNull();
-    expect(preview.suggestedDirectoryName).toBe("Papers");
+    expect(preview.suggestedDirectoryName).toBe("Research/Papers");
   });
 
   it("passes an empty existingDirectories list when the owner has no directories (empty tree)", async () => {
@@ -1071,7 +1072,7 @@ describe("runIngestionJob", () => {
     expect(preview.suggestedDirectoryName).toBeNull();
   });
 
-  it("drops an over-long new directory name instead of failing the job", async () => {
+  it("drops a path with an over-long segment instead of failing the job", async () => {
     const baseContainer = getContainer();
     const llm = new FakeLLMProvider();
     const container: TestContainer = {
@@ -1081,13 +1082,13 @@ describe("runIngestionJob", () => {
     };
     await seedInstanceSettings(container);
     const owner = await seedUser(container);
-    // No existing match → fallback to leaf, but the leaf exceeds the
-    // suggested-name length cap. It must be dropped (name=null) rather than
-    // throwing in `IngestionPreview.create` and failing the whole job.
+    // No existing match → carry the path forward, but a segment exceeds the
+    // `DirectoryName` length cap (80). `IngestionPreview.create` null-s the
+    // whole proposal (best-effort) rather than throwing and failing the job.
     llm.setStructureResult({
       html: "<p>x</p>",
       titleSuggestion: "T",
-      directorySuggestion: "x".repeat(201),
+      directorySuggestion: `ok/${"x".repeat(81)}`,
     });
     const jobId = await seedPendingJob(container, {
       ownerId: owner,
@@ -1108,6 +1109,50 @@ describe("runIngestionJob", () => {
       .from(schema.ingestionJobs)
       .where(eq(schema.ingestionJobs.id, jobId));
     // The job reached the preview stage (preview persisted), not failed.
+    expect(rows[0]?.status).toBe("previewing");
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      suggestedDirectoryId: string | null;
+      suggestedDirectoryName: string | null;
+    };
+    expect(preview.suggestedDirectoryId).toBeNull();
+    expect(preview.suggestedDirectoryName).toBeNull();
+  });
+
+  it("drops a path deeper than MAX_DIRECTORY_DEPTH instead of failing the job", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      officeExtractor: new StubOfficeOk(),
+      llmProvider: llm,
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    llm.setStructureResult({
+      html: "<p>x</p>",
+      titleSuggestion: "T",
+      directorySuggestion: Array.from({ length: 11 }, (_, i) => `d${i}`).join(
+        "/",
+      ),
+    });
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "office",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      originalFileName: "doc.docx",
+      bodyBytes: utf8("docx"),
+    });
+
+    await runIngestionJob({
+      container,
+      input: { jobId: jobId as unknown as IngestionJobId },
+    });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("previewing");
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
       suggestedDirectoryId: string | null;

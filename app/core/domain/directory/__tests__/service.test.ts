@@ -470,6 +470,150 @@ describe("DirectoryService.ensureRoot", () => {
   });
 });
 
+describe("DirectoryService.ensureNestedPath", () => {
+  it("returns the root id for an empty segment list", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator();
+    const id = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [],
+      T0,
+      idGen,
+      repo,
+    );
+    const root = await repo.findRoot(OWNER_A);
+    expect(id).toBe(root?.id);
+    // Only the root was created.
+    expect(repo.rows.size).toBe(1);
+  });
+
+  it("creates every segment of a brand-new nested path", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator();
+    const leafId = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("技術"), DirectoryName.create("AI")],
+      T0,
+      idGen,
+      repo,
+    );
+    // root + 技術 + AI
+    expect(repo.rows.size).toBe(3);
+    const leaf = repo.rows.get(leafId as unknown as string);
+    expect(leaf?.name as unknown as string).toBe("AI");
+    const parentId = leaf?.parentId as unknown as string;
+    const parent = repo.rows.get(parentId);
+    expect(parent?.name as unknown as string).toBe("技術");
+    expect((leaf?.depth as unknown as number) ?? 0).toBe(2);
+  });
+
+  it("reuses an existing intermediate and only creates the missing leaf", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    // Start above the ids `seedRoot`'s internal generator emits so a newly
+    // minted leaf cannot collide with the pre-seeded root.
+    const idGen = new FakeIdGenerator(1000);
+    const root = seedRoot(repo, OWNER_A);
+    const existing = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000e1",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("技術"),
+      },
+      T0,
+    );
+    repo.add(existing);
+    const before = repo.rows.size;
+
+    const leafId = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("技術"), DirectoryName.create("AI")],
+      T0,
+      idGen,
+      repo,
+    );
+    // Only AI was added; 技術 was reused (matched the pre-seeded sibling).
+    expect(repo.rows.size).toBe(before + 1);
+    const leaf = repo.rows.get(leafId as unknown as string);
+    expect(leaf?.parentId).toBe(existing.id);
+  });
+
+  it("reuses an existing intermediate via case-insensitive sibling match", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator(1000);
+    const root = seedRoot(repo, OWNER_A);
+    const existing = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000e2",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("Tech"),
+      },
+      T0,
+    );
+    repo.add(existing);
+    const before = repo.rows.size;
+
+    // Request a differently-cased segment; the existing `Tech` must be reused
+    // rather than a second sibling minted (ADR-005 lower-case match).
+    const leafId = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("tech"), DirectoryName.create("AI")],
+      T0,
+      idGen,
+      repo,
+    );
+    expect(repo.rows.size).toBe(before + 1);
+    const leaf = repo.rows.get(leafId as unknown as string);
+    expect(leaf?.parentId).toBe(existing.id);
+  });
+
+  it("is idempotent: ensuring the same path twice creates nothing new", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator();
+    const first = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("a"), DirectoryName.create("b")],
+      T0,
+      idGen,
+      repo,
+    );
+    const sizeAfterFirst = repo.rows.size;
+    const second = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("a"), DirectoryName.create("b")],
+      at(10),
+      idGen,
+      repo,
+    );
+    expect(second).toBe(first);
+    expect(repo.rows.size).toBe(sizeAfterFirst);
+  });
+
+  it("throws TooDeep when the path would exceed MAX_DIRECTORY_DEPTH", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator();
+    const segments = Array.from({ length: 11 }, (_, i) =>
+      DirectoryName.create(`d${i}`),
+    );
+    try {
+      await DirectoryService.ensureNestedPath(
+        OWNER_A,
+        segments,
+        T0,
+        idGen,
+        repo,
+      );
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(DirectoryErrorCode.TooDeep);
+      }
+    }
+  });
+});
+
 describe("DirectoryService.deleteSubtree", () => {
   it("throws CannotDeleteRoot when invoked on the root", async () => {
     const repo = new InMemoryDirectoryRepository();

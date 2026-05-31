@@ -413,14 +413,55 @@ describe("IngestionPreview", () => {
     expect(whitespace.suggestedDirectoryName).toBeNull();
   });
 
-  it("rejects suggested directory name longer than 200 chars", () => {
-    expectBR(
-      () =>
-        IngestionPreview.create({
-          ...baseParams(),
-          suggestedDirectoryName: "a".repeat(201),
-        }),
-      IngestionErrorCode.InvalidSuggestedDirectoryName,
-    );
+  it("canonicalises a nested path: trims segments and drops empties", () => {
+    const preview = IngestionPreview.create({
+      ...baseParams(),
+      suggestedDirectoryName: " 技術 / / AI / ",
+    });
+    // Segments trimmed, empties (including the trailing slash) removed,
+    // case preserved.
+    expect(preview.suggestedDirectoryName).toBe("技術/AI");
+  });
+
+  it("preserves the original case of each segment", () => {
+    const preview = IngestionPreview.create({
+      ...baseParams(),
+      suggestedDirectoryName: "Tech/AI-Research",
+    });
+    expect(preview.suggestedDirectoryName).toBe("Tech/AI-Research");
+  });
+
+  it("null- s a path deeper than MAX_DIRECTORY_DEPTH rather than throwing", () => {
+    const tooDeep = Array.from({ length: 11 }, (_, i) => `d${i}`).join("/");
+    const preview = IngestionPreview.create({
+      ...baseParams(),
+      suggestedDirectoryName: tooDeep,
+    });
+    expect(preview.suggestedDirectoryName).toBeNull();
+
+    const atLimit = Array.from({ length: 10 }, (_, i) => `d${i}`).join("/");
+    const okPreview = IngestionPreview.create({
+      ...baseParams(),
+      suggestedDirectoryName: atLimit,
+    });
+    expect(okPreview.suggestedDirectoryName).toBe(atLimit);
+  });
+
+  it("null-s a path with an over-long segment (best-effort, no throw)", () => {
+    const longSegment = "a".repeat(81);
+    const preview = IngestionPreview.create({
+      ...baseParams(),
+      suggestedDirectoryName: `ok/${longSegment}`,
+    });
+    expect(preview.suggestedDirectoryName).toBeNull();
+  });
+
+  it("null-s a path whose segment contains a forbidden character", () => {
+    const preview = IngestionPreview.create({
+      ...baseParams(),
+      // Backslash is a forbidden `DirectoryName` char.
+      suggestedDirectoryName: "ok/ba\\d",
+    });
+    expect(preview.suggestedDirectoryName).toBeNull();
   });
 });
