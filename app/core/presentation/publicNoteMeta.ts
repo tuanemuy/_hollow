@@ -6,7 +6,8 @@ import type { ContentHtml } from "@/core/domain/note/valueObject";
 /** Plain meta projection consumed by a public-note route's `head`. */
 export type PublicNoteMeta = Readonly<{
   title: string;
-  description: string;
+  /** Omitted when the note body is empty so `head` falls back to the site default. */
+  description?: string;
   publishedTime?: string;
   modifiedTime: string;
   authorName: string;
@@ -46,7 +47,7 @@ export async function loadPublicNoteMeta(
         : plain;
     return {
       title: note.title,
-      description,
+      ...(description.length > 0 ? { description } : {}),
       ...(publishedAt !== null
         ? { publishedTime: publishedAt.toISOString() }
         : {}),

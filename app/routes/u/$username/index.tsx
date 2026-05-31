@@ -111,6 +111,7 @@ export const Route = createFileRoute("/u/$username/")({
         "@type": "Person",
         name: meta.displayName,
         alternateName: meta.username,
+        url,
         ...(meta.bio ? { description: meta.bio } : {}),
       },
     });

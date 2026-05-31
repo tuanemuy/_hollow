@@ -8,6 +8,7 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import {
   buildHead,
   buildJsonLdScript,
+  DEFAULT_OG_IMAGE_PATH,
   joinUrl,
 } from "@/core/presentation/head";
 import { loadPublicNoteMeta } from "@/core/presentation/publicNoteMeta";
@@ -72,7 +73,7 @@ export const Route = createFileRoute("/u/$username/$noteSlug")({
     }
     const { meta: metaTags, links } = buildHead(config, {
       title: `${meta.title} — ${config.siteName}`,
-      description: meta.description,
+      ...(meta.description ? { description: meta.description } : {}),
       path,
       ogType: "article",
       ...(meta.publishedTime !== undefined
@@ -87,7 +88,8 @@ export const Route = createFileRoute("/u/$username/$noteSlug")({
       "@context": "https://schema.org",
       "@type": "Article",
       headline: meta.title,
-      description: meta.description,
+      ...(meta.description ? { description: meta.description } : {}),
+      image: joinUrl(config.appUrl, DEFAULT_OG_IMAGE_PATH),
       ...(meta.publishedTime !== undefined
         ? { datePublished: meta.publishedTime }
         : {}),

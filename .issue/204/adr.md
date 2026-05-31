@@ -55,7 +55,7 @@ head 専用の軽量メタデータ取得 server fn を新設し、`head` を as
 
 ### Consequences
 - 良い点: RSC レンダリングとメタ取得を分離。usecase を再利用しドメイン変更を最小化。
-- トレードオフ: 同一公開ノートデータを loader と head で二重取得しうる（plan.md リスク参照）。`react` の `cache()` による同一リクエスト内デデュープを検証して緩和する。
+- トレードオフ: 同一公開ノートデータを loader と head で二重取得する（SSR 1リクエストで `getPublicNote` が計2回）。**緩和策の `react` `cache()` は見送り確定**: loader（RSC 本体）と head（メタ専用 server fn）は別々の server fn エントリを経由するため `cache()` のキーが共有されず自然にはデデュープされない。`getPublicNote` は読み取り専用 UoW で機能上の問題はなく、SEO/共有のための追加コストとして許容する（PR #390 レビュー Arch-W-002）。
 
 ---
 

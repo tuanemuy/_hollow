@@ -1,7 +1,7 @@
 import type { AppConfig } from "@/core/application/di/types";
 
 // 1200x630 — `summary_large_image` 互換サイズ。
-const DEFAULT_OG_IMAGE_PATH = "/og-image.png";
+export const DEFAULT_OG_IMAGE_PATH = "/og-image.png";
 const DEFAULT_LOCALE = "ja_JP";
 
 export type HeadOverrides = Readonly<{
