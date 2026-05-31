@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import { isForbiddenError } from "@/core/application/errors";
+import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import type { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
@@ -766,6 +767,230 @@ describe("commitIngestionPreview", () => {
       );
     expect(dirRows).toHaveLength(1);
     expect(dirRows[0]?.id).toBe(createdDirId);
+  });
+
+  it("creates a nested directory path (root → 技術 → AI) when directoryNameToCreate is a slash-delimited path", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const tempKey = `${owner}/ingestion/committed-nested`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: { directoryNameToCreate: "技術/AI" },
+      },
+    });
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    const leafId = noteRows[0]?.directoryId;
+
+    const all = await container.db
+      .select()
+      .from(schema.directories)
+      .where(eq(schema.directories.ownerId, owner as unknown as string));
+    const tech = all.find((d) => d.name === "技術");
+    const ai = all.find((d) => d.name === "AI");
+    const root = all.find((d) => d.parentId === null);
+    expect(tech).toBeDefined();
+    expect(ai).toBeDefined();
+    expect(ai?.id).toBe(leafId);
+    expect(ai?.parentId).toBe(tech?.id);
+    expect(tech?.parentId).toBe(root?.id);
+    expect(ai?.depth).toBe(2);
+  });
+
+  it("reuses an existing intermediate directory (技術) and only creates the missing leaf (AI)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const rootId = await seedDirectory(container, owner);
+    // Pre-existing 技術 under root.
+    const techId = nextDirId();
+    await container.db.insert(schema.directories).values({
+      id: techId,
+      ownerId: owner as unknown as string,
+      parentId: rootId,
+      name: "技術",
+      slug: `tech-${techId.slice(-6)}`,
+      depth: 1,
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    });
+    const tempKey = `${owner}/ingestion/committed-merge`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: { directoryNameToCreate: "技術/AI" },
+      },
+    });
+
+    const techRows = await container.db
+      .select()
+      .from(schema.directories)
+      .where(
+        and(
+          eq(schema.directories.ownerId, owner as unknown as string),
+          eq(schema.directories.name, "技術"),
+        ),
+      );
+    // 技術 was reused, not duplicated.
+    expect(techRows).toHaveLength(1);
+    expect(techRows[0]?.id).toBe(techId);
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    const aiRows = await container.db
+      .select()
+      .from(schema.directories)
+      .where(
+        and(
+          eq(schema.directories.ownerId, owner as unknown as string),
+          eq(schema.directories.name, "AI"),
+        ),
+      );
+    expect(aiRows).toHaveLength(1);
+    expect(aiRows[0]?.parentId).toBe(techId);
+    expect(aiRows[0]?.id).toBe(noteRows[0]?.directoryId);
+  });
+
+  it("is idempotent: committing the same nested path twice reuses all directories on the second commit", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+
+    const commitWithPath = async (key: string) => {
+      await container.tempFileStorage.put(key, new ArrayBuffer(4));
+      const jobId = await seedIngestionJob(container, {
+        ownerId: owner,
+        status: "previewing",
+        tempStorageKey: key,
+      });
+      await commitIngestionPreview({
+        container,
+        input: {
+          actorUserId: owner,
+          jobId: jobId as unknown as IngestionJobId,
+          modifications: { directoryNameToCreate: "技術/AI" },
+        },
+      });
+    };
+
+    await commitWithPath(`${owner}/ingestion/idem-1`);
+    const afterFirst = await container.db
+      .select()
+      .from(schema.directories)
+      .where(eq(schema.directories.ownerId, owner as unknown as string));
+    await commitWithPath(`${owner}/ingestion/idem-2`);
+    const afterSecond = await container.db
+      .select()
+      .from(schema.directories)
+      .where(eq(schema.directories.ownerId, owner as unknown as string));
+
+    // No new directories on the second commit — root, 技術, AI all reused.
+    expect(afterSecond.length).toBe(afterFirst.length);
+  });
+
+  it("throws TooDeep when directoryNameToCreate exceeds MAX_DIRECTORY_DEPTH", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const tempKey = `${owner}/ingestion/committed-toodeep`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+    });
+    const tooDeep = Array.from({ length: 11 }, (_, i) => `d${i}`).join("/");
+
+    try {
+      await commitIngestionPreview({
+        container,
+        input: {
+          actorUserId: owner,
+          jobId: jobId as unknown as IngestionJobId,
+          modifications: { directoryNameToCreate: tooDeep },
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isBusinessRuleError(error)) throw error;
+      expect(error.code).toBe(DirectoryErrorCode.TooDeep);
+    }
+  });
+
+  it("creates the preview's suggested nested path when no modifications override it (IngestionJobRow quick-commit path)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const tempKey = `${owner}/ingestion/quick-nested`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    // Quick-commit forwards preview.suggestedDirectoryName as
+    // directoryNameToCreate; this also covers the usecase fallback that
+    // reads the preview directly when no modification is supplied.
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      previewJson: JSON.stringify({
+        title: "Quick",
+        contentHtml: "<p>quick</p>",
+        suggestedDirectoryId: null,
+        suggestedDirectoryName: "研究/論文",
+        frontMatter: {},
+        suggestedTagNames: [],
+        internalLinkRefs: [],
+        mediaRefs: [],
+      }),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {},
+      },
+    });
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    const all = await container.db
+      .select()
+      .from(schema.directories)
+      .where(eq(schema.directories.ownerId, owner as unknown as string));
+    const research = all.find((d) => d.name === "研究");
+    const paper = all.find((d) => d.name === "論文");
+    expect(research).toBeDefined();
+    expect(paper).toBeDefined();
+    expect(paper?.parentId).toBe(research?.id);
+    expect(paper?.id).toBe(noteRows[0]?.directoryId);
   });
 
   it("overwrites the existing note when overwriteNoteId is supplied and the actor owns the target", async () => {

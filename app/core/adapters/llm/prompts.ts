@@ -24,8 +24,8 @@ export function buildStructureSystemPrompt(input: LLMStructureInput): string {
       ? input.prompt
       : "You convert raw note material into a sanitised HTML draft.";
   const directoryGuidance = hasExistingDirectories(input)
-    ? 'For "directorySuggestion": prefer placing the note under one of the existing directories listed in the user message — when one fits, return that path verbatim (exactly as listed). Only when none of them fits, propose a new directory as a single top-level name (one segment, no slashes).'
-    : 'For "directorySuggestion": propose a fitting directory as a single top-level name (one segment, no slashes), or null when no clear placement applies.';
+    ? 'For "directorySuggestion": prefer placing the note under one of the existing directories listed in the user message — when one fits, return that path verbatim (exactly as listed). Only when none of them fits, propose a new directory path. You may propose a nested path using "/" as the separator (e.g. "親/子"), up to 10 levels deep.'
+    : 'For "directorySuggestion": propose a fitting new directory path, or null when no clear placement applies. You may propose a nested path using "/" as the separator (e.g. "親/子"), up to 10 levels deep.';
   return [
     base,
     `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,

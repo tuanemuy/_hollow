@@ -34,7 +34,6 @@ import {
   IngestionPreview,
   type PromptOverride,
   type SourceFileKind,
-  SUGGESTED_DIRECTORY_NAME_MAX_LENGTH,
 } from "@/core/domain/ingestion/valueObject";
 import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
 import {
@@ -334,9 +333,8 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
 
   // Resolve the LLM's path suggestion against the existing tree. A match
   // (case-insensitive, slash-normalised) resolves to a concrete
-  // `DirectoryId` and clears the new-name field; a miss falls back to the
-  // trailing segment as a new single top-level directory name (the commit
-  // path only ever creates one directory under root).
+  // `DirectoryId` and clears the new-name field; a miss carries the full
+  // canonical path forward as a new nested path for the commit to create.
   const { suggestedDirectoryId, suggestedDirectoryName } =
     resolveDirectorySuggestion(directorySuggestion, deps.existingDirectories);
 
@@ -440,24 +438,19 @@ function resolveDirectorySuggestion(
       };
     }
   }
-  // Miss: adopt the trailing segment as a new single top-level name. The
-  // commit path only ever creates a single directory under root, so a
-  // nested path collapses to its leaf.
+  // Miss: carry the full canonical path (slash-joined, trimmed, empties
+  // dropped) forward as a new nested path. Original case is preserved so
+  // the created directory keeps its display name — only the match above
+  // lower-cases. Final acceptance (depth / segment length / forbidden
+  // chars) is `IngestionPreview.create`'s best-effort null-ing, so an
+  // over-eager LLM proposal is never fatal here.
   const segments = directorySuggestion
     .split("/")
     .map((segment) => segment.trim())
     .filter((segment) => segment.length > 0);
-  const leaf = segments[segments.length - 1] ?? null;
-  // Drop an over-long leaf rather than letting `IngestionPreview.create`
-  // throw and fail the whole ingestion job. Mirrors the best-effort
-  // handling of tag tokens (an over-eager LLM directory name must not be
-  // fatal); the user can still pick a directory in the preview form.
-  if (leaf !== null && leaf.length > SUGGESTED_DIRECTORY_NAME_MAX_LENGTH) {
-    return { suggestedDirectoryId: null, suggestedDirectoryName: null };
-  }
   return {
     suggestedDirectoryId: null,
-    suggestedDirectoryName: leaf,
+    suggestedDirectoryName: segments.length > 0 ? segments.join("/") : null,
   };
 }
 

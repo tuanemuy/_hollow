@@ -13,6 +13,8 @@ export type IngestionPreviewDTO = Readonly<{
   title: string;
   contentHtml: string;
   suggestedDirectoryId: DirectoryId | null;
+  /** Canonical `/`-delimited new directory path to create on commit (root
+   * excluded, e.g. `親/子`); a single segment is a top-level directory. */
   suggestedDirectoryName: string | null;
   frontMatter: FrontMatterDTO;
   suggestedTagNames: readonly string[];

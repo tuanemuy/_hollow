@@ -1,4 +1,8 @@
-import type { DirectoryId } from "@/core/domain/directory/valueObject";
+import {
+  type DirectoryId,
+  DirectoryName,
+  MAX_DIRECTORY_DEPTH,
+} from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import type {
@@ -15,7 +19,6 @@ const MIME_TYPE_MAX_LENGTH = 255;
 const TEMP_STORAGE_KEY_MAX_LENGTH = 1024;
 const ERROR_REASON_MAX_LENGTH = 2048;
 const ERROR_CODE_MAX_LENGTH = 128;
-export const SUGGESTED_DIRECTORY_NAME_MAX_LENGTH = 200;
 // Conservative absolute upper bound for a single upload — far above the
 // per-kind `IngestionLimits.maxBytes` cap that gates real ingestion. This
 // guard exists only to reject negative / non-integer / pathologically
@@ -358,12 +361,51 @@ export type IngestionPreview = Readonly<{
   title: NoteTitle;
   contentHtml: ContentHtml;
   suggestedDirectoryId: DirectoryId | null;
+  /**
+   * Canonical `/`-delimited new directory path to create on commit when no
+   * existing directory matched (root excluded, no leading slash, e.g.
+   * `親/子`). A single segment (no `/`) is a top-level directory; `null`
+   * means "no new path proposed". The commit path splits this into a
+   * `DirectoryName[]` and ensures each segment in turn (see
+   * `DirectoryService.ensureNestedPath`).
+   */
   suggestedDirectoryName: string | null;
   frontMatter: FrontMatter;
   suggestedTagNames: readonly TagName[];
   internalLinkRefs: readonly InternalLinkRef[];
   mediaRefs: readonly MediaAssetId[];
 }> & { readonly [ingestionPreviewBrand]: true };
+
+/**
+ * Best-effort canonicalisation of a proposed new directory path into a
+ * `/`-delimited string with the virtual root excluded.
+ *
+ * Splits on `/`, trims each segment, drops empties, then validates every
+ * segment via `DirectoryName.create` (length / forbidden chars) and caps
+ * the segment count at `MAX_DIRECTORY_DEPTH`. Any violation (over-long
+ * segment, forbidden char, too deep, or nothing left after trimming)
+ * yields `null` rather than throwing — an over-eager LLM proposal must
+ * not fail the whole ingestion job (ADR-003). The case of each surviving
+ * segment is preserved so the created directory keeps its display name.
+ */
+function canonicalizeSuggestedDirectoryPath(raw: string | null): string | null {
+  if (raw === null) return null;
+  const segments = raw
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+  if (segments.length === 0 || segments.length > MAX_DIRECTORY_DEPTH) {
+    return null;
+  }
+  for (const segment of segments) {
+    try {
+      DirectoryName.create(segment);
+    } catch {
+      return null;
+    }
+  }
+  return segments.join("/");
+}
 
 export const IngestionPreview = {
   create: (params: {
@@ -376,21 +418,9 @@ export const IngestionPreview = {
     internalLinkRefs: readonly InternalLinkRef[];
     mediaRefs: readonly MediaAssetId[];
   }): IngestionPreview => {
-    let suggestedName: string | null = null;
-    if (params.suggestedDirectoryName !== null) {
-      const trimmed = params.suggestedDirectoryName.trim();
-      if (trimmed.length === 0) {
-        suggestedName = null;
-      } else {
-        if (trimmed.length > SUGGESTED_DIRECTORY_NAME_MAX_LENGTH) {
-          throw new BusinessRuleError(
-            IngestionErrorCode.InvalidSuggestedDirectoryName,
-            `Suggested directory name exceeds maximum length (${SUGGESTED_DIRECTORY_NAME_MAX_LENGTH})`,
-          );
-        }
-        suggestedName = trimmed;
-      }
-    }
+    const suggestedName = canonicalizeSuggestedDirectoryPath(
+      params.suggestedDirectoryName,
+    );
     return {
       title: params.title,
       contentHtml: params.contentHtml,

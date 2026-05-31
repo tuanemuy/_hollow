@@ -22,6 +22,8 @@ export type IngestionPreviewWire = Readonly<{
   title: string;
   contentHtml: string;
   suggestedDirectoryId: string | null;
+  /** Canonical `/`-delimited new directory path to create on commit (root
+   * excluded, e.g. `親/子`); a single segment is a top-level directory. */
   suggestedDirectoryName: string | null;
   frontMatterJson: string;
   suggestedTagNames: readonly string[];

@@ -1,4 +1,3 @@
-import { Directory } from "@/core/domain/directory/entity";
 import { DirectoryService } from "@/core/domain/directory/service";
 import {
   DirectoryId,
@@ -67,13 +66,13 @@ export async function commitIngestionPreview({
   const actor = UserId.create(input.actorUserId);
   const mods = input.modifications;
 
-  // Resolve the override directory name outside the UoW so the VO error
-  // surfaces before any storage interaction.
-  const directoryNameToCreate =
-    mods.directoryNameToCreate !== undefined &&
-    mods.directoryNameToCreate.trim().length > 0
-      ? DirectoryName.create(mods.directoryNameToCreate)
-      : null;
+  // Resolve the override directory path outside the UoW so VO errors
+  // (forbidden chars / over-long / too deep segments) surface before any
+  // storage interaction. A `/`-delimited path is split into one
+  // `DirectoryName` per segment; the commit then ensures each in turn.
+  const directorySegmentsToCreate = parseDirectoryPathToCreate(
+    mods.directoryNameToCreate,
+  );
   const explicitTagNames = (mods.tagNames ?? []).map((raw) =>
     TagName.create(raw),
   );
@@ -133,16 +132,19 @@ export async function commitIngestionPreview({
 
       const preview = found.entity.preview;
 
-      // Resolve target directory: explicit id > newly created directory >
-      // preview's suggested id > owner's root.
+      // Resolve target directory: explicit id > newly created path >
+      // preview's suggested id > preview's suggested new path > owner's root.
       const directoryId = await resolveDirectoryId({
         actor,
         explicitId:
           mods.directoryId === undefined
             ? null
             : DirectoryId.create(mods.directoryId),
-        nameToCreate: directoryNameToCreate,
-        suggested: preview.suggestedDirectoryId,
+        segmentsToCreate: directorySegmentsToCreate,
+        suggestedId: preview.suggestedDirectoryId,
+        suggestedNameSegments: parseDirectoryPathToCreate(
+          preview.suggestedDirectoryName ?? undefined,
+        ),
         repo: directoryRepository,
         idGen: container.idGenerator,
         now,
@@ -293,21 +295,42 @@ export async function commitIngestionPreview({
 }
 
 /**
+ * Split a `/`-delimited directory path into one `DirectoryName` per
+ * segment. Each segment is validated by `DirectoryName.create` (forbidden
+ * chars / length) so a malformed segment surfaces a `BusinessRuleError`
+ * before any storage interaction. Empty / whitespace-only input yields an
+ * empty array, which `resolveDirectoryId` treats as "no new path".
+ */
+function parseDirectoryPathToCreate(
+  raw: string | undefined,
+): readonly DirectoryName[] {
+  if (raw === undefined) return [];
+  return raw
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .map((segment) => DirectoryName.create(segment));
+}
+
+/**
  * Resolve which directory the new note should live in.
  *
  * Precedence — first hit wins:
  *   1. Caller-supplied `explicitId` (must be owned).
- *   2. Caller-supplied `nameToCreate` — provisions a new directory under
- *      the owner's root.
- *   3. The preview's `suggestedDirectoryId` (when the user accepted the
- *      LLM proposal as-is).
- *   4. The owner's root directory.
+ *   2. Caller-supplied `segmentsToCreate` — ensures a (possibly nested)
+ *      new path under the owner's root, reusing existing intermediates.
+ *   3. The preview's `suggestedId` (when the user accepted the LLM's
+ *      existing-directory match as-is).
+ *   4. The preview's `suggestedNameSegments` — the LLM's new nested-path
+ *      proposal, ensured the same way as (2).
+ *   5. The owner's root directory.
  */
 async function resolveDirectoryId(args: {
   actor: UserId;
   explicitId: DirectoryId | null;
-  nameToCreate: DirectoryName | null;
-  suggested: IngestionPreview["suggestedDirectoryId"];
+  segmentsToCreate: readonly DirectoryName[];
+  suggestedId: IngestionPreview["suggestedDirectoryId"];
+  suggestedNameSegments: readonly DirectoryName[];
   repo: import("@/core/domain/directory/ports/directoryRepository").DirectoryRepository;
   idGen: import("@/core/application/ports/idGenerator").IdGenerator;
   now: Date;
@@ -329,47 +352,32 @@ async function resolveDirectoryId(args: {
     return found.entity.id;
   }
 
-  if (args.nameToCreate !== null) {
-    const root = await DirectoryService.ensureRoot(
+  if (args.segmentsToCreate.length > 0) {
+    return DirectoryService.ensureNestedPath(
       args.actor,
+      args.segmentsToCreate,
       args.now,
       args.idGen,
       args.repo,
     );
-    await DirectoryService.assertSiblingNameUnique(
-      root.id,
-      args.actor,
-      args.nameToCreate,
-      null,
-      args.repo,
-    );
-    const directory = Directory.create(
-      {
-        id: args.idGen.next(),
-        ownerId: args.actor,
-        parent: root,
-        name: args.nameToCreate,
-      },
-      args.now,
-    );
-    await args.repo.insert(directory);
-    return directory.id;
   }
 
-  if (args.suggested !== null) {
-    const found = await args.repo.findById(args.suggested);
+  if (args.suggestedId !== null) {
+    const found = await args.repo.findById(args.suggestedId);
     if (found !== null && found.entity.ownerId === args.actor) {
       return found.entity.id;
     }
     // Suggested directory missing or no longer owned — fall through to
-    // the user's root rather than failing the commit.
+    // the suggested new path / root rather than failing the commit.
   }
 
-  const root = await DirectoryService.ensureRoot(
+  // `ensureNestedPath` returns the root id for an empty segment list, so
+  // the suggested-new-path and root-fallback cases collapse into one call.
+  return DirectoryService.ensureNestedPath(
     args.actor,
+    args.suggestedNameSegments,
     args.now,
     args.idGen,
     args.repo,
   );
-  return root.id;
 }
