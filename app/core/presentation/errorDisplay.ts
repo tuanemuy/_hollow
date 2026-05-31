@@ -1,3 +1,4 @@
+import { SecretBoxErrorCode } from "@/core/domain/adminSettings/ports/secretBox";
 import {
   extractSerializedError,
   type SerializedError,
@@ -149,6 +150,23 @@ function renderBusinessMessage(code: string | null): string {
   return BUSINESS_FALLBACK_MESSAGE;
 }
 
+// SecretBox failures reach the UI only through admin-gated operations
+// (updateLLMConfig / testLLMConnection / reencrypt). The message is derived
+// from `code` so the raw error message (which may embed env-var names) never
+// leaks, while KeyUnavailable carries an explicit recovery path.
+function renderSecretBoxMessage(code: string): string {
+  switch (code) {
+    case SecretBoxErrorCode.KeyUnavailable:
+      return "旧マスターキー（SECRET_BOX_MASTER_KEY_PREVIOUS）が設定されていないため再暗号化できません。旧鍵を設定してから再実行してください。";
+    case SecretBoxErrorCode.DecryptFailed:
+    case SecretBoxErrorCode.InvalidCiphertext:
+    case SecretBoxErrorCode.EncryptFailed:
+      return "鍵の取り違え等により暗号化処理に失敗しました。設定した鍵を確認してください。";
+    default:
+      return "暗号化処理に失敗しました。鍵の設定を確認してから再度お試しください。";
+  }
+}
+
 function renderConflictMessage(code: string | null): string {
   switch (code) {
     case "OPTIMISTIC_LOCK_FAILURE":
@@ -199,6 +217,8 @@ export function renderErrorMessage(error: SerializedError): string {
     }
     case "system":
       return "システムエラーが発生しました";
+    case "secretBox":
+      return renderSecretBoxMessage(error.code);
     case "unknown":
       return "エラーが発生しました";
   }

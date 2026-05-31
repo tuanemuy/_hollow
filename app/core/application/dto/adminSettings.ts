@@ -128,12 +128,12 @@ export function toRebuildSearchIndexResultDTO(result: {
  */
 export type ReencryptApiKeyResultDTO = Readonly<{
   reencrypted: boolean;
-  skipped: "not-db" | "already-new-key" | "no-ciphertext" | null;
+  skipped: "not-db" | "already-new-key" | null;
 }>;
 
 export function toReencryptApiKeyResultDTO(result: {
   reencrypted: boolean;
-  skipped: "not-db" | "already-new-key" | "no-ciphertext" | null;
+  skipped: "not-db" | "already-new-key" | null;
 }): ReencryptApiKeyResultDTO {
   return {
     reencrypted: result.reencrypted,

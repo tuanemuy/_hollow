@@ -467,8 +467,6 @@ function reencryptResultLabel(result: ReencryptApiKeyResultDTO): string {
       return "すでに現在のマスターキーで暗号化済みです（処理なし）。";
     case "not-db":
       return "API キーは環境変数管理のため、再暗号化対象がありません。";
-    case "no-ciphertext":
-      return "保存された API キーがないため、再暗号化対象がありません。";
     default:
       return "処理なし。";
   }

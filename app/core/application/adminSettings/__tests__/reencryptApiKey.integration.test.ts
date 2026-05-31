@@ -1,4 +1,5 @@
 import { env } from "cloudflare:test";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
@@ -14,7 +15,12 @@ import {
   Username,
 } from "@/core/domain/identity/valueObject";
 import { createTestContainer } from "../../__tests__/helpers";
-import { isConflictError, isForbiddenError } from "../../errors";
+import {
+  isConflictError,
+  isForbiddenError,
+  isSystemError,
+  SystemErrorCode,
+} from "../../errors";
 import { reencryptApiKey } from "../reencryptApiKey";
 import { updateLLMConfig } from "../updateLLMConfig";
 
@@ -23,6 +29,10 @@ import { updateLLMConfig } from "../updateLLMConfig";
 // outgoing key for a rotation.
 const NEW_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 const PREVIOUS_KEY = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+// A third, unrelated valid AES-256 key used as the *wrong* previous key:
+// distinct from both NEW_KEY and PREVIOUS_KEY, so a row encrypted under
+// PREVIOUS_KEY cannot decrypt under it (AES-GCM tag mismatch).
+const WRONG_PREVIOUS_KEY = "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=";
 
 const ADMIN_ID = "01950000-0000-7000-8000-0000000037a1";
 const MEMBER_ID = "01950000-0000-7000-8000-0000000037a2";
@@ -214,6 +224,102 @@ describe("reencryptApiKey", () => {
       }
       return true;
     });
+  });
+
+  it("surfaces a DataIntegrityError (no silent skip, no mutation) for a db row whose ciphertext is NULL", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    // A `db` source with a NULL ciphertext is a state the domain VO forbids
+    // (`LLMConfig.create` rejects it, enforced again on rehydration). It is
+    // unrepresentable through `updateLLMConfig`, so seed a valid db row and
+    // null the ciphertext column directly to simulate corruption. The repo's
+    // `get()` must reject it as a data-integrity violation rather than the
+    // usecase silently skipping it.
+    await seedDbLlmConfig(NEW_KEY);
+
+    const base = createTestContainer();
+    const before = await base.db
+      .select()
+      .from(schema.instanceSettings)
+      .where(eq(schema.instanceSettings.id, "singleton"));
+    const versionBefore = before[0]?.version;
+    await base.db
+      .update(schema.instanceSettings)
+      .set({ llmApiKeyCiphertext: null })
+      .where(eq(schema.instanceSettings.id, "singleton"));
+
+    const container = {
+      ...base,
+      secretBox: new WebCryptoSecretBox(NEW_KEY),
+      secretBoxPrevious: new WebCryptoSecretBox(PREVIOUS_KEY),
+    };
+
+    await expect(
+      reencryptApiKey({ container, input: { actorUserId: ADMIN_ID } }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        isSystemError(error) &&
+        error.code === SystemErrorCode.DataIntegrityError,
+    );
+
+    // The row must be untouched: version unchanged, ciphertext still NULL.
+    const after = await container.db
+      .select()
+      .from(schema.instanceSettings)
+      .where(eq(schema.instanceSettings.id, "singleton"));
+    expect(after[0]?.version).toBe(versionBefore);
+    expect(after[0]?.llmApiKeyCiphertext).toBeNull();
+  });
+
+  it("throws DecryptFailed (no skip, no row mutation) when the configured previous key is the wrong key", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const oldCipher = await seedDbLlmConfig(PREVIOUS_KEY);
+
+    const base = createTestContainer();
+    const before = await base.db
+      .select()
+      .from(schema.instanceSettings)
+      .where(eq(schema.instanceSettings.id, "singleton"));
+    const versionBefore = before[0]?.version;
+
+    // The row is encrypted under PREVIOUS_KEY, but the operator configured a
+    // *different* (wrong) previous key. The current-key decrypt fails with
+    // DecryptFailed, the fallback decrypt under WRONG_PREVIOUS_KEY also fails
+    // (AES-GCM tag mismatch) — there is no silent no-op skip and no fabricated
+    // plaintext, so DecryptFailed propagates.
+    const container = {
+      ...base,
+      secretBox: new WebCryptoSecretBox(NEW_KEY),
+      secretBoxPrevious: new WebCryptoSecretBox(WRONG_PREVIOUS_KEY),
+    };
+
+    await expect(
+      reencryptApiKey({ container, input: { actorUserId: ADMIN_ID } }),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(isSecretBoxError(error)).toBe(true);
+      if (isSecretBoxError(error)) {
+        expect(error.code).toBe(SecretBoxErrorCode.DecryptFailed);
+      }
+      return true;
+    });
+
+    // The row must be untouched: version unchanged, ciphertext still the
+    // original old-key value (not rewritten / corrupted).
+    const after = await container.db
+      .select()
+      .from(schema.instanceSettings)
+      .where(eq(schema.instanceSettings.id, "singleton"));
+    expect(after[0]?.version).toBe(versionBefore);
+    expect(after[0]?.llmApiKeyCiphertext).toBe(oldCipher);
   });
 
   it("rejects a non-admin actor with ForbiddenError", async () => {

@@ -100,8 +100,10 @@ const POLL_MAX_TRANSIENT_FAILURES = 3;
 /**
  * Business-kind errors (`notFound`, `forbidden`, `validation`,
  * `business`) imply the job is unrecoverable from the modal's POV —
- * stop polling immediately. `system` / `unknown` are treated as
- * transient and counted toward the retry cap.
+ * stop polling immediately. `secretBox` (missing / wrong master key) is
+ * an operator-config precondition that retrying won't heal, so it is
+ * fatal too. `system` / `unknown` are treated as transient and counted
+ * toward the retry cap.
  */
 function isPollFatalError(err: SerializedError): boolean {
   switch (err.kind) {
@@ -111,6 +113,7 @@ function isPollFatalError(err: SerializedError): boolean {
     case "unauthorized":
     case "validation":
     case "conflict":
+    case "secretBox":
       return true;
     case "system":
     case "unknown":

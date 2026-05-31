@@ -1,9 +1,5 @@
 import { CodedError, type SerializedErrorBase } from "@/lib/error";
 
-export type SerializedSecretBoxError = SerializedErrorBase & {
-  kind: "secretBox";
-};
-
 export const SecretBoxErrorCode = {
   EncryptFailed: "SECRET_BOX_ENCRYPT_FAILED",
   DecryptFailed: "SECRET_BOX_DECRYPT_FAILED",
@@ -13,6 +9,17 @@ export const SecretBoxErrorCode = {
 
 export type SecretBoxErrorCode =
   (typeof SecretBoxErrorCode)[keyof typeof SecretBoxErrorCode];
+
+// Co-located with the port (mirrors how `SerializedBusinessError` lives in
+// domain/error and `SerializedConflictError` in application/errors): the
+// presentation `SerializedError` union imports this variant so secretBox
+// failures are handled structurally by `kind` instead of collapsing to
+// `unknown`. `code` is narrowed to the enum value type so the display layer
+// can branch exhaustively.
+export type SerializedSecretBoxError = SerializedErrorBase & {
+  kind: "secretBox";
+  code: SecretBoxErrorCode;
+};
 
 /**
  * Raised by `SecretBox` implementations when encrypt / decrypt cannot be

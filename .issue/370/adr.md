@@ -88,3 +88,45 @@ plan.md / ADR-001〜004 に沿って実装する過程で、非自明な細部�
 ### Consequences
 - 良い点: 新規ルート・新規エラーコードを増やさず、既存の admin バッチ UI / DTO 規約に完全に乗る。`errorCodeNaming.test.ts` への波及なし。
 - トレードオフ: 「ジョブ監視」画面にジョブ以外の運用バッチ（index 再構築・鍵再暗号化）が同居するが、これは #370 以前から `rebuildSearchIndex` で確立済みの構成であり新規の負債ではない。
+
+---
+
+## ADR-006: SecretBox エラーを presentation の SerializedError union に追加（レビュー review-001 W-P-001）
+
+### Status
+Accepted（実装済み）
+
+### Context
+`SecretBoxError.toSerialized()` は `kind:"secretBox"` を返すが、presentation の `SerializedError` union に `secretBox` が含まれておらず（実装前からの gap）、`serializeError` が `unknown` に縮退 → HTTP 500 → 「エラーが発生しました」になっていた。rotation で旧鍵 `SECRET_BOX_MASTER_KEY_PREVIOUS` を put し忘れて再暗号化を実行する最頻の運用ミス時に、原因も復旧導線も operator に伝わらない。
+
+### Decision
+presentation の `SerializedError` union に `secretBox` variant を正式に追加する（CLAUDE.md「presentation は各層の variant から union を組み立て kind で構造的にシリアライズ」に準拠）。
+- `SerializedSecretBoxError` 型を domain の `secretBox.ts` に co-location して export（`SerializedBusinessError`/`SerializedConflictError` と同方針）。
+- HTTP status は kind 単位でしか引けないため `secretBox` 全体を **503 Service Unavailable** にマップ（KeyUnavailable・DecryptFailed 等いずれも「運用是正＋リトライで復旧する前提不成立」で、500=内部欠陥より 503 が妥当）。
+- `redactForClient` は secretBox を redact しない（`code` を保持）。SecretBox エラーは admin-gated 操作でのみ presentation 境界に到達するため、`code` を残して errorDisplay 側で復旧導線つきメッセージに出し分ける。
+- `errorDisplay.renderErrorMessage` に `case "secretBox"` を追加し、`KeyUnavailable`（旧鍵未設定→「旧鍵を設定して再実行」）と `DecryptFailed`/`InvalidCiphertext`/`EncryptFailed`（鍵取り違え示唆）を出し分け。
+- union 追加で `UploadDialog` の `isPollFatalError` の網羅 switch が非網羅になるため `case "secretBox"` を追加（config 前提不成立でリトライ不可 → fatal 扱い）。
+
+### Consequences
+- 良い点: rotation の主要運用エラーが operator に意味のあるメッセージで届く。既存の encrypt 経路（`updateLLMConfig`）の SecretBox エラー表示も同時に改善。
+- トレードオフ: status を code 別に分けられず secretBox 全体が 503。新 kind 追加で error contract のテスト（kind 網羅・status・redact・display）に追従が必要（実施済み）。
+
+---
+
+## ADR-007: `no-ciphertext` skip を廃止し data-integrity 違反として扱う（レビュー review-001 W-T-001 の検証で判明）
+
+### Status
+Accepted（実装済み）
+
+### Context
+当初 `reencryptApiKey` は `apiKeySource==='db' && apiKeyCiphertext===null` を `skipped:'no-ciphertext'` として早期 return する分岐を持っていた。W-T-001 のテストでこの状態を直接 seed して検証しようとしたところ、リポジトリの `get()`（`toEntity`→`reconstruct`→`LLMConfig.create`）が「db + null」をドメイン不変条件違反として `SystemError(DataIntegrityError)` を投げることが判明。つまり usecase の null チェックには到達できず、`no-ciphertext` skip はデッドコードだった。
+
+### Decision
+「不正な状態を型で表現不能にする」原則どおり、ドメインが既に「db + null」を表現不能にしている事実に合わせる:
+- `ReencryptApiKeySkipReason` から `'no-ciphertext'` を削除（DTO・UI ラベルも追従）。
+- usecase の null ガードは型 narrowing のために残すが、skip ではなく `SystemError(DataIntegrityError)` を投げる（リポジトリ層と同じ扱い。到達不能だが破損データを silent skip しない意図を明示）。
+- W-T-001 のテストは「破損行（db + null）に対し silent skip せず DataIntegrityError を surface し、行を書き換えない」ことを検証する内容に変更。
+
+### Consequences
+- 良い点: 表現不能な状態を「正常なスキップ結果」として API/UI に晒さなくなり、契約が正直になる。破損データは整合性エラーとして可視化される。
+- トレードオフ: `skipped` union が 2 値（`not-db` / `already-new-key`）に縮小。レビューで「6 ケース」とした網羅は `no-ciphertext` 削除で 5 ケース + integrity 負テストに再編。

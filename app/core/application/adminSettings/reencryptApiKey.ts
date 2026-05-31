@@ -6,9 +6,9 @@ import {
   SecretBoxErrorCode,
 } from "@/core/domain/adminSettings/ports/secretBox";
 import { LLMConfig } from "@/core/domain/adminSettings/valueObject";
+import { SystemError, SystemErrorCode } from "../errors";
 import type { ServiceArgs } from "../types";
 import { assertAdmin } from "./authorization";
-import { decryptWithFallback } from "./decryptWithFallback";
 
 export type ReencryptApiKeyInput = Readonly<{
   actorUserId: string;
@@ -20,16 +20,16 @@ export type ReencryptApiKeyInput = Readonly<{
  *
  * - `not-db`: the stored api key source is `env`, not `db` — nothing is
  *   encrypted at rest, so there is nothing to rotate.
- * - `no-ciphertext`: source is `db` but the ciphertext column is empty
- *   (a degenerate state that `LLMConfig.create` would reject; treated as
- *   "nothing to do" rather than crashing the batch).
  * - `already-new-key`: the ciphertext already decrypts under the current
  *   master key, so the row is on the new key — idempotent no-op.
+ *
+ * A `db` source always carries a ciphertext (the domain VO rejects
+ * `db` + null at construction, enforced again on rehydration), so
+ * "source is db but ciphertext is empty" is not a skip outcome — it is a
+ * data-integrity violation surfaced as `SystemError`, never silently
+ * tolerated.
  */
-export type ReencryptApiKeySkipReason =
-  | "not-db"
-  | "already-new-key"
-  | "no-ciphertext";
+export type ReencryptApiKeySkipReason = "not-db" | "already-new-key";
 
 export type ReencryptApiKeyOutput = Readonly<{
   reencrypted: boolean;
@@ -56,15 +56,16 @@ export type ReencryptApiKeyOutput = Readonly<{
  * `updateLLMConfig` (which receives plaintext from its input):
  *
  *  1. **read-only UoW** — authorize, then read the current settings. Early
- *     return for the `not-db` / `no-ciphertext` cases.
+ *     return for the `not-db` case.
  *  2. **crypto, outside any UoW** — try the current key first; success
  *     means the row is already migrated (`already-new-key`, idempotent).
- *     A `DecryptFailed` means the row is still on the previous key, so
- *     `decryptWithFallback` reads it under `secretBoxPrevious` (throwing
+ *     A `DecryptFailed` means the row is still on the previous key, so it
+ *     is read under `secretBoxPrevious` (throwing
  *     `SecretBoxError(KeyUnavailable)` when no previous key is configured,
  *     rather than silently skipping). The recovered plaintext is then
  *     re-encrypted under the current key.
- *  3. **OCC save UoW** — re-read for the latest version and persist only
+ *  3. **OCC save UoW** — re-authorize, re-read for the latest version and
+ *     persist only
  *     the swapped ciphertext under that token. If an admin changed the
  *     LLM config between phase 1 and phase 3 the save raises
  *     `ConflictError('OPTIMISTIC_LOCK_FAILURE')`, which propagates so the
@@ -95,7 +96,14 @@ export async function reencryptApiKey({
   }
   const ciphertext = current.llm.apiKeyCiphertext;
   if (ciphertext === null) {
-    return { reencrypted: false, skipped: "no-ciphertext" };
+    // Unreachable in practice: a `db` source with a null ciphertext is
+    // rejected by `LLMConfig.create` on rehydration, so `get()` above
+    // would already have thrown `DataIntegrityError`. Guard the type and
+    // treat the impossible state as corruption rather than a silent skip.
+    throw new SystemError(
+      SystemErrorCode.DataIntegrityError,
+      "instance_settings has apiKeySource='db' but no ciphertext",
+    );
   }
 
   let plain: string;
@@ -119,13 +127,20 @@ export async function reencryptApiKey({
           "SECRET_BOX_MASTER_KEY_PREVIOUS is not configured",
       );
     }
-    plain = await decryptWithFallback(secretBox, secretBoxPrevious, ciphertext);
+    // The current-key decrypt above already failed with `DecryptFailed` and
+    // a previous key is configured, so go straight to the previous key —
+    // calling `decryptWithFallback` here would retry the current key a
+    // second time.
+    plain = await secretBoxPrevious.decrypt(ciphertext);
   }
 
   const reencrypted = await secretBox.encrypt(plain);
 
   await container.unitOfWorkProvider.run(
-    async ({ instanceSettingsRepository }) => {
+    async ({ userRepository, instanceSettingsRepository }) => {
+      // Defense-in-depth: re-confirm authorization inside the write UoW, not
+      // just the phase-1 read UoW.
+      await assertAdmin(userRepository, input.actorUserId);
       const { entity, expectedVersion } =
         await instanceSettingsRepository.get();
       const now = container.clock.now();

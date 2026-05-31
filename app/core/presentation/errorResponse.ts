@@ -6,6 +6,7 @@ import type {
   SerializedUnauthorizedError,
   SerializedValidationError,
 } from "@/core/application/errors";
+import type { SerializedSecretBoxError } from "@/core/domain/adminSettings/ports/secretBox";
 import type { SerializedBusinessError } from "@/core/domain/error";
 import { isSerializableError, type SerializedErrorBase } from "@/lib/error";
 
@@ -28,6 +29,7 @@ export type SerializedError =
   | SerializedForbiddenError
   | SerializedValidationError
   | SerializedSystemError
+  | SerializedSecretBoxError
   | SerializedUnknownError;
 
 export type SerializedErrorKind = SerializedError["kind"];
@@ -40,6 +42,7 @@ const SERIALIZED_ERROR_KINDS = {
   forbidden: true,
   validation: true,
   system: true,
+  secretBox: true,
   unknown: true,
 } as const satisfies Record<SerializedErrorKind, true>;
 
@@ -82,6 +85,15 @@ export function serializeError(error: unknown): SerializedError {
 // exposing them to clients adds reconnaissance value with no UX upside.
 // Apply at the response boundary only — server-side logs must use the raw
 // form so operators retain the original code / message for triage.
+//
+// `secretBox` is intentionally NOT redacted: it only reaches this boundary
+// through admin-gated operations (updateLLMConfig / testLLMConnection /
+// reencrypt) — the consumer path catches it — so preserving `code` lets the
+// admin UI surface a recovery hint (e.g. "set the previous key"). The raw
+// `message` may mention env-var names, but the display layer reconstructs the
+// client-facing text from `code` rather than echoing `message`, so transport
+// keeps `code` while the message is treated like every other non-redacted
+// kind. Only system/unknown are redacted.
 export function redactForClient(serialized: SerializedError): SerializedError {
   if (serialized.kind === "system" || serialized.kind === "unknown") {
     return { ...serialized, code: null, message: SYSTEM_ERROR_PUBLIC_MESSAGE };
@@ -100,6 +112,15 @@ const HTTP_STATUS_BY_KIND: Record<SerializedErrorKind, number> = {
   forbidden: 403,
   validation: 422,
   system: 500,
+  // secretBox failures all stem from missing/mismatched key material — a
+  // prerequisite that is not yet satisfied (KeyUnavailable = previous key not
+  // provisioned; Decrypt/Encrypt/InvalidCiphertext = crypto base unhealthy or
+  // wrong key). These recover via operational correction (provision the key,
+  // fix env) and retry, so 503 Service Unavailable fits better than 500.
+  // Status is keyable only per-kind, so the whole secretBox kind maps to 503;
+  // when torn between 500 and 503 we choose 503 because the condition is a
+  // retryable, operator-fixable prerequisite rather than an internal defect.
+  secretBox: 503,
   unknown: 500,
 };
 

@@ -85,6 +85,37 @@ describe("decryptWithFallback", () => {
     });
   });
 
+  it("propagates DecryptFailed (no fabricated plaintext) when neither the current nor the previous key can decrypt", async () => {
+    // A ciphertext encrypted under an unrelated third key: both the current
+    // and previous keys raise DecryptFailed (AES-GCM tag mismatch). The
+    // helper must surface the previous-key failure rather than returning a
+    // bogus plaintext or silently succeeding.
+    const current = fakeBox({
+      plainFor: {},
+      decryptError: new SecretBoxError(
+        SecretBoxErrorCode.DecryptFailed,
+        "tag mismatch (current key)",
+      ),
+    });
+    const previous = fakeBox({
+      plainFor: {},
+      decryptError: new SecretBoxError(
+        SecretBoxErrorCode.DecryptFailed,
+        "tag mismatch (previous key)",
+      ),
+    });
+
+    await expect(
+      decryptWithFallback(current, previous, "cipher-from-third-key"),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(SecretBoxError);
+      expect((error as SecretBoxError).code).toBe(
+        SecretBoxErrorCode.DecryptFailed,
+      );
+      return true;
+    });
+  });
+
   it("does not fall back on InvalidCiphertext (propagates it even with a previous key)", async () => {
     let previousCalled = false;
     const current = fakeBox({

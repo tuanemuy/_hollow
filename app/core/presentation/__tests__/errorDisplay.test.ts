@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SecretBoxErrorCode } from "@/core/domain/adminSettings/ports/secretBox";
 import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { IdentityErrorCode } from "@/core/domain/identity/errorCode";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
@@ -272,6 +273,48 @@ describe("renderErrorMessage identity business mapping", () => {
       });
       expect(message).toBe(BUSINESS_FALLBACK_MESSAGE);
       expect(message).not.toContain(code);
+    }
+  });
+});
+
+// W-P-001: SecretBox failures reach the UI only through admin-gated
+// operations. Every `SecretBoxErrorCode` value must render a recovery-oriented
+// Japanese message and must never echo the raw (env-var-bearing) message.
+describe("renderErrorMessage secretBox mapping", () => {
+  it("maps KeyUnavailable to a message naming the previous-key recovery path", () => {
+    const message = renderErrorMessage({
+      kind: "secretBox",
+      code: SecretBoxErrorCode.KeyUnavailable,
+      message: "SECRET_BOX_MASTER_KEY_PREVIOUS env is not set",
+    });
+    expect(message).toContain("SECRET_BOX_MASTER_KEY_PREVIOUS");
+    expect(message).toContain("旧鍵を設定");
+  });
+
+  it.each([
+    SecretBoxErrorCode.DecryptFailed,
+    SecretBoxErrorCode.InvalidCiphertext,
+    SecretBoxErrorCode.EncryptFailed,
+  ])("maps crypto failure code %s to a cause-hinting message without echoing the raw message", (code) => {
+    const internalMessage = "internal: failed with env SECRET_BOX_MASTER_KEY";
+    const message = renderErrorMessage({
+      kind: "secretBox",
+      code,
+      message: internalMessage,
+    });
+    expect(message).not.toBe(internalMessage);
+    expect(message).not.toContain(internalMessage);
+    expect(message).toContain("鍵");
+  });
+
+  it("renders a non-empty message for every SecretBoxErrorCode value", () => {
+    for (const code of Object.values(SecretBoxErrorCode)) {
+      const message = renderErrorMessage({
+        kind: "secretBox",
+        code,
+        message: code,
+      });
+      expect(message.length).toBeGreaterThan(0);
     }
   });
 });
