@@ -9,14 +9,8 @@ import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
 /**
  * Application-layer HTTP-based `LLMConnectionTester`. Looks the configured
  * provider up in `factoryProviderRegistry` and delegates to its unified
- * `ping` probe.
- *
- * Promoted from `app/core/adapters/anthropic/llmConnectionTester.ts` to
- * the application layer in Issue #101 (ADR-003). The previous location
- * was an active layering smell once a second provider landed because the
- * dispatcher fan-outs to every provider but was housed inside a single
- * adapter group. Issue #122 ADR-005 acknowledged the smell and deferred
- * the move; this dispatcher is the resolution.
+ * `ping` probe. Lives in the application layer rather than an adapter group
+ * because it fans out across every provider.
  *
  * Result-shape unification: each provider barrel's `ProviderAdapter.ping`
  * normalizes its native probe envelope (Anthropic `{ ok, error? }`,
@@ -52,8 +46,8 @@ export class HttpLLMConnectionTester implements LLMConnectionTester {
     let outcome: { ok: boolean; error?: string };
     if (adapter === undefined) {
       // `cfg.provider` is a closed literal union on the domain side, so an
-      // unregistered provider is unreachable here — but the guard preserves
-      // the former `default` branch's outcome as a defensive net.
+      // unregistered provider is unreachable here — the guard is a
+      // defensive net.
       outcome = {
         ok: false,
         error: `Unsupported LLM provider: ${String(cfg.provider)}`,
