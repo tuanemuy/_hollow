@@ -26,7 +26,7 @@
  *   string, placeholder text, `null`, whitespace, etc.) is generally not
  *   checked — the CI `wrangler secret bulk` push surfaces such issues at
  *   the Worker invocation site. The sole exception is the shipped dev
- *   placeholder for `SECRET_BOX_MASTER_KEY` (W-003 / Issue #102): a
+ *   placeholder for `SECRET_BOX_MASTER_KEY` (Issue #102): a
  *   copy-paste of the `.dev.vars.example` value into a real stage secret
  *   passes the AES-256 shape check and would silently disable at-rest
  *   encryption, so it is refused here before deploy.

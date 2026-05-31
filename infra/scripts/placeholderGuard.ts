@@ -27,8 +27,9 @@ export const SHIPPED_DEV_PLACEHOLDER_VALUES: Readonly<Record<string, string>> =
  * Detect shipped dev placeholder values in the decrypted secrets and return
  * one violation message per offending key (empty array = OK).
  *
- * Documentation-only keys (`^_`) and absent keys are ignored — only real
- * secret keys set to a known placeholder value are flagged (W-003 / #102).
+ * Only the keys in {@link SHIPPED_DEV_PLACEHOLDER_VALUES} are checked; an
+ * absent or non-string value is ignored, so a copy-paste of a dev
+ * placeholder into a real stage secret is the only thing flagged (#102).
  */
 export function assertNoShippedPlaceholders(
   decoded: Record<string, unknown>,
