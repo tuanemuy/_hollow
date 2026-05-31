@@ -55,6 +55,23 @@ describe("selectSecretBox", () => {
     }
   });
 
+  it("throws when the key is whitespace-only and required", () => {
+    try {
+      selectSecretBox({ SECRET_BOX_MASTER_KEY: "   " }, { requireKey: true });
+      expect.unreachable("expected selectSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
+  it("falls back to NullSecretBox when the key is whitespace-only and not required", () => {
+    const box = selectSecretBox(
+      { SECRET_BOX_MASTER_KEY: "   " },
+      { requireKey: false },
+    );
+    expect(box).toBeInstanceOf(NullSecretBox);
+  });
+
   it("wires WebCryptoSecretBox for a valid key (requireKey: true) and round-trips", async () => {
     const box = selectSecretBox(
       { SECRET_BOX_MASTER_KEY: VALID_KEY },
@@ -100,10 +117,46 @@ describe("selectSecretBox", () => {
     }
   });
 
+  it("throws eagerly for a non-base64 key when required", () => {
+    try {
+      selectSecretBox(
+        { SECRET_BOX_MASTER_KEY: "not-base64-!!" },
+        { requireKey: true },
+      );
+      expect.unreachable("expected selectSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
+  it("throws eagerly for a base64 key that is not 32 bytes when required", () => {
+    try {
+      selectSecretBox(
+        { SECRET_BOX_MASTER_KEY: "c2hvcnQ=" },
+        { requireKey: true },
+      );
+      expect.unreachable("expected selectSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
   it("refuses the shipped dev placeholder when the key is required", () => {
     try {
       selectSecretBox(
         { SECRET_BOX_MASTER_KEY: SHIPPED_DEV_PLACEHOLDER_KEY },
+        { requireKey: true },
+      );
+      expect.unreachable("expected selectSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
+  it("refuses the shipped dev placeholder with surrounding whitespace when required", () => {
+    try {
+      selectSecretBox(
+        { SECRET_BOX_MASTER_KEY: `  ${SHIPPED_DEV_PLACEHOLDER_KEY}\n` },
         { requireKey: true },
       );
       expect.unreachable("expected selectSecretBox to throw");
