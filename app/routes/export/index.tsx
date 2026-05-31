@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
+import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 
 import "@/components/export/ExportForm/action";
@@ -15,6 +16,7 @@ const renderBulkExportPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/export/")({
+  beforeLoad: requireAuthenticatedRoute,
   staleTime: 0,
   loader: () => renderBulkExportPage(),
   component: BulkExportRoute,

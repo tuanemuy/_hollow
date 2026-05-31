@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
+import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { validateInput } from "@/core/presentation/validator";
 
@@ -18,6 +19,7 @@ const renderSingleExportPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/notes/$noteId/export")({
+  beforeLoad: requireAuthenticatedRoute,
   staleTime: 0,
   loader: ({ params }) =>
     renderSingleExportPage({ data: { noteId: params.noteId } }),
