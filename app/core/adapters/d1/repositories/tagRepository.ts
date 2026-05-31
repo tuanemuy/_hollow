@@ -126,10 +126,9 @@ export class D1TagRepository implements TagRepository {
 
   /**
    * Lists an owner's tags with `noteCount` computed at read time by
-   * aggregating `note_tags` against active `notes` (Issue #365). The
-   * `COUNT(notes.id)` aggregate is the sole source of truth for the
-   * displayed count — there is no denormalised cache column (the former
-   * `tags.note_count` was removed in Issue #372).
+   * aggregating `note_tags` against active `notes`. The `COUNT(notes.id)`
+   * aggregate is the sole source of truth for the displayed count — there
+   * is no denormalised cache column.
    *
    * The aggregate counts only `status = 'active'` notes so the displayed
    * count matches what the FilterBar tag facet returns. `COUNT(notes.id)`
