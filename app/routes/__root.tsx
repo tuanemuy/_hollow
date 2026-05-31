@@ -35,6 +35,26 @@ export const loadAppContext = createServerFn({ method: "GET" })
     return { config: container.config };
   });
 
+// `beforeLoad` re-runs on every navigation and is not gated by `staleTime`,
+// so calling `loadAppContext()` directly costs a `_serverFn` round trip per
+// navigation (Issue #296). `config` is env-derived and immutable within a
+// session, so the client fetches it once and reuses the promise. SSR must
+// bypass the cache: the worker module scope is shared across requests, so a
+// cached value would leak one request's config into another.
+//
+// A rejected fetch clears the slot so the next navigation retries, instead of
+// poisoning every later navigation with the same cached failure.
+let clientAppContext: ReturnType<typeof loadAppContext> | undefined;
+
+function resolveAppContext(): ReturnType<typeof loadAppContext> {
+  if (import.meta.env.SSR) return loadAppContext();
+  clientAppContext ??= loadAppContext().catch((error) => {
+    clientAppContext = undefined;
+    throw error;
+  });
+  return clientAppContext;
+}
+
 const SITE_ASSET_LINKS = [
   { rel: "icon", href: "/favicon.ico", sizes: "any" },
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -43,8 +63,7 @@ const SITE_ASSET_LINKS = [
 ];
 
 export const Route = createRootRoute({
-  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
-  beforeLoad: () => loadAppContext(),
+  beforeLoad: () => resolveAppContext(),
   head: ({ match }) => {
     const stylesheet = { rel: "stylesheet", href: appCss };
     const baseLinks = [...SITE_ASSET_LINKS, stylesheet];
