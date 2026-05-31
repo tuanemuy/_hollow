@@ -134,7 +134,6 @@ export function VerifyEmail({ token }: { token: string }) {
         <h1 className={AUTH_TITLE}>リンクの期限が切れています</h1>
         <p className={AUTH_BODY}>
           確認リンクは発行から24時間で無効になります。
-          <br />
           メールアドレスを入力すると確認メールを再送します。
         </p>
         <form className={FORM} onSubmit={onResend} noValidate>
@@ -188,7 +187,6 @@ export function VerifyEmail({ token }: { token: string }) {
         <h1 className={AUTH_TITLE}>このリンクは使用済みです</h1>
         <p className={AUTH_BODY}>
           この確認リンクはすでに使用されています。
-          <br />
           ログインして続きの操作を行ってください。
         </p>
         <Link to="/login" className={BTN_PRIMARY_INLINE}>

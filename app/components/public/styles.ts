@@ -65,7 +65,7 @@ export const PROFILE_NAME =
   "text-3xl font-normal tracking-tightest leading-tight text-ink mb-1.5 max-sm:text-[26px]";
 export const PROFILE_USERNAME = "text-md text-ink-secondary mb-3";
 export const PROFILE_BIO =
-  "text-base text-ink leading-relaxed max-w-[60ch] mb-3.5";
+  "text-base text-ink leading-relaxed max-w-[var(--content-max)] mb-3.5 text-pretty";
 export const PROFILE_STATS =
   "flex items-center gap-4.5 text-sm text-ink-secondary flex-wrap";
 

@@ -82,7 +82,6 @@ export function PasswordResetRequestForm() {
       <h1 className={AUTH_TITLE}>パスワードを再設定</h1>
       <p className={AUTH_SUBTITLE}>
         登録済みのメールアドレスを入力してください。再設定用のリンクをお送りします。
-        <br />
         セキュリティ上の理由から、入力されたアドレスが登録済みかどうかはお伝えできません。
       </p>
 
