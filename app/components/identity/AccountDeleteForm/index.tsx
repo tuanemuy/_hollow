@@ -48,8 +48,8 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
     startTransition(async () => {
       try {
         await deleteAccount({ data: { confirmation: draft } });
-        // 過去訪問の cached _app match に残る旧 userDto を破棄するため _app も invalidate（rule 1）
-        await router.invalidate();
+        // 過去訪問で cached された _app match に残る旧 userDto を破棄する（navigate との race 回避）
+        router.clearCache({ filter: (match) => match.routeId === "/_app" });
         await router.navigate({ to: "/", search: HOME_SEARCH });
         setError(null);
       } catch (e) {
