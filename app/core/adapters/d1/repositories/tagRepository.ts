@@ -145,9 +145,7 @@ export class D1TagRepository implements TagRepository {
       const order = opts.order ?? "asc";
       const direction = order === "desc" ? desc : asc;
 
-      // Aggregated count of active notes linked to each tag. Aliased as
-      // `noteCount` and reused by `orderBy` so the expression is defined
-      // once.
+      // Aliased so `orderBy` can reuse it instead of re-emitting the COUNT.
       const noteCountExpr = sql<number>`COUNT(${notes.id})`.as("noteCount");
 
       const sortExpr =
