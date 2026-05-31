@@ -53,3 +53,14 @@ export const factoryProviderRegistry: Record<LLMProviderId, ProviderAdapter> = {
   openai: openaiAdapter,
   gemini: geminiAdapter,
 };
+
+/**
+ * Look an adapter up by a runtime provider string (env / DB origin). Returns
+ * `undefined` for an unregistered provider so callers can surface the typo as
+ * a thrown error at the DI boundary rather than failing later at first use.
+ */
+export function lookupProviderAdapter(
+  provider: string,
+): ProviderAdapter | undefined {
+  return (factoryProviderRegistry as Record<string, ProviderAdapter>)[provider];
+}

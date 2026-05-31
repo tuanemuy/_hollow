@@ -15,8 +15,8 @@ export const anthropicAdapter = {
   llm: (c) => new AnthropicLLMProvider({ apiKey: c.apiKey, model: c.model }),
   ocr: (c) => new AnthropicOCRProvider({ apiKey: c.apiKey, model: c.model }),
   pdf: (c) => new AnthropicPDFExtractor({ apiKey: c.apiKey, model: c.model }),
-  ping: async (cfg, apiKey, timeoutMs) => {
-    const result = await pingAnthropic(cfg, apiKey, timeoutMs);
-    return result.ok ? { ok: true } : { ok: false, error: result.error };
-  },
+  // `pingAnthropic` already returns the unified `{ ok, error? }` shape, so it
+  // is forwarded as-is. Reconstructing the object would surface `error` as
+  // `string | undefined` and break `exactOptionalPropertyTypes`.
+  ping: (cfg, apiKey, timeoutMs) => pingAnthropic(cfg, apiKey, timeoutMs),
 } satisfies ProviderAdapter;

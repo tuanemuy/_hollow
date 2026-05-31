@@ -1,4 +1,4 @@
-import { factoryProviderRegistry } from "@/core/adapters/llm/registry";
+import { lookupProviderAdapter } from "@/core/adapters/llm/registry";
 import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
 import type {
   LLMConnectionPingResult,
@@ -48,13 +48,12 @@ export class HttpLLMConnectionTester implements LLMConnectionTester {
       return { ok: false, latencyMs: 0, error: "API key is empty" };
     }
     const start = Date.now();
-    const adapter = factoryProviderRegistry[cfg.provider];
+    const adapter = lookupProviderAdapter(cfg.provider);
     let outcome: { ok: boolean; error?: string };
     if (adapter === undefined) {
-      // `cfg.provider` is a closed literal union on the domain side, so this
-      // is unreachable — but the guard is required to narrow the `| undefined`
-      // from the indexed access (`noUncheckedIndexedAccess`) and preserves the
-      // former `default` branch's outcome. Do not remove it.
+      // `cfg.provider` is a closed literal union on the domain side, so an
+      // unregistered provider is unreachable here — but the guard preserves
+      // the former `default` branch's outcome as a defensive net.
       outcome = {
         ok: false,
         error: `Unsupported LLM provider: ${String(cfg.provider)}`,
