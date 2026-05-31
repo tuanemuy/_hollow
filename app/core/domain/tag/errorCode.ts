@@ -3,7 +3,6 @@ export const TagErrorCode = {
   NameEmpty: "tag_name_empty",
   NameTooLong: "tag_name_too_long",
   NameInvalidChars: "tag_name_invalid_chars",
-  NoteCountNegative: "tag_note_count_negative",
   NameNotUnique: "tag_name_conflict",
   MergeOwnerMismatch: "tag_owner_mismatch",
   MergeSameTag: "tag_merge_same",

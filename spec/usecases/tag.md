@@ -11,7 +11,7 @@
 ### 処理フロー
 1. `TagName` 構築
 2. `TagService.assertNameUnique`
-3. UoW: Tag を `noteCount=0` で作成、save
+3. UoW: Tag を作成、save
 4. TagBlacklist にあれば自動的に削除（既にブラックリスト解除扱い）
 
 ### エラーケース
@@ -52,7 +52,7 @@
 1. Source / Target Tag 取得、所有者一致、source !== target
 2. `TagService.computeMergePlan` で書き換え計画を取得
 3. UoW: 関連ノートを取得し、各 Note の `replaceTags(tagIdsから source を除き target を含めた重複排除セット)` を呼び、save
-4. Source Tag を delete、Target Tag の noteCount を increment（死蔵列 `tags.note_count` の更新。OCC version を進める目的で残置。表示件数は read-time 集計。spec/domains/tag.md 参照）
+4. Source Tag を delete（Target Tag 行は変更しないため version も進めない。表示件数は read-time 集計。`tags.note_count` 列は Issue #372 で撤去済み。spec/domains/tag.md 参照）
 5. Outbox `note.saved` を該当ノート分発火
 
 ### エラーケース

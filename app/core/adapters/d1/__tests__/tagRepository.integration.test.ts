@@ -48,7 +48,6 @@ async function seedTagRow(
   container: TestContainer,
   ownerId: UserId,
   name: string,
-  noteCount = 0,
 ): Promise<string> {
   const id = nextId(0x02);
   await container.db.insert(schema.tags).values({
@@ -56,7 +55,6 @@ async function seedTagRow(
     ownerId,
     name,
     nameNormalized: name.toLowerCase(),
-    noteCount,
     version: 0,
     createdAt: TZ,
     updatedAt: TZ,
@@ -214,7 +212,7 @@ describe("D1TagRepository.findByOwner — LIKE ESCAPE regression (Issue #36)", (
           query: "50%",
         }),
     );
-    expect(rows.map((t) => t.name)).toEqual(["50%-special"]);
+    expect(rows.map((e) => e.tag.name)).toEqual(["50%-special"]);
   });
 });
 
@@ -237,7 +235,6 @@ describe("D1TagRepository.findByIds — D1 bind limit regression (Issue #45)", (
           ownerId: owner,
           name: `bulk-${i}`,
           nameNormalized: `bulk-${i}`,
-          noteCount: 0,
           version: 0,
           createdAt: TZ,
           updatedAt: TZ,
@@ -274,9 +271,9 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
       async ({ tagRepository }) =>
         tagRepository.findByOwner(owner, { limit: 100, offset: 0 }),
     );
-    const tag = rows.find((t) => t.name === name);
-    if (tag === undefined) throw new Error(`tag not found: ${name}`);
-    return tag.noteCount;
+    const entry = rows.find((e) => e.tag.name === name);
+    if (entry === undefined) throw new Error(`tag not found: ${name}`);
+    return entry.noteCount;
   };
 
   it("aggregates active note links per tag (2 and 1)", async () => {
@@ -302,18 +299,6 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
     await seedTagRow(container, owner, "unused");
 
     expect(await countOf(container, owner, "unused")).toBe(0);
-  });
-
-  it("ignores the stored note_count column and returns the aggregate", async () => {
-    const container = createTestContainer();
-    const owner = await seedUser(container);
-    const dir = await seedDirectory(container, owner);
-    // Stale denormalised value of 99; the aggregate of one active link is 1.
-    const tag = await seedTagRow(container, owner, "drifted", 99);
-    const note = await seedNote(container, owner, dir);
-    await linkNoteTag(container, note, tag);
-
-    expect(await countOf(container, owner, "drifted")).toBe(1);
   });
 
   it("counts only active notes, not trashed ones", async () => {
@@ -375,7 +360,12 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
         }),
     );
     // tagZ(2) first, ties tagX/tagY by ascending id, then tagW(0) at the tail.
-    expect(desc.map((t) => t.name)).toEqual(["tagZ", "tagX", "tagY", "tagW"]);
+    expect(desc.map((e) => e.tag.name)).toEqual([
+      "tagZ",
+      "tagX",
+      "tagY",
+      "tagW",
+    ]);
     expect(desc[0].noteCount).toBe(2);
     expect(desc[desc.length - 1].noteCount).toBe(0);
 
@@ -389,7 +379,12 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
         }),
     );
     // tagW(0) at the head, then tagX/tagY(1) tie by ascending id, then tagZ(2).
-    expect(asc.map((t) => t.name)).toEqual(["tagW", "tagX", "tagY", "tagZ"]);
+    expect(asc.map((e) => e.tag.name)).toEqual([
+      "tagW",
+      "tagX",
+      "tagY",
+      "tagZ",
+    ]);
     expect(asc[0].noteCount).toBe(0);
   });
 
@@ -410,7 +405,7 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
       async ({ tagRepository }) =>
         tagRepository.findByOwner(owner, { limit: 100, offset: 0 }),
     );
-    expect(rows.map((t) => t.name)).toEqual(["shared-mine"]);
+    expect(rows.map((e) => e.tag.name)).toEqual(["shared-mine"]);
     expect(rows[0].noteCount).toBe(1);
   });
 
@@ -469,7 +464,7 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
           order: "desc",
         }),
     );
-    expect(page.map((t) => t.name)).toEqual(["tagQ"]);
+    expect(page.map((e) => e.tag.name)).toEqual(["tagQ"]);
     expect(page[0].noteCount).toBe(2);
   });
 });

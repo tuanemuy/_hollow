@@ -114,7 +114,6 @@ async function seedTag(
   container: TestContainer,
   ownerId: UserId,
   name: string,
-  noteCount = 1,
 ): Promise<string> {
   const id = nextId(0x0d);
   await container.db.insert(schema.tags).values({
@@ -122,7 +121,6 @@ async function seedTag(
     ownerId,
     name,
     nameNormalized: name,
-    noteCount,
     version: 0,
     createdAt: TZ,
     updatedAt: TZ,
@@ -323,7 +321,7 @@ describe("saveNote (integration)", () => {
     const container = getContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
-    const tagId = await seedTag(container, owner, "stale", 1);
+    const tagId = await seedTag(container, owner, "stale");
     const noteId = await seedNote(container, owner, dir, {
       contentHtml: "<p>body with #stale tag</p>",
       tagIds: [tagId],

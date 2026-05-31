@@ -36,5 +36,7 @@ export async function createTag({
     },
   );
 
-  return { tag: toTagView(tag) };
+  // A freshly created tag has no notes; the returned `noteCount` is not
+  // read by the frontend (display counts come from `listTags`).
+  return { tag: toTagView(tag, 0) };
 }

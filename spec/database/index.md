@@ -299,15 +299,13 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 | owner_id | TEXT | NOT NULL, REFERENCES users(id) ON DELETE CASCADE |
 | name | TEXT | NOT NULL |
 | name_normalized | TEXT | NOT NULL — NFKC 正規化済み小文字 |
-| note_count | INTEGER | NOT NULL DEFAULT 0 CHECK (note_count >= 0) |
 | created_at | TEXT | NOT NULL |
 | updated_at | TEXT | NOT NULL |
 
-> `note_count` は Issue #365 以降は死蔵（残置するが表示には使わない）。表示件数の真実源は read-time 集計（`note_tags` × active notes の COUNT）。詳細は spec/domains/tag.md 参照。
+> 表示件数の真実源は read-time 集計（`note_tags` × active notes の COUNT）。かつての `note_count` 列・`idx_tags_owner_note_count` 索引・`tags_note_count_nonneg` check は Issue #372 で撤去済み（#365 で死蔵化したものを除去。migration `0013_drop_tags_note_count.sql`）。詳細は spec/domains/tag.md 参照。
 
 インデックス:
 - `uniq_tags_owner_name_normalized` UNIQUE (owner_id, name_normalized)
-- `idx_tags_owner_note_count` (owner_id, note_count DESC) — Issue #365 以降は死蔵（read-time 集計に移行したため未使用）。spec/domains/tag.md 参照
 
 ### tag_blacklist
 

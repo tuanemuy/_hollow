@@ -1,6 +1,5 @@
 import { Note as NoteEntity } from "@/core/domain/note/entity";
 import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
-import { Tag } from "@/core/domain/tag/entity";
 import { TagEvents } from "@/core/domain/tag/events";
 import { TagService } from "@/core/domain/tag/service";
 import type { TagId as DomainTagId } from "@/core/domain/tag/valueObject";
@@ -61,7 +60,6 @@ export async function mergeTags({
       const sourceTagId = sourceFound.entity.id as DomainTagId;
       const targetTagId = targetFound.entity.id as DomainTagId;
       const affectedIds: NoteId[] = [];
-      let targetAdded = 0;
 
       const affectedNotes = await collectNotesWithTag(
         noteRepository,
@@ -72,7 +70,6 @@ export async function mergeTags({
         const versioned = await noteRepository.findById(note.id);
         if (!versioned) continue;
         const current = versioned.entity;
-        const hadTarget = current.tagIds.includes(targetTagId);
         const nextTags = mergeTagSets(current.tagIds, sourceTagId, targetTagId);
         const { entity: updated, eventDrafts } = NoteEntity.replaceTags(
           current,
@@ -83,19 +80,12 @@ export async function mergeTags({
         await noteRepository.save(updated, versioned.expectedVersion);
         collectEvents(eventDrafts);
         affectedIds.push(updated.id as unknown as NoteId);
-        if (!hadTarget) targetAdded += 1;
       }
 
-      // Target noteCount sync: each affected note that previously lacked
-      // target gains it; source's noteCount goes away with source's row.
-      if (targetAdded > 0) {
-        let targetEntity = targetFound.entity;
-        for (let i = 0; i < targetAdded; i++) {
-          targetEntity = Tag.incrementNoteCount(targetEntity, now);
-        }
-        await tagRepository.save(targetEntity, targetFound.expectedVersion);
-      }
-
+      // The target tag row itself is unchanged by a merge (only note-side
+      // `note_tags` are rewritten and the source row is deleted), so its
+      // version is intentionally not advanced. The displayed usage count is
+      // a read-time aggregate (see `TagRepository.findByOwner`).
       await tagRepository.delete(sourceTagId, sourceFound.expectedVersion);
       collectEvents([TagEvents.deleted(sourceTagId, now)]);
       return affectedIds;

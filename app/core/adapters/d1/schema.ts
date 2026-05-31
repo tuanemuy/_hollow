@@ -293,7 +293,6 @@ export const tags = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     nameNormalized: text("name_normalized").notNull(),
-    noteCount: integer("note_count").notNull().default(0),
     version: integer("version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -303,8 +302,6 @@ export const tags = sqliteTable(
       table.ownerId,
       table.nameNormalized,
     ),
-    index("idx_tags_owner_note_count").on(table.ownerId, desc(table.noteCount)),
-    check("tags_note_count_nonneg", sql`${table.noteCount} >= 0`),
   ],
 );
 

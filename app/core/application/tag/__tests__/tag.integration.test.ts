@@ -70,14 +70,12 @@ async function seedTag(
   id: string,
   ownerId: UserId,
   name: string,
-  noteCount = 0,
 ) {
   await container.db.insert(schema.tags).values({
     id,
     ownerId: ownerId as unknown as string,
     name,
     nameNormalized: name,
-    noteCount,
     version: 0,
     createdAt: iso(0),
     updatedAt: iso(0),

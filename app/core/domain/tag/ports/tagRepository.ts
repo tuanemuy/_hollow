@@ -19,6 +19,17 @@ export type TagListOpts = Readonly<{
 }>;
 
 /**
+ * A listed tag paired with its read-time note-usage count. `noteCount` is
+ * aggregated at query time (active `note_tags` for the owner) rather than
+ * stored on the `Tag` aggregate, so it is carried alongside the entity
+ * only on the listing path that displays it.
+ */
+export type TagWithNoteCount = Readonly<{
+  tag: Tag;
+  noteCount: number;
+}>;
+
+/**
  * `TagRepository` inherits the OCC-enforced contract
  * (`insert` / `findById` / `save` / `delete`) from
  * `TransactionalRepository<Tag>` and adds the read-only queries that
@@ -31,7 +42,15 @@ export type TagListOpts = Readonly<{
  */
 export interface TagRepository extends TransactionalRepository<Tag> {
   findByOwnerAndName(ownerId: UserId, name: TagName): Promise<Tag | null>;
-  findByOwner(ownerId: UserId, opts: TagListOpts): Promise<readonly Tag[]>;
+  /**
+   * Lists an owner's tags with the read-time note-usage count (see
+   * `TagWithNoteCount`). This is the only `find*` that returns the
+   * aggregate; the others return bare `Tag` entities.
+   */
+  findByOwner(
+    ownerId: UserId,
+    opts: TagListOpts,
+  ): Promise<readonly TagWithNoteCount[]>;
   findByIds(ids: readonly TagId[]): Promise<readonly Tag[]>;
 
   /**
