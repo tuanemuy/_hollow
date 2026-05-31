@@ -75,7 +75,6 @@ type NoteListItemDTO = {
   slug: string;
   title: string;
   excerpt: string;        // 本文先頭から生成
-  thumbnailUrl: string | null;
   tagIds: TagId[];
   tagNames: string[];
   updatedAt: Instant;

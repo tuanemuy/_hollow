@@ -86,7 +86,6 @@ export async function listNotesByOwner({
           .filter((name): name is string => name !== undefined);
         return toNoteListItem(note, {
           excerpt,
-          thumbnailUrl: null,
           tagNames,
           visibility: visById.get(note.id) ?? "private",
         });

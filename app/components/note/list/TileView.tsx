@@ -1,64 +1,43 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
+import type { DisplayedNote } from "../loaders";
+import { formatDate } from "./listSelectors";
 import { NoteCheckbox } from "./NoteCheckbox";
 import { useSelection } from "./SelectionContext";
+import { visibilityChipClass, visibilityLabel } from "./styles";
 
 type Props = {
   notes: readonly DisplayedNote[];
 };
 
-const CHIP_BASE =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill text-xs";
-
-type Visibility = OwnedNoteFilterItem["visibility"];
-
-function visibilityChipClass(v: Visibility): string {
-  if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;
-  if (v === "unlisted") return `${CHIP_BASE} bg-warning-surface text-warning`;
-  return `${CHIP_BASE} bg-surface text-ink-tertiary`;
-}
-
-function visibilityLabel(v: Visibility): string {
-  if (v === "public") return "公開";
-  if (v === "unlisted") return "限定公開";
-  return "非公開";
-}
-
 function TileBody({ note }: Readonly<{ note: DisplayedNote }>) {
   return (
-    <>
-      <div className="aspect-[16/9] bg-surface overflow-hidden">
-        {note.thumbnailUrl !== null ? (
-          <img
-            src={note.thumbnailUrl}
-            alt=""
-            className="block w-full h-full object-cover"
-          />
-        ) : (
-          <div
-            className="w-full h-full bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-surface-hover)]"
-            aria-hidden="true"
-          />
-        )}
+    <div className="px-4 py-3">
+      <div className="mb-[6px] text-md font-medium text-ink overflow-hidden text-ellipsis [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+        {note.title}
       </div>
-      <div className="px-4 py-3">
-        <div className="mb-[6px] text-md font-medium text-ink overflow-hidden text-ellipsis [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-          {note.title}
+      {note.excerpt.length > 0 ? (
+        <div className="mb-[6px] text-[13px] text-ink-secondary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+          {note.excerpt}
         </div>
-        {note.excerpt.length > 0 ? (
-          <div className="mb-[6px] text-[13px] text-ink-secondary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-            {note.excerpt}
-          </div>
+      ) : null}
+      <div className="flex items-center gap-[10px] flex-wrap text-[13px] text-ink-tertiary">
+        {note.tagNames.length > 0 ? (
+          <>
+            <span className="text-accent text-[13px] min-w-0 [overflow-wrap:anywhere]">
+              {note.tagNames.map((name) => `#${name}`).join(" ")}
+            </span>
+            <span className="text-hairline-strong">·</span>
+          </>
         ) : null}
-        <div className="flex justify-end">
-          <span className={visibilityChipClass(note.visibility)}>
-            {visibilityLabel(note.visibility)}
-          </span>
-        </div>
+        <span className={visibilityChipClass(note.visibility)}>
+          {visibilityLabel(note.visibility)}
+        </span>
+        <span className="text-hairline-strong">·</span>
+        <span>{formatDate(note.updatedAt)}</span>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -23,15 +23,14 @@ export const toNoteView = (note: Note): NoteDTO => toNoteDTO(note);
 
 /**
  * Build the listing-projection of `Note` for owner-scoped queries.
- * `excerpt` / `thumbnailUrl` / `tagNames` / `visibility` are not carried
- * by the aggregate; callers supply them from the surrounding listing
- * pipeline (tag-name join, sanitized excerpt, publication state).
+ * `excerpt` / `tagNames` / `visibility` are not carried by the aggregate;
+ * callers supply them from the surrounding listing pipeline (tag-name
+ * join, sanitized excerpt, publication state).
  */
 export function toNoteListItem(
   note: Note,
   context: Readonly<{
     excerpt: string;
-    thumbnailUrl: string | null;
     tagNames: readonly string[];
     visibility: "private" | "unlisted" | "public";
   }>,
@@ -43,7 +42,6 @@ export function toNoteListItem(
     slug: note.slug,
     title: note.title,
     excerpt: context.excerpt,
-    thumbnailUrl: context.thumbnailUrl,
     tagIds: note.tagIds.map((id) => id as unknown as TagId),
     tagNames: context.tagNames,
     updatedAt: note.updatedAt.toISOString(),

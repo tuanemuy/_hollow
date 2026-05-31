@@ -42,17 +42,12 @@ export type OwnedNotesQuery = Readonly<{
 
 /**
  * Fields shared by both filter and search modes of `OwnedNotesResult`.
- *
- * `thumbnailUrl` is always `null` on the search path today, but it lives
- * in the common shape so a future search-index extension that surfaces
- * the thumbnail can drop into place without churning consumers.
  */
 export type OwnedNoteCommon = Readonly<{
   id: string;
   ownerId: string;
   title: string;
   excerpt: string;
-  thumbnailUrl: string | null;
   tagNames: readonly string[];
   visibility: "private" | "unlisted" | "public";
 }>;
@@ -197,7 +192,6 @@ export const loadOwnedNotes = cache(
             ownerId: hit.ownerId as unknown as string,
             title: hit.title as unknown as string,
             excerpt: hit.snippet as unknown as string,
-            thumbnailUrl: null,
             tagNames: hit.tagNames,
             visibility: hit.visibility,
             directoryId: hit.directoryId as unknown as string,
@@ -282,7 +276,6 @@ export const loadOwnedNotes = cache(
           slug: n.slug,
           title: n.title,
           excerpt: n.excerpt,
-          thumbnailUrl: n.thumbnailUrl,
           tagNames: n.tagNames,
           updatedAt: n.updatedAt,
           visibility: n.visibility,
