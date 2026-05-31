@@ -1,27 +1,12 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AuthHeader } from "@/components/auth/AuthHeader";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { HOME_SEARCH } from "@/components/auth/links";
+import { redirectAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
-import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 
-const checkAlreadyAuthenticated = createServerFn({ method: "GET" })
-  .middleware([errorResponseMiddleware])
-  .handler(async () => {
-    const { getCurrentUser } = await import(
-      "@/core/presentation/authMiddleware"
-    );
-    const user = await getCurrentUser();
-    return { authenticated: user !== null };
-  });
-
 export const Route = createFileRoute("/login")({
-  beforeLoad: async () => {
-    const { authenticated } = await checkAlreadyAuthenticated();
-    if (authenticated) throw redirect({ to: "/", search: HOME_SEARCH });
-  },
+  beforeLoad: redirectAuthenticatedRoute,
   head: ({ match }) => {
     const config = match.context?.config;
     if (!config) return {};
