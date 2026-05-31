@@ -1,3 +1,4 @@
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
 import type {
@@ -18,6 +19,7 @@ export type ListNotesByOwnerInput = Readonly<{
   dateRange?: DateRange;
   visibility?: readonly PublicationVisibility[];
   referencingNoteId?: NoteId;
+  directoryId?: DirectoryId;
   page: number;
   limit: number;
   sort?: "updatedAt" | "createdAt" | "title";
@@ -49,6 +51,9 @@ export async function listNotesByOwner({
     ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
     ...(input.referencingNoteId !== undefined
       ? { referencingNoteId: input.referencingNoteId }
+      : {}),
+    ...(input.directoryId !== undefined
+      ? { directoryId: input.directoryId }
       : {}),
   };
 

@@ -52,6 +52,14 @@ export function NoteList({
   const { notes, count, kind } = data;
   const searchActive = kind === "search";
 
+  // Resolve the selected directory's display name from the already-loaded
+  // tree (no extra I/O). An id not present in the tree (e.g. just deleted)
+  // leaves this undefined; FilterBar falls back to a generic label.
+  const directoryName =
+    search.directoryId === undefined
+      ? undefined
+      : tree.find((d) => d.id === search.directoryId)?.name;
+
   const hasAnyFilter =
     (search.tagNames !== undefined && search.tagNames.length > 0) ||
     search.from !== undefined ||
@@ -84,6 +92,7 @@ export function NoteList({
         to={search.to}
         visibility={search.visibility}
         directoryId={search.directoryId}
+        {...(directoryName !== undefined ? { directoryName } : {})}
         referencingNoteId={search.referencingNoteId}
         {...(referencingNoteTitle !== undefined
           ? { referencingNoteTitle }

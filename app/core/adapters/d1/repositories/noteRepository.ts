@@ -587,6 +587,12 @@ export class D1NoteRepository implements NoteRepository {
     if (opts.dateRange?.to) {
       conditions.push(lt(notes.updatedAt, opts.dateRange.to.toISOString()));
     }
+    // Direct-equality directory filter (ADR-001): a simple `conditions`
+    // predicate, not a candidate set, so it is not subject to the empty
+    // candidate-set short-circuit. Rides `idx_notes_directory_status`.
+    if (opts.directoryId !== undefined) {
+      conditions.push(eq(notes.directoryId, opts.directoryId));
+    }
 
     // Each filter that needs a multi-row lookup contributes a candidate
     // note-id set; the intersection feeds a single `IN` predicate on
