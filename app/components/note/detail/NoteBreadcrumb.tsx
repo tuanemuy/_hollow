@@ -66,7 +66,9 @@ export function NoteBreadcrumb({
       <span className={SEP} aria-hidden="true">
         <Icon icon={ChevronRight} size={16} />
       </span>
-      <span className="text-ink-secondary">{noteTitle}</span>
+      <span aria-current="page" className="text-ink-secondary">
+        {noteTitle}
+      </span>
     </nav>
   );
 }

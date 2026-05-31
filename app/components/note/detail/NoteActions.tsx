@@ -69,6 +69,8 @@ function visibilityLabel(v: Visibility): string {
 const VISIBILITY_DOT =
   "inline-block w-[6px] h-[6px] rounded-full data-[visibility=public]:bg-status-public data-[visibility=unlisted]:bg-status-link data-[visibility=private]:bg-status-private";
 
+const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
+
 export function NoteActions({
   noteId,
   status,
@@ -123,8 +125,6 @@ export function NoteActions({
     });
   };
 
-  const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
-
   if (status === "trashed") {
     return (
       <div className={MENU}>
@@ -152,7 +152,6 @@ export function NoteActions({
           to="/notes/$noteId/publish"
           params={{ noteId: noteIdStr }}
           className={pillBtn}
-          aria-label={`公開状態: ${visibilityLabel(visibility)} — 公開設定を開く`}
         >
           <span
             className={VISIBILITY_DOT}
@@ -160,6 +159,7 @@ export function NoteActions({
             aria-hidden="true"
           />
           <Icon icon={Globe} />
+          <span className="sr-only">公開状態: </span>
           {visibilityLabel(visibility)}
           <span className="text-ink-tertiary">· 公開設定</span>
         </Link>
