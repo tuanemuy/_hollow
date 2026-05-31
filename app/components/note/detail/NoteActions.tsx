@@ -47,6 +47,30 @@ export type NoteActionsProps = Readonly<{
 
 type OpenDialog = "move" | null;
 
+function visibilityLabel(v: Visibility): string {
+  switch (v) {
+    case "public":
+      return "公開";
+    case "unlisted":
+      return "限定公開";
+    case "private":
+      return "非公開";
+  }
+}
+
+/**
+ * Status dot color driven by a `data-visibility` value-match variant rather
+ * than a conditional class string (CLAUDE.md state-style convention). The
+ * three variant utilities are kept in a single string literal so Tailwind's
+ * JIT can see them; splitting them across branches would hide the tokens.
+ * The `aria-[current=page]` precedent in `directory/styles.ts` confirms
+ * value-match variants generate correctly under Tailwind v4.
+ */
+const VISIBILITY_DOT =
+  "inline-block w-[6px] h-[6px] rounded-full data-[visibility=public]:bg-status-public data-[visibility=unlisted]:bg-status-link data-[visibility=private]:bg-status-private";
+
+const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
+
 export function NoteActions({
   noteId,
   status,
@@ -101,8 +125,6 @@ export function NoteActions({
     });
   };
 
-  const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
-
   if (status === "trashed") {
     return (
       <div className={MENU}>
@@ -131,8 +153,15 @@ export function NoteActions({
           params={{ noteId: noteIdStr }}
           className={pillBtn}
         >
+          <span
+            className={VISIBILITY_DOT}
+            data-visibility={visibility}
+            aria-hidden="true"
+          />
           <Icon icon={Globe} />
-          公開設定
+          <span className="sr-only">公開状態: </span>
+          {visibilityLabel(visibility)}
+          <span className="text-ink-tertiary">· 公開設定</span>
         </Link>
         <button
           type="button"
