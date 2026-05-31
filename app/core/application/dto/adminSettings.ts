@@ -121,6 +121,27 @@ export function toRebuildSearchIndexResultDTO(result: {
 }
 
 /**
+ * Result projection of `AdminSettings.ReencryptApiKey`.
+ * `reencrypted` is `true` only when the stored db-source ciphertext was
+ * actually rewritten under the current master key; `skipped` carries the
+ * no-op reason otherwise (mutually exclusive with `reencrypted: true`).
+ */
+export type ReencryptApiKeyResultDTO = Readonly<{
+  reencrypted: boolean;
+  skipped: "not-db" | "already-new-key" | null;
+}>;
+
+export function toReencryptApiKeyResultDTO(result: {
+  reencrypted: boolean;
+  skipped: "not-db" | "already-new-key" | null;
+}): ReencryptApiKeyResultDTO {
+  return {
+    reencrypted: result.reencrypted,
+    skipped: result.skipped,
+  };
+}
+
+/**
  * `apiKeyMasked` is materialised by the caller (usecase) so the
  * application layer can swap masking strategies without touching the
  * domain. Pass `null` when the source is `env` or no key is configured.

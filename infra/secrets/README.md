@@ -151,20 +151,72 @@ Consequences:
 ### Rotating the master key
 
 Master-key rotation is **not an instant cut-over**, because existing DB
-ciphertext was written with the current key.
+ciphertext was written with the current key. The supported flow keeps the old
+key available as a *temporary* secret (`SECRET_BOX_MASTER_KEY_PREVIOUS`) during
+the rotation window, then re-encrypts the at-rest secret under the new key via
+the admin UI, then deletes the old key.
 
-1. **Keep the old key until re-encryption finishes.** Every existing
-   `apiKeySource='db'` row must still be decryptable with the old key while you
-   migrate; you cannot drop it the moment the new key is set.
-2. **Re-encryption strategy.** The wire format reserves a leading version byte
-   (`0x01`) for exactly this kind of key / algorithm migration. Either bump to a
-   new version and migrate rows incrementally, or run a batch that decrypts each
-   `apiKeySource='db'` row with the old key and re-encrypts with the new key.
-   The batch tool itself is **out of scope for this Issue (a separate Issue
-   candidate)**.
-3. **Keep stages isolated.** Rotate each stage's key independently with its own
-   freshly generated value — do not reuse one key across staging and production
-   (see [Generating the master key](#generating-the-master-key) above).
+`SECRET_BOX_MASTER_KEY_PREVIOUS` is intentionally **not** part of the secret
+spec (`workerSecretSpecs()` / `*.enc.json`): it exists only while a rotation is
+in flight. `checkSecrets` fails on both missing and extra keys, so putting it in
+the spec would break every normal deploy. Manage it by hand with
+`wrangler secret put` / `delete` for the duration of the rotation only.
+
+The wire format keeps the same leading version byte (`0x01`) and AES-GCM
+algorithm — only the key changes. A row encrypted under the old key surfaces as
+a tag mismatch when decrypted under the new key, which is exactly the signal the
+runtime uses to fall back to the previous key.
+
+Steps (per stage — rotate staging and production independently with their own
+freshly generated keys):
+
+1. **Generate the new key** (see
+   [Generating the master key](#generating-the-master-key)).
+2. **Put the *current* key as the previous key on both workers.** The web
+   worker runs the re-encryption usecase; the consumer worker must keep
+   decrypting `apiKeySource='db'` LLM keys mid-rotation. Set
+   `SECRET_BOX_MASTER_KEY_PREVIOUS` to the *outgoing* key value on **both**:
+
+   ```sh
+   # web worker
+   wrangler secret put SECRET_BOX_MASTER_KEY_PREVIOUS --config wrangler.production.toml
+   # consumer worker (same value)
+   wrangler secret put SECRET_BOX_MASTER_KEY_PREVIOUS --config wrangler.production.toml --env consumer
+   ```
+
+   (Adjust `--config` / `--env` to match how your stage binds the consumer
+   worker; the requirement is that **both the web and consumer runtimes** see
+   `SECRET_BOX_MASTER_KEY_PREVIOUS`.)
+3. **Set `SECRET_BOX_MASTER_KEY` to the new key** via the usual path (SOPS
+   bundle, or `wrangler secret put SECRET_BOX_MASTER_KEY ...`). Order still
+   matters for the fail-fast precondition above — the new key must be a valid
+   32-byte base64 value before deploy.
+4. **Deploy.** After deploy, the web worker encrypts new writes with the new
+   key, while both workers can still decrypt old-key rows via
+   `SECRET_BOX_MASTER_KEY_PREVIOUS`. No db-source LLM feature degrades during the
+   window.
+5. **Run the re-encryption from the admin UI.** Open `/admin/jobs` →
+   **マスターキーの再暗号化** → **再暗号化を実行**. It decrypts the stored
+   `apiKeySource='db'` LLM api key under the previous key and rewrites it under
+   the new key. It is **idempotent**: a second run (or a run when nothing needs
+   migrating) reports "already on the new key" and makes no change. If an admin
+   changed the LLM config concurrently it reports a conflict — just re-run.
+6. **Delete the previous key.** Once re-encryption succeeds, the old key is no
+   longer needed. Remove the temporary secret from **both** workers so it does
+   not linger:
+
+   ```sh
+   wrangler secret delete SECRET_BOX_MASTER_KEY_PREVIOUS --config wrangler.production.toml
+   wrangler secret delete SECRET_BOX_MASTER_KEY_PREVIOUS --config wrangler.production.toml --env consumer
+   ```
+
+   **Do not skip this step** — a lingering previous key keeps the old key
+   material live indefinitely, defeating the point of rotation.
+
+Old-key retention period = **"until re-encryption completes"**. Running the
+admin re-encryption in the common case (no previous key configured) is harmless:
+the current key decrypts the row and the usecase reports a no-op. Only a genuine
+old-key row with no previous key configured surfaces an explicit error.
 
 ## Removing a secret
 

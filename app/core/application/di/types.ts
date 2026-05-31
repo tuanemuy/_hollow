@@ -178,6 +178,15 @@ export type RequestContainer = SharedDeps &
      */
     secretBox: SecretBox;
     /**
+     * Previous-master-key `SecretBox`, present only during a
+     * `SECRET_BOX_MASTER_KEY` rotation. Sourced from
+     * the temporary `SECRET_BOX_MASTER_KEY_PREVIOUS` secret; `null` in the
+     * common non-rotation case. The re-encrypt usecase and the consumer
+     * decrypt path thread it through `decryptWithFallback` so rows still
+     * encrypted under the outgoing key remain readable mid-rotation.
+     */
+    secretBoxPrevious: SecretBox | null;
+    /**
      * Provider liveness probe used by `TestLLMConnection`. Implementations
      * fold transport / 4xx / 5xx outcomes into the `LLMConnectionPingResult`
      * struct so the admin UI can render the verdict uniformly without

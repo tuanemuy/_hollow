@@ -8,6 +8,7 @@ import {
 import {
   NullSecretBox,
   SHIPPED_DEV_PLACEHOLDER_KEY,
+  selectPreviousSecretBox,
   selectSecretBox,
   WebCryptoSecretBox,
 } from "../secretBox";
@@ -171,6 +172,95 @@ describe("selectSecretBox", () => {
       { requireKey: false },
     );
     expect(box).toBeInstanceOf(WebCryptoSecretBox);
+  });
+});
+
+// A second valid base64 32-byte key, distinct from VALID_KEY, standing in
+// for the previous master key during a rotation.
+const PREVIOUS_KEY = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+
+describe("selectPreviousSecretBox", () => {
+  it("returns null when the previous key is unset", () => {
+    expect(selectPreviousSecretBox({})).toBeNull();
+  });
+
+  it("returns null when the previous key is blank / whitespace-only", () => {
+    expect(
+      selectPreviousSecretBox({ SECRET_BOX_MASTER_KEY_PREVIOUS: "" }),
+    ).toBeNull();
+    expect(
+      selectPreviousSecretBox({ SECRET_BOX_MASTER_KEY_PREVIOUS: "   " }),
+    ).toBeNull();
+  });
+
+  it("wires WebCryptoSecretBox for a valid previous key", () => {
+    const box = selectPreviousSecretBox({
+      SECRET_BOX_MASTER_KEY_PREVIOUS: PREVIOUS_KEY,
+    });
+    expect(box).toBeInstanceOf(WebCryptoSecretBox);
+  });
+
+  it("throws eagerly for a non-base64 previous key", () => {
+    try {
+      selectPreviousSecretBox({
+        SECRET_BOX_MASTER_KEY_PREVIOUS: "not-base64-!!",
+      });
+      expect.unreachable("expected selectPreviousSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
+  it("throws eagerly for a previous key that is not 32 bytes", () => {
+    try {
+      selectPreviousSecretBox({ SECRET_BOX_MASTER_KEY_PREVIOUS: "c2hvcnQ=" });
+      expect.unreachable("expected selectPreviousSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+
+  it("refuses the shipped dev placeholder as a previous key", () => {
+    try {
+      selectPreviousSecretBox({
+        SECRET_BOX_MASTER_KEY_PREVIOUS: SHIPPED_DEV_PLACEHOLDER_KEY,
+      });
+      expect.unreachable("expected selectPreviousSecretBox to throw");
+    } catch (error) {
+      expectKeyUnavailable(error);
+    }
+  });
+});
+
+describe("master key rotation round-trip", () => {
+  it("old-key ciphertext fails under the new key, decrypts under the old key, re-encrypts under the new key", async () => {
+    const previousBox = new WebCryptoSecretBox(PREVIOUS_KEY);
+    const currentBox = new WebCryptoSecretBox(VALID_KEY);
+
+    // Row encrypted under the previous (outgoing) key.
+    const oldCipher = await previousBox.encrypt("sk-secret-api-key");
+
+    // New key cannot decrypt it (tag mismatch → DecryptFailed).
+    await expect(currentBox.decrypt(oldCipher)).rejects.toSatisfy(
+      (error: unknown) => {
+        expect(isSecretBoxError(error)).toBe(true);
+        if (isSecretBoxError(error)) {
+          expect(error.code).toBe(SecretBoxErrorCode.DecryptFailed);
+        }
+        return true;
+      },
+    );
+
+    // Old key still decrypts it.
+    await expect(previousBox.decrypt(oldCipher)).resolves.toBe(
+      "sk-secret-api-key",
+    );
+
+    // Re-encrypt under the new key and confirm the new key now decrypts it.
+    const newCipher = await currentBox.encrypt("sk-secret-api-key");
+    await expect(currentBox.decrypt(newCipher)).resolves.toBe(
+      "sk-secret-api-key",
+    );
   });
 });
 

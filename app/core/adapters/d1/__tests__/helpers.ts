@@ -111,6 +111,7 @@ export function createTestContainer(): TestContainer {
     markdownConverter: new MarkdownItConverter(),
     passwordHasher: new ScryptPasswordHasher(),
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
+    secretBoxPrevious: null,
     llmConnectionTester: new HttpLLMConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
     adminSettingsEnv: {

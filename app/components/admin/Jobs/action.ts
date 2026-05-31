@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
 import {
   type RebuildSearchIndexResultDTO,
+  type ReencryptApiKeyResultDTO,
   toRebuildSearchIndexResultDTO,
+  toReencryptApiKeyResultDTO,
 } from "@/core/application/dto/adminSettings";
 import {
   type ExportJobDTO,
@@ -126,4 +128,19 @@ export const rebuildSearchIndexFn = createServerFn({ method: "POST" })
       input: { actorUserId: toUserIdDTO(actor.id) },
     });
     return toRebuildSearchIndexResultDTO(result);
+  });
+
+export const reencryptApiKeyFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware, csrfMiddleware])
+  .handler(async (): Promise<ReencryptApiKeyResultDTO> => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/adminSettings/reencryptApiKey"),
+    );
+    const result = await module.reencryptApiKey({
+      container,
+      input: { actorUserId: toUserIdDTO(actor.id) },
+    });
+    return toReencryptApiKeyResultDTO(result);
   });

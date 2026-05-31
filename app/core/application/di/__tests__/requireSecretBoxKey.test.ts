@@ -65,3 +65,27 @@ describe("REQUIRE_SECRET_BOX_KEY threading", () => {
     );
   });
 });
+
+describe("SECRET_BOX_MASTER_KEY_PREVIOUS threading (Issue #370)", () => {
+  // A valid base64 32-byte key distinct from the dev placeholder.
+  const PREVIOUS_KEY = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+
+  it("secretBoxPrevious is null when the previous key is unset", () => {
+    const config = readRequestServerConfig(baseEnv());
+    const container = createRequestContainer(config);
+    expect(container.secretBoxPrevious).toBeNull();
+  });
+
+  it("threads the previous key into the request container as a usable SecretBox", async () => {
+    const config = readRequestServerConfig(
+      baseEnv({ SECRET_BOX_MASTER_KEY_PREVIOUS: PREVIOUS_KEY }),
+    );
+    expect(config.secretBoxMasterKeyPrevious).toBe(PREVIOUS_KEY);
+    const container = createRequestContainer(config);
+    expect(container.secretBoxPrevious).not.toBeNull();
+    const box = container.secretBoxPrevious;
+    if (box === null) throw new Error("expected a previous SecretBox");
+    const cipher = await box.encrypt("rotation-payload");
+    await expect(box.decrypt(cipher)).resolves.toBe("rotation-payload");
+  });
+});
