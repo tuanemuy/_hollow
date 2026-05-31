@@ -592,12 +592,16 @@ export class D1NoteRepository implements NoteRepository {
     // id set, so this is a `notes.directory_id IN (...)` match, *not* a
     // note-id candidate set. The empty set is the "match nothing"
     // short-circuit. For the common small set we push a single `inArray`
-    // predicate (host vars = `directoryIds.length` + the surrounding few,
-    // well under the cap) so the fast single-query path
-    // (`idScope === null`) still applies. Only when the set exceeds
+    // predicate so the fast single-query path (`idScope === null`) still
+    // applies. Host-var budget: this `IN` contributes `directoryIds.length`
+    // (<= SAFE_CHUNK_SIZE = 90) and shares the statement with the other
+    // bound predicates here — owner + status + dateRange (<=2) + the
+    // visibility `NOT EXISTS` subquery (<=3) — so the worst case is ~97,
+    // still within D1's ~100 cap (`SAFE_CHUNK_SIZE` is sized to leave room
+    // for exactly this layering). Only when the set exceeds
     // `SAFE_CHUNK_SIZE` do we resolve it to a note-id candidate set so the
-    // `IN` predicate stays chunked under the D1 host-var cap — that set is
-    // a *note-id* set, fit to merge with the other candidate sets below.
+    // `IN` predicate stays chunked under the cap — that set is a *note-id*
+    // set, fit to merge with the other candidate sets below.
     let directoryNoteIds: ReadonlySet<string> | null = null;
     if (opts.directoryIds !== undefined) {
       if (opts.directoryIds.length === 0) return null;
