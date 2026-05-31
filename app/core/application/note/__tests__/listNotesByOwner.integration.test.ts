@@ -74,15 +74,19 @@ async function seedChildDirectory(
   container: Container,
   ownerId: UserId,
   parentId: string,
+  depth = 1,
 ): Promise<string> {
   const id = nextId(0x0b);
+  // Owner-unique name so siblings under the same parent don't collide on
+  // `uniq_directories_owner_parent_name`. `depth` defaults to 1 (direct
+  // child of a root); pass it explicitly when building deeper chains.
   await container.db.insert(schema.directories).values({
     id,
     ownerId,
     parentId,
-    name: "child",
+    name: `child-${id.slice(9, 13)}`,
     slug: `d-${id.slice(9, 13)}`,
-    depth: 1,
+    depth,
     version: 0,
     createdAt: TZ,
     updatedAt: TZ,
@@ -306,15 +310,23 @@ describe("listNotesByOwner — input filters (integration)", () => {
     expect(notes.map((n) => n.id as string)).toEqual([referrer]);
   });
 
-  // Issue #387 — `directoryId` must restrict the listing to notes living
-  // directly under the supplied directory (and `count` must agree).
-  it("passes `directoryId` through to the adapter — only direct-child notes returned, count matches", async () => {
+  // Issue #392 — `directoryId` restricts the listing to the selected
+  // directory's subtree (the directory itself + every descendant), so the
+  // filter path matches the search path's subtree semantics.
+  it("passes `directoryId` through to the adapter — the whole subtree (parent + child + grandchild) is returned, count matches", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const root = await seedDirectory(container, owner);
     const child = await seedChildDirectory(container, owner, root);
+    const grandchild = await seedChildDirectory(container, owner, child, 2);
     const inRoot = await seedNote(container, owner, root, "in-root");
-    await seedNote(container, owner, child, "in-child");
+    const inChild = await seedNote(container, owner, child, "in-child");
+    const inGrandchild = await seedNote(
+      container,
+      owner,
+      grandchild,
+      "in-grandchild",
+    );
 
     const { notes, count } = await listNotesByOwner({
       container,
@@ -325,18 +337,72 @@ describe("listNotesByOwner — input filters (integration)", () => {
         directoryId: root as unknown as DirectoryId,
       },
     });
-    expect(notes.map((n) => n.id as string)).toEqual([inRoot]);
+    expect(new Set(notes.map((n) => n.id as string))).toEqual(
+      new Set([inRoot, inChild, inGrandchild]),
+    );
+    expect(count).toBe(3);
+  });
+
+  // Issue #392 — a sibling subtree must NOT surface when filtering on an
+  // unrelated parent.
+  it("excludes notes that live outside the selected subtree", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const child = await seedChildDirectory(container, owner, root);
+    const sibling = await seedChildDirectory(container, owner, root);
+    const inChild = await seedNote(container, owner, child, "in-child");
+    const inSibling = await seedNote(container, owner, sibling, "in-sibling");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        directoryId: child as unknown as DirectoryId,
+      },
+    });
+    expect(notes.map((n) => n.id as string)).toEqual([inChild]);
+    expect(notes.map((n) => n.id as string)).not.toContain(inSibling);
     expect(count).toBe(1);
   });
 
-  // Issue #387 ADR-001 — direct-equality only: selecting a parent
-  // directory must NOT surface notes that live in a child directory.
-  it("does not return child-directory notes when the parent `directoryId` is supplied", async () => {
+  // Issue #392 — `directoryIds` resolves to a single `inArray` predicate
+  // on the `conditions` (single-query) path while `tagIds` resolves a
+  // candidate set; the two must intersect correctly across the subtree.
+  it("combines `directoryId` with `tagIds` — only subtree notes carrying the tag are returned", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
+    // An owner has a single root; the selected `parent` and the unrelated
+    // `sibling` both live under it so the directory filter (parent's
+    // subtree) genuinely excludes the sibling.
     const root = await seedDirectory(container, owner);
-    const child = await seedChildDirectory(container, owner, root);
-    const inChild = await seedNote(container, owner, child, "in-child");
+    const parent = await seedChildDirectory(container, owner, root);
+    const child = await seedChildDirectory(container, owner, parent, 2);
+    const sibling = await seedChildDirectory(container, owner, root);
+    const tag = await seedTag(container, owner, "a");
+    // In parent, tagged — a match.
+    const parentMatch = await seedNote(
+      container,
+      owner,
+      parent,
+      "parent-match",
+    );
+    await linkTag(container, parentMatch, tag);
+    // In child (descendant of parent), tagged — also a match (subtree).
+    const childMatch = await seedNote(container, owner, child, "child-match");
+    await linkTag(container, childMatch, tag);
+    // In parent but untagged — excluded by the tag filter.
+    await seedNote(container, owner, parent, "parent-untagged");
+    // In a sibling subtree, tagged — excluded by the directory filter.
+    const siblingTagged = await seedNote(
+      container,
+      owner,
+      sibling,
+      "sibling-tagged",
+    );
+    await linkTag(container, siblingTagged, tag);
 
     const { notes, count } = await listNotesByOwner({
       container,
@@ -344,44 +410,74 @@ describe("listNotesByOwner — input filters (integration)", () => {
         actorUserId: owner,
         page: 1,
         limit: 50,
-        directoryId: root as unknown as DirectoryId,
+        directoryId: parent as unknown as DirectoryId,
+        tagIds: [tag],
       },
     });
-    expect(notes.map((n) => n.id as string)).not.toContain(inChild);
+    expect(new Set(notes.map((n) => n.id as string))).toEqual(
+      new Set([parentMatch, childMatch]),
+    );
+    expect(count).toBe(2);
+  });
+
+  // Issue #392 ADR-002 — a non-existent `directoryId` resolves to an empty
+  // subtree, which the adapter treats as "match nothing" (silent-empty).
+  it("returns an empty listing for a non-existent directoryId", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    await seedNote(container, owner, root, "in-root");
+
+    const { notes, count } = await listNotesByOwner({
+      container,
+      input: {
+        actorUserId: owner,
+        page: 1,
+        limit: 50,
+        directoryId:
+          "0193e7d0-ffff-7000-8000-0000000000ff" as unknown as DirectoryId,
+      },
+    });
     expect(notes).toHaveLength(0);
     expect(count).toBe(0);
   });
 
-  // Issue #387 (S-002) — `directoryId` rides the `conditions`
-  // (single-query) path while `tagIds` resolves a candidate set; the two
-  // must intersect correctly.
-  it("combines `directoryId` with `tagIds` — only notes in the directory carrying the tag are returned", async () => {
+  // Issue #392 — large-subtree host-var fallback: when the resolved
+  // subtree holds more than `SAFE_CHUNK_SIZE` (90) directories, the
+  // adapter resolves the directory set to a note-id candidate set rather
+  // than emitting an over-cap `IN (directory_id...)`. The owner has one
+  // root, so build the wide subtree under a non-root `parent` (parent +
+  // 95 children = 96 directories > SAFE_CHUNK_SIZE) and keep an unrelated
+  // directory under the root to prove it stays excluded.
+  it("filters correctly when the subtree exceeds the host-var chunk size", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     const root = await seedDirectory(container, owner);
-    const child = await seedChildDirectory(container, owner, root);
-    const tag = await seedTag(container, owner, "a");
-    // In root, tagged — the only match.
-    const match = await seedNote(container, owner, root, "match");
-    await linkTag(container, match, tag);
-    // In root but untagged.
-    await seedNote(container, owner, root, "root-untagged");
-    // In child, tagged — excluded by the directory filter.
-    const childTagged = await seedNote(container, owner, child, "child-tagged");
-    await linkTag(container, childTagged, tag);
+    const parent = await seedChildDirectory(container, owner, root);
+    const CHILDREN = 95;
+    const matchIds: string[] = [];
+    matchIds.push(await seedNote(container, owner, parent, "in-parent"));
+    for (let i = 0; i < CHILDREN; i += 1) {
+      const child = await seedChildDirectory(container, owner, parent, 2);
+      matchIds.push(await seedNote(container, owner, child, `in-child-${i}`));
+    }
+    // An unrelated directory under the same root must not surface.
+    const outside = await seedChildDirectory(container, owner, root);
+    await seedNote(container, owner, outside, "outside");
 
     const { notes, count } = await listNotesByOwner({
       container,
       input: {
         actorUserId: owner,
         page: 1,
-        limit: 50,
-        directoryId: root as unknown as DirectoryId,
-        tagIds: [tag],
+        limit: 200,
+        directoryId: parent as unknown as DirectoryId,
       },
     });
-    expect(notes.map((n) => n.id as string)).toEqual([match]);
-    expect(count).toBe(1);
+    expect(new Set(notes.map((n) => n.id as string))).toEqual(
+      new Set(matchIds),
+    );
+    expect(count).toBe(matchIds.length);
   });
 });
 
@@ -590,25 +686,34 @@ describe("listNotesByOwner — count reflects filters", () => {
     expect(count).toBe(3);
   });
 
-  // Issue #387 — `directoryId` must ride the `count` query's WHERE clause,
-  // not just the items query. With more direct-child notes than the page
-  // limit, the visible slice is capped at `limit` while `count` must report
-  // the full direct-child total. This pins the runtime count>limit behaviour;
-  // the `NoteOwnerCountOpts` Pick that carries `directoryId` to the count
-  // path is guarded separately at the type level (dropping it fails
-  // typecheck in the adapter's where builder).
-  it("returns count > limit reflecting only the directory's direct children", async () => {
+  // Issue #392 — `directoryId` must ride the `count` query's WHERE clause,
+  // not just the items query, across the whole subtree. With more subtree
+  // notes than the page limit, the visible slice is capped at `limit`
+  // while `count` must report the full subtree total. This pins the
+  // runtime count>limit behaviour; the `NoteOwnerCountOpts` Pick that
+  // carries `directoryIds` to the count path is guarded separately at the
+  // type level (dropping it fails typecheck in the adapter's where
+  // builder).
+  it("returns count > limit reflecting the directory's whole subtree", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
+    // Select a non-root `parent` so a `sibling` under the same root can
+    // hold notes outside the selected subtree.
     const root = await seedDirectory(container, owner);
-    const child = await seedChildDirectory(container, owner, root);
+    const parent = await seedChildDirectory(container, owner, root);
+    const child = await seedChildDirectory(container, owner, parent, 2);
+    const sibling = await seedChildDirectory(container, owner, root);
     const LIMIT = 2;
-    const DIRECT_TOTAL = 3;
-    for (let i = 0; i < DIRECT_TOTAL; i += 1) {
-      await seedNote(container, owner, root, `root-${i}`);
+    // 3 in parent + 2 in the descendant child = 5 in the subtree.
+    const SUBTREE_TOTAL = 5;
+    for (let i = 0; i < 3; i += 1) {
+      await seedNote(container, owner, parent, `parent-${i}`);
     }
-    // Notes outside the directory must not inflate the count.
-    await seedNote(container, owner, child, "in-child");
+    for (let i = 0; i < 2; i += 1) {
+      await seedNote(container, owner, child, `child-${i}`);
+    }
+    // Notes outside the subtree must not inflate the count.
+    await seedNote(container, owner, sibling, "in-sibling");
 
     const { notes, count } = await listNotesByOwner({
       container,
@@ -616,11 +721,11 @@ describe("listNotesByOwner — count reflects filters", () => {
         actorUserId: owner,
         page: 1,
         limit: LIMIT,
-        directoryId: root as unknown as DirectoryId,
+        directoryId: parent as unknown as DirectoryId,
       },
     });
     expect(notes).toHaveLength(LIMIT);
-    expect(count).toBe(DIRECT_TOTAL);
+    expect(count).toBe(SUBTREE_TOTAL);
   });
 
   it("returns count = 0 when an empty visibility array is supplied", async () => {

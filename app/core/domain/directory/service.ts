@@ -202,6 +202,65 @@ export const DirectoryService = {
   },
 
   /**
+   * Collect `rootId` together with every descendant directory id under
+   * the owner's tree, for subtree-scoped note filtering.
+   *
+   * `findTree(ownerId)` returns the owner's directories in a single
+   * query; we build the `parentId` adjacency list in memory and walk it
+   * breadth-first from `rootId`. This avoids the per-node `findChildren`
+   * N+1 that `deleteSubtree` incurs — listing is read-hot, so the single
+   * round trip matters.
+   *
+   * When `rootId` is not part of the owner's tree (malformed or
+   * cross-owner id) the result is empty; the caller treats that as a
+   * structurally-empty listing (`.issue/392/adr.md` ADR-002). The
+   * `visited` guard is belt-and-braces against a malformed adjacency
+   * cycle — the depth cap + tree shape already preclude one.
+   */
+  async collectSubtreeIds(
+    rootId: DirectoryId,
+    ownerId: UserId,
+    repo: DirectoryRepository,
+  ): Promise<readonly DirectoryId[]> {
+    const all = await repo.findTree(ownerId);
+    const childrenByParent = new Map<string, DirectoryId[]>();
+    let rootExists = false;
+    for (const dir of all) {
+      if (dir.id === rootId) {
+        rootExists = true;
+      }
+      if (dir.parentId !== null) {
+        const siblings = childrenByParent.get(dir.parentId) ?? [];
+        siblings.push(dir.id);
+        childrenByParent.set(dir.parentId, siblings);
+      }
+    }
+    if (!rootExists) {
+      return [];
+    }
+
+    const collected: DirectoryId[] = [];
+    const visited = new Set<string>();
+    const queue: DirectoryId[] = [rootId];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (current === undefined) {
+        break;
+      }
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      collected.push(current);
+      const children = childrenByParent.get(current) ?? [];
+      for (const child of children) {
+        queue.push(child);
+      }
+    }
+    return collected;
+  },
+
+  /**
    * Delete `dir` and every descendant directory depth-first, trashing
    * each directory's active notes along the way. The caller (usecase)
    * is responsible for emitting `note.deleted` Outbox events using the

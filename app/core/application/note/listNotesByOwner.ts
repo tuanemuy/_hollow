@@ -1,3 +1,4 @@
+import { DirectoryService } from "@/core/domain/directory/service";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
@@ -40,7 +41,7 @@ export async function listNotesByOwner({
   // filter resolution, so the rendered count is structurally consistent
   // with the visible slice (Issue #30). Pagination / sort fields on
   // `opts` only affect `items`; `count` is the filtered total.
-  const opts: NoteOwnerListOpts = {
+  const baseOpts: NoteOwnerListOpts = {
     limit: input.limit,
     offset,
     ...(input.sort !== undefined ? { sort: input.sort } : {}),
@@ -52,13 +53,26 @@ export async function listNotesByOwner({
     ...(input.referencingNoteId !== undefined
       ? { referencingNoteId: input.referencingNoteId }
       : {}),
-    ...(input.directoryId !== undefined
-      ? { directoryId: input.directoryId }
-      : {}),
   };
 
   const { items, count } = await container.unitOfWorkProvider.run(
     async (ctx) => {
+      // The transport contract is a single `directoryId`; subtree
+      // expansion happens here so the filter path matches the search
+      // path's subtree semantics (`.issue/392/adr.md` ADR-001). A
+      // non-existent / cross-owner id resolves to an empty set, which the
+      // adapter treats as "match nothing" — silent-empty per ADR-002.
+      const opts: NoteOwnerListOpts =
+        input.directoryId !== undefined
+          ? {
+              ...baseOpts,
+              directoryIds: await DirectoryService.collectSubtreeIds(
+                input.directoryId,
+                input.actorUserId,
+                ctx.directoryRepository,
+              ),
+            }
+          : baseOpts;
       const { items: found, count: total } =
         await ctx.noteRepository.listWithCount(input.actorUserId, opts);
       const tagIds = new Set<string>();

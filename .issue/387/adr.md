@@ -3,7 +3,9 @@
 ## ADR-001: list 経路のディレクトリフィルタは「直下equality一致」とする
 
 ### Status
-Accepted（ユーザー確認済み 2026-05-31）
+Superseded by #392（2026-06-01）
+
+#392 でフィルタ経路もサブツリー一致に揃え、検索キーワード有無による表示集合の非対称（本 ADR の Consequences で指摘したトレードオフ）を解消した。`directoryId` の直下equality一致は `directoryIds`（解決済みサブツリー集合）の `IN (...)` 一致に置き換わっている。詳細は `.issue/392/adr.md` ADR-001 を参照。
 
 ### Context
 サイドバーのディレクトリ選択は2つの一覧経路に流れる:
