@@ -36,7 +36,7 @@ export type MoveDirectoryDialogProps = Readonly<{
 }>;
 
 /**
- * Move a directory to another parent. The destination select excludes
+ * Move a directory to another parent. The destination picker excludes
  * the moving subtree (self + descendants) so users cannot pick a cyclic
  * target — the backend `assertNotCyclicMove` is still the source of
  * truth. The hidden root is surfaced as a fixed "（ルート）" label and

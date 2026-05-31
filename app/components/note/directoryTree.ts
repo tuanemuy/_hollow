@@ -1,8 +1,8 @@
 import type { DirectoryTreeNode } from "@/core/application/directory/view";
 
 /**
- * Flat projection of a `DirectoryTreeNode` forest for depth-prefixed
- * `<select>` pickers. Carries `depth` and `path` so consumers can render
+ * Flat projection of a `DirectoryTreeNode` forest for hierarchical
+ * directory pickers. Carries `depth` and `path` so consumers can render
  * indentation / breadcrumb labels without re-walking the tree.
  *
  * SSOT for both the RSC loader (`loadDirectoryTreeFlat`) and the client

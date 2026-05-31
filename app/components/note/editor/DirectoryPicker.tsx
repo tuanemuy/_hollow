@@ -29,7 +29,7 @@ import type { FlatDirectory } from "../loaders";
  *
  * `allowExistingActions` (default `false`) is an opt-in switch that
  * surfaces "Rename" / "Delete" buttons next to the existing-directory
- * select when a real directory is selected (i.e. `directoryId !== null`).
+ * picker when a real directory is selected (i.e. `directoryId !== null`).
  * `NoteEditor` opts in; `IngestionPreviewForm` does not — physically
  * deleting an LLM-suggested directory mid-preview would break the
  * preview state contract (commit would NotFoundError, AI badges would
