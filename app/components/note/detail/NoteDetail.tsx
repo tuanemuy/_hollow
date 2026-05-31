@@ -2,6 +2,8 @@ import { notFound } from "@tanstack/react-router";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
+import { isBusinessRuleError } from "@/core/domain/error";
+import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import {
   loadAllTags,
   loadDirectoryTreeFlat,
@@ -40,7 +42,20 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
   try {
     [detail, publishState, tree, tags] = await Promise.all([
       loadNoteDetail({ actorUserId: user.id, noteId }),
-      loadPublishStateForNote({ actorUserId: user.id, noteId: noteIdStr }),
+      // Trashed notes have their publication forced private and share links
+      // revoked by `handleNoteTrashedEvent`, but `listShareLinks` still throws
+      // `NoteErrorCode.Trashed` for them. Absorb only that error into the
+      // equivalent post-trash state so the detail page renders instead of
+      // hitting the error boundary; re-throw anything else.
+      loadPublishStateForNote({
+        actorUserId: user.id,
+        noteId: noteIdStr,
+      }).catch((e): Awaited<ReturnType<typeof loadPublishStateForNote>> => {
+        if (isBusinessRuleError(e) && e.code === NoteErrorCode.Trashed) {
+          return { visibility: "private", publishedAt: null, links: [] };
+        }
+        throw e;
+      }),
       loadDirectoryTreeFlat({ actorUserId: user.id }),
       loadAllTags({ actorUserId: user.id }),
     ]);
