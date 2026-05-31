@@ -108,7 +108,7 @@ export function DirectoryTree({ tree }: DirectoryTreeProps) {
     <>
       {children.length === 0 ? (
         <p className="px-3 text-[13px] text-ink-tertiary">
-          まだディレクトリがありません。右上の + から作成できます。
+          ディレクトリがありません
         </p>
       ) : (
         <div
