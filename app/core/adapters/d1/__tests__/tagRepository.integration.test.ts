@@ -347,18 +347,23 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
     const container = createTestContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
-    // Insert order fixes tags.id ordering: tagX before tagY (both count 1).
+    // Insert order fixes tags.id ordering: tagX before tagY (both count 1),
+    // and tagW last with count 0 — it must stay in the listing (LEFT JOIN)
+    // and sort to the tail (desc) / head (asc).
     const tagX = await seedTagRow(container, owner, "tagX");
     const tagY = await seedTagRow(container, owner, "tagY");
     const tagZ = await seedTagRow(container, owner, "tagZ");
+    const tagW = await seedTagRow(container, owner, "tagW");
     const n1 = await seedNote(container, owner, dir);
     const n2 = await seedNote(container, owner, dir);
     const n3 = await seedNote(container, owner, dir);
-    // tagZ=2, tagX=1, tagY=1, (no tag with 0 here to keep ids predictable)
+    // tagZ=2, tagX=1, tagY=1, tagW=0 (unlinked).
     await linkNoteTag(container, n1, tagZ);
     await linkNoteTag(container, n2, tagZ);
     await linkNoteTag(container, n3, tagX);
     await linkNoteTag(container, n3, tagY);
+    // tagW intentionally has no note links.
+    void tagW;
 
     const desc = await container.unitOfWorkProvider.run(
       async ({ tagRepository }) =>
@@ -369,9 +374,10 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
           order: "desc",
         }),
     );
-    // tagZ(2) first, then ties tagX/tagY by ascending id.
-    expect(desc.map((t) => t.name)).toEqual(["tagZ", "tagX", "tagY"]);
+    // tagZ(2) first, ties tagX/tagY by ascending id, then tagW(0) at the tail.
+    expect(desc.map((t) => t.name)).toEqual(["tagZ", "tagX", "tagY", "tagW"]);
     expect(desc[0].noteCount).toBe(2);
+    expect(desc[desc.length - 1].noteCount).toBe(0);
 
     const asc = await container.unitOfWorkProvider.run(
       async ({ tagRepository }) =>
@@ -382,8 +388,9 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
           order: "asc",
         }),
     );
-    // tagX/tagY(1) tie by ascending id, then tagZ(2).
-    expect(asc.map((t) => t.name)).toEqual(["tagX", "tagY", "tagZ"]);
+    // tagW(0) at the head, then tagX/tagY(1) tie by ascending id, then tagZ(2).
+    expect(asc.map((t) => t.name)).toEqual(["tagW", "tagX", "tagY", "tagZ"]);
+    expect(asc[0].noteCount).toBe(0);
   });
 
   it("does not count notes/tags belonging to another owner", async () => {
@@ -405,5 +412,64 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
     );
     expect(rows.map((t) => t.name)).toEqual(["shared-mine"]);
     expect(rows[0].noteCount).toBe(1);
+  });
+
+  it("does not count a cross-owner note linked to the tag (owner-scoped JOIN)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const ownerDir = await seedDirectory(container, owner);
+    const strangerDir = await seedDirectory(container, stranger);
+    const ownerTag = await seedTagRow(container, owner, "owner-tag");
+    const ownerNote = await seedNote(container, owner, ownerDir);
+    // FK on note_tags only checks note/tag existence, not owner, so a
+    // stranger's note can be linked to this owner's tag at the row level.
+    const strangerNote = await seedNote(container, stranger, strangerDir);
+    await linkNoteTag(container, ownerNote, ownerTag);
+    await linkNoteTag(container, strangerNote, ownerTag);
+
+    // The findByOwner aggregate joins notes on `notes.owner_id = ownerId`
+    // (in addition to id/status), so the stranger's note is excluded and
+    // only the owner's own note is counted (1, not 2). Write paths never
+    // create cross-owner links, but the predicate makes the boundary explicit.
+    expect(await countOf(container, owner, "owner-tag")).toBe(1);
+  });
+
+  it("applies limit/offset to the aggregated tag rows, not pre-JOIN rows", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // Distinct counts so the desc order is deterministic: tagP=3, tagQ=2, tagR=1.
+    const tagP = await seedTagRow(container, owner, "tagP");
+    const tagQ = await seedTagRow(container, owner, "tagQ");
+    const tagR = await seedTagRow(container, owner, "tagR");
+    const notesForP = [
+      await seedNote(container, owner, dir),
+      await seedNote(container, owner, dir),
+      await seedNote(container, owner, dir),
+    ];
+    const notesForQ = [
+      await seedNote(container, owner, dir),
+      await seedNote(container, owner, dir),
+    ];
+    const noteForR = await seedNote(container, owner, dir);
+    for (const n of notesForP) await linkNoteTag(container, n, tagP);
+    for (const n of notesForQ) await linkNoteTag(container, n, tagQ);
+    await linkNoteTag(container, noteForR, tagR);
+
+    // limit:1, offset:1 over noteCount desc must return exactly the second
+    // aggregated tag (tagQ), proving limit/offset operate on GROUP BY rows,
+    // not the 6 pre-aggregation JOIN rows.
+    const page = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.findByOwner(owner, {
+          limit: 1,
+          offset: 1,
+          sort: "noteCount",
+          order: "desc",
+        }),
+    );
+    expect(page.map((t) => t.name)).toEqual(["tagQ"]);
+    expect(page[0].noteCount).toBe(2);
   });
 });

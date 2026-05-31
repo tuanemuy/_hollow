@@ -52,7 +52,7 @@
 1. Source / Target Tag 取得、所有者一致、source !== target
 2. `TagService.computeMergePlan` で書き換え計画を取得
 3. UoW: 関連ノートを取得し、各 Note の `replaceTags(tagIdsから source を除き target を含めた重複排除セット)` を呼び、save
-4. Source Tag を delete、Target Tag の noteCount を再集計
+4. Source Tag を delete、Target Tag の noteCount を increment（死蔵列 `tags.note_count` の更新。OCC version を進める目的で残置。表示件数は read-time 集計。spec/domains/tag.md 参照）
 5. Outbox `note.saved` を該当ノート分発火
 
 ### エラーケース

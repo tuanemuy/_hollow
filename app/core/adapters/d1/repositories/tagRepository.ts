@@ -135,7 +135,9 @@ export class D1TagRepository implements TagRepository {
    * The aggregate counts only `status = 'active'` notes so the displayed
    * count matches what the FilterBar tag facet returns. `COUNT(notes.id)`
    * (not `COUNT(*)`) is used so the LEFT JOIN's NULL rows for unused /
-   * all-trashed tags resolve to 0.
+   * all-trashed tags resolve to 0. The notes join is owner-scoped so the
+   * count can never include another owner's note (write paths only link a
+   * note to its own owner's tags, but the predicate makes that explicit).
    */
   findByOwner(ownerId: UserId, opts: TagListOpts): Promise<readonly Tag[]> {
     return mapDbError("Failed to list tags by owner", async () => {
@@ -179,9 +181,17 @@ export class D1TagRepository implements TagRepository {
         .leftJoin(noteTags, eq(noteTags.tagId, tags.id))
         .leftJoin(
           notes,
-          and(eq(notes.id, noteTags.noteId), eq(notes.status, "active")),
+          and(
+            eq(notes.id, noteTags.noteId),
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+          ),
         )
         .where(whereExpr)
+        // Bare-column select alongside `groupBy(tags.id)` relies on
+        // SQLite/D1 allowing functional dependence on the GROUP BY key
+        // (the PK). Porting to another DB requires grouping by every
+        // selected column or re-aggregating.
         .groupBy(tags.id)
         .orderBy(direction(sortExpr), asc(tags.id))
         .limit(opts.limit)

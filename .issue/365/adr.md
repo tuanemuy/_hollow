@@ -62,3 +62,22 @@ Proposed
 - トレードオフ: `tagRepository` 内で経路ごとに noteCount の意味が異なる（集計値 / 列値）。表示に使わない経路に限るため実害なし。spec とテストで意図を明示する。
 
 ---
+
+## ADR-004: 集計 JOIN を owner-scoped にする（notes.owner_id 制約を追加）
+
+### Status
+Proposed（レビュー round 1 の W-T002 で判明）
+
+### Context
+read-time 集計の `leftJoin(notes, ...)` 条件は当初 `notes.id = noteTags.noteId AND notes.status='active'` のみで `notes.owner_id` を制約していなかった。`note_tags` の FK は owner を見ないため、行レベルでは他 owner の note を自 owner の tag にリンクでき、その場合に件数へ混入する潜在ギャップがあった（テストで再現すると期待1に対し2が返る）。
+
+実運用では、ノート保存系の書き込み経路がノートのタグを「そのノートの owner のスコープ」で解決・作成するため、他 owner note が自 tag にリンクされることはない（構造的不変条件）。したがって現実には発火しない。
+
+### Decision
+集計の notes JOIN 条件に `eq(notes.ownerId, ownerId)` を追加し、owner-scoped にする。正当な結果（同 owner note のみ）は一切変わらず、潜在ギャップを構造的に閉じる。1行の防御的制約で「件数は必ず当該 owner の note のみ」をクエリ上で自明にする。
+
+### Consequences
+- 良い点: owner 境界がクエリで明示され、書き込み経路の不変条件が崩れても件数に他 owner note が混入しない。CLAUDE.md の「illegal states を型/制約で表現」の方針に沿う。
+- トレードオフ: なし（正当な結果は不変、コストも無視できる）。owner 分離テストを「他 owner note はカウントされない（=1）」に更新。
+
+---
