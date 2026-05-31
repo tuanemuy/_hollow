@@ -25,7 +25,7 @@ function TileBody({ note }: Readonly<{ note: DisplayedNote }>) {
       <div className="flex items-center gap-[10px] flex-wrap text-[13px] text-ink-tertiary">
         {note.tagNames.length > 0 ? (
           <>
-            <span className="text-accent text-[13px] min-w-0 break-words">
+            <span className="text-accent text-[13px] min-w-0 [overflow-wrap:anywhere]">
               {note.tagNames.map((name) => `#${name}`).join(" ")}
             </span>
             <span className="text-hairline-strong">·</span>

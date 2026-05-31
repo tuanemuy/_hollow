@@ -56,10 +56,10 @@ Accepted
 TileView はグリッドカード内の限られた幅にメタ行（タグ・公開チップ・更新日時）を収める。ListView と同じ `flex flex-wrap` を踏襲したが、タグ文字列は半角スペース連結された 1 つの `<span>` であり、長いタグ名が `flex` 子要素として幅をはみ出す余地がある（ListView は横幅が広く顕在化しにくい）。
 
 ### Decision
-タグの `<span>` に `min-w-0 break-words` を付与し、カード幅を超えるタグ名は折り返すようにした。ListView 側はレイアウト変更を最小化する方針（plan.md ステップ2の指示）に従い既存スタイルのまま据え置く。
+タグの `<span>` に `min-w-0 [overflow-wrap:anywhere]` を付与し、カード幅を超えるタグ名は折り返すようにした。当初 `break-words`（= `overflow-wrap: break-word`）を用いたが、ハイフン/スペースのない長大1トークン（`TagName` 上限の50文字まで）はブラウザによって割れず、はみ出す余地が残る（PR #393 レビュー W-002）。`overflow-wrap: anywhere` は任意位置で確実に折り返すため、`break-words` から差し替えた。ListView 側はレイアウト変更を最小化する方針（plan.md ステップ2の指示）に従い既存スタイルのまま据え置く。
 
 ### Consequences
-- 良い点: 狭いタイル幅でもタグがカードからはみ出さない。
-- トレードオフ: ListView と TileView のタグ `<span>` で `min-w-0 break-words` の有無が分かれる。グリッドの幅制約という TileView 固有の事情に対する局所対応。
+- 良い点: 狭いタイル幅で、ハイフンもスペースもない長大タグ名でもカードからはみ出さない。
+- トレードオフ: ListView と TileView のタグ `<span>` で折り返し指定の有無が分かれる。グリッドの幅制約という TileView 固有の事情に対する局所対応。
 
 ---
