@@ -10,6 +10,7 @@ import {
 import type { DirectoryId } from "@/core/application/dto/directory";
 import type { TagId } from "@/core/application/dto/tag";
 import type { Note } from "@/core/domain/note/entity";
+import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
 
 export type { BacklinkDTO, InternalLinkRefDTO, NoteDTO, NoteListItemDTO };
 
@@ -66,6 +67,19 @@ export function toBacklink(
     slug: note.slug,
     snippet: context.snippet,
   };
+}
+
+/**
+ * Plain-text excerpt of a backlink referrer body, capped at 200 chars.
+ * Returns `null` when the body sanitises to an empty string so callers
+ * can collapse it uniformly across `GetNoteDetail` / `GetBacklinks`.
+ */
+export function buildBacklinkSnippet(
+  htmlSanitizer: HtmlSanitizer,
+  note: Note,
+): string | null {
+  const text = htmlSanitizer.toPlainText(note.contentHtml).slice(0, 200);
+  return text.length > 0 ? text : null;
 }
 
 export { toInternalLinkRefDTO, toNoteDTO };

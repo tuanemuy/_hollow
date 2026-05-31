@@ -199,6 +199,42 @@ describe("getNoteDetail (integration)", () => {
     expect(bl?.snippet).toBe("referrer body excerpt");
   });
 
+  it("yields a null backlink snippet when the referrer body sanitises to empty text", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    const referrer = await seedNote(container, owner, dir, {
+      contentHtml: "<p></p>",
+    });
+    await seedInternalLink(container, referrer, noteId);
+
+    const { backlinks } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    const bl = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(bl?.snippet).toBeNull();
+  });
+
+  it("caps the backlink snippet at 200 characters for a long referrer body", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    const referrer = await seedNote(container, owner, dir, {
+      contentHtml: `<p>${"a".repeat(250)}</p>`,
+    });
+    await seedInternalLink(container, referrer, noteId);
+
+    const { backlinks } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    const bl = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(bl?.snippet?.length).toBe(200);
+  });
+
   it("throws ForbiddenError when the caller is not the note owner", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -275,5 +311,23 @@ describe("getBacklinks (integration)", () => {
     });
     const ids = backlinks.map((b) => b.noteId as string).sort();
     expect(ids).toEqual([referrer1, referrer2].sort());
+  });
+
+  it("derives each backlink snippet from the referrer body's plaintext", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir);
+    const referrer = await seedNote(container, owner, dir, {
+      contentHtml: "<p>referrer body excerpt</p>",
+    });
+    await seedInternalLink(container, referrer, target);
+
+    const { backlinks } = await getBacklinks({
+      container,
+      input: { actorUserId: owner, noteId: target },
+    });
+    const bl = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(bl?.snippet).toBe("referrer body excerpt");
   });
 });

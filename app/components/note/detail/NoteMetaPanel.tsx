@@ -71,7 +71,7 @@ export function NoteMetaPanel({
                 >
                   {bl.title}
                   {bl.snippet !== null && bl.snippet.length > 0 ? (
-                    <span className="block mt-1 text-[13px] font-normal text-ink-tertiary overflow-hidden [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+                    <span className="block mt-1 text-[13px] font-normal text-ink-tertiary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
                       {bl.snippet}
                     </span>
                   ) : null}

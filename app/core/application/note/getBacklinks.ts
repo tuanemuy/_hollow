@@ -3,7 +3,7 @@ import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import type { BacklinkDTO } from "./view";
-import { toBacklink } from "./view";
+import { buildBacklinkSnippet, toBacklink } from "./view";
 
 export type GetBacklinksInput = Readonly<{
   actorUserId: UserId;
@@ -34,14 +34,11 @@ export async function getBacklinks({
     }
     const referrers = await ctx.noteRepository.findReferrers(found.entity.id);
     return {
-      backlinks: referrers.map((referrer) => {
-        const snippet = container.htmlSanitizer
-          .toPlainText(referrer.contentHtml)
-          .slice(0, 200);
-        return toBacklink(referrer, {
-          snippet: snippet.length > 0 ? snippet : null,
-        });
-      }),
+      backlinks: referrers.map((referrer) =>
+        toBacklink(referrer, {
+          snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
+        }),
+      ),
     };
   });
 }

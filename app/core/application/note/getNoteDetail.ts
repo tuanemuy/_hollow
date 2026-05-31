@@ -4,7 +4,7 @@ import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import type { BacklinkDTO, NoteDTO } from "./view";
-import { toBacklink, toNoteView } from "./view";
+import { buildBacklinkSnippet, toBacklink, toNoteView } from "./view";
 
 export type GetNoteDetailInput = Readonly<{
   actorUserId: UserId;
@@ -56,14 +56,11 @@ export async function getNoteDetail({
       : [];
     return {
       note: toNoteView(found.entity),
-      backlinks: referrers.map((referrer) => {
-        const snippet = container.htmlSanitizer
-          .toPlainText(referrer.contentHtml)
-          .slice(0, 200);
-        return toBacklink(referrer, {
-          snippet: snippet.length > 0 ? snippet : null,
-        });
-      }),
+      backlinks: referrers.map((referrer) =>
+        toBacklink(referrer, {
+          snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
+        }),
+      ),
       directoryPath: directoryPath as string,
       directorySegments,
     };
