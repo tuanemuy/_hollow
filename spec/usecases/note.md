@@ -15,7 +15,7 @@
 1. Directory 取得・所有確認、null なら `DirectoryService.ensureRoot`
 2. `NoteService.assembleFromInputs` で sanitize + 抽出 + 解決
 3. `NoteService.generateUniqueSlug`
-4. UoW: `Note.create`、`NoteRepository.save`、関連 Tag の noteCount を `MediaService.reconcileRefs` 経由で inc
+4. UoW: `Note.create`、`NoteRepository.save`（タグ件数は読み取り時に集計するため、ここで `tags.note_count` 列を更新する処理は配線していない。表示件数の真実源は read-time 集計。spec/domains/tag.md 参照）
 5. Outbox `note.saved` を発火（Search 連携）
 
 ### エラーケース
@@ -44,7 +44,7 @@
    - `note.updateContent({ title, contentHtml: html, frontMatter, tagIds, internalLinkRefs, mediaRefs, actorUserId, requireLock, now })`（assembleFromInputs の戻り値をそのまま渡す）
    - NoteRepository.save
    - `MediaService.reconcileRefs(旧, 新)`
-   - Tag の noteCount inc/dec
+   - タグ件数は読み取り時に集計するため、`tags.note_count` 列を更新する処理は配線していない（表示件数の真実源は read-time 集計。spec/domains/tag.md 参照）
    - **NoteRevision を 1 件 insert**（Issue #158 ADR-002）— 確定した `next` Note の `title` / `contentHtml` / `frontMatter` をスナップショット。`AdminSettings.limits.maxNoteRevisionsPerNote` を超過していたら最古行を削除（同 UoW 内、ADR-004）
 4. Outbox `note.saved` 発火。payload は NoteSnapshot 型: `{ noteId, ownerId, visibility, title, plainBody, tagNames, directoryPath, frontMatterDate, updatedAt }`（plainBody は HtmlSanitizer の派生メソッドで HTML→text 変換、directoryPath は DirectoryService.computePath、tagNames は TagRepository.findByIds から取得）
 

@@ -19,7 +19,7 @@ import type {
 import type { TagId, TagName } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { tags } from "../schema";
+import { notes, noteTags, tags } from "../schema";
 import { selectInChunks } from "./_chunks";
 import { escapeLikePattern, mapDbError } from "./helpers";
 
@@ -124,14 +124,33 @@ export class D1TagRepository implements TagRepository {
     });
   }
 
+  /**
+   * Lists an owner's tags with `noteCount` computed at read time by
+   * aggregating `note_tags` against active `notes`, rather than reading
+   * the denormalised `tags.note_count` cache column (which is left
+   * unmaintained — see Issue #365 / `spec/domains/tag.md`). The
+   * `tags.note_count` column is intentionally ignored here; the
+   * `COUNT(notes.id)` aggregate is the source of truth for display.
+   *
+   * The aggregate counts only `status = 'active'` notes so the displayed
+   * count matches what the FilterBar tag facet returns. `COUNT(notes.id)`
+   * (not `COUNT(*)`) is used so the LEFT JOIN's NULL rows for unused /
+   * all-trashed tags resolve to 0. The notes join is owner-scoped so the
+   * count can never include another owner's note (write paths only link a
+   * note to its own owner's tags, but the predicate makes that explicit).
+   */
   findByOwner(ownerId: UserId, opts: TagListOpts): Promise<readonly Tag[]> {
     return mapDbError("Failed to list tags by owner", async () => {
       const sortKey = opts.sort ?? "name";
       const order = opts.order ?? "asc";
       const direction = order === "desc" ? desc : asc;
-      const sortColumn =
+
+      // Aliased so `orderBy` can reuse it instead of re-emitting the COUNT.
+      const noteCountExpr = sql<number>`COUNT(${notes.id})`.as("noteCount");
+
+      const sortExpr =
         sortKey === "noteCount"
-          ? tags.noteCount
+          ? noteCountExpr
           : sortKey === "createdAt"
             ? tags.createdAt
             : tags.nameNormalized;
@@ -146,13 +165,42 @@ export class D1TagRepository implements TagRepository {
           : eq(tags.ownerId, ownerId);
 
       const rows = await this.db
-        .select()
+        .select({
+          id: tags.id,
+          ownerId: tags.ownerId,
+          name: tags.name,
+          nameNormalized: tags.nameNormalized,
+          noteCount: noteCountExpr,
+          version: tags.version,
+          createdAt: tags.createdAt,
+          updatedAt: tags.updatedAt,
+        })
         .from(tags)
+        .leftJoin(noteTags, eq(noteTags.tagId, tags.id))
+        .leftJoin(
+          notes,
+          and(
+            eq(notes.id, noteTags.noteId),
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+          ),
+        )
         .where(whereExpr)
-        .orderBy(direction(sortColumn), asc(tags.id))
+        // Bare-column select alongside `groupBy(tags.id)` relies on
+        // SQLite/D1 allowing functional dependence on the GROUP BY key
+        // (the PK). Porting to another DB requires grouping by every
+        // selected column or re-aggregating.
+        .groupBy(tags.id)
+        .orderBy(direction(sortExpr), asc(tags.id))
         .limit(opts.limit)
         .offset(opts.offset);
-      return rows.map((row) => this.toTag(row));
+      // D1 may return the COUNT aggregate as a string rather than a
+      // number (see `ingestionJobRepository.sumByteSizeByOwnerSince`); a
+      // string would fail `Tag.reconstruct`'s `noteCount >= 0` check, so
+      // coerce before reconstructing.
+      return rows.map((row) =>
+        this.toTag({ ...row, noteCount: Number(row.noteCount) }),
+      );
     });
   }
 

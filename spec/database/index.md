@@ -303,9 +303,11 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 | created_at | TEXT | NOT NULL |
 | updated_at | TEXT | NOT NULL |
 
+> `note_count` は Issue #365 以降は死蔵（残置するが表示には使わない）。表示件数の真実源は read-time 集計（`note_tags` × active notes の COUNT）。詳細は spec/domains/tag.md 参照。
+
 インデックス:
 - `uniq_tags_owner_name_normalized` UNIQUE (owner_id, name_normalized)
-- `idx_tags_owner_note_count` (owner_id, note_count DESC)
+- `idx_tags_owner_note_count` (owner_id, note_count DESC) — Issue #365 以降は死蔵（read-time 集計に移行したため未使用）。spec/domains/tag.md 参照
 
 ### tag_blacklist
 
