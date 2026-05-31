@@ -28,7 +28,7 @@
 - 不変条件: `noteCount >= 0`
 
 > **noteCount の二層構造（Issue #365）**
-> 表示件数の真実源は read-time 集計である。タグ一覧（`tagRepository.findByOwner`）は `note_tags` × active（非 trashed）`notes` を都度 `COUNT` して件数を算出し、永続化された `tags.note_count` 列は読み取らない。
+> 表示件数の真実源は read-time 集計である。タグ一覧（`tagRepository.findByOwner`）は `note_tags` × **当該 owner の** active（非 trashed）`notes` を都度 `COUNT` して件数を算出し（集計 JOIN は `notes.owner_id` で owner-scoped。詳細は `.issue/365/adr.md` ADR-004）、永続化された `tags.note_count` 列は読み取らない。
 > エンティティの `noteCount` フィールドと `incrementNoteCount`/`decrementNoteCount`、`tags.note_count` 列は死蔵だが残置している。理由は (1) `toTagDTO` の射影が `noteCount` フィールドを使うため契約を変えると DTO・表示側まで連鎖する、(2) `mergeTags` の `incrementNoteCount` は OCC version を同時に進めるため削ると version 進行が変わる、の2点。次に読む人が「increment の配線漏れ＝バグ」と再誤認しないように明記する。方式比較の経緯は #357 を参照。
 
 ### （値オブジェクト）TagBlacklistEntry
