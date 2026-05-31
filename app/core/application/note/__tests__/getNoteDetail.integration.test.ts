@@ -58,11 +58,33 @@ async function seedDirectory(
   return id as DirectoryId;
 }
 
+async function seedChildDirectory(
+  container: TestContainer,
+  ownerId: UserId,
+  parent: { id: DirectoryId; depth: number },
+  name: string,
+): Promise<{ id: DirectoryId; depth: number }> {
+  const id = nextId(0x0b);
+  const depth = parent.depth + 1;
+  await container.db.insert(schema.directories).values({
+    id,
+    ownerId,
+    parentId: parent.id,
+    name,
+    slug: `d-${id.slice(9, 13)}`,
+    depth,
+    version: 0,
+    createdAt: TZ,
+    updatedAt: TZ,
+  });
+  return { id: id as DirectoryId, depth };
+}
+
 async function seedNote(
   container: TestContainer,
   ownerId: UserId,
   directoryId: DirectoryId,
-  opts: { status?: "active" | "trashed" } = {},
+  opts: { status?: "active" | "trashed"; contentHtml?: string } = {},
 ): Promise<NoteId> {
   const id = nextId(0x0c);
   const status = opts.status ?? "active";
@@ -72,7 +94,7 @@ async function seedNote(
     directoryId,
     slug: `n-${id.slice(9, 13)}`,
     title: "seeded",
-    contentHtml: "<p>seed</p>",
+    contentHtml: opts.contentHtml ?? "<p>seed</p>",
     frontMatterJson: "{}",
     status,
     trashedAt: status === "trashed" ? TZ : null,
@@ -121,6 +143,60 @@ describe("getNoteDetail (integration)", () => {
     expect(note.id).toBe(noteId);
     expect(backlinks.map((b) => b.noteId as string)).toContain(referrer);
     expect(typeof directoryPath).toBe("string");
+  });
+
+  it("returns directorySegments root→leaf with {id,name} for a nested directory", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const parent = await seedChildDirectory(
+      container,
+      owner,
+      { id: root, depth: 0 },
+      "parent",
+    );
+    const child = await seedChildDirectory(container, owner, parent, "child");
+    const noteId = await seedNote(container, owner, child.id);
+
+    const { directorySegments } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(directorySegments).toEqual([
+      { id: parent.id as string, name: "parent" },
+      { id: child.id as string, name: "child" },
+    ]);
+  });
+
+  it("returns an empty directorySegments array for a root-level note", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, root);
+
+    const { directorySegments } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(directorySegments).toEqual([]);
+  });
+
+  it("derives each backlink snippet from the referrer body's plaintext head", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    const referrer = await seedNote(container, owner, dir, {
+      contentHtml: "<p>referrer body excerpt</p>",
+    });
+    await seedInternalLink(container, referrer, noteId);
+
+    const { backlinks } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    const bl = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(bl?.snippet).toBe("referrer body excerpt");
   });
 
   it("throws ForbiddenError when the caller is not the note owner", async () => {

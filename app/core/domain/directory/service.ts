@@ -103,6 +103,34 @@ export const DirectoryService = {
   },
 
   /**
+   * Build the structured root→leaf path for breadcrumb rendering: each
+   * `isChild` ancestor plus `dir` itself, as `{ id, name }` pairs.
+   *
+   * Unlike `computePath` (slug string), this keeps the directory ids so
+   * presentation can link each segment. Root directories are excluded via
+   * the `isChild` guard (`parentId !== null`) rather than a name check —
+   * `DirectoryName.forRoot()` is not guaranteed to be empty. A root-level
+   * `dir` therefore yields an empty array.
+   */
+  async computeSegments(
+    dir: Directory,
+    repo: DirectoryRepository,
+  ): Promise<readonly { id: DirectoryId; name: DirectoryName }[]> {
+    if (Directory.isRoot(dir)) {
+      return [];
+    }
+    const ancestors = await repo.findAncestors(dir.id);
+    const segments: { id: DirectoryId; name: DirectoryName }[] = [];
+    for (const ancestor of ancestors) {
+      if (Directory.isChild(ancestor)) {
+        segments.push({ id: ancestor.id, name: ancestor.name });
+      }
+    }
+    segments.push({ id: dir.id, name: dir.name });
+    return segments;
+  },
+
+  /**
    * Idempotently ensure the per-owner root exists. Returns the existing
    * root or mints a fresh one via `idGen` and persists it. Called from
    * SignUp / AdminSignUp flows and from CreateDirectory when `parentId`

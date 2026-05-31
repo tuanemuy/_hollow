@@ -6,32 +6,23 @@ import { Icon } from "@/components/common/Icon";
 /**
  * Pure breadcrumb for the note detail page (P11).
  *
- * Renders "すべてのノート › <dir segments…> › <noteTitle>" from the flat
- * `directoryPath` string. Intermediate directory segments are plain text
- * because the DTO does not carry their ids; only the leaf directory is
- * linked, scoping the home list by `directoryId`.
+ * Renders "すべてのノート › <dir segments…> › <noteTitle>" from the
+ * structured `segments` list. Every directory segment carries its own id,
+ * so each is linked to the home list scoped by `directoryId`.
  *
- * When `directoryPath === "/"` (root-level note) the segment list is empty,
- * so no leaf link is rendered — passing the root directory id to the
- * `directoryId` filter is intentionally avoided (see Issue #356 ADR-002).
+ * When `segments` is empty (root-level note) no directory segment is
+ * rendered — passing the root directory id to the `directoryId` filter is
+ * intentionally avoided (see Issue #356 ADR-002).
  */
 export type NoteBreadcrumbProps = Readonly<{
-  directoryPath: string;
-  directoryId: string;
+  segments: readonly { id: string; name: string }[];
   noteTitle: string;
 }>;
 
 const SEP = "inline-flex text-hairline-strong";
 const CRUMB_LINK = "text-ink-tertiary hover:text-ink transition-colors";
 
-export function NoteBreadcrumb({
-  directoryPath,
-  directoryId,
-  noteTitle,
-}: NoteBreadcrumbProps) {
-  const segments = directoryPath.split("/").filter(Boolean);
-  const lastIndex = segments.length - 1;
-
+export function NoteBreadcrumb({ segments, noteTitle }: NoteBreadcrumbProps) {
   return (
     <nav
       aria-label="パンくず"
@@ -41,25 +32,23 @@ export function NoteBreadcrumb({
         すべてのノート
       </Link>
       {segments.map((segment, index) => {
-        const isLeaf = index === lastIndex;
-        // Cumulative path is unique even when sibling/ancestor names repeat.
-        const key = segments.slice(0, index + 1).join("/");
+        // Cumulative id path is unique even when sibling/ancestor names repeat.
+        const key = segments
+          .slice(0, index + 1)
+          .map((s) => s.id)
+          .join("/");
         return (
           <span key={key} className="flex items-center gap-1.5">
             <span className={SEP} aria-hidden="true">
               <Icon icon={ChevronRight} size={16} />
             </span>
-            {isLeaf ? (
-              <Link
-                to="/"
-                search={{ ...HOME_SEARCH, directoryId }}
-                className={CRUMB_LINK}
-              >
-                {segment}
-              </Link>
-            ) : (
-              <span>{segment}</span>
-            )}
+            <Link
+              to="/"
+              search={{ ...HOME_SEARCH, directoryId: segment.id }}
+              className={CRUMB_LINK}
+            >
+              {segment.name}
+            </Link>
           </span>
         );
       })}

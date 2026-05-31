@@ -15,6 +15,7 @@ export type GetNoteDetailOutput = Readonly<{
   note: NoteDTO;
   backlinks: readonly BacklinkDTO[];
   directoryPath: string;
+  directorySegments: readonly { id: string; name: string }[];
 }>;
 
 export async function getNoteDetail({
@@ -42,10 +43,29 @@ export async function getNoteDetail({
     const directoryPath = dir
       ? await DirectoryService.computePath(dir.entity, ctx.directoryRepository)
       : "/";
+    const directorySegments = dir
+      ? (
+          await DirectoryService.computeSegments(
+            dir.entity,
+            ctx.directoryRepository,
+          )
+        ).map((seg) => ({
+          id: seg.id as string,
+          name: seg.name as string,
+        }))
+      : [];
     return {
       note: toNoteView(found.entity),
-      backlinks: referrers.map(toBacklink),
+      backlinks: referrers.map((referrer) => {
+        const snippet = container.htmlSanitizer
+          .toPlainText(referrer.contentHtml)
+          .slice(0, 200);
+        return toBacklink(referrer, {
+          snippet: snippet.length > 0 ? snippet : null,
+        });
+      }),
       directoryPath: directoryPath as string,
+      directorySegments,
     };
   });
 }

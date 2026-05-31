@@ -33,6 +33,15 @@ export async function getBacklinks({
       );
     }
     const referrers = await ctx.noteRepository.findReferrers(found.entity.id);
-    return { backlinks: referrers.map(toBacklink) };
+    return {
+      backlinks: referrers.map((referrer) => {
+        const snippet = container.htmlSanitizer
+          .toPlainText(referrer.contentHtml)
+          .slice(0, 200);
+        return toBacklink(referrer, {
+          snippet: snippet.length > 0 ? snippet : null,
+        });
+      }),
+    };
   });
 }
