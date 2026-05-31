@@ -42,6 +42,9 @@ R2_OBJECT_BUCKET_NAME = "${R2_OBJECTS_BUCKET}"
 ADMIN_LLM_MODEL = "${ADMIN_LLM_MODEL}"
 ADMIN_LLM_PROVIDER = "${ADMIN_LLM_PROVIDER}"
 ADMIN_LLM_BASE_URL = "${ADMIN_LLM_BASE_URL}"
+# Makes `SECRET_BOX_MASTER_KEY` mandatory: DI fails fast at boot if it is
+# unset / blank / the shipped dev placeholder. See `.issue/102/adr.md`.
+REQUIRE_SECRET_BOX_KEY = "true"
 # Sender address consumed by `ResendEmailSender` when paired with the
 # `RESEND_API_KEY` secret. Must be a Resend-verified domain or sends
 # return 4xx. Only wired on the web Worker (no `[env.*.vars]` entries)
@@ -121,6 +124,9 @@ R2_OBJECT_BUCKET_NAME = "${R2_OBJECTS_BUCKET}"
 ADMIN_LLM_MODEL = "${ADMIN_LLM_MODEL}"
 ADMIN_LLM_PROVIDER = "${ADMIN_LLM_PROVIDER}"
 ADMIN_LLM_BASE_URL = "${ADMIN_LLM_BASE_URL}"
+# The consumer decrypts DB-stored LLM api keys, so it needs the same
+# fail-fast guard as the web Worker. See `.issue/102/adr.md`.
+REQUIRE_SECRET_BOX_KEY = "true"
 
 [[env.consumer.d1_databases]]
 binding = "DB"
