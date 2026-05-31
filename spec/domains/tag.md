@@ -19,13 +19,17 @@
   - `id: TagId`
   - `ownerId: UserId`
   - `name: TagName`
-  - `noteCount: number` — 派生値だが整合のため保持（イベント駆動で更新）
+  - `noteCount: number` — 派生値。エンティティ契約としては保持し `incrementNoteCount`/`decrementNoteCount` で更新するが、**表示件数の真実源ではない**（下記参照）
   - `createdAt: Instant`
   - `updatedAt: Instant`
 - 振る舞い:
   - `rename(newName: TagName, now: Instant): Tag` — ユーザー内一意は集約外で検証
   - `incrementNoteCount(): Tag` / `decrementNoteCount(): Tag` — `noteCount >= 0` を保つ
 - 不変条件: `noteCount >= 0`
+
+> **noteCount の二層構造（Issue #365）**
+> 表示件数の真実源は read-time 集計である。タグ一覧（`tagRepository.findByOwner`）は `note_tags` × active（非 trashed）`notes` を都度 `COUNT` して件数を算出し、永続化された `tags.note_count` 列は読み取らない。
+> エンティティの `noteCount` フィールドと `incrementNoteCount`/`decrementNoteCount`、`tags.note_count` 列は死蔵だが残置している。理由は (1) `toTagDTO` の射影が `noteCount` フィールドを使うため契約を変えると DTO・表示側まで連鎖する、(2) `mergeTags` の `incrementNoteCount` は OCC version を同時に進めるため削ると version 進行が変わる、の2点。次に読む人が「increment の配線漏れ＝バグ」と再誤認しないように明記する。方式比較の経緯は #357 を参照。
 
 ### （値オブジェクト）TagBlacklistEntry
 
