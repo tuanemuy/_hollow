@@ -27,6 +27,8 @@ import { getDirectoryTreeFn } from "../note/actions";
 import type { FlatDirectory } from "../note/loaders";
 import {
   discardIngestionPreviewFn,
+  type EffectiveIngestionPromptsWire,
+  getEffectiveIngestionPromptsFn,
   getIngestionJobFn,
   type IngestionJobWire,
   ownerRetryIngestionJobFn,
@@ -164,6 +166,7 @@ export function UploadDialog({ open, onClose }: Props) {
   const upload = useServerFn(uploadFileFn);
   const getJob = useServerFn(getIngestionJobFn);
   const getTree = useServerFn(getDirectoryTreeFn);
+  const getEffectivePrompts = useServerFn(getEffectiveIngestionPromptsFn);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -179,6 +182,16 @@ export function UploadDialog({ open, onClose }: Props) {
   // (single or batch) and reset when the dialog re-opens. See #228.
   const [structurePrompt, setStructurePrompt] = useState("");
   const [metadataPrompt, setMetadataPrompt] = useState("");
+
+  // The resolved per-purpose default prompts (what ingestion applies when
+  // the override is left blank). Lazily fetched the first time the user
+  // opens the custom-prompt accordion (see `onAdvancedToggle`) — most
+  // uploads never open it, so we avoid a request until it is needed.
+  // A fetch failure leaves this `null`, which simply suppresses the
+  // default hints; the upload itself is never blocked. See #358.
+  const [resolvedDefaults, setResolvedDefaults] =
+    useState<EffectiveIngestionPromptsWire | null>(null);
+  const promptsFetchedRef = useRef(false);
 
   const inputId = useId();
   const titleId = useId();
@@ -212,6 +225,8 @@ export function UploadDialog({ open, onClose }: Props) {
       setIsDragOver(false);
       setStructurePrompt("");
       setMetadataPrompt("");
+      setResolvedDefaults(null);
+      promptsFetchedRef.current = false;
       if (fileInputRef.current !== null) fileInputRef.current.value = "";
     }
     return () => {
@@ -421,6 +436,28 @@ export function UploadDialog({ open, onClose }: Props) {
     [upload, router, structurePrompt, metadataPrompt],
   );
 
+  // Lazily fetch the resolved default prompts the first time the
+  // custom-prompt accordion is opened. Fired from the `details` `onToggle`
+  // (open only). A failure is swallowed — the default hints simply stay
+  // hidden and the upload flow is unaffected (same philosophy as the
+  // directory-tree lazy load). See #358.
+  const onAdvancedToggle = useCallback(
+    (open: boolean) => {
+      if (!open || promptsFetchedRef.current) return;
+      promptsFetchedRef.current = true;
+      void (async () => {
+        try {
+          const result = await getEffectivePrompts();
+          if (!cancelledRef.current) setResolvedDefaults(result);
+        } catch {
+          // Silent: leave `resolvedDefaults` null so no default hint is
+          // shown. The user can still type an override and upload.
+        }
+      })();
+    },
+    [getEffectivePrompts],
+  );
+
   // Successful commit lands on the `committed` view (instead of an
   // immediate navigate) so the user gets an explicit success confirmation
   // and a link to the new note.
@@ -486,6 +523,8 @@ export function UploadDialog({ open, onClose }: Props) {
           metadataPrompt={metadataPrompt}
           onStructurePromptChange={setStructurePrompt}
           onMetadataPromptChange={setMetadataPrompt}
+          resolvedDefaults={resolvedDefaults}
+          onAdvancedToggle={onAdvancedToggle}
         />
       ) : null}
 
@@ -552,6 +591,8 @@ function SelectView({
   metadataPrompt,
   onStructurePromptChange,
   onMetadataPromptChange,
+  resolvedDefaults,
+  onAdvancedToggle,
 }: Readonly<{
   inputId: string;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -564,9 +605,9 @@ function SelectView({
   metadataPrompt: string;
   onStructurePromptChange: (value: string) => void;
   onMetadataPromptChange: (value: string) => void;
+  resolvedDefaults: EffectiveIngestionPromptsWire | null;
+  onAdvancedToggle: (open: boolean) => void;
 }>) {
-  const structureId = useId();
-  const metadataId = useId();
   return (
     <>
       <p className="text-sm text-ink-secondary mb-4">
@@ -601,38 +642,29 @@ function SelectView({
           onChange={(e) => onFiles(e.target.files)}
         />
       </label>
-      <details className="mt-4 rounded-md border border-hairline bg-surface-elevated">
+      <details
+        className="mt-4 rounded-md border border-hairline bg-surface-elevated"
+        onToggle={(e) => onAdvancedToggle(e.currentTarget.open)}
+      >
         <summary className="cursor-pointer select-none px-4 py-3 text-sm text-ink-secondary list-none [&::-webkit-details-marker]:hidden">
           詳細オプション（カスタムプロンプト）
         </summary>
         <div className="px-4 pb-4">
           <p className="text-xs text-ink-tertiary mb-3">
-            このアップロードだけに適用するプロンプトを指定できます。空欄の場合は通常の設定が使われます。
+            このアップロードだけに適用するプロンプトを指定できます。空欄の場合は下記の既定プロンプトが使われます。
           </p>
-          <div className={field}>
-            <label htmlFor={structureId} className={fieldLabel}>
-              構造化プロンプト
-            </label>
-            <textarea
-              id={structureId}
-              className={`${fieldControl} min-h-[96px] resize-y`}
-              maxLength={16 * 1024}
-              value={structurePrompt}
-              onChange={(e) => onStructurePromptChange(e.target.value)}
-            />
-          </div>
-          <div className={field}>
-            <label htmlFor={metadataId} className={fieldLabel}>
-              メタデータ抽出プロンプト
-            </label>
-            <textarea
-              id={metadataId}
-              className={`${fieldControl} min-h-[96px] resize-y`}
-              maxLength={16 * 1024}
-              value={metadataPrompt}
-              onChange={(e) => onMetadataPromptChange(e.target.value)}
-            />
-          </div>
+          <PromptOverrideField
+            label="構造化プロンプト"
+            value={structurePrompt}
+            onChange={onStructurePromptChange}
+            resolved={resolvedDefaults?.structure ?? null}
+          />
+          <PromptOverrideField
+            label="メタデータ抽出プロンプト"
+            value={metadataPrompt}
+            onChange={onMetadataPromptChange}
+            resolved={resolvedDefaults?.metadata ?? null}
+          />
         </div>
       </details>
       {error !== null ? (
@@ -646,6 +678,100 @@ function SelectView({
         </Link>
       </div>
     </>
+  );
+}
+
+// Canonical UI copy for the empty-resolved-default case. When the
+// resolver returns an empty string (no instance default + no user
+// override — the most common standard state), ingestion falls back to the
+// LLM provider's built-in instruction. The wording is the SSOT defined in
+// `app/core/domain/adminSettings/defaults.ts` JSDoc (Issue #218 ADR-002).
+const BUILTIN_PROMPT_FALLBACK_COPY = "LLM プロバイダの既定指示を使用";
+
+// Placeholder shows the leading slice of the resolved default so the user
+// sees "what gets used when blank" without the textarea ballooning on a
+// 16 KiB default. The full text stays available in the details below.
+const PLACEHOLDER_MAX_CHARS = 140;
+
+// Per-purpose override field: a textarea whose placeholder previews the
+// resolved default, a state badge ("既定を使用中" vs "この回だけ上書き")
+// driven by whether the user has typed anything, and a collapsible full
+// default body that also names the source layer (user override vs
+// instance default). Empty resolved text surfaces the provider-fallback
+// copy as the primary hint. See #358.
+function PromptOverrideField({
+  label,
+  value,
+  onChange,
+  resolved,
+}: Readonly<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  resolved: { text: string; isUserOverride: boolean } | null;
+}>) {
+  const fieldId = useId();
+  const isOverriding = value.trim().length > 0;
+  const defaultText = resolved?.text ?? "";
+  const hasDefaultText = defaultText.length > 0;
+  const placeholder =
+    resolved === null
+      ? undefined
+      : hasDefaultText
+        ? defaultText.length > PLACEHOLDER_MAX_CHARS
+          ? `${defaultText.slice(0, PLACEHOLDER_MAX_CHARS)}…`
+          : defaultText
+        : BUILTIN_PROMPT_FALLBACK_COPY;
+  return (
+    <div className={field}>
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={fieldId} className={fieldLabel}>
+          {label}
+        </label>
+        <span
+          className="text-[11px] rounded-pill px-2 py-[2px] bg-surface text-ink-tertiary data-[overriding]:bg-accent-surface data-[overriding]:text-accent"
+          data-overriding={isOverriding || undefined}
+        >
+          {isOverriding ? "この回だけ上書き" : "既定を使用中"}
+        </span>
+      </div>
+      <textarea
+        id={fieldId}
+        className={`${fieldControl} min-h-[96px] resize-y`}
+        maxLength={16 * 1024}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+      {resolved !== null ? (
+        <div className="text-xs text-ink-tertiary">
+          <p>
+            既定の出所:{" "}
+            <span className="text-ink-secondary">
+              {resolved.isUserOverride
+                ? "ユーザー設定で上書き中"
+                : hasDefaultText
+                  ? "インスタンス既定"
+                  : "プロバイダ組み込み"}
+            </span>
+          </p>
+          <details className="mt-1">
+            <summary className="cursor-pointer select-none text-ink-secondary list-none [&::-webkit-details-marker]:hidden">
+              既定値を表示
+            </summary>
+            {hasDefaultText ? (
+              <pre className="mt-2 whitespace-pre-wrap break-words text-ink-secondary font-mono text-mono">
+                {defaultText}
+              </pre>
+            ) : (
+              <p className="mt-2 text-ink-secondary">
+                {BUILTIN_PROMPT_FALLBACK_COPY}
+              </p>
+            )}
+          </details>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

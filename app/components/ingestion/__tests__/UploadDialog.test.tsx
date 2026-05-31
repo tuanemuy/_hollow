@@ -25,6 +25,7 @@ const getTreeMock = vi.fn();
 const regenerateMock = vi.fn();
 const ownerRetryMock = vi.fn();
 const commitMock = vi.fn();
+const getEffectivePromptsMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   // Identity dispatch via the imported references below. The module
@@ -39,6 +40,7 @@ vi.mock("@tanstack/react-start", () => ({
       [regenerateMock, regenerateMock],
       [ownerRetryMock, ownerRetryMock],
       [commitMock, commitMock],
+      [getEffectivePromptsMock, getEffectivePromptsMock],
     ],
     vi.fn(),
   ),
@@ -53,6 +55,7 @@ vi.mock("../actions", () => ({
   commitIngestionPreviewFn: commitMock,
   regenerateIngestionPreviewFn: regenerateMock,
   ownerRetryIngestionJobFn: ownerRetryMock,
+  getEffectiveIngestionPromptsFn: getEffectivePromptsMock,
 }));
 
 vi.mock("../../note/actions", () => ({
@@ -121,6 +124,7 @@ beforeEach(() => {
   regenerateMock.mockReset();
   ownerRetryMock.mockReset();
   commitMock.mockReset();
+  getEffectivePromptsMock.mockReset();
   navigateMock.mockClear();
   invalidateMock.mockClear();
   vi.useFakeTimers();
@@ -1417,5 +1421,159 @@ describe("UploadDialog state machine", () => {
     expect(document.body.textContent).toContain("2 件中 1 件をキューに追加");
     expect(document.body.textContent).toContain("1 件失敗");
     expect(document.body.textContent).toContain("b.md");
+  });
+
+  // #358: opening the advanced-options accordion lazily fetches the
+  // resolved default prompts. The `<details>` `onToggle` fires the fetch
+  // exactly once; the resolved text is surfaced as a placeholder and a
+  // collapsible full body, plus a "既定の出所" badge per purpose.
+  //
+  // The advanced-options accordion is the FIRST `<details>` in the select
+  // view; toggling its `open` property dispatches a `toggle` event that
+  // happy-dom routes to React's `onToggle`.
+  function openAdvancedOptions() {
+    const details = document.body.querySelector<HTMLDetailsElement>("details");
+    if (details === null) throw new Error("advanced-options details missing");
+    details.open = true;
+    details.dispatchEvent(new Event("toggle", { bubbles: false }));
+  }
+
+  it("lazily fetches and shows the resolved default prompts when the accordion opens", async () => {
+    getEffectivePromptsMock.mockResolvedValue({
+      structure: { text: "STRUCTURE DEFAULT TEXT", isUserOverride: false },
+      metadata: { text: "METADATA DEFAULT TEXT", isUserOverride: true },
+    });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+
+    // No fetch until the accordion is opened.
+    expect(getEffectivePromptsMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      openAdvancedOptions();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getEffectivePromptsMock).toHaveBeenCalledTimes(1);
+    // Resolved default text appears (in the placeholder + full body).
+    const textareas = Array.from(
+      document.body.querySelectorAll<HTMLTextAreaElement>("textarea"),
+    );
+    expect(textareas[0]?.placeholder).toContain("STRUCTURE DEFAULT TEXT");
+    expect(document.body.textContent).toContain("STRUCTURE DEFAULT TEXT");
+    expect(document.body.textContent).toContain("METADATA DEFAULT TEXT");
+    // Source-layer badges: structure = instance default, metadata = user.
+    expect(document.body.textContent).toContain("インスタンス既定");
+    expect(document.body.textContent).toContain("ユーザー設定で上書き中");
+
+    // Re-toggling does not re-fetch (fetched-once guard).
+    await act(async () => {
+      const details =
+        document.body.querySelector<HTMLDetailsElement>("details");
+      if (details !== null) {
+        details.open = false;
+        details.dispatchEvent(new Event("toggle", { bubbles: false }));
+        details.open = true;
+        details.dispatchEvent(new Event("toggle", { bubbles: false }));
+      }
+      await Promise.resolve();
+    });
+    expect(getEffectivePromptsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles the override state badge based on textarea content", async () => {
+    getEffectivePromptsMock.mockResolvedValue({
+      structure: { text: "STRUCTURE DEFAULT TEXT", isUserOverride: false },
+      metadata: { text: "METADATA DEFAULT TEXT", isUserOverride: false },
+    });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    await act(async () => {
+      openAdvancedOptions();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Both fields start blank → "既定を使用中".
+    const usingDefault = Array.from(
+      document.body.querySelectorAll("span"),
+    ).filter((s) => (s.textContent ?? "").includes("既定を使用中"));
+    expect(usingDefault.length).toBe(2);
+
+    // Type into the structure textarea → that field flips to override.
+    const structureTa =
+      document.body.querySelectorAll<HTMLTextAreaElement>("textarea")[0];
+    if (structureTa === undefined)
+      throw new Error("structure textarea missing");
+    act(() => {
+      const proto = Object.getPrototypeOf(structureTa) as object;
+      Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(
+        structureTa,
+        "my override",
+      );
+      structureTa.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain("この回だけ上書き");
+    expect(document.body.textContent).toContain("既定を使用中");
+  });
+
+  it("shows the provider-fallback copy when the resolved default is empty", async () => {
+    getEffectivePromptsMock.mockResolvedValue({
+      structure: { text: "", isUserOverride: false },
+      metadata: { text: "", isUserOverride: false },
+    });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    await act(async () => {
+      openAdvancedOptions();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Empty default → the fallback copy is shown (placeholder + full body).
+    expect(document.body.textContent).toContain(
+      "LLM プロバイダの既定指示を使用",
+    );
+    const structureTa =
+      document.body.querySelectorAll<HTMLTextAreaElement>("textarea")[0];
+    expect(structureTa?.placeholder).toBe("LLM プロバイダの既定指示を使用");
+  });
+
+  it("keeps the upload flow usable when the default-prompt fetch fails", async () => {
+    getEffectivePromptsMock.mockRejectedValue(new Error("boom"));
+    uploadMock.mockResolvedValue({ jobId: "job-1" });
+    getJobMock.mockResolvedValue({ job: baseJob });
+
+    act(() => {
+      root.render(<UploadDialog open={true} onClose={() => {}} />);
+    });
+    await act(async () => {
+      openAdvancedOptions();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getEffectivePromptsMock).toHaveBeenCalledTimes(1);
+    // No default hint rendered, but the upload still proceeds.
+    expect(document.body.textContent).not.toContain("既定の出所");
+
+    const file = new File(["x"], "doc.md", { type: "text/markdown" });
+    act(() => {
+      dispatchFile(findInputByAccept(), [file]);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    expect(uploadMock).toHaveBeenCalledTimes(1);
   });
 });
