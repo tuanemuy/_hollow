@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
 import { toggleRegistrationPolicySchema } from "../schema";
 
 export const toggleRegistrationPolicyFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(toggleRegistrationPolicySchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");

@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
 import { resetDesignTokensSchema, updateDesignTokensSchema } from "../schema";
 
 export const updateDesignTokensFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(updateDesignTokensSchema))
   .handler(async ({ data }) => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
@@ -23,7 +24,7 @@ export const updateDesignTokensFn = createServerFn({ method: "POST" })
   });
 
 export const resetDesignTokensFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(resetDesignTokensSchema))
   .handler(async () => {
     const { requireAdminUser } = await import("@/lib/server/currentUser");
