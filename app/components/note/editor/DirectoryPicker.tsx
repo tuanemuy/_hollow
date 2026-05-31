@@ -10,6 +10,7 @@ import {
 } from "@/components/common/styles";
 import { DeleteDirectoryDialog } from "@/components/directory/DeleteDirectoryDialog";
 import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
+import { MAX_DIRECTORY_DEPTH } from "@/core/domain/directory/valueObject";
 import type { FlatDirectory } from "../loaders";
 
 /**
@@ -156,7 +157,7 @@ export function DirectoryPicker({
         />
         {allowNestedPath ? (
           <p className="text-[11px] text-ink-tertiary">
-            「/」区切りで階層（最大10階層）を指定できます（例: 技術/AI）。
+            {`「/」区切りで階層（最大${MAX_DIRECTORY_DEPTH}階層）を指定できます（例: 技術/AI）。`}
           </p>
         ) : null}
       </div>

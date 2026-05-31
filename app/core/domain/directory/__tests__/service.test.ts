@@ -532,7 +532,37 @@ describe("DirectoryService.ensureNestedPath", () => {
       idGen,
       repo,
     );
-    // Only AI was added; 技術 was reused (case-insensitive sibling match).
+    // Only AI was added; 技術 was reused (matched the pre-seeded sibling).
+    expect(repo.rows.size).toBe(before + 1);
+    const leaf = repo.rows.get(leafId as unknown as string);
+    expect(leaf?.parentId).toBe(existing.id);
+  });
+
+  it("reuses an existing intermediate via case-insensitive sibling match", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const idGen = new FakeIdGenerator(1000);
+    const root = seedRoot(repo, OWNER_A);
+    const existing = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000e2",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("Tech"),
+      },
+      T0,
+    );
+    repo.add(existing);
+    const before = repo.rows.size;
+
+    // Request a differently-cased segment; the existing `Tech` must be reused
+    // rather than a second sibling minted (ADR-005 lower-case match).
+    const leafId = await DirectoryService.ensureNestedPath(
+      OWNER_A,
+      [DirectoryName.create("tech"), DirectoryName.create("AI")],
+      T0,
+      idGen,
+      repo,
+    );
     expect(repo.rows.size).toBe(before + 1);
     const leaf = repo.rows.get(leafId as unknown as string);
     expect(leaf?.parentId).toBe(existing.id);
