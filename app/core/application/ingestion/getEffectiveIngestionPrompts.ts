@@ -51,6 +51,11 @@ const PURPOSES = ["structure", "metadata"] as const satisfies ReadonlyArray<
  * from the actor's own override layer. No writes, no event collection —
  * the user-override repository is read inside a unit of work purely to
  * derive `isUserOverride` with the same predicate the resolver uses.
+ *
+ * `text` and `isUserOverride` come from two separate reads (the resolver's
+ * own point lookups vs the override row read here), so they are not
+ * strictly atomic — a concurrent override edit between the two reads could
+ * momentarily disagree. This is acceptable for a display-only projection.
  */
 export async function getEffectiveIngestionPrompts({
   container,

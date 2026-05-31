@@ -711,6 +711,8 @@ function PromptOverrideField({
   resolved: { text: string; isUserOverride: boolean } | null;
 }>) {
   const fieldId = useId();
+  const badgeId = useId();
+  const sourceId = useId();
   const isOverriding = value.trim().length > 0;
   const defaultText = resolved?.text ?? "";
   const hasDefaultText = defaultText.length > 0;
@@ -722,6 +724,15 @@ function PromptOverrideField({
           ? `${defaultText.slice(0, PLACEHOLDER_MAX_CHARS)}…`
           : defaultText
         : BUILTIN_PROMPT_FALLBACK_COPY;
+  // Source-layer label. `isUserOverride === true` implies non-empty resolved
+  // text — the usecase derives `isUserOverride` with the same predicate the
+  // resolver uses to adopt the override (`entry.text.length > 0`), so the
+  // "ユーザー設定で上書き中" branch never coexists with empty `defaultText`.
+  const sourceLabel = resolved?.isUserOverride
+    ? "ユーザー設定で上書き中"
+    : hasDefaultText
+      ? "インスタンス既定"
+      : "プロバイダ組み込み";
   return (
     <div className={field}>
       <div className="flex items-center justify-between gap-2">
@@ -729,6 +740,7 @@ function PromptOverrideField({
           {label}
         </label>
         <span
+          id={badgeId}
           className="text-[11px] rounded-pill px-2 py-[2px] bg-surface text-ink-tertiary data-[overriding]:bg-accent-surface data-[overriding]:text-accent"
           data-overriding={isOverriding || undefined}
         >
@@ -742,18 +754,15 @@ function PromptOverrideField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-describedby={
+          resolved === null ? badgeId : `${badgeId} ${sourceId}`
+        }
       />
       {resolved !== null ? (
-        <div className="text-xs text-ink-tertiary">
+        <div id={sourceId} className="text-xs text-ink-tertiary">
           <p>
             既定の出所:{" "}
-            <span className="text-ink-secondary">
-              {resolved.isUserOverride
-                ? "ユーザー設定で上書き中"
-                : hasDefaultText
-                  ? "インスタンス既定"
-                  : "プロバイダ組み込み"}
-            </span>
+            <span className="text-ink-secondary">{sourceLabel}</span>
           </p>
           <details className="mt-1">
             <summary className="cursor-pointer select-none text-ink-secondary list-none [&::-webkit-details-marker]:hidden">

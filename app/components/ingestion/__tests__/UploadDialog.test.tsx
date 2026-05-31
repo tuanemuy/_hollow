@@ -1519,8 +1519,20 @@ describe("UploadDialog state machine", () => {
       structureTa.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    expect(document.body.textContent).toContain("この回だけ上書き");
-    expect(document.body.textContent).toContain("既定を使用中");
+    // Assert per-field: only the structure badge flips, metadata stays put.
+    // The two badges are the spans carrying the state copy, in DOM order
+    // structure-then-metadata.
+    const badges = Array.from(
+      document.body.querySelectorAll<HTMLSpanElement>("span"),
+    ).filter((s) => {
+      const t = s.textContent ?? "";
+      return t === "この回だけ上書き" || t === "既定を使用中";
+    });
+    expect(badges.length).toBe(2);
+    expect(badges[0]?.textContent).toBe("この回だけ上書き");
+    expect(badges[0]?.getAttribute("data-overriding")).toBe("true");
+    expect(badges[1]?.textContent).toBe("既定を使用中");
+    expect(badges[1]?.getAttribute("data-overriding")).toBeNull();
   });
 
   it("shows the provider-fallback copy when the resolved default is empty", async () => {
@@ -1542,6 +1554,9 @@ describe("UploadDialog state machine", () => {
     expect(document.body.textContent).toContain(
       "LLM プロバイダの既定指示を使用",
     );
+    // ...and the source layer is named "プロバイダ組み込み" (the most common
+    // standard state: no instance default + no user override).
+    expect(document.body.textContent).toContain("プロバイダ組み込み");
     const structureTa =
       document.body.querySelectorAll<HTMLTextAreaElement>("textarea")[0];
     expect(structureTa?.placeholder).toBe("LLM プロバイダの既定指示を使用");
