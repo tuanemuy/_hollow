@@ -50,9 +50,9 @@ describe("extractSerializedError direct-recognition branch (ADR-006)", () => {
   });
 });
 
-// W-P-001: `secretBox` is a first-class SerializedError variant so a
-// SecretBoxError thrown from an admin-gated operation is handled structurally
-// instead of collapsing to `kind: "unknown"` (HTTP 500).
+// `secretBox` is a first-class SerializedError variant so a SecretBoxError
+// thrown from an admin-gated operation is handled structurally instead of
+// collapsing to `kind: "unknown"` (HTTP 500).
 describe("secretBox SerializedError variant (W-P-001)", () => {
   const serialized: SerializedError = {
     kind: "secretBox",

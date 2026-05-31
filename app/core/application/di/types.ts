@@ -179,7 +179,7 @@ export type RequestContainer = SharedDeps &
     secretBox: SecretBox;
     /**
      * Previous-master-key `SecretBox`, present only during a
-     * `SECRET_BOX_MASTER_KEY` rotation (Issue #370 ADR-004). Sourced from
+     * `SECRET_BOX_MASTER_KEY` rotation. Sourced from
      * the temporary `SECRET_BOX_MASTER_KEY_PREVIOUS` secret; `null` in the
      * common non-rotation case. The re-encrypt usecase and the consumer
      * decrypt path thread it through `decryptWithFallback` so rows still

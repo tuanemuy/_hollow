@@ -277,9 +277,9 @@ describe("renderErrorMessage identity business mapping", () => {
   });
 });
 
-// W-P-001: SecretBox failures reach the UI only through admin-gated
-// operations. Every `SecretBoxErrorCode` value must render a recovery-oriented
-// Japanese message and must never echo the raw (env-var-bearing) message.
+// SecretBox failures reach the UI only through admin-gated operations.
+// Every `SecretBoxErrorCode` value must render a recovery-oriented Japanese
+// message and must never echo the raw (env-var-bearing) message.
 describe("renderErrorMessage secretBox mapping", () => {
   it("maps KeyUnavailable to a message naming the previous-key recovery path", () => {
     const message = renderErrorMessage({

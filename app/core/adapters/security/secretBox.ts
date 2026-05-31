@@ -286,11 +286,10 @@ export function selectSecretBox(
  * Select the previous-master-key `SecretBox` for a master-key rotation.
  *
  * `SECRET_BOX_MASTER_KEY_PREVIOUS` is a *temporary* secret present only
- * during a rotation window (see `.issue/370/adr.md` ADR-003): the
- * operator puts the outgoing key here so rows still encrypted under it
- * can be decrypted (consumer fallback) and re-encrypted under the new
- * master key (admin re-encrypt usecase). Once re-encryption completes
- * the secret is deleted.
+ * during a rotation window: the operator puts the outgoing key here so
+ * rows still encrypted under it can be decrypted (consumer fallback) and
+ * re-encrypted under the new master key (admin re-encrypt usecase). Once
+ * re-encryption completes the secret is deleted.
  *
  * - unset / blank → `null` (the common, non-rotation case). Unlike
  *   `selectSecretBox` there is no `requireKey` axis: the previous key is

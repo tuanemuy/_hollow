@@ -38,14 +38,13 @@ export type ReencryptApiKeyOutput = Readonly<{
 
 /**
  * Re-encrypt the at-rest LLM api key under the current master key as the
- * final step of a `SECRET_BOX_MASTER_KEY` rotation (Issue #370).
+ * final step of a `SECRET_BOX_MASTER_KEY` rotation.
  *
  * The only at-rest secret today is the singleton
  * `instance_settings.llm_api_key_ciphertext` when `apiKeySource === 'db'`
- * (see plan scope: a generic encrypted-row registry is YAGNI). The wire
- * format and AES-GCM algorithm are unchanged — only the key differs — so
- * "which key encrypted this row" is decided by tag verification rather
- * than stored metadata (ADR-001).
+ * (a generic encrypted-row registry is YAGNI). The wire format and AES-GCM
+ * algorithm are unchanged — only the key differs — so "which key encrypted
+ * this row" is decided by tag verification rather than stored metadata.
  *
  * Two structural constraints shape the control flow:
  *

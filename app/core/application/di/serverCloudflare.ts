@@ -122,7 +122,7 @@ export type RequestServerConfig = AppConfig &
     // master key during a rotation window. Present only while a rotation
     // is in flight; the DI layer constructs a `SecretBox | null` from it
     // so `decryptWithFallback` can read rows still encrypted under the old
-    // key. Unset in the common case. See `.issue/370/adr.md` ADR-003/004.
+    // key. Unset in the common case.
     secretBoxMasterKeyPrevious?: string;
     // Resolved from the `REQUIRE_SECRET_BOX_KEY` var. When `true`,
     // `selectSecretBox` fails fast at container build if the master key
@@ -209,7 +209,7 @@ export type ServerEnv = Readonly<{
   // Optional base64-encoded 32-byte master key for `WebCryptoSecretBox`.
   // Absent → DI falls back to `NullSecretBox` (operation-time fail).
   SECRET_BOX_MASTER_KEY?: string;
-  // Optional outgoing master key during a rotation window (Issue #370).
+  // Optional outgoing master key during a rotation window.
   // Temporary secret — absent in the common case, put manually via
   // `wrangler secret put` on both the web and consumer workers while a
   // rotation is in flight, then deleted once re-encryption completes.
@@ -823,7 +823,7 @@ type ResolvedConsumerLlmConfig = Readonly<{
  *      `decryptWithFallback(secretBox, secretBoxPrevious, cipher)`. During a
  *      master-key rotation the previous key decrypts rows not yet
  *      re-encrypted, so the consumer keeps working instead of degrading to
- *      Stub (Issue #370 ADR-004).
+ *      Stub.
  *    - decrypt failure (`SecretBoxError`, e.g. `NullSecretBox` raises
  *      `KeyUnavailable`; wrong master key with no previous key raises
  *      `DecryptFailed`) → return `null` and warn-log so the consumer

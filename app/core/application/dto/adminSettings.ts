@@ -121,7 +121,7 @@ export function toRebuildSearchIndexResultDTO(result: {
 }
 
 /**
- * Result projection of `AdminSettings.ReencryptApiKey` (Issue #370).
+ * Result projection of `AdminSettings.ReencryptApiKey`.
  * `reencrypted` is `true` only when the stored db-source ciphertext was
  * actually rewritten under the current master key; `skipped` carries the
  * no-op reason otherwise (mutually exclusive with `reencrypted: true`).

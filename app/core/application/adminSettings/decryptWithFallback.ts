@@ -6,8 +6,7 @@ import {
 
 /**
  * Decrypt a ciphertext under the current master key, falling back to the
- * previous master key during a key rotation (see `.issue/370/adr.md`
- * ADR-001 / ADR-004).
+ * previous master key during a key rotation.
  *
  * Rotation strategy keeps the AES-GCM wire format unchanged (version byte
  * `0x01`); the only thing that changes is the key. A row encrypted under
