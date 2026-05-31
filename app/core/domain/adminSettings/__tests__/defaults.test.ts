@@ -18,9 +18,14 @@ function normalizeWhitespace(value: string): string {
  * `key -> normalised value` map. Declarations are split on `;` and each
  * declaration is split on the *first* `:` only (`indexOf`) so values that
  * contain colons / commas (e.g. `clamp(...)`, `rgba(...)`) survive intact.
+ *
+ * Only the *first* `:root` block is matched (`[^}]*` stops at the first `}`):
+ * `tokens.css`'s `:root` has no nested braces, and a greedy `[\s\S]*` would
+ * swallow trailing `}` if a second `:root` (e.g. `[data-theme="dark"]`) or an
+ * `@media` block were added later, silently breaking this consistency check.
  */
 function parseTokensCss(css: string): Record<string, string> {
-  const rootMatch = css.match(/:root\s*\{([\s\S]*)\}/);
+  const rootMatch = css.match(/:root\s*\{([^}]*)\}/);
   if (rootMatch === null) {
     throw new Error("could not locate :root block in tokens.css");
   }
@@ -40,6 +45,52 @@ function parseTokensCss(css: string): Record<string, string> {
   }
   return out;
 }
+
+describe("parseTokensCss", () => {
+  it("parses multi-line declarations and values with commas/colons", () => {
+    const css = `
+      /* Color: brand */
+      :root {
+        --font-sans:
+          "Helvetica Neue", Arial,
+          sans-serif;
+        --space: clamp(1rem, 2vw, 2rem);
+        --color-hairline: rgba(60, 60, 67, 0.12);
+        --not-a-token: ignored;
+      }
+    `;
+    expect(parseTokensCss(css)).toEqual({
+      "--font-sans": '"Helvetica Neue", Arial, sans-serif',
+      "--space": "clamp(1rem, 2vw, 2rem)",
+      "--color-hairline": "rgba(60, 60, 67, 0.12)",
+      "--not-a-token": "ignored",
+    });
+  });
+
+  it("ignores colons inside comments", () => {
+    const css = `:root {
+      /* Color: brand accent */
+      --color-accent: #abc;
+    }`;
+    expect(parseTokensCss(css)).toEqual({ "--color-accent": "#abc" });
+  });
+
+  it("stops at the first :root block", () => {
+    const css = `:root {
+      --color-accent: #fff;
+    }
+    [data-theme="dark"] {
+      --color-accent: #000;
+    }`;
+    expect(parseTokensCss(css)).toEqual({ "--color-accent": "#fff" });
+  });
+
+  it("throws when no :root block is present", () => {
+    expect(() => parseTokensCss(".foo { color: red; }")).toThrow(
+      /could not locate :root block/,
+    );
+  });
+});
 
 describe("BUILTIN_DESIGN_TOKENS", () => {
   const cssTokens = parseTokensCss(readFileSync(TOKENS_CSS_PATH, "utf8"));

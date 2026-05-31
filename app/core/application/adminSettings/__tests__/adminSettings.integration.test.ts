@@ -6,6 +6,7 @@ import type {
   UsageMetricsProvider,
   UsageMetricsSnapshot,
 } from "@/core/application/ports/usageMetricsProvider";
+import { BUILTIN_DESIGN_TOKENS } from "@/core/domain/adminSettings/defaults";
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import { AdminSettingsErrorCode } from "@/core/domain/adminSettings/errorCode";
 import type {
@@ -1351,6 +1352,59 @@ describe("updateDesignTokens / resetDesignTokens", () => {
     expect(stored.tokens["--color-primary"]).toBe("#abc");
   });
 
+  it("removes an existing override when the key is re-sent at its default value (Issue #397)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    const defaultValue = BUILTIN_DESIGN_TOKENS["--color-accent"];
+    expect(defaultValue).toBeDefined();
+
+    // (1) Persist a deviation from the built-in default.
+    await updateDesignTokens({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        tokens: {
+          "--color-accent": "#deviated",
+          "--color-bg": "#000000",
+        },
+      },
+    });
+    const afterOverride = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    const stored1 = JSON.parse(
+      afterOverride[0]?.designTokensJson ?? '{"tokens":{}}',
+    ) as { tokens: Record<string, string> };
+    expect(stored1.tokens["--color-accent"]).toBe("#deviated");
+
+    // (2) Re-send the same key at its built-in default value.
+    await updateDesignTokens({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        tokens: {
+          "--color-accent": defaultValue as string,
+          "--color-bg": "#000000",
+        },
+      },
+    });
+
+    // (3) The override is gone; only the still-deviating key remains.
+    const afterReset = await container.db
+      .select()
+      .from(schema.instanceSettings);
+    const stored2 = JSON.parse(
+      afterReset[0]?.designTokensJson ?? '{"tokens":{}}',
+    ) as { tokens: Record<string, string> };
+    expect(stored2.tokens["--color-accent"]).toBeUndefined();
+    expect(stored2.tokens["--color-bg"]).toBe("#000000");
+  });
+
   it("getInstanceSettings surfaces built-in defaults and override flags (Issue #397)", async () => {
     await seedUser({
       id: ADMIN_ID,
@@ -1373,6 +1427,19 @@ describe("updateDesignTokens / resetDesignTokens", () => {
     expect(before.settings.designTokenDefaults["--color-accent"]).toBe(
       "oklch(37.1% 0 0)",
     );
+
+    // Every curated default key/value surfaces, and with no overrides the DTO
+    // contains exactly the curated set (no extra keys).
+    const builtinKeys = Object.keys(BUILTIN_DESIGN_TOKENS);
+    expect(Object.keys(before.settings.designTokens).sort()).toEqual(
+      [...builtinKeys].sort(),
+    );
+    for (const [key, value] of Object.entries(BUILTIN_DESIGN_TOKENS)) {
+      expect(before.settings.designTokens[key]).toEqual({
+        value,
+        isOverridden: false,
+      });
+    }
 
     await updateDesignTokens({
       container,

@@ -136,6 +136,17 @@ export function DesignTokensForm({
       setResetError(null);
       try {
         await resetTokens({ data: {} });
+        // RSC client state is not re-initialized by routerInvalidate (the
+        // component does not remount, so the useState initializer never
+        // re-runs). Rebuild entries to the default-only state explicitly,
+        // matching how onRowReset updates form state after a mutation.
+        setEntries(
+          Object.entries(designTokenDefaults).map(([key, value]) => ({
+            key,
+            value,
+            defaultValue: value,
+          })),
+        );
         await routerInvalidate(router);
         setConfirmOpen(false);
       } catch (caught) {
@@ -253,7 +264,6 @@ export function DesignTokensForm({
                       type="text"
                       className={`${INPUT_CLASS} flex-1 font-mono text-xs h-8 px-[10px] py-[6px]`}
                       value={entry.value}
-                      data-overridden={overridden || undefined}
                       onChange={(event) =>
                         onRowChange(index, { value: event.target.value })
                       }
