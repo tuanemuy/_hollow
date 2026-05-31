@@ -70,7 +70,6 @@ export async function listNotesInDirectory({
         .filter((name): name is string => name !== undefined);
       return toNoteListItem(note, {
         excerpt,
-        thumbnailUrl: null,
         tagNames,
         visibility: "private",
       });

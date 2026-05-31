@@ -2,9 +2,9 @@
  * Pure logic for the home / note-list page.
  *
  * Everything in this module is React-agnostic so it can be tested in
- * isolation with vitest. The selection reducer, day grouping and
- * URL <-> ViewQuery translators all live here; the React components
- * import the functions but never the other way round.
+ * isolation with vitest. The selection reducer, day grouping, date
+ * formatting and URL <-> ViewQuery translators all live here; the React
+ * components import the functions but never the other way round.
  */
 
 import type { SavedViewDTO, ViewQueryDTO } from "@/core/application/dto/view";
@@ -12,6 +12,20 @@ import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
 
 export type NoteId = string;
+
+/**
+ * Format an ISO timestamp into a localized `ja-JP` date label for the
+ * note-list views. Falls back to the raw string for unparsable input.
+ */
+export function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 /**
  * `useSearch({ select })` helper for the home route.

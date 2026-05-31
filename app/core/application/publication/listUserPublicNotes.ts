@@ -85,7 +85,6 @@ export async function listUserPublicNotes({
           .filter((name): name is string => name !== undefined);
         return toNoteListItem(note, {
           excerpt,
-          thumbnailUrl: null,
           tagNames,
           visibility: "public",
         });

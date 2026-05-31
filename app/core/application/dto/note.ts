@@ -49,7 +49,6 @@ export type NoteListItemDTO = Readonly<{
   slug: string;
   title: string;
   excerpt: string;
-  thumbnailUrl: string | null;
   tagIds: readonly TagId[];
   tagNames: readonly string[];
   updatedAt: Instant;

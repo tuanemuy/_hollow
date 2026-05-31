@@ -1,40 +1,15 @@
 "use client";
 
 import { Link } from "@tanstack/react-router";
-import type { DisplayedNote, OwnedNoteFilterItem } from "../loaders";
+import type { DisplayedNote } from "../loaders";
+import { formatDate } from "./listSelectors";
 import { NoteCheckbox } from "./NoteCheckbox";
 import { useSelection } from "./SelectionContext";
+import { visibilityChipClass, visibilityLabel } from "./styles";
 
 type Props = Readonly<{
   notes: readonly DisplayedNote[];
 }>;
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("ja-JP", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-const CHIP_BASE =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill text-xs";
-
-type Visibility = OwnedNoteFilterItem["visibility"];
-
-function visibilityChipClass(v: Visibility): string {
-  if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;
-  if (v === "unlisted") return `${CHIP_BASE} bg-warning-surface text-warning`;
-  return `${CHIP_BASE} bg-surface text-ink-tertiary`;
-}
-
-function visibilityLabel(v: Visibility): string {
-  if (v === "public") return "公開";
-  if (v === "unlisted") return "限定公開";
-  return "非公開";
-}
 
 /**
  * Shared row renderer. Since Issue #48 both filter and search rows
@@ -57,7 +32,7 @@ function NoteListRow({
       key={note.id}
       data-selected={checked || undefined}
       data-mode={mode || undefined}
-      className="grid grid-cols-[1fr_auto] data-[mode]:grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 border-t border-hairline transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface max-sm:px-2 max-sm:py-4 max-sm:gap-3"
+      className="grid grid-cols-[1fr_auto] data-[mode]:grid-cols-[auto_1fr_auto] items-start gap-4 px-3 py-5 transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface max-sm:px-2 max-sm:py-4 max-sm:gap-3"
     >
       {mode ? (
         <div className="self-start pt-1">
@@ -99,8 +74,6 @@ function NoteListRow({
           <span className={visibilityChipClass(note.visibility)}>
             {visibilityLabel(note.visibility)}
           </span>
-          <span className="text-hairline-strong">·</span>
-          <span>{updatedAtDisplay}</span>
         </div>
       </div>
       <div className="text-[13px] text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
@@ -112,7 +85,7 @@ function NoteListRow({
 
 export function ListView({ notes }: Props) {
   return (
-    <ul className="mt-2 list-none p-0 m-0">
+    <ul className="mt-2 list-none p-0 m-0 divide-y divide-hairline">
       {notes.map((note) => (
         <NoteListRow key={note.id} note={note} />
       ))}
