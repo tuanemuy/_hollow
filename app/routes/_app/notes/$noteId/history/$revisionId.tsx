@@ -69,12 +69,6 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/$revisionId")(
         <pre>{sanitizeRouteError(error)}</pre>
       </div>
     ),
-    notFoundComponent: () => (
-      <div role="alert">
-        <h1>過去版が見つかりません</h1>
-        <p>削除されているか、アクセス権限がありません。</p>
-      </div>
-    ),
   },
 );
 
