@@ -17,6 +17,8 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { chip } from "@/components/common/styles";
+import type { FlatDirectory } from "@/components/note/directoryTree";
+import { ViewFormDialog } from "@/components/view/ViewFormDialog";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -26,17 +28,22 @@ import {
 import { SAVED_VIEW_NAME_MAX } from "../schema";
 import {
   deleteSavedViewFn,
+  duplicateSavedViewFn,
   renameSavedViewFn,
+  repairSavedViewFn,
   setDefaultSavedViewFn,
+  updateSavedViewFn,
 } from "./action";
 import {
   brokenBanner,
   brokenBody,
+  brokenCode,
   brokenDetail,
   brokenTitle,
   chipBroken,
   defaultMark,
   emptyState,
+  fixBtn,
   publicMark,
   renameInput,
   rowActions,
@@ -53,7 +60,22 @@ import {
   viewRow,
 } from "./styles";
 
-type Props = { views: readonly SavedViewDTO[] };
+type TagOption = Readonly<{ id: string; name: string }>;
+
+type Props = {
+  views: readonly SavedViewDTO[];
+  directories: readonly FlatDirectory[];
+  tags: readonly TagOption[];
+};
+
+const BROKEN_KIND_LABEL: Record<
+  SavedViewDTO["brokenConditions"][number]["kind"],
+  string
+> = {
+  tag: "タグ",
+  directory: "ディレクトリ",
+  note: "ノート",
+};
 
 const DISPLAY_MODE_ICON: Record<SavedViewDTO["displayMode"], LucideIcon> = {
   list: List,
@@ -67,30 +89,51 @@ const DISPLAY_MODE_LABEL: Record<SavedViewDTO["displayMode"], string> = {
   calendar: "カレンダー表示",
 };
 
-export function SavedViewsList({ views }: Props) {
+export function SavedViewsList({ views, directories, tags }: Props) {
   if (views.length === 0) {
     return <p className={emptyState}>保存ビューはまだありません。</p>;
   }
+  const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
   return (
     <ul className={viewList}>
       {views.map((view) => (
-        <SavedViewRow key={view.id} view={view} />
+        <SavedViewRow
+          key={view.id}
+          view={view}
+          directories={directories}
+          tags={tags}
+          tagNameById={tagNameById}
+        />
       ))}
     </ul>
   );
 }
 
-function SavedViewRow({ view }: { view: SavedViewDTO }) {
+function SavedViewRow({
+  view,
+  directories,
+  tags,
+  tagNameById,
+}: {
+  view: SavedViewDTO;
+  directories: readonly FlatDirectory[];
+  tags: readonly TagOption[];
+  tagNameById: ReadonlyMap<string, string>;
+}) {
   const router = useRouter();
   const remove = useServerFn(deleteSavedViewFn);
   const setDefault = useServerFn(setDefaultSavedViewFn);
   const rename = useServerFn(renameSavedViewFn);
+  const update = useServerFn(updateSavedViewFn);
+  const duplicate = useServerFn(duplicateSavedViewFn);
+  const repair = useServerFn(repairSavedViewFn);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(view.name);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const nameId = useId();
 
@@ -141,12 +184,40 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
     });
   };
 
+  const onDuplicate = () => {
+    startTransition(async () => {
+      try {
+        await duplicate({ data: { viewId: view.id } });
+        await routerInvalidate(router);
+        setError(null);
+      } catch (e) {
+        setError(extractSerializedError(e));
+      }
+    });
+  };
+
+  const onRepair = () => {
+    startTransition(async () => {
+      try {
+        await repair({ data: { viewId: view.id } });
+        await routerInvalidate(router);
+        setError(null);
+      } catch (e) {
+        setError(extractSerializedError(e));
+      }
+    });
+  };
+
   const nameFieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.name : undefined;
   const summary =
     error !== null && nameFieldErrors === undefined ? displayError(error) : "";
 
   const isBroken = view.brokenConditions.length > 0;
+
+  const initialTagNames = view.query.tagIds
+    .map((id) => tagNameById.get(id as unknown as string))
+    .filter((name): name is string => name !== undefined);
 
   return (
     <li className={viewRow}>
@@ -226,12 +297,36 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
                 <Icon icon={AlertTriangle} />
                 <div className={brokenBody}>
                   <div className={brokenTitle}>壊れた条件があります</div>
-                  <div className={brokenDetail}>
-                    削除済みの参照（{view.brokenConditions.length}{" "}
-                    件）を含みます。
-                    このビューを開いても結果は空になる場合があります。
-                  </div>
+                  <ul className={brokenDetail}>
+                    {view.brokenConditions.map((condition) => {
+                      const label = BROKEN_KIND_LABEL[condition.kind];
+                      return (
+                        <li key={`${condition.kind}:${condition.id}`}>
+                          {condition.lastSeenName !== "" ? (
+                            <>
+                              削除済み{label}{" "}
+                              <code className={brokenCode}>
+                                {condition.lastSeenName}
+                              </code>{" "}
+                              を参照しています。
+                            </>
+                          ) : (
+                            <>削除済みの{label}を参照しています。</>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
+                <button
+                  type="button"
+                  className={fixBtn}
+                  onClick={onRepair}
+                  disabled={isPending}
+                  aria-label={`${view.name} の壊れた条件を修復`}
+                >
+                  修復
+                </button>
               </div>
             ) : null}
           </>
@@ -260,11 +355,29 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
           <button
             type="button"
             className={textAction}
+            onClick={() => setEditDialogOpen(true)}
+            disabled={isPending}
+            aria-label={`${view.name} を編集`}
+          >
+            編集
+          </button>
+          <button
+            type="button"
+            className={textAction}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
             aria-label={`${view.name} の名前を変更`}
           >
             名前変更
+          </button>
+          <button
+            type="button"
+            className={textAction}
+            onClick={onDuplicate}
+            disabled={isPending}
+            aria-label={`${view.name} を複製`}
+          >
+            複製
           </button>
           <button
             type="button"
@@ -302,6 +415,16 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
           runDelete();
         }}
         onClose={() => setConfirmDeleteOpen(false)}
+      />
+      <ViewFormDialog
+        mode="edit"
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        directories={directories}
+        tags={tags}
+        view={view}
+        initialTagNames={initialTagNames}
+        submit={update}
       />
     </li>
   );

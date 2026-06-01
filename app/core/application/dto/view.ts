@@ -43,6 +43,10 @@ export type SavedViewDTO = Readonly<{
     Readonly<{
       kind: "tag" | "directory" | "note";
       id: string;
+      // Snapshot of the referenced entity's display name at the moment
+      // the reference broke (Issue #405 ADR-A). Empty string when the
+      // name could not be captured (legacy rows / re-scan path).
+      lastSeenName: string;
       lastSeenAt: Instant;
     }>
   >;
@@ -91,6 +95,7 @@ export function toSavedViewDTO(view: SavedView): SavedViewDTO {
     brokenConditions: view.brokenConditions.map((marker) => ({
       kind: marker.kind,
       id: marker.id as string,
+      lastSeenName: marker.lastSeenName,
       lastSeenAt: toInstant(marker.lastSeenAt),
     })),
   };

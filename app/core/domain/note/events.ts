@@ -72,6 +72,10 @@ export type NotePurgedEvent = DomainEventBase<
   Readonly<{
     noteId: NoteId;
     ownerId: UserId;
+    // Snapshot of the note's title at purge time so the view consumer can
+    // render the concrete title of the now-deleted note in a SavedView's
+    // broken-condition banner (Issue #405 ADR-A).
+    title: NoteTitle;
     mediaRefs: readonly MediaAssetId[];
   }>
 >;
@@ -225,6 +229,7 @@ export const NoteEvents = {
     params: {
       noteId: NoteId;
       ownerId: UserId;
+      title: NoteTitle;
       mediaRefs: readonly MediaAssetId[];
     },
     occurredAt: Date,
@@ -233,6 +238,7 @@ export const NoteEvents = {
     payload: {
       noteId: params.noteId,
       ownerId: params.ownerId,
+      title: params.title,
       mediaRefs: params.mediaRefs,
     },
     occurredAt,

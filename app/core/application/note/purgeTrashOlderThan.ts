@@ -39,6 +39,7 @@ export async function purgeTrashOlderThan({
             {
               noteId: note.id,
               ownerId: note.ownerId,
+              title: note.title,
               mediaRefs: note.mediaRefs,
             },
             now,

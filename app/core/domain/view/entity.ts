@@ -142,7 +142,22 @@ function markBroken(
     byKey.set(`${marker.kind}:${marker.id}`, marker);
   }
   for (const marker of markers) {
-    byKey.set(`${marker.kind}:${marker.id}`, marker);
+    const key = `${marker.kind}:${marker.id}`;
+    const existing = byKey.get(key);
+    // ADR-B: the delete-event path carries a captured name while the
+    // `detectBrokenConditions` re-scan path passes an empty string.
+    // When the incoming marker has no name but the existing one does,
+    // keep the existing name (and adopt the incoming timestamp) so a
+    // re-scan never blanks out a name the event path already snapped.
+    if (
+      existing !== undefined &&
+      marker.lastSeenName.length === 0 &&
+      existing.lastSeenName.length > 0
+    ) {
+      byKey.set(key, { ...marker, lastSeenName: existing.lastSeenName });
+    } else {
+      byKey.set(key, marker);
+    }
   }
   const merged = Array.from(byKey.values());
 
@@ -155,7 +170,13 @@ function markBroken(
         allSame = false;
         break;
       }
-      if (!BrokenConditionMarker.equals(next, prev)) {
+      // `equals` is (kind, id)-only, so also compare the snapshot fields
+      // to detect a name / timestamp refresh that should bump version.
+      if (
+        !BrokenConditionMarker.equals(next, prev) ||
+        next.lastSeenName !== prev.lastSeenName ||
+        next.lastSeenAt.getTime() !== prev.lastSeenAt.getTime()
+      ) {
         allSame = false;
         break;
       }
@@ -251,6 +272,9 @@ type ReconstructInput = Readonly<{
   brokenConditions: ReadonlyArray<{
     kind: string;
     id: string;
+    // Optional for backward compatibility: rows persisted before Issue
+    // #405 do not carry `lastSeenName`. Reconstruct falls back to "".
+    lastSeenName?: string;
     lastSeenAt: Date;
   }>;
   version: number;
@@ -356,16 +380,26 @@ export const SavedView = {
 
       const brokenConditions = input.brokenConditions.map((row) => {
         const markerKind = BrokenConditionMarker.createKind(row.kind);
+        const lastSeenName = row.lastSeenName ?? "";
         if (markerKind === "tag") {
-          return BrokenConditionMarker.tag(row.id as TagId, row.lastSeenAt);
+          return BrokenConditionMarker.tag(
+            row.id as TagId,
+            lastSeenName,
+            row.lastSeenAt,
+          );
         }
         if (markerKind === "directory") {
           return BrokenConditionMarker.directory(
             row.id as DirectoryId,
+            lastSeenName,
             row.lastSeenAt,
           );
         }
-        return BrokenConditionMarker.note(row.id as NoteId, row.lastSeenAt);
+        return BrokenConditionMarker.note(
+          row.id as NoteId,
+          lastSeenName,
+          row.lastSeenAt,
+        );
       });
 
       return {

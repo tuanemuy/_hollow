@@ -5,6 +5,10 @@ import type { ServiceArgs } from "../types";
 
 export type HandleDirectoryDeletedEventInput = Readonly<{
   directoryId: string;
+  // Display name of the deleted directory, snapshotted at delete time so
+  // the marker can surface a concrete name (Issue #405 ADR-A). Empty
+  // string for legacy events without a name.
+  name: string;
 }>;
 
 /**
@@ -32,7 +36,11 @@ export async function handleDirectoryDeletedEvent({
     const candidates =
       await savedViewRepository.findReferencingDirectory(directoryId);
     for (const view of candidates) {
-      const marker = BrokenConditionMarker.directory(directoryId, now);
+      const marker = BrokenConditionMarker.directory(
+        directoryId,
+        input.name,
+        now,
+      );
       const next = SavedView.markBroken(view, [marker], now);
       if (next === view) {
         continue;

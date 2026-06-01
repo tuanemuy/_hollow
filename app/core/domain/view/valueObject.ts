@@ -5,7 +5,7 @@ import type { PublicationVisibility } from "@/core/domain/publication/valueObjec
 import type { TagId } from "@/core/domain/tag/valueObject";
 import { ViewErrorCode } from "./errorCode";
 
-const SAVED_VIEW_NAME_MAX_LENGTH = 60;
+export const SAVED_VIEW_NAME_MAX_LENGTH = 60;
 const KEYWORD_MAX_LENGTH = 200;
 
 declare const savedViewIdBrand: unique symbol;
@@ -345,30 +345,63 @@ export const ViewQuery = {
  * `lastSeenAt` timestamp captures when the broken reference was first
  * detected so the UI can offer "stale since ..." messaging without
  * persisting redundant audit rows.
+ *
+ * `lastSeenName` snapshots the referenced entity's display name at the
+ * moment the reference broke. Because tag / directory / note are
+ * hard-deleted (or purged), the name cannot be resolved at display time;
+ * the delete-event path snaps it here (Issue #405 ADR-A). The
+ * `detectBrokenConditions` re-scan path has no name to offer and passes
+ * an empty string — `markBroken` is careful not to let that empty value
+ * clobber a previously-captured name (ADR-B).
  */
 export type BrokenConditionMarker =
-  | Readonly<{ kind: "tag"; id: TagId; lastSeenAt: Date }>
-  | Readonly<{ kind: "directory"; id: DirectoryId; lastSeenAt: Date }>
-  | Readonly<{ kind: "note"; id: NoteId; lastSeenAt: Date }>;
+  | Readonly<{ kind: "tag"; id: TagId; lastSeenName: string; lastSeenAt: Date }>
+  | Readonly<{
+      kind: "directory";
+      id: DirectoryId;
+      lastSeenName: string;
+      lastSeenAt: Date;
+    }>
+  | Readonly<{
+      kind: "note";
+      id: NoteId;
+      lastSeenName: string;
+      lastSeenAt: Date;
+    }>;
 
 const BROKEN_MARKER_KINDS: ReadonlySet<BrokenConditionMarker["kind"]> = new Set(
   ["tag", "directory", "note"] satisfies BrokenConditionMarker["kind"][],
 );
 
 export const BrokenConditionMarker = {
-  tag: (id: TagId, lastSeenAt: Date): BrokenConditionMarker => ({
+  tag: (
+    id: TagId,
+    lastSeenName: string,
+    lastSeenAt: Date,
+  ): BrokenConditionMarker => ({
     kind: "tag",
     id,
+    lastSeenName,
     lastSeenAt,
   }),
-  directory: (id: DirectoryId, lastSeenAt: Date): BrokenConditionMarker => ({
+  directory: (
+    id: DirectoryId,
+    lastSeenName: string,
+    lastSeenAt: Date,
+  ): BrokenConditionMarker => ({
     kind: "directory",
     id,
+    lastSeenName,
     lastSeenAt,
   }),
-  note: (id: NoteId, lastSeenAt: Date): BrokenConditionMarker => ({
+  note: (
+    id: NoteId,
+    lastSeenName: string,
+    lastSeenAt: Date,
+  ): BrokenConditionMarker => ({
     kind: "note",
     id,
+    lastSeenName,
     lastSeenAt,
   }),
 
@@ -387,8 +420,12 @@ export const BrokenConditionMarker = {
     return raw as BrokenConditionMarker["kind"];
   },
 
+  /**
+   * Identity is (kind, id) only — `lastSeenName` and `lastSeenAt` are
+   * not part of equality so a re-detection (which carries a fresh
+   * timestamp and possibly no name) is recognised as the same broken
+   * reference rather than a distinct one (Issue #405 ADR-B).
+   */
   equals: (a: BrokenConditionMarker, b: BrokenConditionMarker): boolean =>
-    a.kind === b.kind &&
-    a.id === b.id &&
-    a.lastSeenAt.getTime() === b.lastSeenAt.getTime(),
+    a.kind === b.kind && a.id === b.id,
 };

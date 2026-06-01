@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EventId } from "@/core/domain/common/event";
 import { TagEvents } from "@/core/domain/tag/events";
-import { TagId } from "@/core/domain/tag/valueObject";
+import { TagId, TagName } from "@/core/domain/tag/valueObject";
 import { tagEventDecoders } from "../eventDecoders";
 
 const T0 = new Date(0);
@@ -14,7 +14,7 @@ const eventId = (n: number): EventId =>
 describe("tagEventDecoders", () => {
   it("decodes a valid tag.deleted payload, rehydrating the TagId brand", () => {
     const id = tagId(1);
-    const draft = TagEvents.deleted(id, T0);
+    const draft = TagEvents.deleted(id, TagName.create("Research"), T0);
 
     const decoded = tagEventDecoders["tag.deleted"](draft.payload, {
       id: eventId(1),
@@ -24,8 +24,22 @@ describe("tagEventDecoders", () => {
 
     expect(decoded.type).toBe("tag.deleted");
     expect(decoded.payload.tagId).toBe(id);
+    expect(decoded.payload.name).toBe("Research");
     expect(decoded.id).toBe(eventId(1));
     expect(decoded.aggregateId).toBe(draft.aggregateId);
+  });
+
+  it("decodes a legacy payload without name, falling back to empty string", () => {
+    const id = tagId(5);
+    const decoded = tagEventDecoders["tag.deleted"](
+      { tagId: id } as { tagId: string },
+      {
+        id: eventId(5),
+        occurredAt: T0,
+        aggregateId: id,
+      },
+    );
+    expect(decoded.payload.name).toBe("");
   });
 
   it("rejects missing tagId instead of stringifying undefined", () => {

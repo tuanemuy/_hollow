@@ -150,12 +150,24 @@ describe("noteEventDecoders", () => {
       {
         noteId: noteId(),
         ownerId: userId(),
+        title: NoteTitle.create("Purged Note"),
         mediaRefs: [],
       },
       T0,
     );
     const purged = noteEventDecoders["note.purged"](purgedDraft.payload, meta);
     expect(purged.type).toBe("note.purged");
+    expect(purged.payload.title).toBe("Purged Note");
+
+    const legacyPurged = noteEventDecoders["note.purged"](
+      {
+        noteId: noteId(),
+        ownerId: userId(),
+        mediaRefs: [],
+      } as never,
+      meta,
+    );
+    expect(legacyPurged.payload.title).toBe("");
 
     const restoredDraft = NoteEvents.restored(
       {

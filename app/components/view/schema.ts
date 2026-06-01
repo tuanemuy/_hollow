@@ -53,3 +53,22 @@ export const createSavedViewSchema = z.object({
     .default({ by: "updatedAt", direction: "desc" }),
   isDefault: z.boolean().default(false),
 });
+
+/**
+ * Schema for the "edit existing view" form (Issue #405). Mirrors
+ * `createSavedViewSchema` with an added `viewId`; tags still travel by
+ * **name** and the server-fn handler resolves them to ids via `listTags`
+ * before delegating to `updateSavedView`. Distinct from
+ * `renameSavedViewSchema`, which the inline name editor keeps using.
+ */
+export const updateSavedViewSchema = createSavedViewSchema.extend({
+  viewId: z.string().min(1),
+});
+
+export const duplicateSavedViewSchema = z.object({
+  viewId: z.string().min(1),
+});
+
+export const repairSavedViewSchema = z.object({
+  viewId: z.string().min(1),
+});

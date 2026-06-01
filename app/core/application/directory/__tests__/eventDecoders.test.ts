@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { EventId } from "@/core/domain/common/event";
 import { DirectoryEvents } from "@/core/domain/directory/events";
-import { DirectoryId } from "@/core/domain/directory/valueObject";
+import {
+  DirectoryId,
+  DirectoryName,
+} from "@/core/domain/directory/valueObject";
 import { directoryEventDecoders } from "../eventDecoders";
 
 const T0 = new Date(0);
@@ -16,7 +19,11 @@ const eventId = (n: number): EventId =>
 describe("directoryEventDecoders", () => {
   it("decodes a valid directory.deleted payload, rehydrating the DirectoryId brand", () => {
     const id = directoryId(1);
-    const draft = DirectoryEvents.deleted(id, T0);
+    const draft = DirectoryEvents.deleted(
+      id,
+      DirectoryName.create("Papers"),
+      T0,
+    );
 
     const decoded = directoryEventDecoders["directory.deleted"](draft.payload, {
       id: eventId(1),
@@ -26,8 +33,22 @@ describe("directoryEventDecoders", () => {
 
     expect(decoded.type).toBe("directory.deleted");
     expect(decoded.payload.directoryId).toBe(id);
+    expect(decoded.payload.name).toBe("Papers");
     expect(decoded.id).toBe(eventId(1));
     expect(decoded.aggregateId).toBe(draft.aggregateId);
+  });
+
+  it("decodes a legacy payload without name, falling back to empty string", () => {
+    const id = directoryId(5);
+    const decoded = directoryEventDecoders["directory.deleted"](
+      { directoryId: id } as { directoryId: string },
+      {
+        id: eventId(5),
+        occurredAt: T0,
+        aggregateId: id,
+      },
+    );
+    expect(decoded.payload.name).toBe("");
   });
 
   it("rejects missing directoryId instead of stringifying undefined", () => {

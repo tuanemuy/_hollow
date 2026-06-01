@@ -4,7 +4,10 @@ import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { DirectoryEvents } from "@/core/domain/directory/events";
 import type { DirectoryRepository } from "@/core/domain/directory/ports/directoryRepository";
 import { DirectoryService } from "@/core/domain/directory/service";
-import { DirectoryId } from "@/core/domain/directory/valueObject";
+import {
+  DirectoryId,
+  DirectoryName,
+} from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
 import { UserId } from "@/core/domain/identity/valueObject";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
@@ -63,11 +66,12 @@ export async function deleteDirectory({
       // trash updates — at that point the rows still exist in their
       // active form, so reads return the intact note. The physical
       // writes are batched and applied at commit time.
-      const mediaRefsByNoteId = await collectMediaRefsInSubtree(
-        dir,
-        directoryRepository,
-        noteRepository,
-      );
+      //
+      // The directory-name map is captured in the same pre-delete walk so
+      // `directory.deleted` events can carry the deleted directory's name
+      // (Issue #405 ADR-A) — the rows are gone by emit time.
+      const { mediaRefsByNoteId, directoryNamesById } =
+        await collectSubtreeSnapshot(dir, directoryRepository, noteRepository);
 
       const { trashedNoteIds, deletedDirectoryIds } =
         await DirectoryService.deleteSubtree(dir, now, {
@@ -94,7 +98,14 @@ export async function deleteDirectory({
       // into the same UoW / outbox batch as the `note.trashed` drafts so
       // only committed deletes get an event.
       for (const deletedDirectoryId of deletedDirectoryIds) {
-        drafts.push(DirectoryEvents.deleted(deletedDirectoryId, now));
+        const name = directoryNamesById.get(deletedDirectoryId);
+        drafts.push(
+          DirectoryEvents.deleted(
+            deletedDirectoryId,
+            name ?? DirectoryName.forRoot(),
+            now,
+          ),
+        );
       }
       collectEvents(drafts);
 
@@ -112,16 +123,21 @@ export async function deleteDirectory({
   };
 }
 
-async function collectMediaRefsInSubtree(
+async function collectSubtreeSnapshot(
   root: Directory,
   dirRepo: DirectoryRepository,
   noteRepo: NoteRepository,
-): Promise<Map<NoteId, readonly MediaAssetId[]>> {
-  const out = new Map<NoteId, readonly MediaAssetId[]>();
+): Promise<{
+  mediaRefsByNoteId: Map<NoteId, readonly MediaAssetId[]>;
+  directoryNamesById: Map<DirectoryId, DirectoryName>;
+}> {
+  const mediaRefsByNoteId = new Map<NoteId, readonly MediaAssetId[]>();
+  const directoryNamesById = new Map<DirectoryId, DirectoryName>();
   const visit: Directory[] = [root];
   while (visit.length > 0) {
     const node = visit.pop();
     if (node === undefined) break;
+    directoryNamesById.set(node.id, node.name);
     // Active-only listing matches what `trashByDirectory` will sweep,
     // so the keys here align with the ids deleteSubtree returns.
     const notes = await noteRepo.findByDirectory(node.id, {
@@ -130,7 +146,7 @@ async function collectMediaRefsInSubtree(
     });
     for (const note of notes) {
       if (note.status === "active") {
-        out.set(note.id, note.mediaRefs);
+        mediaRefsByNoteId.set(note.id, note.mediaRefs);
       }
     }
     const children = await dirRepo.findChildren(node.id);
@@ -138,5 +154,5 @@ async function collectMediaRefsInSubtree(
       visit.push(child);
     }
   }
-  return out;
+  return { mediaRefsByNoteId, directoryNamesById };
 }

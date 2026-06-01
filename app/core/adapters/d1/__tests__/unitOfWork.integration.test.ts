@@ -73,7 +73,7 @@ describe("D1UnitOfWorkProvider (integration)", () => {
     await container.unitOfWorkProvider.run(
       async ({ tagRepository, collectEvents }) => {
         await tagRepository.insert(tag);
-        collectEvents([TagEvents.deleted(tagId, NOW)]);
+        collectEvents([TagEvents.deleted(tagId, tag.name, NOW)]);
       },
     );
 
@@ -115,7 +115,7 @@ describe("D1UnitOfWorkProvider (integration)", () => {
       await container.unitOfWorkProvider.run(
         async ({ tagRepository, collectEvents }) => {
           await tagRepository.save(renamed, found.expectedVersion);
-          collectEvents([TagEvents.deleted(tagId, NOW)]);
+          collectEvents([TagEvents.deleted(tagId, renamed.name, NOW)]);
         },
       );
     } catch (error) {

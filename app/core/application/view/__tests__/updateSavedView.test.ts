@@ -147,6 +147,39 @@ describe("updateSavedView", () => {
     expect(updated.query.visibilityFilter).toEqual(["unlisted", "public"]);
   });
 
+  it("edits the full query (keyword + tags) and re-detects broken conditions", async () => {
+    const container = createViewTestContainer({
+      existingTagIds: ["t-1" as never],
+    });
+    const { view: created } = await createSavedView({
+      container,
+      input: baseInput(),
+    });
+
+    const { view: updated } = await updateSavedView({
+      container,
+      input: {
+        actorUserId: OWNER,
+        viewId: created.id,
+        query: {
+          directoryId: null,
+          tagIds: ["t-1", "t-missing"],
+          dateRange: null,
+          keyword: "todo",
+          referencingNoteId: null,
+          visibilityFilter: [],
+        },
+      },
+    });
+
+    expect(updated.query.keyword).toBe("todo");
+    expect(updated.query.tagIds).toEqual(["t-1", "t-missing"]);
+    // The missing tag is flagged broken by the post-update re-scan.
+    expect(updated.brokenConditions).toHaveLength(1);
+    expect(updated.brokenConditions[0]?.id).toBe("t-missing");
+    expect(updated.brokenConditions[0]?.lastSeenName).toBe("");
+  });
+
   it("rejects an update whose visibilityFilter contains an unknown value", async () => {
     const container = createViewTestContainer();
     const { view: created } = await createSavedView({
