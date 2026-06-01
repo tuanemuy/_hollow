@@ -137,3 +137,26 @@ concurrent / OCC 挙動を検証する integration 層を分けることで、�
   重視する。
 - **Frontend**: 必要最小限。server function の wire 型境界と UI ロジックは
   Conform / Zod と `useActionState` / `useOptimistic` の挙動で大枠カバーされる。
+
+## Manual / browser verification
+
+自動テストでは担保しにくい画面挙動を、起動中のローカルサーバーに対して
+ブラウザで確認する場合の手順。
+
+- **サーバー**: ソース変更を実サーバーで見るには `pnpm build && pnpm start`
+  （wrangler dev）。`pnpm start` は `dist/worker` を配信するため、先に
+  `pnpm build` が必要。wrangler dev は `.wrangler/state/v3/d1` のローカル D1 を
+  使い、これは `pnpm wrangler d1 execute hollow-local-d1 --local` の書き込み先と
+  同一なので、起動後に SQL で投入した行もそのまま見える。
+- **シードデータ**: ノートやリンク等は SQL で直接投入するのが速い。内部リンクは
+  `note_internal_links.resolved_note_id` を直接セットすれば解決リアクション
+  （outbox 経由）を待たずに backlink として成立する。
+- **ログインユーザー**: ブラウザで新規 signup すると user + root directory が
+  自動プロビジョンされる。ただし **signup はメール確認必須**なので、確認リンクの
+  代わりに `UPDATE users SET email_verified=1 WHERE email='...'` をローカル D1 に
+  流してからログインする。パスワードは 12 文字以上必須。
+- **ログインフォームの送信**: 送信ボタンの click では submit が発火しないことが
+  あるため、password 欄にフォーカスした状態で Enter を押して送信する。この正規の
+  同一オリジン送信なら server-function POST の cross-origin 拒否（403
+  `FORBIDDEN_CROSS_ORIGIN`）も起きない。ボタン経由の mutation を介する操作は
+  ブラウザ自動検証には不向きで、integration テストで担保する。
