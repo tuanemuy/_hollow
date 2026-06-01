@@ -64,7 +64,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
     throw e;
   }
 
-  const { note, backlinks, directorySegments } = detail;
+  const { note, backlinks, backlinkCount, directorySegments } = detail;
 
   const tagNames = note.tagIds
     .map((id) => tags.byId.get(id as unknown as string))
@@ -105,6 +105,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
         publishedAt={publishState.publishedAt}
         status={note.status}
         backlinks={backlinks}
+        backlinkCount={backlinkCount}
       />
 
       <FrontMatterPanel frontMatter={note.frontMatter} />

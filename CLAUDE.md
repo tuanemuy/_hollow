@@ -20,6 +20,8 @@ Guidance for Claude Code working in this repository.
 
 After changes: `pnpm typecheck && pnpm lint:fix && pnpm format`.
 
+Testing strategy (layer split, fakes, real-DB integration, and manual/browser verification against a running local server) lives in `docs/test.md`.
+
 ## Architecture
 
 Hexagonal architecture with DDD. Dependencies point inward: presentation → application → domain, with adapters implementing ports defined inward of them.

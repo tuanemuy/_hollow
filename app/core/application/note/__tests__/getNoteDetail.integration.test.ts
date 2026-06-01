@@ -136,13 +136,94 @@ describe("getNoteDetail (integration)", () => {
     const referrer = await seedNote(container, owner, dir);
     await seedInternalLink(container, referrer, noteId);
 
-    const { note, backlinks, directoryPath } = await getNoteDetail({
+    const { note, backlinks, backlinkCount, directoryPath } =
+      await getNoteDetail({
+        container,
+        input: { actorUserId: owner, noteId },
+      });
+    expect(note.id).toBe(noteId);
+    expect(backlinks.map((b) => b.noteId as string)).toContain(referrer);
+    expect(backlinkCount).toBe(1);
+    expect(typeof directoryPath).toBe("string");
+  });
+
+  // T-detail-preview: with more referrers than the preview
+  // limit (5), `backlinks` is capped at the preview size while
+  // `backlinkCount` reports the exact total.
+  it("caps the inline backlinks preview at the preview limit while reporting the full backlinkCount", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    for (let i = 0; i < 8; i += 1) {
+      const referrer = await seedNote(container, owner, dir);
+      await seedInternalLink(container, referrer, noteId);
+    }
+
+    const { backlinks, backlinkCount } = await getNoteDetail({
       container,
       input: { actorUserId: owner, noteId },
     });
-    expect(note.id).toBe(noteId);
-    expect(backlinks.map((b) => b.noteId as string)).toContain(referrer);
-    expect(typeof directoryPath).toBe("string");
+    expect(backlinks).toHaveLength(5);
+    expect(backlinkCount).toBe(8);
+  });
+
+  // T-detail-count: backlinkCount is exact for 0 / 1 / N.
+  it("reports backlinkCount === 0 when the note has no referrers", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    const { backlinks, backlinkCount } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(backlinks).toHaveLength(0);
+    expect(backlinkCount).toBe(0);
+  });
+
+  it("reports the exact backlinkCount for a referrer count within the preview limit", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    for (let i = 0; i < 3; i += 1) {
+      const referrer = await seedNote(container, owner, dir);
+      await seedInternalLink(container, referrer, noteId);
+    }
+
+    const { backlinks, backlinkCount } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(backlinks).toHaveLength(3);
+    expect(backlinkCount).toBe(3);
+  });
+
+  // T-detail-count-trashed: trashed referrers stay in both
+  // the count and the preview population — neither side applies a status
+  // filter, so the two share the same set (status-scope regression).
+  it("includes trashed referrers in both the backlinkCount and the preview population", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+    const activeReferrer = await seedNote(container, owner, dir);
+    const trashedReferrer = await seedNote(container, owner, dir, {
+      status: "trashed",
+    });
+    await seedInternalLink(container, activeReferrer, noteId);
+    await seedInternalLink(container, trashedReferrer, noteId);
+
+    const { backlinks, backlinkCount } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(backlinkCount).toBe(2);
+    const ids = backlinks.map((b) => b.noteId as string);
+    expect(ids).toContain(activeReferrer);
+    expect(ids).toContain(trashedReferrer);
   });
 
   it("returns directorySegments root→leaf with {id,name} for a nested directory", async () => {

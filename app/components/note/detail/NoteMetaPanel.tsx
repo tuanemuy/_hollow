@@ -20,6 +20,7 @@ export type NoteMetaPanelProps = Readonly<{
   publishedAt: string | null;
   status: "active" | "trashed";
   backlinks: readonly BacklinkDTO[];
+  backlinkCount: number;
 }>;
 
 function formatDate(iso: string): string {
@@ -51,6 +52,7 @@ export function NoteMetaPanel({
   publishedAt,
   status,
   backlinks,
+  backlinkCount,
 }: NoteMetaPanelProps) {
   const noteIdStr = noteId as unknown as string;
 
@@ -85,7 +87,7 @@ export function NoteMetaPanel({
           search={{ ...HOME_SEARCH, referencingNoteId: noteIdStr }}
           className="inline-block mt-3 text-accent text-xs hover:underline"
         >
-          このノートを参照しているノート一覧を見る（{backlinks.length} 件）
+          このノートを参照しているノート一覧を見る（{backlinkCount} 件）
         </Link>
       </section>
 
