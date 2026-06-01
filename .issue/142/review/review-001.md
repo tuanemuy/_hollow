@@ -26,7 +26,7 @@
 - **[W-001]** 空文字列 `Origin: ""` で Referer フォールバックが発動しない（`csrfMiddleware.ts:52-55`）。fail-closed なのでバイパスにはならないが、空 Origin を送る構成で正当な POST が誤 403 になりうる。
   → **修正済み**: 条件を `origin ? isSameOrigin(origin, ...) : isSameOrigin(getRequestHeader("referer"), ...)` に変更。空文字（falsy）も Referer フォールバックへ。
 - **[W-002]** `APP_URL` 不正値/空文字の起動時検証がない（`serverCloudflare.ts:299`）。誤設定時に全 admin POST が 403 化（fail-closed だが運用者に伝わりにくい）。
-  → **見送り（スコープ外）**: DI 起動時の config 検証であり本 Issue（CSRF middleware 追加）のスコープ外。fail-closed で攻撃面の問題ではない。Phase 4 で別 Issue 化を検討。
+  → **見送り（スコープ外）→ 別Issue #360 で対応**: DI 起動時の config 検証であり本 Issue（CSRF middleware 追加）のスコープ外。fail-closed で攻撃面の問題ではない。Issue #360 として起票。
 
 ### Notes（要点）
 - CSRF 核心防御は正しい。`Origin: null`・空文字・subdomain・scheme 差異・port 差異をすべて reject（誤許可なし、node 実測）。
