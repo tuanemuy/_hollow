@@ -9,12 +9,11 @@ import {
   dialogActions,
   dialogTitle,
   field,
-  fieldControl,
-  fieldLabel,
   formError,
   pillBtn,
   pillBtnPrimary,
 } from "@/components/common/styles";
+import { DirectorySelectField } from "@/components/directory/DirectorySelectField";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -41,7 +40,7 @@ export function MoveNoteDialog({
   const router = useRouter();
   const moveOne = useServerFn(moveNoteFn);
   const moveMany = useServerFn(bulkMoveNotesFn);
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState<string | null>(null);
   const [error, setError] = useState<SerializedError | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -50,7 +49,7 @@ export function MoveNoteDialog({
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (target === "" || noteIds.length === 0) return;
+    if (target === null || noteIds.length === 0) return;
     setError(null);
     setBatchError(null);
     startTransition(async () => {
@@ -101,24 +100,13 @@ export function MoveNoteDialog({
             : `${noteIds.length} 件のノートを移動`}
         </h2>
         <div className={field}>
-          <label htmlFor={targetId} className={fieldLabel}>
-            移動先ディレクトリ
-          </label>
-          <select
+          <DirectorySelectField
             id={targetId}
+            label="移動先ディレクトリ"
+            options={tree}
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            required
-            className={fieldControl}
-          >
-            <option value="">— 選択してください —</option>
-            {tree.map((dir) => (
-              <option key={dir.id} value={dir.id}>
-                {"  ".repeat(dir.depth)}
-                {dir.path}
-              </option>
-            ))}
-          </select>
+            onChange={setTarget}
+          />
         </div>
         {error !== null ? (
           <p className={formError} role="alert">
@@ -143,7 +131,7 @@ export function MoveNoteDialog({
             type="submit"
             data-primary
             className={`${pillBtn} ${pillBtnPrimary}`}
-            disabled={isPending || target === ""}
+            disabled={isPending || target === null}
           >
             {isPending ? "移動中..." : "移動"}
           </button>

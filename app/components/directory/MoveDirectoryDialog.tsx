@@ -8,12 +8,11 @@ import {
   dialogActions,
   dialogTitle,
   field,
-  fieldControl,
-  fieldLabel,
   formError,
   pillBtn,
   pillBtnPrimary,
 } from "@/components/common/styles";
+import { DirectorySelectField } from "@/components/directory/DirectorySelectField";
 import {
   excludeSubtree,
   flattenDirectoryTree,
@@ -37,7 +36,7 @@ export type MoveDirectoryDialogProps = Readonly<{
 }>;
 
 /**
- * Move a directory to another parent. The destination select excludes
+ * Move a directory to another parent. The destination picker excludes
  * the moving subtree (self + descendants) so users cannot pick a cyclic
  * target — the backend `assertNotCyclicMove` is still the source of
  * truth. The hidden root is surfaced as a fixed "（ルート）" label and
@@ -53,7 +52,7 @@ export function MoveDirectoryDialog({
 }: MoveDirectoryDialogProps) {
   const router = useRouter();
   const moveDirectory = useServerFn(moveDirectoryFn);
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState<string | null>(null);
   const [error, setError] = useState<SerializedError | null>(null);
   const [isPending, startTransition] = useTransition();
   const targetId = useId();
@@ -64,22 +63,19 @@ export function MoveDirectoryDialog({
   // is a defensive belt-and-suspenders only.
   const rootId = tree[0]?.id as unknown as string | undefined;
 
+  // Cyclic-safe destination list excluding the moving subtree (SSOT is the
+  // backend `assertNotCyclicMove`; this mirrors it for UX). The root is
+  // separated out and surfaced via `includeRootOption` so it is not rendered
+  // twice — its name="" path="/" would otherwise read ambiguously.
   const options = useMemo(() => {
     const flat = flattenDirectoryTree(tree);
     const excludeIds = getDescendantIds(tree, directoryId);
-    const filtered = excludeSubtree(flat, excludeIds);
-    return filtered.map((dir) => ({
-      id: dir.id,
-      // Root carries name="" — surface a fixed natural-language label so
-      // "move to root" reads unambiguously (cf. MoveNoteDialog which uses
-      // path="/"; the two dialogs intentionally diverge — see plan).
-      label: dir.id === rootId ? "（ルート）" : dir.path,
-    }));
+    return excludeSubtree(flat, excludeIds).filter((dir) => dir.id !== rootId);
   }, [tree, directoryId, rootId]);
 
   useEffect(() => {
     if (!open) {
-      setTarget("");
+      setTarget(null);
       setError(null);
     }
   }, [open]);
@@ -89,7 +85,7 @@ export function MoveDirectoryDialog({
     // Stop React event bubbling so a Dialog mounted inside an outer form
     // (e.g. NoteEditor's form) does not also fire that form's submit handler.
     event.stopPropagation();
-    if (target === "") return;
+    if (target === null) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -117,28 +113,17 @@ export function MoveDirectoryDialog({
           「{directoryName}」を移動
         </h2>
         <div className={field}>
-          <label htmlFor={targetId} className={fieldLabel}>
-            移動先
-          </label>
-          <select
+          <DirectorySelectField
             id={targetId}
+            label="移動先"
+            options={options}
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            required
+            onChange={setTarget}
             disabled={isPending}
-            className={fieldControl}
-          >
-            <option value="">— 選択してください —</option>
-            {options.map((opt) => (
-              // Use the full path (or the "（ルート）" label) as the option
-              // text. We intentionally do not lean on leading whitespace for
-              // hierarchy, since most screen readers strip it; path itself
-              // conveys the ancestor chain unambiguously.
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            {...(rootId !== undefined
+              ? { includeRootOption: { id: rootId, label: "（ルート）" } }
+              : {})}
+          />
         </div>
         {error !== null ? (
           <p className={formError} role="alert">
@@ -158,7 +143,7 @@ export function MoveDirectoryDialog({
             type="submit"
             data-primary
             className={`${pillBtn} ${pillBtnPrimary}`}
-            disabled={isPending || target === ""}
+            disabled={isPending || target === null}
           >
             {isPending ? "移動中..." : "移動"}
           </button>
