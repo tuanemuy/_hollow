@@ -86,7 +86,10 @@ describe("NoteActions icon-only buttons (Issue #382)", () => {
     expect(edit?.tagName).toBe("A");
     expect(edit?.getAttribute("title")).toBe("編集");
     expect(edit?.textContent).toBe("");
-    expect(edit?.querySelector("svg")).not.toBeNull();
+    const svg = edit?.querySelector("svg");
+    expect(svg).not.toBeNull();
+    // The Icon stays decorative — no second accessible name on the SVG.
+    expect(svg?.getAttribute("aria-label")).toBeNull();
   });
 
   it("renders 複製 as an icon-only button with an aria-label and no visible text", () => {
@@ -95,6 +98,8 @@ describe("NoteActions icon-only buttons (Issue #382)", () => {
     expect(dup).not.toBeNull();
     expect(dup?.getAttribute("title")).toBe("複製");
     expect(dup?.textContent).toBe("");
-    expect(dup?.querySelector("svg")).not.toBeNull();
+    const svg = dup?.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute("aria-label")).toBeNull();
   });
 });

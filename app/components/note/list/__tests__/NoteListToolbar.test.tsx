@@ -82,7 +82,10 @@ describe("NoteListToolbar icon-only CTAs (Issue #382)", () => {
     expect(create).not.toBeNull();
     expect(create?.getAttribute("title")).toBe("新規作成");
     expect(create?.textContent).toBe("");
-    expect(create?.querySelector("svg")).not.toBeNull();
+    const svg = create?.querySelector("svg");
+    expect(svg).not.toBeNull();
+    // The Icon stays decorative — no second accessible name on the SVG.
+    expect(svg?.getAttribute("aria-label")).toBeNull();
   });
 
   it("renders アップロード as an icon-only control with an aria-label and no visible text", () => {
@@ -90,6 +93,8 @@ describe("NoteListToolbar icon-only CTAs (Issue #382)", () => {
     const upload = container.querySelector('[aria-label="アップロード"]');
     expect(upload).not.toBeNull();
     expect(upload?.textContent).toBe("");
-    expect(upload?.querySelector("svg")).not.toBeNull();
+    const svg = upload?.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute("aria-label")).toBeNull();
   });
 });
