@@ -6,7 +6,7 @@ import type { DirectoryRepository } from "@/core/domain/directory/ports/director
 import { DirectoryService } from "@/core/domain/directory/service";
 import {
   DirectoryId,
-  DirectoryName,
+  type DirectoryName,
 } from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
 import { UserId } from "@/core/domain/identity/valueObject";
@@ -98,14 +98,13 @@ export async function deleteDirectory({
       // into the same UoW / outbox batch as the `note.trashed` drafts so
       // only committed deletes get an event.
       for (const deletedDirectoryId of deletedDirectoryIds) {
-        const name = directoryNamesById.get(deletedDirectoryId);
-        drafts.push(
-          DirectoryEvents.deleted(
-            deletedDirectoryId,
-            name ?? DirectoryName.forRoot(),
-            now,
-          ),
-        );
+        // `collectSubtreeSnapshot` names every removed node, so the miss
+        // branch is unreachable defensive code; "" is the "name unknown"
+        // sentinel for the broken-condition marker (consistent with the
+        // event-decoder fallback in ADR-E), not a real directory name.
+        const name =
+          directoryNamesById.get(deletedDirectoryId) ?? ("" as DirectoryName);
+        drafts.push(DirectoryEvents.deleted(deletedDirectoryId, name, now));
       }
       collectEvents(drafts);
 

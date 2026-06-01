@@ -64,7 +64,7 @@ export const textActionApply =
 export const textActionDanger =
   "hover:not-disabled:not-aria-disabled:bg-error-surface hover:not-disabled:not-aria-disabled:text-error";
 
-/** Broken-conditions warning banner (warning surface, `role="alert"`). */
+/** Broken-conditions warning banner (warning surface). */
 export const brokenBanner =
   "flex items-start gap-3 px-4 py-3 bg-warning-surface rounded-md mt-3 mb-0.5 max-lg:flex-wrap";
 

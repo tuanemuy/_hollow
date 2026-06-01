@@ -16,7 +16,7 @@ pnpm test:integration   # adapter（broken_conditions_json round-trip 等）
 - `app/core/application/view/__tests__/repairSavedView.test.ts`（新規）
 - `app/core/application/view/__tests__/updateSavedView.test.ts` — query 編集経路
 - `app/core/application/view/__tests__/handlers.test.ts` — 削除イベント→`lastSeenName` スナップ
-- `app/core/adapters/d1/repositories/__tests__/savedViewRepository.integration.test.ts` — `lastSeenName` round-trip / 旧行フォールバック
+- `app/core/adapters/d1/__tests__/savedViewRepository.integration.test.ts` — `lastSeenName` round-trip / 旧行フォールバック
 
 ## 検証環境の起動
 

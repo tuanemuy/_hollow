@@ -245,12 +245,16 @@ export function ViewFormDialog(props: ViewFormDialogProps) {
 
         <fieldset className={field}>
           <legend className={fieldLabel}>公開範囲</legend>
+          {/* `updateSavedView` does not support changing kind, so the radios
+              are read-only in edit mode — leaving them editable would
+              silently discard the change. */}
           <label className={radioRow}>
             <input
               type="radio"
               name="view-form-kind"
               checked={kind === "personal"}
               onChange={() => setKind("personal")}
+              disabled={props.mode === "edit"}
             />
             個人用
           </label>
@@ -260,9 +264,15 @@ export function ViewFormDialog(props: ViewFormDialogProps) {
               name="view-form-kind"
               checked={kind === "public"}
               onChange={() => setKind("public")}
+              disabled={props.mode === "edit"}
             />
             インスタンス内で共有
           </label>
+          {props.mode === "edit" ? (
+            <p className="text-xs text-ink-tertiary">
+              公開範囲は作成後に変更できません。
+            </p>
+          ) : null}
         </fieldset>
 
         <div className={field}>
