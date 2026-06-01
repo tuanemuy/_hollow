@@ -7,8 +7,8 @@ import type { NoteListSearch } from "../../schema";
 
 /**
  * Issue #382: locks the icon-only treatment of the 新規作成 / アップロード CTAs.
- * Both now drop their visible label at every breakpoint and rely on the
- * parent element's `aria-label` for the accessible name.
+ * Both drop their visible label at every breakpoint and rely on the parent
+ * element's `aria-label` for the accessible name.
  */
 
 (
