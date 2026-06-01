@@ -117,11 +117,13 @@ export const PromptTemplate = {
 
 const LLM_MODEL_MAX_LENGTH = 120;
 export const LLM_BASE_URL_MAX_LENGTH = 500;
-// INVARIANT: every value here must have a matching `case` in the
-// LLM/OCR/PDF factories — otherwise DI throws at runtime when that
-// provider is selected. Add new providers (e.g. "azure-openai")
-// atomically together with adapter implementations under
-// `app/core/adapters/<provider>/`.
+// INVARIANT: every value here must have a matching entry in
+// `factoryProviderRegistry` (`app/core/adapters/llm/registry.ts`). Its
+// `Record<LLMProvider, ProviderAdapter>` annotation enforces this at compile
+// time, covering both the LLM/OCR/PDF factories and the connection tester.
+// Add new providers (e.g. "azure-openai") atomically: export a
+// `ProviderAdapter` from `app/core/adapters/<provider>/index.ts` and register
+// it in `factoryProviderRegistry`.
 const LLM_PROVIDERS = ["anthropic", "openai", "gemini"] as const;
 const LLM_API_KEY_SOURCES = ["env", "db"] as const;
 

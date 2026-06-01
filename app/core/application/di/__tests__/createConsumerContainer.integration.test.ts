@@ -10,6 +10,7 @@ import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import {
   createConsumerContainer,
+  resolveConsumerLlmConfig,
   type ServerEnv,
 } from "@/core/application/di/serverCloudflare";
 
@@ -157,6 +158,92 @@ describe("createConsumerContainer — ADR-007 env override > DB > Stub", () => {
     // private state. The wiring decision is what's being verified here;
     // adapter-level URL composition has its own unit coverage.
     expect(container.llmProvider).toBeInstanceOf(OpenAILLMProvider);
+  });
+
+  // W-I-005: `instanceof OpenAILLMProvider` cannot assert which baseURL the
+  // adapter ended up with (the URL is private adapter state). Calling
+  // `resolveConsumerLlmConfig` directly exposes `resolved.baseURL`, so the
+  // ADR-007 env-override > DB priority for baseURL is verified at the seam
+  // where the decision is actually made.
+  describe("resolveConsumerLlmConfig — baseURL env override priority (W-I-005)", () => {
+    it("env ADMIN_LLM_BASE_URL (non-empty) wins over the DB baseURL", async () => {
+      const secretBox = new WebCryptoSecretBox(TEST_SECRET_BOX_KEY);
+      const ciphertext = await secretBox.encrypt("sk-openai-from-db");
+
+      await seedInstanceSettings({
+        provider: "openai",
+        model: "gpt-4o-mini",
+        baseURL: "https://stored.example.com/v1",
+        apiKeySource: "db",
+        apiKeyCiphertext: ciphertext,
+      });
+
+      const resolved = await resolveConsumerLlmConfig(
+        baseEnv({
+          SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+          ADMIN_LLM_BASE_URL: "https://overridden.example.com/v1",
+        }),
+        secretBox,
+        null,
+      );
+
+      expect(resolved).not.toBeNull();
+      expect(resolved?.provider).toBe("openai");
+      expect(resolved?.baseURL).toBe("https://overridden.example.com/v1");
+      expect(resolved?.apiKey).toBe("sk-openai-from-db");
+    });
+
+    it("falls back to the DB baseURL when ADMIN_LLM_BASE_URL is unset", async () => {
+      const secretBox = new WebCryptoSecretBox(TEST_SECRET_BOX_KEY);
+      const ciphertext = await secretBox.encrypt("sk-openai-from-db");
+
+      await seedInstanceSettings({
+        provider: "openai",
+        model: "gpt-4o-mini",
+        baseURL: "https://stored.example.com/v1",
+        apiKeySource: "db",
+        apiKeyCiphertext: ciphertext,
+      });
+
+      const resolved = await resolveConsumerLlmConfig(
+        baseEnv({
+          SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+          // No ADMIN_LLM_BASE_URL → DB value is used.
+        }),
+        secretBox,
+        null,
+      );
+
+      expect(resolved).not.toBeNull();
+      expect(resolved?.provider).toBe("openai");
+      expect(resolved?.baseURL).toBe("https://stored.example.com/v1");
+    });
+
+    it("falls back to the DB baseURL when ADMIN_LLM_BASE_URL is empty", async () => {
+      const secretBox = new WebCryptoSecretBox(TEST_SECRET_BOX_KEY);
+      const ciphertext = await secretBox.encrypt("sk-openai-from-db");
+
+      await seedInstanceSettings({
+        provider: "openai",
+        model: "gpt-4o-mini",
+        baseURL: "https://stored.example.com/v1",
+        apiKeySource: "db",
+        apiKeyCiphertext: ciphertext,
+      });
+
+      const resolved = await resolveConsumerLlmConfig(
+        baseEnv({
+          SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+          // Empty string is treated as "no override" (length === 0).
+          ADMIN_LLM_BASE_URL: "",
+        }),
+        secretBox,
+        null,
+      );
+
+      expect(resolved).not.toBeNull();
+      expect(resolved?.baseURL).toBe("https://stored.example.com/v1");
+    });
   });
 
   it("Stub fallback (NullSecretBox decrypt failure): DB has ciphertext but SECRET_BOX_MASTER_KEY is unset → warn-log and keep Stub adapters", async () => {
