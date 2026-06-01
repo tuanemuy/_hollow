@@ -306,6 +306,11 @@ describe("IngestionQueue polling", () => {
       });
     }
     expect(fetchJobsMock).toHaveBeenCalledTimes(1);
+
+    // The `finally` block must clear inflightRef so the re-scheduled tick can
+    // fire: advancing one active interval lands exactly one more fetch.
+    await advance(POLL_INTERVAL_MS);
+    expect(fetchJobsMock).toHaveBeenCalledTimes(2);
   });
 
   // Scenario 6: unmount clears the pending timer so no tick fires afterwards.
