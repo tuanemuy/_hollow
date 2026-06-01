@@ -143,10 +143,11 @@ export function NoteActions({
           to="/notes/$noteId/edit"
           params={{ noteId: noteIdStr }}
           data-primary
+          aria-label="編集"
+          title="編集"
           className={`${pillBtn} ${pillBtnPrimary}`}
         >
           <Icon icon={Pencil} />
-          編集
         </Link>
         <Link
           to="/notes/$noteId/publish"
@@ -176,11 +177,12 @@ export function NoteActions({
         <button
           type="button"
           className={pillBtn}
+          aria-label="複製"
+          title="複製"
           onClick={onDuplicate}
           disabled={isPending}
         >
           <Icon icon={Copy} />
-          複製
         </button>
         <Link
           to="/notes/$noteId/export"
