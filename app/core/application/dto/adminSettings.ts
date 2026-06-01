@@ -1,4 +1,7 @@
-import { BUILTIN_PROMPT_DEFAULTS } from "@/core/domain/adminSettings/defaults";
+import {
+  BUILTIN_DESIGN_TOKENS,
+  BUILTIN_PROMPT_DEFAULTS,
+} from "@/core/domain/adminSettings/defaults";
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import {
   type LLMProvider as LLMProviderName,
@@ -29,6 +32,18 @@ export type PromptDTO = Readonly<{
 export type PromptDefaultDTO = Readonly<{
   text: string;
   expectedVariables: readonly string[];
+}>;
+
+/**
+ * Per-token design-token projection. Symmetric with {@link PromptDTO}:
+ * `isOverridden` is `true` when the instance has persisted an explicit value
+ * for the key, `false` when the field reflects the built-in default. The UI
+ * uses this to render the "上書き中" badge and the "既定に戻す" affordance
+ * (Issue #397).
+ */
+export type DesignTokenDTO = Readonly<{
+  value: string;
+  isOverridden: boolean;
 }>;
 
 export type InstanceSettingsDTO = Readonly<{
@@ -80,7 +95,16 @@ export type InstanceSettingsDTO = Readonly<{
   prompts: Readonly<Record<string, PromptDTO>>;
   /** Built-in defaults, identical to `BUILTIN_PROMPT_DEFAULTS`. */
   promptDefaults: Readonly<Record<string, PromptDefaultDTO>>;
-  designTokens: Readonly<Record<string, string>>;
+  /**
+   * Per-token design-token projection. The map always contains an entry for
+   * every overridable built-in token (surfacing the default with
+   * `isOverridden: false` when there is no override) plus any persisted
+   * override key outside the curated set (`isOverridden: true`). Symmetric
+   * with `prompts` (Issue #397).
+   */
+  designTokens: Readonly<Record<string, DesignTokenDTO>>;
+  /** Built-in defaults, identical to `BUILTIN_DESIGN_TOKENS`. */
+  designTokenDefaults: Readonly<Record<string, string>>;
   registration: Readonly<{ open: boolean; closedReason: string | null }>;
   limits: Readonly<{
     maxUploadBytesPerDay: number;
@@ -185,9 +209,17 @@ export function toInstanceSettingsDTO(
       };
     }
   }
-  const designTokens: Record<string, string> = {};
+  const designTokens: Record<string, DesignTokenDTO> = {};
+  const designTokenDefaults: Record<string, string> = {};
+  for (const [key, value] of Object.entries(BUILTIN_DESIGN_TOKENS)) {
+    designTokenDefaults[key] = value;
+    designTokens[key] = { value, isOverridden: false };
+  }
+  // Overrides win over the built-in default. Keys outside the curated set
+  // (legacy / ad-hoc overrides) are still surfaced so the operator can see
+  // and remove them.
   for (const [key, value] of Object.entries(settings.designTokens.tokens)) {
-    designTokens[key] = value;
+    designTokens[key] = { value, isOverridden: true };
   }
   const envOverrides = {
     provider: llmEnv !== null && llmEnv.provider !== null,
@@ -225,6 +257,7 @@ export function toInstanceSettingsDTO(
     prompts,
     promptDefaults,
     designTokens,
+    designTokenDefaults,
     registration: {
       open: settings.registration.open,
       closedReason: settings.registration.closedReason,

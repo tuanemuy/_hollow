@@ -531,3 +531,17 @@ Apple Calm の象徴的な要素。
 将来導入する場合は `[data-theme="dark"]` で `:root` の値を上書きする方針のみ確定（実装はしない）。
 
 P43 管理: デザイントークン設定画面 で、ユーザーがインスタンス単位で上書きできるトークンを定義する想定。上書き対象は本ファイルの「Color: brand」「Color: neutral (Surface 系)」「Radius」「Typography (`--font-sans`)」「Color: code」の各セクションを想定する。
+
+### 上書き対象トークンの SSOT（Issue #397）
+
+上書き対象トークンの「キー → 既定値」は `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_DESIGN_TOKENS` を SSOT とする。値は本ファイル（`tokens.css` の宣言）と一致し、整合性は `app/core/domain/adminSettings/__tests__/defaults.test.ts` が CI で機械検証する（既定マップ → `tokens.css` の一方向）。
+
+既定値は管理画面に初期表示され、ユーザーが値を変更したトークンのみが override として永続化される。既定値と同値の行は DB に保存されない（usecase 側で除外）。
+
+上書き対象は上記各セクションの中でも**リテラル値のトークンに限定した curated subset（計 27 キー）**であり、以下は除外する。
+
+- `var(...)` 参照値（`--code-comment` = `var(--color-ink-tertiary)`、`--color-info` = `var(--color-accent)`）。別トークンへの参照を既定値として編集させると意味が不明瞭になるため。
+- ブレークポイント（`--bp-*`）。media-query 用リテラルで `:root` 上書きが効かないため。
+- spacing / typography scale / shadow / motion 等、本セクションが上書き対象に挙げないトークン。
+
+つまり「Color: code」セクションのうち `--code-comment` は除外され、`--code-keyword` / `--code-string` / `--code-function` / `--code-number` の 4 キーのみが対象となる。
