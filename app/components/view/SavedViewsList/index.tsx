@@ -151,10 +151,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
   return (
     <li className={viewRow}>
       <span className={viewIconWrap}>
-        <Icon
-          icon={DISPLAY_MODE_ICON[view.displayMode]}
-          label={DISPLAY_MODE_LABEL[view.displayMode]}
-        />
+        <Icon icon={DISPLAY_MODE_ICON[view.displayMode]} />
       </span>
       <div className={viewMain}>
         {isEditing ? (
@@ -163,6 +160,8 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
               名前
             </label>
             <input
+              // biome-ignore lint/a11y/noAutofocus: focus moves into the inline rename editor on open so keyboard users can type immediately
+              autoFocus
               id={nameId}
               type="text"
               className={renameInput}
@@ -223,7 +222,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
               ) : null}
             </div>
             {isBroken ? (
-              <div className={brokenBanner} role="alert">
+              <div className={brokenBanner}>
                 <Icon icon={AlertTriangle} />
                 <div className={brokenBody}>
                   <div className={brokenTitle}>壊れた条件があります</div>
@@ -254,6 +253,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
             to="/"
             search={{ viewId: view.id as unknown as string }}
             className={`${textAction} ${textActionApply}`}
+            aria-label={`${view.name} を適用`}
           >
             適用
           </Link>
@@ -262,6 +262,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
             className={textAction}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
+            aria-label={`${view.name} の名前を変更`}
           >
             名前変更
           </button>
@@ -270,6 +271,11 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
             className={textAction}
             onClick={onToggleDefault}
             disabled={isPending}
+            aria-label={
+              view.isDefault
+                ? `${view.name} の既定を解除`
+                : `${view.name} を既定にする`
+            }
           >
             {view.isDefault ? "既定を解除" : "既定にする"}
           </button>
@@ -278,6 +284,7 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
             className={`${textAction} ${textActionDanger}`}
             onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
+            aria-label={`${view.name} を削除`}
           >
             削除
           </button>

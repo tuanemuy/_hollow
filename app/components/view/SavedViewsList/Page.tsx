@@ -2,6 +2,11 @@ import { requireCurrentUser } from "@/lib/server/currentUser";
 import { SavedViewsList } from "./index";
 import { loadSavedViews } from "./loader";
 
+/**
+ * `kind` prop は現状未使用。このページは個人ビュー・共有ビューを常に両方表示する
+ * （`kind` ベースのタブ切替は本 Issue のスコープ外）。ルートが依然 `kind` を渡すため、
+ * 後方互換として prop シグネチャは維持する。
+ */
 export async function SavedViewsListPage({
   kind: _kind,
 }: {
