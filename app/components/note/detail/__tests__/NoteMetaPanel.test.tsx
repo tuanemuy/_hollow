@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
 
 /**
- * PR #404 (Issue #46) regression guard: the backlink-count footer must show
+ * Regression guard: the backlink-count footer must show
  * the *total* count (`backlinkCount`), not the length of the preview list
  * (`backlinks`, capped at 5). This test pins that contract so a regression
  * back to `backlinks.length` is caught immediately.

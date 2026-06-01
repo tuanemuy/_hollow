@@ -147,7 +147,7 @@ describe("getNoteDetail (integration)", () => {
     expect(typeof directoryPath).toBe("string");
   });
 
-  // T-detail-preview (Issue #46): with more referrers than the preview
+  // T-detail-preview: with more referrers than the preview
   // limit (5), `backlinks` is capped at the preview size while
   // `backlinkCount` reports the exact total.
   it("caps the inline backlinks preview at the preview limit while reporting the full backlinkCount", async () => {
@@ -168,7 +168,7 @@ describe("getNoteDetail (integration)", () => {
     expect(backlinkCount).toBe(8);
   });
 
-  // T-detail-count (Issue #46): backlinkCount is exact for 0 / 1 / N.
+  // T-detail-count: backlinkCount is exact for 0 / 1 / N.
   it("reports backlinkCount === 0 when the note has no referrers", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -201,7 +201,7 @@ describe("getNoteDetail (integration)", () => {
     expect(backlinkCount).toBe(3);
   });
 
-  // T-detail-count-trashed (Issue #46): trashed referrers stay in both
+  // T-detail-count-trashed: trashed referrers stay in both
   // the count and the preview population — neither side applies a status
   // filter, so the two share the same set (status-scope regression).
   it("includes trashed referrers in both the backlinkCount and the preview population", async () => {

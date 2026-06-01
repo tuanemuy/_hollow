@@ -941,9 +941,7 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     expect(foundIds).toEqual(expected);
   });
 
-  // ---------------------------------------------------------------------
-  // Issue #46: bounded `findReferrers(target, opts)` slice path.
-  // ---------------------------------------------------------------------
+  // Bounded `findReferrers(target, opts)` slice path (T-ref-limit-*).
 
   // T-ref-limit-001: bounded slice + global top-N order. 150 referrers
   // straddle `SAFE_CHUNK_SIZE=90`; `{ limit: 10, offset: 0 }` must return
