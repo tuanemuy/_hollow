@@ -181,8 +181,22 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * Notes that link to `targetNoteId` via `internalLinkRefs`. The
    * adapter joins on `resolvedNoteId === targetNoteId`. Used to render
    * backlinks.
+   *
+   * When `opts` is omitted every referrer is returned ordered by
+   * `updatedAt DESC, id DESC` (the export / backlinks-export paths rely
+   * on the full id set, so this back-compat full-fetch is preserved).
+   * When `opts` is supplied the result is a bounded slice honouring
+   * `limit` / `offset` / `sort` / `order`; `sort` defaults to
+   * `updatedAt` and `order` to `desc`. Referrers are effectively
+   * owner-scoped (internal links only resolve within an owner), so a
+   * caller that needs the *total* referrer count alongside a bounded
+   * preview pairs this with
+   * `countByOwner(ownerId, { referencingNoteId: targetNoteId })`.
    */
-  findReferrers(targetNoteId: NoteId): Promise<readonly Note[]>;
+  findReferrers(
+    targetNoteId: NoteId,
+    opts?: NoteListOpts,
+  ): Promise<readonly Note[]>;
 
   /**
    * Owner-scoped unresolved `kind=title` link rows whose `refTarget`

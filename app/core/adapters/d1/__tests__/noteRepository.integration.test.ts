@@ -941,6 +941,223 @@ describe("D1NoteRepository — D1 bind limit regression (integration)", () => {
     expect(foundIds).toEqual(expected);
   });
 
+  // ---------------------------------------------------------------------
+  // Issue #46: bounded `findReferrers(target, opts)` slice path.
+  // ---------------------------------------------------------------------
+
+  // T-ref-limit-001: bounded slice + global top-N order. 150 referrers
+  // straddle `SAFE_CHUNK_SIZE=90`; `{ limit: 10, offset: 0 }` must return
+  // the global `updatedAt DESC, id DESC` top-10 (NOT a chunk-local top-10).
+  it("T-ref-limit-001: findReferrers({ limit: 10, offset: 0 }) returns the global top-10 across the chunk boundary", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const referrerIds = await seedManyNotes(container, owner, dir, 150);
+    const linkStmts = referrerIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(target, { limit: 10, offset: 0 }),
+    );
+    // `seedManyNotes` assigns updatedAt = base + i s and strictly
+    // increasing ids, so updatedAt DESC == reverse insertion order.
+    const expected = [...referrerIds].reverse().slice(0, 10);
+    expect(found.map((n) => n.id)).toEqual(expected);
+  });
+
+  // T-ref-limit-002: offset pagination. The second page
+  // (`offset: 10, limit: 10`) must equal items 11..20 of a single
+  // `offset: 0, limit: 20` fetch.
+  it("T-ref-limit-002: findReferrers offset pagination is consistent with a wider single page", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const referrerIds = await seedManyNotes(container, owner, dir, 150);
+    const linkStmts = referrerIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const [page2, wide] = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        Promise.all([
+          noteRepository.findReferrers(target, { limit: 10, offset: 10 }),
+          noteRepository.findReferrers(target, { limit: 20, offset: 0 }),
+        ]),
+    );
+    expect(page2.map((n) => n.id)).toEqual(wide.slice(10, 20).map((n) => n.id));
+  });
+
+  // T-ref-limit-003: tie-break in the bounded path. Referrers sharing one
+  // `updatedAt` straddle the chunk boundary; the bounded slice must still
+  // fall back to `id DESC` (bounded sibling of T-bind-006).
+  it("T-ref-limit-003: findReferrers bounded slice tie-breaks equal updatedAt by descending id across chunks", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const sharedTs = "2026-04-01T00:00:00.000Z";
+    const ids: NoteId[] = [];
+    for (let i = 0; i < 120; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      ids.push(id);
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `tie-bounded-${i}`,
+        title: `Tie ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt: TZ,
+        updatedAt: sharedTs,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const linkStmts = ids.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(target, { limit: 10, offset: 0 }),
+    );
+    // All updatedAt equal → ordering is pure id DESC; top-10 is the 10
+    // largest ids descending.
+    const expected = [...ids].sort().reverse().slice(0, 10);
+    expect(found.map((n) => n.id)).toEqual(expected);
+  });
+
+  // T-ref-limit-004: sort=createdAt / order=asc is honoured. The
+  // secondary key is *always* id DESC (the JS sort mirrors the SQL
+  // `orderBy(asc(sortCol), desc(id))`, independent of `order`), so the
+  // seed gives each referrer a unique createdAt to keep the expectation
+  // dependent on the primary key alone.
+  it("T-ref-limit-004: findReferrers honours sort=createdAt / order=asc", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const createdBase = new Date("2026-05-01T00:00:00.000Z").getTime();
+    const ids: NoteId[] = [];
+    for (let i = 0; i < 120; i += 1) {
+      const id = nextId(0x06) as NoteId;
+      ids.push(id);
+      const createdAt = new Date(createdBase + i * 1000).toISOString();
+      await container.db.insert(schema.notes).values({
+        id,
+        ownerId: owner,
+        directoryId: dir,
+        slug: `created-asc-${i}`,
+        title: `Created ${i}`,
+        contentHtml: "<p>body</p>",
+        frontMatterJson: "{}",
+        status: "active",
+        trashedAt: null,
+        createdAt,
+        updatedAt: TZ,
+        editLockUserId: null,
+        editLockAcquiredAt: null,
+        editLockExpiresAt: null,
+        version: 0,
+      });
+    }
+    const linkStmts = ids.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) =>
+        noteRepository.findReferrers(target, {
+          limit: 10,
+          offset: 0,
+          sort: "createdAt",
+          order: "asc",
+        }),
+    );
+    // createdAt ASC == insertion order (createdAt is strictly increasing
+    // and unique), so the first 10 are the first 10 inserted ids.
+    expect(found.map((n) => n.id)).toEqual(ids.slice(0, 10));
+  });
+
+  // T-ref-limit-005: opts omitted == full back-compat fetch. The
+  // single-argument call must still return every referrer ordered by
+  // `updatedAt DESC, id DESC` (the export path depends on the full set).
+  it("T-ref-limit-005: findReferrers(target) with no opts returns all referrers (back-compat)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir, { title: "target" });
+    const referrerIds = await seedManyNotes(container, owner, dir, 150);
+    const linkStmts = referrerIds.map((fromId) =>
+      container.db.insert(schema.noteInternalLinks).values({
+        id: nextId(0x08),
+        fromNoteId: fromId,
+        refKind: "id",
+        refTarget: target,
+        displayText: null,
+        resolvedNoteId: target,
+      }),
+    );
+    await container.db.batch(
+      linkStmts as unknown as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]],
+    );
+
+    const found = await container.unitOfWorkProvider.run(
+      async ({ noteRepository }) => noteRepository.findReferrers(target),
+    );
+    expect(found).toHaveLength(150);
+    expect(found.map((n) => n.id)).toEqual([...referrerIds].reverse());
+  });
+
   // T-bind-007 (Issue #45): `resolveTagAndCandidates` is private and
   // reached via `findByOwner({ tagIds: [...] })`. A 150-tag input feeds
   // `inArray(noteTags.tagId, [...])` past the D1 host-variable cap on

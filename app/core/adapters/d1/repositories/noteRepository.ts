@@ -809,30 +809,81 @@ export class D1NoteRepository implements NoteRepository {
     });
   }
 
-  findReferrers(targetNoteId: NoteId): Promise<readonly Note[]> {
+  findReferrers(
+    targetNoteId: NoteId,
+    opts?: NoteListOpts,
+  ): Promise<readonly Note[]> {
     return mapDbError("Failed to find note referrers", async () => {
-      const linkRows = await this.db
-        .select({ fromNoteId: noteInternalLinks.fromNoteId })
-        .from(noteInternalLinks)
-        .where(eq(noteInternalLinks.resolvedNoteId, targetNoteId));
       const fromIds = Array.from(
-        new Set(linkRows.map((row) => row.fromNoteId)),
+        await this.resolveReferrerCandidates(targetNoteId),
       );
       if (fromIds.length === 0) return [];
+
+      // Back-compat full-fetch path: with no `opts` every referrer is
+      // hydrated, so there is nothing to gain from a 2-pass split.
       // Chunked to stay under the D1 host-var cap; the per-chunk SQL
       // ORDER BY no longer holds across the combined row set, so re-sort
       // in JS before hydration. `updated_at` is stored as ISO-8601
       // text (lexicographic == chronological for the same prefix
       // length) and `id` is UUIDv7 — both are safe to compare as
       // strings under SQLite's BINARY collation.
-      const rows = await selectInChunks(fromIds, (chunk) =>
+      if (opts === undefined) {
+        const rows = await selectInChunks(fromIds, (chunk) =>
+          this.db
+            .select()
+            .from(notes)
+            .where(inArray(notes.id, [...chunk])),
+        );
+        const sorted = sortNoteRowsBy(rows, "updatedAt", "desc");
+        return this.hydrateMany(sorted);
+      }
+
+      // Bounded slice: same 2-pass chunk strategy as `findByOwner`
+      // (Issue #171). Pass 1 reads only the sort-key columns across the
+      // full candidate set, JS-sorts and slices to the page id set;
+      // Pass 2 fetches the full `NoteRow` (with `contentHtml` /
+      // `frontMatterJson`) only for the at-most-`limit` page ids, so the
+      // heavy materialisation + `loadChildren` cap at `limit` rows
+      // instead of the full referrer set.
+      const sortCol = pickSortColumn(opts.sort);
+      const order = opts.order ?? "desc";
+      const sortRows = await selectInChunks(fromIds, (chunk) =>
+        this.db
+          .select({
+            id: notes.id,
+            updatedAt: notes.updatedAt,
+            createdAt: notes.createdAt,
+            title: notes.title,
+          })
+          .from(notes)
+          .where(inArray(notes.id, [...chunk])),
+      );
+      const pageKeys = sortNoteRowsBy(sortRows, sortCol, order).slice(
+        opts.offset,
+        opts.offset + opts.limit,
+      );
+      if (pageKeys.length === 0) return [];
+      const pageIds = pageKeys.map((r) => r.id);
+
+      const fullRows = await selectInChunks(pageIds, (chunk) =>
         this.db
           .select()
           .from(notes)
           .where(inArray(notes.id, [...chunk])),
       );
-      const sorted = sortNoteRowsBy(rows, "updatedAt", "desc");
-      return this.hydrateMany(sorted);
+      // Pass 2 chunks run in parallel and lose Pass 1's order. Reindex
+      // by id and walk `pageIds` to rebuild the page ordering. A row
+      // missing from `byId` means it was deleted between the passes —
+      // the same race `findByOwner`'s 2-pass path already tolerates,
+      // surfacing as a page shorter than `limit`.
+      const byId = new Map<string, NoteRow>();
+      for (const row of fullRows) byId.set(row.id, row);
+      const ordered: NoteRow[] = [];
+      for (const id of pageIds) {
+        const row = byId.get(id);
+        if (row !== undefined) ordered.push(row);
+      }
+      return this.hydrateMany(ordered);
     });
   }
 

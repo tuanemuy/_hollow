@@ -14,9 +14,16 @@ export type GetNoteDetailInput = Readonly<{
 export type GetNoteDetailOutput = Readonly<{
   note: NoteDTO;
   backlinks: readonly BacklinkDTO[];
+  backlinkCount: number;
   directoryPath: string;
   directorySegments: readonly { id: string; name: string }[];
 }>;
+
+// Inline backlinks on the detail panel are a preview, not the full set:
+// the heavy referrer hydration is capped here and the exact total is
+// shown via `backlinkCount`. The "see all referrers" footer link drives
+// the paginated home filter for the rest (Issue #46).
+const BACKLINK_PREVIEW_LIMIT = 5;
 
 export async function getNoteDetail({
   container,
@@ -36,7 +43,19 @@ export async function getNoteDetail({
         `Note ${input.noteId} is owned by another user`,
       );
     }
-    const referrers = await ctx.noteRepository.findReferrers(found.entity.id);
+    // Reads against the binding share no in-flight transaction, so the
+    // bounded preview and the (unbounded) referrer total run
+    // concurrently. Both omit a status filter so the count and the
+    // preview share the same population (trashed referrers included).
+    const [referrers, backlinkCount] = await Promise.all([
+      ctx.noteRepository.findReferrers(found.entity.id, {
+        limit: BACKLINK_PREVIEW_LIMIT,
+        offset: 0,
+      }),
+      ctx.noteRepository.countByOwner(found.entity.ownerId, {
+        referencingNoteId: found.entity.id,
+      }),
+    ]);
     const dir = await ctx.directoryRepository.findById(
       found.entity.directoryId,
     );
@@ -61,6 +80,7 @@ export async function getNoteDetail({
           snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
         }),
       ),
+      backlinkCount,
       directoryPath: directoryPath as string,
       directorySegments,
     };
