@@ -1,11 +1,22 @@
 "use client";
 
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  Globe,
+  LayoutGrid,
+  List,
+  type LucideIcon,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { chip } from "@/components/common/styles";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -18,15 +29,50 @@ import {
   renameSavedViewFn,
   setDefaultSavedViewFn,
 } from "./action";
+import {
+  brokenBanner,
+  brokenBody,
+  brokenDetail,
+  brokenTitle,
+  chipBroken,
+  defaultMark,
+  emptyState,
+  publicMark,
+  renameInput,
+  rowActions,
+  rowError,
+  textAction,
+  textActionApply,
+  textActionDanger,
+  viewChips,
+  viewHead,
+  viewIconWrap,
+  viewList,
+  viewMain,
+  viewName,
+  viewRow,
+} from "./styles";
 
 type Props = { views: readonly SavedViewDTO[] };
 
+const DISPLAY_MODE_ICON: Record<SavedViewDTO["displayMode"], LucideIcon> = {
+  list: List,
+  tile: LayoutGrid,
+  calendar: Calendar,
+};
+
+const DISPLAY_MODE_LABEL: Record<SavedViewDTO["displayMode"], string> = {
+  list: "リスト表示",
+  tile: "タイル表示",
+  calendar: "カレンダー表示",
+};
+
 export function SavedViewsList({ views }: Props) {
   if (views.length === 0) {
-    return <p>保存ビューはまだありません。</p>;
+    return <p className={emptyState}>保存ビューはまだありません。</p>;
   }
   return (
-    <ul>
+    <ul className={viewList}>
       {views.map((view) => (
         <SavedViewRow key={view.id} view={view} />
       ))}
@@ -100,74 +146,150 @@ function SavedViewRow({ view }: { view: SavedViewDTO }) {
   const summary =
     error !== null && nameFieldErrors === undefined ? displayError(error) : "";
 
+  const isBroken = view.brokenConditions.length > 0;
+
   return (
-    <li>
-      {isEditing ? (
-        <>
-          <label htmlFor={nameId}>名前</label>
-          <input
-            id={nameId}
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            maxLength={SAVED_VIEW_NAME_MAX}
-            disabled={isPending}
-            aria-invalid={nameFieldErrors !== undefined}
-          />
-          <button type="button" onClick={onSaveRename} disabled={isPending}>
-            保存
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(view.name);
-              setIsEditing(false);
-              setError(null);
-            }}
-            disabled={isPending}
+    <li className={viewRow}>
+      <span className={viewIconWrap}>
+        <Icon icon={DISPLAY_MODE_ICON[view.displayMode]} />
+      </span>
+      <div className={viewMain}>
+        {isEditing ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor={nameId} className="sr-only">
+              名前
+            </label>
+            <input
+              // biome-ignore lint/a11y/noAutofocus: focus moves into the inline rename editor on open so keyboard users can type immediately
+              autoFocus
+              id={nameId}
+              type="text"
+              className={renameInput}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={SAVED_VIEW_NAME_MAX}
+              disabled={isPending}
+              aria-invalid={nameFieldErrors !== undefined}
+            />
+            <button
+              type="button"
+              className={textAction}
+              onClick={onSaveRename}
+              disabled={isPending}
+            >
+              保存
+            </button>
+            <button
+              type="button"
+              className={textAction}
+              onClick={() => {
+                setDraft(view.name);
+                setIsEditing(false);
+                setError(null);
+              }}
+              disabled={isPending}
+            >
+              キャンセル
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className={viewHead}>
+              <span className={viewName}>{view.name}</span>
+              {view.isDefault ? (
+                <span className={defaultMark}>
+                  <Icon icon={Star} />
+                  既定
+                </span>
+              ) : null}
+              {view.kind === "public" ? (
+                <span className={publicMark}>
+                  <Icon icon={Globe} />
+                  公開
+                </span>
+              ) : null}
+            </div>
+            <div className={viewChips}>
+              <span className={chip}>
+                <Icon icon={DISPLAY_MODE_ICON[view.displayMode]} />
+                {DISPLAY_MODE_LABEL[view.displayMode]}
+              </span>
+              {isBroken ? (
+                <span className={`${chip} ${chipBroken}`}>
+                  <Icon icon={AlertTriangle} />
+                  壊れた条件: {view.brokenConditions.length} 件
+                </span>
+              ) : null}
+            </div>
+            {isBroken ? (
+              <div className={brokenBanner}>
+                <Icon icon={AlertTriangle} />
+                <div className={brokenBody}>
+                  <div className={brokenTitle}>壊れた条件があります</div>
+                  <div className={brokenDetail}>
+                    削除済みの参照（{view.brokenConditions.length}{" "}
+                    件）を含みます。
+                    このビューを開いても結果は空になる場合があります。
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+        {nameFieldErrors !== undefined ? (
+          <p className={rowError} role="alert">
+            {nameFieldErrors[0]}
+          </p>
+        ) : null}
+        {summary !== "" ? (
+          <p className={rowError} role="alert">
+            {summary}
+          </p>
+        ) : null}
+      </div>
+      {isEditing ? null : (
+        <div className={rowActions}>
+          <Link
+            to="/"
+            search={{ viewId: view.id as unknown as string }}
+            className={`${textAction} ${textActionApply}`}
+            aria-label={`${view.name} を適用`}
           >
-            キャンセル
-          </button>
-        </>
-      ) : (
-        <>
-          <span>{view.name}</span>
-          <span>{view.kind === "personal" ? "個人" : "共有"}</span>
-          <span>{view.displayMode}</span>
-          {view.isDefault ? (
-            <span>
-              <span aria-hidden="true">★</span>
-              <span>既定</span>
-            </span>
-          ) : null}
-          {view.brokenConditions.length > 0 ? (
-            <span role="alert">
-              壊れた条件: {view.brokenConditions.length} 件
-            </span>
-          ) : null}
+            適用
+          </Link>
           <button
             type="button"
+            className={textAction}
             onClick={() => setIsEditing(true)}
             disabled={isPending}
+            aria-label={`${view.name} の名前を変更`}
           >
             名前変更
           </button>
-          <button type="button" onClick={onToggleDefault} disabled={isPending}>
+          <button
+            type="button"
+            className={textAction}
+            onClick={onToggleDefault}
+            disabled={isPending}
+            aria-label={
+              view.isDefault
+                ? `${view.name} の既定を解除`
+                : `${view.name} を既定にする`
+            }
+          >
             {view.isDefault ? "既定を解除" : "既定にする"}
           </button>
           <button
             type="button"
+            className={`${textAction} ${textActionDanger}`}
             onClick={() => setConfirmDeleteOpen(true)}
             disabled={isPending}
+            aria-label={`${view.name} を削除`}
           >
             削除
           </button>
-        </>
+        </div>
       )}
-      {nameFieldErrors !== undefined ? (
-        <p role="alert">{nameFieldErrors[0]}</p>
-      ) : null}
-      {summary !== "" ? <p role="alert">{summary}</p> : null}
       <ConfirmDialog
         open={confirmDeleteOpen}
         title="保存ビューを削除"
