@@ -844,7 +844,9 @@ export class D1NoteRepository implements NoteRepository {
       // Pass 2 fetches the full `NoteRow` (with `contentHtml` /
       // `frontMatterJson`) only for the at-most-`limit` page ids, so the
       // heavy materialisation + `loadChildren` cap at `limit` rows
-      // instead of the full referrer set.
+      // instead of the full referrer set. Unlike `findByOwner`, the
+      // referrer filter is fully captured by `fromIds`, so Pass 1 needs
+      // no extra `where` predicate beyond the chunk `inArray`.
       const sortCol = pickSortColumn(opts.sort);
       const order = opts.order ?? "desc";
       const sortRows = await selectInChunks(fromIds, (chunk) =>

@@ -187,7 +187,9 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * on the full id set, so this back-compat full-fetch is preserved).
    * When `opts` is supplied the result is a bounded slice honouring
    * `limit` / `offset` / `sort` / `order`; `sort` defaults to
-   * `updatedAt` and `order` to `desc`. Referrers are effectively
+   * `updatedAt` and `order` to `desc`. The tie-break is always `id DESC`
+   * regardless of `order` (same as `findByOwner`), so equal-key rows at
+   * a page boundary order deterministically. Referrers are effectively
    * owner-scoped (internal links only resolve within an owner), so a
    * caller that needs the *total* referrer count alongside a bounded
    * preview pairs this with
