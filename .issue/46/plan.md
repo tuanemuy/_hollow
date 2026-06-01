@@ -78,7 +78,7 @@ opts 省略時は現行の全件パス（full fetch → sort → hydrateMany 全
 
 - adapter `D1NoteRepository.findReferrers`（実装本体、ステップ2で変更）。
 - `app/core/application/export/runExportJob.ts:220` の `buildAssemblyDeps` 内 stub `async findReferrers() { return []; }` — `ExportAssemblyDeps.noteRepo: NoteRepository`（完全 port）を structural に満たすファサード。引数 0 個の実装は `(targetNoteId, opts?) => Promise<readonly Note[]>` に**代入可能**（余剰 optional 引数は許容）なので typecheck は壊れない。**この stub は変更不要**。
-  - 補足: この stub の `findReferrers` は `[]` を返す = export の `referencingNoteId` 絞り込み（`service.ts:344`）は runExportJob 経路では実質未実装。これは #46 とは無関係の既存状態であり、本 Issue ではスコープ外（触らない）。
+  - 補足（実装時に裏取りし訂正）: この stub の `findReferrers` が `[]` を返すことは**バグではない**。`service.ts:344` の `findReferrers` は `resolveTargetNotes`（service.ts:309）内にあり、runExportJob は L78-84 で**real `noteRepository`** を渡してこれを実行する。一方 stub を持つ `buildAssemblyDeps` は `assembleArtifact`（レンダリング経路）専用で findReferrers を一切呼ばない。よって export の `referencingNoteId` 絞り込みは正しく機能しており、stub の `[]` は never-called メソッドの placeholder にすぎない。Phase 4 でこの点を検証し、起票不要と判断。
 - 直接呼び出し側（`getNoteDetail`、`getBacklinks`、`service.ts:344`）はすべて引数1個で呼んでおり、opts optional 化で影響を受けない。
 - テスト内のモック実装 2 箇所も optional `opts?` 追加で壊れない（S-001）: `app/core/domain/directory/__tests__/service.test.ts:187`（`findReferrers(_n: NoteId): Promise<readonly Note[]>` の明示シグネチャ — 引数の少ない関数は多い引数の型に代入可能）、`app/core/domain/note/__tests__/service.resolveInternalLinks.test.ts:65`（`notImplemented` + `as unknown as NoteRepository` キャストで素通り）。いずれも変更不要。
 
