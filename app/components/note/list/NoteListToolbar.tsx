@@ -114,14 +114,13 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             to="/notes/new"
             data-primary
             aria-label="新規作成"
+            title="新規作成"
             className={`${pillBtn} ${pillBtnPrimary}`}
           >
             <Icon icon={Plus} />
-            <span className={CTA_LABEL}>新規作成</span>
           </Link>
           <UploadButton className={pillBtn} aria-label="アップロード">
             <Icon icon={Upload} />
-            <span className={CTA_LABEL}>アップロード</span>
           </UploadButton>
         </div>
       </div>
