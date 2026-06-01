@@ -1,4 +1,3 @@
-import { notFound } from "@tanstack/react-router";
 import type { UserDTO } from "@/core/application/dto/identity";
 import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
@@ -25,6 +24,12 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
  * `loadNoteDetail` already returns the structured directory segments; the
  * tree is loaded separately because `NoteActions`' move dialog needs the
  * full flattened tree as `<select>` options.
+ *
+ * 注: TanStack Start の現バージョンでは、`renderServerComponent` 経由で
+ * 実行される RSC コンポーネント内で `throw notFound()` を投げても route の
+ * `notFoundComponent` に届かず、通常の error として errorComponent に流れる
+ * （`.issue/12/adr.md` ADR-004 / `ExportJobDetail/Page.tsx` 参照）。そのため
+ * 非存在ノートは notFound() を経由せず notFound 用 JSX を直接返す。
  */
 export type NoteDetailProps = Readonly<{
   user: UserDTO;
@@ -60,7 +65,14 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
       loadAllTags({ actorUserId: user.id }),
     ]);
   } catch (e) {
-    if (isNotFoundError(e)) throw notFound();
+    if (isNotFoundError(e)) {
+      return (
+        <div role="alert">
+          <h1>ノートが見つかりません</h1>
+          <p>削除されているか、アクセス権限がありません。</p>
+        </div>
+      );
+    }
     throw e;
   }
 
