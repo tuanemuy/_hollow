@@ -26,7 +26,7 @@ Accepted
 `brokenConditions` は ViewQuery が参照する tag/directory/note が削除されたことを示すマーカー。壊れた条件を持つビューの適用挙動として (a) 適用を無効化する、(b) 警告して適用を許可する、(c) 壊れた条件を除外して適用する、が考えられる。
 
 ### Decision
-(b) を採用。適用リンクは無効化せず、`brokenConditions.length > 0` のとき `role="alert"` の警告バナー（warning トークン）を行内に表示する。
+(b) を採用。適用リンクは無効化せず、`brokenConditions.length > 0` のとき警告バナー（warning トークン）を行内に表示する。（当初は `role="alert"` を付与していたが、後述の ADR-005 で静的コンテンツへのライブリージョン誤用として除去した。）
 
 ### 理由
 - 削除済み id で絞り込んでもホーム loader は例外を出さず、結果が 0 件になるだけ（壊れた参照の特別扱いは無い）。
