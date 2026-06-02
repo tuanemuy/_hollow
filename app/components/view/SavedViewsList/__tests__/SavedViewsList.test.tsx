@@ -181,11 +181,12 @@ describe("SavedViewsList — optimistic delete", () => {
   });
 
   it("restores the row and shows an alert when delete fails", async () => {
-    deleteMock.mockRejectedValue(
-      new AppServerError({
-        kind: "system",
-        code: null,
-        message: "System error",
+    // Hold the rejection so the removed -> restored transition is observable
+    // (not just the final restored state). Issue #414 W-Test-1.
+    let rejectDelete: ((e: unknown) => void) | undefined;
+    deleteMock.mockReturnValue(
+      new Promise<void>((_res, rej) => {
+        rejectDelete = rej;
       }),
     );
 
@@ -203,6 +204,20 @@ describe("SavedViewsList — optimistic delete", () => {
     await flush();
 
     expect(deleteMock).toHaveBeenCalledTimes(1);
+    // Optimistically removed while the delete is in flight.
+    expect(document.body.textContent).not.toContain("Alpha");
+
+    await act(async () => {
+      rejectDelete?.(
+        new AppServerError({
+          kind: "system",
+          code: null,
+          message: "System error",
+        }),
+      );
+    });
+    await flush();
+
     // Snap back: the row is visible again with the error in its slot.
     expect(document.body.textContent).toContain("Alpha");
     const alerts = Array.from(container.querySelectorAll('[role="alert"]')).map(

@@ -371,6 +371,12 @@ describe("IngestionJobRow", () => {
     expect(discardMock).toHaveBeenCalledTimes(1);
     // Snapped back: no longer dimmed.
     expect(container.querySelector("[data-discarded]")).toBeNull();
+    // The dialog stays open and surfaces the error (Issue #414 W-Test-2).
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+    const alerts = Array.from(
+      document.body.querySelectorAll('[role="alert"]'),
+    ).map((el) => el.textContent ?? "");
+    expect(alerts.join(" ")).toContain("システムエラーが発生しました");
   });
 
   it("does not call router.invalidate when commit fails", async () => {
