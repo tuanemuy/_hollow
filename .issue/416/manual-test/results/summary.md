@@ -22,6 +22,10 @@
 
 全 primary ボタンが accent 縦長 pill で表示され、data-primary 付与漏れによる surface 化けは検出されず。
 
+## 追記（レビュー #001 [B-001] 修正後の再確認）
+
+初回検証では水平 alignment を検証項目に含めておらず、ラベルが左寄せになる視覚回帰（旧 `BTN_*` の `justify-center` 欠落）を見逃していた。レビュー #001 [B-001] で検出 → `pillBtnTall` に `justify-center` を追加。/login の「ログイン」ボタンでラベルが中央揃えに戻ったことをブラウザで実視確認（`screenshots/tc-001-login-fixed.png`、修正前 `tc-001-login.png` と比較）。
+
 ## コード側の網羅確認
 
 - `grep -rEn "className=.*BTN_PRIMARY(_INLINE)?" app/components/auth --include="*.tsx"` = 17 行、全行に `data-primary=""` 付与済み（漏れゼロ）。

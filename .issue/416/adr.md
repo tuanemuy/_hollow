@@ -9,9 +9,11 @@ Proposed
 auth の `BTN_PRIMARY` / `BTN_PRIMARY_INLINE` / `BTN_SECONDARY_TALL` は `h-12`、`BTN_SECONDARY` は `h-11`。common `pillBtn` の base 寸法は `h-9`。SSOT 化にあたり、寸法差を (a) auth 固有の合成に寸法をベタ書きする、(b) common 側に size add-on variant を切り出す、のどちらで扱うか。
 
 ### Decision
-(b) を採る。common に `pillBtnTall`（`h-12 px-8 text-md`）を新設し、`${pillBtn} ${pillBtnTall} ${pillBtnPrimary}` の合成で表現する。#273 ADR-001 補足が「別サイズが要れば common 側 variant で足す」を既定方針にしており、その縦長版にあたる。`BTN_SECONDARY`(h-11) は死蔵で削除するため、足すサイズは h-12 一種で済む。`w-full`(PRIMARY) / `min-w-[200px]`(INLINE, TALL) はレイアウト固有差分として各定数の合成末尾に残す。
+(b) を採る。common に `pillBtnTall`（`h-12 px-8 text-md justify-center`）を新設し、`${pillBtn} ${pillBtnTall} ${pillBtnPrimary}` の合成で表現する。#273 ADR-001 補足が「別サイズが要れば common 側 variant で足す」を既定方針にしており、その縦長版にあたる。`BTN_SECONDARY`(h-11) は死蔵で削除するため、足すサイズは h-12 一種で済む。`w-full`(PRIMARY) / `min-w-[200px]`(INLINE, TALL) はレイアウト固有差分として各定数の合成末尾に残す。
 
 `gap` は add-on に含めない。base `pillBtn` は `gap-1.5` を持つが、(1) `gap-0` を足しても gap utility は数値昇順で CSS 出力されるため base `gap-1.5` より前に出て後勝ちできず（#273 ADR-003 の罠）、(2) auth ボタンは全てテキストのみ（flex 子要素なし）で `gap-1.5` は視覚的に無害。したがって `gap-0` は「効かない上書き」かつ「不要な指定」なので入れない。
+
+`justify-center` は add-on に含める。base `pillBtn` は `inline-flex items-center` のみ（水平方向は flex-start デフォルト）で content-width pill では問題ないが、縦長ボタンは width-constrained（`w-full` / `min-w-[200px]`）運用が前提のため、`justify-center` がないとラベルが左寄せになる（旧 `BTN_*` は 4 つすべて `justify-center` を持っていた）。レビュー #001 [B-001] で旧 UI からの左寄せ退行を検出したため add-on に含める。content-width 利用では無害（ボタン幅＝中身幅）。なお `justify-center` は base には入れない — 影響範囲を縦長 variant に限定し、既存の content-width pill consumer（~28 箇所）の生成 CSS を変えないため。
 
 ### Consequences
 - 良い点: 縦長 pill が common SSOT に乗り、auth 以外でも再利用可能になる。狭い住所での再多系統化を防ぐ。
@@ -83,6 +85,8 @@ ADR-001 で `pillBtnTall` を素 utility（`h-12 px-8 text-md`）の add-on と�
 
 - **spacing スケール（h-*, px-*）**: 標準 spacing は数値昇順で出力される（h-9 < h-12、px-4 < px-8）。したがって「base より**大きい**値の add-on は後に出て後勝ち」する。逆に **base より小さい値（縮小方向）の size add-on は base より前に出て負ける** — 縮小サイズが必要になったら素 utility では足りず `data-[size]:` variant 化が必須。
 - **カスタムトークン（text-md）**: base 側の `text-sm` も add-on 側の `text-md` も `@theme inline`（`index.css`）由来のカスタムトークン。後勝ちは「標準 vs カスタム」ではなく、同じ `@theme inline` ブロック内で `--text-md` が `--text-sm` より後に宣言されている順序による（生成 CSS で `.text-sm` < `.text-md` を実測確認）。数値の大小には依存しないが、宣言順に依存する点に注意。
+
+  補足（レビュー #001 [W-001]）: `.text-md` は **font-size のみ**を宣言し line-height のペアを持たない（`.text-sm` は line-height も宣言する）。したがって合成時、font-size は `text-md` が後勝ちするが、line-height は `text-sm` の値（≈1.43）が唯一の宣言として残る。ただしボタンは `h-12` 固定・`inline-flex items-center` の単一行中央寄せのため line-height はレイアウトに効かず、視覚的実害はない（旧 `BTN_*` も `text-md` 単独で line-height を明示制御していなかった）。size add-on で font-size を上書きする際は line-height ペアが連動しない点に留意する。
 
 本 Issue の `pillBtnTall` は h-12/px-8（いずれも拡大方向）＋ text-md（カスタムトークン）なので素 utility のまま安全。これは `pnpm build` の生成 CSS で確認する。
 
