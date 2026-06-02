@@ -281,6 +281,96 @@ describe("SavedViewsList — optimistic rename", () => {
   });
 });
 
+describe("SavedViewsList — optimistic duplicate", () => {
+  it("adds the duplicated row immediately on resolve", async () => {
+    duplicateMock.mockResolvedValue({
+      view: makeView({ id: "v2", name: "Alpha のコピー" }),
+    });
+    // Hold the loader invalidate pending so the optimistic add (applied after
+    // the duplicate resolves) stays visible — `useOptimistic` drops the patch
+    // once the transition completes.
+    let resolveInvalidate: (() => void) | undefined;
+    routerInvalidate.mockReturnValueOnce(
+      new Promise<void>((res) => {
+        resolveInvalidate = res;
+      }),
+    );
+
+    await renderList([makeView({ id: "v1", name: "Alpha" })]);
+
+    expect(document.body.textContent).not.toContain("Alpha のコピー");
+
+    await act(async () => {
+      buttonByLabel("Alpha を複製").click();
+    });
+    await flush();
+
+    expect(duplicateMock).toHaveBeenCalledTimes(1);
+    // Duplicate resolved, optimistic add applied, invalidate still pending:
+    // the new row is present.
+    expect(document.body.textContent).toContain("Alpha のコピー");
+
+    await act(async () => {
+      resolveInvalidate?.();
+    });
+    await flush();
+  });
+
+  it("does not double-add when the new id already exists in the baseline", async () => {
+    // Baseline already carries v2; the optimistic add must dedupe by id.
+    duplicateMock.mockResolvedValue({
+      view: makeView({ id: "v2", name: "Beta" }),
+    });
+
+    await renderList([
+      makeView({ id: "v1", name: "Alpha" }),
+      makeView({ id: "v2", name: "Beta" }),
+    ]);
+
+    await act(async () => {
+      buttonByLabel("Alpha を複製").click();
+    });
+    await flush();
+
+    const betas = (document.body.textContent ?? "").match(/Beta/g) ?? [];
+    expect(betas.length).toBe(1);
+  });
+
+  it("shows an alert on the source row when duplicate fails", async () => {
+    let rejectDuplicate: ((e: unknown) => void) | undefined;
+    duplicateMock.mockReturnValue(
+      new Promise((_res, rej) => {
+        rejectDuplicate = rej;
+      }),
+    );
+
+    await renderList([makeView({ id: "v1", name: "Alpha" })]);
+
+    await act(async () => {
+      buttonByLabel("Alpha を複製").click();
+    });
+    await flush();
+
+    await act(async () => {
+      rejectDuplicate?.(
+        new AppServerError({
+          kind: "system",
+          code: null,
+          message: "System error",
+        }),
+      );
+    });
+    await flush();
+
+    // Source row still present; error surfaced in its slot.
+    expect(document.body.textContent).toContain("Alpha");
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]')).map(
+      (el) => el.textContent ?? "",
+    );
+    expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+  });
+});
+
 describe("SavedViewsList — optimistic default toggle", () => {
   it("reflects only the toggled row; other rows keep baseline until invalidate", async () => {
     let resolveDefault: (() => void) | undefined;

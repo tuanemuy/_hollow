@@ -1,75 +1,61 @@
 "use client";
 
-import { useRouter } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { Check, Merge, Pencil, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
-import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   pillBtn,
   pillBtnDanger,
   pillBtnPrimary,
 } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
-import {
-  extractSerializedError,
-  type SerializedError,
-} from "@/core/presentation/errorResponse";
+import type { SerializedError } from "@/core/presentation/errorResponse";
 import { FORM_ERROR, ROW_ACTIONS } from "../layout/styles";
-import { deleteTagFn, renameTagFn } from "./actions";
 import { MergeTagDialog } from "./MergeTagDialog";
-import { progressBarIndeterminate, progressTrack } from "./styles";
 
 type Props = {
   tagId: string;
   name: string;
   noteCount: number;
   candidates: readonly { id: string; name: string }[];
+  onRename: (tagId: string, name: string) => void;
+  onDelete: (tagId: string) => void;
+  actionError: SerializedError | null;
 };
 
-export function TagActions({ tagId, name, noteCount, candidates }: Props) {
-  const router = useRouter();
-  const renameTag = useServerFn(renameTagFn);
-  const removeTag = useServerFn(deleteTagFn);
-
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<SerializedError | null>(null);
+export function TagActions({
+  tagId,
+  name,
+  noteCount,
+  candidates,
+  onRename,
+  onDelete,
+  actionError,
+}: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const onRename = () => {
+  const runRename = () => {
     const trimmed = draft.trim();
+    // Leave the inline editor synchronously so the optimistic name (owned by
+    // the parent `TagList`) renders immediately.
+    setIsEditing(false);
     if (trimmed.length === 0 || trimmed === name) {
-      setIsEditing(false);
       return;
     }
-    startTransition(async () => {
-      try {
-        await renameTag({ data: { tagId, newName: trimmed } });
-        await routerInvalidate(router);
-        setIsEditing(false);
-        setError(null);
-      } catch (e) {
-        setError(extractSerializedError(e));
-      }
-    });
+    onRename(tagId, trimmed);
   };
 
   const runDelete = () => {
-    startTransition(async () => {
-      try {
-        await removeTag({ data: { tagId } });
-        await routerInvalidate(router);
-        setConfirmDeleteOpen(false);
-        setError(null);
-      } catch (e) {
-        setError(extractSerializedError(e));
-      }
-    });
+    // The row is removed optimistically the instant the delete transition
+    // starts (parent-owned), so the dialog rendered inside this row unmounts;
+    // close it first and let any failure surface in the row's `FORM_ERROR`
+    // slot once it snaps back.
+    setConfirmDeleteOpen(false);
+    onDelete(tagId);
   };
 
   return (
@@ -80,7 +66,6 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            disabled={isPending}
             // biome-ignore lint/a11y/noAutofocus: inline edit field
             autoFocus
             className="h-[30px] px-2.5 bg-surface border border-transparent rounded-md text-[13px] text-ink outline-none focus:bg-bg focus:border-accent"
@@ -89,8 +74,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             type="button"
             className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
-            onClick={onRename}
-            disabled={isPending}
+            onClick={runRename}
           >
             <Icon icon={Check} />
             保存
@@ -102,7 +86,6 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
               setIsEditing(false);
               setDraft(name);
             }}
-            disabled={isPending}
           >
             キャンセル
           </button>
@@ -112,8 +95,10 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           <button
             type="button"
             className={pillBtn}
-            onClick={() => setIsEditing(true)}
-            disabled={isPending}
+            onClick={() => {
+              setDraft(name);
+              setIsEditing(true);
+            }}
           >
             <Icon icon={Pencil} />
             リネーム
@@ -123,7 +108,6 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
               type="button"
               className={pillBtn}
               onClick={() => setIsMergeOpen(true)}
-              disabled={isPending}
             >
               <Icon icon={Merge} />
               統合
@@ -133,20 +117,16 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             type="button"
             className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
-            onClick={() => {
-              setError(null);
-              setConfirmDeleteOpen(true);
-            }}
-            disabled={isPending}
+            onClick={() => setConfirmDeleteOpen(true)}
           >
             <Icon icon={Trash2} />
             削除
           </button>
         </>
       )}
-      {error !== null && !confirmDeleteOpen ? (
+      {actionError !== null && !confirmDeleteOpen ? (
         <span className={FORM_ERROR} role="alert" aria-live="polite">
-          {displayError(error)}
+          {displayError(actionError)}
         </span>
       ) : null}
       {isMergeOpen ? (
@@ -162,56 +142,21 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
       <ConfirmDialog
         open={confirmDeleteOpen}
         title={`タグ "#${name}" を削除`}
-        description={renderDeleteDescription({
-          isPending: isPending && confirmDeleteOpen,
-          noteCount,
-        })}
+        description={renderDeleteDescription({ noteCount })}
         confirmLabel="削除"
         confirmIcon={Trash2}
-        isPending={isPending}
-        error={confirmDeleteOpen ? (error ?? undefined) : undefined}
         onConfirm={runDelete}
-        onClose={() => {
-          setConfirmDeleteOpen(false);
-          setError(null);
-        }}
+        onClose={() => setConfirmDeleteOpen(false)}
       />
     </div>
   );
 }
 
 function renderDeleteDescription({
-  isPending,
   noteCount,
 }: {
-  isPending: boolean;
   noteCount: number;
 }): React.ReactNode {
-  if (isPending) {
-    if (noteCount > 0) {
-      return (
-        <>
-          <span aria-live="polite">
-            <strong>{noteCount} 件のノートを更新中…</strong>
-          </span>
-          <div
-            role="progressbar"
-            aria-busy={true}
-            aria-valuemin={0}
-            aria-valuemax={noteCount}
-            // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002
-            aria-valuenow={undefined}
-            aria-label={`${noteCount} 件のノートを更新中`}
-            className={progressTrack}
-          >
-            <div className={progressBarIndeterminate} />
-          </div>
-        </>
-      );
-    }
-    return <span aria-live="polite">削除中…</span>;
-  }
-
   if (noteCount > 0) {
     return (
       <>
