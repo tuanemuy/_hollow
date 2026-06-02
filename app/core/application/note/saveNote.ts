@@ -82,7 +82,7 @@ export async function saveNote({
     }
     if (found.entity.status !== "active") {
       throw new BusinessRuleError(
-        NoteErrorCode.AlreadyTrashed,
+        NoteErrorCode.Trashed,
         `Cannot save trashed note ${input.noteId}`,
       );
     }
