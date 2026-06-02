@@ -1,5 +1,7 @@
 // Shared utility class strings used across the authenticated app shell.
 
+import { navItem } from "../common/styles";
+
 export const APP_HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline bg-[var(--header-bg)] px-6 py-[14px] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
 
@@ -69,8 +71,10 @@ export const SIDEBAR_SECTION = "mb-7";
 export const SIDEBAR_SECTION_TITLE =
   "text-[11px] font-medium text-ink-tertiary uppercase tracking-[0.06em] px-3 mb-1.5";
 
-export const NAV_ITEM =
-  "relative flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline hover:bg-surface aria-[current=page]:bg-surface aria-[current=page]:font-medium data-[active]:bg-surface data-[active]:font-medium";
+// Sidebar nav link = shared `navItem` base + sidebar-only surface highlight
+// (the active background is painted on the link here, unlike the directory
+// tree where it lives on the row).
+export const NAV_ITEM = `${navItem} relative hover:bg-surface aria-[current=page]:bg-surface data-[active]:bg-surface`;
 
 export const APP_MAIN = "px-6 pt-8 pb-20 max-w-[1100px] mx-auto w-full min-w-0";
 
@@ -117,6 +121,3 @@ export const DATA_ROW =
   "grid grid-cols-[1fr_auto] gap-4 px-3 py-4 border-t border-hairline items-center last-of-type:border-b";
 
 export const ROW_ACTIONS = "inline-flex gap-2";
-
-export const ROW_ACTIONS_SMALL_PILL =
-  "h-[30px] px-3 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none whitespace-nowrap hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover data-[danger]:bg-error-surface data-[danger]:text-error";

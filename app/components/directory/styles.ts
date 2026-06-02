@@ -7,6 +7,8 @@
  * the static utility tokens, identical bundle to inline strings.
  */
 
+import { navItem } from "../common/styles";
+
 /**
  * Wrapper row for a single treeitem (link + actions trigger).
  *
@@ -27,8 +29,7 @@ export const TREE_ITEM_ROW =
  * ancestors. The selection background lives on `TREE_ITEM_ROW` instead so the
  * highlight spans the whole row rather than just this `flex-1` link.
  */
-export const TREE_ITEM_LINK =
-  "flex-1 min-w-0 flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline truncate data-[active]:font-medium aria-[current=page]:font-medium";
+export const TREE_ITEM_LINK = `${navItem} flex-1 min-w-0 truncate`;
 
 /** Disclosure caret button (expand / collapse children). */
 export const TREE_DISCLOSURE =
