@@ -85,7 +85,7 @@ export async function testLLMConnection({
 
   const envApiKey = container.adminSettingsEnv.apiKey;
   let resolvedKey: string | null;
-  if (envApiKey !== null && envApiKey.trim().length > 0) {
+  if (envApiKey !== null && envApiKey.length > 0) {
     resolvedKey = envApiKey;
   } else {
     resolvedKey = await AdminSettingsService.decryptApiKey(

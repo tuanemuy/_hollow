@@ -827,6 +827,56 @@ describe("testLLMConnection", () => {
     });
     expect(stub.calls).toHaveLength(0);
   });
+
+  // Regression for ADR-002 (#432): a whitespace-only env apiKey counts as
+  // "present" via `length > 0` (not trimmed), so env wins over the persisted
+  // db key and the usecase does NOT fall back to decrypting the ciphertext.
+  // The resolved key is then caught by the effective-empty guard. Before the
+  // fix (`trim().length > 0`) env was treated as unset and the db key pinged
+  // ok=true, so this test fails on the old behavior.
+  it("whitespace-only env apiKey wins over the db key and does not fall back (ADR-002, #432)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    // Persist a valid db api key (no env override during the write).
+    await updateLLMConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "anthropic",
+        model: "claude-3-5-sonnet-latest",
+        baseURL: null,
+        apiKeyPlain: "sk-db-secret",
+      },
+    });
+
+    const stub = new StubLLMConnectionTester({ ok: true, latencyMs: 5 });
+    const container = {
+      ...baseContainer,
+      adminSettingsEnv: {
+        apiKey: "   ",
+        provider: null,
+        model: null,
+        baseURL: null,
+      },
+      llmConnectionTester: stub,
+    };
+
+    const result = await testLLMConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: false, draftConfig: null },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe(
+      "No api key available for the configured LLM provider",
+    );
+    expect(stub.calls).toHaveLength(0);
+  });
 });
 
 // ---------- UpdatePromptTemplate ----------
