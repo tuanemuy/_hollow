@@ -125,7 +125,7 @@ export function SignUpForm() {
           ご登録のメールアドレス宛に確認リンクをお送りしました。
           受信したリンクをクリックして、アカウントを有効化してください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY}>
+        <Link to="/login" className={BTN_PRIMARY} data-primary="">
           ログインへ
         </Link>
       </div>
@@ -289,7 +289,12 @@ export function SignUpForm() {
           </div>
         ) : null}
 
-        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          data-primary=""
+          disabled={isPending}
+        >
           {isPending ? "送信中..." : "アカウントを作成"}
         </button>
       </form>

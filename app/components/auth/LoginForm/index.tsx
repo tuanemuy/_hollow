@@ -188,7 +188,12 @@ export function LoginForm() {
           </div>
         ) : null}
 
-        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          data-primary=""
+          disabled={isPending}
+        >
           {isPending ? "ログイン中..." : "ログイン"}
         </button>
       </form>

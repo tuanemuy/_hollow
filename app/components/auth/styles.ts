@@ -1,6 +1,8 @@
 // Shared utility class strings for the auth surface. Avoids re-typing the same
 // utility lists in every auth form while keeping styles inline (no @apply).
 
+import { pillBtn, pillBtnPrimary, pillBtnTall } from "../common/styles";
+
 export const AUTH_TITLE =
   "text-3xl font-normal tracking-tightest leading-tight text-ink mb-2";
 
@@ -49,17 +51,11 @@ export const CHECKBOX_INPUT =
 export const FORM_ERROR =
   "flex gap-3 bg-error-surface text-error rounded-md px-4 py-3 text-sm leading-normal items-start";
 
-export const BTN_PRIMARY =
-  "w-full h-12 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
+export const BTN_PRIMARY = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full`;
 
-export const BTN_PRIMARY_INLINE =
-  "h-12 min-w-[200px] px-8 rounded-pill bg-accent text-white text-md font-medium inline-flex items-center justify-center transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-60 disabled:cursor-not-allowed";
+export const BTN_PRIMARY_INLINE = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px]`;
 
-export const BTN_SECONDARY =
-  "inline-flex items-center justify-center h-11 px-6 rounded-pill bg-surface text-ink text-sm font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
-
-export const BTN_SECONDARY_TALL =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-60 disabled:cursor-not-allowed";
+export const BTN_SECONDARY_TALL = `${pillBtn} ${pillBtnTall} min-w-[200px]`;
 
 export const CALLOUT =
   "flex gap-3 px-4 py-3 rounded-md bg-surface text-ink-secondary text-sm leading-normal items-start mb-6";

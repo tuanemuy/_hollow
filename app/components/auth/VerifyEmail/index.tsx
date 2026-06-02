@@ -115,7 +115,12 @@ export function VerifyEmail({ token }: { token: string }) {
         <p className={AUTH_BODY}>
           これでアカウントを利用できます。ログイン状態でホームへ進めます。
         </p>
-        <Link to="/" search={HOME_SEARCH} className={BTN_PRIMARY_INLINE}>
+        <Link
+          to="/"
+          search={HOME_SEARCH}
+          className={BTN_PRIMARY_INLINE}
+          data-primary=""
+        >
           ホームへ進む
         </Link>
       </>
@@ -160,6 +165,7 @@ export function VerifyEmail({ token }: { token: string }) {
             <button
               type="submit"
               className={BTN_PRIMARY}
+              data-primary=""
               disabled={
                 resendState === "pending" || resendEmail.trim().length === 0
               }
@@ -189,7 +195,7 @@ export function VerifyEmail({ token }: { token: string }) {
           この確認リンクはすでに使用されています。
           ログインして続きの操作を行ってください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY_INLINE}>
+        <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
           ログインへ
         </Link>
       </>
@@ -209,7 +215,7 @@ export function VerifyEmail({ token }: { token: string }) {
         <p className={AUTH_BODY}>
           確認リンクが不正です。確認メールをもう一度送信してください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY_INLINE}>
+        <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
           ログインへ
         </Link>
       </>
@@ -223,7 +229,7 @@ export function VerifyEmail({ token }: { token: string }) {
       </div>
       <h1 className={AUTH_TITLE}>確認に失敗しました</h1>
       <p className={AUTH_BODY}>{status.message}</p>
-      <Link to="/login" className={BTN_PRIMARY_INLINE}>
+      <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
         ログインへ
       </Link>
     </>
