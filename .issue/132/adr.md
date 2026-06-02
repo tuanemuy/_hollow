@@ -95,7 +95,7 @@ Proposed
 - これは「`AlreadyTrashed` の重義性」（同一定数が 2 つの spec 文言に跨る）とは別種の不整合（専用定数 vs spec 文言の乖離）。
 - 本 Issue のスコープ（AlreadyTrashed 重義性解消）に含めると、修正の趣旨が混在し PR の意図が不明瞭になる。
 
-Phase 4 で「MoveNote の trashed エラーコードを spec の `note_trashed` に揃える」フォローアップ Issue を起票する。
+Phase 4 で「MoveNote の trashed エラーコードを spec の `note_trashed` に揃える」フォローアップ Issue **#439** を起票済み（案A: 実装を spec へ寄せる / 案B: spec を実装へ寄せる の two-way 判断を Issue 本文に明記）。
 
 ### Consequences
 - 良い点: 本 Issue のスコープと PR の意図が明確に保たれる
