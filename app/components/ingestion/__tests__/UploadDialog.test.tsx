@@ -1535,7 +1535,7 @@ describe("UploadDialog state machine", () => {
     expect(badges[1]?.getAttribute("data-overriding")).toBeNull();
   });
 
-  it("shows the provider-fallback copy when the resolved default is empty", async () => {
+  it("shows the system-default copy when the resolved default is empty", async () => {
     getEffectivePromptsMock.mockResolvedValue({
       structure: { text: "", isUserOverride: false },
       metadata: { text: "", isUserOverride: false },
@@ -1550,16 +1550,14 @@ describe("UploadDialog state machine", () => {
       await Promise.resolve();
     });
 
-    // Empty default → the fallback copy is shown (placeholder + full body).
-    expect(document.body.textContent).toContain(
-      "LLM プロバイダの既定指示を使用",
-    );
-    // ...and the source layer is named "プロバイダ組み込み" (the most common
+    // Empty default → the system-default copy is shown (placeholder + full body).
+    expect(document.body.textContent).toContain("システム既定の動作を使用");
+    // ...and the source layer is named "システム既定" (the most common
     // standard state: no instance default + no user override).
-    expect(document.body.textContent).toContain("プロバイダ組み込み");
+    expect(document.body.textContent).toContain("システム既定");
     const structureTa =
       document.body.querySelectorAll<HTMLTextAreaElement>("textarea")[0];
-    expect(structureTa?.placeholder).toBe("LLM プロバイダの既定指示を使用");
+    expect(structureTa?.placeholder).toBe("システム既定の動作を使用");
   });
 
   it("keeps the upload flow usable when the default-prompt fetch fails", async () => {

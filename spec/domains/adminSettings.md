@@ -36,7 +36,7 @@
 
 ### 既定値（SSOT）
 
-- プロンプト: `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_PROMPT_DEFAULTS`。`text` は空文字を保持し、`promptResolver` の「空文字 = LLM プロバイダの既定指示にフォールバック」契約と整合する（Issue #218 ADR-002）。
+- プロンプト: `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_PROMPT_DEFAULTS`。`text` は空文字を保持し、`promptResolver` の「空文字 = operator の追加指示なし（アダプタが固定のロール宣言＋出力契約のみでシステムプロンプトを組む）」契約と整合する（Issue #218 ADR-002、#396 ADR-002 で是正）。
 - デザイントークン:
   - CSS の既定値そのものは `app/styles/tokens.css`（CLAUDE.md と一致、`spec/design/tokens.md` にミラー）が SSOT。
   - 管理画面で上書き可能なトークンの「キー → 既定値」は `app/core/domain/adminSettings/defaults.ts` の `BUILTIN_DESIGN_TOKENS`（curated subset・計 27 キー）が SSOT（Issue #397）。`tokens.css` との値整合は `defaults.test.ts` が CI で機械検証する（手書き定数 + 整合性テスト方式、ランタイム CSS パース / codegen は不採用）。

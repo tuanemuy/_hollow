@@ -77,6 +77,13 @@ export function isLLMQuotaExceededError(
 
 export type LLMStructureInput = Readonly<{
   rawText: string;
+  /**
+   * The operator's optional *additional analysis intent*. The adapter
+   * always emits a fixed role declaration and JSON output contract; this
+   * text is *appended* to them (never substituted) when non-empty. The
+   * empty string means "no additional intent" — i.e. the system default
+   * role + output contract only.
+   */
   prompt: string;
   locale: string;
   /**
@@ -106,6 +113,13 @@ export type LLMStructureResult = Readonly<{
 
 export type LLMMetadataInput = Readonly<{
   html: string;
+  /**
+   * The operator's optional *additional analysis intent*. The adapter
+   * always emits a fixed role declaration and JSON output contract; this
+   * text is *appended* to them (never substituted) when non-empty. The
+   * empty string means "no additional intent" — i.e. the system default
+   * role + output contract only.
+   */
   prompt: string;
 }>;
 

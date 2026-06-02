@@ -58,8 +58,9 @@ function parsePromptsJson(field: string, raw: string): PromptsJson {
  * ADR-001) where a missing key — or, on the legacy "full map + empty
  * text" path, an entry whose `text` is empty after domain rehydration —
  * signals "no override at this layer". The empty-string fallback is the
- * documented signal for ingestion callers to use the LLM-provider's
- * built-in instructions.
+ * documented signal that the operator added no extra instruction, so the
+ * adapter builds the system prompt from its fixed role declaration + output
+ * contract only (Issue #396 ADR-002).
  *
  * Reads are immediate (no batch buffering) because this is a read-only
  * port whose result is consumed before the ingestion usecase enters its

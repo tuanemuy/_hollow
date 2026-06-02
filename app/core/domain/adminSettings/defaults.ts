@@ -5,11 +5,13 @@ import type { PromptPurpose } from "./valueObject";
  * "system default" value of each `PromptPurpose`.
  *
  * `text` is intentionally the empty string for every purpose. The `promptResolver`
- * contract treats an empty resolved template as the signal to fall back to the LLM
- * provider's own default instruction (see Issue #218 ADR-002). Surfacing a
- * concrete default text here would silently extend that fallback chain and
- * change ingestion behaviour. Use UI copy ("LLM プロバイダの既定指示を使用") to
- * communicate the default to the operator instead.
+ * contract treats an empty resolved template as "the operator added no extra
+ * instruction": the adapter layer (`prompts.ts`) then builds the system prompt
+ * from its fixed role declaration + output contract only — this is *not* a
+ * provider-specific default (see Issue #218 ADR-002, corrected by #396 ADR-002).
+ * Surfacing a concrete default text here would silently inject operator-level
+ * intent and change ingestion behaviour. Use UI copy ("システム既定の動作を使用")
+ * to communicate this state to the operator instead.
  *
  * `expectedVariables` is the empty array — keeping it minimal preserves the
  * `PromptTemplate.create` placeholder↔expected mismatch check unchanged for
