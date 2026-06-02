@@ -12,10 +12,10 @@ export type EffectiveIngestionPrompt = {
    * The fully resolved prompt text the ingestion pipeline would actually
    * apply for this purpose when the user leaves the per-upload override
    * blank. Resolved via `promptResolver` (per-user override → instance
-   * default → empty string). An empty string is the documented signal to
-   * fall back to the LLM provider's built-in instruction (see
-   * `BUILTIN_PROMPT_DEFAULTS` / Issue #218 ADR-002), which the UI surfaces
-   * as copy rather than text.
+   * default → empty string). An empty string means "no additional operator
+   * intent": the adapter builds the system prompt from its fixed role
+   * declaration + output contract only (see `BUILTIN_PROMPT_DEFAULTS` /
+   * Issue #396 ADR-002), which the UI surfaces as copy rather than text.
    */
   text: string;
   /**

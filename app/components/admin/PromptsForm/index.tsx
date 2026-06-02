@@ -34,29 +34,37 @@ const PROMPT_DESCRIPTORS: readonly PromptDescriptor[] = [
   {
     purpose: "structure",
     title: "取り込み構造化プロンプト",
-    description: "アップロード画像・PDF からテキストと見出し構造を抽出",
+    description: "本文をどう構造化・整形してほしいかの意図を補足できます",
   },
   {
     purpose: "title",
     title: "タイトル生成プロンプト",
-    description: "ノート本文から簡潔な日本語タイトルを生成",
+    description: "どんな観点でタイトルを付けてほしいかの意図を補足できます",
   },
   {
     purpose: "directory",
     title: "ディレクトリ提案プロンプト",
-    description: "ノート内容と既存ディレクトリから最適な配置を提案",
+    description: "どんな基準で配置先を提案してほしいかの意図を補足できます",
   },
   {
     purpose: "metadata",
     title: "メタデータ抽出プロンプト",
-    description: "ノートからタグや概要などのメタデータを抽出",
+    description: "どんな粒度でタグ付けしてほしいかの意図を補足できます",
   },
   {
     purpose: "ocr_assist",
     title: "OCR 補助プロンプト",
-    description: "OCR 結果の補正・整形に使用（OCR 機能は今後の実装で利用予定）",
+    description:
+      "OCR 結果の補正・整形の意図を補足できます（OCR 機能は今後の実装で利用予定）",
   },
 ];
+
+// Shown as the resolved default value when no override is in place — the
+// empty system default means "operator added no extra instruction" (#396).
+const NO_OVERRIDE_LABEL = "（追加の指示なし）";
+// Textarea placeholder prompting the operator to write their analysis intent.
+const INTENT_PLACEHOLDER =
+  "どう分析してほしいかの意図を記入（空欄ならシステム既定の動作）";
 
 const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
 const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
@@ -94,7 +102,7 @@ function PromptCard({
 
   // Only show the user's draft when an override is actively in place;
   // otherwise the textarea starts empty so the operator can confirm
-  // visually that "no override = LLM provider default" is in effect.
+  // visually that "no override = system default behaviour only" is in effect.
   const [text, setText] = useState(current.isOverridden ? current.text : "");
   const [variables, setVariables] = useState(
     (current.isOverridden ? current.expectedVariables : []).join(", "),
@@ -148,10 +156,9 @@ function PromptCard({
     error?.kind === "validation" ? error.fieldErrors : undefined;
   const summary = error !== null ? displayError(error) : "";
 
-  // ADR-002: built-in default is the empty string, surfaced to operators
-  // through this UI label rather than placeholder text.
-  const defaultLabel =
-    defaults.text === "" ? "（プロバイダ既定指示）" : defaults.text;
+  // ADR-002: the empty system default ("no additional operator intent") is
+  // surfaced to operators through this UI label rather than placeholder text.
+  const defaultLabel = defaults.text === "" ? NO_OVERRIDE_LABEL : defaults.text;
 
   return (
     <article className="border border-hairline rounded-lg p-5">
@@ -175,14 +182,14 @@ function PromptCard({
       </header>
       <div className="mb-4">
         <label className={FIELD_LABEL_CLASS} htmlFor={textId}>
-          プロンプト本文
+          分析の指示（任意）
         </label>
         <textarea
           id={textId}
           className={TEXTAREA_CLASS}
           value={text}
           spellCheck={false}
-          placeholder={defaultLabel}
+          placeholder={INTENT_PLACEHOLDER}
           onChange={(event) => setText(event.target.value)}
           disabled={isPending}
         />
@@ -306,7 +313,7 @@ export function PromptsForm({
       <ConfirmDialog
         open={confirmOpen}
         title="すべてのプロンプトをリセットしますか？"
-        description="すべての上書きが削除され、各プロンプトはプロバイダの既定指示に戻ります。この操作は取り消せません。"
+        description="すべての上書きが削除され、各プロンプトはシステム既定の動作に戻ります。この操作は取り消せません。"
         confirmLabel={isPending ? "リセット中..." : "リセット"}
         confirmIcon={RotateCcw}
         isPending={isPending}

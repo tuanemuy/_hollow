@@ -9,7 +9,19 @@ import type {
  * metadata contract, so the prompt text lives here once — keeping the
  * suggestion-quality guidance identical regardless of which provider an
  * admin selects, and preventing the three copies from drifting.
+ *
+ * Concern separation (Issue #396): the role declaration and the JSON output
+ * contract are *system-owned* and always emitted here verbatim. The
+ * operator-supplied `input.prompt` is the operator's optional *additional
+ * analysis intent* — it is *appended* (never substituted) between the role
+ * declaration and the guidance, and only when non-empty after trimming.
+ * This keeps the output contract structurally unbreakable by operator input.
  */
+
+// Fixed label prefixing the operator's appended intent (Issue #396 ADR-001).
+// Always present when intent is appended so the model can distinguish the
+// operator's additional guidance from the system-fixed role declaration.
+const OPERATOR_INTENT_LABEL = "Additional analysis guidance from the operator:";
 
 function hasExistingDirectories(input: LLMStructureInput): boolean {
   return (
@@ -18,16 +30,17 @@ function hasExistingDirectories(input: LLMStructureInput): boolean {
   );
 }
 
+function operatorIntentSection(prompt: string): readonly string[] {
+  return prompt.trim().length > 0 ? [OPERATOR_INTENT_LABEL, prompt] : [];
+}
+
 export function buildStructureSystemPrompt(input: LLMStructureInput): string {
-  const base =
-    input.prompt.trim().length > 0
-      ? input.prompt
-      : "You convert raw note material into a sanitised HTML draft.";
   const directoryGuidance = hasExistingDirectories(input)
     ? 'For "directorySuggestion": prefer placing the note under one of the existing directories listed in the user message — when one fits, return that path verbatim (exactly as listed). Only when none of them fits, propose a new directory path. You may propose a nested path using "/" as the separator (e.g. "親/子"), up to 10 levels deep.'
     : 'For "directorySuggestion": propose a fitting new directory path, or null when no clear placement applies. You may propose a nested path using "/" as the separator (e.g. "親/子"), up to 10 levels deep.';
   return [
-    base,
+    "You convert raw note material into a sanitised HTML draft.",
+    ...operatorIntentSection(input.prompt),
     `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,
     'For "titleSuggestion": do not reuse the file name. Derive a concise, meaningful title from the note content itself.',
     directoryGuidance,
@@ -48,12 +61,9 @@ export function buildStructureUserMessage(input: LLMStructureInput): string {
 }
 
 export function buildMetadataSystemPrompt(input: LLMMetadataInput): string {
-  const base =
-    input.prompt.trim().length > 0
-      ? input.prompt
-      : "You extract tag names and aliases from an HTML note body.";
   return [
-    base,
+    "You extract tag names and aliases from an HTML note body.",
+    ...operatorIntentSection(input.prompt),
     `Respond with a single JSON object on one line with the keys "tags" (string[]) and "aliases" (string[]).`,
     'For "tags": do not mechanically extract words from the text. Consider the overall content and propose a meaningful set of about 3 to 5 tags at a consistent level of abstraction (avoid mixing overly specific and broad tags).',
     "Do not include code fences. Do not include any text before or after the JSON object.",

@@ -689,10 +689,11 @@ function SelectView({
 
 // Canonical UI copy for the empty-resolved-default case. When the
 // resolver returns an empty string (no instance default + no user
-// override — the most common standard state), ingestion falls back to the
-// LLM provider's built-in instruction. The wording is the SSOT defined in
-// `app/core/domain/adminSettings/defaults.ts` JSDoc (Issue #218 ADR-002).
-const BUILTIN_PROMPT_FALLBACK_COPY = "LLM プロバイダの既定指示を使用";
+// override — the most common standard state), ingestion uses the system
+// default behaviour only (fixed role declaration + output contract, with no
+// additional operator intent). The wording is the SSOT defined in
+// `app/core/domain/adminSettings/defaults.ts` JSDoc (Issue #396 ADR-002).
+const SYSTEM_DEFAULT_PROMPT_COPY = "システム既定の動作を使用";
 
 // Placeholder shows the leading slice of the resolved default so the user
 // sees "what gets used when blank" without the textarea ballooning on a
@@ -703,8 +704,8 @@ const PLACEHOLDER_MAX_CHARS = 140;
 // resolved default, a state badge ("既定を使用中" vs "この回だけ上書き")
 // driven by whether the user has typed anything, and a collapsible full
 // default body that also names the source layer (user override vs
-// instance default). Empty resolved text surfaces the provider-fallback
-// copy as the primary hint. See #358.
+// instance default). Empty resolved text surfaces the system-default copy
+// as the primary hint. See #358.
 function PromptOverrideField({
   label,
   value,
@@ -729,7 +730,7 @@ function PromptOverrideField({
         ? defaultText.length > PLACEHOLDER_MAX_CHARS
           ? `${defaultText.slice(0, PLACEHOLDER_MAX_CHARS)}…`
           : defaultText
-        : BUILTIN_PROMPT_FALLBACK_COPY;
+        : SYSTEM_DEFAULT_PROMPT_COPY;
   // Source-layer label. `isUserOverride === true` implies non-empty resolved
   // text — the usecase derives `isUserOverride` with the same predicate the
   // resolver uses to adopt the override (`entry.text.length > 0`), so the
@@ -738,7 +739,7 @@ function PromptOverrideField({
     ? "ユーザー設定で上書き中"
     : hasDefaultText
       ? "インスタンス既定"
-      : "プロバイダ組み込み";
+      : "システム既定";
   return (
     <div className={field}>
       <div className="flex items-center justify-between gap-2">
@@ -780,7 +781,7 @@ function PromptOverrideField({
               </pre>
             ) : (
               <p className="mt-2 text-ink-secondary">
-                {BUILTIN_PROMPT_FALLBACK_COPY}
+                {SYSTEM_DEFAULT_PROMPT_COPY}
               </p>
             )}
           </details>
