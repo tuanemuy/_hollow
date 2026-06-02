@@ -1,5 +1,7 @@
 // Shared utility class strings for the public surface (P30–P34).
 
+import { pillBtn, pillBtnPrimary, pillBtnTall } from "../common/styles";
+
 export const PUBLIC_HEADER =
   "sticky top-0 z-50 bg-[var(--header-bg)] py-[14px] px-6 grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:px-4 max-sm:py-3 max-sm:gap-2.5";
 
@@ -20,8 +22,9 @@ export const PUBLIC_TEXT_LINK =
 
 export const PUBLIC_TEXT_LINK_SIGNUP = `${PUBLIC_TEXT_LINK} max-sm:hidden`;
 
-export const PILL_BTN =
-  "h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink inline-flex items-center gap-1.5 transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:bg-accent-hover whitespace-nowrap max-sm:min-h-[44px]";
+// pillBtnPrimary is appended for every consumer: `data-primary` ones (e.g.
+// ErrorPage「ホームへ戻る」) resolve to accent, bare ones keep base surface.
+export const PILL_BTN = `${pillBtn} ${pillBtnPrimary}`;
 
 export const PUBLIC_MAIN =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
@@ -99,8 +102,10 @@ export const SEARCH_HERO_H1 =
 export const SEARCH_FORM = "relative max-w-[640px]";
 export const SEARCH_FORM_INPUT =
   "w-full h-12 border border-hairline bg-bg rounded-pill pl-12 pr-14 text-[15px] text-ink outline-none transition-colors motion-reduce:transition-none focus:border-hairline-strong focus:shadow-focus";
-export const SEARCH_FORM_BUTTON =
-  "absolute right-1.5 top-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover";
+// Center-anchored so it stays within the h-12 input even when the base
+// `max-sm:min-h-[44px]` tap target fires on mobile (see .issue/417/adr.md ADR-004).
+// Requires `data-primary` on the consumer button.
+export const SEARCH_FORM_BUTTON = `${pillBtn} ${pillBtnPrimary} absolute right-1.5 top-1/2 -translate-y-1/2`;
 export const SEARCH_FORM_ICON =
   "absolute left-[18px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
@@ -137,8 +142,9 @@ export const GATE_INPUT =
   "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus:border-accent focus:shadow-focus data-[error]:border-error";
 export const GATE_ERROR =
   "text-[13px] text-error -mt-1 flex items-center gap-1.5";
-export const GATE_SUBMIT =
-  "w-full h-11 mt-2 rounded-pill bg-accent text-white text-[15px] font-medium transition-colors motion-reduce:transition-none hover:not-disabled:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed";
+// Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
+// consumer button, else the accent variant never applies and it renders surface.
+export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;
 export const GATE_FOOT =
   "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
 export const LOCKOUT =

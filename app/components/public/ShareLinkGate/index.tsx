@@ -132,6 +132,7 @@ export function ShareLinkGate({ token }: Props) {
             <button
               type="submit"
               className={GATE_SUBMIT}
+              data-primary=""
               disabled={isPending || isLocked}
             >
               {isPending ? "確認中..." : "閲覧する"}

@@ -95,7 +95,11 @@ export async function PublicSearch({
               {username !== null ? (
                 <input type="hidden" name="username" value={username} />
               ) : null}
-              <button type="submit" className={SEARCH_FORM_BUTTON}>
+              <button
+                type="submit"
+                className={SEARCH_FORM_BUTTON}
+                data-primary=""
+              >
                 検索
               </button>
             </form>
