@@ -22,8 +22,8 @@ export const PUBLIC_TEXT_LINK =
 
 export const PUBLIC_TEXT_LINK_SIGNUP = `${PUBLIC_TEXT_LINK} max-sm:hidden`;
 
-// Composes the common pill primitive. `data-primary` consumers (e.g. ErrorPage
-// "ホームへ戻る") get accent via the variant; bare consumers keep base surface.
+// pillBtnPrimary is appended for every consumer: `data-primary` ones (e.g.
+// ErrorPage「ホームへ戻る」) resolve to accent, bare ones keep base surface.
 export const PILL_BTN = `${pillBtn} ${pillBtnPrimary}`;
 
 export const PUBLIC_MAIN =
@@ -142,8 +142,8 @@ export const GATE_INPUT =
   "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus:border-accent focus:shadow-focus data-[error]:border-error";
 export const GATE_ERROR =
   "text-[13px] text-error -mt-1 flex items-center gap-1.5";
-// Full-width accent submit, matching auth `BTN_PRIMARY`. Requires `data-primary`
-// on the consumer button.
+// Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
+// consumer button, else the accent variant never applies and it renders surface.
 export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;
 export const GATE_FOOT =
   "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
