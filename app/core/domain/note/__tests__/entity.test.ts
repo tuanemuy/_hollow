@@ -211,6 +211,55 @@ describe("Note.updateContent", () => {
     expect(eventDrafts).toHaveLength(0);
   });
 
+  it("treats a link ref differing only in resolvedNoteId as a no-op", () => {
+    const resolved: InternalLinkRefType = {
+      kind: "title",
+      target: "x",
+      resolvedNoteId: "some-note-id" as never,
+      displayText: null,
+    };
+    const { entity } = Note.create(
+      baseInput({ internalLinkRefs: [resolved] }),
+      T0,
+    );
+    // Same kind+target, but resolvedNoteId is null this time. The resolver
+    // sets resolvedNoteId out-of-band, so `InternalLinkRef.equals` (and
+    // hence the no-op check) must ignore it - resubmitting the parsed-but-
+    // unresolved ref must not count as a content change.
+    const unresolved: InternalLinkRefType = {
+      kind: "title",
+      target: "x",
+      resolvedNoteId: null,
+      displayText: null,
+    };
+    const { entity: same, eventDrafts } = Note.updateContent(entity, {
+      internalLinkRefs: [unresolved],
+      now: at(5),
+      actorUserId: OWNER,
+      requireLock: false,
+    });
+    expect(same).toBe(entity);
+    expect(eventDrafts).toHaveLength(0);
+  });
+
+  it("is order-sensitive: reordering tagIds is a content change", () => {
+    const tagA = TagId.create(rawId(10));
+    const tagB = TagId.create(rawId(11));
+    const { entity } = Note.create(baseInput({ tagIds: [tagA, tagB] }), T0);
+    // Same set, different order. The comparison is intentionally ordered
+    // (conservative), so this is NOT a no-op - version bumps and the
+    // content_updated event fires.
+    const { entity: next, eventDrafts } = Note.updateContent(entity, {
+      tagIds: [tagB, tagA],
+      now: at(5),
+      actorUserId: OWNER,
+      requireLock: false,
+    });
+    expect(next).not.toBe(entity);
+    expect(next.version).toBe(entity.version + 1);
+    expect(eventDrafts).toHaveLength(1);
+  });
+
   it("bumps version + emits content_updated when only one field changes", () => {
     const { entity } = Note.create(baseInput(), T0);
     const { entity: next, eventDrafts } = Note.updateContent(entity, {

@@ -84,6 +84,13 @@ export async function saveNoteDraft({
       requireLock: false,
     });
 
+    // No-op autosave: `updateContent` returns the same reference when the
+    // draft matches the stored content, so skip the save + event entirely
+    // (mirrors the reset/update usecases' `next === current` guard).
+    if (next === found.entity) {
+      return next;
+    }
+
     await ctx.noteRepository.save(next, found.expectedVersion);
     ctx.collectEvents(eventDrafts);
 

@@ -184,3 +184,30 @@ User 値セッターの no-op 化（既存 + 本 Issue の changeUsername 順序
 
 - 良い点: InstanceSettings/Note/Directory（version 永続化あり）と User（version 永続化なし）で、no-op の「最終的な便益」は異なるが、ドメイン契約（同一値なら同一参照）は統一される。
 - 影響: 統合テストでは User の version を DB 観測できないため、`updated_at` 不変を「書き込みが起きていない」指標として用いる（`identity.integration.test.ts` の no-op テスト）。
+
+---
+
+## ADR-008: Note ユースケース側ガードは saveNoteDraft のみ — saveNote/restoreNoteRevision は revision 契約を優先
+
+### Status
+Accepted
+
+### Context
+
+Issue 本文は「ユースケース側にも `next === current` ガードを置く（PR #263 の reset 4ユースケースと同形）」を提案している。`Note.updateContent` を呼ぶユースケースは `saveNote` / `saveNoteDraft` / `restoreNoteRevision` / `commitIngestionPreview` の4つ。PR レビューで、これらが no-op 時も無条件に `noteRepository.save` を呼ぶ（User 系の `renamed === found.entity` ガードと非対称）点が指摘された。
+
+### Decision
+
+ユースケース側ガードは **`saveNoteDraft` にのみ**追加する（`if (next === found.entity) return next;` で save とイベント収集をスキップ）。`saveNote` / `restoreNoteRevision` / `commitIngestionPreview` には追加しない。
+
+理由:
+
+- **`saveNoteDraft`（autosave）**: 同一内容の連投が最も頻繁に起きる経路で、revision を作らない純粋な内容更新。reset 系と同形のガードがそのまま適用でき、DB 書き込みも完全にスキップできる。
+- **`saveNote`（明示保存）**: Issue #158 ADR-002 が「成功した SaveNote は毎回 `note_revisions` にスナップショットを append する」と定めている。ここに no-op ガードを入れると別 Issue の revision 契約を上書きすることになるため、本 Issue のスコープ外とする。`saveNote` の no-op 便益は「version 据置＋`contentUpdated` 抑制」に留まり、行の再書き込み・revision append は従来どおり走る。
+- **`restoreNoteRevision`**: 復元前状態を記録する safety-net revision（`.issue` #315 系の意図）を no-op でも残すため、ガードしない。
+- **`commitIngestionPreview`**: プレビュー確定は内容変化が前提で no-op 経路に実質到達しない。
+
+### Consequences
+
+- 良い点: autosave のホットパスで DB 書き込み・イベント・version 進行をすべて抑止でき、Issue の主目的（無駄な再インデックス・リンク再解決の抑止）を最大効率で達成。reset/update 系とパターンが揃う。
+- トレードオフ: `saveNote` では「version 据置だが revision は append される」という状態が生じうるが、これは #158 ADR-002 の既存契約に従った意図的な振る舞い。ADR-005/007 の「書き込み回避」は User と `saveNoteDraft` に適用され、`saveNote` ではイベント抑制のみと整理する。

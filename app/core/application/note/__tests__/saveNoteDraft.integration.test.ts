@@ -187,6 +187,41 @@ describe("saveNoteDraft (integration)", () => {
     expect(links[0]?.tagId).toBe(tagId);
   });
 
+  it("re-saving identical draft content is a no-op (version + updated_at unchanged)", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir, {
+      editLockUserId: owner,
+      contentHtml: "<p>start</p>",
+    });
+
+    // First draft save mutates the body and bumps version.
+    await saveNoteDraft({
+      container,
+      input: { actorUserId: owner, noteId, contentHtml: "<p>draft body</p>" },
+    });
+    const afterFirst = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    const versionAfterFirst = afterFirst[0]?.version;
+    const updatedAtAfterFirst = afterFirst[0]?.updatedAt;
+
+    // Re-sending the identical body must short-circuit before the save:
+    // version and updated_at stay frozen (no write, no content_updated).
+    await saveNoteDraft({
+      container,
+      input: { actorUserId: owner, noteId, contentHtml: "<p>draft body</p>" },
+    });
+    const afterSecond = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    expect(afterSecond[0]?.version).toBe(versionAfterFirst);
+    expect(afterSecond[0]?.updatedAt).toBe(updatedAtAfterFirst);
+  });
+
   it("throws BusinessRuleError(AlreadyTrashed) when the note is trashed", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
