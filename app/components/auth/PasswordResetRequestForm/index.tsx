@@ -113,7 +113,12 @@ export function PasswordResetRequestForm() {
           </div>
         ) : null}
 
-        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          data-primary=""
+          disabled={isPending}
+        >
           {isPending ? "送信中..." : "再設定リンクを送る"}
         </button>
       </form>

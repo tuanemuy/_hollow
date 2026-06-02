@@ -194,7 +194,12 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
           </div>
         ) : null}
 
-        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          data-primary=""
+          disabled={isPending}
+        >
           {isPending ? "更新中..." : "パスワードを決定"}
         </button>
       </form>

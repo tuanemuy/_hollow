@@ -144,7 +144,7 @@ export function AdminSignUpForm() {
         <p className={AUTH_SUBTITLE}>
           確認メールを送信しました。受信したリンクをクリックしてアカウントを有効化してください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY}>
+        <Link to="/login" className={BTN_PRIMARY} data-primary="">
           ログインへ
         </Link>
       </div>
@@ -396,7 +396,12 @@ export function AdminSignUpForm() {
           </span>
         ) : null}
 
-        <button type="submit" className={BTN_PRIMARY} disabled={isPending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          data-primary=""
+          disabled={isPending}
+        >
           {isPending ? "送信中..." : "管理者アカウントを作成"}
         </button>
       </form>

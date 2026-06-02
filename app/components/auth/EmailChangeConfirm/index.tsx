@@ -100,7 +100,12 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           </div>
         </div>
 
-        <Link to="/" search={HOME_SEARCH} className={BTN_PRIMARY_INLINE}>
+        <Link
+          to="/"
+          search={HOME_SEARCH}
+          className={BTN_PRIMARY_INLINE}
+          data-primary=""
+        >
           ホームへ進む
         </Link>
       </>
@@ -120,7 +125,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
         <p className={AUTH_BODY}>
           設定画面からもう一度メールアドレス変更をリクエストしてください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY_INLINE}>
+        <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
           ログインへ
         </Link>
       </>
@@ -138,7 +143,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
         </div>
         <h1 className={AUTH_TITLE}>このリンクは使用済みです</h1>
         <p className={AUTH_BODY}>このリンクは既に使用されています。</p>
-        <Link to="/login" className={BTN_PRIMARY_INLINE}>
+        <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
           ログインへ
         </Link>
       </>
@@ -158,7 +163,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
         <p className={AUTH_BODY}>
           リンクが正しくありません。設定画面からやり直してください。
         </p>
-        <Link to="/login" className={BTN_PRIMARY_INLINE}>
+        <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
           ログインへ
         </Link>
       </>
@@ -172,7 +177,7 @@ export function EmailChangeConfirm({ token }: { token: string }) {
       </div>
       <h1 className={AUTH_TITLE}>確認に失敗しました</h1>
       <p className={AUTH_BODY}>{status.message}</p>
-      <Link to="/login" className={BTN_PRIMARY_INLINE}>
+      <Link to="/login" className={BTN_PRIMARY_INLINE} data-primary="">
         ログインへ
       </Link>
     </>

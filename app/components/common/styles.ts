@@ -40,6 +40,30 @@ export const pillBtnDanger =
   "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:not-disabled:not-aria-disabled:bg-error-surface";
 
 /**
+ * Tall size add-on for pill buttons — overrides the base `h-9 / px-4 / text-sm`
+ * dimensions with `h-12 / px-8 / text-md` and adds `justify-center`.
+ *
+ * The size utilities win over the base ones because Tailwind resolves
+ * same-property utilities by generated-CSS order (not class-string order),
+ * and both spacing (`h-12 > h-9`, `px-8 > px-4`) and the custom `text-md`
+ * token sort after their base counterparts. This holds only for the
+ * *enlarging* direction; a shrinking size would lose and require a
+ * `data-[…]:` variant. See `.issue/416/adr.md` ADR-005 (and ADR-001 for why
+ * `gap` is intentionally omitted: a `gap-0` add-on cannot override the base
+ * `gap-1.5`, and the gap is harmless for text-only buttons anyway).
+ *
+ * `justify-center` is required because tall pills are run width-constrained
+ * (full-width or `min-w-[200px]`), so the base `inline-flex items-center`
+ * (horizontal default `flex-start`) would otherwise left-align the label.
+ * It is inert for content-width usage.
+ *
+ * Apply as either:
+ * - primary: `` `${pillBtn} ${pillBtnTall} ${pillBtnPrimary}` `` with `data-primary=""`
+ * - surface: `` `${pillBtn} ${pillBtnTall}` `` (no `data-primary` — base surface colors apply)
+ */
+export const pillBtnTall = "h-12 px-8 text-md justify-center";
+
+/**
  * Nav-item link base — the shared primitive behind the sidebar nav links
  * (`layout/styles.ts` `NAV_ITEM`) and the directory-tree links
  * (`directory/styles.ts` `TREE_ITEM_LINK`).
