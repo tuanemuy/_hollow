@@ -335,7 +335,6 @@ describe("User.changeEmail / changeDisplayName / changeBio / changeAvatar", () =
     // null -> null: a fresh user has bio === null.
     const stillNull = User.changeBio(active, null, at(2));
     expect(stillNull).toBe(active);
-    // value -> same value.
     const withBio = User.changeBio(active, "hello", at(2));
     const same = User.changeBio(withBio, "hello", at(3));
     expect(same).toBe(withBio);
@@ -357,7 +356,6 @@ describe("User.changeEmail / changeDisplayName / changeBio / changeAvatar", () =
     // null -> null: a fresh user has avatarMediaId === null.
     const stillNull = User.changeAvatar(active, null, at(2));
     expect(stillNull).toBe(active);
-    // same id -> same id.
     const m1 = MediaAssetId.create("media-1");
     const withAvatar = User.changeAvatar(active, m1, at(2));
     const same = User.changeAvatar(withAvatar, m1, at(3));
