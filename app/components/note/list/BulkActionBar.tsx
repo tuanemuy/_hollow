@@ -73,6 +73,7 @@ export function BulkActionBar({ tree }: Props) {
         }
         dispatch({ type: "clear" });
         await routerInvalidate(router);
+        setConfirmTrashOpen(false);
       } catch (e) {
         const err = extractSerializedError(e);
         if (
@@ -143,7 +144,7 @@ export function BulkActionBar({ tree }: Props) {
           </button>
         </div>
       </section>
-      {error !== null ? (
+      {error !== null && !confirmTrashOpen ? (
         <p className={`${formError} text-center`} role="alert">
           {displayError(error)}
         </p>
@@ -175,11 +176,12 @@ export function BulkActionBar({ tree }: Props) {
         confirmLabel="ゴミ箱へ"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmTrashOpen ? (error ?? undefined) : undefined}
+        onConfirm={runTrash}
+        onClose={() => {
           setConfirmTrashOpen(false);
-          runTrash();
+          setError(null);
         }}
-        onClose={() => setConfirmTrashOpen(false)}
       />
     </>
   );

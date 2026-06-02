@@ -142,6 +142,7 @@ function SavedViewRow({
       try {
         await remove({ data: { viewId: view.id } });
         await routerInvalidate(router);
+        setConfirmDeleteOpen(false);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -210,8 +211,13 @@ function SavedViewRow({
 
   const nameFieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.name : undefined;
+  // While the delete confirmation is open the (shared) error is shown
+  // inside the dialog (see the `error` guard on `ConfirmDialog` below), so
+  // suppress the inline summary to avoid double-display (Issue #98).
   const summary =
-    error !== null && nameFieldErrors === undefined ? displayError(error) : "";
+    error !== null && nameFieldErrors === undefined && !confirmDeleteOpen
+      ? displayError(error)
+      : "";
 
   const isBroken = view.brokenConditions.length > 0;
 
@@ -395,7 +401,10 @@ function SavedViewRow({
           <button
             type="button"
             className={`${textAction} ${textActionDanger}`}
-            onClick={() => setConfirmDeleteOpen(true)}
+            onClick={() => {
+              setError(null);
+              setConfirmDeleteOpen(true);
+            }}
             disabled={isPending}
             aria-label={`${view.name} を削除`}
           >
@@ -410,11 +419,12 @@ function SavedViewRow({
         confirmLabel="削除"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmDeleteOpen ? (error ?? undefined) : undefined}
+        onConfirm={runDelete}
+        onClose={() => {
           setConfirmDeleteOpen(false);
-          runDelete();
+          setError(null);
         }}
-        onClose={() => setConfirmDeleteOpen(false)}
       />
       <ViewFormDialog
         mode="edit"

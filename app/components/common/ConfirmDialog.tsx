@@ -2,9 +2,11 @@
 
 import { AlertTriangle, type LucideIcon } from "lucide-react";
 import { useId } from "react";
+import { displayError } from "@/core/presentation/errorDisplay";
+import type { SerializedError } from "@/core/presentation/errorResponse";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
-import { dialogActions, pillBtn, pillBtnDanger } from "./styles";
+import { dialogActions, formError, pillBtn, pillBtnDanger } from "./styles";
 
 export type ConfirmDialogProps = Readonly<{
   open: boolean;
@@ -19,6 +21,16 @@ export type ConfirmDialogProps = Readonly<{
    */
   confirmIcon?: LucideIcon;
   isPending?: boolean;
+  /**
+   * Server error to surface inside the dialog. When set, the dialog must
+   * stay open so a sighted user is not misled by "modal disappeared =
+   * success". Rendered as a `role="alert"` region between the description
+   * and the action row, and woven into `aria-describedby`. The calling
+   * side is responsible for the open/close lifecycle: it removes the
+   * `setConfirmOpen(false)` from its `catch` and only closes on success
+   * (Issue #98 ADR-001).
+   */
+  error?: SerializedError | undefined;
   onConfirm: () => void;
   onClose: () => void;
 }>;
@@ -34,6 +46,10 @@ export type ConfirmDialogProps = Readonly<{
  * removed (YAGNI). Keep this in `components/common/` so all domains
  * (note / view / ingestion / trash / tag) can import it without
  * introducing a cross-domain dependency — see Issue #13 ADR-005.
+ *
+ * See the `error` prop for the in-dialog error contract. `isPending` and
+ * `error` are mutually exclusive in practice — by the time an error is
+ * surfaced the transition has completed, so `isPending` is `false`.
  */
 export function ConfirmDialog({
   open,
@@ -42,11 +58,25 @@ export function ConfirmDialog({
   confirmLabel = "OK",
   confirmIcon,
   isPending = false,
+  error,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
   const titleId = useId();
   const descId = useId();
+  const errorId = useId();
+
+  // `role="alert"` already announces assertively, so the woven
+  // `aria-describedby` only needs to point at the ids that are actually
+  // rendered. `filter(Boolean).join(" ") || undefined` keeps the "error
+  // only" case (no description) valid and never emits an empty string.
+  const describedBy =
+    [
+      description !== undefined ? descId : null,
+      error !== undefined ? errorId : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -66,7 +96,7 @@ export function ConfirmDialog({
       onClose={onClose}
       role="alertdialog"
       ariaLabelledBy={titleId}
-      ariaDescribedBy={description !== undefined ? descId : undefined}
+      ariaDescribedBy={describedBy}
       closable={!isPending}
     >
       <form onSubmit={submit}>
@@ -80,6 +110,11 @@ export function ConfirmDialog({
           <div id={descId} className="text-sm text-ink-secondary">
             {description}
           </div>
+        ) : null}
+        {error !== undefined ? (
+          <p id={errorId} role="alert" className={formError}>
+            {displayError(error)}
+          </p>
         ) : null}
         <div className={dialogActions}>
           <button

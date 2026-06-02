@@ -67,7 +67,6 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
         setConfirmDeleteOpen(false);
         setError(null);
       } catch (e) {
-        setConfirmDeleteOpen(false);
         setError(extractSerializedError(e));
       }
     });
@@ -134,7 +133,10 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
             type="button"
             className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
-            onClick={() => setConfirmDeleteOpen(true)}
+            onClick={() => {
+              setError(null);
+              setConfirmDeleteOpen(true);
+            }}
             disabled={isPending}
           >
             <Icon icon={Trash2} />
@@ -142,7 +144,7 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
           </button>
         </>
       )}
-      {error !== null ? (
+      {error !== null && !confirmDeleteOpen ? (
         <span className={FORM_ERROR} role="alert" aria-live="polite">
           {displayError(error)}
         </span>
@@ -167,8 +169,12 @@ export function TagActions({ tagId, name, noteCount, candidates }: Props) {
         confirmLabel="削除"
         confirmIcon={Trash2}
         isPending={isPending}
+        error={confirmDeleteOpen ? (error ?? undefined) : undefined}
         onConfirm={runDelete}
-        onClose={() => setConfirmDeleteOpen(false)}
+        onClose={() => {
+          setConfirmDeleteOpen(false);
+          setError(null);
+        }}
       />
     </div>
   );
