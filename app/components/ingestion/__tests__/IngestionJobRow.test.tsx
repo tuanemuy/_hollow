@@ -287,6 +287,92 @@ describe("IngestionJobRow", () => {
     ).toBe(0);
   });
 
+  // Issue #414: discard dims the card optimistically (data-discarded) the
+  // moment the transition starts, before the loader round-trip resolves, and
+  // the status-gated action buttons disappear in the same tick.
+  it("optimistically dims the card and hides actions while discard is pending", async () => {
+    let resolveDiscard: (() => void) | undefined;
+    discardMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveDiscard = res;
+      }),
+    );
+
+    await renderRow(previewingJobExistingDir);
+    expect(container.querySelector("[data-discarded]")).toBeNull();
+
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    await act(async () => {
+      discardBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    // Dimmed optimistically even though the discard promise is unresolved.
+    expect(container.querySelector("[data-discarded]")).not.toBeNull();
+    // The previewing action buttons are hidden by the optimistic discarded
+    // value, not the raw `job.status`.
+    expect(
+      Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>("button"),
+      ).some((b) => (b.textContent ?? "").includes("ノートとして保存")),
+    ).toBe(false);
+
+    await act(async () => {
+      resolveDiscard?.();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  // Issue #414: a failed discard snaps the optimistic dim back to the
+  // server-confirmed (non-discarded) status.
+  it("reverts the optimistic dim when discard fails", async () => {
+    discardMock.mockRejectedValue(
+      new AppServerError({
+        kind: "system",
+        code: null,
+        message: "System error",
+      }),
+    );
+
+    await renderRow(previewingJobExistingDir);
+
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    await act(async () => {
+      discardBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    // Snapped back: no longer dimmed.
+    expect(container.querySelector("[data-discarded]")).toBeNull();
+  });
+
   it("does not call router.invalidate when commit fails", async () => {
     commitMock.mockRejectedValue(new Error("commit failed"));
 

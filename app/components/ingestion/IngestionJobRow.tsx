@@ -3,7 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Check, RefreshCw, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -80,6 +80,14 @@ export function IngestionJobRow({ job }: Props) {
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
+  // Dim the card the moment discard starts rather than after the loader
+  // round-trip. Snaps back to the server-confirmed status on failure
+  // (Issue #414 step 6). List removal stays on the invalidate path.
+  const [optimisticDiscarded, setOptimisticDiscarded] = useOptimistic(
+    job.status === "discarded",
+    (_cur: boolean, next: boolean) => next,
+  );
+
   const jobId = job.id;
 
   const suggestedDirectoryId = job.preview?.suggestedDirectoryId ?? null;
@@ -119,6 +127,7 @@ export function IngestionJobRow({ job }: Props) {
   const runDiscard = () => {
     startTransition(async () => {
       try {
+        setOptimisticDiscarded(true);
         await discard({ data: { jobId } });
         await routerInvalidate(router);
         setConfirmDiscardOpen(false);
@@ -154,10 +163,7 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   return (
-    <div
-      className={JOB_CARD}
-      data-discarded={job.status === "discarded" || undefined}
-    >
+    <div className={JOB_CARD} data-discarded={optimisticDiscarded || undefined}>
       <div className={JOB_CARD_HEAD}>
         <div>
           <div className={JOB_CARD_NAME}>{job.originalFileName}</div>
@@ -190,7 +196,7 @@ export function IngestionJobRow({ job }: Props) {
         ) : null;
       })()}
       <div className={JOB_CARD_ACTIONS}>
-        {job.status === "previewing" ? (
+        {!optimisticDiscarded && job.status === "previewing" ? (
           <>
             <button
               type="button"
@@ -226,7 +232,7 @@ export function IngestionJobRow({ job }: Props) {
             </button>
           </>
         ) : null}
-        {job.status === "failed" ? (
+        {!optimisticDiscarded && job.status === "failed" ? (
           <>
             <button
               type="button"
