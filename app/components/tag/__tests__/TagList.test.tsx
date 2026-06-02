@@ -95,7 +95,7 @@ async function flush() {
   });
 }
 
-function makeTag(id: string, name: string, noteCount: number = 0): Tag {
+function makeTag(id: string, name: string, noteCount = 0): Tag {
   return { id, name, noteCount };
 }
 
@@ -136,10 +136,7 @@ describe("reduceTags", () => {
 
   it("renames a tag by id while preserving other fields", async () => {
     const { reduceTags } = await import("../TagList");
-    const tags = [
-      makeTag("t1", "alpha", 5),
-      makeTag("t2", "beta", 3),
-    ];
+    const tags = [makeTag("t1", "alpha", 5), makeTag("t2", "beta", 3)];
 
     const result = reduceTags(tags, {
       type: "rename",
