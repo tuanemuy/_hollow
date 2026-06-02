@@ -39,6 +39,23 @@ export const pillBtnPrimary =
 export const pillBtnDanger =
   "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:not-disabled:not-aria-disabled:bg-error-surface";
 
+/**
+ * Nav-item link base — the shared primitive behind the sidebar nav links
+ * (`layout/styles.ts` `NAV_ITEM`) and the directory-tree links
+ * (`directory/styles.ts` `TREE_ITEM_LINK`).
+ *
+ * Only the genuinely common tokens live here: box model, typography, the
+ * `rounded-md` shape, and the active-state font-weight bump (`data-[active]` /
+ * `aria-[current=page]`, mirroring TanStack Router's `activeProps`). The
+ * selection *background* is intentionally NOT included: the sidebar paints it
+ * on the link itself, whereas the tree paints it on the surrounding row
+ * (`TREE_ITEM_ROW`) so the highlight spans the caret/action columns. Each
+ * consumer composes its own surface/layout add-ons (`relative hover:bg-surface
+ * …` for the sidebar, `flex-1 min-w-0 truncate` for the tree). See `.issue/336`.
+ */
+export const navItem =
+  "flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline data-[active]:font-medium aria-[current=page]:font-medium";
+
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
 
