@@ -46,7 +46,7 @@ export const AdminSettingsService = {
     cfg: LLMConfig,
     env: Readonly<{ apiKey: string | null }>,
   ): LLMConfig => {
-    if (env.apiKey === null || env.apiKey.trim().length === 0) {
+    if (env.apiKey === null || env.apiKey.length === 0) {
       if (cfg.apiKeySource === "env") {
         // Caller declared env source but no env key is available.
         throw new BusinessRuleError(
