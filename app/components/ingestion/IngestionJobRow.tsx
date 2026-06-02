@@ -215,7 +215,10 @@ export function IngestionJobRow({ job }: Props) {
               type="button"
               className={`${pillBtn} ${pillBtnDanger}`}
               data-danger=""
-              onClick={() => setConfirmDiscardOpen(true)}
+              onClick={() => {
+                setError(null);
+                setConfirmDiscardOpen(true);
+              }}
               disabled={isPending}
             >
               <Icon icon={Trash2} />
@@ -238,7 +241,10 @@ export function IngestionJobRow({ job }: Props) {
               type="button"
               className={`${pillBtn} ${pillBtnDanger}`}
               data-danger=""
-              onClick={() => setConfirmDiscardOpen(true)}
+              onClick={() => {
+                setError(null);
+                setConfirmDiscardOpen(true);
+              }}
               disabled={isPending}
             >
               <Icon icon={Trash2} />

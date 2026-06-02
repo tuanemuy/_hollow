@@ -205,7 +205,10 @@ export function NoteActions({
           type="button"
           className={`${pillBtn} ${pillBtnDanger}`}
           data-danger=""
-          onClick={() => setConfirmDeleteOpen(true)}
+          onClick={() => {
+            setError(null);
+            setConfirmDeleteOpen(true);
+          }}
           disabled={isPending}
         >
           <Icon icon={Trash2} />

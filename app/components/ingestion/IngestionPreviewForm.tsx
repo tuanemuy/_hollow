@@ -370,7 +370,10 @@ export function IngestionPreviewForm({
             type="button"
             className={`${pillBtn} ${pillBtnDanger}`}
             data-danger=""
-            onClick={() => setConfirmDiscardOpen(true)}
+            onClick={() => {
+              setError(null);
+              setConfirmDiscardOpen(true);
+            }}
             disabled={isPending}
           >
             破棄

@@ -304,4 +304,84 @@ describe("IngestionJobRow", () => {
     expect(routerInvalidate).not.toHaveBeenCalled();
     expect(routerNavigate).not.toHaveBeenCalled();
   });
+
+  // Issue #98 (T-W-003): on a discard failure the error must surface inside
+  // the ConfirmDialog (its role="alert"), NOT in the row's inline FORM_ERROR
+  // (the `!confirmDiscardOpen` guard), and the dialog must stay open. Pressing
+  // cancel (onClose) then clears the error from both the dialog and the row.
+  it("shows discard error inside the dialog (not inline) and clears it on cancel", async () => {
+    discardMock.mockRejectedValue(
+      new AppServerError({
+        kind: "system",
+        code: null,
+        message: "System error",
+      }),
+    );
+
+    await renderRow(previewingJobExistingDir);
+
+    // Open the discard confirmation dialog.
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    expect(discardBtn).toBeDefined();
+    await act(async () => {
+      discardBtn?.click();
+    });
+
+    const dialog = document.body.querySelector<HTMLElement>(
+      '[role="alertdialog"]',
+    );
+    expect(dialog).not.toBeNull();
+
+    // Confirm the discard inside the dialog (the submit button).
+    const confirmBtn = dialog?.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+    expect(confirmBtn).not.toBeNull();
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    expect(routerInvalidate).not.toHaveBeenCalled();
+
+    // Dialog is still open after the failure.
+    const dialogAfter = document.body.querySelector<HTMLElement>(
+      '[role="alertdialog"]',
+    );
+    expect(dialogAfter).not.toBeNull();
+
+    // The error is rendered inside the dialog's role="alert" region…
+    const dialogAlert = dialogAfter?.querySelector('[role="alert"]');
+    expect(dialogAlert?.textContent).toBe("システムエラーが発生しました");
+
+    // …and NOT in the row's inline FORM_ERROR (the card has no errorCode, so
+    // the only inline alert source would be the shared error state, which the
+    // `!confirmDiscardOpen` guard suppresses while the dialog is open).
+    const inlineAlerts = Array.from(
+      container.querySelectorAll('[role="alert"]'),
+    );
+    expect(inlineAlerts).toHaveLength(0);
+
+    // Cancel (onClose) closes the dialog and clears the error: it must not
+    // "move" to the row's inline FORM_ERROR.
+    const cancelBtn = Array.from(
+      (dialogAfter as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        "button",
+      ),
+    ).find((b) => (b.textContent ?? "").trim() === "キャンセル");
+    expect(cancelBtn).toBeDefined();
+    await act(async () => {
+      cancelBtn?.click();
+    });
+
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(container.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(0);
+  });
 });

@@ -92,3 +92,23 @@ ADR-001/002 の方針を A 群 8 ファイルへ適用する際、計画の擬�
 
 ### テスト
 `app/components/common/__tests__/ConfirmDialog.test.tsx` を新設（Dialog.test.tsx と同じ happy-dom / react-dom 構成）。(a) error 指定で `role="alert"` 領域が `displayError` 文言付きで描画、(b) error 指定でも panel が mount 維持、(c) `aria-describedby` に description と error の 2 id、(d) error 未指定で alert なし・id は 1 つ、(e) confirm 押下で `onConfirm` 発火かつ panel は閉じない、の 5 本。`SerializedError` モックは `{ kind: "system", code: null, message: "System error" }` を使用（`displayError` が固定文言「システムエラーが発生しました」に写像）。`IngestionPreviewForm.test.tsx` を含む既存 3035 テストは全緑（回帰なし）。
+
+---
+
+## ADR-005: レビュー指摘の判断（stale error 破棄・a11y 三者重複）
+
+### Status
+Accepted（レビュー#001 で確定）
+
+### Context
+PR レビュー#001 で以下が指摘された:
+1. **ST-B-001（Blocker）**: 共有 `error` state を持つ呼び出し側で、削除以外の操作が失敗してエラーが残った状態で削除ダイアログを開くと、`error={confirmOpen ? error : undefined}` ガードにより未確認の確認ダイアログ内へ無関係な stale error が漏れる。
+2. **FA-W-001/W-002**: `alertdialog` 内に `role="alert"` をネストし `aria-describedby` にも errorId を載せる三者重複で二重読み上げの懸念。エラー再描画後のフォーカス保証。
+
+### Decision
+1. **ST-B-001**: 各削除/破棄/パージボタンの open ハンドラに `setError(null)` を追加し、「確認ダイアログを開く＝前操作の error を破棄」を不変条件にする。onClose 側の既存 `setError(null)` と対称化し、ダイアログ境界で error をライフサイクル管理する。対象: IngestionJobRow / IngestionPreviewForm / SavedViewsList / TagActions / NoteActions / TrashRowActions。回帰テストを IngestionJobRow に1本追加。
+2. **FA-W-001/W-002**: `role="alert"`（動的 announce の実機構）と `aria-describedby` の errorId（alertdialog APG 準拠）はいずれも維持する。エラーは「ダイアログ開後の失敗時」に動的描画され、その瞬間 isPending=false で focus は confirm ボタン（panel 内）に留まり移動しない。`aria-describedby` は focus 入場時にのみ読まれるため再読み上げは発火せず、実フローで二重読み上げは起きない。focus も panel 内に留まり `role="alert"` で情報も届くため機能的後退なし。よってコード変更なし。
+
+### Consequences
+- 良い点: 確認ダイアログが表示するのは「その confirm 操作の結果」だけ、という不変条件が open/close 両境界で成立。a11y は live region と describedby の役割分担が APG 準拠で、実フローで重複読み上げが起きないことを分析で確認。
+- トレードオフ: 各 open ハンドラに `setError(null)` が1行増える（uniform な invariant のため許容）。

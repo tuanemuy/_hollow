@@ -69,7 +69,10 @@ export function TrashRowActions({ noteId }: Props) {
         type="button"
         className={`${pillBtn} ${pillBtnDanger}`}
         data-danger=""
-        onClick={() => setConfirmPurgeOpen(true)}
+        onClick={() => {
+          setError(null);
+          setConfirmPurgeOpen(true);
+        }}
         disabled={isPending}
       >
         <Icon icon={Trash2} />

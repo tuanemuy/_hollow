@@ -401,7 +401,10 @@ function SavedViewRow({
           <button
             type="button"
             className={`${textAction} ${textActionDanger}`}
-            onClick={() => setConfirmDeleteOpen(true)}
+            onClick={() => {
+              setError(null);
+              setConfirmDeleteOpen(true);
+            }}
             disabled={isPending}
             aria-label={`${view.name} を削除`}
           >

@@ -68,24 +68,46 @@ describe("ConfirmDialog error display", () => {
     expect(alert?.textContent).toBe(SYSTEM_ERROR_TEXT);
   });
 
-  it("keeps the dialog panel mounted when error is set (does not close)", () => {
-    act(() => {
-      root.render(
-        <ConfirmDialog
-          open={true}
-          title="削除しますか？"
-          description="この操作は取り消せません。"
-          error={SYSTEM_ERROR}
-          onConfirm={() => {}}
-          onClose={() => {}}
-        />,
-      );
-    });
+  it("does not own close: panel mount tracks `open` only, independent of error", () => {
+    // Contract: ConfirmDialog never closes itself in response to `error`.
+    // The caller owns the open/close lifecycle (Issue #98 ADR-001), so an
+    // `error` arriving — and persisting across re-renders — must not drop
+    // the panel. Mount is a pure function of `open`.
+    const renderWith = (props: { open: boolean; error?: SerializedError }) => {
+      act(() => {
+        root.render(
+          <ConfirmDialog
+            open={props.open}
+            title="削除しますか？"
+            description="この操作は取り消せません。"
+            {...(props.error !== undefined ? { error: props.error } : {})}
+            onConfirm={() => {}}
+            onClose={() => {}}
+          />,
+        );
+      });
+    };
 
-    const panel = getPanel();
-    expect(panel).not.toBeNull();
-    // The alert region lives inside the panel.
-    expect(panel.querySelector('[role="alert"]')).not.toBeNull();
+    // open + error → panel present with the alert inside it.
+    renderWith({ open: true, error: SYSTEM_ERROR });
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(getPanel().querySelector('[role="alert"]')).not.toBeNull();
+
+    // Re-render with the *same* open + error: ConfirmDialog has no internal
+    // open state to flip, so the panel must still be mounted (it does not
+    // self-close on a persisted error).
+    renderWith({ open: true, error: SYSTEM_ERROR });
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+
+    // Mount is decided by `open` alone: open + no error is still mounted…
+    renderWith({ open: true });
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(getPanel().querySelector('[role="alert"]')).toBeNull();
+
+    // …and closing is driven only by `open=false`, even while an error is
+    // still supplied. ConfirmDialog does not own (and cannot trigger) close.
+    renderWith({ open: false, error: SYSTEM_ERROR });
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull();
   });
 
   it("references both the description and the error ids from aria-describedby", () => {
@@ -109,14 +131,25 @@ describe("ConfirmDialog error display", () => {
     const ids = (describedBy ?? "").split(" ").filter(Boolean);
     expect(ids).toHaveLength(2);
 
-    // Both referenced ids must resolve to elements inside the panel: the
-    // description container and the alert region.
-    const descEl = panel.querySelector(`#${CSS.escape(ids[0] as string)}`);
-    const alertEl = panel.querySelector(`#${CSS.escape(ids[1] as string)}`);
-    expect(descEl).not.toBeNull();
-    expect(alertEl).not.toBeNull();
-    expect(alertEl?.getAttribute("role")).toBe("alert");
-    expect(alertEl?.textContent).toBe(SYSTEM_ERROR_TEXT);
+    // Order-independent: resolve each referenced id to its element, then
+    // assert the *set* — exactly one points at the alert region and one at
+    // the (role-less) description. Decoupled from the id ordering so a swap
+    // does not fail this test for the wrong reason (T-W-002).
+    const referenced = ids.map((id) =>
+      panel.querySelector(`#${CSS.escape(id)}`),
+    );
+    expect(referenced.every((el) => el !== null)).toBe(true);
+
+    const alertEls = referenced.filter(
+      (el) => el?.getAttribute("role") === "alert",
+    );
+    const descEls = referenced.filter(
+      (el) => el !== null && el.getAttribute("role") === null,
+    );
+    expect(alertEls).toHaveLength(1);
+    expect(descEls).toHaveLength(1);
+    expect(alertEls[0]?.textContent).toBe(SYSTEM_ERROR_TEXT);
+    expect(descEls[0]?.textContent).toBe("この操作は取り消せません。");
   });
 
   it("renders no alert region and only the description id when error is unset", () => {

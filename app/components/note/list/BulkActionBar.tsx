@@ -72,8 +72,8 @@ export function BulkActionBar({ tree }: Props) {
           );
         }
         dispatch({ type: "clear" });
-        setConfirmTrashOpen(false);
         await routerInvalidate(router);
+        setConfirmTrashOpen(false);
       } catch (e) {
         const err = extractSerializedError(e);
         if (
