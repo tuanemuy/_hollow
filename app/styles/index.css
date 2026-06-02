@@ -110,6 +110,9 @@
   --duration-base: var(--duration-base);
   --duration-slow: var(--duration-slow);
 
+  /* State */
+  --opacity-disabled: var(--opacity-disabled);
+
   /*
    * Breakpoints must be literal values — lightningcss rejects `var()` inside
    * `@media (width >= ...)` during minify. Keep these in sync with
