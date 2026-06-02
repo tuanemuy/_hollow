@@ -12,7 +12,7 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useId, useState, useTransition } from "react";
+import { useId, useOptimistic, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -89,22 +89,74 @@ const DISPLAY_MODE_LABEL: Record<SavedViewDTO["displayMode"], string> = {
   calendar: "カレンダー表示",
 };
 
+type RemoveAction = Readonly<{ type: "remove"; id: string }>;
+
+function reduceViews(
+  cur: readonly SavedViewDTO[],
+  action: RemoveAction,
+): readonly SavedViewDTO[] {
+  switch (action.type) {
+    case "remove":
+      return cur.filter((view) => (view.id as unknown as string) !== action.id);
+  }
+}
+
 export function SavedViewsList({ views, directories, tags }: Props) {
-  if (views.length === 0) {
+  const router = useRouter();
+  const remove = useServerFn(deleteSavedViewFn);
+
+  // Server-confirmed baseline. `useOptimistic` removes a row synchronously
+  // while the delete + loader round-trip is in flight, then snaps back to
+  // this baseline once the navigation commits and fresh props arrive.
+  // Hooks run before the empty-list early return so the empty check uses the
+  // optimistic projection, not raw `views`.
+  const [optimisticViews, applyOptimistic] = useOptimistic(views, reduceViews);
+  // The target row is removed from `optimisticViews` the instant a delete
+  // starts, so it's never rendered while in flight — no need to expose the
+  // transition's pending flag to the rows (gating every sibling on one
+  // delete would needlessly lock the whole list).
+  const [, startDelete] = useTransition();
+  // The delete error is owned by the parent (the row may be optimistically
+  // removed mid-flight) and surfaced in the failing row's existing
+  // `rowError` slot once it snaps back.
+  const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<SerializedError | null>(null);
+
+  const onDelete = (viewId: string) => {
+    setDeleteErrorId(null);
+    setDeleteError(null);
+    startDelete(async () => {
+      try {
+        applyOptimistic({ type: "remove", id: viewId });
+        await remove({ data: { viewId } });
+        await routerInvalidate(router);
+      } catch (e) {
+        setDeleteErrorId(viewId);
+        setDeleteError(extractSerializedError(e));
+      }
+    });
+  };
+
+  if (optimisticViews.length === 0) {
     return <p className={emptyState}>保存ビューはまだありません。</p>;
   }
   const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
   return (
     <ul className={viewList}>
-      {views.map((view) => (
-        <SavedViewRow
-          key={view.id}
-          view={view}
-          directories={directories}
-          tags={tags}
-          tagNameById={tagNameById}
-        />
-      ))}
+      {optimisticViews.map((view) => {
+        const id = view.id as unknown as string;
+        return (
+          <SavedViewRow
+            key={view.id}
+            view={view}
+            directories={directories}
+            tags={tags}
+            tagNameById={tagNameById}
+            onDelete={onDelete}
+            deleteError={deleteErrorId === id ? deleteError : null}
+          />
+        );
+      })}
     </ul>
   );
 }
@@ -114,14 +166,17 @@ function SavedViewRow({
   directories,
   tags,
   tagNameById,
+  onDelete,
+  deleteError,
 }: {
   view: SavedViewDTO;
   directories: readonly FlatDirectory[];
   tags: readonly TagOption[];
   tagNameById: ReadonlyMap<string, string>;
+  onDelete: (viewId: string) => void;
+  deleteError: SerializedError | null;
 }) {
   const router = useRouter();
-  const remove = useServerFn(deleteSavedViewFn);
   const setDefault = useServerFn(setDefaultSavedViewFn);
   const rename = useServerFn(renameSavedViewFn);
   const update = useServerFn(updateSavedViewFn);
@@ -135,28 +190,33 @@ function SavedViewRow({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const nameId = useId();
+  // Row-owned optimistic fields. Each mirrors the server-confirmed prop and
+  // snaps back to it on loader re-fetch / failure.
+  const [optimisticName, applyOptimisticName] = useOptimistic(
+    view.name,
+    (_cur: string, next: string) => next,
+  );
+  const [optimisticIsDefault, applyOptimisticIsDefault] = useOptimistic(
+    view.isDefault,
+    (_cur: boolean, next: boolean) => next,
+  );
+  const [optimisticBroken, applyOptimisticBroken] = useOptimistic(
+    view.brokenConditions.length > 0,
+    (_cur: boolean, next: boolean) => next,
+  );
 
-  const runDelete = () => {
-    startTransition(async () => {
-      try {
-        await remove({ data: { viewId: view.id } });
-        await routerInvalidate(router);
-        setConfirmDeleteOpen(false);
-        setError(null);
-      } catch (e) {
-        setError(extractSerializedError(e));
-      }
-    });
-  };
+  const viewId = view.id as unknown as string;
+
+  const nameId = useId();
 
   const onToggleDefault = () => {
     startTransition(async () => {
       try {
+        applyOptimisticIsDefault(!optimisticIsDefault);
         await setDefault({
           data: {
             kind: view.kind,
-            viewId: view.isDefault ? null : view.id,
+            viewId: optimisticIsDefault ? null : view.id,
           },
         });
         await routerInvalidate(router);
@@ -173,12 +233,16 @@ function SavedViewRow({
       setIsEditing(false);
       return;
     }
+    // Leave the inline editor synchronously (outside the transition) so the
+    // optimistic name renders immediately; regular state set inside a
+    // pending transition would stay deferred until the mutation resolves.
+    setIsEditing(false);
     startTransition(async () => {
       try {
+        applyOptimisticName(trimmed);
         await rename({ data: { viewId: view.id, name: trimmed } });
         await routerInvalidate(router);
         setError(null);
-        setIsEditing(false);
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -200,6 +264,7 @@ function SavedViewRow({
   const onRepair = () => {
     startTransition(async () => {
       try {
+        applyOptimisticBroken(false);
         await repair({ data: { viewId: view.id } });
         await routerInvalidate(router);
         setError(null);
@@ -211,19 +276,23 @@ function SavedViewRow({
 
   const nameFieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.name : undefined;
-  // While the delete confirmation is open the (shared) error is shown
-  // inside the dialog (see the `error` guard on `ConfirmDialog` below), so
-  // suppress the inline summary to avoid double-display (Issue #98).
+  // Delete is optimistic: the row unmounts the moment a delete starts, so
+  // its error can't live in the (now-gone) confirm dialog. The parent owns
+  // the delete error and feeds it back into this row's `rowError` slot once
+  // the row snaps back into the list on failure.
+  const rowOwnedError = error ?? deleteError;
   const summary =
-    error !== null && nameFieldErrors === undefined && !confirmDeleteOpen
-      ? displayError(error)
+    rowOwnedError !== null && nameFieldErrors === undefined
+      ? displayError(rowOwnedError)
       : "";
 
-  const isBroken = view.brokenConditions.length > 0;
+  const isBroken = optimisticBroken;
 
   const initialTagNames = view.query.tagIds
     .map((id) => tagNameById.get(id as unknown as string))
     .filter((name): name is string => name !== undefined);
+
+  const rowBusy = isPending;
 
   return (
     <li className={viewRow}>
@@ -272,8 +341,8 @@ function SavedViewRow({
         ) : (
           <>
             <div className={viewHead}>
-              <span className={viewName}>{view.name}</span>
-              {view.isDefault ? (
+              <span className={viewName}>{optimisticName}</span>
+              {optimisticIsDefault ? (
                 <span className={defaultMark}>
                   <Icon icon={Star} />
                   既定
@@ -352,7 +421,7 @@ function SavedViewRow({
         <div className={rowActions}>
           <Link
             to="/"
-            search={{ viewId: view.id as unknown as string }}
+            search={{ viewId }}
             className={`${textAction} ${textActionApply}`}
             aria-label={`${view.name} を適用`}
           >
@@ -362,7 +431,7 @@ function SavedViewRow({
             type="button"
             className={textAction}
             onClick={() => setEditDialogOpen(true)}
-            disabled={isPending}
+            disabled={rowBusy}
             aria-label={`${view.name} を編集`}
           >
             編集
@@ -371,7 +440,7 @@ function SavedViewRow({
             type="button"
             className={textAction}
             onClick={() => setIsEditing(true)}
-            disabled={isPending}
+            disabled={rowBusy}
             aria-label={`${view.name} の名前を変更`}
           >
             名前変更
@@ -380,7 +449,7 @@ function SavedViewRow({
             type="button"
             className={textAction}
             onClick={onDuplicate}
-            disabled={isPending}
+            disabled={rowBusy}
             aria-label={`${view.name} を複製`}
           >
             複製
@@ -389,14 +458,14 @@ function SavedViewRow({
             type="button"
             className={textAction}
             onClick={onToggleDefault}
-            disabled={isPending}
+            disabled={rowBusy}
             aria-label={
-              view.isDefault
+              optimisticIsDefault
                 ? `${view.name} の既定を解除`
                 : `${view.name} を既定にする`
             }
           >
-            {view.isDefault ? "既定を解除" : "既定にする"}
+            {optimisticIsDefault ? "既定を解除" : "既定にする"}
           </button>
           <button
             type="button"
@@ -405,7 +474,7 @@ function SavedViewRow({
               setError(null);
               setConfirmDeleteOpen(true);
             }}
-            disabled={isPending}
+            disabled={rowBusy}
             aria-label={`${view.name} を削除`}
           >
             削除
@@ -418,12 +487,16 @@ function SavedViewRow({
         description={`「${view.name}」を削除しますか？`}
         confirmLabel="削除"
         confirmIcon={Trash2}
-        isPending={isPending}
-        error={confirmDeleteOpen ? (error ?? undefined) : undefined}
-        onConfirm={runDelete}
+        onConfirm={() => {
+          // The row is removed optimistically the moment the delete
+          // transition starts, so the dialog (rendered inside this row)
+          // unmounts; close it first and let any failure surface in the
+          // row's `rowError` slot once it snaps back.
+          setConfirmDeleteOpen(false);
+          onDelete(viewId);
+        }}
         onClose={() => {
           setConfirmDeleteOpen(false);
-          setError(null);
         }}
       />
       <ViewFormDialog

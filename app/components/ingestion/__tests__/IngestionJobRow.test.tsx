@@ -141,9 +141,8 @@ async function renderRow(job: IngestionJobWire) {
 }
 
 describe("IngestionJobRow", () => {
-  // Issue #306: commit パスで preview の suggested 値を server function に
-  // 転送し、新規ディレクトリ作成時のみ rule 2 (生 router.invalidate) を
-  // 呼ぶ regression guard。
+  // commit パスは preview の suggested 値を server function に転送し、
+  // 新規ディレクトリ作成時のみ 生 router.invalidate を呼ぶ regression guard。
   it("forwards suggestedDirectoryId as directoryId and does NOT call router.invalidate", async () => {
     commitMock.mockResolvedValue({ noteId: "note-1" });
 
@@ -189,13 +188,13 @@ describe("IngestionJobRow", () => {
       directoryNameToCreate: "ideas",
     });
     expect(callArg.data).not.toHaveProperty("directoryId");
-    // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate
+    // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate される
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
     expect(routerNavigate).toHaveBeenCalledTimes(1);
   });
 
-  // Issue #254: the failed card exposes an owner-facing 再試行 action that
-  // calls `ownerRetryIngestionJobFn` and invalidates the router so the card
+  // The failed card exposes an owner-facing 再試行 action that calls
+  // `ownerRetryIngestionJobFn` and invalidates the router so the card
   // re-renders back to its `pending` state.
   it("calls ownerRetryIngestionJobFn + router.invalidate when 再試行 is clicked on a failed card", async () => {
     ownerRetryMock.mockResolvedValue({ jobId: "job-1" });
@@ -222,8 +221,8 @@ describe("IngestionJobRow", () => {
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
   });
 
-  // Issue #254 (review W-002): when 再試行 fails, the card does NOT invalidate
-  // the router and surfaces an inline error instead.
+  // When 再試行 fails, the card does NOT invalidate the router and surfaces
+  // an inline error instead.
   it("does not call router.invalidate and shows an inline error when 再試行 fails", async () => {
     ownerRetryMock.mockRejectedValue(
       new AppServerError({
@@ -259,9 +258,9 @@ describe("IngestionJobRow", () => {
     expect(alertText).toContain("再試行に必要なデータが見つかりません");
   });
 
-  // Issue #238: a discarded card is visually distinguished (data-discarded
-  // drives the dimmed Tailwind variant) and shows the "破棄済み" badge so it
-  // cannot be confused with a retained job once the toggle reveals it.
+  // A discarded card is visually distinguished (data-discarded drives the
+  // dimmed Tailwind variant) and shows the "破棄済み" badge so it cannot be
+  // confused with a retained job once the toggle reveals it.
   it("marks a discarded card with data-discarded and the 破棄済み badge", async () => {
     await renderRow(discardedJob);
 
@@ -287,6 +286,98 @@ describe("IngestionJobRow", () => {
     ).toBe(0);
   });
 
+  // Discard dims the card optimistically (data-discarded) the moment the
+  // transition starts, before the loader round-trip resolves, and the
+  // status-gated action buttons disappear in the same tick.
+  it("optimistically dims the card and hides actions while discard is pending", async () => {
+    let resolveDiscard: (() => void) | undefined;
+    discardMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveDiscard = res;
+      }),
+    );
+
+    await renderRow(previewingJobExistingDir);
+    expect(container.querySelector("[data-discarded]")).toBeNull();
+
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    await act(async () => {
+      discardBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    // Dimmed optimistically even though the discard promise is unresolved.
+    expect(container.querySelector("[data-discarded]")).not.toBeNull();
+    // The previewing action buttons are hidden by the optimistic discarded
+    // value, not the raw `job.status`.
+    expect(
+      Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>("button"),
+      ).some((b) => (b.textContent ?? "").includes("ノートとして保存")),
+    ).toBe(false);
+
+    await act(async () => {
+      resolveDiscard?.();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  // A failed discard snaps the optimistic dim back to the server-confirmed
+  // (non-discarded) status.
+  it("reverts the optimistic dim when discard fails", async () => {
+    discardMock.mockRejectedValue(
+      new AppServerError({
+        kind: "system",
+        code: null,
+        message: "System error",
+      }),
+    );
+
+    await renderRow(previewingJobExistingDir);
+
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    await act(async () => {
+      discardBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    // Snapped back: no longer dimmed.
+    expect(container.querySelector("[data-discarded]")).toBeNull();
+    // The dialog stays open and surfaces the error.
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+    const alerts = Array.from(
+      document.body.querySelectorAll('[role="alert"]'),
+    ).map((el) => el.textContent ?? "");
+    expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+  });
+
   it("does not call router.invalidate when commit fails", async () => {
     commitMock.mockRejectedValue(new Error("commit failed"));
 
@@ -305,9 +396,9 @@ describe("IngestionJobRow", () => {
     expect(routerNavigate).not.toHaveBeenCalled();
   });
 
-  // Issue #98 (T-W-003): on a discard failure the error must surface inside
-  // the ConfirmDialog (its role="alert"), NOT in the row's inline FORM_ERROR
-  // (the `!confirmDiscardOpen` guard), and the dialog must stay open. Pressing
+  // On a discard failure the error must surface inside the ConfirmDialog
+  // (its role="alert"), NOT in the row's inline FORM_ERROR (the
+  // `!confirmDiscardOpen` guard), and the dialog must stay open. Pressing
   // cancel (onClose) then clears the error from both the dialog and the row.
   it("shows discard error inside the dialog (not inline) and clears it on cancel", async () => {
     discardMock.mockRejectedValue(
@@ -320,7 +411,6 @@ describe("IngestionJobRow", () => {
 
     await renderRow(previewingJobExistingDir);
 
-    // Open the discard confirmation dialog.
     const discardBtn = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>("button"),
     ).find((b) => (b.textContent ?? "").trim() === "破棄");
@@ -334,7 +424,6 @@ describe("IngestionJobRow", () => {
     );
     expect(dialog).not.toBeNull();
 
-    // Confirm the discard inside the dialog (the submit button).
     const confirmBtn = dialog?.querySelector<HTMLButtonElement>(
       'button[type="submit"]',
     );
