@@ -16,7 +16,7 @@ import {
 } from "@/core/domain/media/ports/objectStorage";
 import type { MediaAssetId, MediaKind } from "@/core/domain/media/valueObject";
 import { NoteEvents, type NotePurgedEvent } from "@/core/domain/note/events";
-import type { NoteId } from "@/core/domain/note/valueObject";
+import { type NoteId, NoteTitle } from "@/core/domain/note/valueObject";
 import {
   type PublicationVisibility,
   ShareLinkId,
@@ -707,6 +707,7 @@ function buildNotePurgedEvent(params: {
     {
       noteId: params.noteId,
       ownerId: params.ownerId,
+      title: NoteTitle.create("Purged"),
       mediaRefs: params.mediaRefs,
     },
     BASE_TIME,

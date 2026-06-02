@@ -122,7 +122,7 @@ describe("SavedView.markBroken (property)", () => {
         (rawIds) => {
           const view = freshView();
           const markers = rawIds.map((id) =>
-            BrokenConditionMarker.tag(id as TagId, at(1)),
+            BrokenConditionMarker.tag(id as TagId, "", at(1)),
           );
           const next = SavedView.markBroken(view, markers, at(1));
           const ids = new Set(next.brokenConditions.map((m) => m.id));
@@ -142,7 +142,7 @@ describe("SavedView.markBroken (property)", () => {
         (rawIds) => {
           const view = freshView();
           const markers = rawIds.map((id) =>
-            BrokenConditionMarker.tag(id as TagId, at(1)),
+            BrokenConditionMarker.tag(id as TagId, "", at(1)),
           );
           const after1 = SavedView.markBroken(view, markers, at(1));
           const after2 = SavedView.markBroken(after1, markers, at(1));
@@ -172,7 +172,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
           });
           const view = freshView("inbox", false, query);
           const markers = brokenIds.map((id) =>
-            BrokenConditionMarker.tag(id as TagId, at(1)),
+            BrokenConditionMarker.tag(id as TagId, "", at(1)),
           );
           const withBroken = SavedView.markBroken(view, markers, at(1));
           const repaired = SavedView.repairBrokenConditions(withBroken, at(2));
@@ -200,7 +200,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
         });
         const view = freshView("inbox", false, query);
         const markers = broken
-          ? [BrokenConditionMarker.directory(dirId, at(1))]
+          ? [BrokenConditionMarker.directory(dirId, "", at(1))]
           : [];
         const withBroken = SavedView.markBroken(view, markers, at(1));
         const repaired = SavedView.repairBrokenConditions(withBroken, at(2));
@@ -227,7 +227,7 @@ describe("SavedView.repairBrokenConditions (property)", () => {
         });
         const view = freshView("inbox", false, query);
         const markers = broken
-          ? [BrokenConditionMarker.note(noteId, at(1))]
+          ? [BrokenConditionMarker.note(noteId, "", at(1))]
           : [];
         const withBroken = SavedView.markBroken(view, markers, at(1));
         const repaired = SavedView.repairBrokenConditions(withBroken, at(2));

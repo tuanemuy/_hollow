@@ -550,6 +550,7 @@ describe("deleteDirectory (integration)", () => {
     );
     expect(directoryDeleted[0]?.payload).toEqual({
       directoryId: directory.id as unknown as string,
+      name: "empty",
     });
     expect(
       outboxAfter.filter((r) => r.eventType === "note.trashed"),

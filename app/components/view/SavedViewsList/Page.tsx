@@ -1,6 +1,9 @@
+import { loadDirectoryTreeFlat } from "@/components/note/loaders";
+import { loadTagsForOwner } from "@/components/tag/loaders";
 import { requireCurrentUser } from "@/lib/server/currentUser";
 import { SavedViewsList } from "./index";
 import { loadSavedViews } from "./loader";
+import { NewViewButton } from "./NewViewButton";
 
 /**
  * `kind` prop は現状未使用。このページは個人ビュー・共有ビューを常に両方表示する
@@ -13,25 +16,32 @@ export async function SavedViewsListPage({
   kind: "personal" | "public";
 }) {
   const user = await requireCurrentUser();
-  const { views: personal } = await loadSavedViews({
-    actorUserId: user.id,
-    kind: "personal",
-  });
-  const { views: shared } = await loadSavedViews({
-    actorUserId: user.id,
-    kind: "public",
-  });
+  const [{ views: personal }, { views: shared }, { flat }, { tags }] =
+    await Promise.all([
+      loadSavedViews({ actorUserId: user.id, kind: "personal" }),
+      loadSavedViews({ actorUserId: user.id, kind: "public" }),
+      loadDirectoryTreeFlat({ actorUserId: user.id }),
+      loadTagsForOwner(user.id),
+    ]);
+
+  const tagOptions = tags.map((tag) => ({
+    id: tag.id as unknown as string,
+    name: tag.name,
+  }));
 
   return (
     <main className="px-6 py-8 pb-20 mx-auto w-full max-w-[1100px] lg:px-10 lg:py-12 xl:px-16 xl:py-16 max-sm:px-4 max-sm:py-6 max-sm:pb-16">
-      <div className="mb-8">
-        <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-2">
-          保存ビュー
-        </h1>
-        <p className="text-md text-ink-secondary max-w-[56ch]">
-          よく使う絞り込み条件と表示形式を保存します。サイドバーから 1
-          クリックで適用できます。
-        </p>
+      <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-2">
+            保存ビュー
+          </h1>
+          <p className="text-md text-ink-secondary max-w-[56ch]">
+            よく使う絞り込み条件と表示形式を保存します。サイドバーから 1
+            クリックで適用できます。
+          </p>
+        </div>
+        <NewViewButton directories={flat} tags={tagOptions} />
       </div>
 
       <section className="mb-12">
@@ -48,7 +58,7 @@ export async function SavedViewsListPage({
             {personal.length} 件
           </span>
         </div>
-        <SavedViewsList views={personal} />
+        <SavedViewsList views={personal} directories={flat} tags={tagOptions} />
       </section>
 
       <section className="mb-12">
@@ -65,7 +75,7 @@ export async function SavedViewsListPage({
             {shared.length} 件
           </span>
         </div>
-        <SavedViewsList views={shared} />
+        <SavedViewsList views={shared} directories={flat} tags={tagOptions} />
       </section>
     </main>
   );

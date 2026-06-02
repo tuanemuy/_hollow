@@ -71,6 +71,11 @@ const notePurgedSchema = z
   .object({
     noteId: z.string(),
     ownerId: z.string(),
+    // `title` is optional for backward compatibility: events enqueued
+    // before Issue #405 do not carry it. A missing title decodes to an
+    // empty `NoteTitle`-shaped string and the view marker degrades to a
+    // generic label.
+    title: z.string().optional(),
     mediaRefs: mediaIdArraySchema,
   })
   .strict();
@@ -140,6 +145,7 @@ export const noteEventDecoders: NoteEventDecoders = {
   "note.purged": buildEventDecoder("note.purged", notePurgedSchema, (p) => ({
     noteId: NoteId.create(p.noteId),
     ownerId: UserId.create(p.ownerId),
+    title: (p.title ?? "") as NoteTitle,
     mediaRefs: p.mediaRefs.map((id) => MediaAssetId.create(id)),
   })),
   "note.tags_replaced": buildEventDecoder(

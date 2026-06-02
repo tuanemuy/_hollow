@@ -199,17 +199,18 @@ describe("SavedView.markDefault / unmarkDefault", () => {
 describe("SavedView.markBroken", () => {
   it("appends new markers and bumps version", () => {
     const view = freshView();
-    const marker = BrokenConditionMarker.tag("t-1" as TagId, at(1));
+    const marker = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(1));
     const next = SavedView.markBroken(view, [marker], at(1));
     expect(next.brokenConditions.length).toBe(1);
     expect(next.brokenConditions[0]?.id).toBe("t-1");
+    expect(next.brokenConditions[0]?.lastSeenName).toBe("Research");
     expect(next.version).toBe(view.version + 1);
   });
 
   it("collapses (kind, id) so re-marking the same reference replaces it with the newer lastSeenAt", () => {
     const view = freshView();
-    const old = BrokenConditionMarker.tag("t-1" as TagId, at(1));
-    const newer = BrokenConditionMarker.tag("t-1" as TagId, at(10));
+    const old = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(1));
+    const newer = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(10));
     const after1 = SavedView.markBroken(view, [old], at(1));
     const after2 = SavedView.markBroken(after1, [newer], at(10));
     expect(after2.brokenConditions.length).toBe(1);
@@ -218,9 +219,9 @@ describe("SavedView.markBroken", () => {
     );
   });
 
-  it("is idempotent when re-marking the same (kind, id, lastSeenAt) batch", () => {
+  it("is idempotent when re-marking the same (kind, id, name, lastSeenAt) batch", () => {
     const view = freshView();
-    const marker = BrokenConditionMarker.tag("t-1" as TagId, at(1));
+    const marker = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(1));
     const after1 = SavedView.markBroken(view, [marker], at(1));
     const after2 = SavedView.markBroken(after1, [marker], at(1));
     expect(after2).toBe(after1);
@@ -230,6 +231,42 @@ describe("SavedView.markBroken", () => {
     const view = freshView();
     const same = SavedView.markBroken(view, [], at(1));
     expect(same).toBe(view);
+  });
+
+  // ADR-B: name-asymmetric merge. The delete-event path carries a name;
+  // the detectBrokenConditions re-scan path passes "". A nameless marker
+  // must not blank out a previously-captured name for the same (kind, id).
+  it("preserves an existing name when a nameless re-scan marker arrives for the same reference", () => {
+    const view = freshView();
+    const named = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(1));
+    const nameless = BrokenConditionMarker.tag("t-1" as TagId, "", at(5));
+    const after1 = SavedView.markBroken(view, [named], at(1));
+    const after2 = SavedView.markBroken(after1, [nameless], at(5));
+    expect(after2.brokenConditions.length).toBe(1);
+    expect(after2.brokenConditions[0]?.lastSeenName).toBe("Research");
+    // The fresher timestamp is still adopted.
+    expect(after2.brokenConditions[0]?.lastSeenAt.getTime()).toBe(
+      at(5).getTime(),
+    );
+  });
+
+  it("adopts an incoming name when it has one (named wins over nameless existing)", () => {
+    const view = freshView();
+    const nameless = BrokenConditionMarker.tag("t-1" as TagId, "", at(1));
+    const named = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(5));
+    const after1 = SavedView.markBroken(view, [nameless], at(1));
+    const after2 = SavedView.markBroken(after1, [named], at(5));
+    expect(after2.brokenConditions[0]?.lastSeenName).toBe("Research");
+  });
+
+  it("treats a name-only refresh (no real change to id/kind) as a version bump", () => {
+    const view = freshView();
+    const nameless = BrokenConditionMarker.tag("t-1" as TagId, "", at(1));
+    const after1 = SavedView.markBroken(view, [nameless], at(1));
+    const named = BrokenConditionMarker.tag("t-1" as TagId, "Research", at(1));
+    const after2 = SavedView.markBroken(after1, [named], at(1));
+    expect(after2).not.toBe(after1);
+    expect(after2.brokenConditions[0]?.lastSeenName).toBe("Research");
   });
 });
 
@@ -257,9 +294,9 @@ describe("SavedView.repairBrokenConditions", () => {
     const withBroken = SavedView.markBroken(
       view,
       [
-        BrokenConditionMarker.tag(tagA, at(1)),
-        BrokenConditionMarker.directory(dirId, at(1)),
-        BrokenConditionMarker.note(noteId, at(1)),
+        BrokenConditionMarker.tag(tagA, "Tag A", at(1)),
+        BrokenConditionMarker.directory(dirId, "Dir", at(1)),
+        BrokenConditionMarker.note(noteId, "Note", at(1)),
       ],
       at(1),
     );
@@ -283,7 +320,7 @@ describe("SavedView.repairBrokenConditions", () => {
     const view = freshView({ query });
     const withBroken = SavedView.markBroken(
       view,
-      [BrokenConditionMarker.tag("t-a" as TagId, at(1))],
+      [BrokenConditionMarker.tag("t-a" as TagId, "Tag A", at(1))],
       at(1),
     );
     const repaired = SavedView.repairBrokenConditions(withBroken, at(2));

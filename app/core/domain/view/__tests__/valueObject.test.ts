@@ -543,12 +543,19 @@ describe("ViewQuery", () => {
 
 describe("BrokenConditionMarker", () => {
   it("tag/directory/note factories produce the matching discriminator", () => {
-    const tag = BrokenConditionMarker.tag("t" as TagId, T0);
-    const dir = BrokenConditionMarker.directory("d" as DirectoryId, T0);
-    const note = BrokenConditionMarker.note("n" as NoteId, T0);
+    const tag = BrokenConditionMarker.tag("t" as TagId, "Tag", T0);
+    const dir = BrokenConditionMarker.directory("d" as DirectoryId, "Dir", T0);
+    const note = BrokenConditionMarker.note("n" as NoteId, "Note", T0);
     expect(tag.kind).toBe("tag");
     expect(dir.kind).toBe("directory");
     expect(note.kind).toBe("note");
+  });
+
+  it("factories snapshot lastSeenName", () => {
+    const tag = BrokenConditionMarker.tag("t" as TagId, "Research", T0);
+    expect(tag.lastSeenName).toBe("Research");
+    const blank = BrokenConditionMarker.tag("t" as TagId, "", T0);
+    expect(blank.lastSeenName).toBe("");
   });
 
   it("createKind accepts the three valid kinds", () => {
@@ -569,13 +576,28 @@ describe("BrokenConditionMarker", () => {
     }
   });
 
-  it("equals matches kind / id / lastSeenAt", () => {
-    const a = BrokenConditionMarker.tag("x" as TagId, new Date(1));
-    const b = BrokenConditionMarker.tag("x" as TagId, new Date(1));
-    const c = BrokenConditionMarker.tag("x" as TagId, new Date(2));
-    const d = BrokenConditionMarker.directory("x" as DirectoryId, new Date(1));
+  it("equals matches on (kind, id) only — ignoring lastSeenName and lastSeenAt", () => {
+    const a = BrokenConditionMarker.tag("x" as TagId, "A", new Date(1));
+    const b = BrokenConditionMarker.tag("x" as TagId, "A", new Date(1));
+    // Same (kind, id) but different name AND different timestamp — still equal.
+    const cDiffNameAndTime = BrokenConditionMarker.tag(
+      "x" as TagId,
+      "B",
+      new Date(2),
+    );
+    const differentId = BrokenConditionMarker.tag(
+      "y" as TagId,
+      "A",
+      new Date(1),
+    );
+    const differentKind = BrokenConditionMarker.directory(
+      "x" as DirectoryId,
+      "A",
+      new Date(1),
+    );
     expect(BrokenConditionMarker.equals(a, b)).toBe(true);
-    expect(BrokenConditionMarker.equals(a, c)).toBe(false);
-    expect(BrokenConditionMarker.equals(a, d)).toBe(false);
+    expect(BrokenConditionMarker.equals(a, cDiffNameAndTime)).toBe(true);
+    expect(BrokenConditionMarker.equals(a, differentId)).toBe(false);
+    expect(BrokenConditionMarker.equals(a, differentKind)).toBe(false);
   });
 });

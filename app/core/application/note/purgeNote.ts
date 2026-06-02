@@ -43,6 +43,7 @@ export async function purgeNote({
         {
           noteId: found.entity.id,
           ownerId: found.entity.ownerId,
+          title: found.entity.title,
           mediaRefs: found.entity.mediaRefs,
         },
         now,

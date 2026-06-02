@@ -232,7 +232,7 @@ export async function dispatchDomainEvent(
         });
         await viewHandleNotePurgedEvent({
           container,
-          input: { noteId: payload.noteId },
+          input: { noteId: payload.noteId, title: "" },
         });
         // Issue #321: unresolve every link row currently pointing at the
         // trashed note (FK set-null fires only on physical delete). Runs
@@ -244,6 +244,7 @@ export async function dispatchDomainEvent(
         const payload = event.payload as Readonly<{
           noteId: string;
           ownerId: string;
+          title?: string;
           mediaRefs: readonly string[];
         }>;
         // === Issue #159 ADR-005: validation 一括先行 ===
@@ -266,31 +267,37 @@ export async function dispatchDomainEvent(
         });
         await viewHandleNotePurgedEvent({
           container,
-          input: { noteId: payload.noteId },
+          input: { noteId: payload.noteId, title: payload.title ?? "" },
         });
         return { kind: "handled" };
       }
       case "tag.deleted": {
-        const payload = event.payload as Readonly<{ tagId: string }>;
+        const payload = event.payload as Readonly<{
+          tagId: string;
+          name?: string;
+        }>;
         // validate-only — handler signature takes raw string but we want
         // schema drift to surface as BusinessRuleError before any side
         // effects (Issue #159 ADR-005).
         void TagId.create(payload.tagId);
         await viewHandleTagDeletedEvent({
           container,
-          input: { tagId: payload.tagId },
+          input: { tagId: payload.tagId, name: payload.name ?? "" },
         });
         return { kind: "handled" };
       }
       case "directory.deleted": {
-        const payload = event.payload as Readonly<{ directoryId: string }>;
+        const payload = event.payload as Readonly<{
+          directoryId: string;
+          name?: string;
+        }>;
         // validate-only — handler signature takes raw string but we want
         // schema drift to surface as BusinessRuleError before any side
         // effects (Issue #159 ADR-005).
         void DirectoryId.create(payload.directoryId);
         await viewHandleDirectoryDeletedEvent({
           container,
-          input: { directoryId: payload.directoryId },
+          input: { directoryId: payload.directoryId, name: payload.name ?? "" },
         });
         return { kind: "handled" };
       }

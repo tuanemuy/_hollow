@@ -5,6 +5,10 @@ import type { ServiceArgs } from "../types";
 
 export type HandleNotePurgedEventInput = Readonly<{
   noteId: string;
+  // Title of the deleted note, snapshotted at purge time so the marker
+  // can surface a concrete title (Issue #405 ADR-A). Empty string for the
+  // `note.trashed` route (which carries no title) and legacy events.
+  title: string;
 }>;
 
 /**
@@ -21,7 +25,7 @@ export async function handleNotePurgedEvent({
   await container.unitOfWorkProvider.run(async ({ savedViewRepository }) => {
     const candidates = await savedViewRepository.findReferencingNote(noteId);
     for (const view of candidates) {
-      const marker = BrokenConditionMarker.note(noteId, now);
+      const marker = BrokenConditionMarker.note(noteId, input.title, now);
       const next = SavedView.markBroken(view, [marker], now);
       if (next === view) {
         continue;

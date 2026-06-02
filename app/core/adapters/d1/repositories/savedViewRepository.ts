@@ -49,6 +49,7 @@ type StoredSortJson = Readonly<{
 type StoredBrokenConditionJson = Readonly<{
   kind: string;
   id: string;
+  lastSeenName: string;
   lastSeenAt: string;
 }>;
 
@@ -210,9 +211,20 @@ function decodeBrokenConditionsJson(
         `Saved view ${viewId} broken_conditions_json[${index}] shape mismatch`,
       );
     }
+    // `lastSeenName` was added in Issue #405. Rows persisted before that
+    // change do not carry the key, so a missing field falls back to "".
+    const lastSeenName =
+      entry.lastSeenName === undefined ? "" : entry.lastSeenName;
+    if (typeof lastSeenName !== "string") {
+      throw new SystemError(
+        SystemErrorCode.DataIntegrityError,
+        `Saved view ${viewId} broken_conditions_json[${index}].lastSeenName is not a string`,
+      );
+    }
     return {
       kind: entry.kind,
       id: entry.id,
+      lastSeenName,
       lastSeenAt: entry.lastSeenAt,
     };
   });
@@ -261,6 +273,7 @@ function encodeBrokenConditionsJson(view: SavedView): string {
     view.brokenConditions.map((marker) => ({
       kind: marker.kind,
       id: marker.id,
+      lastSeenName: marker.lastSeenName,
       lastSeenAt: marker.lastSeenAt.toISOString(),
     })),
   );
@@ -341,6 +354,7 @@ export class D1SavedViewRepository implements SavedViewRepository {
         brokenConditions: storedBroken.map((marker) => ({
           kind: marker.kind,
           id: marker.id,
+          lastSeenName: marker.lastSeenName,
           lastSeenAt: parseStoredDate(
             marker.lastSeenAt,
             `saved view ${row.id} broken_conditions_json.lastSeenAt`,

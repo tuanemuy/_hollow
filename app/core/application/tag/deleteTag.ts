@@ -78,7 +78,7 @@ export async function deleteTag({
         }),
       );
       await tagRepository.delete(tagId, found.expectedVersion);
-      collectEvents([TagEvents.deleted(tagId, now)]);
+      collectEvents([TagEvents.deleted(tagId, found.entity.name, now)]);
       return affectedIds;
     },
   );

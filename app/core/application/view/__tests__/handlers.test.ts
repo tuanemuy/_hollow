@@ -66,7 +66,7 @@ describe("handleTagDeletedEvent", () => {
 
     await handleTagDeletedEvent({
       container,
-      input: { tagId: "t-1" },
+      input: { tagId: "t-1", name: "Research" },
     });
 
     const persistedA = await container.savedViewRepository.findById(a.id);
@@ -74,6 +74,9 @@ describe("handleTagDeletedEvent", () => {
     expect(persistedA?.entity.brokenConditions).toHaveLength(1);
     expect(persistedA?.entity.brokenConditions[0]?.kind).toBe("tag");
     expect(persistedA?.entity.brokenConditions[0]?.id).toBe("t-1");
+    expect(persistedA?.entity.brokenConditions[0]?.lastSeenName).toBe(
+      "Research",
+    );
     expect(persistedB?.entity.brokenConditions).toHaveLength(0);
   });
 
@@ -95,8 +98,14 @@ describe("handleTagDeletedEvent", () => {
       }),
     });
 
-    await handleTagDeletedEvent({ container, input: { tagId: "t-1" } });
-    await handleTagDeletedEvent({ container, input: { tagId: "t-1" } });
+    await handleTagDeletedEvent({
+      container,
+      input: { tagId: "t-1", name: "Research" },
+    });
+    await handleTagDeletedEvent({
+      container,
+      input: { tagId: "t-1", name: "Research" },
+    });
 
     const persisted = await container.savedViewRepository.findById(view.id);
     expect(persisted?.entity.brokenConditions).toHaveLength(1);
@@ -124,13 +133,14 @@ describe("handleDirectoryDeletedEvent", () => {
 
     await handleDirectoryDeletedEvent({
       container,
-      input: { directoryId: "d-1" },
+      input: { directoryId: "d-1", name: "Papers" },
     });
 
     const persisted = await container.savedViewRepository.findById(view.id);
     expect(persisted?.entity.brokenConditions).toHaveLength(1);
     expect(persisted?.entity.brokenConditions[0]?.kind).toBe("directory");
     expect(persisted?.entity.brokenConditions[0]?.id).toBe("d-1");
+    expect(persisted?.entity.brokenConditions[0]?.lastSeenName).toBe("Papers");
   });
 
   it("is idempotent for the same directoryId (re-delivery is a no-op)", async () => {
@@ -153,11 +163,11 @@ describe("handleDirectoryDeletedEvent", () => {
 
     await handleDirectoryDeletedEvent({
       container,
-      input: { directoryId: "d-1" },
+      input: { directoryId: "d-1", name: "Papers" },
     });
     await handleDirectoryDeletedEvent({
       container,
-      input: { directoryId: "d-1" },
+      input: { directoryId: "d-1", name: "Papers" },
     });
 
     const persisted = await container.savedViewRepository.findById(view.id);
@@ -184,11 +194,47 @@ describe("handleNotePurgedEvent", () => {
       }),
     });
 
-    await handleNotePurgedEvent({ container, input: { noteId: "n-1" } });
+    await handleNotePurgedEvent({
+      container,
+      input: { noteId: "n-1", title: "My Note" },
+    });
 
     const persisted = await container.savedViewRepository.findById(view.id);
     expect(persisted?.entity.brokenConditions).toHaveLength(1);
     expect(persisted?.entity.brokenConditions[0]?.kind).toBe("note");
     expect(persisted?.entity.brokenConditions[0]?.id).toBe("n-1");
+    expect(persisted?.entity.brokenConditions[0]?.lastSeenName).toBe("My Note");
+  });
+
+  it("preserves an event-captured name across a later nameless re-scan (ADR-B)", async () => {
+    const container = createViewTestContainer({
+      existingNoteIds: ["n-1" as never],
+    });
+    const { view } = await createSavedView({
+      container,
+      input: baseInput({
+        query: {
+          directoryId: null,
+          tagIds: [],
+          dateRange: null,
+          keyword: null,
+          referencingNoteId: "n-1",
+          visibilityFilter: [],
+        },
+      }),
+    });
+
+    await handleNotePurgedEvent({
+      container,
+      input: { noteId: "n-1", title: "My Note" },
+    });
+    // A later re-scan (e.g. validateSavedView) carries no title.
+    await handleNotePurgedEvent({
+      container,
+      input: { noteId: "n-1", title: "" },
+    });
+
+    const persisted = await container.savedViewRepository.findById(view.id);
+    expect(persisted?.entity.brokenConditions[0]?.lastSeenName).toBe("My Note");
   });
 });

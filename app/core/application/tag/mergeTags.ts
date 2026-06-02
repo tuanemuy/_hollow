@@ -87,7 +87,9 @@ export async function mergeTags({
       // version is intentionally not advanced. The displayed usage count is
       // a read-time aggregate (see `TagRepository.findByOwner`).
       await tagRepository.delete(sourceTagId, sourceFound.expectedVersion);
-      collectEvents([TagEvents.deleted(sourceTagId, now)]);
+      collectEvents([
+        TagEvents.deleted(sourceTagId, sourceFound.entity.name, now),
+      ]);
       return affectedIds;
     },
   );

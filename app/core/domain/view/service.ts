@@ -117,8 +117,11 @@ export const SavedViewService = {
     if (view.query.directoryId !== null) {
       const dir = await repos.dirRepo.findById(view.query.directoryId);
       if (dir === null) {
+        // Re-scan path: the row is already gone, so no name is
+        // available. Pass "" — `markBroken` preserves any previously
+        // event-captured name (Issue #405 ADR-B).
         markers.push(
-          BrokenConditionMarker.directory(view.query.directoryId, now),
+          BrokenConditionMarker.directory(view.query.directoryId, "", now),
         );
       }
     }
@@ -131,7 +134,7 @@ export const SavedViewService = {
       }
       for (const tagId of view.query.tagIds) {
         if (!foundIds.has(tagId)) {
-          markers.push(BrokenConditionMarker.tag(tagId, now));
+          markers.push(BrokenConditionMarker.tag(tagId, "", now));
         }
       }
     }
@@ -140,7 +143,7 @@ export const SavedViewService = {
       const note = await repos.noteRepo.findById(view.query.referencingNoteId);
       if (note === null) {
         markers.push(
-          BrokenConditionMarker.note(view.query.referencingNoteId, now),
+          BrokenConditionMarker.note(view.query.referencingNoteId, "", now),
         );
       }
     }

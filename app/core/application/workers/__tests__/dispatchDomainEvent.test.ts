@@ -944,7 +944,7 @@ describe("dispatchDomainEvent — tag.deleted routing (#159)", () => {
     expect(mockedViewHandleTagDeleted).toHaveBeenCalledTimes(1);
     expect(mockedViewHandleTagDeleted).toHaveBeenCalledWith({
       container,
-      input: { tagId: TAG_ID },
+      input: { tagId: TAG_ID, name: "" },
     });
   });
 
@@ -982,7 +982,7 @@ describe("dispatchDomainEvent — directory.deleted routing (#181)", () => {
     expect(mockedViewHandleDirectoryDeleted).toHaveBeenCalledTimes(1);
     expect(mockedViewHandleDirectoryDeleted).toHaveBeenCalledWith({
       container,
-      input: { directoryId: DIRECTORY_ID },
+      input: { directoryId: DIRECTORY_ID, name: "" },
     });
   });
 

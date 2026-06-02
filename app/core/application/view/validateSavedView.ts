@@ -11,6 +11,7 @@ import type { ServiceArgs } from "../types";
 export type BrokenConditionMarkerDTO = Readonly<{
   kind: "tag" | "directory" | "note";
   id: TagId | DirectoryId | NoteId | string;
+  lastSeenName: string;
   lastSeenAt: string;
 }>;
 
@@ -72,6 +73,7 @@ export async function validateSavedView({
     brokenConditions: markers.map((marker) => ({
       kind: marker.kind,
       id: marker.id as string,
+      lastSeenName: marker.lastSeenName,
       lastSeenAt: toInstant(marker.lastSeenAt),
     })),
   };

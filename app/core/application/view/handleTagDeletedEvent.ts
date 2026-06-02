@@ -5,6 +5,10 @@ import type { ServiceArgs } from "../types";
 
 export type HandleTagDeletedEventInput = Readonly<{
   tagId: string;
+  // Display name of the deleted tag, snapshotted at delete time so the
+  // marker can surface a concrete name (Issue #405 ADR-A). Empty string
+  // for legacy events without a name.
+  name: string;
 }>;
 
 /**
@@ -22,7 +26,7 @@ export async function handleTagDeletedEvent({
   await container.unitOfWorkProvider.run(async ({ savedViewRepository }) => {
     const candidates = await savedViewRepository.findReferencingTag(tagId);
     for (const view of candidates) {
-      const marker = BrokenConditionMarker.tag(tagId, now);
+      const marker = BrokenConditionMarker.tag(tagId, input.name, now);
       const next = SavedView.markBroken(view, [marker], now);
       if (next === view) {
         continue;

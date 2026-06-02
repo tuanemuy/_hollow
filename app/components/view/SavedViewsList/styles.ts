@@ -64,7 +64,7 @@ export const textActionApply =
 export const textActionDanger =
   "hover:not-disabled:not-aria-disabled:bg-error-surface hover:not-disabled:not-aria-disabled:text-error";
 
-/** Broken-conditions warning banner (warning surface, `role="alert"`). */
+/** Broken-conditions warning banner (warning surface). */
 export const brokenBanner =
   "flex items-start gap-3 px-4 py-3 bg-warning-surface rounded-md mt-3 mb-0.5 max-lg:flex-wrap";
 
@@ -76,6 +76,17 @@ export const brokenTitle = "text-sm font-medium text-warning mb-0.5";
 
 /** Banner detail text. */
 export const brokenDetail = "text-sm text-warning/90 leading-snug";
+
+/** Inline `<code>` for a deleted reference's name inside the banner. */
+export const brokenCode =
+  "font-mono text-[0.95em] bg-white/60 px-1.5 py-px rounded-xs";
+
+/**
+ * Banner "修復" action (P20 `.fix-btn`). Warning-toned, translucent-white
+ * surface that brightens on hover; does not shrink when the banner wraps.
+ */
+export const fixBtn =
+  "shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-white/60 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/95 disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Inline editing name input. */
 export const renameInput =
