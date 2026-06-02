@@ -15,6 +15,8 @@ const METADATA_ROLE =
   "You extract tag names and aliases from an HTML note body.";
 const JSON_CONTRACT_TAIL =
   "Do not include code fences. Do not include any text before or after the JSON object.";
+const DIRECTORY_GUIDANCE_EXISTING =
+  "prefer placing the note under one of the existing directories listed in the user message";
 
 function structureInput(
   overrides: Partial<LLMStructureInput> = {},
@@ -90,6 +92,67 @@ describe("buildStructureSystemPrompt", () => {
     expect(system.startsWith(STRUCTURE_ROLE)).toBe(true);
     expect(system).not.toContain(OPERATOR_INTENT_LABEL);
     expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+  });
+
+  it("keeps the system contract at the tail even when the operator embeds a copy of it", () => {
+    const system = buildStructureSystemPrompt(
+      structureInput({
+        prompt: `Follow my rules. ${JSON_CONTRACT_TAIL}`,
+      }),
+    );
+
+    // The system-owned contract remains the genuine tail...
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+    // ...and that genuine tail sits *after* the operator's embedded copy.
+    expect(system.lastIndexOf(JSON_CONTRACT_TAIL)).toBeGreaterThan(
+      system.indexOf(OPERATOR_INTENT_LABEL),
+    );
+  });
+
+  it("trims surrounding whitespace from the appended operator intent", () => {
+    const system = buildStructureSystemPrompt(
+      structureInput({ prompt: "  Prefer concise output.  " }),
+    );
+
+    expect(system).toContain(
+      `${OPERATOR_INTENT_LABEL}\nPrefer concise output.`,
+    );
+    expect(system).not.toContain("Prefer concise output.  ");
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+  });
+
+  it("emits role, intent, existing-directory guidance, locale and contract together", () => {
+    const system = buildStructureSystemPrompt(
+      structureInput({
+        prompt: "Prefer concise output.",
+        existingDirectories: ["親/子"],
+        locale: "en",
+      }),
+    );
+
+    expect(system.startsWith(STRUCTURE_ROLE)).toBe(true);
+    expect(system).toContain(
+      `${OPERATOR_INTENT_LABEL}\nPrefer concise output.`,
+    );
+    expect(system).toContain(DIRECTORY_GUIDANCE_EXISTING);
+    expect(system).toContain(
+      "Locale for natural-language output (including the title): en.",
+    );
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+
+    // Ordering: role → intent → directory guidance → locale → contract.
+    expect(system.indexOf(STRUCTURE_ROLE)).toBeLessThan(
+      system.indexOf(OPERATOR_INTENT_LABEL),
+    );
+    expect(system.indexOf(OPERATOR_INTENT_LABEL)).toBeLessThan(
+      system.indexOf(DIRECTORY_GUIDANCE_EXISTING),
+    );
+    expect(system.indexOf(DIRECTORY_GUIDANCE_EXISTING)).toBeLessThan(
+      system.indexOf("Locale for natural-language output"),
+    );
+    expect(system.indexOf("Locale for natural-language output")).toBeLessThan(
+      system.lastIndexOf(JSON_CONTRACT_TAIL),
+    );
   });
 });
 

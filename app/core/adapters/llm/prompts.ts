@@ -31,7 +31,8 @@ function hasExistingDirectories(input: LLMStructureInput): boolean {
 }
 
 function operatorIntentSection(prompt: string): readonly string[] {
-  return prompt.trim().length > 0 ? [OPERATOR_INTENT_LABEL, prompt] : [];
+  const trimmed = prompt.trim();
+  return trimmed.length > 0 ? [OPERATOR_INTENT_LABEL, trimmed] : [];
 }
 
 export function buildStructureSystemPrompt(input: LLMStructureInput): string {
