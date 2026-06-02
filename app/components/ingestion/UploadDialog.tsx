@@ -238,10 +238,13 @@ export function UploadDialog({ open, onClose }: Props) {
   }, [open]);
 
   // Lazy-load the directory tree the first time we enter the `editing`
-  // view. Re-runs only on the kind transition because the dependency is
-  // a string discriminant.
+  // view. Depends on the `isEditing` boolean — not the whole `view`
+  // object — so a `setView` that keeps `kind === "editing"` never
+  // re-runs the load (same scalar-dependency pattern as the polling
+  // effect below; see .issue/258/adr.md).
+  const isEditing = view.kind === "editing";
   useEffect(() => {
-    if (view.kind !== "editing") return;
+    if (!isEditing) return;
     if (tree.length > 0) return;
     let cancelled = false;
     setIsTreeLoading(true);
@@ -260,7 +263,7 @@ export function UploadDialog({ open, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [view, tree.length, getTree]);
+  }, [isEditing, tree.length, getTree]);
 
   // Transient (system / unknown) poll-failure counter for the current
   // `waiting` session. Held on a ref — not in the `view` discriminant —
