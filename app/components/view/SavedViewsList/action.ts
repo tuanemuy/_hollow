@@ -124,11 +124,11 @@ export const duplicateSavedViewFn = createServerFn({ method: "POST" })
     const { container, module } = await loadServerDeps(
       () => import("@/core/application/view/duplicateSavedView"),
     );
-    await module.duplicateSavedView({
+    const result = await module.duplicateSavedView({
       container,
       input: { actorUserId: actor.id, viewId: data.viewId },
     });
-    return { ok: true };
+    return { view: result.view };
   });
 
 export const repairSavedViewFn = createServerFn({ method: "POST" })

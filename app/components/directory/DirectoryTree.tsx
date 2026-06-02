@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -199,12 +200,47 @@ function DirectoryTreeNodeView({
   tree,
   setDialog,
 }: NodeViewProps) {
+  const router = useRouter();
+  const renameDirectory = useServerFn(renameDirectoryFn);
+
   const id = node.id as unknown as string;
   const hasChildren = node.children.length > 0;
   const expanded = isExpanded(id);
   const isRenaming = renamingId === id;
   const errorForThis =
     renameError !== null && renameError.id === id ? renameError.error : null;
+
+  // Row-owned optimistic name. While a rename commit is in flight the label
+  // shows the new name; on loader re-fetch / failure it snaps back to the
+  // server-confirmed `node.name`. This bridges the gap between the input
+  // unmounting (commit) and the raw `router.invalidate()` (rule 2) settling,
+  // which otherwise flashes the old name.
+  const [optimisticName, applyOptimisticName] = useOptimistic(
+    node.name,
+    (_cur: string, next: string) => next,
+  );
+  const [isRenamePending, startRename] = useTransition();
+
+  // Commit lives here (not in `InlineRenameInput`) so the `useOptimistic`
+  // setter runs inside this component's own transition; calling a parent
+  // setter from a child transition is unreliable under React 19 semantics.
+  const onCommit = (trimmed: string) => {
+    startRename(async () => {
+      try {
+        applyOptimisticName(trimmed);
+        await renameDirectory({ data: { directoryId: id, newName: trimmed } });
+        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
+        await router.invalidate();
+        setRenameError(null);
+        setRenamingId(null);
+      } catch (e) {
+        // Keep the input mounted so the user can correct the value and retry;
+        // the optimistic name is dropped on the failed transition, so the
+        // label snaps back to the baseline `node.name`.
+        setRenameError({ id, error: extractSerializedError(e) });
+      }
+    });
+  };
 
   const itemRef = useRef<HTMLDivElement | null>(null);
   const wasRenamingRef = useRef(false);
@@ -307,15 +343,12 @@ function DirectoryTreeNodeView({
 
         {isRenaming ? (
           <InlineRenameInput
-            directoryId={id}
             initialName={node.name}
             errorId={errorForThis !== null ? errorId : undefined}
+            isPending={isRenamePending}
+            onCommit={onCommit}
             onDone={() => {
               setRenamingId(null);
-            }}
-            onError={(error) => setRenameError({ id, error })}
-            onCommitSuccess={() => {
-              setRenameError(null);
             }}
             onCancel={() => {
               // Clear stale error so a previously failed rename doesn't
@@ -333,7 +366,7 @@ function DirectoryTreeNodeView({
             className={TREE_ITEM_LINK}
             activeProps={ACTIVE_NAV_PROPS}
           >
-            <span className="truncate">{node.name}</span>
+            <span className="truncate">{optimisticName}</span>
           </Link>
         )}
 
@@ -401,13 +434,18 @@ function DirectoryTreeNodeView({
 }
 
 type InlineRenameInputProps = Readonly<{
-  directoryId: string;
   initialName: string;
   /** Element id of an associated `role="alert"` error message, if any. */
   errorId?: string | undefined;
+  /** Parent transition's pending flag (the rename mutation runs in the parent). */
+  isPending: boolean;
+  /**
+   * Commit a real name change. The parent owns the mutation, optimistic
+   * name update and invalidate; this component only collects the trimmed
+   * value and triggers it.
+   */
+  onCommit: (trimmed: string) => void;
   onDone: () => void;
-  onError: (error: SerializedError) => void;
-  onCommitSuccess: () => void;
   /**
    * Called when the input leaves without committing a real change
    * (Esc / empty value / unchanged value). Lets the parent clear stale
@@ -417,18 +455,14 @@ type InlineRenameInputProps = Readonly<{
 }>;
 
 function InlineRenameInput({
-  directoryId,
   initialName,
   errorId,
+  isPending,
+  onCommit,
   onDone,
-  onError,
-  onCommitSuccess,
   onCancel,
 }: InlineRenameInputProps) {
-  const router = useRouter();
-  const renameDirectory = useServerFn(renameDirectoryFn);
   const [value, setValue] = useState(initialName);
-  const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -439,11 +473,11 @@ function InlineRenameInput({
   }, []);
 
   // Re-focus the input after a failed rename so keyboard / SR users can
-  // immediately edit and retry. Doing this from inside the startTransition
-  // catch is unreliable: React 19 keeps `isPending=true` until the async
-  // function returns, so the input is still rendered with `disabled` and
-  // `.focus()` is a no-op. Watching the error/pending edge here lets
-  // focus land after the disabled flag is gone.
+  // immediately edit and retry. Doing this from inside the transition catch
+  // is unreliable: React 19 keeps `isPending=true` until the async function
+  // returns, so the input is still rendered with `disabled` and `.focus()`
+  // is a no-op. Watching the error/pending edge here lets focus land after
+  // the disabled flag is gone.
   const errorPresent = errorId !== undefined;
   useEffect(() => {
     if (errorPresent && !isPending) {
@@ -451,49 +485,25 @@ function InlineRenameInput({
     }
   }, [errorPresent, isPending]);
 
-  // Enter → commit() triggers `disabled=true` (isPending) on the input, which
+  // Enter → onCommit() flips `disabled=true` (isPending) on the input, which
   // causes the browser to blur it — and onBlur={commit} would then fire a
   // second commit in the same event loop. Guard with a ref so commit is a
-  // single-shot per InlineRenameInput instance.
+  // single-shot per InlineRenameInput instance. It is intentionally not reset
+  // on failure: a failed rename keeps the input mounted, and the user edits
+  // the value to retry, which clears the guard via the change handler.
   const committedRef = useRef(false);
 
   const commit = () => {
     if (committedRef.current) return;
     const trimmed = value.trim();
-    if (trimmed.length === 0) {
-      committedRef.current = true;
-      onCancel();
-      onDone();
-      return;
-    }
-    if (trimmed === initialName) {
+    if (trimmed.length === 0 || trimmed === initialName) {
       committedRef.current = true;
       onCancel();
       onDone();
       return;
     }
     committedRef.current = true;
-    startTransition(async () => {
-      try {
-        await renameDirectory({
-          data: { directoryId, newName: trimmed },
-        });
-        // Sidebar の directory tree を更新するため _app も invalidate（rule 2）
-        await router.invalidate();
-        onCommitSuccess();
-        onDone();
-      } catch (e) {
-        // Keep the input mounted so the user can correct the value;
-        // aria-describedby/aria-invalid (set on the input by the parent)
-        // now points at a real, visible error message. Reset the
-        // single-shot guard so a retry submission can proceed. Focus
-        // restoration is handled by the `errorPresent`/`isPending`
-        // effect above — calling `.focus()` here would no-op against
-        // the still-disabled input.
-        onError(extractSerializedError(e));
-        committedRef.current = false;
-      }
-    });
+    onCommit(trimmed);
   };
 
   return (
@@ -501,7 +511,13 @@ function InlineRenameInput({
       ref={inputRef}
       type="text"
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        // Editing after a failed commit re-arms the single-shot guard so a
+        // corrected value can be re-submitted (the parent keeps the input
+        // mounted on failure).
+        committedRef.current = false;
+        setValue(e.target.value);
+      }}
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.nativeEvent.isComposing || event.keyCode === 229) return;

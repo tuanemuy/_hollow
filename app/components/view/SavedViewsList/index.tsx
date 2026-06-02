@@ -90,49 +90,78 @@ const DISPLAY_MODE_LABEL: Record<SavedViewDTO["displayMode"], string> = {
 };
 
 type RemoveAction = Readonly<{ type: "remove"; id: string }>;
+type AddAction = Readonly<{ type: "add"; view: SavedViewDTO }>;
+type ViewsAction = RemoveAction | AddAction;
 
 function reduceViews(
   cur: readonly SavedViewDTO[],
-  action: RemoveAction,
+  action: ViewsAction,
 ): readonly SavedViewDTO[] {
   switch (action.type) {
     case "remove":
       return cur.filter((view) => (view.id as unknown as string) !== action.id);
+    case "add":
+      // The duplicate's id is server-assigned, so once the loader commits the
+      // baseline carries the same row. Guard against double-keying if the
+      // baseline already has it (the optimistic patch is dropped on the next
+      // re-render anyway).
+      return cur.some((view) => view.id === action.view.id)
+        ? cur
+        : [...cur, action.view];
   }
 }
 
 export function SavedViewsList({ views, directories, tags }: Props) {
   const router = useRouter();
   const remove = useServerFn(deleteSavedViewFn);
+  const duplicate = useServerFn(duplicateSavedViewFn);
 
-  // Server-confirmed baseline. `useOptimistic` removes a row synchronously
-  // while the delete + loader round-trip is in flight, then snaps back to
-  // this baseline once the navigation commits and fresh props arrive.
-  // Hooks run before the empty-list early return so the empty check uses the
-  // optimistic projection, not raw `views`.
+  // Server-confirmed baseline. `useOptimistic` removes/adds a row
+  // synchronously while the delete / duplicate + loader round-trip is in
+  // flight, then snaps back to this baseline once the navigation commits and
+  // fresh props arrive. Hooks run before the empty-list early return so the
+  // empty check uses the optimistic projection, not raw `views`.
   const [optimisticViews, applyOptimistic] = useOptimistic(views, reduceViews);
-  // The target row is removed from `optimisticViews` the instant a delete
-  // starts, so it's never rendered while in flight — no need to expose the
-  // transition's pending flag to the rows (gating every sibling on one
-  // delete would needlessly lock the whole list).
-  const [, startDelete] = useTransition();
-  // The delete error is owned by the parent (the row may be optimistically
-  // removed mid-flight) and surfaced in the failing row's existing
-  // `rowError` slot once it snaps back.
-  const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<SerializedError | null>(null);
+  // The affected row is removed from / added to `optimisticViews` the instant
+  // the mutation starts, so there's no need to expose the transition's
+  // pending flag to the rows (gating every sibling on one mutation would
+  // needlessly lock the whole list).
+  const [, startMutation] = useTransition();
+  // The delete / duplicate error is owned by the parent (the deleted row may
+  // be optimistically removed mid-flight; the duplicate has no row of its
+  // own) and surfaced in the affected row's existing `rowError` slot.
+  // Duplicate errors are attributed to the source row (`viewId`).
+  const [actionErrorId, setActionErrorId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<SerializedError | null>(null);
 
   const onDelete = (viewId: string) => {
-    setDeleteErrorId(null);
-    setDeleteError(null);
-    startDelete(async () => {
+    setActionErrorId(null);
+    setActionError(null);
+    startMutation(async () => {
       try {
         applyOptimistic({ type: "remove", id: viewId });
         await remove({ data: { viewId } });
         await routerInvalidate(router);
       } catch (e) {
-        setDeleteErrorId(viewId);
-        setDeleteError(extractSerializedError(e));
+        setActionErrorId(viewId);
+        setActionError(extractSerializedError(e));
+      }
+    });
+  };
+
+  const onDuplicate = (viewId: string) => {
+    setActionErrorId(null);
+    setActionError(null);
+    startMutation(async () => {
+      try {
+        const { view } = await duplicate({ data: { viewId } });
+        applyOptimistic({ type: "add", view });
+        await routerInvalidate(router);
+      } catch (e) {
+        // The duplicate has no row of its own; surface the error on the
+        // source row that was duplicated.
+        setActionErrorId(viewId);
+        setActionError(extractSerializedError(e));
       }
     });
   };
@@ -153,7 +182,8 @@ export function SavedViewsList({ views, directories, tags }: Props) {
             tags={tags}
             tagNameById={tagNameById}
             onDelete={onDelete}
-            deleteError={deleteErrorId === id ? deleteError : null}
+            onDuplicate={onDuplicate}
+            actionError={actionErrorId === id ? actionError : null}
           />
         );
       })}
@@ -167,20 +197,21 @@ function SavedViewRow({
   tags,
   tagNameById,
   onDelete,
-  deleteError,
+  onDuplicate,
+  actionError,
 }: {
   view: SavedViewDTO;
   directories: readonly FlatDirectory[];
   tags: readonly TagOption[];
   tagNameById: ReadonlyMap<string, string>;
   onDelete: (viewId: string) => void;
-  deleteError: SerializedError | null;
+  onDuplicate: (viewId: string) => void;
+  actionError: SerializedError | null;
 }) {
   const router = useRouter();
   const setDefault = useServerFn(setDefaultSavedViewFn);
   const rename = useServerFn(renameSavedViewFn);
   const update = useServerFn(updateSavedViewFn);
-  const duplicate = useServerFn(duplicateSavedViewFn);
   const repair = useServerFn(repairSavedViewFn);
 
   const [isPending, startTransition] = useTransition();
@@ -249,18 +280,6 @@ function SavedViewRow({
     });
   };
 
-  const onDuplicate = () => {
-    startTransition(async () => {
-      try {
-        await duplicate({ data: { viewId: view.id } });
-        await routerInvalidate(router);
-        setError(null);
-      } catch (e) {
-        setError(extractSerializedError(e));
-      }
-    });
-  };
-
   const onRepair = () => {
     startTransition(async () => {
       try {
@@ -276,11 +295,12 @@ function SavedViewRow({
 
   const nameFieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.name : undefined;
-  // Delete is optimistic: the row unmounts the moment a delete starts, so
-  // its error can't live in the (now-gone) confirm dialog. The parent owns
-  // the delete error and feeds it back into this row's `rowError` slot once
-  // the row snaps back into the list on failure.
-  const rowOwnedError = error ?? deleteError;
+  // Delete / duplicate are optimistic and parent-owned: the deleted row
+  // unmounts the moment the delete starts (so its error can't live in the
+  // now-gone confirm dialog), and the duplicate has no row of its own (its
+  // error is attributed to this source row). The parent feeds both back into
+  // this row's `rowError` slot via `actionError`.
+  const rowOwnedError = error ?? actionError;
   const summary =
     rowOwnedError !== null && nameFieldErrors === undefined
       ? displayError(rowOwnedError)
@@ -448,7 +468,7 @@ function SavedViewRow({
           <button
             type="button"
             className={textAction}
-            onClick={onDuplicate}
+            onClick={() => onDuplicate(viewId)}
             disabled={rowBusy}
             aria-label={`${view.name} を複製`}
           >
