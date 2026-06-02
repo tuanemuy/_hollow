@@ -39,5 +39,21 @@
 - focus リングはグローバル `:focus-visible`（index.css）由来で全 focusable 要素に共通適用されるため、公開ページでの検証結果が全画面に一般化できる。
 - 据え置き対象（discarded / pending の opacity-60）は本検証の対象外で変更なし。
 
+## 追加検証（レビュー W-002 対応 — 認証ページ）
+
+レビュー指摘 W-002（focus ring の overflow クリップ／menu item／admin disabled が未検証）を受け、admin 検証済みユーザーのセッションを dev D1 に投入して認証ページを検証（検証後にシード行は削除済み）。
+
+| TC | 検証内容 | ページ | 結果 |
+|----|---------|--------|------|
+| D | サイドバー nav / ツリーの focus リングが overflow クリップされない | /admin, app sidebar | PASS |
+| E | user menu の menuitem でリングと focus:bg-surface が併存・非クリップ | user menu | PASS |
+| F | admin disabled ボタンの opacity が 0.55 統一 | /admin/prompts | PASS |
+
+- **D**: admin タブ nav・app サイドバー（`overflow-y-auto`）とも、フォーカス時 box-shadow = `--shadow-focus`。バー内余白・サイドバー padding によりリングはクリップされず全周描画を目視確認。
+- **E**: `USER_MENU_PANEL` は `overflow: visible` でスクロール祖先なし。menuitem「設定」フォーカス時、box-shadow（`--shadow-focus`）と背景 `focus:bg-surface` が併存、クリップなし。
+- **F**: `--opacity-disabled` = 0.55。`opacity-disabled` 保有ボタン 11 個 + native disabled の保存/リセット 12 個、いずれも computed opacity = 0.55 に統一。
+- スクショ: `screenshots/D-sidebar-focus.png`, `D-sidebar-focus-app.png`, `E-menu-focus.png`, `F-admin-disabled.png`
+- 残懸念（実害なし）: admin タブ nav の `overflow-x-auto` は将来項目高がバー高に近づくとリング上下クリップの可能性があるが、現状は余白で吸収され問題なし。ディレクトリツリーの実ノードは検証ユーザーにデータが無く同一スクロールコンテナ条件からの推論。
+
 ## 起票した Issue
 - なし（全 PASS）

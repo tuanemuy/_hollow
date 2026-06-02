@@ -92,7 +92,7 @@ Issue 本文は #336 plan 作成時点の認識（「pillBtn / BTN_* / PILL_BTN 
 
 ### 9. 検証
 - `pnpm typecheck && pnpm lint:fix && pnpm format` → `pnpm test`
-- `grep -rn "opacity-50\|opacity-55\|opacity-60" app/components` で、**据え置き対象 2 件（`IngestionJobRow.tsx` の `data-[discarded]:opacity-60`、`NoteListViews.tsx` の `data-[pending]:opacity-60`）のみがヒットし、それ以外の disabled 系 opacity は残存 0 件**であることを確認（「0 件」ではなく「据え置き 2 件のみ」が期待値）。
+- `grep -rn "opacity-50\|opacity-55\|opacity-60" app/`（`app/components` 限定でなく `app/` 全体 — `app/routes/` 配下の style 定数も対象）で、**据え置き対象 2 件（`IngestionJobRow.tsx` の `data-[discarded]:opacity-60`、`NoteListViews.tsx` の `data-[pending]:opacity-60`）のみがヒットし、それ以外の disabled 系 opacity は残存 0 件**であることを確認（「0 件」ではなく「据え置き 2 件のみ」が期待値）。
 - ブラウザ目視: disabled ボタンの淡色統一、Tab フォーカスでリング表示。
 
 ## 設計判断
