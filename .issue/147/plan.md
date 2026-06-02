@@ -48,6 +48,6 @@
 
 ## テスト方針
 
-- `pnpm test:unit` で `service.test.ts` がグリーンになること（反転したケース含む全6ケース）
+- `pnpm test:unit` で `service.test.ts` がグリーンになること（反転したケース＋ env source whitespace の throw 抑制ケースを含む）
 - `pnpm typecheck && pnpm lint` で型・lint が通ること
 - 純粋な domain ロジック変更でブラウザ操作要素なし → ブラウザ検証は対象外（後述 testing.md 参照）

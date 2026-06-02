@@ -112,6 +112,19 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     }
   });
 
+  it("does not throw when source is 'env' and env.apiKey is whitespace-only", () => {
+    const cfg = LLMConfig.create({
+      provider: "anthropic",
+      model: "m",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    const next = AdminSettingsService.assertEnvOverride(cfg, {
+      apiKey: "   ",
+    });
+    expect(next).toBe(cfg);
+  });
+
   it("returns the config verbatim when source is already 'env' and env.apiKey is present", () => {
     const cfg = LLMConfig.create({
       provider: "anthropic",
