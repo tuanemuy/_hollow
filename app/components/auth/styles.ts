@@ -1,7 +1,12 @@
 // Shared utility class strings for the auth surface. Avoids re-typing the same
 // utility lists in every auth form while keeping styles inline (no @apply).
 
-import { pillBtn, pillBtnPrimary, pillBtnTall } from "../common/styles";
+import {
+  pillBtn,
+  pillBtnPrimary,
+  pillBtnTall,
+  textLink,
+} from "../common/styles";
 
 export const AUTH_TITLE =
   "text-3xl font-normal tracking-tightest leading-tight text-ink mb-2";
@@ -12,8 +17,7 @@ export const AUTH_BODY = "text-md text-ink-secondary leading-relaxed mb-8";
 
 export const AUTH_FOOTER = "mt-8 text-center text-sm text-ink-secondary";
 
-export const AUTH_FOOTER_LINK =
-  "text-accent hover:underline hover:[text-underline-offset:3px]";
+export const AUTH_FOOTER_LINK = textLink;
 
 export const FORM = "flex flex-col gap-5";
 
@@ -25,8 +29,7 @@ export const FIELD_LABEL = "text-sm text-ink-secondary font-medium";
 
 export const FIELD_OPTIONAL = "text-ink-tertiary font-normal ml-1";
 
-export const FIELD_LINK =
-  "text-sm text-accent hover:underline hover:[text-underline-offset:3px]";
+export const FIELD_LINK = `text-sm ${textLink}`;
 
 export const FIELD_HINT = "text-xs text-ink-tertiary";
 
@@ -64,8 +67,7 @@ export const CALLOUT_ICON = "text-accent shrink-0 mt-0.5 inline-flex";
 
 export const CALLOUT_BODY = "flex flex-col gap-2";
 
-export const CALLOUT_ACTION =
-  "inline-flex items-center gap-1 text-accent font-medium text-sm self-start hover:underline hover:[text-underline-offset:3px] disabled:opacity-60";
+export const CALLOUT_ACTION = `inline-flex items-center gap-1 ${textLink} font-medium text-sm self-start disabled:opacity-60`;
 
 export const NOTICE =
   "mt-6 p-4 rounded-lg bg-surface text-sm text-ink-secondary leading-relaxed";
