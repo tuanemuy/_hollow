@@ -157,6 +157,22 @@ describe("Directory.moveTo", () => {
     expect(moved.updatedAt.getTime()).toBe(at(99).getTime());
   });
 
+  it("returns the same instance when moving to the current parent", () => {
+    const child = Directory.create(
+      {
+        id: rawId(25),
+        ownerId: OWNER,
+        parent: root,
+        name: DirectoryName.create("stay"),
+      },
+      T0,
+    );
+    // child.parentId === root.id, so re-parenting under root changes
+    // nothing (depth is unchanged too).
+    const moved = Directory.moveTo(child, root, at(99));
+    expect(moved).toBe(child);
+  });
+
   it("throws CyclicMove when the new parent is the entity itself", () => {
     const child = Directory.create(
       {

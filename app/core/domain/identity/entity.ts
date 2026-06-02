@@ -173,6 +173,12 @@ function changeUsername(
   now: Date,
 ): LiveUser {
   assertMutable(user);
+  // No-op before the cooldown check: resubmitting the current username
+  // changes nothing, so the 30-day rate limit (which guards *actual*
+  // renames) must not reject it.
+  if (Username.equals(user.username, newUsername)) {
+    return user;
+  }
   if (
     user.lastUsernameChangedAt !== null &&
     now.getTime() - user.lastUsernameChangedAt.getTime() <
@@ -182,9 +188,6 @@ function changeUsername(
       IdentityErrorCode.UsernameChangeTooSoon,
       "Username can only be changed once every 30 days",
     );
-  }
-  if (Username.equals(user.username, newUsername)) {
-    return user;
   }
   return {
     ...user,

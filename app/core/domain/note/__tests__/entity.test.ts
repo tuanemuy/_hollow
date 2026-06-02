@@ -124,6 +124,7 @@ describe("Note.updateContent", () => {
     const { entity } = Note.create(baseInput(), T0);
     const locked = Note.acquireEditLock(entity, OWNER, at(1), 60);
     const { entity: next } = Note.updateContent(locked, {
+      title: NoteTitle.create("Locked Edit"),
       now: at(2),
       actorUserId: OWNER,
       requireLock: true,
@@ -161,11 +162,66 @@ describe("Note.updateContent", () => {
     };
     const note = { ...entity, editLock: expired } as typeof entity;
     const { entity: next } = Note.updateContent(note, {
+      contentHtml: ContentHtml.create("<p>after expiry</p>"),
       now: at(10),
       actorUserId: OWNER,
       requireLock: false,
     });
     expect(next.version).toBe(note.version + 1);
+  });
+
+  it("is a no-op when every field matches the current content", () => {
+    const tag = TagId.create(rawId(10));
+    const media = MediaAssetId.create(rawId(20));
+    const ref: InternalLinkRefType = {
+      kind: "title",
+      target: "x",
+      resolvedNoteId: null,
+      displayText: null,
+    };
+    const { entity } = Note.create(
+      baseInput({ tagIds: [tag], mediaRefs: [media], internalLinkRefs: [ref] }),
+      T0,
+    );
+    // Resubmit identical content (the same values the note already holds).
+    const { entity: same, eventDrafts } = Note.updateContent(entity, {
+      title: entity.title,
+      contentHtml: entity.contentHtml,
+      frontMatter: entity.frontMatter,
+      tagIds: [tag],
+      mediaRefs: [media],
+      internalLinkRefs: [ref],
+      now: at(5),
+      actorUserId: OWNER,
+      requireLock: false,
+    });
+    expect(same).toBe(entity);
+    expect(same.version).toBe(entity.version);
+    expect(eventDrafts).toHaveLength(0);
+  });
+
+  it("is a no-op when called with no field arguments", () => {
+    const { entity } = Note.create(baseInput(), T0);
+    const { entity: same, eventDrafts } = Note.updateContent(entity, {
+      now: at(5),
+      actorUserId: OWNER,
+      requireLock: false,
+    });
+    expect(same).toBe(entity);
+    expect(eventDrafts).toHaveLength(0);
+  });
+
+  it("bumps version + emits content_updated when only one field changes", () => {
+    const { entity } = Note.create(baseInput(), T0);
+    const { entity: next, eventDrafts } = Note.updateContent(entity, {
+      contentHtml: ContentHtml.create("<p>edited</p>"),
+      now: at(5),
+      actorUserId: OWNER,
+      requireLock: false,
+    });
+    expect(next.version).toBe(entity.version + 1);
+    expect(eventDrafts).toHaveLength(1);
+    expect(eventDrafts[0]?.type).toBe("note.content_updated");
   });
 });
 
