@@ -195,12 +195,12 @@ export function ViewFormDialog(props: ViewFormDialogProps) {
           await props.submit({ data: payload });
         }
         // submit success = server-confirmed, so close immediately rather
-        // than blocking the dialog on the loader round-trip (Issue #414
-        // ADR-004). Updates inside an async transition are batched until the
-        // action settles, so `routerInvalidate` must NOT be awaited here —
-        // awaiting it would defer the close until the re-fetch finishes,
-        // defeating the point. Fire it detached; its failure is swallowed
-        // because the dialog is already closed (next navigation recovers).
+        // than blocking the dialog on the loader round-trip. Updates inside
+        // an async transition are batched until the action settles, so
+        // `routerInvalidate` must NOT be awaited here — awaiting it would
+        // defer the close until the re-fetch finishes, defeating the point.
+        // Fire it detached; its failure is swallowed because the dialog is
+        // already closed (next navigation recovers).
         onClose();
         routerInvalidate(router).catch(() => {});
       } catch (e) {

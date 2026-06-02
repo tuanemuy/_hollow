@@ -81,8 +81,8 @@ export function IngestionJobRow({ job }: Props) {
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   // Dim the card the moment discard starts rather than after the loader
-  // round-trip. Snaps back to the server-confirmed status on failure
-  // (Issue #414 step 6). List removal stays on the invalidate path.
+  // round-trip. Snaps back to the server-confirmed status on failure.
+  // List removal stays on the invalidate path.
   const [optimisticDiscarded, setOptimisticDiscarded] = useOptimistic(
     job.status === "discarded",
     (_cur: boolean, next: boolean) => next,
@@ -110,8 +110,8 @@ export function IngestionJobRow({ job }: Props) {
           },
         });
         if (willCreateDirectory) {
-          // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も
-          // invalidate（.issue/299/adr.md ADR-003）
+          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate
+          // する（.issue/299/adr.md ADR-003）。
           await router.invalidate();
         }
         await router.navigate({

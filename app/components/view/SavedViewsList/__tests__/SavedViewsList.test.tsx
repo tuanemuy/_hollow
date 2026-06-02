@@ -157,7 +157,6 @@ describe("SavedViewsList — optimistic delete", () => {
     await act(async () => {
       buttonByLabel("Alpha を削除").click();
     });
-    // Confirm inside the dialog.
     const dialog = document.body.querySelector<HTMLElement>(
       '[role="alertdialog"]',
     );
@@ -182,7 +181,7 @@ describe("SavedViewsList — optimistic delete", () => {
 
   it("restores the row and shows an alert when delete fails", async () => {
     // Hold the rejection so the removed -> restored transition is observable
-    // (not just the final restored state). Issue #414 W-Test-1.
+    // (not just the final restored state).
     let rejectDelete: ((e: unknown) => void) | undefined;
     deleteMock.mockReturnValue(
       new Promise<void>((_res, rej) => {
@@ -296,7 +295,6 @@ describe("SavedViewsList — optimistic default toggle", () => {
       makeView({ id: "v2", name: "Beta", isDefault: false }),
     ]);
 
-    // Make Beta the default.
     await act(async () => {
       buttonByLabel("Beta を既定にする").click();
     });

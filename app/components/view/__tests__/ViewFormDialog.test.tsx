@@ -109,7 +109,7 @@ describe("ViewFormDialog — submit close ordering", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
     // onClose must fire no later than invalidate (close does not wait on
-    // the loader round-trip — Issue #414 ADR-004).
+    // the loader round-trip).
     const closeOrder =
       onClose.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY;
     const invalidateOrder =
@@ -118,7 +118,7 @@ describe("ViewFormDialog — submit close ordering", () => {
   });
 
   it("closes without waiting for the loader re-fetch (invalidate detached)", async () => {
-    // invalidate never resolves; the close must not depend on it (ADR-004).
+    // invalidate never resolves; the close must not depend on it.
     routerInvalidate.mockReset().mockReturnValue(new Promise(() => {}));
     const submit = vi.fn().mockResolvedValue({ ok: true });
     const onClose = vi.fn();

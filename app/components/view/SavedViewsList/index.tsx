@@ -107,18 +107,18 @@ export function SavedViewsList({ views, directories, tags }: Props) {
 
   // Server-confirmed baseline. `useOptimistic` removes a row synchronously
   // while the delete + loader round-trip is in flight, then snaps back to
-  // this baseline once the navigation commits and fresh props arrive
-  // (Issue #414 ADR-001). Hooks run before the empty-list early return so
-  // the empty check uses the optimistic projection, not raw `views`.
+  // this baseline once the navigation commits and fresh props arrive.
+  // Hooks run before the empty-list early return so the empty check uses the
+  // optimistic projection, not raw `views`.
   const [optimisticViews, applyOptimistic] = useOptimistic(views, reduceViews);
   // The target row is removed from `optimisticViews` the instant a delete
   // starts, so it's never rendered while in flight — no need to expose the
   // transition's pending flag to the rows (gating every sibling on one
-  // delete would needlessly lock the whole list). Issue #414 W-React-1.
+  // delete would needlessly lock the whole list).
   const [, startDelete] = useTransition();
   // The delete error is owned by the parent (the row may be optimistically
   // removed mid-flight) and surfaced in the failing row's existing
-  // `rowError` slot once it snaps back (Issue #414 step 4).
+  // `rowError` slot once it snaps back.
   const [deleteErrorId, setDeleteErrorId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<SerializedError | null>(null);
 
@@ -191,7 +191,7 @@ function SavedViewRow({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // Row-owned optimistic fields. Each mirrors the server-confirmed prop and
-  // snaps back to it on loader re-fetch / failure (Issue #414 ADR-003).
+  // snaps back to it on loader re-fetch / failure.
   const [optimisticName, applyOptimisticName] = useOptimistic(
     view.name,
     (_cur: string, next: string) => next,
@@ -279,7 +279,7 @@ function SavedViewRow({
   // Delete is optimistic: the row unmounts the moment a delete starts, so
   // its error can't live in the (now-gone) confirm dialog. The parent owns
   // the delete error and feeds it back into this row's `rowError` slot once
-  // the row snaps back into the list on failure (Issue #414 ADR-006).
+  // the row snaps back into the list on failure.
   const rowOwnedError = error ?? deleteError;
   const summary =
     rowOwnedError !== null && nameFieldErrors === undefined
@@ -491,7 +491,7 @@ function SavedViewRow({
           // The row is removed optimistically the moment the delete
           // transition starts, so the dialog (rendered inside this row)
           // unmounts; close it first and let any failure surface in the
-          // row's `rowError` slot once it snaps back (Issue #414 step 4).
+          // row's `rowError` slot once it snaps back.
           setConfirmDeleteOpen(false);
           onDelete(viewId);
         }}
