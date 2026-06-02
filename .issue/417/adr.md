@@ -29,6 +29,8 @@ common `pillBtn` には `active:scale-[0.985]`（+ `motion-reduce:active:scale-1
 ### Decision
 press scale・disabled ガードの新規付与を受け入れる。これは #336 ADR-002 が本 Issue（#417）へ切り出した残務そのものであり、#273 ADR-001 / #416 ADR-002,003 が authenticated/auth surface で確立した統一方針を public へ展開する。GATE_SUBMIT の `disabled:opacity-60`→`disabled:opacity-55` も同方針の軽微変化。
 
+加えて、primary ボタン（SEARCH_FORM_BUTTON / GATE_SUBMIT）には `pillBtnPrimary` 経由で **press 時に `bg-accent-pressed`（accent より暗い背景色）への変化** も新規付与される。旧 public primary ボタンは `hover:bg-accent-hover` のみで active 背景色を持たなかったため、これも意図的差分。scale と異なり色変化は reduced-motion で無効化されないが、押下中のみの一過性の暗色化であり、統一方針（#273/#416 の primary press feedback）の一部として受容する。
+
 ### Consequences
 - 良い点: public ボタンの挙動が common と一致し、press feedback・disabled 表現が無償で整う。umbrella #336 のボタン統一が完結する。
 - トレードオフ: 未認証ユーザーに新規の押下アニメが見える（reduced-motion では無効）。意図的差分として受容し、ブラウザ検証で確認する。
