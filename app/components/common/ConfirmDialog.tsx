@@ -28,7 +28,7 @@ export type ConfirmDialogProps = Readonly<{
    * and the action row, and woven into `aria-describedby`. The calling
    * side is responsible for the open/close lifecycle: it removes the
    * `setConfirmOpen(false)` from its `catch` and only closes on success
-   * (see Issue #98 ADR-001, which overrides Issue #55 ADR-003).
+   * (Issue #98 ADR-001).
    */
   error?: SerializedError | undefined;
   onConfirm: () => void;
@@ -47,10 +47,8 @@ export type ConfirmDialogProps = Readonly<{
  * (note / view / ingestion / trash / tag) can import it without
  * introducing a cross-domain dependency — see Issue #13 ADR-005.
  *
- * When `error` is set the dialog stays open and shows the error in a
- * `role="alert"` region: the caller must drop `setConfirmOpen(false)` from
- * its `catch` and only close on success (Issue #98 ADR-001). `isPending`
- * and `error` are mutually exclusive in practice — by the time an error is
+ * See the `error` prop for the in-dialog error contract. `isPending` and
+ * `error` are mutually exclusive in practice — by the time an error is
  * surfaced the transition has completed, so `isPending` is `false`.
  */
 export function ConfirmDialog({

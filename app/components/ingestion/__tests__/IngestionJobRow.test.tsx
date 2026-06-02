@@ -350,7 +350,6 @@ describe("IngestionJobRow", () => {
     expect(discardMock).toHaveBeenCalledTimes(1);
     expect(routerInvalidate).not.toHaveBeenCalled();
 
-    // Dialog is still open after the failure.
     const dialogAfter = document.body.querySelector<HTMLElement>(
       '[role="alertdialog"]',
     );

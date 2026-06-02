@@ -67,7 +67,7 @@ Proposed
 - 良い点: Issue 主眼（削除フローの誤認解消）に集中し、複雑な a11y 構造を壊さない
 - トレードオフ: 呼び出し側のエラー表示が完全には一元化されない（B 群一部・C 群は従来形のまま）
 
-実装結果: `AccountDeleteForm`（B 群）と C 群（PromptsForm / DesignTokensForm）はいずれも本 Issue では未着手で据え置いた。AccountDeleteForm の非 validation close 抑止も複雑度を踏まえ次 Issue 送りとする。
+実装結果: `AccountDeleteForm`（B 群）と C 群（PromptsForm / DesignTokensForm）はいずれも本 Issue では未着手で据え置いた。AccountDeleteForm の非 validation close 抑止は複雑度を踏まえ **Issue #421** へフォローアップ起票した。
 
 ---
 
