@@ -19,12 +19,6 @@ export const Route = createFileRoute("/_app/notes/$noteId/history")({
       <pre>{sanitizeRouteError(error)}</pre>
     </div>
   ),
-  notFoundComponent: () => (
-    <div role="alert">
-      <h1>ノートが見つかりません</h1>
-      <p>削除されているか、アクセス権限がありません。</p>
-    </div>
-  ),
 });
 
 function NoteHistoryLayout() {
