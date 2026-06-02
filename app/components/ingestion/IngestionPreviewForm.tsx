@@ -347,7 +347,7 @@ export function IngestionPreviewForm({
             </div>
           </details>
 
-          {error !== null ? (
+          {error !== null && !confirmDiscardOpen ? (
             <p className={FORM_ERROR} role="alert">
               {displayError(error)}
             </p>
@@ -409,11 +409,12 @@ export function IngestionPreviewForm({
         confirmLabel="破棄"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmDiscardOpen ? (error ?? undefined) : undefined}
+        onConfirm={runDiscard}
+        onClose={() => {
           setConfirmDiscardOpen(false);
-          runDiscard();
+          setError(null);
         }}
-        onClose={() => setConfirmDiscardOpen(false)}
       />
     </>
   );

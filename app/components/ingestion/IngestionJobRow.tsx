@@ -121,6 +121,7 @@ export function IngestionJobRow({ job }: Props) {
       try {
         await discard({ data: { jobId } });
         await routerInvalidate(router);
+        setConfirmDiscardOpen(false);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -258,7 +259,7 @@ export function IngestionJobRow({ job }: Props) {
           </Link>
         ) : null}
       </div>
-      {error !== null ? (
+      {error !== null && !confirmDiscardOpen ? (
         <p className={FORM_ERROR} role="alert">
           {displayError(error)}
         </p>
@@ -270,11 +271,12 @@ export function IngestionJobRow({ job }: Props) {
         confirmLabel="破棄"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmDiscardOpen ? (error ?? undefined) : undefined}
+        onConfirm={runDiscard}
+        onClose={() => {
           setConfirmDiscardOpen(false);
-          runDiscard();
+          setError(null);
         }}
-        onClose={() => setConfirmDiscardOpen(false)}
       />
     </div>
   );

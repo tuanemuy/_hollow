@@ -86,7 +86,7 @@ export function NoteRevisionRestorePanel({
       >
         この版に復元
       </button>
-      {error !== null ? (
+      {error !== null && !confirmOpen ? (
         <span className={formError} role="alert">
           {displayError(error)}
         </span>
@@ -97,11 +97,12 @@ export function NoteRevisionRestorePanel({
         confirmLabel="復元する"
         confirmIcon={RotateCcw}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmOpen ? (error ?? undefined) : undefined}
+        onConfirm={runRestore}
+        onClose={() => {
           setConfirmOpen(false);
-          runRestore();
+          setError(null);
         }}
-        onClose={() => setConfirmOpen(false)}
       />
     </div>
   );

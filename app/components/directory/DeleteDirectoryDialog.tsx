@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
@@ -52,21 +51,11 @@ export function DeleteDirectoryDialog({
     <ConfirmDialog
       open={open}
       title={`「${directoryName}」を削除しますか？`}
-      description={
-        <div className="flex flex-col gap-2">
-          <p>
-            このディレクトリを削除します。配下のノートはゴミ箱へ移動し、配下のディレクトリも再帰的に削除されます。
-          </p>
-          {error !== null ? (
-            <p className="text-error text-[13px]" role="alert">
-              {displayError(error)}
-            </p>
-          ) : null}
-        </div>
-      }
+      description="このディレクトリを削除します。配下のノートはゴミ箱へ移動し、配下のディレクトリも再帰的に削除されます。"
       confirmLabel={isPending ? "削除中..." : "削除"}
       confirmIcon={Trash2}
       isPending={isPending}
+      error={error ?? undefined}
       onConfirm={confirm}
       onClose={onClose}
     />

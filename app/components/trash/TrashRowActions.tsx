@@ -46,6 +46,7 @@ export function TrashRowActions({ noteId }: Props) {
       try {
         await purge({ data: { noteId } });
         await routerInvalidate(router);
+        setConfirmPurgeOpen(false);
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -74,7 +75,7 @@ export function TrashRowActions({ noteId }: Props) {
         <Icon icon={Trash2} />
         完全削除
       </button>
-      {error !== null ? (
+      {error !== null && !confirmPurgeOpen ? (
         <span className={FORM_ERROR} role="alert">
           {displayError(error)}
         </span>
@@ -86,11 +87,12 @@ export function TrashRowActions({ noteId }: Props) {
         confirmLabel="完全削除"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmPurgeOpen ? (error ?? undefined) : undefined}
+        onConfirm={runPurge}
+        onClose={() => {
           setConfirmPurgeOpen(false);
-          runPurge();
+          setError(null);
         }}
-        onClose={() => setConfirmPurgeOpen(false)}
       />
     </div>
   );

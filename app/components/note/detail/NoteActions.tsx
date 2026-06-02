@@ -211,7 +211,7 @@ export function NoteActions({
           <Icon icon={Trash2} />
           削除
         </button>
-        {error !== null ? (
+        {error !== null && !confirmDeleteOpen ? (
           <span className={formError} role="alert">
             {displayError(error)}
           </span>
@@ -229,11 +229,12 @@ export function NoteActions({
         confirmLabel="ゴミ箱へ"
         confirmIcon={Trash2}
         isPending={isPending}
-        onConfirm={() => {
+        error={confirmDeleteOpen ? (error ?? undefined) : undefined}
+        onConfirm={runDelete}
+        onClose={() => {
           setConfirmDeleteOpen(false);
-          runDelete();
+          setError(null);
         }}
-        onClose={() => setConfirmDeleteOpen(false)}
       />
     </>
   );
