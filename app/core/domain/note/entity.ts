@@ -92,6 +92,12 @@ const dedupeLinks = (
   return out;
 };
 
+const sameOrdered = <T>(
+  a: readonly T[],
+  b: readonly T[],
+  eq: (x: T, y: T) => boolean,
+): boolean => a.length === b.length && a.every((x, i) => eq(x, b[i]));
+
 const assertEditPermitted = (
   note: Note,
   actorUserId: UserId,
@@ -145,6 +151,22 @@ function updateContent(
     args.mediaRefs === undefined
       ? note.mediaRefs
       : dedupeMediaIds(args.mediaRefs);
+  // No-op when nothing changed: skip the version bump *and* the
+  // `contentUpdated` event so identical re-saves (e.g. draft autosave
+  // resending unchanged content) don't trigger link re-resolution or
+  // re-indexing. Link refs are compared by kind+target only, matching
+  // `InternalLinkRef.equals` — `resolvedNoteId` is set out-of-band by the
+  // resolver and is intentionally excluded.
+  if (
+    NoteTitle.equals(note.title, nextTitle) &&
+    ContentHtml.equals(note.contentHtml, nextHtml) &&
+    FrontMatter.equals(note.frontMatter, nextFront) &&
+    sameOrdered(note.tagIds, nextTags, (x, y) => x === y) &&
+    sameOrdered(note.internalLinkRefs, nextLinks, InternalLinkRef.equals) &&
+    sameOrdered(note.mediaRefs, nextMedia, (x, y) => x === y)
+  ) {
+    return { entity: note, eventDrafts: [] };
+  }
   const next: Note =
     note.status === "active"
       ? ({

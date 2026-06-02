@@ -1457,6 +1457,43 @@ describe("ChangeUsername", () => {
       }
     }
   });
+
+  it("resubmitting the current username within cooldown is a no-op (no throw, no write)", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("nia001") });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+
+    // First rename sets `last_username_changed_at`, opening the 30-day
+    // cooldown window.
+    await changeUsername({
+      container,
+      input: { actorUserId: userId as never, newUsername: "nia-renamed" },
+    });
+    const afterRename = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    const updatedAtAfterRename = afterRename[0]?.updatedAt;
+
+    // Resubmitting the same username inside the cooldown must not throw
+    // UsernameChangeTooSoon and must not write (updated_at unchanged).
+    const result = await changeUsername({
+      container,
+      input: { actorUserId: userId as never, newUsername: "nia-renamed" },
+    });
+    expect(result.user.username).toBe("nia-renamed");
+
+    const afterNoop = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    expect(afterNoop[0]?.updatedAt).toBe(updatedAtAfterRename);
+  });
 });
 
 describe("UpdateProfile", () => {
@@ -1504,6 +1541,39 @@ describe("UpdateProfile", () => {
     } catch (error) {
       expect(isBusinessRuleError(error)).toBe(true);
     }
+  });
+
+  it("does not write when the displayName is unchanged", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("vee012") });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+
+    await updateProfile({
+      container,
+      input: { actorUserId: userId as never, displayName: "Vee Stable" },
+    });
+    const afterFirst = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    const updatedAtAfterFirst = afterFirst[0]?.updatedAt;
+
+    // Re-applying the identical displayName must short-circuit before the
+    // repository save, leaving updated_at untouched.
+    await updateProfile({
+      container,
+      input: { actorUserId: userId as never, displayName: "Vee Stable" },
+    });
+    const afterSecond = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    expect(afterSecond[0]?.updatedAt).toBe(updatedAtAfterFirst);
   });
 });
 

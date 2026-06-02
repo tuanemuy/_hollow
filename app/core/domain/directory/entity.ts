@@ -61,6 +61,9 @@ function moveTo(
       "A directory cannot be its own parent",
     );
   }
+  if (newParent.id === dir.parentId) {
+    return dir;
+  }
   const nextDepth = DirectoryDepth.next(newParent.depth);
   return {
     ...dir,

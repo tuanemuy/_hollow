@@ -239,6 +239,25 @@ describe("User.changeUsername", () => {
     expect(same).toBe(active);
   });
 
+  it("is a no-op for the same username even within the cooldown window", () => {
+    const { entity: pending } = User.create(validInput(45), T0);
+    const active = User.activate(pending, at(1));
+    const renamed = User.changeUsername(
+      active,
+      Username.create("inwin01"),
+      at(2),
+    );
+    // Resubmitting the current username inside the cooldown must not throw
+    // UsernameChangeTooSoon - it changes nothing, so the rate limit on
+    // *actual* renames does not apply.
+    const same = User.changeUsername(renamed, renamed.username, at(3));
+    expect(same).toBe(renamed);
+    expect(same.version).toBe(renamed.version);
+    expect(same.lastUsernameChangedAt?.getTime()).toBe(
+      renamed.lastUsernameChangedAt?.getTime(),
+    );
+  });
+
   it("rejects rename on a deleted user", () => {
     const { entity: pending } = User.create(validInput(44), T0);
     const active = User.activate(pending, at(1));
@@ -288,6 +307,19 @@ describe("User.changeEmail / changeDisplayName / changeBio / changeAvatar", () =
     }
   });
 
+  it("changeDisplayName to the same value is a no-op", () => {
+    const { entity: pending } = User.create(validInput(55), T0);
+    const active = User.activate(pending, at(1));
+    // `displayName` defaults to the username; resubmitting it (incl. with
+    // surrounding whitespace that trims to the same value) is a no-op.
+    const same = User.changeDisplayName(
+      active,
+      `  ${active.displayName}  `,
+      at(2),
+    );
+    expect(same).toBe(active);
+  });
+
   it("changeBio accepts null and trims input", () => {
     const { entity: pending } = User.create(validInput(53), T0);
     const active = User.activate(pending, at(1));
@@ -295,6 +327,17 @@ describe("User.changeEmail / changeDisplayName / changeBio / changeAvatar", () =
     expect(next.bio).toBe("hi");
     const cleared = User.changeBio(next, null, at(3));
     expect(cleared.bio).toBeNull();
+  });
+
+  it("changeBio to the same value is a no-op (incl. null -> null)", () => {
+    const { entity: pending } = User.create(validInput(56), T0);
+    const active = User.activate(pending, at(1));
+    // null -> null: a fresh user has bio === null.
+    const stillNull = User.changeBio(active, null, at(2));
+    expect(stillNull).toBe(active);
+    const withBio = User.changeBio(active, "hello", at(2));
+    const same = User.changeBio(withBio, "hello", at(3));
+    expect(same).toBe(withBio);
   });
 
   it("changeAvatar swaps the avatar reference", () => {
@@ -305,6 +348,18 @@ describe("User.changeEmail / changeDisplayName / changeBio / changeAvatar", () =
     expect(next.avatarMediaId).toBe(m1);
     const cleared = User.changeAvatar(next, null, at(3));
     expect(cleared.avatarMediaId).toBeNull();
+  });
+
+  it("changeAvatar to the same reference is a no-op (incl. null -> null)", () => {
+    const { entity: pending } = User.create(validInput(57), T0);
+    const active = User.activate(pending, at(1));
+    // null -> null: a fresh user has avatarMediaId === null.
+    const stillNull = User.changeAvatar(active, null, at(2));
+    expect(stillNull).toBe(active);
+    const m1 = MediaAssetId.create("media-1");
+    const withAvatar = User.changeAvatar(active, m1, at(2));
+    const same = User.changeAvatar(withAvatar, m1, at(3));
+    expect(same).toBe(withAvatar);
   });
 });
 
