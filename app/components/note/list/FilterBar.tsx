@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useId, useOptimistic, useState, useTransition } from "react";
 import { pillBtn } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
+import { homeSearchUpdater } from "./homeSearch";
 import { formatReferencingNoteChipLabel } from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
 
@@ -130,52 +131,50 @@ export function FilterBar({
     if (next.has(name)) next.delete(name);
     else next.add(name);
     const arr = [...next];
-    run({ type: "toggleTag", name }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      tagNames: arr.length === 0 ? undefined : arr,
-    }));
+    run({ type: "toggleTag", name }, (prev) =>
+      homeSearchUpdater(prev, {
+        tagNames: arr.length === 0 ? undefined : arr,
+      }),
+    );
   };
 
   const updateDate = (key: "from" | "to", value: string) => {
     const v = value === "" ? undefined : value;
-    run({ type: "setDate", key, value: v }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      [key]: v,
-    }));
+    run({ type: "setDate", key, value: v }, (prev) =>
+      homeSearchUpdater(prev, { [key]: v }),
+    );
   };
 
   const updateVisibility = (value: string) => {
     const v =
       value === "" ? undefined : (value as NoteListSearch["visibility"]);
-    run({ type: "setVisibility", value: v }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      visibility: v,
-    }));
+    run({ type: "setVisibility", value: v }, (prev) =>
+      homeSearchUpdater(prev, { visibility: v }),
+    );
   };
 
   const clearReferencingNoteId = () => {
-    run({ type: "setReferencing", id: undefined }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      referencingNoteId: undefined,
-    }));
+    run({ type: "setReferencing", id: undefined }, (prev) =>
+      homeSearchUpdater(prev, { referencingNoteId: undefined }),
+    );
   };
 
   const clearDirectory = () => {
-    run({ type: "clearDirectory" }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      directoryId: undefined,
-    }));
+    run({ type: "clearDirectory" }, (prev) =>
+      homeSearchUpdater(prev, { directoryId: undefined }),
+    );
   };
 
   const handlePick = (noteId: string) => {
     setPickerOpen(false);
-    run({ type: "setReferencing", id: noteId }, (prev) => ({
-      ...(prev as Partial<NoteListSearch>),
-      referencingNoteId: noteId,
-      // Adding a filter resets the page to the schema default. Clearing
-      // `page` to undefined drops any prior `?page=N` from the URL.
-      page: undefined,
-    }));
+    run({ type: "setReferencing", id: noteId }, (prev) =>
+      homeSearchUpdater(prev, {
+        referencingNoteId: noteId,
+        // Adding a filter resets the page to the schema default. Clearing
+        // `page` to undefined drops any prior `?page=N` from the URL.
+        page: undefined,
+      }),
+    );
   };
 
   const clearAll = () => {

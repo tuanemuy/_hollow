@@ -3,7 +3,7 @@
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
-import type { NoteListSearch } from "../schema";
+import { homeSearchUpdater } from "./homeSearch";
 import { selectDisplay } from "./listSelectors";
 
 const LABELS: Record<DisplayMode, string> = {
@@ -39,10 +39,7 @@ export function DisplayModeSwitch() {
       // / `limit`, so leaving them out keeps the URL clean (no
       // `?page=1&limit=20`) while the parsed output still receives the
       // schema defaults.
-      search: (prev) => ({
-        ...(prev as Partial<NoteListSearch>),
-        display: mode,
-      }),
+      search: (prev) => homeSearchUpdater(prev, { display: mode }),
     });
   };
 
