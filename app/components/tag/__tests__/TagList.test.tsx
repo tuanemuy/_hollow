@@ -95,6 +95,79 @@ async function flush() {
   });
 }
 
+function makeTag(id: string, name: string, noteCount: number = 0): Tag {
+  return { id, name, noteCount };
+}
+
+describe("reduceTags", () => {
+  it("removes a tag by id", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [
+      makeTag("t1", "alpha", 5),
+      makeTag("t2", "beta", 3),
+      makeTag("t3", "gamma", 1),
+    ];
+
+    const result = reduceTags(tags, { type: "remove", id: "t2" });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("t1");
+    expect(result[0].name).toBe("alpha");
+    expect(result[1].id).toBe("t3");
+    expect(result[1].name).toBe("gamma");
+  });
+
+  it("preserves order and other fields when removing a tag", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [
+      makeTag("t1", "first", 10),
+      makeTag("t2", "second", 20),
+      makeTag("t3", "third", 30),
+    ];
+
+    const result = reduceTags(tags, { type: "remove", id: "t1" });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("t2");
+    expect(result[0].noteCount).toBe(20);
+    expect(result[1].id).toBe("t3");
+    expect(result[1].noteCount).toBe(30);
+  });
+
+  it("renames a tag by id while preserving other fields", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [
+      makeTag("t1", "alpha", 5),
+      makeTag("t2", "beta", 3),
+    ];
+
+    const result = reduceTags(tags, {
+      type: "rename",
+      id: "t1",
+      name: "alpha-renamed",
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("t1");
+    expect(result[0].name).toBe("alpha-renamed");
+    expect(result[0].noteCount).toBe(5);
+    expect(result[1].name).toBe("beta");
+  });
+
+  it("preserves noteCount during rename so merge candidates stay accurate", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [makeTag("t1", "original", 42)];
+
+    const result = reduceTags(tags, {
+      type: "rename",
+      id: "t1",
+      name: "renamed",
+    });
+
+    expect(result[0].noteCount).toBe(42);
+  });
+});
+
 describe("TagList — optimistic rename", () => {
   it("reflects the new name immediately and reverts on failure", async () => {
     let rejectRename: ((e: unknown) => void) | undefined;
@@ -206,24 +279,29 @@ describe("TagList — optimistic delete", () => {
       }),
     );
 
-    // With two tags each has one merge candidate; deleting alpha must remove
-    // it as a candidate for beta (beta's "統合" button disappears).
+    // With three tags, each has two merge candidates. After deleting alpha,
+    // the remaining two tags (beta, gamma) should only see each other as candidates.
+    // This ensures the deleted tag is properly removed from all candidate lists.
     await renderList([
       { id: "t1", name: "alpha", noteCount: 0 },
       { id: "t2", name: "beta", noteCount: 0 },
+      { id: "t3", name: "gamma", noteCount: 0 },
     ]);
 
     const mergeButtons = () =>
       Array.from(
         document.body.querySelectorAll<HTMLButtonElement>("button"),
       ).filter((b) => (b.textContent ?? "").trim().includes("統合"));
-    expect(mergeButtons().length).toBe(2);
 
-    const deleteBtn = Array.from(
+    // Before delete: 3 tags, each with 2 candidates → 3 merge buttons
+    expect(mergeButtons().length).toBe(3);
+
+    // Find and click the first delete button (alpha's delete)
+    const deleteButtons = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((b) => (b.textContent ?? "").trim().includes("削除"));
+    ).filter((b) => (b.textContent ?? "").trim().includes("削除"));
     await act(async () => {
-      deleteBtn?.click();
+      deleteButtons[0]?.click();
     });
     const confirmBtn = document.body
       .querySelector<HTMLElement>('[role="alertdialog"]')
@@ -233,9 +311,12 @@ describe("TagList — optimistic delete", () => {
     });
     await flush();
 
-    // alpha removed → only beta remains, and beta now has no candidate.
+    // alpha removed → beta and gamma remain, each now has only 1 candidate
+    // (each other), so we should have 2 merge buttons instead of 3.
     expect(document.body.textContent).not.toContain("#alpha");
-    expect(mergeButtons().length).toBe(0);
+    expect(document.body.textContent).toContain("#beta");
+    expect(document.body.textContent).toContain("#gamma");
+    expect(mergeButtons().length).toBe(2);
 
     await act(async () => {
       resolveDelete?.();

@@ -28,7 +28,7 @@ type RemoveAction = Readonly<{ type: "remove"; id: string }>;
 type RenameAction = Readonly<{ type: "rename"; id: string; name: string }>;
 type TagsAction = RemoveAction | RenameAction;
 
-function reduceTags(cur: readonly Tag[], action: TagsAction): readonly Tag[] {
+export function reduceTags(cur: readonly Tag[], action: TagsAction): readonly Tag[] {
   switch (action.type) {
     case "remove":
       return cur.filter((tag) => tag.id !== action.id);

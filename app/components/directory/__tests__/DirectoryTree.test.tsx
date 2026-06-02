@@ -114,12 +114,6 @@ function clickMenuItem(text: string) {
 
 describe("DirectoryTree — optimistic rename", () => {
   it("commits the trimmed name, invalidates the tree, and closes the editor", async () => {
-    // Note on coverage: the optimistic name (`useOptimistic(node.name)`) is
-    // dropped the instant the commit transition finishes. The window it
-    // bridges — between `router.invalidate()` settling and fresh tree props
-    // re-rendering — has no analogue in this mock (props stay "Alpha"), so the
-    // visual "no old-name flash" is verified in the browser, not here. This
-    // test pins the commit wiring (trimmed args, invalidate, editor close).
     renameMock.mockResolvedValue({ ok: true });
 
     // tree[0] is the implicit root; its children are rendered.
@@ -160,8 +154,15 @@ describe("DirectoryTree — optimistic rename", () => {
       data: { directoryId: "d1", newName: "Renamed" },
     });
     expect(routerInvalidate).toHaveBeenCalled();
-    // Editor closed on success; with the mock baseline still "Alpha" the patch
-    // is dropped and the row settles back to the server-confirmed name.
+
+    // After invalidate resolves, the optimistic name patch is dropped and
+    // the row settles back to the server-confirmed baseline name.
+    await act(async () => {
+      await routerInvalidate.mock.results[0].value;
+    });
+    await flush();
+
+    // Editor closed on success; the row now displays the baseline "Alpha".
     expect(
       container.querySelector('input[aria-label="ディレクトリ名"]'),
     ).toBeNull();
@@ -222,14 +223,42 @@ describe("DirectoryTree — optimistic rename", () => {
     await flush();
 
     // Input stays mounted for retry; the optimistic name was dropped on the
-    // failed transition, so any visible label would carry the baseline name.
+    // failed transition, so the label snaps back to the baseline name "Alpha".
     const stillInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="ディレクトリ名"]',
     );
     expect(stillInput).not.toBeNull();
+    // Input is not disabled (user can edit and retry).
+    expect(stillInput?.disabled).toBe(false);
+    // Input value is the failed attempt; user can correct it.
+    expect(stillInput?.value).toBe("Renamed");
+
+    // Error alert is displayed.
     const alerts = Array.from(container.querySelectorAll('[role="alert"]')).map(
       (el) => el.textContent ?? "",
     );
     expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+
+    // User can retry: edit the input and press Enter again.
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(stillInput, "AlphaFixed");
+      stillInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      stillInput?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+    await flush();
+
+    // Mutation called again with the corrected value.
+    expect(renameMock).toHaveBeenCalledTimes(2);
+    expect(renameMock).toHaveBeenLastCalledWith({
+      data: { directoryId: "d1", newName: "AlphaFixed" },
+    });
   });
 });
