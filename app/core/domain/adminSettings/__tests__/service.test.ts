@@ -80,7 +80,7 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     expect(next).toBe(cfg);
   });
 
-  it("treats whitespace-only env.apiKey as missing", () => {
+  it("treats whitespace-only env.apiKey as present and forces env override", () => {
     const cfg = LLMConfig.create({
       provider: "anthropic",
       model: "m",
@@ -90,7 +90,8 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     const next = AdminSettingsService.assertEnvOverride(cfg, {
       apiKey: "   ",
     });
-    expect(next).toBe(cfg);
+    expect(next.apiKeySource).toBe("env");
+    expect(next.apiKeyCiphertext).toBeNull();
   });
 
   it("throws EnvOverrideMissingKey when source is 'env' but env.apiKey is missing", () => {
@@ -109,6 +110,19 @@ describe("AdminSettingsService.assertEnvOverride", () => {
         expect(error.code).toBe("admin_settings_env_override_missing_key");
       }
     }
+  });
+
+  it("does not throw when source is 'env' and env.apiKey is whitespace-only", () => {
+    const cfg = LLMConfig.create({
+      provider: "anthropic",
+      model: "m",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    const next = AdminSettingsService.assertEnvOverride(cfg, {
+      apiKey: "   ",
+    });
+    expect(next).toBe(cfg);
   });
 
   it("returns the config verbatim when source is already 'env' and env.apiKey is present", () => {
