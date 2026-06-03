@@ -690,10 +690,10 @@ describe("listNotesByOwner — count reflects filters", () => {
   // not just the items query, across the whole subtree. With more subtree
   // notes than the page limit, the visible slice is capped at `limit`
   // while `count` must report the full subtree total. This pins the
-  // runtime count>limit behaviour; the `NoteOwnerCountOpts` Pick that
-  // carries `directoryIds` to the count path is guarded separately at the
-  // type level (dropping it fails typecheck in the adapter's where
-  // builder).
+  // runtime count>limit behaviour; that `directoryIds` rides the count
+  // path is guarded separately at the type level — `NoteOwnerCountOpts`
+  // aliases `NoteOwnerFilters` directly, so dropping the field fails
+  // typecheck in the adapter's where builder.
   it("returns count > limit reflecting the directory's whole subtree", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);

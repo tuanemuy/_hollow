@@ -19,8 +19,10 @@ export type NoteListOpts = Readonly<{
 }>;
 
 /**
- * Extended owner-scope listing options. Filters are combined with `AND`
- * semantics on the adapter side; `tagIds` matches notes that carry
+ * Owner-scope filter contract shared by the `findByOwner` /
+ * `countByOwner` / `listWithCount` sibling family — the single source of
+ * truth for which filter fields they accept. Filters are combined with
+ * `AND` semantics on the adapter side; `tagIds` matches notes that carry
  * every supplied tag.
  *
  * `visibility` semantics:
@@ -45,34 +47,34 @@ export type NoteListOpts = Readonly<{
  * matches nothing (the adapter short-circuits); `undefined` applies no
  * directory filter.
  */
-export type NoteOwnerListOpts = NoteListOpts &
-  Readonly<{
-    status?: NoteStatus;
-    tagIds?: readonly TagId[];
-    dateRange?: DateRange;
-    visibility?: readonly PublicationVisibility[];
-    referencingNoteId?: NoteId;
-    directoryIds?: readonly DirectoryId[];
-  }>;
+export type NoteOwnerFilters = Readonly<{
+  status?: NoteStatus;
+  tagIds?: readonly TagId[];
+  dateRange?: DateRange;
+  visibility?: readonly PublicationVisibility[];
+  referencingNoteId?: NoteId;
+  directoryIds?: readonly DirectoryId[];
+}>;
 
 /**
- * Owner-scope count options. Filter semantics mirror
- * `NoteOwnerListOpts`; pagination and sort fields are intentionally
- * omitted since they have no meaning for a count.
- *
- * Derived via `Pick` from `NoteOwnerListOpts` so the two cannot drift —
- * any new filter on the list side is automatically reflected on the
- * count side via the picked key set.
+ * Extended owner-scope listing options: the composition of
+ * {@link NoteListOpts} (pagination / sort) and {@link NoteOwnerFilters}
+ * (the owner filter contract). Filter semantics live on
+ * {@link NoteOwnerFilters}.
  */
-export type NoteOwnerCountOpts = Pick<
-  NoteOwnerListOpts,
-  | "status"
-  | "tagIds"
-  | "dateRange"
-  | "visibility"
-  | "referencingNoteId"
-  | "directoryIds"
->;
+export type NoteOwnerListOpts = NoteListOpts & NoteOwnerFilters;
+
+/**
+ * Owner-scope count options: the filter fields only, i.e.
+ * {@link NoteOwnerFilters} itself. Pagination / sort fields are
+ * intentionally absent since they have no meaning for a count.
+ *
+ * Aliased directly to {@link NoteOwnerFilters} (rather than `Pick`-ing a
+ * hand-listed key set off `NoteOwnerListOpts`) so the two cannot drift —
+ * any new filter is added in one place and is structurally impossible to
+ * forget on the count side.
+ */
+export type NoteOwnerCountOpts = NoteOwnerFilters;
 
 /**
  * `NoteRepository` inherits the OCC-enforced contract
@@ -120,7 +122,10 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    */
   findByIds(ids: readonly NoteId[]): Promise<readonly Note[]>;
 
-  /** Owner-scoped listing with status / tag / date filters. */
+  /**
+   * Owner-scoped listing. Filter semantics follow
+   * {@link NoteOwnerFilters}.
+   */
   findByOwner(
     ownerId: UserId,
     opts: NoteOwnerListOpts,
@@ -303,7 +308,7 @@ export interface NoteRepository extends TransactionalRepository<Note> {
 
   /**
    * Total notes for `ownerId` matching the supplied filters. Filter
-   * semantics mirror {@link NoteRepository.findByOwner}. When `opts` is
+   * semantics follow {@link NoteOwnerFilters}. When `opts` is
    * `undefined` (or an empty object — the two are equivalent) every
    * note belonging to the owner is counted (active + trashed); when
    * `opts` carries one or more filter fields, only notes that would be
@@ -320,15 +325,16 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    * filtered total `count` from a single filter resolution. Together
    * with {@link NoteRepository.findByOwner} and
    * {@link NoteRepository.countByOwner}, this method is the third
-   * sibling of an API family that shares one filter contract; adapters
-   * resolve the filter exactly once and derive both projections from
-   * the same intermediate. Semantically:
+   * sibling of an API family that shares one filter contract
+   * ({@link NoteOwnerFilters}); adapters resolve the filter exactly once
+   * and derive both projections from the same intermediate. Semantically:
    *
    *   listWithCount(ownerId, opts).items === findByOwner(ownerId, opts)
    *   listWithCount(ownerId, opts).count === countByOwner(ownerId, opts')
    *
-   * where `opts'` is `opts` with the pagination / sort fields dropped
-   * (those have no meaning for a count). The `opts === undefined`
+   * where `opts'` is `opts` narrowed to its {@link NoteOwnerFilters}
+   * fields (pagination / sort have no meaning for a count). The
+   * `opts === undefined`
    * convenience overload of `countByOwner` corresponds to
    * `listWithCount` invoked with all filter fields left unset.
    *
@@ -337,9 +343,8 @@ export interface NoteRepository extends TransactionalRepository<Note> {
    *   `opts.limit` / `opts.offset` / `opts.sort` / `opts.order` only
    *   affect the `items` projection. `count` is the cardinality of the
    *   full filtered set and is independent of the page window.
-   * - Filter semantics (status / tagIds / dateRange / visibility /
-   *   referencingNoteId) mirror {@link NoteRepository.findByOwner};
-   *   pagination / sort fields mirror {@link NoteListOpts}.
+   * - Filter semantics follow {@link NoteOwnerFilters}; pagination /
+   *   sort fields mirror {@link NoteListOpts}.
    * - When the filter combination cannot match any owner-scoped note
    *   (an empty `visibility` array, or filters that intersect to the
    *   empty set), adapters short-circuit to `{ items: [], count: 0 }`
