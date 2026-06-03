@@ -14,8 +14,6 @@ import {
   backfillAllOwnersInternalLinkResolution,
 } from "../backfillAllOwnersInternalLinkResolution";
 
-// Issue #329: admin orchestration of the owner-scoped internal-link backfill.
-
 const TZ = new Date("2026-03-01T00:00:00.000Z").toISOString();
 
 let counter = 0;
