@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { InstanceSettingsDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -47,8 +48,6 @@ const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const SELECT_CLASS = INPUT_CLASS;
 const BTN_CLASS =
   "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
-const BTN_PRIMARY_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-disabled disabled:cursor-not-allowed";
 const FORM_FOOTER_CLASS =
   "flex gap-3 justify-end pt-6 border-t border-hairline mt-10";
 const BANNER_BASE =
@@ -490,7 +489,8 @@ export function LLMSettingsForm({
         ) : null}
         <button
           type="submit"
-          className={BTN_PRIMARY_CLASS}
+          className={`${pillBtn} ${pillBtnPrimary}`}
+          data-primary=""
           disabled={isPending || allLocked}
           data-all-env-locked={allLocked || undefined}
         >

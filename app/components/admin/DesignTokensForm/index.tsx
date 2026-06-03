@@ -6,6 +6,7 @@ import { RotateCcw } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { DesignTokenDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -32,7 +33,6 @@ const BTN_BASE =
   "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-disabled disabled:cursor-not-allowed";
 
 const BTN_CLASS = `${BTN_BASE} bg-surface text-ink hover:not-disabled:bg-surface-hover`;
-const BTN_PRIMARY_CLASS = `${BTN_BASE} bg-accent text-white hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed`;
 const BTN_DESTRUCTIVE_CLASS = `${BTN_BASE} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
 
 const BTN_SM_CLASS =
@@ -317,7 +317,12 @@ export function DesignTokensForm({
           {rowResetSummary !== "" ? (
             <span className="text-error text-sm">{rowResetSummary}</span>
           ) : null}
-          <button type="submit" className={BTN_PRIMARY_CLASS} disabled={busy}>
+          <button
+            type="submit"
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-primary=""
+            disabled={busy}
+          >
             {isPending ? "保存中..." : "保存"}
           </button>
         </div>

@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import {
+  pillBtn,
+  pillBtnPrimary,
+  pillBtnTall,
+} from "@/components/common/styles";
 
 const HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
@@ -33,10 +38,8 @@ const HERO_SUBTITLE =
   "text-[clamp(16px,1.4vw+12px,20px)] text-ink-secondary leading-relaxed max-w-[34rem] mx-auto mb-8 text-pretty";
 const HERO_ACTIONS =
   "flex flex-col gap-3 items-center justify-center sm:flex-row";
-const HERO_BTN_PRIMARY =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-accent text-white text-md font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover active:bg-accent-pressed";
-const HERO_BTN_SECONDARY =
-  "inline-flex items-center justify-center h-12 px-8 min-w-[200px] rounded-pill bg-surface text-ink text-md font-medium transition-colors motion-reduce:transition-none hover:bg-surface-hover";
+const HERO_BTN_PRIMARY = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px]`;
+const HERO_BTN_SECONDARY = `${pillBtn} ${pillBtnTall} min-w-[200px]`;
 
 const HERO_PREVIEW =
   "mt-12 mx-auto max-w-[980px] rounded-xl bg-surface-elevated shadow-md overflow-hidden text-left";
@@ -137,7 +140,7 @@ export function LandingPage() {
             Markdownでも、撮りためたメモでも。Hollowは、書いたものを整理して、必要なときにそっと取り出せるパーソナルな書庫です。
           </p>
           <div className={HERO_ACTIONS}>
-            <Link to="/signup" className={HERO_BTN_PRIMARY}>
+            <Link to="/signup" className={HERO_BTN_PRIMARY} data-primary="">
               無料でアカウント作成
             </Link>
             <Link to="/login" className={HERO_BTN_SECONDARY}>

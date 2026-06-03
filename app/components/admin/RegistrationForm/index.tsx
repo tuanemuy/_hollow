@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -14,9 +15,6 @@ import { toggleRegistrationPolicyFn } from "./action";
 type Props = {
   initial: Readonly<{ open: boolean; closedReason: string | null }>;
 };
-
-const BTN_PRIMARY_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-disabled disabled:cursor-not-allowed";
 
 const TEXTAREA_CLASS =
   "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
@@ -133,7 +131,8 @@ export function RegistrationForm({ initial }: Props) {
         ) : null}
         <button
           type="button"
-          className={BTN_PRIMARY_CLASS}
+          className={`${pillBtn} ${pillBtnPrimary}`}
+          data-primary=""
           onClick={onSaveReason}
           disabled={isPending}
         >
