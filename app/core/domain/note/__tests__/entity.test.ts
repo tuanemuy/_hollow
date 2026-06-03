@@ -291,7 +291,7 @@ describe("Note.moveTo", () => {
     expect(eventDrafts).toHaveLength(0);
   });
 
-  it("throws CannotMoveTrashed for trashed notes", () => {
+  it("throws Trashed for trashed notes", () => {
     const { entity } = Note.create(baseInput(), T0);
     const { entity: trashed } = Note.trash(entity, at(1));
     try {
@@ -300,7 +300,7 @@ describe("Note.moveTo", () => {
     } catch (error) {
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
-        expect(error.code).toBe(NoteErrorCode.CannotMoveTrashed);
+        expect(error.code).toBe(NoteErrorCode.Trashed);
       }
     }
   });

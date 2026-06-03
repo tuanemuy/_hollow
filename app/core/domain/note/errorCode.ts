@@ -16,7 +16,6 @@ export const NoteErrorCode = {
   EditLockInvalidExpiry: "note_edit_lock_invalid_expiry",
   EditLockTtlTooLong: "note_edit_lock_ttl_too_long",
   EditLockedByOther: "edit_locked_by_other",
-  CannotMoveTrashed: "note_cannot_move_trashed",
   Trashed: "note_trashed",
   AlreadyTrashed: "note_already_trashed",
   NotTrashed: "note_not_trashed",

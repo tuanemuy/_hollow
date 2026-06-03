@@ -215,7 +215,7 @@ function moveTo(
 ): WithEventDrafts<ActiveNote, NoteEvent> {
   if (note.status !== "active") {
     throw new BusinessRuleError(
-      NoteErrorCode.CannotMoveTrashed,
+      NoteErrorCode.Trashed,
       `Cannot move trashed note ${note.id}`,
     );
   }
