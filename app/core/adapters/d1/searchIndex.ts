@@ -24,6 +24,9 @@ import { searchDocuments } from "./schema";
 
 const BULK_REBUILD_CHUNK_SIZE = 100;
 const SNIPPET_TOKEN_BUDGET = 24;
+// Fixed-length body excerpt for the LIKE fallback path, which cannot use
+// FTS5's `snippet()`. Stays well under `SearchSnippet`'s 1024 cap.
+const LIKE_SNIPPET_CHARS = 160;
 
 type SearchRow = Readonly<{
   noteId: string;
@@ -56,10 +59,17 @@ type SearchRow = Readonly<{
  *
  * Trigram has one essential constraint: query tokens shorter than 3
  * Unicode codepoints cannot match anything. The domain's `SearchKeyword`
- * still accepts 1+ chars; the gap is absorbed inside
- * `buildMatchExpression` (short tokens are filtered out, an empty result
- * is returned via the `'""'` literal fallback) rather than leaking into
- * the domain contract.
+ * still accepts 1+ chars; the gap is absorbed in the adapter rather than
+ * leaking into the domain contract. `extractTrigramTokens` keeps only the
+ * tokens trigram can index (3+ codepoints). When at least one such token
+ * survives, the MATCH path runs (shorter tokens in a mixed query are
+ * ignored, as before). When *every* token is shorter than 3 codepoints,
+ * the adapter falls back to a LIKE substring search directly against the
+ * host table `search_documents` (title / body_plain / tag_names_json),
+ * so practical short keywords (`AI` / `Go` / `本` / `🎨`) still match.
+ * The fallback cannot use `snippet()` / `bm25()`, so it returns a
+ * body_plain head excerpt, a fixed score of 0, and a stable `note_id ASC`
+ * order instead of relevance ranking and highlighted snippets.
  *
  * Cursor encoding is opaque: the adapter stores a base64 offset because
  * BM25 ranks ties cannot be split deterministically by `rowid` without
@@ -123,78 +133,26 @@ export class D1SearchIndex implements SearchIndex {
       const limit = q.limit as number;
       const offset = decodeCursor(q.cursor);
 
-      const matchExpr = buildMatchExpression(q.keyword);
-
       // One extra row over the requested limit so we can compute
       // `nextCursor` without an additional COUNT round trip.
       const peekLimit = limit + 1;
 
-      // FTS contentless table joins back to the host via the implicit
-      // `rowid` column (configured `content_rowid='rowid'` in the migration's
-      // FTS5 DDL). Comparing `sd.note_id` (text UUID) against `fts.rowid`
-      // (integer) silently produces zero rows on every query.
-      const filterClauses = [sql`sd.rowid = fts.rowid`];
-      filterClauses.push(sql`fts.search_documents_fts MATCH ${matchExpr}`);
-
-      if (q.ownerIdFilter !== null) {
-        filterClauses.push(sql`sd.owner_id = ${q.ownerIdFilter}`);
-      }
-      if (q.visibilityFilter.length > 0) {
-        filterClauses.push(
-          sql`sd.visibility IN (${sql.join(
-            q.visibilityFilter.map((v) => sql`${v}`),
-            sql`, `,
-          )})`,
-        );
-      }
-      if (q.dateRange !== null) {
-        const fromIso = q.dateRange.from.toISOString();
-        const toIso = q.dateRange.to.toISOString();
-        filterClauses.push(
-          sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`,
-        );
-      }
-      if (q.directoryPathPrefix !== null) {
-        // Exact match for the directory itself, or any descendant whose
-        // path starts with `${prefix}/`. The latter pattern is escaped
-        // for LIKE so `_` / `%` / `\\` in path segments are treated
-        // literally.
-        const prefix = q.directoryPathPrefix as string;
-        const childPattern = `${escapeLikePattern(prefix)}/%`;
-        filterClauses.push(
-          sql`(sd.directory_path = ${prefix} OR sd.directory_path LIKE ${childPattern} ESCAPE '\\')`,
-        );
-      }
-      // Tag filter is an AND-of-terms over the stored `tag_names_json`
-      // array. Using `LIKE '%"<tag>"%'` matches a quoted JSON string token
-      // exactly (so `"ai"` does not match `"ai-news"`). The plain LIKE
-      // path keeps the planner from giving up on the FTS rank — pushing
-      // the tag filter through `MATCH` would intermix free-text and
-      // exact-tag semantics in a way the domain does not request.
-      for (const tag of q.tagNames) {
-        const needle = `%"${escapeLikePattern(tag)}"%`;
-        filterClauses.push(sql`sd.tag_names_json LIKE ${needle} ESCAPE '\\'`);
-      }
-
-      const whereClause = sql.join(filterClauses, sql` AND `);
-
-      const rows = await this.db.all<SearchRow>(sql`
-        SELECT
-          sd.note_id      AS "noteId",
-          sd.owner_id     AS "ownerId",
-          u.username      AS "username",
-          sd.title        AS "title",
-          snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET}) AS "snippet",
-          sd.tag_names_json AS "tagNamesJson",
-          sd.visibility   AS "visibility",
-          bm25(fts.search_documents_fts) AS "score"
-        FROM search_documents_fts AS fts
-        JOIN search_documents AS sd
-        JOIN users AS u ON u.id = sd.owner_id
-        WHERE ${whereClause}
-        ORDER BY bm25(fts.search_documents_fts) ASC, sd.note_id ASC
-        LIMIT ${peekLimit} OFFSET ${offset}
-      `);
+      const sharedFilters = buildSharedFilters(q);
+      const tokens = extractTrigramTokens(q.keyword);
+      const rows =
+        tokens.length > 0
+          ? await this.runMatchQuery(
+              buildMatchExpression(tokens),
+              sharedFilters,
+              peekLimit,
+              offset,
+            )
+          : await this.runLikeQuery(
+              q.keyword,
+              sharedFilters,
+              peekLimit,
+              offset,
+            );
 
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
@@ -204,6 +162,83 @@ export class D1SearchIndex implements SearchIndex {
 
       return { hits, nextCursor };
     });
+  }
+
+  private async runMatchQuery(
+    matchExpr: string,
+    sharedFilters: readonly ReturnType<typeof sql>[],
+    peekLimit: number,
+    offset: number,
+  ): Promise<SearchRow[]> {
+    // FTS contentless table joins back to the host via the implicit
+    // `rowid` column (configured `content_rowid='rowid'` in the migration's
+    // FTS5 DDL). Comparing `sd.note_id` (text UUID) against `fts.rowid`
+    // (integer) silently produces zero rows on every query.
+    const whereClause = sql.join(
+      [
+        sql`sd.rowid = fts.rowid`,
+        sql`fts.search_documents_fts MATCH ${matchExpr}`,
+        ...sharedFilters,
+      ],
+      sql` AND `,
+    );
+
+    return this.db.all<SearchRow>(sql`
+      SELECT
+        sd.note_id      AS "noteId",
+        sd.owner_id     AS "ownerId",
+        u.username      AS "username",
+        sd.title        AS "title",
+        snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET}) AS "snippet",
+        sd.tag_names_json AS "tagNamesJson",
+        sd.visibility   AS "visibility",
+        bm25(fts.search_documents_fts) AS "score"
+      FROM search_documents_fts AS fts
+      JOIN search_documents AS sd
+      JOIN users AS u ON u.id = sd.owner_id
+      WHERE ${whereClause}
+      ORDER BY bm25(fts.search_documents_fts) ASC, sd.note_id ASC
+      LIMIT ${peekLimit} OFFSET ${offset}
+    `);
+  }
+
+  private async runLikeQuery(
+    keyword: string,
+    sharedFilters: readonly ReturnType<typeof sql>[],
+    peekLimit: number,
+    offset: number,
+  ): Promise<SearchRow[]> {
+    // Fallback for keywords whose every token is shorter than the trigram
+    // minimum (3 codepoints). Searches the host table directly with a
+    // substring LIKE over the same three columns the FTS index covers.
+    // `escapeLikePattern` neutralises `%` / `_` / `\\` so the user keyword
+    // matches literally. The `%keyword%` match on `tag_names_json` is plain
+    // substring (free-text), distinct from the MATCH path's quoted tag
+    // *filter* (`%"<tag>"%`).
+    const needle = `%${escapeLikePattern(keyword.trim())}%`;
+    const likeClause = sql`(
+      sd.title LIKE ${needle} ESCAPE '\\'
+      OR sd.body_plain LIKE ${needle} ESCAPE '\\'
+      OR sd.tag_names_json LIKE ${needle} ESCAPE '\\'
+    )`;
+    const whereClause = sql.join([likeClause, ...sharedFilters], sql` AND `);
+
+    return this.db.all<SearchRow>(sql`
+      SELECT
+        sd.note_id      AS "noteId",
+        sd.owner_id     AS "ownerId",
+        u.username      AS "username",
+        sd.title        AS "title",
+        substr(sd.body_plain, 1, ${LIKE_SNIPPET_CHARS}) AS "snippet",
+        sd.tag_names_json AS "tagNamesJson",
+        sd.visibility   AS "visibility",
+        0               AS "score"
+      FROM search_documents AS sd
+      JOIN users AS u ON u.id = sd.owner_id
+      WHERE ${whereClause}
+      ORDER BY sd.note_id ASC
+      LIMIT ${peekLimit} OFFSET ${offset}
+    `);
   }
 
   async bulkRebuildFromSnapshots(
@@ -315,10 +350,10 @@ export class D1SearchIndex implements SearchIndex {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Strips FTS5 metacharacters from a free-text keyword and re-wraps the
-// remaining tokens as a phrase query. Without this, a keyword like `foo:`
-// or `bar"baz` would be interpreted as an FTS column filter or quoted
-// phrase boundary and surface as a parser error from D1.
+// Strips FTS5 metacharacters from a free-text keyword and keeps only the
+// tokens trigram can index. Without the metacharacter strip, a keyword
+// like `foo:` or `bar"baz` would be interpreted as an FTS column filter or
+// quoted phrase boundary and surface as a parser error from D1.
 //
 // `tokenize='trigram'` (see class JSDoc) cannot match query tokens shorter
 // than 3 Unicode codepoints. We absorb that constraint here rather than in
@@ -326,24 +361,68 @@ export class D1SearchIndex implements SearchIndex {
 // The length check uses `Array.from(tok).length` to count Unicode
 // codepoints — `tok.length` returns UTF-16 code units, which would count
 // a surrogate-pair emoji (1 codepoint) as 2 and misclassify it as a valid
-// trigram token. When every token is dropped (or the original input
-// normalised to nothing), the function returns `'""'` so the query
-// surfaces as zero hits rather than a parser error.
-function buildMatchExpression(keyword: string): string {
-  const tokens = keyword
+// trigram token. When this returns an empty array (every token dropped, or
+// the input normalised to nothing), `query` routes to the LIKE fallback.
+function extractTrigramTokens(keyword: string): string[] {
+  return keyword
     .split(/\s+/)
     .map((tok) => tok.replace(/["\\]/g, ""))
     .filter((tok) => tok.length > 0)
     .filter((tok) => Array.from(tok).length >= 3);
-  if (tokens.length === 0) {
-    // Domain guarantees keyword.length >= 1 via `SearchKeyword.create`,
-    // but normalisation may strip the entire input (e.g. a single `"`),
-    // or every token may be shorter than the trigram minimum (3
-    // codepoints). Fall back to a literal that matches nothing rather
-    // than throwing.
-    return '""';
-  }
+}
+
+// Re-wraps the surviving trigram tokens as a phrase query for `MATCH`.
+function buildMatchExpression(tokens: readonly string[]): string {
   return tokens.map((tok) => `"${tok}"`).join(" ");
+}
+
+// Non-FTS filters shared by the MATCH and LIKE paths. Every clause
+// references `sd.` columns only, so it is independent of the FTS virtual
+// table and reusable across both query routes.
+function buildSharedFilters(q: SearchQuery): ReturnType<typeof sql>[] {
+  const filterClauses: ReturnType<typeof sql>[] = [];
+
+  if (q.ownerIdFilter !== null) {
+    filterClauses.push(sql`sd.owner_id = ${q.ownerIdFilter}`);
+  }
+  if (q.visibilityFilter.length > 0) {
+    filterClauses.push(
+      sql`sd.visibility IN (${sql.join(
+        q.visibilityFilter.map((v) => sql`${v}`),
+        sql`, `,
+      )})`,
+    );
+  }
+  if (q.dateRange !== null) {
+    const fromIso = q.dateRange.from.toISOString();
+    const toIso = q.dateRange.to.toISOString();
+    filterClauses.push(
+      sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`,
+    );
+  }
+  if (q.directoryPathPrefix !== null) {
+    // Exact match for the directory itself, or any descendant whose
+    // path starts with `${prefix}/`. The latter pattern is escaped
+    // for LIKE so `_` / `%` / `\\` in path segments are treated
+    // literally.
+    const prefix = q.directoryPathPrefix as string;
+    const childPattern = `${escapeLikePattern(prefix)}/%`;
+    filterClauses.push(
+      sql`(sd.directory_path = ${prefix} OR sd.directory_path LIKE ${childPattern} ESCAPE '\\')`,
+    );
+  }
+  // Tag filter is an AND-of-terms over the stored `tag_names_json`
+  // array. Using `LIKE '%"<tag>"%'` matches a quoted JSON string token
+  // exactly (so `"ai"` does not match `"ai-news"`). The plain LIKE
+  // path keeps the planner from giving up on the FTS rank — pushing
+  // the tag filter through `MATCH` would intermix free-text and
+  // exact-tag semantics in a way the domain does not request.
+  for (const tag of q.tagNames) {
+    const needle = `%"${escapeLikePattern(tag)}"%`;
+    filterClauses.push(sql`sd.tag_names_json LIKE ${needle} ESCAPE '\\'`);
+  }
+
+  return filterClauses;
 }
 
 function encodeCursor(offset: number): SearchCursor {
