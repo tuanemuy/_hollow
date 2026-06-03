@@ -380,14 +380,12 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
       }),
     );
 
-    // visibility filter
     const publicOnly = await container.searchIndex.query(
       makeQuery({ keyword: "AI", visibilityFilter: ["public"] }),
     );
     expect(publicOnly.hits).toHaveLength(2);
     expect(publicOnly.hits.every((h) => h.visibility === "public")).toBe(true);
 
-    // owner filter
     const mineOnly = await container.searchIndex.query(
       makeQuery({ keyword: "AI", ownerIdFilter: ownerId }),
     );
