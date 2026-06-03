@@ -80,6 +80,32 @@ export const pillBtnTall = "h-12 px-8 text-md justify-center";
 export const navItem =
   "flex items-center gap-2 px-3 py-[7px] rounded-md text-sm text-ink cursor-pointer transition-colors motion-reduce:transition-none select-none no-underline data-[active]:font-medium aria-[current=page]:font-medium";
 
+/**
+ * Text-link decoration — accent color + hover-only underline (with offset).
+ * The shared primitive behind the auth footer/field/callout links
+ * (`auth/styles.ts` `AUTH_FOOTER_LINK` / `FIELD_LINK` / `CALLOUT_ACTION`) and
+ * the inline terms/privacy links in `SignUpForm` / `AdminSignUpForm`.
+ *
+ * Only the decoration is shared; each consumer composes its own size/layout
+ * add-ons: `AUTH_FOOTER_LINK` is `textLink` verbatim, `FIELD_LINK` is
+ * `` `text-sm ${textLink}` ``, and `CALLOUT_ACTION` is
+ * `` `inline-flex … ${textLink} font-medium …` ``. Keeping size out is
+ * deliberate — `AUTH_FOOTER_LINK` inherits its size whereas `FIELD_LINK` sets
+ * `text-sm` explicitly, so decoration-only is the correct SSOT boundary.
+ *
+ * The pill-style `PUBLIC_TEXT_LINK` (`public/styles.ts`) is intentionally a
+ * separate primitive: it is a surface-hover pill, not an accent-underline link.
+ *
+ * Note-body links (`.note-detail-content a` in `app/styles/index.css`) are a
+ * near-relative — they share the accent color and the hover 3px offset, but
+ * are *always* underlined (prose convention) whereas `textLink` underlines on
+ * hover only. They also cannot be utility-ified — their `<a>` comes from
+ * `dangerouslySetInnerHTML`, so they stay as CSS (documented exception; see
+ * `.issue/70/adr.md` ADR-002). See `.issue/336`.
+ */
+export const textLink =
+  "text-accent hover:underline hover:[text-underline-offset:3px]";
+
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
 

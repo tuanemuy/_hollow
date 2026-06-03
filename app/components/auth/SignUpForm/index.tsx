@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId } from "react";
+import { textLink } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -258,17 +259,11 @@ export function SignUpForm() {
             className={CHECKBOX_INPUT}
           />
           <span>
-            <Link
-              to="/terms"
-              className="text-accent hover:underline hover:[text-underline-offset:3px]"
-            >
+            <Link to="/terms" className={textLink}>
               利用規約
             </Link>{" "}
             と{" "}
-            <Link
-              to="/privacy"
-              className="text-accent hover:underline hover:[text-underline-offset:3px]"
-            >
+            <Link to="/privacy" className={textLink}>
               プライバシーポリシー
             </Link>{" "}
             に同意します

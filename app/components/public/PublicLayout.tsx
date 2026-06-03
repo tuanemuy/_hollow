@@ -15,7 +15,6 @@ import {
   PUBLIC_HEADER_SEARCH,
   PUBLIC_HEADER_SEARCH_INPUT,
   PUBLIC_LOGO,
-  PUBLIC_TEXT_LINK,
   PUBLIC_TEXT_LINK_SIGNUP,
   SEARCH_ICON,
 } from "./styles";
@@ -95,9 +94,6 @@ export function PublicLayout({
     </div>
   );
 }
-
-// Re-export for direct usage by sibling components that need the same look-up.
-export { PUBLIC_TEXT_LINK };
 
 export function avatarInitials(value: string): string {
   const trimmed = value.trim();
