@@ -6,6 +6,7 @@ import { Pause, Play, Shield, ShieldOff } from "lucide-react";
 import { useId, useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnSm } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -32,9 +33,6 @@ const TAG_TONE: Record<Tone, string> = {
   error: "bg-error-surface text-error",
   neutral: "bg-surface text-ink-secondary",
 };
-
-const BTN_SM_CLASS =
-  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-ink text-xs font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
 
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
@@ -161,7 +159,8 @@ function UserRow({
           {user.status === "active" && !isSelf ? (
             <button
               type="button"
-              className={BTN_SM_CLASS}
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
               onClick={() => runAction(suspend)}
               disabled={isPending}
             >
@@ -172,7 +171,8 @@ function UserRow({
           {user.status === "suspended" ? (
             <button
               type="button"
-              className={BTN_SM_CLASS}
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
               onClick={() => runAction(reinstate)}
               disabled={isPending}
             >
@@ -183,7 +183,8 @@ function UserRow({
           {user.status !== "deleted" && user.role === "member" ? (
             <button
               type="button"
-              className={BTN_SM_CLASS}
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
               onClick={() => runAction(promote)}
               disabled={isPending}
             >
@@ -194,7 +195,8 @@ function UserRow({
           {user.status !== "deleted" && user.role === "admin" && !isSelf ? (
             <button
               type="button"
-              className={BTN_SM_CLASS}
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
               onClick={() => runAction(demote)}
               disabled={isPending}
             >

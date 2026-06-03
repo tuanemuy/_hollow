@@ -14,6 +14,7 @@ import {
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { pillBtn, pillBtnSm } from "@/components/common/styles";
 import type {
   BackfillInternalLinksResultDTO,
   RebuildSearchIndexResultDTO,
@@ -46,9 +47,6 @@ const TAG_TONE: Record<Tone, string> = {
   warning: "bg-warning-surface text-warning",
   error: "bg-error-surface text-error",
 };
-
-const BTN_SM_CLASS =
-  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-ink text-xs font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
 
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
@@ -233,7 +231,8 @@ function IngestionRow({
         {job.status === "failed" ? (
           <button
             type="button"
-            className={BTN_SM_CLASS}
+            className={`${pillBtn} ${pillBtnSm}`}
+            data-sm=""
             onClick={runRetry}
             disabled={isPending}
           >
@@ -319,7 +318,8 @@ function ExportRow({
         {job.status === "failed" ? (
           <button
             type="button"
-            className={BTN_SM_CLASS}
+            className={`${pillBtn} ${pillBtnSm}`}
+            data-sm=""
             onClick={runRetry}
             disabled={isPending}
           >
@@ -432,7 +432,8 @@ function SearchIndexSection() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className={BTN_SM_CLASS}
+          className={`${pillBtn} ${pillBtnSm}`}
+          data-sm=""
           onClick={runRebuild}
           disabled={isPending}
           aria-busy={isPending || undefined}
@@ -499,7 +500,8 @@ function InternalLinkBackfillSection() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className={BTN_SM_CLASS}
+          className={`${pillBtn} ${pillBtnSm}`}
+          data-sm=""
           onClick={runBackfill}
           disabled={isPending}
           aria-busy={isPending || undefined}
@@ -582,7 +584,8 @@ function SecretRotationSection() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className={BTN_SM_CLASS}
+          className={`${pillBtn} ${pillBtnSm}`}
+          data-sm=""
           onClick={runReencrypt}
           disabled={isPending}
           aria-busy={isPending || undefined}
