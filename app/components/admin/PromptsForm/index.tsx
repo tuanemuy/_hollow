@@ -75,11 +75,11 @@ const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const TEXTAREA_CLASS =
   "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
 const BTN_PRIMARY_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-accent-hover active:not-disabled:bg-accent-pressed disabled:opacity-disabled disabled:cursor-not-allowed";
 const BTN_GHOST_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-disabled disabled:cursor-not-allowed";
 const BTN_DESTRUCTIVE_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-disabled disabled:cursor-not-allowed";
 const CODE_INLINE_CLASS =
   "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
 const BADGE_CLASS =

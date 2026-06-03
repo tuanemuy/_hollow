@@ -233,6 +233,18 @@ UI のホバー・フォーカスは `--duration-fast` で素早く反応させ�
 
 ---
 
+## 7.5 状態（disabled）
+
+```css
+--opacity-disabled: 0.55;
+```
+
+無効化された（`disabled` / `aria-disabled` / 意味的に disabled な `data-[disabled]`）ボタン・リンク・入力欄の不透明度。値を 1 箇所に集約し、すべての無効状態でこの 1 値を使う（`opacity-disabled` ユーティリティ経由）。
+
+破棄済みジョブ（`data-[discarded]`）や楽観的 UI の保留中（`data-[pending]`）の淡色化は disabled とは別概念の state opacity であり、このトークンの対象外。
+
+---
+
 ## 8. ブレークポイント
 
 | 名前 | 最小幅 | メディアクエリ | このプロジェクトでの主な切り替え |
@@ -509,6 +521,9 @@ Apple Calm の象徴的な要素。
   --transition-default: all var(--duration-base) var(--ease-standard);
   --transition-bg: background-color var(--duration-fast) var(--ease-standard);
   --transition-color: color var(--duration-fast) var(--ease-standard);
+
+  /* State */
+  --opacity-disabled: 0.55;
 
   /* Header */
   --header-bg: rgba(255,255,255,0.85);

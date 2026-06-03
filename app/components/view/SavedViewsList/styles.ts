@@ -54,7 +54,7 @@ export const rowActions =
 
 /** Text action button / link base. */
 export const textAction =
-  "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Append for the "適用" action (accent coloring). */
 export const textActionApply =
@@ -86,11 +86,11 @@ export const brokenCode =
  * surface that brightens on hover; does not shrink when the banner wraps.
  */
 export const fixBtn =
-  "shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-white/60 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/95 disabled:opacity-55 disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-white/60 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/95 disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Inline editing name input. */
 export const renameInput =
-  "h-9 w-full max-w-xs rounded-md border border-transparent bg-surface px-3 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg aria-invalid:border-error disabled:opacity-55 disabled:cursor-not-allowed";
+  "h-9 w-full max-w-xs rounded-md border border-transparent bg-surface px-3 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg aria-invalid:border-error disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Inline form error / general error message. */
 export const rowError = "text-error text-[13px] mt-2";

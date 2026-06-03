@@ -19,7 +19,7 @@
  * rules below). See `.issue/152/adr.md` ADR-001.
  */
 export const pillBtn =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-55 disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-disabled disabled:cursor-not-allowed aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =
@@ -88,7 +88,7 @@ export const fieldLabel = "text-[13px] font-medium text-ink-secondary";
 
 /** Field input/textarea/select base. */
 export const fieldControl =
-  "w-full rounded-md border border-transparent bg-surface px-3 py-[10px] text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-55 disabled:cursor-not-allowed";
+  "w-full rounded-md border border-transparent bg-surface px-3 py-[10px] text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Field textarea modifier. */
 export const fieldTextarea = "font-mono text-mono min-h-[320px] resize-y";
@@ -124,7 +124,7 @@ export const dialog =
  * exclusion, `closable=false` disabling).
  */
 export const dialogCloseButton =
-  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-55 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Modal dialog title. */
 export const dialogTitle = "text-lg font-medium mb-4";

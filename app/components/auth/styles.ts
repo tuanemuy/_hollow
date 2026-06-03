@@ -65,7 +65,7 @@ export const CALLOUT_ICON = "text-accent shrink-0 mt-0.5 inline-flex";
 export const CALLOUT_BODY = "flex flex-col gap-2";
 
 export const CALLOUT_ACTION =
-  "inline-flex items-center gap-1 text-accent font-medium text-sm self-start hover:underline hover:[text-underline-offset:3px] disabled:opacity-60";
+  "inline-flex items-center gap-1 text-accent font-medium text-sm self-start hover:underline hover:[text-underline-offset:3px] disabled:opacity-disabled";
 
 export const NOTICE =
   "mt-6 p-4 rounded-lg bg-surface text-sm text-ink-secondary leading-relaxed";
