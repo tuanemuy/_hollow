@@ -6,7 +6,11 @@ import { RotateCcw } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import {
+  pillBtn,
+  pillBtnGhostDanger,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import type {
   PromptDefaultDTO,
   PromptDTO,
@@ -75,10 +79,6 @@ const INPUT_CLASS =
 const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const TEXTAREA_CLASS =
   "w-full min-h-[140px] px-3 py-[10px] bg-surface border border-transparent rounded-md font-mono text-xs text-ink leading-relaxed outline-none resize-y transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
-const BTN_GHOST_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-disabled disabled:cursor-not-allowed";
-const BTN_DESTRUCTIVE_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-transparent text-ink-secondary text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-error-surface hover:not-disabled:text-error disabled:opacity-disabled disabled:cursor-not-allowed";
 const CODE_INLINE_CLASS =
   "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
 const BADGE_CLASS =
@@ -230,7 +230,8 @@ function PromptCard({
         ) : null}
         <button
           type="button"
-          className={BTN_GHOST_CLASS}
+          className={`${pillBtn} ${pillBtnGhostDanger}`}
+          data-ghost-danger=""
           onClick={onReset}
           disabled={isPending || !current.isOverridden}
         >
@@ -303,7 +304,8 @@ export function PromptsForm({
         ) : null}
         <button
           type="button"
-          className={BTN_DESTRUCTIVE_CLASS}
+          className={`${pillBtn} ${pillBtnGhostDanger}`}
+          data-ghost-danger=""
           onClick={() => setConfirmOpen(true)}
           disabled={isPending || !anyOverridden}
         >

@@ -24,8 +24,6 @@ const LOGO = "text-[21px] font-light tracking-tightest text-ink";
 const HEADER_NAV = "flex items-center gap-2";
 const HEADER_LINK =
   "text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";
-const HEADER_CTA =
-  "h-9 px-4 rounded-pill bg-accent text-white text-sm font-medium inline-flex items-center transition-colors motion-reduce:transition-none hover:bg-accent-hover";
 
 const CONTAINER =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
@@ -115,7 +113,11 @@ export function LandingPage() {
           <Link to="/login" className={HEADER_LINK}>
             ログイン
           </Link>
-          <Link to="/signup" className={HEADER_CTA}>
+          <Link
+            to="/signup"
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-primary=""
+          >
             アカウント作成
           </Link>
         </nav>
