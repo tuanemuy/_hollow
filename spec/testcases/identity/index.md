@@ -15,7 +15,7 @@
 | password が 12 字だが種別 1 種のみ | SignUp | `ValidationError('password_weak')` | |
 | 空 DB で SignUp（旧「初ユーザー特例」廃止確認） | SignUp | role が **member** になる（admin にはならない） | |
 | 2 人目以降登録 | SignUp | role が member になる | |
-| EmailSender 失敗 | SignUp | User と credential は作成済み、`EmailSendError` を返す | |
+| EmailSender 失敗 | SignUp | User と credential は作成済み。usecase が `try/catch` で握り潰して成功扱い（`logger.error` が呼ばれ、型付きエラーは返らない） | |
 
 ## AdminSignUp
 

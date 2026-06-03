@@ -176,7 +176,7 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 ## フィードバック・エラー表示原則（#221）
 
 - **インタラクションの即時 feedback**: 非同期処理を伴うボタンは押下直後に disabled + ローディング状態を出す。スケルトンを優先し、スピナーは避ける。
-- **バックグラウンド進捗**: 取り込み・エクスポート等のジョブは client polling で進捗を可視化する。間隔は active job がある間は 1.5〜4 秒、無い間は 16 秒以上に伸ばす（負荷とフレッシュ感のバランス）。
+- **バックグラウンド進捗**: 取り込み・エクスポート等のジョブは client polling で進捗を可視化する。間隔は active job がある間は 4 秒、無い間は 16 秒に伸ばし、連続失敗時は 12 秒のバックオフを挟む（負荷とフレッシュ感のバランス）。実装値は `app/components/ingestion/IngestionQueue.tsx` の `POLL_INTERVAL_MS=4000` / `POLL_IDLE_MS=16000` / `POLL_BACKOFF_MS=12000`（[#221 ADR-003](../../.issue/221/adr.md) 参照）。
 - **`aria-live`**: 状態遷移・完了・失敗の通知は `aria-live="polite"`（通常）／`assertive`（エラーで即時通知が必要な場合のみ）を使う。
 - **エラー文言**:
   - サーバーからは `SerializedError`（`kind`-tagged union + `code`）が届く。UI 側は **`app/core/presentation/errorDisplay.ts`** のマッピングを単一の真実とし、`displayError(error)` / `displayJobErrorCode(code)` 経由でのみ文言化する。

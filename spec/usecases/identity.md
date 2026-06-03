@@ -31,7 +31,7 @@
 - `BusinessRuleError('registration_closed')`
 - `BusinessRuleError('username_taken' | 'email_taken')`
 - `ValidationError`（VO 構築失敗）
-- `EmailSendError`（後続。User と credential は作成済み）
+- メール送信失敗（型付きエラーなし）: `sendVerification` は UoW commit 後に呼ばれ、User と credential は作成済み。失敗しても usecase が `try/catch` で握り潰して `logger.error` するため、エラーは浮上せず成功扱い（Issue #197 ADR-002）
 
 ---
 
@@ -71,7 +71,7 @@ Setup Token を提示して admin ユーザーを登録する。通常の `SignU
 - `AuthenticationError('invalid_setup_token')` — トークン不一致（列挙対策で原因区別なし、`setup_token_disabled` とは別扱い）
 - `BusinessRuleError('username_taken' | 'email_taken')`
 - `ValidationError`
-- `EmailSendError`
+- メール送信失敗（型付きエラーなし）: `SignUp` と同様、UoW commit 後の `sendVerification` 失敗は usecase が握り潰して `logger.error` するため浮上しない（Issue #197 ADR-002）
 
 ---
 
