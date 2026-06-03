@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Download,
   KeyRound,
+  Link2,
   RefreshCw,
   Search,
   Sparkles,
@@ -14,6 +15,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type {
+  BackfillInternalLinksResultDTO,
   RebuildSearchIndexResultDTO,
   ReencryptApiKeyResultDTO,
 } from "@/core/application/dto/adminSettings";
@@ -25,6 +27,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import {
+  backfillInternalLinksFn,
   rebuildSearchIndexFn,
   reencryptApiKeyFn,
   retryExportJobFn,
@@ -458,6 +461,75 @@ function SearchIndexSection() {
   );
 }
 
+function InternalLinkBackfillSection() {
+  const backfill = useServerFn(backfillInternalLinksFn);
+  const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<BackfillInternalLinksResultDTO | null>(
+    null,
+  );
+  const [error, setError] = useState<SerializedError | null>(null);
+
+  const runBackfill = () => {
+    startTransition(async () => {
+      setError(null);
+      try {
+        const out = await backfill();
+        setResult(out);
+      } catch (caught) {
+        setError(extractSerializedError(caught));
+      }
+    });
+  };
+
+  const summary = error !== null ? displayError(error) : "";
+
+  return (
+    <section className={SECTION_CLASS}>
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={`${SECTION_TITLE_CLASS} inline-flex items-center gap-2`}>
+          <Icon icon={Link2} />
+          内部リンクのバックフィル
+        </h2>
+      </div>
+      <p className={SECTION_DESC_CLASS}>
+        未解決の内部リンク（`resolved_note_id IS NULL`）を全 owner
+        横断で再解決します。#127
+        修正前から滞留している行の運用修復経路です。冪等なので再実行できます。実行中はボタンを無効化します。
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className={BTN_SM_CLASS}
+          onClick={runBackfill}
+          disabled={isPending}
+          aria-busy={isPending || undefined}
+          data-pending={isPending || undefined}
+        >
+          <Icon icon={Link2} />
+          {isPending ? "バックフィル中…" : "バックフィルを実行"}
+        </button>
+        {result !== null ? (
+          <p
+            className="text-xs text-ink-secondary m-0"
+            role="status"
+            aria-live="polite"
+          >
+            {result.resolvedRows} 件のリンクを解決しました（owner{" "}
+            {result.ownerCount} 名・走査 {result.scannedNotes} 回 / 走査回数は
+            distinct ノート数ではありません）—{" "}
+            {formatDateTime(result.finishedAt)}
+          </p>
+        ) : null}
+      </div>
+      {summary !== "" ? (
+        <p className={`${FIELD_ERROR_CLASS} mt-1.5`} role="alert">
+          {summary}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function reencryptResultLabel(result: ReencryptApiKeyResultDTO): string {
   if (result.reencrypted) {
     return "API キーを新しいマスターキーで再暗号化しました。";
@@ -662,6 +734,8 @@ export function JobsBoard({
       </section>
 
       <SearchIndexSection />
+
+      <InternalLinkBackfillSection />
 
       <SecretRotationSection />
 

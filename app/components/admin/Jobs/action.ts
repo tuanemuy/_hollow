@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
 import {
+  type BackfillInternalLinksResultDTO,
   type RebuildSearchIndexResultDTO,
   type ReencryptApiKeyResultDTO,
+  toBackfillInternalLinksResultDTO,
   toRebuildSearchIndexResultDTO,
   toReencryptApiKeyResultDTO,
 } from "@/core/application/dto/adminSettings";
@@ -128,6 +130,24 @@ export const rebuildSearchIndexFn = createServerFn({ method: "POST" })
       input: { actorUserId: toUserIdDTO(actor.id) },
     });
     return toRebuildSearchIndexResultDTO(result);
+  });
+
+export const backfillInternalLinksFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware, csrfMiddleware])
+  .handler(async (): Promise<BackfillInternalLinksResultDTO> => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
+    const { container, module } = await loadServerDeps(
+      () =>
+        import(
+          "@/core/application/note/backfillAllOwnersInternalLinkResolution"
+        ),
+    );
+    const result = await module.backfillAllOwnersInternalLinkResolution({
+      container,
+      input: { actorUserId: toUserIdDTO(actor.id) },
+    });
+    return toBackfillInternalLinksResultDTO(result);
   });
 
 export const reencryptApiKeyFn = createServerFn({ method: "POST" })
