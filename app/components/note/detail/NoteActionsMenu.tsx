@@ -24,11 +24,16 @@ export type NoteActionsMenuProps = Readonly<{
   disabled?: boolean;
 }>;
 
-const MENU_TRIGGER = `${pillBtn} ${pillBtnIcon}`;
+const MENU_TRIGGER = `${pillBtn} ${pillBtnIcon} data-[open]:bg-surface-hover`;
 const MENU_PANEL =
   "absolute right-0 mt-1 z-40 min-w-[180px] rounded-md border border-hairline bg-bg shadow-sm py-1";
+// Disabled items use `aria-disabled` (not the `disabled` attribute) so they
+// stay focusable and keep their place in the roving-tabindex cycle (#459
+// review-001 W-001). Hover is guarded with `not-aria-disabled:` mirroring the
+// `pillBtn` convention; `focus:bg-surface` is left ungated since roving focus
+// may legitimately land on a disabled item.
 const MENU_ITEM =
-  "flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
+  "flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-ink outline-none hover:not-aria-disabled:bg-surface focus:bg-surface aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:not-aria-disabled:bg-error-surface";
 const MENU_SEPARATOR = "my-1 h-0 border-0 border-t border-hairline";
 
 export function NoteActionsMenu({
@@ -170,9 +175,9 @@ export function NoteActionsMenu({
                 role="menuitem"
                 tabIndex={index === activeIndex ? 0 : -1}
                 data-danger={item.danger || undefined}
-                disabled={item.disabled || undefined}
+                aria-disabled={item.disabled || undefined}
                 className={MENU_ITEM}
-                onClick={runAndClose(item.onSelect)}
+                onClick={item.disabled ? undefined : runAndClose(item.onSelect)}
               >
                 <Icon icon={item.icon} />
                 {item.label}
