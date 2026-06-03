@@ -132,20 +132,25 @@ async function makeDoc(
 function makeQuery(params: {
   keyword: string;
   visibilityFilter?: readonly ("private" | "unlisted" | "public")[];
+  ownerIdFilter?: UserId | null;
+  tagNames?: readonly string[];
+  dateRange?: { from: Date; to: Date } | null;
+  limit?: number;
+  cursor?: string | null;
 }) {
   return SearchQuery.create({
     keyword: params.keyword,
-    ownerIdFilter: null,
+    ownerIdFilter: params.ownerIdFilter ?? null,
     visibilityFilter: params.visibilityFilter ?? [
       "private",
       "unlisted",
       "public",
     ],
-    tagNames: [],
+    tagNames: params.tagNames ?? [],
     directoryPathPrefix: null,
-    dateRange: null,
-    limit: 10,
-    cursor: null,
+    dateRange: params.dateRange ?? null,
+    limit: params.limit ?? 10,
+    cursor: params.cursor ?? null,
   });
 }
 
@@ -218,13 +223,11 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(ascii.hits).toHaveLength(1);
   });
 
-  it("returns zero hits for short tokens without throwing (regression guard)", async () => {
-    // Regression detection for the adapter-side short-token guard in
-    // `buildMatchExpression`. Trigram cannot match query tokens shorter
-    // than 3 Unicode codepoints; the adapter must absorb that by
-    // dropping them and falling back to the `'""'` literal. If the
-    // tokenizer is ever swapped, the intent of this case must be
-    // re-evaluated.
+  it("falls back to LIKE for short tokens that trigram cannot index", async () => {
+    // Short tokens (< 3 codepoints) cannot match through trigram MATCH,
+    // so the adapter routes them to the LIKE fallback over the host
+    // table. This replaces the former `'""'` zero-hit guard. The body
+    // below contains `AI` and the emoji; both must now match.
     const container = createTestContainer();
     const ownerId = await seedUser(container);
     const directoryId = await seedDirectory(container, ownerId);
@@ -234,30 +237,352 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
         ownerId,
         directoryId,
         title: "Note",
-        body: "これはデザイン原則のメモです Design principles 🎨 art",
+        body: "これはデザイン原則のメモです Design principles 🎨 art について AI 活用",
       }),
     );
-
-    const cjkShort = await container.searchIndex.query(
-      makeQuery({ keyword: "あ" }),
-    );
-    expect(cjkShort.hits).toEqual([]);
-    expect(cjkShort.nextCursor).toBeNull();
 
     const asciiShort = await container.searchIndex.query(
       makeQuery({ keyword: "AI" }),
     );
-    expect(asciiShort.hits).toEqual([]);
+    expect(asciiShort.hits).toHaveLength(1);
     expect(asciiShort.nextCursor).toBeNull();
 
-    // Surrogate-pair emoji = 1 Unicode codepoint. `tok.length` would
-    // count it as 2 UTF-16 code units and falsely pass; `Array.from`
-    // counts it correctly as 1.
+    // Surrogate-pair emoji = 1 Unicode codepoint. It is shorter than the
+    // trigram minimum and so flows through the LIKE fallback, which can
+    // match it literally.
     const emoji = await container.searchIndex.query(
       makeQuery({ keyword: "🎨" }),
     );
-    expect(emoji.hits).toEqual([]);
+    expect(emoji.hits).toHaveLength(1);
     expect(emoji.nextCursor).toBeNull();
+
+    // A short keyword the body does not contain still returns nothing.
+    const cjkShort = await container.searchIndex.query(
+      makeQuery({ keyword: "猫" }),
+    );
+    expect(cjkShort.hits).toEqual([]);
+    expect(cjkShort.nextCursor).toBeNull();
+  });
+
+  it("matches a CJK short keyword via the LIKE fallback (本)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "メモ",
+        body: "面白い本を読んだ記録",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "本" }),
+    );
+    expect(result.hits).toHaveLength(1);
+  });
+
+  it("matches a 2-codepoint keyword via the LIKE fallback (Go)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Backend",
+        body: "Written in Go for performance",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "Go" }),
+    );
+    expect(result.hits).toHaveLength(1);
+  });
+
+  it("LIKE fallback matches on title even when body does not contain the keyword", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "AI roadmap",
+        body: "Quarterly planning notes",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "AI" }),
+    );
+    expect(result.hits).toHaveLength(1);
+  });
+
+  it("LIKE fallback matches on tag_names_json", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Topic",
+        body: "No mention in the body",
+        tagNames: ["AI"],
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "AI" }),
+    );
+    expect(result.hits).toHaveLength(1);
+  });
+
+  it("LIKE fallback honours the shared filters (visibility / owner / dateRange)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const otherOwnerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+    const otherDirectoryId = await seedDirectory(container, otherOwnerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Mine public",
+        body: "AI overview",
+        visibility: "public",
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Mine private",
+        body: "AI overview",
+        visibility: "private",
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId: otherOwnerId,
+        directoryId: otherDirectoryId,
+        title: "Theirs public",
+        body: "AI overview",
+        visibility: "public",
+      }),
+    );
+
+    const publicOnly = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", visibilityFilter: ["public"] }),
+    );
+    expect(publicOnly.hits).toHaveLength(2);
+    expect(publicOnly.hits.every((h) => h.visibility === "public")).toBe(true);
+
+    const mineOnly = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", ownerIdFilter: ownerId }),
+    );
+    expect(mineOnly.hits).toHaveLength(2);
+    expect(mineOnly.hits.every((h) => h.ownerId === ownerId)).toBe(true);
+
+    // dateRange filter: the docs are stamped at NOW; a range that ends
+    // before NOW must exclude everything.
+    const before = new Date("2025-01-01T00:00:00.000Z");
+    const beforeRange = await container.searchIndex.query(
+      makeQuery({
+        keyword: "AI",
+        dateRange: { from: before, to: before },
+      }),
+    );
+    expect(beforeRange.hits).toEqual([]);
+  });
+
+  it("LIKE fallback returns no hits for a keyword absent from the corpus", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Note",
+        body: "Nothing relevant here",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "Go" }),
+    );
+    expect(result.hits).toEqual([]);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it("LIKE fallback paginates with a stable cursor and no overlap", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    for (let i = 0; i < 3; i += 1) {
+      await container.searchIndex.upsert(
+        await makeDoc(container, {
+          ownerId,
+          directoryId,
+          title: `Doc ${i}`,
+          body: "AI topic body",
+        }),
+      );
+    }
+
+    const first = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", limit: 2 }),
+    );
+    expect(first.hits).toHaveLength(2);
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", limit: 2, cursor: first.nextCursor }),
+    );
+    expect(second.hits).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+
+    const firstIds = new Set(first.hits.map((h) => h.noteId));
+    expect(second.hits.some((h) => firstIds.has(h.noteId))).toBe(false);
+  });
+
+  it("LIKE fallback treats % and _ literally (no wildcard blow-up)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Literal",
+        body: "discount is 50% off today",
+      }),
+    );
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Other",
+        body: "no percentage symbol present",
+      }),
+    );
+    // Underscore literal doc: contains the literal `x_` substring.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Underscore",
+        body: "value x_y here",
+      }),
+    );
+    // Wildcard control doc: contains `x` followed by another char but no
+    // literal `x_`. An unescaped `x_` wildcard would match this; a literal
+    // `x_` must not.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Control",
+        body: "value xzy here",
+      }),
+    );
+
+    // `%` must match literally — only the doc containing `%` matches,
+    // not every row (which an unescaped wildcard would cause).
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "0%" }),
+    );
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.title).toBe("Literal");
+
+    // `_` must match literally too. The keyword `x_` (2 codepoints, LIKE
+    // path) matches only the doc carrying the literal `x_` substring. If
+    // `_` were treated as a wildcard, the `xzy` control doc would also
+    // match, blowing the count up to 2.
+    const underscore = await container.searchIndex.query(
+      makeQuery({ keyword: "x_" }),
+    );
+    expect(underscore.hits).toHaveLength(1);
+    expect(underscore.hits[0]?.title).toBe("Underscore");
+  });
+
+  it("LIKE fallback keeps the MATCH path for mixed-length tokens (short token ignored)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    // Body contains `デザイン` but not `AI`. `AI デザイン` has one 3+
+    // codepoint token, so it stays on the MATCH path and `AI` is ignored
+    // (no LIKE fallback). The doc must still match via `デザイン`.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Note",
+        body: "これはデザイン原則のメモです",
+      }),
+    );
+
+    const matched = await container.searchIndex.query(
+      makeQuery({ keyword: "AI デザイン" }),
+    );
+    expect(matched.hits).toHaveLength(1);
+
+    // A doc with only `AI` in the body would not be reachable through
+    // this mixed query, proving the short token was dropped rather than
+    // routed to LIKE.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "AI only",
+        body: "AI standalone body without the cjk word",
+      }),
+    );
+    const stillOne = await container.searchIndex.query(
+      makeQuery({ keyword: "AI デザイン" }),
+    );
+    expect(stillOne.hits).toHaveLength(1);
+    expect(stillOne.hits[0]?.title).toBe("Note");
+  });
+
+  it("LIKE fallback returns score 0 on hits", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Note",
+        body: "AI overview body",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "AI" }),
+    );
+    expect(result.hits).toHaveLength(1);
+    // `toHit` negates the raw score, yielding `-0`; assert numeric
+    // equality (`-0 === 0`) rather than `.toBe(0)`, which distinguishes
+    // signed zero via Object.is.
+    // Limitation: `toHit` clamps negative scores to 0, so this assertion
+    // would still pass if the LIKE path started returning bm25-like
+    // values. It guards path regression, not the literal fixed-0 contract.
+    expect(result.hits[0]?.score === 0).toBe(true);
   });
 
   it("respects visibilityFilter alongside the CJK match path", async () => {
