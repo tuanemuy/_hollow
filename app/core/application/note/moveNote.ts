@@ -39,7 +39,7 @@ export async function moveNote({
     }
     if (found.entity.status !== "active") {
       throw new BusinessRuleError(
-        NoteErrorCode.CannotMoveTrashed,
+        NoteErrorCode.Trashed,
         `Cannot move trashed note ${input.noteId}`,
       );
     }
