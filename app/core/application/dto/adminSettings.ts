@@ -145,6 +145,40 @@ export function toRebuildSearchIndexResultDTO(result: {
 }
 
 /**
+ * Result projection of `note.backfillAllOwnersInternalLinkResolution`.
+ * `resolvedRows` is the total `note_internal_links` rows newly resolved
+ * across all owners; `ownerCount` is the number of owners walked.
+ *
+ * `scannedNotes` is the sum of the per-owner scan counts — the number of
+ * active-note *scans* performed, not a distinct note count. The two
+ * timestamps bracket the full multi-owner walk so the admin UI can show
+ * elapsed time without re-running the clock client-side.
+ */
+export type BackfillInternalLinksResultDTO = Readonly<{
+  ownerCount: number;
+  scannedNotes: number;
+  resolvedRows: number;
+  startedAt: Instant;
+  finishedAt: Instant;
+}>;
+
+export function toBackfillInternalLinksResultDTO(result: {
+  ownerCount: number;
+  scannedNotes: number;
+  resolvedRows: number;
+  startedAt: Date;
+  finishedAt: Date;
+}): BackfillInternalLinksResultDTO {
+  return {
+    ownerCount: result.ownerCount,
+    scannedNotes: result.scannedNotes,
+    resolvedRows: result.resolvedRows,
+    startedAt: toInstant(result.startedAt),
+    finishedAt: toInstant(result.finishedAt),
+  };
+}
+
+/**
  * Result projection of `AdminSettings.ReencryptApiKey`.
  * `reencrypted` is `true` only when the stored db-source ciphertext was
  * actually rewritten under the current master key; `skipped` carries the
