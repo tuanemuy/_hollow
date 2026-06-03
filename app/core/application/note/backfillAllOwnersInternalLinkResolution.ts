@@ -8,7 +8,7 @@ import { backfillInternalLinkResolution } from "./backfillInternalLinkResolution
  * Mirrors `rebuildSearchIndex`'s `REBUILD_USER_PAGE_SIZE` — the admin
  * fan-out enumerates owners the same way.
  */
-const BACKFILL_OWNER_PAGE_SIZE = 50;
+export const BACKFILL_OWNER_PAGE_SIZE = 50;
 
 export type BackfillAllOwnersInternalLinkResolutionInput = Readonly<{
   actorUserId: string;

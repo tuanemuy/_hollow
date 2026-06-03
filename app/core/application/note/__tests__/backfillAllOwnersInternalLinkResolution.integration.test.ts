@@ -9,7 +9,10 @@ import { isForbiddenError } from "@/core/application/errors";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
-import { backfillAllOwnersInternalLinkResolution } from "../backfillAllOwnersInternalLinkResolution";
+import {
+  BACKFILL_OWNER_PAGE_SIZE,
+  backfillAllOwnersInternalLinkResolution,
+} from "../backfillAllOwnersInternalLinkResolution";
 
 // Issue #329: admin orchestration of the owner-scoped internal-link backfill.
 
@@ -166,10 +169,55 @@ describe("backfillAllOwnersInternalLinkResolution (integration)", () => {
     // admin + owner1..3 are all walked (admin owns no notes/links).
     expect(out.ownerCount).toBe(4);
     expect(out.resolvedRows).toBe(3);
+    // scannedNotes is the sum of per-owner active-note scans: admin owns 0,
+    // each of owner1..3 owns 2 active notes (A + B) → 0 + 2 + 2 + 2 = 6.
+    expect(out.scannedNotes).toBe(6);
 
     expect(await getResolved(container, link1)).toBe(a1);
     expect(await getResolved(container, link2)).toBe(a2);
     expect(await getResolved(container, link3)).toBe(a3);
+  });
+
+  it("walks past the owner page-size boundary (cursor handoff + termination)", async () => {
+    const container = getContainer();
+    const admin = await seedUser(container, { role: "admin" });
+
+    // Seed BACKFILL_OWNER_PAGE_SIZE + 1 member owners so the cursor-based
+    // owner walk must advance to a second page. Each owner gets one
+    // self-contained unresolved title link (B → [[A]]) that resolves within
+    // that owner. admin owns no notes/links, so resolvedRows excludes it.
+    const seedOwnerWithUnresolvedLink = async (): Promise<{
+      target: NoteId;
+      link: string;
+    }> => {
+      const owner = await seedUser(container, { role: "member" });
+      const dir = await seedDirectory(container, owner);
+      const a = await seedNote(container, owner, dir, { title: "A" });
+      const b = await seedNote(container, owner, dir, { title: "B" });
+      const link = await seedLink(container, b, { kind: "title", target: "A" });
+      return { target: a, link };
+    };
+
+    const ownerCount = BACKFILL_OWNER_PAGE_SIZE + 1;
+    const seeded: Array<{ target: NoteId; link: string }> = [];
+    for (let i = 0; i < ownerCount; i += 1) {
+      seeded.push(await seedOwnerWithUnresolvedLink());
+    }
+
+    const out = await backfillAllOwnersInternalLinkResolution({
+      container,
+      input: { actorUserId: admin as unknown as string },
+    });
+
+    // Members each contribute one resolved row; admin contributes none.
+    expect(out.resolvedRows).toBe(BACKFILL_OWNER_PAGE_SIZE + 1);
+    // ownerCount counts every walked owner, admin included (matches the
+    // multi-owner case where admin is one of the four walked owners).
+    expect(out.ownerCount).toBe(BACKFILL_OWNER_PAGE_SIZE + 2);
+
+    for (const { target, link } of seeded) {
+      expect(await getResolved(container, link)).toBe(target);
+    }
   });
 
   it("is idempotent: a second run resolves nothing", async () => {
