@@ -17,6 +17,10 @@ const JSON_CONTRACT_TAIL =
   "Do not include code fences. Do not include any text before or after the JSON object.";
 const DIRECTORY_GUIDANCE_EXISTING =
   "prefer placing the note under one of the existing directories listed in the user message";
+const TITLE_GUIDANCE =
+  'For "titleSuggestion": do not reuse the file name. Derive a concise, meaningful title from the note content itself.';
+const DIRECTORY_GUIDANCE_NEW =
+  'For "directorySuggestion": propose a fitting new directory path, or null when no clear placement applies. You may propose a nested path using "/" as the separator (e.g. "親/子"), up to 10 levels deep.';
 
 function structureInput(
   overrides: Partial<LLMStructureInput> = {},
@@ -24,6 +28,8 @@ function structureInput(
   return {
     rawText: "raw",
     prompt: "",
+    titlePrompt: "",
+    directoryPrompt: "",
     locale: "ja",
     ...overrides,
   };
@@ -153,6 +159,78 @@ describe("buildStructureSystemPrompt", () => {
     expect(system.indexOf("Locale for natural-language output")).toBeLessThan(
       system.lastIndexOf(JSON_CONTRACT_TAIL),
     );
+  });
+
+  it("appends the title intent directly after the title guidance line (ADR-004 asymmetric placement)", () => {
+    const titleIntent = "Favour question-style titles.";
+    const system = buildStructureSystemPrompt(
+      structureInput({ titlePrompt: titleIntent }),
+    );
+
+    // Identify the title intent by the label+body composite (the bare label
+    // is non-unique once multiple intents are present).
+    expect(system).toContain(
+      `${TITLE_GUIDANCE}\n${OPERATOR_INTENT_LABEL}\n${titleIntent}`,
+    );
+    // The intent sits after the (system-owned) output contract declaration.
+    expect(system.indexOf("Respond with a single JSON object")).toBeLessThan(
+      system.indexOf(`${OPERATOR_INTENT_LABEL}\n${titleIntent}`),
+    );
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+  });
+
+  it("appends the directory intent directly after the directory guidance line (ADR-004 asymmetric placement)", () => {
+    const directoryIntent = "Group by project, not by date.";
+    const system = buildStructureSystemPrompt(
+      structureInput({ directoryPrompt: directoryIntent }),
+    );
+
+    expect(system).toContain(
+      `${DIRECTORY_GUIDANCE_NEW}\n${OPERATOR_INTENT_LABEL}\n${directoryIntent}`,
+    );
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+  });
+
+  it("does not append title/directory intent when those prompts are empty", () => {
+    const system = buildStructureSystemPrompt(
+      structureInput({ titlePrompt: "", directoryPrompt: "" }),
+    );
+
+    expect(system).not.toContain(OPERATOR_INTENT_LABEL);
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
+  });
+
+  it("places each intent next to its own guidance when structure/title/directory are all non-empty", () => {
+    const structureIntent = "Prefer short sections.";
+    const titleIntent = "Favour question-style titles.";
+    const directoryIntent = "Group by project, not by date.";
+    const system = buildStructureSystemPrompt(
+      structureInput({
+        prompt: structureIntent,
+        titlePrompt: titleIntent,
+        directoryPrompt: directoryIntent,
+      }),
+    );
+
+    const structureSection = `${OPERATOR_INTENT_LABEL}\n${structureIntent}`;
+    const titleSection = `${TITLE_GUIDANCE}\n${OPERATOR_INTENT_LABEL}\n${titleIntent}`;
+    const directorySection = `${DIRECTORY_GUIDANCE_NEW}\n${OPERATOR_INTENT_LABEL}\n${directoryIntent}`;
+
+    expect(system).toContain(structureSection);
+    expect(system).toContain(titleSection);
+    expect(system).toContain(directorySection);
+
+    // structure intent is before the contract; title/directory intents after.
+    expect(system.indexOf(structureSection)).toBeLessThan(
+      system.indexOf("Respond with a single JSON object"),
+    );
+    expect(system.indexOf("Respond with a single JSON object")).toBeLessThan(
+      system.indexOf(titleSection),
+    );
+    expect(system.indexOf(titleSection)).toBeLessThan(
+      system.indexOf(directorySection),
+    );
+    expect(system.endsWith(JSON_CONTRACT_TAIL)).toBe(true);
   });
 });
 

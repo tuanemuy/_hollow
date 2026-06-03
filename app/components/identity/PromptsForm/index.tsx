@@ -12,6 +12,12 @@ import {
 } from "@/core/presentation/errorResponse";
 import { updateUserPromptFn } from "./action";
 
+// Textarea placeholder prompting the user to write their own analysis intent.
+// Keeps the personal-ownership nuance ("あなたの") that the user-facing screen
+// carries, while conveying the same "empty = system default" model as admin.
+const INTENT_PLACEHOLDER =
+  "あなたの分析の意図を記入（空欄ならシステム既定の動作）";
+
 const PURPOSES = [
   "structure",
   "title",
@@ -39,8 +45,8 @@ export function PromptsForm({ defaults, overrides }: Props) {
     <section>
       <h2>カスタムプロンプト</h2>
       <p>
-        各用途のプロンプトを上書きできます。空のまま保存するとインスタンス
-        デフォルトが適用されます。
+        各用途について、あなたの分析の意図を補足できます。空欄のままなら
+        システム既定の動作が適用されます。
       </p>
       {PURPOSES.map((purpose) => {
         const baseline = defaults[purpose];
@@ -83,7 +89,8 @@ function PromptRow({
       setError({
         kind: "validation",
         code: "INVALID_INPUT",
-        message: "プロンプト本文を入力してください",
+        message:
+          "分析の指示を入力してください（空にする場合は「デフォルトに戻す」を使用）",
       });
       return;
     }
@@ -144,7 +151,7 @@ function PromptRow({
             : defaultPrompt.expectedVariables.join(", ")}
         </small>
       </details>
-      <label htmlFor={textId}>あなたのプロンプト</label>
+      <label htmlFor={textId}>あなたの分析の指示（任意）</label>
       <textarea
         id={textId}
         value={text}
@@ -152,7 +159,7 @@ function PromptRow({
         rows={6}
         maxLength={10_000}
         disabled={isPending}
-        placeholder={defaultPrompt.text}
+        placeholder={INTENT_PLACEHOLDER}
       />
       <button type="button" onClick={save} disabled={isPending}>
         {isPending ? "保存中..." : "保存"}
