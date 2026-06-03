@@ -40,7 +40,7 @@ const ADMIN_PAGE_TITLE_CLASS =
 const ADMIN_PAGE_SUBTITLE_CLASS = "text-md text-ink-secondary m-0 mb-8";
 
 const ADMIN_BTN_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
 
 export const Route = createFileRoute("/admin")({
   head: ({ match }) => {

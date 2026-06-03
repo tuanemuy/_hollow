@@ -41,7 +41,7 @@ export async function renameNote({
     }
     if (found.entity.status !== "active") {
       throw new BusinessRuleError(
-        NoteErrorCode.AlreadyTrashed,
+        NoteErrorCode.Trashed,
         `Cannot rename trashed note ${input.noteId}`,
       );
     }

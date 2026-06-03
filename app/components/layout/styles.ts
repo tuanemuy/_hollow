@@ -41,7 +41,7 @@ export const USER_MENU_INFO_EMAIL = "text-xs text-ink-secondary truncate";
 export const USER_MENU_INFO_ROLE = "text-xs text-ink-tertiary";
 
 export const USER_MENU_ITEM =
-  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-55 disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
+  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
 
 export const APP_LAYOUT =
   "grid grid-cols-1 min-h-[calc(100vh-var(--header-height))]";

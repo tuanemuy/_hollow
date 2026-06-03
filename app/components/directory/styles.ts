@@ -49,7 +49,7 @@ export const ACTIONS_MENU_PANEL =
 
 /** Single menu item inside the actions popover. */
 export const ACTIONS_MENU_ITEM =
-  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-55 disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
+  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
 
 /** Inline rename input rendered in place of the link. */
 export const TREE_ITEM_RENAME_INPUT =

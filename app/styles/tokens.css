@@ -124,6 +124,9 @@
   --transition-bg: background-color var(--duration-fast) var(--ease-standard);
   --transition-color: color var(--duration-fast) var(--ease-standard);
 
+  /* State */
+  --opacity-disabled: 0.55;
+
   /* Header */
   --header-bg: rgba(255, 255, 255, 0.85);
   --header-blur: saturate(180%) blur(20px);
