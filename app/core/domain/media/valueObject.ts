@@ -34,11 +34,16 @@ export const MediaAssetId = {
   },
 };
 
-export type MediaKind = "image" | "video" | "avatar";
+export type MediaKind = "image" | "video" | "avatar" | "source";
 
 export const MediaKind = {
   create: (raw: string): MediaKind => {
-    if (raw !== "image" && raw !== "video" && raw !== "avatar") {
+    if (
+      raw !== "image" &&
+      raw !== "video" &&
+      raw !== "avatar" &&
+      raw !== "source"
+    ) {
       throw new BusinessRuleError(
         MediaErrorCode.InvalidKind,
         `Invalid media kind: ${raw}`,

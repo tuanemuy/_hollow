@@ -82,8 +82,17 @@ export interface ObjectStorage {
    * Issue a short-lived presigned URL for downloading the object at
    * `key`. The caller is responsible for any access-control checks
    * (e.g. `MediaService.assertViewableBy`) before invoking this port.
+   *
+   * When `options.downloadFileName` is set, the presigned URL carries a
+   * `response-content-disposition=attachment; filename="..."` override so
+   * the backend serves the object as a named download instead of inline.
+   * Unset (the default) keeps the historical inline behaviour.
    */
-  presignDownload(key: string, ttlSec: number): Promise<URL>;
+  presignDownload(
+    key: string,
+    ttlSec: number,
+    options?: { downloadFileName?: string },
+  ): Promise<URL>;
 
   /**
    * Issue a short-lived presigned URL for uploading to `key`. The

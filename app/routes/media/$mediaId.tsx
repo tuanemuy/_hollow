@@ -20,7 +20,14 @@ import { validateInput } from "@/core/presentation/validator";
  */
 const resolveMediaRedirect = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(validateInput(z.object({ mediaId: z.string().min(1) })))
+  .inputValidator(
+    validateInput(
+      z.object({
+        mediaId: z.string().min(1),
+        download: z.boolean().optional(),
+      }),
+    ),
+  )
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const viewer = await getCurrentUser();
@@ -34,14 +41,43 @@ const resolveMediaRedirect = createServerFn({ method: "GET" })
         mediaId: data.mediaId as MediaAssetId,
         viaShareLinkId: null,
         relatedNoteId: null,
+        download: data.download === true,
       },
     });
     throw redirect({ href: result.redirectUrl.toString(), statusCode: 302 });
   });
 
+const mediaSearchSchema = z.object({
+  // `?download=1` requests an attachment (named save) instead of inline
+  // preview. TanStack Router's default search parser JSON-parses values,
+  // so a bare `?download=1` arrives as the number `1` (not the string
+  // "1"); accept the boolean, string, and number forms so the
+  // `<a href="/media/<id>?download=1">` form works regardless of parsing.
+  download: z
+    .union([
+      z.boolean(),
+      z.literal("1"),
+      z.literal("0"),
+      z.literal(1),
+      z.literal(0),
+    ])
+    .optional()
+    .transform((v) => v === true || v === "1" || v === 1),
+});
+
+// Exported for regression testing: the `?download` flag must survive
+// TanStack Router's JSON-parsing search reader, which turns a bare
+// `?download=1` into the number `1` (see schema note above).
+export const validateMediaSearch = (search: Record<string, unknown>) =>
+  mediaSearchSchema.parse(search);
+
 export const Route = createFileRoute("/media/$mediaId")({
-  loader: ({ params }) =>
-    resolveMediaRedirect({ data: { mediaId: params.mediaId } }),
+  validateSearch: validateMediaSearch,
+  loaderDeps: ({ search }) => ({ download: search.download }),
+  loader: ({ params, deps }) =>
+    resolveMediaRedirect({
+      data: { mediaId: params.mediaId, download: deps.download },
+    }),
   component: MediaRedirectPlaceholder,
   errorComponent: ({ error }) => (
     <div role="alert">

@@ -658,6 +658,66 @@ describe("commitIngestionPreview", () => {
     expect(types).toContain("ingestion.committed");
   });
 
+  // Issue #452: commit persists the source file as a kind='source'
+  // attached MediaAsset, binds it via notes.source_file_id, copies the
+  // bytes to permanent object storage, and removes the temp file.
+  it("persists the ingested source file and binds it to the note (Issue #452)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const tempKey = `${owner}/ingestion/source-1`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {},
+      },
+    });
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId as unknown as string));
+    const sourceFileId = noteRows[0]?.sourceFileId;
+    expect(sourceFileId).not.toBeNull();
+    expect(sourceFileId).toBeDefined();
+
+    const mediaRows = await container.db
+      .select()
+      .from(schema.mediaAssets)
+      .where(eq(schema.mediaAssets.id, sourceFileId as string));
+    expect(mediaRows).toHaveLength(1);
+    expect(mediaRows[0]?.kind).toBe("source");
+    expect(mediaRows[0]?.status).toBe("attached");
+    expect(mediaRows[0]?.refCount).toBe(1);
+    expect(mediaRows[0]?.originalFileName).toBe("report.pdf");
+    expect(mediaRows[0]?.storageKey).toBe(`${owner}/source/${sourceFileId}`);
+
+    // Bytes copied to permanent storage; `stat` throws if absent.
+    const meta = await container.objectStorage.stat(
+      mediaRows[0]?.storageKey as string,
+    );
+    expect(meta.contentType).toBe("application/pdf");
+
+    // Temp file reclaimed after the copy.
+    const tempStorage = container.tempFileStorage as unknown as {
+      has(key: string): boolean;
+    };
+    expect(tempStorage.has(tempKey)).toBe(false);
+  });
+
   // Issue #127: the ingestion commit path runs the same
   // `assembleFromInputs` pipeline, so `[[Existing Title]]` in the
   // preview body must resolve to the target note id and produce a

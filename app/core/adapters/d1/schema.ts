@@ -252,6 +252,12 @@ export const notes = sqliteTable(
     }),
     editLockAcquiredAt: text("edit_lock_acquired_at"),
     editLockExpiresAt: text("edit_lock_expires_at"),
+    // Persistent ingested source file bound 1:1 to the note (Issue #452).
+    // `ON DELETE SET NULL` so purging the source asset (orphan reclaim)
+    // leaves the note row intact with a null binding.
+    sourceFileId: text("source_file_id").references(() => mediaAssets.id, {
+      onDelete: "set null",
+    }),
     // OCC token. Bumped by every aggregate-mutating transition; persisted
     // alongside the row so `D1NoteRepository.save` / `.delete` can guard
     // against lost updates via `_occ_guard`.
@@ -557,7 +563,7 @@ export const mediaAssets = sqliteTable(
     index("idx_media_status_updated").on(table.status, table.updatedAt),
     check(
       "media_kind_enum",
-      sql`${table.kind} IN ('image', 'video', 'avatar')`,
+      sql`${table.kind} IN ('image', 'video', 'avatar', 'source')`,
     ),
     check("media_ref_count_nonneg", sql`${table.refCount} >= 0`),
     check(

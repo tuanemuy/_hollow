@@ -94,8 +94,19 @@ class InMemoryObjectStorage implements ObjectStorage {
   async delete(key: string): Promise<void> {
     this.bytesByKey.delete(key);
   }
-  async presignDownload(key: string): Promise<URL> {
-    return new URL(`https://test.invalid/${encodeURIComponent(key)}`);
+  async presignDownload(
+    key: string,
+    _ttlSec?: number,
+    options?: { downloadFileName?: string },
+  ): Promise<URL> {
+    const url = new URL(`https://test.invalid/${encodeURIComponent(key)}`);
+    if (options?.downloadFileName !== undefined) {
+      url.searchParams.set(
+        "response-content-disposition",
+        `attachment; filename="${options.downloadFileName}"`,
+      );
+    }
+    return url;
   }
   async presignUpload(key: string): Promise<URL> {
     return new URL(`https://test.invalid/${encodeURIComponent(key)}`);

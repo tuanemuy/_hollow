@@ -33,6 +33,7 @@
   - `tagIds: TagId[]` — 紐付くタグの ID 集合（順序不問、ユニーク）
   - `internalLinkRefs: InternalLinkRef[]` — このノートから出る参照（解決済み + 未解決）
   - `mediaRefs: MediaAssetId[]` — 本文中で使用しているメディア ID
+  - `sourceFileId: MediaAssetId | null` — 取り込み確定時に永続保存された元ファイル（`MediaAsset(kind='source')`）への 1:1 参照（Issue #452）。`mediaRefs` とは別管理で refCount 機構には乗らない。本文 HTML には絶対に挿入しない（`MEDIA_ID_FROM_URL` が拾うと refCount 事故）
   - `status: NoteStatus`（default `active`）
   - `trashedAt: Instant | null`
   - `createdAt: Instant`

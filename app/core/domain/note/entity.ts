@@ -31,6 +31,11 @@ type NoteBase = Readonly<{
   tagIds: readonly TagId[];
   internalLinkRefs: readonly InternalLinkRefType[];
   mediaRefs: readonly MediaAssetId[];
+  // Persistent source file (ingested original) bound 1:1 to the note.
+  // Tracked in a dedicated column, never via `mediaRefs` — source files
+  // do not appear in the body HTML and must stay out of the
+  // `MEDIA_ID_FROM_URL` / refCount machinery (Issue #452 ADR-002).
+  sourceFileId: MediaAssetId | null;
   editLock: EditLock | null;
   version: Version;
   createdAt: Date;
@@ -132,6 +137,10 @@ function updateContent(
     tagIds?: readonly TagId[];
     internalLinkRefs?: readonly InternalLinkRefType[];
     mediaRefs?: readonly MediaAssetId[];
+    // Replace the note's bound source file. `undefined` keeps the
+    // existing binding; an explicit `MediaAssetId | null` overwrites it
+    // (used by ingestion commit-overwrite to swap the persisted original).
+    sourceFileId?: MediaAssetId | null;
     now: Date;
     actorUserId: UserId;
     requireLock: boolean;
@@ -151,6 +160,8 @@ function updateContent(
     args.mediaRefs === undefined
       ? note.mediaRefs
       : dedupeMediaIds(args.mediaRefs);
+  const nextSourceFileId =
+    args.sourceFileId === undefined ? note.sourceFileId : args.sourceFileId;
   // No-op when nothing changed: skip the version bump *and* the
   // `contentUpdated` event so identical re-saves (e.g. draft autosave
   // resending unchanged content) don't trigger link re-resolution or
@@ -163,7 +174,8 @@ function updateContent(
     FrontMatter.equals(note.frontMatter, nextFront) &&
     sameOrdered(note.tagIds, nextTags, (x, y) => x === y) &&
     sameOrdered(note.internalLinkRefs, nextLinks, InternalLinkRef.equals) &&
-    sameOrdered(note.mediaRefs, nextMedia, (x, y) => x === y)
+    sameOrdered(note.mediaRefs, nextMedia, (x, y) => x === y) &&
+    note.sourceFileId === nextSourceFileId
   ) {
     return { entity: note, eventDrafts: [] };
   }
@@ -177,6 +189,7 @@ function updateContent(
           tagIds: nextTags,
           internalLinkRefs: nextLinks,
           mediaRefs: nextMedia,
+          sourceFileId: nextSourceFileId,
           version: Version.next(note.version),
           updatedAt: args.now,
         } satisfies ActiveNote)
@@ -188,6 +201,7 @@ function updateContent(
           tagIds: nextTags,
           internalLinkRefs: nextLinks,
           mediaRefs: nextMedia,
+          sourceFileId: nextSourceFileId,
           version: Version.next(note.version),
           updatedAt: args.now,
         } satisfies TrashedNote);
@@ -504,6 +518,7 @@ type CreateInput = Readonly<{
   tagIds: readonly TagId[];
   internalLinkRefs: readonly InternalLinkRefType[];
   mediaRefs: readonly MediaAssetId[];
+  sourceFileId?: MediaAssetId | null;
 }>;
 
 // Loose-typed because adapters feed untrusted persistence rows; each
@@ -524,6 +539,7 @@ type ReconstructInput = Readonly<{
     displayText: string | null;
   }[];
   mediaRefs: readonly string[];
+  sourceFileId: string | null;
   status: string;
   trashedAt: Date | null;
   editLock: {
@@ -555,6 +571,7 @@ export const Note = {
       tagIds: dedupeTagIds(params.tagIds),
       internalLinkRefs: dedupeLinks(params.internalLinkRefs),
       mediaRefs: dedupeMediaIds(params.mediaRefs),
+      sourceFileId: params.sourceFileId ?? null,
       status: "active",
       trashedAt: null,
       editLock: null,
@@ -614,6 +631,10 @@ export const Note = {
         mediaRefs: dedupeMediaIds(
           input.mediaRefs.map((id) => MediaAssetId.create(id)),
         ),
+        sourceFileId:
+          input.sourceFileId === null
+            ? null
+            : MediaAssetId.create(input.sourceFileId),
         editLock:
           input.editLock === null
             ? null

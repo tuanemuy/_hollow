@@ -118,6 +118,7 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
         status={note.status}
         backlinks={backlinks}
         backlinkCount={backlinkCount}
+        sourceFile={note.sourceFile}
       />
 
       <FrontMatterPanel frontMatter={note.frontMatter} />

@@ -15,6 +15,8 @@ import type {
   IngestionJobId as IngestionJobIdBrand,
   IngestionPreview,
 } from "@/core/domain/ingestion/valueObject";
+import { MediaAsset } from "@/core/domain/media/entity";
+import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import { NoteService } from "@/core/domain/note/service";
 import {
@@ -36,6 +38,7 @@ import type {
   NoteId as NoteIdDTO,
 } from "../dto/note";
 import { ForbiddenError, NotFoundError } from "../errors";
+import { buildStorageKey, safeStoragePut } from "../media/uploadMedia";
 import type { ServiceArgs } from "../types";
 
 export type CommitIngestionPreviewModifications = Readonly<{
@@ -97,6 +100,17 @@ export async function commitIngestionPreview({
       );
     }
   }
+
+  // Stage (a) — persist the source file BEFORE the UoW (Issue #452 plan
+  // step 7). R2 has no two-phase commit, so the canonical ordering is
+  // "put bytes first, then persist metadata" (matches `uploadMedia`).
+  // The job is read here only as a projection to source the bytes /
+  // mime / size / file name; the in-UoW read below still captures the
+  // OCC `expectedVersion`. When `put` succeeds but the DB later rolls
+  // back, the R2 blob is orphaned with no `MediaAsset` row to drive its
+  // reclaim — an accepted edge for the (rare) commit DB failure, same as
+  // `uploadMedia`'s pending-row orphan tolerance.
+  const sourcePersist = await prepareSourcePersist({ container, input, actor });
 
   const result = await container.unitOfWorkProvider.run(
     async ({
@@ -220,9 +234,35 @@ export async function commitIngestionPreview({
         },
       );
 
+      // Stage (b) — persist the source MediaAsset (pending → attached,
+      // refCount=1) and bind it to the note via `sourceFileId`. On an
+      // overwrite that replaces an existing source, the old asset is
+      // detached with `decrementRef` (→ orphan) so the standard purge
+      // worker reclaims its blob (Issue #452 ADR-005).
+      let sourceFileId: MediaAssetId | null = null;
+      if (sourcePersist !== null) {
+        const { entity: pending } = MediaAsset.create(
+          {
+            id: sourcePersist.mediaId,
+            ownerId: actor,
+            kind: "source",
+            mimeType: sourcePersist.mimeType,
+            byteSize: sourcePersist.byteSize,
+            storageKey: sourcePersist.storageKey,
+            originalFileName: sourcePersist.originalFileName,
+          },
+          now,
+        );
+        const attached = MediaAsset.markAttached(pending, now);
+        await mediaAssetRepository.save(attached.entity);
+        collectEvents(attached.eventDrafts);
+        sourceFileId = attached.entity.id;
+      }
+
       let noteId: NoteIdBrand;
       if (overwriteTarget !== null) {
         const target = overwriteTarget;
+        const previousSourceFileId = target.entity.sourceFileId;
         const updated = Note.updateContent(target.entity, {
           title,
           contentHtml: assembled.html,
@@ -230,6 +270,9 @@ export async function commitIngestionPreview({
           tagIds: assembled.tagIds,
           internalLinkRefs: assembled.internalLinkRefs,
           mediaRefs: assembled.mediaRefs,
+          // Only swap the binding when a new source was persisted;
+          // otherwise leave the existing one untouched.
+          ...(sourceFileId !== null ? { sourceFileId } : {}),
           now,
           actorUserId: actor,
           requireLock: false,
@@ -237,6 +280,24 @@ export async function commitIngestionPreview({
         await noteRepository.save(updated.entity, target.expectedVersion);
         collectEvents(updated.eventDrafts);
         noteId = target.entity.id;
+
+        if (
+          sourceFileId !== null &&
+          previousSourceFileId !== null &&
+          previousSourceFileId !== sourceFileId
+        ) {
+          const oldAsset =
+            await mediaAssetRepository.findById(previousSourceFileId);
+          if (
+            oldAsset !== null &&
+            oldAsset.status !== "orphan" &&
+            oldAsset.status !== "deleting"
+          ) {
+            const detached = MediaAsset.decrementRef(oldAsset, now);
+            await mediaAssetRepository.save(detached.entity);
+            collectEvents(detached.eventDrafts);
+          }
+        }
       } else {
         const slug = await NoteService.generateUniqueSlug(
           actor,
@@ -255,6 +316,7 @@ export async function commitIngestionPreview({
             tagIds: assembled.tagIds,
             internalLinkRefs: assembled.internalLinkRefs,
             mediaRefs: assembled.mediaRefs,
+            sourceFileId,
           },
           now,
         );
@@ -292,6 +354,67 @@ export async function commitIngestionPreview({
   }
 
   return { noteId: result.noteId as unknown as NoteIdDTO };
+}
+
+type SourcePersist = Readonly<{
+  mediaId: string;
+  storageKey: string;
+  mimeType: string;
+  byteSize: number;
+  originalFileName: string;
+}>;
+
+/**
+ * Stage (a) of the source-file persistence flow (Issue #452 plan step 7).
+ *
+ * Reads the ingestion job as a projection (the OCC read happens inside the
+ * UoW below), and — when the job still has a staged temp file — mints the
+ * source `MediaAsset` id, fetches the bytes from temp storage, and copies
+ * them to permanent object storage under `{ownerId}/source/{mediaId}`.
+ * Returns `null` when there is no temp file to persist (e.g. a re-driven
+ * job whose temp key was already reclaimed), in which case the note keeps
+ * no bound source file.
+ *
+ * The instance upload limit is intentionally NOT re-checked here: the file
+ * was already accepted at ingestion-upload time and commit is a
+ * confirmation step (ADR-004).
+ */
+async function prepareSourcePersist({
+  container,
+  input,
+  actor,
+}: {
+  container: ServiceArgs<CommitIngestionPreviewInput>["container"];
+  input: CommitIngestionPreviewInput;
+  actor: UserId;
+}): Promise<SourcePersist | null> {
+  const job = await container.unitOfWorkProvider.run(
+    ({ ingestionJobRepository }) =>
+      ingestionJobRepository.findById(
+        input.jobId as unknown as IngestionJobIdBrand,
+      ),
+  );
+  if (job === null) return null;
+  if (job.entity.ownerId !== actor) return null;
+  if (job.entity.tempStorageKey === null) return null;
+  if (!IngestionJob.isPreviewing(job.entity)) return null;
+
+  const mediaId = container.idGenerator.next();
+  const storageKey = buildStorageKey(actor, "source", mediaId);
+  const bytes = await container.tempFileStorage.get(
+    job.entity.tempStorageKey as string,
+  );
+  await safeStoragePut(() =>
+    container.objectStorage.put(storageKey, bytes, job.entity.mimeType),
+  );
+
+  return {
+    mediaId,
+    storageKey,
+    mimeType: job.entity.mimeType,
+    byteSize: job.entity.byteSize,
+    originalFileName: job.entity.originalFileName,
+  };
 }
 
 /**

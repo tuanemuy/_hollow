@@ -152,6 +152,7 @@ describe("noteEventDecoders", () => {
         ownerId: userId(),
         title: NoteTitle.create("Purged Note"),
         mediaRefs: [],
+        sourceFileId: null,
       },
       T0,
     );

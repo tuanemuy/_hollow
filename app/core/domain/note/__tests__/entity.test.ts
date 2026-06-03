@@ -76,6 +76,43 @@ describe("Note.create", () => {
     expect(entity.mediaRefs).toHaveLength(1);
     expect(entity.internalLinkRefs).toHaveLength(1);
   });
+
+  it("defaults sourceFileId to null and sets it when provided (Issue #452)", () => {
+    const noSource = Note.create(baseInput(), T0).entity;
+    expect(noSource.sourceFileId).toBeNull();
+
+    const src = MediaAssetId.create(rawId(30));
+    const withSource = Note.create(baseInput({ sourceFileId: src }), T0).entity;
+    expect(withSource.sourceFileId).toBe(src);
+  });
+});
+
+describe("Note sourceFileId round-trip (Issue #452)", () => {
+  it("preserves sourceFileId across reconstruct and edits", () => {
+    const src = MediaAssetId.create(rawId(31));
+    const created = Note.create(baseInput({ sourceFileId: src }), T0).entity;
+
+    // Edits that do not touch the source keep the binding.
+    const renamed = Note.rename(
+      created,
+      NoteTitle.create("Renamed"),
+      NoteSlug.create("renamed"),
+      T0,
+    ).entity;
+    expect(renamed.sourceFileId).toBe(src);
+    const trashed = Note.trash(renamed, T0).entity;
+    expect(trashed.sourceFileId).toBe(src);
+
+    // updateContent can swap the binding (overwrite commit path).
+    const next = MediaAssetId.create(rawId(32));
+    const swapped = Note.updateContent(created, {
+      sourceFileId: next,
+      now: T0,
+      actorUserId: OWNER,
+      requireLock: false,
+    }).entity;
+    expect(swapped.sourceFileId).toBe(next);
+  });
 });
 
 describe("Note.updateContent", () => {
@@ -577,6 +614,7 @@ describe("Note.reconstruct", () => {
       displayText: string | null;
     }>,
     mediaRefs: [] as string[],
+    sourceFileId: null as string | null,
     status: "active",
     trashedAt: null,
     editLock: null,

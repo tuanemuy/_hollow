@@ -1,6 +1,8 @@
 import { DirectoryService } from "@/core/domain/directory/service";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
+import type { MediaAssetId } from "../dto/identity";
+import type { NoteSourceFileDTO } from "../dto/note";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import type { BacklinkDTO, NoteDTO } from "./view";
@@ -12,7 +14,7 @@ export type GetNoteDetailInput = Readonly<{
 }>;
 
 export type GetNoteDetailOutput = Readonly<{
-  note: NoteDTO;
+  note: NoteDTO & { sourceFile: NoteSourceFileDTO | null };
   backlinks: readonly BacklinkDTO[];
   backlinkCount: number;
   directoryPath: string;
@@ -56,6 +58,23 @@ export async function getNoteDetail({
         referencingNoteId: found.entity.id,
       }),
     ]);
+    // Source-file projection: one confirmed read inside the existing UoW
+    // (Issue #452). `sourceFile` is synthesised locally and merged onto
+    // the note DTO so `toNoteView` / `toNoteDTO` keep their signatures.
+    let sourceFile: NoteSourceFileDTO | null = null;
+    if (found.entity.sourceFileId !== null) {
+      const asset = await ctx.mediaAssetRepository.findById(
+        found.entity.sourceFileId,
+      );
+      if (asset !== null) {
+        sourceFile = {
+          mediaId: asset.id as unknown as MediaAssetId,
+          originalFileName: asset.originalFileName,
+          mimeType: asset.mimeType,
+        };
+      }
+    }
+
     const dir = await ctx.directoryRepository.findById(
       found.entity.directoryId,
     );
@@ -74,7 +93,7 @@ export async function getNoteDetail({
         }))
       : [];
     return {
-      note: toNoteView(found.entity),
+      note: { ...toNoteView(found.entity), sourceFile },
       backlinks: referrers.map((referrer) =>
         toBacklink(referrer, {
           snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),

@@ -14,7 +14,7 @@ import type { MediaAssetId, UserId } from "./identity";
 export type MediaAssetDTO = Readonly<{
   id: MediaAssetId;
   ownerId: UserId;
-  kind: "image" | "video" | "avatar";
+  kind: "image" | "video" | "avatar" | "source";
   mimeType: string;
   byteSize: number;
   width: number | null;
