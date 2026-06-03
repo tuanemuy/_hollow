@@ -155,6 +155,27 @@ concurrent / OCC 挙動を検証する integration 層を分けることで、�
   自動プロビジョンされる。ただし **signup はメール確認必須**なので、確認リンクの
   代わりに `UPDATE users SET email_verified=1 WHERE email='...'` をローカル D1 に
   流してからログインする。パスワードは 12 文字以上必須。
+- **認証必須ルート（特に `/admin`）の手早い検証**: signup を経ずに、決定論的な
+  管理者ユーザー＋有効なセッションを投入する seed スクリプトを使う。先に
+  `pnpm db:migrate` でローカル D1 にスキーマを適用したうえで:
+
+  ```bash
+  pnpm seed:dev-admin
+  ```
+
+  `dev-admin@example.com` / `role=admin` / `email_verified=1` の active ユーザーと、
+  固定トークンのセッションが投入される（冪等。再実行しても重複・失敗しない）。
+  この email は seed 専用に予約しているので、実ユーザーで使い回さないこと。
+  セッション cookie 名は `__Host-session` で Secure 必須のため `document.cookie`
+  では注入できない。スクリプトが出力するトークンを CDP 経由で注入する:
+
+  ```bash
+  agent-browser cookies set "__Host-session" "<token>" \
+    --url http://localhost:<port> --path / --secure --sameSite Lax
+  ```
+
+  注入後 `/admin` 系ルートに認証済みでアクセスできる。`pnpm dev`（vite dev）の D1 と
+  `db:execute:local` の書き込み先は同一なので、seed → `pnpm dev` で反映される。
 - **ログインフォームの送信**: 送信ボタンの click では submit が発火しないことが
   あるため、password 欄にフォーカスした状態で Enter を押して送信する。この正規の
   同一オリジン送信なら server-function POST の cross-origin 拒否（403

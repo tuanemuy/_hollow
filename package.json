@@ -60,6 +60,7 @@
     "db:apply:staging": "wrangler d1 migrations apply hollow-staging-d1 --remote --config wrangler.staging.toml",
     "db:apply:production": "wrangler d1 migrations apply hollow-production-d1 --remote --config wrangler.production.toml",
     "db:execute:local": "wrangler d1 execute hollow-local-d1 --local --file",
+    "seed:dev-admin": "node scripts/seed-dev-admin.mjs",
     "db:execute:staging": "wrangler d1 execute hollow-staging-d1 --remote --config wrangler.staging.toml --file",
     "db:execute:production": "wrangler d1 execute hollow-production-d1 --remote --config wrangler.production.toml --file"
   },
