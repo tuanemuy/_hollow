@@ -54,4 +54,8 @@ tsconfig で `exactOptionalPropertyTypes: true` が有効。中間型 `NoteOwner
 
 ### Follow-up 候補
 
-- 他リポジトリ（tag / media / ingestion / export / savedView）の `findBy*` + `countBy*` 類似パターンに同じ抽出を横展開（別 Issue）
+- 横展開は **現時点では不要**。実装時に他 port を精査した結果、「filter opts を共有する `findBy*` + `countBy*`（+ `listWithCount`）兄弟」パターンは現状 `NoteRepository` 固有であることを確認した:
+  - `media` / `ingestion` / `tag` / `export` の各リポジトリは `findByOwner(opts: *ListOpts)` を持つが、filter opts を共有するペアの `countBy*` を持たない（単一 `ListOpts` のみ）
+  - `shareLinkRepository.countByNoteId(noteId, includeRevoked)` / `noteRevisionRepository.countByNoteId(noteId)` の count は filter opts を取らない
+  - したがって今回の `Pick` drift 問題に相当する重複は他 port に存在せず、横展開 Issue を起票しても対象がない（Issue #178 本文の「tag/media/ingestion にも類似パターンがある」は精査前の見立てで、実コードとは一致しなかった）
+- 将来、他リポジトリで「filter opts を共有する list/count ペア」が新規に発生したら、同じ `*Filters` 中間型抽出パターンで対応する（条件付きフォローアップ）
