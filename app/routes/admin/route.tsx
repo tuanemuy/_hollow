@@ -5,6 +5,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { pillBtn } from "@/components/common/styles";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { buildHead } from "@/core/presentation/head";
 
@@ -39,9 +40,6 @@ const ADMIN_PAGE_TITLE_CLASS =
 
 const ADMIN_PAGE_SUBTITLE_CLASS = "text-md text-ink-secondary m-0 mb-8";
 
-const ADMIN_BTN_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
-
 export const Route = createFileRoute("/admin")({
   head: ({ match }) => {
     const config = match.context?.config;
@@ -65,7 +63,7 @@ export const Route = createFileRoute("/admin")({
       <main className={ADMIN_MAIN_CLASS}>
         <h1 className={ADMIN_PAGE_TITLE_CLASS}>アクセスできません</h1>
         <p className={ADMIN_PAGE_SUBTITLE_CLASS}>{sanitizeRouteError(error)}</p>
-        <Link to="/" search={HOME_SEARCH} className={ADMIN_BTN_CLASS}>
+        <Link to="/" search={HOME_SEARCH} className={pillBtn}>
           ホームへ戻る
         </Link>
       </main>
@@ -83,7 +81,7 @@ export const Route = createFileRoute("/admin")({
       </header>
       <main className={ADMIN_MAIN_CLASS}>
         <h1 className={ADMIN_PAGE_TITLE_CLASS}>ページが見つかりません</h1>
-        <Link to="/admin" className={ADMIN_BTN_CLASS}>
+        <Link to="/admin" className={pillBtn}>
           管理ダッシュボードへ
         </Link>
       </main>

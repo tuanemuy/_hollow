@@ -46,8 +46,6 @@ const INPUT_CLASS =
   "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong disabled:opacity-disabled disabled:cursor-not-allowed disabled:bg-surface";
 const INPUT_MONO_CLASS = `${INPUT_CLASS} font-mono`;
 const SELECT_CLASS = INPUT_CLASS;
-const BTN_CLASS =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-ink text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed";
 const FORM_FOOTER_CLASS =
   "flex gap-3 justify-end pt-6 border-t border-hairline mt-10";
 const BANNER_BASE =
@@ -396,7 +394,7 @@ export function LLMSettingsForm({
             />
             <button
               type="button"
-              className={BTN_CLASS}
+              className={pillBtn}
               onClick={onTest}
               disabled={isTesting}
             >
