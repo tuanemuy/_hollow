@@ -6,7 +6,12 @@ import { RotateCcw } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import {
+  pillBtn,
+  pillBtnGhostDanger,
+  pillBtnPrimary,
+  pillBtnSm,
+} from "@/components/common/styles";
 import type { DesignTokenDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -28,16 +33,6 @@ type FormState = {
 };
 
 const initialState: FormState = { error: null, success: false };
-
-const BTN_BASE =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-disabled disabled:cursor-not-allowed";
-
-const BTN_CLASS = `${BTN_BASE} bg-surface text-ink hover:not-disabled:bg-surface-hover`;
-const BTN_DESTRUCTIVE_CLASS = `${BTN_BASE} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
-
-const BTN_SM_CLASS =
-  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs font-medium whitespace-nowrap transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] disabled:opacity-disabled disabled:cursor-not-allowed";
-const BTN_SM_DESTRUCTIVE_CLASS = `${BTN_SM_CLASS} bg-transparent text-ink-secondary hover:not-disabled:bg-error-surface hover:not-disabled:text-error`;
 
 const INPUT_CLASS =
   "w-full h-10 px-3 bg-surface border border-transparent rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus:bg-bg focus:border-hairline-strong";
@@ -272,7 +267,9 @@ export function DesignTokensForm({
                     />
                     <button
                       type="button"
-                      className={BTN_SM_DESTRUCTIVE_CLASS}
+                      className={`${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`}
+                      data-ghost-danger=""
+                      data-sm=""
                       onClick={() => onRowReset(index)}
                       disabled={busy || !overridden}
                       aria-label={`${entry.key.trim().length === 0 ? "この行" : entry.key} を既定に戻す`}
@@ -288,7 +285,7 @@ export function DesignTokensForm({
 
         <button
           type="button"
-          className={BTN_CLASS}
+          className={pillBtn}
           onClick={onAddRow}
           disabled={busy}
         >
@@ -298,7 +295,8 @@ export function DesignTokensForm({
         <div className="flex gap-3 justify-end pt-6 border-t border-hairline mt-10">
           <button
             type="button"
-            className={BTN_DESTRUCTIVE_CLASS}
+            className={`${pillBtn} ${pillBtnGhostDanger}`}
+            data-ghost-danger=""
             onClick={() => setConfirmOpen(true)}
             disabled={busy || !anyOverridden}
           >

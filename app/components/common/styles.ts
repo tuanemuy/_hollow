@@ -40,6 +40,30 @@ export const pillBtnDanger =
   "data-[danger]:bg-error-surface data-[danger]:text-error data-[danger]:hover:not-disabled:not-aria-disabled:bg-error-surface";
 
 /**
+ * Append for ghost-danger pill button — drives "data-ghost-danger" variant.
+ *
+ * Unlike `pillBtnDanger` (a *filled* chip: error-surface background at rest),
+ * this is a *ghost* destructive button — transparent at rest with secondary
+ * ink text, turning to error-surface + error text only on hover/active. Used
+ * for low-emphasis destructive actions (reset / delete rows) where a
+ * permanently red chip would be too loud.
+ *
+ * Apply as `` `${pillBtn} ${pillBtnGhostDanger}` `` with `data-ghost-danger=""`,
+ * mirroring `pillBtnDanger`. The `data-[ghost-danger]:` variant is required
+ * for the same reason as `pillBtnDanger`: same-property utilities are resolved
+ * by Tailwind's generated-CSS order, not class-string order, so variant
+ * utilities (which sort after base utilities) win deterministically over the
+ * base `bg-surface` / `text-ink`. See `.issue/273/adr.md` ADR-003.
+ *
+ * The base's `active:…:bg-surface-hover` is also overridden here
+ * (`data-[ghost-danger]:active:…:bg-error-surface`) so that pressing the
+ * button does not momentarily flash the gray base hover/active color over the
+ * error-surface — see `.issue/442/adr.md` ADR-001.
+ */
+export const pillBtnGhostDanger =
+  "data-[ghost-danger]:bg-transparent data-[ghost-danger]:text-ink-secondary data-[ghost-danger]:hover:not-disabled:not-aria-disabled:bg-error-surface data-[ghost-danger]:hover:not-disabled:not-aria-disabled:text-error data-[ghost-danger]:active:not-disabled:not-aria-disabled:bg-error-surface data-[ghost-danger]:active:not-disabled:not-aria-disabled:text-error";
+
+/**
  * Tall size add-on for pill buttons — overrides the base `h-9 / px-4 / text-sm`
  * dimensions with `h-12 / px-8 / text-md` and adds `justify-center`.
  *
@@ -62,6 +86,30 @@ export const pillBtnDanger =
  * - surface: `` `${pillBtn} ${pillBtnTall}` `` (no `data-primary` — base surface colors apply)
  */
 export const pillBtnTall = "h-12 px-8 text-md justify-center";
+
+/**
+ * Small size add-on for pill buttons — drives "data-sm" variant.
+ *
+ * Overrides the base `h-9 / px-4 / text-sm` with `h-7 / px-3 / text-xs` and
+ * cancels the base mobile tap-target floor (`max-sm:min-h-[44px]`).
+ *
+ * Unlike `pillBtnTall` (an enlarging add-on usable as plain utilities), this
+ * is a *shrinking* size, so plain utilities lose: same-property utilities are
+ * resolved by generated-CSS order, and the smaller `h-7` / `px-3` sort
+ * *before* the base `h-9` / `px-4` and therefore cannot override them. The
+ * `data-[sm]:` variant sorts after the base utilities and wins
+ * deterministically. See `.issue/416/adr.md` ADR-005 (shrink-direction
+ * constraint) and `.issue/442/adr.md` ADR-003.
+ *
+ * `gap` is intentionally not overridden (the base `gap-1.5` is harmless for
+ * text-only small buttons; mirrors `pillBtnTall`, #416 ADR-001).
+ *
+ * Apply by appending after the other variants, e.g.
+ * `` `${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}` `` with
+ * `data-ghost-danger="" data-sm=""`.
+ */
+export const pillBtnSm =
+  "data-[sm]:h-7 data-[sm]:px-3 data-[sm]:text-xs data-[sm]:max-sm:min-h-0";
 
 /**
  * Nav-item link base — the shared primitive behind the sidebar nav links
