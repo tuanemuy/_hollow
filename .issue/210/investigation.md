@@ -101,8 +101,8 @@ rehash はアダプタ内 `verifyPassword` に密結合しており、verify と
 
 本 Issue は調査のみ。以下を実装 Issue 候補として記録する。
 
-- **F-1（推奨・中）:** lazy upgrade を status OK 確定後に遅延（⑤案 A）。`verifyPassword` を rehash-free 化し、logIn で active 確定後に rehash。Issue #208 の `verifyCurrentForChange` 分離パターンを踏襲。
-- **F-2（任意・低〜中）:** 認証経路の rate limit / lockout 検討。lazy upgrade 増幅とは独立に、scrypt verify が毎ログインでフルに走る点・総当たり耐性の観点。スコープが大きいので単独 Issue。
+- **F-1（推奨・中）— Issue #456:** lazy upgrade を status OK 確定後に遅延（⑤案 A）。`verifyPassword` を rehash-free 化し、logIn で active 確定後に rehash。Issue #208 の `verifyCurrentForChange` 分離パターンを踏襲。
+- **F-2（任意・低〜中）— Issue #457:** 認証経路の rate limit / lockout 検討。lazy upgrade 増幅とは独立に、scrypt verify が毎ログインでフルに走る点・総当たり耐性の観点。スコープが大きいので単独 Issue。
 
 ③の `Promise.all` 並列化は採用しない（直列依存・有害のため）。①②は前提消滅のため起票しない。
 
