@@ -480,6 +480,26 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
         body: "no percentage symbol present",
       }),
     );
+    // Underscore literal doc: contains the literal `x_` substring.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Underscore",
+        body: "value x_y here",
+      }),
+    );
+    // Wildcard control doc: contains `x` followed by another char but no
+    // literal `x_`. An unescaped `x_` wildcard would match this; a literal
+    // `x_` must not.
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "Control",
+        body: "value xzy here",
+      }),
+    );
 
     // `%` must match literally — only the doc containing `%` matches,
     // not every row (which an unescaped wildcard would cause).
@@ -488,6 +508,16 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     );
     expect(result.hits).toHaveLength(1);
     expect(result.hits[0]?.title).toBe("Literal");
+
+    // `_` must match literally too. The keyword `x_` (2 codepoints, LIKE
+    // path) matches only the doc carrying the literal `x_` substring. If
+    // `_` were treated as a wildcard, the `xzy` control doc would also
+    // match, blowing the count up to 2.
+    const underscore = await container.searchIndex.query(
+      makeQuery({ keyword: "x_" }),
+    );
+    expect(underscore.hits).toHaveLength(1);
+    expect(underscore.hits[0]?.title).toBe("Underscore");
   });
 
   it("LIKE fallback keeps the MATCH path for mixed-length tokens (short token ignored)", async () => {
@@ -551,6 +581,9 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     // `toHit` negates the raw score, yielding `-0`; assert numeric
     // equality (`-0 === 0`) rather than `.toBe(0)`, which distinguishes
     // signed zero via Object.is.
+    // Limitation: `toHit` clamps negative scores to 0, so this assertion
+    // would still pass if the LIKE path started returning bm25-like
+    // values. It guards path regression, not the literal fixed-0 contract.
     expect(result.hits[0]?.score === 0).toBe(true);
   });
 

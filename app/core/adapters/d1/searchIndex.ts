@@ -26,6 +26,9 @@ const BULK_REBUILD_CHUNK_SIZE = 100;
 const SNIPPET_TOKEN_BUDGET = 24;
 // Fixed-length body excerpt for the LIKE fallback path, which cannot use
 // FTS5's `snippet()`. Stays well under `SearchSnippet`'s 1024 cap.
+// Unit caveat: SQLite `substr` counts characters (codepoint-equivalent),
+// but the 1024 cap is JS UTF-16 code units. When raising this toward the
+// cap, budget for up to 2x (surrogate pairs).
 const LIKE_SNIPPET_CHARS = 160;
 
 type SearchRow = Readonly<{
