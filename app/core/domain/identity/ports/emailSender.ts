@@ -5,10 +5,11 @@ import type { EmailAddress } from "../valueObject";
  * names the four templates it knows about; the adapter owns provider
  * details (SES / SendGrid / SMTP) and template rendering.
  *
- * Failure surfaces as an `EmailSendError` from the application layer;
- * the domain itself does not declare an error type because it never
- * directly invokes this port — usecases call it after the UoW commits
- * so that mail delivery failures do not roll back persistent state.
+ * Failure is signalled by a plain rejected `Error` — the port declares
+ * no dedicated error type. The domain itself never invokes this port;
+ * usecases call it *after* the UoW commits and swallow any rejection
+ * (logging it) so that mail delivery failures do not roll back
+ * persistent state. See Issue #197 ADR-002.
  */
 export interface EmailSender {
   sendVerification(to: EmailAddress, link: URL, locale: string): Promise<void>;

@@ -167,7 +167,7 @@ identity / profile / authorization を表現する。**認証 credential は持�
   - `sendPasswordReset(to: EmailAddress, link: URL, locale: string): Promise<void>`
   - `sendEmailChangeNotice(to: EmailAddress, link: URL, locale: string): Promise<void>` — 新アドレス向け
   - `sendEmailChangeWarning(oldEmail: EmailAddress, newEmail: EmailAddress, locale: string): Promise<void>` — 旧アドレス向け通知
-- エラーケース: `EmailSendError`
+- エラーケース: 専用エラー型は持たない。各メソッドは送信失敗時に平 `Error` を throw するが、ユースケースは UoW commit 後にこれを呼び、失敗を `try/catch` で握り潰して `logger.error` する設計のため、application 層の型付きエラーとしては浮上しない。メール配信失敗で永続状態をロールバックしないための意図的な判断（Issue #197 ADR-002）
 
 ### SetupTokenVerifier
 - 目的: 環境変数 `ADMIN_SETUP_TOKEN` に設定された Setup Token と照合し、`AdminSignUp` の認可ゲートに使う。**ドメインは保管先（env / Secrets Manager 等）を知らない**

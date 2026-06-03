@@ -10,10 +10,10 @@ import type { EmailAddress } from "@/core/domain/identity/valueObject";
  * `RequestEmailChange`) call `EmailSender.send*` *after* the UoW
  * commits, so a logger-only implementation lets every flow run
  * end-to-end during local development and emits the link to stdout
- * where it can be copy-pasted in tests. Failures are swallowed (the
- * underlying logger cannot fail) so this implementation satisfies the
- * port's "errors map to `EmailSendError` at the application layer"
- * contract trivially — it never raises one.
+ * where it can be copy-pasted in tests. This implementation never
+ * rejects (the underlying logger cannot fail), so it trivially honours
+ * the port contract that send failures surface as a plain rejected
+ * `Error` for the usecase to swallow.
  *
  * Production wiring path. The DI layer (`serverCloudflare.ts`) selects
  * `ResendEmailSender` (`adapters/email/resendEmailSender.ts`) when both
