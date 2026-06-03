@@ -112,6 +112,31 @@ export const pillBtnSm =
   "data-[sm]:h-7 data-[sm]:px-3 data-[sm]:text-xs data-[sm]:max-sm:min-h-0";
 
 /**
+ * Icon-only add-on for pill buttons — drives "data-icon" variant. Turns the
+ * text-oriented pill (`h-9 px-4`) into a square `h-9 w-9` button so a lone icon
+ * sits centered without the `px-4` text padding that otherwise stretches it
+ * into an awkward oblong. With the base `rounded-pill` (`--radius-pill: 980px`)
+ * a 36×36 square renders as a circle, keeping it in the same radius family as
+ * the labeled pills.
+ *
+ * `px-0` is a *shrinking* override of the base `px-4`, so like `pillBtnSm` it
+ * must be a `data-[icon]:` variant rather than a plain utility: same-property
+ * utilities are resolved by Tailwind's generated-CSS order, and the smaller
+ * `px-0` sorts *before* `px-4` and would lose. The variant sorts after the base
+ * and wins deterministically. `w-9` / `justify-center` have no base counterpart
+ * but are kept under the same variant for cohesion. The base mobile tap-target
+ * floor only sets `min-h`; `data-[icon]:max-sm:min-w-[44px]` adds the matching
+ * width floor so the circle meets the 44×44 touch target (§7.1). See
+ * `.issue/416/adr.md` ADR-005 (shrink-direction constraint) and
+ * `.issue/459/adr.md` ADR-002.
+ *
+ * Composes with the color variants, e.g.
+ * `` `${pillBtn} ${pillBtnIcon} ${pillBtnPrimary}` `` with `data-icon="" data-primary`.
+ */
+export const pillBtnIcon =
+  "data-[icon]:w-9 data-[icon]:px-0 data-[icon]:justify-center data-[icon]:max-sm:min-w-[44px]";
+
+/**
  * Nav-item link base — the shared primitive behind the sidebar nav links
  * (`layout/styles.ts` `NAV_ITEM`) and the directory-tree links
  * (`directory/styles.ts` `TREE_ITEM_LINK`).

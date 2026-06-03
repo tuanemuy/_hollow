@@ -10,9 +10,12 @@ import {
 import type { NoteId } from "@/core/application/dto/note";
 
 /**
- * Issue #382: locks the icon-only treatment of the 編集 / 複製 actions.
- * Both expose their accessible name via the parent element's `aria-label`
- * (Icon stays decorative / `aria-hidden`), and carry no visible label text.
+ * Issue #382: locks the icon-only treatment of the 編集 action — accessible
+ * name via the parent's `aria-label`, Icon decorative, no visible text.
+ *
+ * Issue #459: 複製 / 履歴 / 削除 moved behind the overflow ("その他の操作")
+ * menu, so they are no longer top-level buttons. This locks that the menu
+ * trigger exposes them as menuitems on open (削除 flagged danger).
  */
 
 (
@@ -91,15 +94,37 @@ describe("NoteActions icon-only buttons (Issue #382)", () => {
     // The Icon stays decorative — no second accessible name on the SVG.
     expect(svg?.getAttribute("aria-label")).toBeNull();
   });
+});
 
-  it("renders 複製 as an icon-only button with an aria-label and no visible text", () => {
+describe("NoteActions overflow menu (Issue #459)", () => {
+  it("renders a closed overflow menu trigger by default", () => {
     renderActions();
-    const dup = container.querySelector('button[aria-label="複製"]');
-    expect(dup).not.toBeNull();
-    expect(dup?.getAttribute("title")).toBe("複製");
-    expect(dup?.textContent).toBe("");
-    const svg = dup?.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(svg?.getAttribute("aria-label")).toBeNull();
+    const trigger = container.querySelector(
+      'button[aria-label="その他の操作"]',
+    );
+    expect(trigger).not.toBeNull();
+    expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    // 複製 / 履歴 / 削除 are not in the DOM until the menu opens.
+    expect(container.querySelector('[role="menuitem"]')).toBeNull();
+  });
+
+  it("exposes 複製 / 履歴 / 削除 as menuitems once opened", () => {
+    renderActions();
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="その他の操作"]',
+    );
+    act(() => {
+      trigger?.click();
+    });
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+    const items = Array.from(
+      container.querySelectorAll('[role="menuitem"]'),
+    ).map((el) => el.textContent);
+    expect(items).toEqual(["複製", "履歴", "削除"]);
+    const del = Array.from(
+      container.querySelectorAll('[role="menuitem"]'),
+    ).find((el) => el.textContent === "削除");
+    expect(del?.getAttribute("data-danger")).toBe("true");
   });
 });
