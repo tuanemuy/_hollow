@@ -222,7 +222,7 @@ describe("saveNoteDraft (integration)", () => {
     expect(afterSecond[0]?.updatedAt).toBe(updatedAtAfterFirst);
   });
 
-  it("throws BusinessRuleError(AlreadyTrashed) when the note is trashed", async () => {
+  it("throws BusinessRuleError(Trashed) when the note is trashed", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
@@ -242,7 +242,7 @@ describe("saveNoteDraft (integration)", () => {
       if (!isBusinessRuleError(error)) {
         throw error;
       }
-      expect(error.code).toBe(NoteErrorCode.AlreadyTrashed);
+      expect(error.code).toBe(NoteErrorCode.Trashed);
     }
   });
 });

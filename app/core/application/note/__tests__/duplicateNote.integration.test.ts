@@ -146,10 +146,10 @@ describe("duplicateNote (integration)", () => {
     expect(rows).toHaveLength(2);
   });
 
-  // Spec: trashed → "動作対象外（仕様: 拒否）". Issue #42 added the status
-  // check to `duplicateNote`; trashed source notes now raise
-  // `AlreadyTrashed` (reused for symmetry with `deleteNote`/`renameNote`).
-  it("rejects duplicating a trashed note with BusinessRuleError(AlreadyTrashed)", async () => {
+  // Spec: trashed → "動作対象外（仕様: 拒否）". Raises `note_trashed` rather
+  // than `note_already_trashed` to align with the active-write usecases
+  // save/rename/draft (see ADR-003).
+  it("rejects duplicating a trashed note with BusinessRuleError(Trashed)", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
@@ -171,7 +171,7 @@ describe("duplicateNote (integration)", () => {
       if (!isBusinessRuleError(error)) {
         throw error;
       }
-      expect(error.code).toBe(NoteErrorCode.AlreadyTrashed);
+      expect(error.code).toBe(NoteErrorCode.Trashed);
     }
 
     const after = await container.db.select().from(schema.notes);

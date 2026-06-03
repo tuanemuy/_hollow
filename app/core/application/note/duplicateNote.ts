@@ -38,7 +38,7 @@ export async function duplicateNote({
     }
     if (found.entity.status !== "active") {
       throw new BusinessRuleError(
-        NoteErrorCode.AlreadyTrashed,
+        NoteErrorCode.Trashed,
         `Cannot duplicate trashed note: ${input.noteId}`,
       );
     }

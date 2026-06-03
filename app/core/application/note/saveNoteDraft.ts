@@ -66,7 +66,7 @@ export async function saveNoteDraft({
     }
     if (found.entity.status !== "active") {
       throw new BusinessRuleError(
-        NoteErrorCode.AlreadyTrashed,
+        NoteErrorCode.Trashed,
         `Cannot draft-save trashed note ${input.noteId}`,
       );
     }
