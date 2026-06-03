@@ -754,6 +754,69 @@ describe("handleNotePurgedEvent (integration)", () => {
     // `updatedAt` must not advance — proves no second decrement ran.
     expect(second?.updatedAt).toBe(firstUpdatedAt);
   });
+
+  it("orphans the persistent source file when a note purge event carries a sourceFileId", async () => {
+    // ADR-005: the ingested original is bound 1:1 outside the refCount
+    // machinery (attached/refCount=1) and must be explicitly decremented
+    // to `orphan` so the standard purge worker reclaims its blob.
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const dir = await seedDirectory(container, ownerId);
+    const noteId = await seedNote(container, ownerId, dir);
+    const sourceFileId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+    });
+    const event = buildNotePurgedEvent({
+      noteId,
+      ownerId,
+      mediaRefs: [],
+      sourceFileId,
+    });
+
+    await handleNotePurgedEvent({ container, input: { event } });
+
+    const row = await fetchMediaRow(container, sourceFileId);
+    expect(row?.status).toBe("orphan");
+    expect(row?.refCount).toBe(0);
+  });
+
+  it("is idempotent for the source file: a redelivered purge event leaves an already-orphaned source unchanged", async () => {
+    // The outbox is at-least-once; `handleNotePurgedEvent` short-circuits
+    // on an already-`orphan` source before `decrementRef` (which only
+    // accepts pending/attached) would throw.
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const dir = await seedDirectory(container, ownerId);
+    const noteId = await seedNote(container, ownerId, dir);
+    const sourceFileId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+    });
+    const event = buildNotePurgedEvent({
+      noteId,
+      ownerId,
+      mediaRefs: [],
+      sourceFileId,
+    });
+
+    await handleNotePurgedEvent({ container, input: { event } });
+    const first = await fetchMediaRow(container, sourceFileId);
+    const firstUpdatedAt = first?.updatedAt;
+    expect(first?.status).toBe("orphan");
+    expect(first?.refCount).toBe(0);
+
+    await handleNotePurgedEvent({ container, input: { event } });
+    const second = await fetchMediaRow(container, sourceFileId);
+    expect(second?.status).toBe("orphan");
+    expect(second?.refCount).toBe(0);
+    // `updatedAt` must not advance — proves no second decrement ran.
+    expect(second?.updatedAt).toBe(firstUpdatedAt);
+  });
 });
 
 // ---------------------------------------------------------------------------

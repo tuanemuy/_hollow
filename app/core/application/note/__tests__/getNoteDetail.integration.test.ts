@@ -84,7 +84,11 @@ async function seedNote(
   container: TestContainer,
   ownerId: UserId,
   directoryId: DirectoryId,
-  opts: { status?: "active" | "trashed"; contentHtml?: string } = {},
+  opts: {
+    status?: "active" | "trashed";
+    contentHtml?: string;
+    sourceFileId?: string | null;
+  } = {},
 ): Promise<NoteId> {
   const id = nextId(0x0c);
   const status = opts.status ?? "active";
@@ -98,6 +102,7 @@ async function seedNote(
     frontMatterJson: "{}",
     status,
     trashedAt: status === "trashed" ? TZ : null,
+    sourceFileId: opts.sourceFileId ?? null,
     createdAt: TZ,
     updatedAt: TZ,
     editLockUserId: null,
@@ -106,6 +111,32 @@ async function seedNote(
     version: 0,
   });
   return id as NoteId;
+}
+
+async function seedSourceMedia(
+  container: TestContainer,
+  ownerId: UserId,
+  opts: { originalFileName?: string | null; mimeType?: string } = {},
+): Promise<string> {
+  const id = nextId(0x0e);
+  await container.db.insert(schema.mediaAssets).values({
+    id,
+    ownerId,
+    kind: "source",
+    mimeType: opts.mimeType ?? "application/pdf",
+    byteSize: 4,
+    backend: "r2",
+    storageKey: `${ownerId}/source/${id}`,
+    originalFileName: opts.originalFileName ?? "report.pdf",
+    width: null,
+    height: null,
+    durationMs: null,
+    refCount: 1,
+    status: "attached",
+    createdAt: TZ,
+    updatedAt: TZ,
+  });
+  return id;
 }
 
 async function seedInternalLink(
@@ -145,6 +176,42 @@ describe("getNoteDetail (integration)", () => {
     expect(backlinks.map((b) => b.noteId as string)).toContain(referrer);
     expect(backlinkCount).toBe(1);
     expect(typeof directoryPath).toBe("string");
+  });
+
+  // Issue #452: when the note carries a persistent source file, the
+  // detail projection synthesises a `sourceFile` DTO whose fields match
+  // the bound MediaAsset.
+  it("projects sourceFile (mediaId/originalFileName/mimeType) when the note has a bound source", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const sourceFileId = await seedSourceMedia(container, owner, {
+      originalFileName: "資料.pdf",
+      mimeType: "application/pdf",
+    });
+    const noteId = await seedNote(container, owner, dir, { sourceFileId });
+
+    const { note } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(note.sourceFile).not.toBeNull();
+    expect(note.sourceFile?.mediaId as string).toBe(sourceFileId);
+    expect(note.sourceFile?.originalFileName).toBe("資料.pdf");
+    expect(note.sourceFile?.mimeType).toBe("application/pdf");
+  });
+
+  it("projects sourceFile === null when the note has no bound source", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    const { note } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(note.sourceFile).toBeNull();
   });
 
   // T-detail-preview: with more referrers than the preview

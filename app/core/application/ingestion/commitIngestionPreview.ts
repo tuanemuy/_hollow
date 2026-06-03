@@ -401,9 +401,25 @@ async function prepareSourcePersist({
 
   const mediaId = container.idGenerator.next();
   const storageKey = buildStorageKey(actor, "source", mediaId);
-  const bytes = await container.tempFileStorage.get(
-    job.entity.tempStorageKey as string,
-  );
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await container.tempFileStorage.get(
+      job.entity.tempStorageKey as string,
+    );
+  } catch (cause) {
+    // The temp blob is gone (e.g. a re-driven job whose temp key was
+    // already reclaimed): skip source persistence and let the commit
+    // proceed without a bound source file. Transient backend failures
+    // rethrow so the operation is retried.
+    if (isTempFileNotFoundError(cause)) {
+      container.logger.warn("ingestion.commit.source_temp_missing", {
+        jobId: input.jobId,
+        cause: cause.message,
+      });
+      return null;
+    }
+    throw cause;
+  }
   await safeStoragePut(() =>
     container.objectStorage.put(storageKey, bytes, job.entity.mimeType),
   );

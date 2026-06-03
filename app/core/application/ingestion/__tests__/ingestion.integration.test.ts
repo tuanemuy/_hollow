@@ -48,6 +48,12 @@ function nextNoteId(): string {
   return `019d0000-0000-7000-8000-${noteSeq.toString(16).padStart(12, "0")}`;
 }
 
+let mediaSeq = 0;
+function nextMediaId(): string {
+  mediaSeq += 1;
+  return `019d3000-0000-7000-8000-${mediaSeq.toString(16).padStart(12, "0")}`;
+}
+
 async function seedUser(container: TestContainer): Promise<UserId> {
   const suffix = nextUserSuffix();
   const id = `019d0001-0000-7000-8000-${suffix}`;
@@ -1111,6 +1117,104 @@ describe("commitIngestionPreview", () => {
       .where(eq(schema.outboxEvents.aggregateId, jobId));
     const types = events.map((e) => e.eventType);
     expect(types).toContain("ingestion.committed");
+  });
+
+  // Issue #452 / ADR-005: overwriting a note that already carries a
+  // persistent source file swaps `notes.source_file_id` to the new asset
+  // and orphans the old source (refCount 1 → 0) so the purge worker
+  // reclaims its blob — no permanent orphan.
+  it("orphans the old source file and rebinds to the new one when overwriting a note that already has a source (Issue #452)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const dirId = await seedDirectory(container, owner);
+    // Pre-existing source asset (attached/refCount=1) bound to the note.
+    const oldSourceId = nextMediaId();
+    await container.db.insert(schema.mediaAssets).values({
+      id: oldSourceId,
+      ownerId: owner as unknown as string,
+      kind: "source",
+      mimeType: "application/pdf",
+      byteSize: 4,
+      backend: "r2",
+      storageKey: `${owner}/source/${oldSourceId}`,
+      originalFileName: "old.pdf",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 1,
+      status: "attached",
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    });
+    const existingNoteId = nextNoteId();
+    await container.db.insert(schema.notes).values({
+      id: existingNoteId,
+      ownerId: owner as unknown as string,
+      directoryId: dirId,
+      slug: `slug-${existingNoteId.slice(-6)}`,
+      title: "Original",
+      contentHtml: "<p>original</p>",
+      frontMatterJson: "{}",
+      status: "active",
+      trashedAt: null,
+      sourceFileId: oldSourceId,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+    const tempKey = `${owner}/ingestion/overwrite-source`;
+    await container.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "new.pdf",
+      byteSize: 4,
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId: jobId as unknown as IngestionJobId,
+        modifications: {
+          overwriteNoteId: existingNoteId as unknown as NoteId,
+        },
+      },
+    });
+
+    expect(noteId as unknown as string).toBe(existingNoteId);
+
+    const noteRows = await container.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, existingNoteId));
+    const newSourceId = noteRows[0]?.sourceFileId;
+    // (1) note.source_file_id is rebound to a freshly created asset.
+    expect(newSourceId).not.toBeNull();
+    expect(newSourceId).not.toBe(oldSourceId);
+
+    const newSourceRows = await container.db
+      .select()
+      .from(schema.mediaAssets)
+      .where(eq(schema.mediaAssets.id, newSourceId as string));
+    expect(newSourceRows[0]?.kind).toBe("source");
+    expect(newSourceRows[0]?.status).toBe("attached");
+    expect(newSourceRows[0]?.refCount).toBe(1);
+    expect(newSourceRows[0]?.originalFileName).toBe("new.pdf");
+
+    // (2) the old source is orphaned (refCount 0) for purge reclamation.
+    const oldSourceRows = await container.db
+      .select()
+      .from(schema.mediaAssets)
+      .where(eq(schema.mediaAssets.id, oldSourceId));
+    expect(oldSourceRows[0]?.status).toBe("orphan");
+    expect(oldSourceRows[0]?.refCount).toBe(0);
   });
 
   it("throws ForbiddenError before assembly when overwriteNoteId targets another user's note (Issue #127, ADR-006)", async () => {

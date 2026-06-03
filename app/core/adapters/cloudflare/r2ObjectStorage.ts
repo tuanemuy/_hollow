@@ -281,7 +281,7 @@ function encodeRfc3986(value: string): string {
 // well-formed, while `filename*` carries the exact UTF-8 name. The whole
 // string is later percent-encoded by `encodeRfc3986` for the query
 // parameter, so it stays a single signed token.
-function buildAttachmentDisposition(fileName: string): string {
+export function buildAttachmentDisposition(fileName: string): string {
   const asciiFallback =
     // biome-ignore lint/suspicious/noControlCharactersInRegex: strip C0 controls from the quoted token
     fileName.replace(/[ -"\\/]/g, "_").replace(/[^\x20-\x7e]/g, "_") ||

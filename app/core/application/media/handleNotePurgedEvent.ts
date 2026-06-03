@@ -43,6 +43,10 @@ export async function handleNotePurgedEvent({
     // is already `orphan`/`deleting` is a no-op — mirrors
     // `MediaService.reconcileRefs`' removal path.
     if (asset.status === "orphan" || asset.status === "deleting") return;
+    // `decrementRef`'s `media.orphaned` draft is discarded, mirroring
+    // `MediaService.reconcileRefs`: `media.*` events are dispatcher-skipped
+    // and the purge worker reclaims orphans via a status query, so no
+    // consumer reads these drafts.
     const { entity } = MediaAsset.decrementRef(asset, now);
     await mediaAssetRepository.save(entity);
   });

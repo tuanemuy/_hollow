@@ -150,7 +150,7 @@ export function NoteMetaPanel({
                 <a
                   href={`/media/${sourceMediaId}`}
                   target="_blank"
-                  rel="noopener"
+                  rel="noopener noreferrer"
                   className="text-accent text-xs hover:underline"
                 >
                   閲覧

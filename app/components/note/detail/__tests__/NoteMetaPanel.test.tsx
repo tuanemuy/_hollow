@@ -155,7 +155,7 @@ describe("NoteMetaPanel source file (Issue #452)", () => {
     );
     expect(view).toBeDefined();
     expect(view?.getAttribute("target")).toBe("_blank");
-    expect(view?.getAttribute("rel")).toBe("noopener");
+    expect(view?.getAttribute("rel")).toBe("noopener noreferrer");
     expect(download).toBeDefined();
   });
 
