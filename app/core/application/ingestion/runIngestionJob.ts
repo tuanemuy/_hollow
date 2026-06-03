@@ -294,9 +294,22 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
     titleSuggestion = fallbackTitle(deps.originalFileName);
     directorySuggestion = null;
   } else {
+    // title/directory have no per-upload override path, so resolve them from
+    // the resolver here in the LLM-structuring branch only (the html/markdown
+    // branches never call the LLM, so resolving would be wasted I/O).
+    const titlePrompt = await deps.promptResolver.resolveFor(
+      deps.ownerId,
+      "title" satisfies IngestionPromptPurpose,
+    );
+    const directoryPrompt = await deps.promptResolver.resolveFor(
+      deps.ownerId,
+      "directory" satisfies IngestionPromptPurpose,
+    );
     const structured = await deps.llm.structureToHtml({
       rawText: text,
       prompt: structurePrompt,
+      titlePrompt,
+      directoryPrompt,
       locale: "ja",
       existingDirectories: deps.existingDirectories.map((d) => d.path),
     });

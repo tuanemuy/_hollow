@@ -16,6 +16,13 @@ import type {
  * analysis intent* — it is *appended* (never substituted) between the role
  * declaration and the guidance, and only when non-empty after trimming.
  * This keeps the output contract structurally unbreakable by operator input.
+ *
+ * Asymmetric intent placement (Issue #430 ADR-004): the structure-body intent
+ * (`input.prompt`) stays in front of the JSON output contract, but the
+ * title/directory intents (`input.titlePrompt` / `input.directoryPrompt`) are
+ * placed immediately after their respective guidance lines, which sit *after*
+ * the output contract. This contextualises each intent next to the concern it
+ * supplements; the output contract remains the fixed, system-owned tail.
  */
 
 // Fixed label prefixing the operator's appended intent (Issue #396 ADR-001).
@@ -44,7 +51,9 @@ export function buildStructureSystemPrompt(input: LLMStructureInput): string {
     ...operatorIntentSection(input.prompt),
     `Respond with a single JSON object on one line with the keys "html" (string), "titleSuggestion" (string), and "directorySuggestion" (string or null).`,
     'For "titleSuggestion": do not reuse the file name. Derive a concise, meaningful title from the note content itself.',
+    ...operatorIntentSection(input.titlePrompt),
     directoryGuidance,
+    ...operatorIntentSection(input.directoryPrompt),
     `Locale for natural-language output (including the title): ${input.locale}.`,
     "Do not include code fences. Do not include any text before or after the JSON object.",
   ].join("\n");

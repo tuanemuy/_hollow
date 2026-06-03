@@ -706,10 +706,16 @@ describe("runIngestionJob", () => {
       input: { jobId: jobId as unknown as IngestionJobId },
     });
 
-    // Override reached the LLM verbatim; resolver was never consulted.
+    // Override reached the LLM verbatim; the resolver was never consulted for
+    // structure/metadata. title/directory have no per-upload override path, so
+    // they are always resolver-resolved in the LLM-structuring branch.
     expect(llm.structureCalls[0]?.prompt).toBe("CUSTOM_STRUCTURE");
+    expect(llm.structureCalls[0]?.titlePrompt).toBe("RESOLVED:title");
+    expect(llm.structureCalls[0]?.directoryPrompt).toBe("RESOLVED:directory");
     expect(llm.metadataCalls[0]?.prompt).toBe("CUSTOM_METADATA");
-    expect(resolver.calls).toHaveLength(0);
+    expect(resolver.calls).not.toContain("structure");
+    expect(resolver.calls).not.toContain("metadata");
+    expect(resolver.calls).toEqual(["title", "directory"]);
   });
 
   it("falls back to the resolver when no override is stored", async () => {
@@ -739,8 +745,12 @@ describe("runIngestionJob", () => {
     });
 
     expect(llm.structureCalls[0]?.prompt).toBe("RESOLVED:structure");
+    expect(llm.structureCalls[0]?.titlePrompt).toBe("RESOLVED:title");
+    expect(llm.structureCalls[0]?.directoryPrompt).toBe("RESOLVED:directory");
     expect(llm.metadataCalls[0]?.prompt).toBe("RESOLVED:metadata");
     expect(resolver.calls).toContain("structure");
+    expect(resolver.calls).toContain("title");
+    expect(resolver.calls).toContain("directory");
     expect(resolver.calls).toContain("metadata");
   });
 
@@ -800,10 +810,15 @@ describe("runIngestionJob", () => {
     });
 
     // The second structuring call (after regenerate) still carries the
-    // original override, and the resolver was never consulted.
+    // original structure/metadata overrides, so the resolver is never
+    // consulted for those purposes. title/directory have no per-upload
+    // override path, so they are always resolver-resolved in the LLM branch.
     expect(llm.structureCalls).toHaveLength(2);
     expect(llm.structureCalls[1]?.prompt).toBe("CUSTOM_STRUCTURE");
-    expect(resolver.calls).toHaveLength(0);
+    expect(resolver.calls).not.toContain("structure");
+    expect(resolver.calls).not.toContain("metadata");
+    expect(resolver.calls.filter((p) => p === "title")).toHaveLength(2);
+    expect(resolver.calls.filter((p) => p === "directory")).toHaveLength(2);
   });
 
   // ---------- Directory suggestion matching ----------

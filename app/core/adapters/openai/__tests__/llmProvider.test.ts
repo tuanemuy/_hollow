@@ -67,6 +67,8 @@ function parseRequestBody(mock: FetchMock, callIndex: number): unknown {
 const STRUCTURE_INPUT = {
   rawText: "the raw source",
   prompt: "",
+  titlePrompt: "",
+  directoryPrompt: "",
   locale: "en",
 } as const;
 

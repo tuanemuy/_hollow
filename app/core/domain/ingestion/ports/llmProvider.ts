@@ -85,6 +85,22 @@ export type LLMStructureInput = Readonly<{
    * role + output contract only.
    */
   prompt: string;
+  /**
+   * The operator's optional *additional analysis intent* scoped to the
+   * title suggestion. Same semantics as `prompt`: the adapter always emits
+   * the fixed title guidance, and this text is *appended* to it (never
+   * substituted) when non-empty. The empty string means "no additional
+   * intent" — i.e. the system default title guidance only.
+   */
+  titlePrompt: string;
+  /**
+   * The operator's optional *additional analysis intent* scoped to the
+   * directory placement suggestion. Same semantics as `prompt`: the adapter
+   * always emits the fixed directory guidance, and this text is *appended*
+   * to it (never substituted) when non-empty. The empty string means "no
+   * additional intent" — i.e. the system default directory guidance only.
+   */
+  directoryPrompt: string;
   locale: string;
   /**
    * Existing directory paths for the owner, supplied as context so the
