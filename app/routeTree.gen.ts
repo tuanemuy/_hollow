@@ -52,10 +52,10 @@ import { Route as AppTrashIndexRouteImport } from './routes/_app/trash/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as UUsernameNoteSlugRouteImport } from './routes/u/$username/$noteSlug'
 import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$noteId'
-import { Route as NotesNoteIdPublishRouteImport } from './routes/notes/$noteId/publish'
 import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppNotesNoteIdIndexRouteImport } from './routes/_app/notes/$noteId/index'
+import { Route as AppNotesNoteIdPublishRouteImport } from './routes/_app/notes/$noteId/publish'
 import { Route as AppNotesNoteIdEditRouteImport } from './routes/_app/notes/$noteId/edit'
 import { Route as AppNotesNoteIdHistoryRouteRouteImport } from './routes/_app/notes/$noteId/history/route'
 import { Route as AppNotesNoteIdHistoryIndexRouteImport } from './routes/_app/notes/$noteId/history/index'
@@ -275,11 +275,6 @@ const NotesPublicNoteIdRoute = NotesPublicNoteIdRouteImport.update({
   path: '/notes/public/$noteId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NotesNoteIdPublishRoute = NotesNoteIdPublishRouteImport.update({
-  id: '/notes/$noteId/publish',
-  path: '/notes/$noteId/publish',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const NotesNoteIdExportRoute = NotesNoteIdExportRouteImport.update({
   id: '/notes/$noteId/export',
   path: '/notes/$noteId/export',
@@ -293,6 +288,11 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
 const AppNotesNoteIdIndexRoute = AppNotesNoteIdIndexRouteImport.update({
   id: '/notes/$noteId/',
   path: '/notes/$noteId/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppNotesNoteIdPublishRoute = AppNotesNoteIdPublishRouteImport.update({
+  id: '/notes/$noteId/publish',
+  path: '/notes/$noteId/publish',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppNotesNoteIdEditRoute = AppNotesNoteIdEditRouteImport.update({
@@ -358,7 +358,6 @@ export interface FileRoutesByFullPath {
   '/views/': typeof ViewsIndexRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
-  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/tags/': typeof AppTagsIndexRoute
@@ -367,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/u/$username/': typeof UUsernameIndexRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -407,7 +407,6 @@ export interface FileRoutesByTo {
   '/views': typeof ViewsIndexRoute
   '/notes/new': typeof AppNotesNewRoute
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
-  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/tags': typeof AppTagsIndexRoute
@@ -415,6 +414,7 @@ export interface FileRoutesByTo {
   '/upload': typeof AppUploadIndexRoute
   '/u/$username': typeof UUsernameIndexRoute
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/notes/$noteId': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryIndexRoute
@@ -460,7 +460,6 @@ export interface FileRoutesById {
   '/views/': typeof ViewsIndexRoute
   '/_app/notes/new': typeof AppNotesNewRoute
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
-  '/notes/$noteId/publish': typeof NotesNoteIdPublishRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
   '/_app/tags/': typeof AppTagsIndexRoute
@@ -469,6 +468,7 @@ export interface FileRoutesById {
   '/u/$username/': typeof UUsernameIndexRoute
   '/_app/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/_app/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/_app/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/_app/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/_app/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/_app/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -514,7 +514,6 @@ export interface FileRouteTypes {
     | '/views/'
     | '/notes/new'
     | '/notes/$noteId/export'
-    | '/notes/$noteId/publish'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
     | '/tags/'
@@ -523,6 +522,7 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
+    | '/notes/$noteId/publish'
     | '/notes/$noteId/'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history/'
@@ -563,7 +563,6 @@ export interface FileRouteTypes {
     | '/views'
     | '/notes/new'
     | '/notes/$noteId/export'
-    | '/notes/$noteId/publish'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
     | '/tags'
@@ -571,6 +570,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/u/$username'
     | '/notes/$noteId/edit'
+    | '/notes/$noteId/publish'
     | '/notes/$noteId'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history'
@@ -615,7 +615,6 @@ export interface FileRouteTypes {
     | '/views/'
     | '/_app/notes/new'
     | '/notes/$noteId/export'
-    | '/notes/$noteId/publish'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
     | '/_app/tags/'
@@ -624,6 +623,7 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/_app/notes/$noteId/history'
     | '/_app/notes/$noteId/edit'
+    | '/_app/notes/$noteId/publish'
     | '/_app/notes/$noteId/'
     | '/_app/notes/$noteId/history/$revisionId'
     | '/_app/notes/$noteId/history/'
@@ -652,7 +652,6 @@ export interface RootRouteChildren {
   ExportIndexRoute: typeof ExportIndexRoute
   PasswordResetIndexRoute: typeof PasswordResetIndexRoute
   NotesNoteIdExportRoute: typeof NotesNoteIdExportRoute
-  NotesNoteIdPublishRoute: typeof NotesNoteIdPublishRoute
   NotesPublicNoteIdRoute: typeof NotesPublicNoteIdRoute
 }
 
@@ -959,13 +958,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesPublicNoteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/notes/$noteId/publish': {
-      id: '/notes/$noteId/publish'
-      path: '/notes/$noteId/publish'
-      fullPath: '/notes/$noteId/publish'
-      preLoaderRoute: typeof NotesNoteIdPublishRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/notes/$noteId/export': {
       id: '/notes/$noteId/export'
       path: '/notes/$noteId/export'
@@ -985,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/notes/$noteId'
       fullPath: '/notes/$noteId/'
       preLoaderRoute: typeof AppNotesNoteIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/notes/$noteId/publish': {
+      id: '/_app/notes/$noteId/publish'
+      path: '/notes/$noteId/publish'
+      fullPath: '/notes/$noteId/publish'
+      preLoaderRoute: typeof AppNotesNoteIdPublishRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/notes/$noteId/edit': {
@@ -1042,6 +1041,7 @@ interface AppRouteRouteChildren {
   AppUploadIndexRoute: typeof AppUploadIndexRoute
   AppNotesNoteIdHistoryRouteRoute: typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   AppNotesNoteIdEditRoute: typeof AppNotesNoteIdEditRoute
+  AppNotesNoteIdPublishRoute: typeof AppNotesNoteIdPublishRoute
   AppNotesNoteIdIndexRoute: typeof AppNotesNoteIdIndexRoute
 }
 
@@ -1053,6 +1053,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppUploadIndexRoute: AppUploadIndexRoute,
   AppNotesNoteIdHistoryRouteRoute: AppNotesNoteIdHistoryRouteRouteWithChildren,
   AppNotesNoteIdEditRoute: AppNotesNoteIdEditRoute,
+  AppNotesNoteIdPublishRoute: AppNotesNoteIdPublishRoute,
   AppNotesNoteIdIndexRoute: AppNotesNoteIdIndexRoute,
 }
 
@@ -1166,7 +1167,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExportIndexRoute: ExportIndexRoute,
   PasswordResetIndexRoute: PasswordResetIndexRoute,
   NotesNoteIdExportRoute: NotesNoteIdExportRoute,
-  NotesNoteIdPublishRoute: NotesNoteIdPublishRoute,
   NotesPublicNoteIdRoute: NotesPublicNoteIdRoute,
 }
 export const routeTree = rootRouteImport
