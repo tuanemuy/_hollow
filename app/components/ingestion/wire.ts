@@ -49,8 +49,8 @@ export type IngestionJobWire = Readonly<{
 
 export function toIngestionJobWire(job: IngestionJobDTO): IngestionJobWire {
   return {
-    id: job.id as unknown as string,
-    ownerId: job.ownerId as unknown as string,
+    id: job.id,
+    ownerId: job.ownerId,
     originalFileName: job.originalFileName,
     mimeType: job.mimeType,
     byteSize: job.byteSize,
@@ -65,21 +65,16 @@ export function toIngestionJobWire(job: IngestionJobDTO): IngestionJobWire {
             suggestedDirectoryId:
               job.preview.suggestedDirectoryId === null
                 ? null
-                : (job.preview.suggestedDirectoryId as unknown as string),
+                : job.preview.suggestedDirectoryId,
             suggestedDirectoryName: job.preview.suggestedDirectoryName,
             frontMatterJson: JSON.stringify(job.preview.frontMatter),
             suggestedTagNames: job.preview.suggestedTagNames,
             internalLinkRefs: job.preview.internalLinkRefs,
-            mediaRefs: job.preview.mediaRefs.map(
-              (id) => id as unknown as string,
-            ),
+            mediaRefs: job.preview.mediaRefs,
           },
     errorCode: job.errorCode,
     regenerationCount: job.regenerationCount,
-    savedAsNoteId:
-      job.savedAsNoteId === null
-        ? null
-        : (job.savedAsNoteId as unknown as string),
+    savedAsNoteId: job.savedAsNoteId === null ? null : job.savedAsNoteId,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };

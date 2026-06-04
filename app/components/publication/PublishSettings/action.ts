@@ -96,7 +96,7 @@ export const bulkChangeVisibilityFn = createServerFn({ method: "POST" })
     return {
       successCount: result.successCount,
       failures: result.failures.map((f) => ({
-        noteId: f.noteId as unknown as string,
+        noteId: f.noteId,
         reason: f.reason,
       })),
     };

@@ -99,7 +99,7 @@ function reduceViews(
 ): readonly SavedViewDTO[] {
   switch (action.type) {
     case "remove":
-      return cur.filter((view) => (view.id as unknown as string) !== action.id);
+      return cur.filter((view) => view.id !== action.id);
     case "add":
       // The duplicate's id is server-assigned, so once the loader commits the
       // baseline carries the same row. Guard against double-keying if the
@@ -173,7 +173,7 @@ export function SavedViewsList({ views, directories, tags }: Props) {
   return (
     <ul className={viewList}>
       {optimisticViews.map((view) => {
-        const id = view.id as unknown as string;
+        const id = view.id;
         return (
           <SavedViewRow
             key={view.id}
@@ -236,7 +236,7 @@ function SavedViewRow({
     (_cur: boolean, next: boolean) => next,
   );
 
-  const viewId = view.id as unknown as string;
+  const viewId = view.id;
 
   const nameId = useId();
 
@@ -309,7 +309,7 @@ function SavedViewRow({
   const isBroken = optimisticBroken;
 
   const initialTagNames = view.query.tagIds
-    .map((id) => tagNameById.get(id as unknown as string))
+    .map((id) => tagNameById.get(id))
     .filter((name): name is string => name !== undefined);
 
   const rowBusy = isPending;

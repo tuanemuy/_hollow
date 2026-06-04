@@ -3,22 +3,20 @@ import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
 import { TagEvents } from "@/core/domain/tag/events";
 import { TagService } from "@/core/domain/tag/service";
 import type { TagId as DomainTagId } from "@/core/domain/tag/valueObject";
-import type { UserId } from "../dto/identity";
-import type { NoteId } from "../dto/note";
-import type { TagId } from "../dto/tag";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 const MERGE_NOTE_PAGE_SIZE = 500;
 
 export type MergeTagsInput = {
-  actorUserId: UserId;
-  sourceTagId: TagId;
-  targetTagId: TagId;
+  actorUserId: string;
+  sourceTagId: string;
+  targetTagId: string;
 };
 
 export type MergeTagsOutput = {
-  affectedNoteIds: readonly NoteId[];
+  affectedNoteIds: readonly string[];
 };
 
 export async function mergeTags({
@@ -59,7 +57,7 @@ export async function mergeTags({
 
       const sourceTagId = sourceFound.entity.id as DomainTagId;
       const targetTagId = targetFound.entity.id as DomainTagId;
-      const affectedIds: NoteId[] = [];
+      const affectedIds: string[] = [];
 
       const affectedNotes = await collectNotesWithTag(
         noteRepository,
@@ -79,7 +77,7 @@ export async function mergeTags({
         if (eventDrafts.length === 0) continue;
         await noteRepository.save(updated, versioned.expectedVersion);
         collectEvents(eventDrafts);
-        affectedIds.push(updated.id as unknown as NoteId);
+        affectedIds.push(updated.id);
       }
 
       // The target tag row itself is unchanged by a merge (only note-side

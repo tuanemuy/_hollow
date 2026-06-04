@@ -5,7 +5,7 @@ import {
   RawPassword,
   Username,
 } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import { AuthenticationError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { buildVerificationLink } from "./signUp";
@@ -22,7 +22,7 @@ export type AdminSignUpInput = {
 };
 
 export type AdminSignUpOutput = {
-  userId: UserIdDTO;
+  userId: string;
 };
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -111,5 +111,5 @@ export async function adminSignUp({
     });
   }
 
-  return { userId: userId as unknown as UserIdDTO };
+  return { userId };
 }

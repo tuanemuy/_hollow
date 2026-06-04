@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { NOTE_HISTORY_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { formError, pillBtn, pillBtnPrimary } from "@/components/common/styles";
-import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
+
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -24,8 +24,8 @@ import { restoreNoteRevisionFn } from "../actions";
  * state.
  */
 export type NoteRevisionRestorePanelProps = Readonly<{
-  noteId: NoteId;
-  revisionId: NoteRevisionId;
+  noteId: string;
+  revisionId: string;
   noteStatus: "active" | "trashed";
 }>;
 
@@ -41,8 +41,8 @@ export function NoteRevisionRestorePanel({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const noteIdStr = noteId as unknown as string;
-  const revisionIdStr = revisionId as unknown as string;
+  const noteIdStr = noteId;
+  const revisionIdStr = revisionId;
   const trashed = noteStatus === "trashed";
 
   const runRestore = () => {

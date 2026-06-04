@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import { NotFoundError } from "@/core/application/errors";
 
 /**
@@ -26,8 +25,8 @@ vi.mock("../NoteRevisionRestorePanel", () => ({
 const { NoteRevisionDetail } = await import("../NoteRevisionDetail");
 
 const user = { id: "user-1" } as unknown as UserDTO;
-const noteId = "note-1" as unknown as NoteId;
-const revisionId = "missing-revision" as unknown as NoteRevisionId;
+const noteId = "note-1";
+const revisionId = "missing-revision";
 
 describe("NoteRevisionDetail notFound handling", () => {
   it("returns the notFound JSX (not the error boundary) for a missing revision", async () => {

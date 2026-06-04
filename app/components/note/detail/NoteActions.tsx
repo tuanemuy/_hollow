@@ -18,7 +18,7 @@ import {
   pillBtnPrimary,
 } from "@/components/common/styles";
 import { PublishSettings } from "@/components/publication/PublishSettings";
-import type { NoteId } from "@/core/application/dto/note";
+
 import type {
   ShareLinkDTO,
   Visibility,
@@ -35,7 +35,7 @@ import { NoteActionsMenu } from "./NoteActionsMenu";
 import { UrlCopyButton } from "./UrlCopyButton";
 
 export type NoteActionsProps = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   status: "active" | "trashed";
   publishState: Readonly<{
     visibility: Visibility;
@@ -97,7 +97,7 @@ export function NoteActions({
   const [open, setOpen] = useState<OpenDialog>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const noteIdStr = noteId as unknown as string;
+  const noteIdStr = noteId;
 
   // For visibility public/unlisted prefer the share URL when available;
   // private always falls back to the internal `/notes/<id>` URL. The

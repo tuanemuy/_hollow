@@ -3,7 +3,7 @@ import { NoteId as NoteIdVO, NoteSlug } from "@/core/domain/note/valueObject";
 import type { TagId as TagIdVO } from "@/core/domain/tag/valueObject";
 import { toUserDTO, type UserDTO } from "../dto/identity";
 import type { NoteDTO } from "../dto/note";
-import type { TagId } from "../dto/tag";
+
 import { NotFoundError } from "../errors";
 import { toNoteView } from "../note/view";
 import type { ServiceArgs } from "../types";
@@ -125,11 +125,11 @@ export async function getPublicNote({
           : await tagRepository.findByIds(
               note.tagIds.map((id) => id as TagIdVO),
             );
-      const tagNameMap = new Map<TagId | string, string>(
-        tags.map((t) => [t.id as unknown as TagId, t.name as string]),
+      const tagNameMap = new Map<string, string>(
+        tags.map((t) => [t.id, t.name as string]),
       );
       const tagNames = note.tagIds
-        .map((id) => tagNameMap.get(id as unknown as TagId))
+        .map((id) => tagNameMap.get(id))
         .filter((name): name is string => name !== undefined);
 
       return {

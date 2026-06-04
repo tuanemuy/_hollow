@@ -27,9 +27,7 @@ const renderNoteDetail = createServerFn({ method: "GET" })
     return renderServerComponent(
       <NoteDetail
         user={userDto}
-        noteId={
-          data.noteId as unknown as Parameters<typeof NoteDetail>[0]["noteId"]
-        }
+        noteId={data.noteId}
         appUrl={container.config.appUrl}
       />,
     );

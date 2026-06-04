@@ -2,12 +2,12 @@ import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject"
 import { Tag } from "@/core/domain/tag/entity";
 import { TagService } from "@/core/domain/tag/service";
 import { TagName } from "@/core/domain/tag/valueObject";
-import type { UserId } from "../dto/identity";
+
 import type { ServiceArgs } from "../types";
 import { type TagView, toTagView } from "./view";
 
 export type CreateTagInput = {
-  actorUserId: UserId;
+  actorUserId: string;
   name: string;
 };
 

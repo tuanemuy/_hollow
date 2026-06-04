@@ -5,8 +5,7 @@ import { isForbiddenError, isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import { setupTestContainer } from "../../__tests__/helpers";
-import type { UserId } from "../../dto/identity";
-import type { IngestionJobId } from "../../dto/ingestion";
+
 import { retryIngestionJob } from "../retryIngestionJob";
 
 const baseTime = new Date("2026-01-01T00:00:00.000Z");
@@ -33,7 +32,7 @@ async function seedUser(
   container: ReturnType<ReturnType<typeof setupTestContainer>>,
   role: "admin" | "member" = "admin",
   status: "active" | "deleted" | "suspended" = "active",
-): Promise<UserId> {
+): Promise<string> {
   const id = nextUserId();
   await container.db.insert(schema.users).values({
     id,
@@ -47,11 +46,11 @@ async function seedUser(
     createdAt: iso(0),
     updatedAt: iso(0),
   });
-  return id as UserId;
+  return id;
 }
 
 type SeedJobInput = {
-  ownerId: UserId;
+  ownerId: string;
   status:
     | "pending"
     | "processing"
@@ -112,7 +111,7 @@ describe("retryIngestionJob", () => {
       container,
       input: {
         actorUserId: admin,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -148,7 +147,7 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: member,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -173,7 +172,7 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: deletedAdmin,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -192,7 +191,7 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: admin,
-          jobId: missing as unknown as IngestionJobId,
+          jobId: missing,
         },
       });
       expect.fail("should have thrown");
@@ -215,7 +214,7 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: admin,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -242,7 +241,7 @@ describe("retryIngestionJob", () => {
         container,
         input: {
           actorUserId: admin,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");

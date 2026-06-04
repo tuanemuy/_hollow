@@ -61,9 +61,9 @@ export const finalizeMediaUploadFn = createServerFn({ method: "POST" })
       },
     });
     return {
-      mediaId: result.mediaId as unknown as string,
+      mediaId: result.mediaId,
       byteSize: result.byteSize,
       mimeType: result.mimeType,
-      url: `/media/${result.mediaId as unknown as string}`,
+      url: `/media/${result.mediaId}`,
     };
   });

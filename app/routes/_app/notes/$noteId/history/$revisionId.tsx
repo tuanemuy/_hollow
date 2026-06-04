@@ -32,16 +32,8 @@ const renderRevision = createServerFn({ method: "GET" })
     return renderServerComponent(
       <NoteRevisionDetail
         user={userDto}
-        noteId={
-          data.noteId as unknown as Parameters<
-            typeof NoteRevisionDetail
-          >[0]["noteId"]
-        }
-        revisionId={
-          data.revisionId as unknown as Parameters<
-            typeof NoteRevisionDetail
-          >[0]["revisionId"]
-        }
+        noteId={data.noteId}
+        revisionId={data.revisionId}
       />,
     );
   });

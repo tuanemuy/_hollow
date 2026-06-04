@@ -229,13 +229,13 @@ export function viewQueryToSearch(
     display: view.displayMode,
   };
   if (view.query.directoryId !== null) {
-    out.directoryId = view.query.directoryId as unknown as string;
+    out.directoryId = view.query.directoryId;
   }
   if (view.query.keyword !== null) {
     out.q = view.query.keyword;
   }
   if (view.query.referencingNoteId !== null) {
-    out.referencingNoteId = view.query.referencingNoteId as unknown as string;
+    out.referencingNoteId = view.query.referencingNoteId;
   }
   // URL schema carries a single `visibility` enum; the SavedView VO stores
   // it as an array to keep room for future multi-select UI without a port
@@ -253,9 +253,7 @@ export function viewQueryToSearch(
     }
   }
   if (resolveTagNames !== undefined && view.query.tagIds.length > 0) {
-    const names = resolveTagNames(
-      view.query.tagIds.map((id) => id as unknown as string),
-    );
+    const names = resolveTagNames(view.query.tagIds);
     if (names.length > 0) out.tagNames = [...names];
   }
   return out;

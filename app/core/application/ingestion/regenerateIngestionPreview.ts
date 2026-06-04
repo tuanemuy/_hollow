@@ -1,18 +1,17 @@
 import { UserId } from "@/core/domain/identity/valueObject";
 import { IngestionJob } from "@/core/domain/ingestion/entity";
 import type { IngestionJobId as IngestionJobIdBrand } from "@/core/domain/ingestion/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RegenerateIngestionPreviewInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 export type RegenerateIngestionPreviewOutput = Readonly<{
-  jobId: IngestionJobId;
+  jobId: string;
 }>;
 
 const MAX_REGENERATIONS = 5;

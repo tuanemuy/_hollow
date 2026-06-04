@@ -182,7 +182,7 @@ function IngestionRow({
     startTransition(async () => {
       setError(null);
       try {
-        await retry({ data: { jobId: job.id as unknown as string } });
+        await retry({ data: { jobId: job.id } });
         await onChange();
       } catch (caught) {
         setError(extractSerializedError(caught));
@@ -195,11 +195,8 @@ function IngestionRow({
   return (
     <tr className={ROW_CLASS}>
       <td className={TD_CLASS}>
-        <div
-          className="text-sm font-medium"
-          title={job.id as unknown as string}
-        >
-          {shortenId(job.id as unknown as string)}
+        <div className="text-sm font-medium" title={job.id}>
+          {shortenId(job.id)}
         </div>
         <div className="text-xs text-ink-tertiary">{job.originalFileName}</div>
       </td>
@@ -211,8 +208,8 @@ function IngestionRow({
         </span>
       </td>
       <td className={TD_CLASS}>{job.kind}</td>
-      <td className={TD_CLASS} title={job.ownerId as unknown as string}>
-        {shortenId(job.ownerId as unknown as string)}
+      <td className={TD_CLASS} title={job.ownerId}>
+        {shortenId(job.ownerId)}
       </td>
       <td className={TD_CLASS}>{formatDateTime(job.updatedAt)}</td>
       <td className={TD_CLASS}>
@@ -268,7 +265,7 @@ function ExportRow({
     startTransition(async () => {
       setError(null);
       try {
-        await retry({ data: { jobId: job.id as unknown as string } });
+        await retry({ data: { jobId: job.id } });
         await onChange();
       } catch (caught) {
         setError(extractSerializedError(caught));
@@ -281,11 +278,8 @@ function ExportRow({
   return (
     <tr className={ROW_CLASS}>
       <td className={TD_CLASS}>
-        <div
-          className="text-sm font-medium"
-          title={job.id as unknown as string}
-        >
-          {shortenId(job.id as unknown as string)}
+        <div className="text-sm font-medium" title={job.id}>
+          {shortenId(job.id)}
         </div>
         <div className="text-xs text-ink-tertiary">
           {job.format} · {job.scope}
@@ -303,8 +297,8 @@ function ExportRow({
           ? `${job.progress.processed}/${job.progress.total}`
           : "—"}
       </td>
-      <td className={TD_CLASS} title={job.ownerId as unknown as string}>
-        {shortenId(job.ownerId as unknown as string)}
+      <td className={TD_CLASS} title={job.ownerId}>
+        {shortenId(job.ownerId)}
       </td>
       <td className={TD_CLASS}>{formatDateTime(job.createdAt)}</td>
       <td className={TD_CLASS}>
@@ -672,11 +666,7 @@ export function JobsBoard({
                   </tr>
                 ) : (
                   sortedIngestion.map((job) => (
-                    <IngestionRow
-                      key={job.id as unknown as string}
-                      job={job}
-                      onChange={onChange}
-                    />
+                    <IngestionRow key={job.id} job={job} onChange={onChange} />
                   ))
                 )}
               </tbody>
@@ -723,11 +713,7 @@ export function JobsBoard({
                   </tr>
                 ) : (
                   sortedExport.map((job) => (
-                    <ExportRow
-                      key={job.id as unknown as string}
-                      job={job}
-                      onChange={onChange}
-                    />
+                    <ExportRow key={job.id} job={job} onChange={onChange} />
                   ))
                 )}
               </tbody>

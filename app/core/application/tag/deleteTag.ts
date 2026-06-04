@@ -3,21 +3,19 @@ import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
 import { TagEvents } from "@/core/domain/tag/events";
 import type { TagId as DomainTagId } from "@/core/domain/tag/valueObject";
 import { TagBlacklistEntry } from "@/core/domain/tag/valueObject";
-import type { UserId } from "../dto/identity";
-import type { NoteId } from "../dto/note";
-import type { TagId } from "../dto/tag";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 const DELETE_NOTE_PAGE_SIZE = 500;
 
 export type DeleteTagInput = {
-  actorUserId: UserId;
-  tagId: TagId;
+  actorUserId: string;
+  tagId: string;
 };
 
 export type DeleteTagOutput = {
-  affectedNoteIds: readonly NoteId[];
+  affectedNoteIds: readonly string[];
 };
 
 export async function deleteTag({
@@ -48,7 +46,7 @@ export async function deleteTag({
       }
 
       const tagId = found.entity.id as DomainTagId;
-      const affectedIds: NoteId[] = [];
+      const affectedIds: string[] = [];
       const notes = await collectNotesWithTag(
         noteRepository,
         found.entity.ownerId,
@@ -67,7 +65,7 @@ export async function deleteTag({
         if (eventDrafts.length === 0) continue;
         await noteRepository.save(updated, versioned.expectedVersion);
         collectEvents(eventDrafts);
-        affectedIds.push(updated.id as unknown as NoteId);
+        affectedIds.push(updated.id);
       }
 
       await tagBlacklistRepository.add(

@@ -2,19 +2,13 @@ import type { SavedView } from "@/core/domain/view/entity";
 import type { ViewQuery } from "@/core/domain/view/valueObject";
 import type { DateRange, Instant } from "./common";
 import { toInstant } from "./common";
-import type { DirectoryId } from "./directory";
-import type { UserId } from "./identity";
-import type { NoteId } from "./note";
-import type { TagId } from "./tag";
-
-export type SavedViewId = string & { readonly __brand: "SavedViewId" };
 
 export type ViewQueryDTO = Readonly<{
-  directoryId: DirectoryId | null;
-  tagIds: readonly TagId[];
+  directoryId: string | null;
+  tagIds: readonly string[];
   dateRange: DateRange | null;
   keyword: string | null;
-  referencingNoteId: NoteId | null;
+  referencingNoteId: string | null;
   visibilityFilter: ReadonlyArray<"private" | "unlisted" | "public">;
 }>;
 
@@ -27,8 +21,8 @@ export type ViewQueryDTO = Readonly<{
 export type ViewQuerySnapshotDTO = ViewQueryDTO;
 
 export type SavedViewDTO = Readonly<{
-  id: SavedViewId;
-  ownerId: UserId;
+  id: string;
+  ownerId: string;
   name: string;
   kind: "personal" | "public";
   query: ViewQueryDTO;
@@ -54,11 +48,8 @@ export type SavedViewDTO = Readonly<{
 
 export function toViewQueryDTO(query: ViewQuery): ViewQueryDTO {
   return {
-    directoryId:
-      query.directoryId === null
-        ? null
-        : (query.directoryId as unknown as DirectoryId),
-    tagIds: query.tagIds.map((id) => id as unknown as TagId),
+    directoryId: query.directoryId,
+    tagIds: query.tagIds,
     dateRange:
       query.dateRange === null
         ? null
@@ -73,18 +64,15 @@ export function toViewQueryDTO(query: ViewQuery): ViewQueryDTO {
                 : query.dateRange.to.toISOString(),
           },
     keyword: query.keyword === null ? null : (query.keyword as string),
-    referencingNoteId:
-      query.referencingNoteId === null
-        ? null
-        : (query.referencingNoteId as unknown as NoteId),
+    referencingNoteId: query.referencingNoteId,
     visibilityFilter: query.visibilityFilter.map((v) => v),
   };
 }
 
 export function toSavedViewDTO(view: SavedView): SavedViewDTO {
   return {
-    id: view.id as unknown as SavedViewId,
-    ownerId: view.ownerId as unknown as UserId,
+    id: view.id,
+    ownerId: view.ownerId,
     name: view.name,
     kind: view.kind,
     query: toViewQueryDTO(view.query),

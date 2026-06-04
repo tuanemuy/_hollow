@@ -32,9 +32,8 @@ export function flattenDirectoryTree(
     const segments = node.name === "" ? ancestors : [...ancestors, node.name];
     const path = `/${segments.join("/")}`;
     flat.push({
-      id: node.id as unknown as string,
-      parentId:
-        node.parentId === null ? null : (node.parentId as unknown as string),
+      id: node.id,
+      parentId: node.parentId === null ? null : node.parentId,
       name: node.name,
       depth: node.depth,
       path,
@@ -60,11 +59,11 @@ export function getDescendantIds(
 ): Set<string> {
   const ids = new Set<string>();
   const collect = (node: DirectoryTreeNode): void => {
-    ids.add(node.id as unknown as string);
+    ids.add(node.id);
     for (const child of node.children) collect(child);
   };
   const find = (node: DirectoryTreeNode): boolean => {
-    if ((node.id as unknown as string) === targetId) {
+    if (node.id === targetId) {
       collect(node);
       return true;
     }

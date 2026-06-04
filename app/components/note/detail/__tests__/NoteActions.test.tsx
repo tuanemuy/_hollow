@@ -7,7 +7,6 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
-import type { NoteId } from "@/core/application/dto/note";
 
 /**
  * Issue #382: locks the icon-only treatment of the 編集 action — accessible
@@ -75,7 +74,7 @@ function renderActions() {
   act(() => {
     root.render(
       <NoteActions
-        noteId={"note-1" as unknown as NoteId}
+        noteId="note-1"
         status="active"
         publishState={{ visibility: "private", publishedAt: null, links: [] }}
         appUrl="https://example.test"

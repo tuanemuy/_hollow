@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
 import { AppServerError } from "@/core/presentation/errorResponse";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
@@ -21,10 +20,6 @@ import {
 } from "./wire";
 
 export type { IngestionJobWire, IngestionPreviewWire };
-
-const toDtoUserId = (
-  id: import("@/core/domain/identity/valueObject").UserId,
-): UserIdDTO => id as unknown as UserIdDTO;
 
 export const uploadFileFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
@@ -47,7 +42,7 @@ export const uploadFileFn = createServerFn({ method: "POST" })
     const result = await module.uploadFile({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
+        actorUserId: user.id,
         originalFileName: file.name,
         mimeType: file.type || "application/octet-stream",
         byteSize: file.size,
@@ -55,7 +50,7 @@ export const uploadFileFn = createServerFn({ method: "POST" })
         ...(promptOverride === undefined ? {} : { promptOverride }),
       },
     });
-    return { jobId: result.jobId as unknown as string };
+    return { jobId: result.jobId };
   });
 
 // Transport-boundary cap, byte-for-byte aligned with the `PromptOverride`
@@ -114,10 +109,8 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
     const result = await module.commitIngestionPreview({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.commitIngestionPreview
-        >[0]["input"]["jobId"],
+        actorUserId: user.id,
+        jobId: data.jobId,
         modifications: {
           ...(data.title === undefined ? {} : { title: data.title }),
           ...(data.directoryId === undefined
@@ -137,7 +130,7 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
         },
       },
     });
-    return { noteId: result.noteId as unknown as string };
+    return { noteId: result.noteId };
   });
 
 export type EffectiveIngestionPromptsWire = {
@@ -158,7 +151,7 @@ export const getEffectiveIngestionPromptsFn = createServerFn({ method: "GET" })
     );
     const result = await module.getEffectiveIngestionPrompts({
       container,
-      input: { actorUserId: toDtoUserId(user.id) },
+      input: { actorUserId: user.id },
     });
     return {
       structure: {
@@ -183,10 +176,8 @@ export const getIngestionJobFn = createServerFn({ method: "GET" })
     const result = await module.getIngestionJob({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.getIngestionJob
-        >[0]["input"]["jobId"],
+        actorUserId: user.id,
+        jobId: data.jobId,
       },
     });
     return { job: toIngestionJobWire(result.job) };
@@ -213,7 +204,7 @@ export const getIngestionJobsFn = createServerFn({ method: "GET" })
     const result = await module.getIngestionJobs({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
+        actorUserId: user.id,
         limit: data.limit ?? 50,
         ...(data.includeDiscarded === true ? { includeDiscarded: true } : {}),
       },
@@ -232,10 +223,8 @@ export const discardIngestionPreviewFn = createServerFn({ method: "POST" })
     await module.discardIngestionPreview({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.discardIngestionPreview
-        >[0]["input"]["jobId"],
+        actorUserId: user.id,
+        jobId: data.jobId,
       },
     });
     return { ok: true as const };
@@ -252,13 +241,11 @@ export const regenerateIngestionPreviewFn = createServerFn({ method: "POST" })
     const result = await module.regenerateIngestionPreview({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.regenerateIngestionPreview
-        >[0]["input"]["jobId"],
+        actorUserId: user.id,
+        jobId: data.jobId,
       },
     });
-    return { jobId: result.jobId as unknown as string };
+    return { jobId: result.jobId };
   });
 
 export const ownerRetryIngestionJobFn = createServerFn({ method: "POST" })
@@ -272,11 +259,9 @@ export const ownerRetryIngestionJobFn = createServerFn({ method: "POST" })
     const result = await module.ownerRetryIngestionJob({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        jobId: data.jobId as unknown as Parameters<
-          typeof module.ownerRetryIngestionJob
-        >[0]["input"]["jobId"],
+        actorUserId: user.id,
+        jobId: data.jobId,
       },
     });
-    return { jobId: result.jobId as unknown as string };
+    return { jobId: result.jobId };
   });

@@ -3,12 +3,6 @@ import type { NoteRevision } from "@/core/domain/note/revision";
 import type { InternalLinkRef } from "@/core/domain/note/valueObject";
 import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
-import type { DirectoryId } from "./directory";
-import type { MediaAssetId, UserId } from "./identity";
-import type { TagId } from "./tag";
-
-export type NoteId = string & { readonly __brand: "NoteId" };
-export type NoteRevisionId = string & { readonly __brand: "NoteRevisionId" };
 
 /** Plain-record projection of the domain `FrontMatter` value object. */
 export type FrontMatterDTO = Record<string, unknown>;
@@ -21,42 +15,42 @@ export type FrontMatterDTO = Record<string, unknown>;
  *   - `kind === 'title'` ⇒ `target` is the raw title string.
  */
 export type InternalLinkRefDTO =
-  | Readonly<{ kind: "id"; target: NoteId; displayText: string | null }>
+  | Readonly<{ kind: "id"; target: string; displayText: string | null }>
   | Readonly<{ kind: "title"; target: string; displayText: string | null }>;
 
 export type NoteDTO = Readonly<{
-  id: NoteId;
-  ownerId: UserId;
-  directoryId: DirectoryId;
+  id: string;
+  ownerId: string;
+  directoryId: string;
   slug: string;
   title: string;
   contentHtml: string;
   frontMatter: FrontMatterDTO;
-  tagIds: readonly TagId[];
+  tagIds: readonly string[];
   internalLinkRefs: readonly InternalLinkRefDTO[];
-  mediaRefs: readonly MediaAssetId[];
+  mediaRefs: readonly string[];
   status: "active" | "trashed";
   trashedAt: Instant | null;
   createdAt: Instant;
   updatedAt: Instant;
-  editLock: Readonly<{ userId: UserId; expiresAt: Instant }> | null;
+  editLock: Readonly<{ userId: string; expiresAt: Instant }> | null;
 }>;
 
 export type NoteListItemDTO = Readonly<{
-  id: NoteId;
-  ownerId: UserId;
-  directoryId: DirectoryId;
+  id: string;
+  ownerId: string;
+  directoryId: string;
   slug: string;
   title: string;
   excerpt: string;
-  tagIds: readonly TagId[];
+  tagIds: readonly string[];
   tagNames: readonly string[];
   updatedAt: Instant;
   visibility: "private" | "unlisted" | "public";
 }>;
 
 export type BacklinkDTO = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   title: string;
   slug: string;
   snippet: string | null;
@@ -69,7 +63,7 @@ export type BacklinkDTO = Readonly<{
  * file always carries the filename captured at ingestion upload.
  */
 export type NoteSourceFileDTO = Readonly<{
-  mediaId: MediaAssetId;
+  mediaId: string;
   originalFileName: string;
 }>;
 
@@ -79,22 +73,22 @@ export type NoteSourceFileDTO = Readonly<{
  * via `GetNoteRevision`.
  */
 export type NoteRevisionSummaryDTO = Readonly<{
-  id: NoteRevisionId;
-  noteId: NoteId;
+  id: string;
+  noteId: string;
   title: string;
   createdAt: Instant;
-  createdByUserId: UserId;
+  createdByUserId: string;
 }>;
 
 /** Detail projection of a `NoteRevision` — carries the full snapshot. */
 export type NoteRevisionDTO = Readonly<{
-  id: NoteRevisionId;
-  noteId: NoteId;
-  ownerId: UserId;
+  id: string;
+  noteId: string;
+  ownerId: string;
   title: string;
   contentHtml: string;
   frontMatter: FrontMatterDTO;
-  createdByUserId: UserId;
+  createdByUserId: string;
   createdAt: Instant;
 }>;
 
@@ -102,23 +96,23 @@ export function toNoteRevisionSummaryDTO(
   revision: NoteRevision,
 ): NoteRevisionSummaryDTO {
   return {
-    id: revision.id as unknown as NoteRevisionId,
-    noteId: revision.noteId as unknown as NoteId,
+    id: revision.id,
+    noteId: revision.noteId,
     title: revision.title,
     createdAt: toInstant(revision.createdAt),
-    createdByUserId: revision.createdByUserId as unknown as UserId,
+    createdByUserId: revision.createdByUserId,
   };
 }
 
 export function toNoteRevisionDTO(revision: NoteRevision): NoteRevisionDTO {
   return {
-    id: revision.id as unknown as NoteRevisionId,
-    noteId: revision.noteId as unknown as NoteId,
-    ownerId: revision.ownerId as unknown as UserId,
+    id: revision.id,
+    noteId: revision.noteId,
+    ownerId: revision.ownerId,
     title: revision.title,
     contentHtml: revision.contentHtml,
     frontMatter: { ...revision.frontMatter } as FrontMatterDTO,
-    createdByUserId: revision.createdByUserId as unknown as UserId,
+    createdByUserId: revision.createdByUserId,
     createdAt: toInstant(revision.createdAt),
   };
 }
@@ -130,7 +124,7 @@ export function toInternalLinkRefDTO(ref: InternalLinkRef): InternalLinkRefDTO {
       // For kind=id the canonical target is the resolved note id when the
       // service has linked it; otherwise the raw target (already a
       // UUIDv7 by domain invariant).
-      target: (ref.resolvedNoteId ?? ref.target) as unknown as NoteId,
+      target: ref.resolvedNoteId ?? ref.target,
       displayText: ref.displayText,
     };
   }
@@ -143,16 +137,16 @@ export function toInternalLinkRefDTO(ref: InternalLinkRef): InternalLinkRefDTO {
 
 export function toNoteDTO(note: Note): NoteDTO {
   return {
-    id: note.id as unknown as NoteId,
-    ownerId: note.ownerId as unknown as UserId,
-    directoryId: note.directoryId as unknown as DirectoryId,
+    id: note.id,
+    ownerId: note.ownerId,
+    directoryId: note.directoryId,
     slug: note.slug,
     title: note.title,
     contentHtml: note.contentHtml,
     frontMatter: { ...note.frontMatter } as FrontMatterDTO,
-    tagIds: note.tagIds.map((id) => id as unknown as TagId),
+    tagIds: note.tagIds,
     internalLinkRefs: note.internalLinkRefs.map(toInternalLinkRefDTO),
-    mediaRefs: note.mediaRefs.map((id) => id as unknown as MediaAssetId),
+    mediaRefs: note.mediaRefs,
     status: note.status,
     trashedAt: toInstantOrNull(note.trashedAt),
     createdAt: toInstant(note.createdAt),
@@ -161,7 +155,7 @@ export function toNoteDTO(note: Note): NoteDTO {
       note.editLock === null
         ? null
         : {
-            userId: note.editLock.userId as unknown as UserId,
+            userId: note.editLock.userId,
             expiresAt: toInstant(note.editLock.expiresAt),
           },
   };

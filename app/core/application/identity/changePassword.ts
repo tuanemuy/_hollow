@@ -1,9 +1,9 @@
 import { RawPassword, UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import type { ServiceArgs } from "../types";
 
 export type ChangePasswordInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   currentPassword: string;
   newPassword: string;
   revokeOtherSessions: boolean;

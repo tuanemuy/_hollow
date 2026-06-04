@@ -21,23 +21,24 @@
 すべての usecase は以下の共通 DTO を input/output に利用する。型は `app/core/application/dto/` に集約する。
 
 ```ts
-// 識別子は値オブジェクトのラッパー型
-type UserId = string & { readonly __brand: 'UserId' };
-type NoteId = string & { readonly __brand: 'NoteId' };
-type DirectoryId = string & { readonly __brand: 'DirectoryId' };
-type TagId = string & { readonly __brand: 'TagId' };
-type MediaAssetId = string & { readonly __brand: 'MediaAssetId' };
-type ShareLinkId = string & { readonly __brand: 'ShareLinkId' };
+// 識別子はすべてプリミティブ string。DTO 層はブランドを持たない。
+// 値の正しさ (UUIDv7 等) は usecase 境界の内側で domain の `XId.create()` が
+// 検証する。DTO 層では NoteId と UserId はどちらも単なる string であり、取り違え
+// 防止は意図的に放棄している (ランタイム効果ゼロのブランド橋渡しを排除するため)。
+// 下記の別名は読み手向けの意図表現にすぎず、型レベルの強制力は持たない。
+type UserId = string;
+type NoteId = string;
+type DirectoryId = string;
+type TagId = string;
+type MediaAssetId = string;
+type ShareLinkId = string;
 
-// SessionToken は brand しない不透明文字列 (アダプタ実装次第で平文 / JWT 等を許容するため)。
-// 実体は `string` と等価で型レベルの強制力は持たないが、DTO や usecase 戻り値で「これは
-// セッショントークンを指す string」という意図を読解しやすくするための marker として残す。
-// 将来 brand する場合は SessionService の実装側でも brand 生成を行う必要があり、現状は
-// 「アダプタ実装が外部システムから返す文字列をそのまま透過させる」運用優先で非 brand。
+// SessionToken も同様にプリミティブ string。アダプタ実装次第で平文 / JWT 等を
+// そのまま透過させる運用優先で、他の DTO id と同じく非ブランド。
 type SessionToken = string;
-type ExportJobId = string & { readonly __brand: 'ExportJobId' };
-type IngestionJobId = string & { readonly __brand: 'IngestionJobId' };
-type SavedViewId = string & { readonly __brand: 'SavedViewId' };
+type ExportJobId = string;
+type IngestionJobId = string;
+type SavedViewId = string;
 
 type Instant = string;          // ISO 8601 UTC
 type Visibility = 'private' | 'unlisted' | 'public';

@@ -3,8 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MediaAssetId } from "@/core/application/dto/identity";
-import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
+import type { BacklinkDTO } from "@/core/application/dto/note";
 
 /**
  * Regression guard: the backlink-count footer must show
@@ -27,7 +26,7 @@ const { NoteMetaPanel } = await import("../NoteMetaPanel");
 
 function backlink(n: number): BacklinkDTO {
   return {
-    noteId: `note-${n}` as NoteId,
+    noteId: `note-${n}`,
     title: `Backlink ${n}`,
     slug: `backlink-${n}`,
     snippet: null,
@@ -35,7 +34,7 @@ function backlink(n: number): BacklinkDTO {
 }
 
 const baseProps = {
-  noteId: "note-self" as NoteId,
+  noteId: "note-self",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
   tagNames: [] as readonly string[],
@@ -135,7 +134,7 @@ describe("NoteMetaPanel source file (Issue #452)", () => {
           backlinks={[]}
           backlinkCount={0}
           sourceFile={{
-            mediaId: "media-src-1" as MediaAssetId,
+            mediaId: "media-src-1",
             originalFileName: "report.pdf",
           }}
         />,

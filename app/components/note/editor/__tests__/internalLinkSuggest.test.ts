@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { NoteId } from "@/core/application/dto/note";
-import type { TagId } from "@/core/application/dto/tag";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import {
   formatInternalLinkInsertion,
@@ -9,8 +7,8 @@ import {
   suggestionKey,
 } from "../internalLinkSuggest";
 
-const asNoteId = (raw: string): NoteId => raw as unknown as NoteId;
-const asTagId = (raw: string): TagId => raw as unknown as TagId;
+const asNoteId = (raw: string): string => raw;
+const asTagId = (raw: string): string => raw;
 
 // These patterns mirror the canonical definitions in the domain
 // services. We re-declare them locally rather than re-exporting from

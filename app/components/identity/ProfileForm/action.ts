@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { MediaAssetId, UserId } from "@/core/application/dto/identity";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -18,15 +17,12 @@ export const updateProfileFn = createServerFn({ method: "POST" })
     // `null`) reach the usecase intact. Zod's `.optional()` carries
     // `undefined` through, so we forward selectively.
     const input: Parameters<typeof module.updateProfile>[0]["input"] = {
-      actorUserId: actor.id as unknown as UserId,
+      actorUserId: actor.id,
     };
     if (data.displayName !== undefined) input.displayName = data.displayName;
     if (data.bio !== undefined) input.bio = data.bio;
     if (data.avatarMediaId !== undefined) {
-      input.avatarMediaId =
-        data.avatarMediaId === null
-          ? null
-          : (data.avatarMediaId as MediaAssetId);
+      input.avatarMediaId = data.avatarMediaId;
     }
     return module.updateProfile({ container, input });
   });
@@ -43,7 +39,7 @@ export const changeUsernameFn = createServerFn({ method: "POST" })
     return module.changeUsername({
       container,
       input: {
-        actorUserId: actor.id as unknown as UserId,
+        actorUserId: actor.id,
         newUsername: data.newUsername,
       },
     });

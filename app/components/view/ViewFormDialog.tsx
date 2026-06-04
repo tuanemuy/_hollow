@@ -170,7 +170,7 @@ export function ViewFormDialog(props: ViewFormDialogProps) {
           editView?.query.referencingNoteId === undefined ||
           editView?.query.referencingNoteId === null
             ? null
-            : (editView.query.referencingNoteId as unknown as string),
+            : editView.query.referencingNoteId,
         visibilityFilter: visibility,
       },
       displayMode,
@@ -189,7 +189,7 @@ export function ViewFormDialog(props: ViewFormDialogProps) {
       try {
         if (props.mode === "edit") {
           await props.submit({
-            data: { ...payload, viewId: props.view.id as unknown as string },
+            data: { ...payload, viewId: props.view.id },
           });
         } else {
           await props.submit({ data: payload });

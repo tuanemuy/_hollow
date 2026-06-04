@@ -4,14 +4,11 @@ import type {
 } from "@/core/domain/publication/entity";
 import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
-import type { NoteId } from "./note";
-
-export type ShareLinkId = string & { readonly __brand: "ShareLinkId" };
 
 export type Visibility = "private" | "unlisted" | "public";
 
 export type PublicationStateDTO = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   visibility: Visibility;
   publishedAt: Instant | null;
 }>;
@@ -25,8 +22,8 @@ export type PublicationStateDTO = Readonly<{
  * hashed token.
  */
 export type ShareLinkDTO = Readonly<{
-  id: ShareLinkId;
-  noteId: NoteId;
+  id: string;
+  noteId: string;
   hasPassword: boolean;
   status: "active" | "revoked";
   createdAt: Instant;
@@ -39,7 +36,7 @@ export function toPublicationStateDTO(
   state: PublicationState,
 ): PublicationStateDTO {
   return {
-    noteId: state.noteId as unknown as NoteId,
+    noteId: state.noteId,
     visibility: state.visibility,
     publishedAt: toInstantOrNull(state.publishedAt),
   };
@@ -53,8 +50,8 @@ export function toPublicationStateDTO(
  */
 export function toShareLinkDTO(link: ShareLink, url: string): ShareLinkDTO {
   return {
-    id: link.id as unknown as ShareLinkId,
-    noteId: link.noteId as unknown as NoteId,
+    id: link.id,
+    noteId: link.noteId,
     hasPassword: link.passwordHash !== null,
     status: link.status,
     createdAt: toInstant(link.createdAt),

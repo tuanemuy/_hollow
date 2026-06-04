@@ -1,14 +1,13 @@
 import { IngestionJob } from "@/core/domain/ingestion/entity";
 import type { IngestionJobId as IngestionJobIdBrand } from "@/core/domain/ingestion/valueObject";
 import { assertAdmin } from "../adminSettings/authorization";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
+
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RetryIngestionJobInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 /**

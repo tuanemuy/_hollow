@@ -1,7 +1,6 @@
 import type { MediaAsset } from "@/core/domain/media/entity";
 import type { Instant } from "./common";
 import { toInstant } from "./common";
-import type { MediaAssetId, UserId } from "./identity";
 
 /**
  * Media asset projection.
@@ -12,8 +11,8 @@ import type { MediaAssetId, UserId } from "./identity";
  * adapter (signed URL or public route, depending on visibility).
  */
 export type MediaAssetDTO = Readonly<{
-  id: MediaAssetId;
-  ownerId: UserId;
+  id: string;
+  ownerId: string;
   kind: "image" | "video" | "avatar" | "source";
   mimeType: string;
   byteSize: number;
@@ -29,8 +28,8 @@ export function toMediaAssetDTO(
   downloadUrl: string,
 ): MediaAssetDTO {
   return {
-    id: asset.id as unknown as MediaAssetId,
-    ownerId: asset.ownerId as unknown as UserId,
+    id: asset.id,
+    ownerId: asset.ownerId,
     kind: asset.kind,
     mimeType: asset.mimeType,
     byteSize: asset.byteSize,

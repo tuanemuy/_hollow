@@ -1,13 +1,13 @@
 import { User } from "@/core/domain/identity/entity";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type DemoteAdminInput = {
-  actorAdminId: UserIdDTO;
-  targetUserId: UserIdDTO;
+  actorAdminId: string;
+  targetUserId: string;
 };
 
 export async function demoteAdmin({

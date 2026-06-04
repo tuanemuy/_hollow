@@ -4,12 +4,11 @@ import { IngestionJob } from "@/core/domain/ingestion/entity";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
 import { IngestionService } from "@/core/domain/ingestion/service";
 import { IngestionLimits } from "@/core/domain/ingestion/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
+
 import type { ServiceArgs } from "../types";
 
 export type UploadFileInput = Readonly<{
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   originalFileName: string;
   mimeType: string;
   byteSize: number;
@@ -23,7 +22,7 @@ export type UploadFileInput = Readonly<{
 }>;
 
 export type UploadFileOutput = Readonly<{
-  jobId: IngestionJobId;
+  jobId: string;
 }>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -112,7 +111,7 @@ export async function uploadFile({
     },
   );
 
-  return { jobId: jobId as unknown as IngestionJobId };
+  return { jobId };
 }
 
 function ingestionLimitsFromSettings(limits: {

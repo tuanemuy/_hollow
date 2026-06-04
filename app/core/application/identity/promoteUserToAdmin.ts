@@ -1,12 +1,12 @@
 import { User } from "@/core/domain/identity/entity";
 import { UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type PromoteUserToAdminInput = {
-  actorAdminId: UserIdDTO;
-  targetUserId: UserIdDTO;
+  actorAdminId: string;
+  targetUserId: string;
 };
 
 export async function promoteUserToAdmin({

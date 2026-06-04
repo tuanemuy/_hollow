@@ -17,9 +17,7 @@ export const loadTagsForOwner = cache(
       listTags({
         container,
         input: {
-          actorUserId: actorUserId as unknown as Parameters<
-            typeof listTags
-          >[0]["input"]["actorUserId"],
+          actorUserId: actorUserId,
           limit: TAG_RESOLVE_LIMIT,
         },
       }),
@@ -34,9 +32,9 @@ export const loadTagsForOwner = cache(
  * unresolved tag references as broken conditions, not validation
  * errors.
  *
- * Returns the resolved ids as opaque strings; callers that need the
- * branded `TagId` should cast at the call site to keep this helper free
- * of cross-domain type imports.
+ * Returns the resolved ids as plain strings; callers that feed them to a
+ * usecase taking the domain `TagId` cast at the call site to keep this
+ * helper free of cross-domain type imports.
  */
 export async function resolveTagNamesToIds(
   actorUserId: string,
@@ -49,15 +47,13 @@ export async function resolveTagNamesToIds(
   const { tags } = await module.listTags({
     container,
     input: {
-      actorUserId: actorUserId as unknown as Parameters<
-        typeof module.listTags
-      >[0]["input"]["actorUserId"],
+      actorUserId: actorUserId,
       limit: TAG_RESOLVE_LIMIT,
     },
   });
   const byName = new Map<string, string>();
   for (const tag of tags) {
-    byName.set(tag.name, tag.id as unknown as string);
+    byName.set(tag.name, tag.id);
   }
   return names
     .map((name) => byName.get(name))

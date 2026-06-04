@@ -1,6 +1,6 @@
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
 import type { TagListOpts } from "@/core/domain/tag/ports/tagRepository";
-import type { UserId } from "../dto/identity";
+
 import type { ServiceArgs } from "../types";
 import { type TagView, toTagView } from "./view";
 
@@ -8,7 +8,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 
 export type ListTagsInput = {
-  actorUserId: UserId;
+  actorUserId: string;
   limit?: number;
   cursor?: string | null;
   query?: string;

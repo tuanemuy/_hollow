@@ -14,7 +14,7 @@ export async function TagManager({ user }: Props) {
   // `TagList` so optimistic rename / delete reflect immediately (count and
   // candidates included). The static page title stays in this RSC.
   const tagList = tags.map((tag) => ({
-    id: tag.id as unknown as string,
+    id: tag.id,
     name: tag.name,
     noteCount: tag.noteCount,
   }));

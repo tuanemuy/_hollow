@@ -1,6 +1,6 @@
 import { UserId } from "@/core/domain/identity/valueObject";
 import { IngestionStatus } from "@/core/domain/ingestion/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import type { ServiceArgs } from "../types";
 import { type IngestionJobView, toIngestionJobView } from "./view";
 
@@ -15,7 +15,7 @@ const UPLOAD_QUEUE_DEFAULT_HIDDEN_STATUSES: readonly IngestionStatus[] = [
 ];
 
 export type GetIngestionJobsInput = Readonly<{
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   limit?: number;
   offset?: number;
   status?: string;

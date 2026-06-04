@@ -111,7 +111,7 @@ export const createNoteFn = createServerFn({ method: "POST" })
         internalLinkRefs: [],
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const saveNoteFn = createServerFn({ method: "POST" })
@@ -137,7 +137,7 @@ export const saveNoteFn = createServerFn({ method: "POST" })
         requireLock: false,
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const renameNoteFn = createServerFn({ method: "POST" })
@@ -157,7 +157,7 @@ export const renameNoteFn = createServerFn({ method: "POST" })
         regenerateSlug: data.regenerateSlug,
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const moveNoteFn = createServerFn({ method: "POST" })
@@ -176,7 +176,7 @@ export const moveNoteFn = createServerFn({ method: "POST" })
         newDirectoryId: data.newDirectoryId as unknown as DirectoryId,
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const deleteNoteFn = createServerFn({ method: "POST" })
@@ -216,7 +216,7 @@ export const restoreNoteFn = createServerFn({ method: "POST" })
             : (data.restoreDirectoryId as unknown as DirectoryId),
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const purgeNoteFn = createServerFn({ method: "POST" })
@@ -252,7 +252,7 @@ export const duplicateNoteFn = createServerFn({ method: "POST" })
         noteId: data.noteId as unknown as DomainNoteId,
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const bulkMoveNotesFn = createServerFn({ method: "POST" })
@@ -274,7 +274,7 @@ export const bulkMoveNotesFn = createServerFn({ method: "POST" })
     return {
       successCount: result.successCount,
       failures: result.failures.map((f) => ({
-        noteId: f.noteId as unknown as string,
+        noteId: f.noteId,
         code: f.code,
         message: f.message,
       })),
@@ -299,7 +299,7 @@ export const bulkTrashNotesFn = createServerFn({ method: "POST" })
     return {
       successCount: result.successCount,
       failures: result.failures.map((f) => ({
-        noteId: f.noteId as unknown as string,
+        noteId: f.noteId,
         code: f.code,
         message: f.message,
       })),
@@ -330,7 +330,7 @@ export const bulkExportNotesFn = createServerFn({ method: "POST" })
         options: data.options,
       },
     });
-    return { jobId: job.id as unknown as string };
+    return { jobId: job.id };
   });
 
 export const saveNoteDraftFn = createServerFn({ method: "POST" })
@@ -355,7 +355,7 @@ export const saveNoteDraftFn = createServerFn({ method: "POST" })
       },
     });
     void data.tagNames; // tag re-extraction runs in the explicit save path
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const acquireEditLockFn = createServerFn({ method: "POST" })
@@ -375,7 +375,7 @@ export const acquireEditLockFn = createServerFn({ method: "POST" })
       },
     });
     return {
-      noteId: result.note.id as unknown as string,
+      noteId: result.note.id,
       expiresAt: result.note.editLock?.expiresAt ?? null,
     };
   });
@@ -397,7 +397,7 @@ export const extendEditLockFn = createServerFn({ method: "POST" })
       },
     });
     return {
-      noteId: result.note.id as unknown as string,
+      noteId: result.note.id,
       expiresAt: result.note.editLock?.expiresAt ?? null,
     };
   });
@@ -442,7 +442,7 @@ export const restoreNoteRevisionFn = createServerFn({ method: "POST" })
         revisionId: data.revisionId as unknown as DomainNoteRevisionId,
       },
     });
-    return { noteId: result.note.id as unknown as string };
+    return { noteId: result.note.id };
   });
 
 export const releaseEditLockFn = createServerFn({ method: "POST" })

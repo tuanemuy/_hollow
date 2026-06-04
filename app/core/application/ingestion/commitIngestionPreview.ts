@@ -29,36 +29,30 @@ import {
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
-import type { DirectoryId as DirectoryIdDTO } from "../dto/directory";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
-import type {
-  FrontMatterDTO,
-  InternalLinkRefDTO,
-  NoteId as NoteIdDTO,
-} from "../dto/note";
+
+import type { FrontMatterDTO, InternalLinkRefDTO } from "../dto/note";
 import { ForbiddenError, NotFoundError } from "../errors";
 import { buildStorageKey, safeStoragePut } from "../media/uploadMedia";
 import type { ServiceArgs } from "../types";
 
 export type CommitIngestionPreviewModifications = Readonly<{
   title?: string;
-  directoryId?: DirectoryIdDTO;
+  directoryId?: string;
   directoryNameToCreate?: string;
   frontMatter?: FrontMatterDTO;
   tagNames?: readonly string[];
   internalLinkRefs?: readonly InternalLinkRefDTO[];
-  overwriteNoteId?: NoteIdDTO;
+  overwriteNoteId?: string;
 }>;
 
 export type CommitIngestionPreviewInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
   modifications: CommitIngestionPreviewModifications;
 }>;
 
 export type CommitIngestionPreviewOutput = Readonly<{
-  noteId: NoteIdDTO;
+  noteId: string;
 }>;
 
 export async function commitIngestionPreview({
@@ -353,7 +347,7 @@ export async function commitIngestionPreview({
     }
   }
 
-  return { noteId: result.noteId as unknown as NoteIdDTO };
+  return { noteId: result.noteId };
 }
 
 type SourcePersist = Readonly<{

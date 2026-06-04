@@ -43,12 +43,12 @@ import {
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
-import type { IngestionJobId } from "../dto/ingestion";
+
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RunIngestionJobInput = Readonly<{
-  jobId: IngestionJobId;
+  jobId: string;
 }>;
 
 export async function runIngestionJob({
@@ -544,7 +544,7 @@ function classifyPipelineError(error: unknown): string {
 
 async function markFailedSafely(
   container: ServiceArgs<RunIngestionJobInput>["container"],
-  jobId: IngestionJobId,
+  jobId: string,
   code: string,
   meta: { cause?: unknown; message?: string },
 ): Promise<void> {

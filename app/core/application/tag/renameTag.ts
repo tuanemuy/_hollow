@@ -8,9 +8,7 @@ import {
   type TagId as DomainTagId,
   TagName,
 } from "@/core/domain/tag/valueObject";
-import type { UserId } from "../dto/identity";
-import type { NoteId } from "../dto/note";
-import type { TagId } from "../dto/tag";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { type TagView, toTagView } from "./view";
@@ -18,14 +16,14 @@ import { type TagView, toTagView } from "./view";
 const RENAME_NOTE_PAGE_SIZE = 500;
 
 export type RenameTagInput = {
-  actorUserId: UserId;
-  tagId: TagId;
+  actorUserId: string;
+  tagId: string;
   newName: string;
 };
 
 export type RenameTagOutput = {
   tag: TagView;
-  affectedNoteIds: readonly NoteId[];
+  affectedNoteIds: readonly string[];
 };
 
 export async function renameTag({
@@ -62,11 +60,11 @@ export async function renameTag({
 
       const renamed = Tag.rename(found.entity, newName, now);
       if (renamed === found.entity) {
-        return { tag: found.entity, affectedNoteIds: [] as readonly NoteId[] };
+        return { tag: found.entity, affectedNoteIds: [] as readonly string[] };
       }
       await tagRepository.save(renamed, found.expectedVersion);
 
-      const affected: NoteId[] = [];
+      const affected: string[] = [];
       if (!TagName.equals(oldName, newName)) {
         let offset = 0;
         while (true) {
@@ -111,7 +109,7 @@ async function rewriteNoteBody(
   now: Date,
   noteRepository: NoteRepository,
   collectEvents: (drafts: readonly EventDraft[]) => void,
-  affected: NoteId[],
+  affected: string[],
 ): Promise<void> {
   const nextHtml = TagService.renameInBody(note.contentHtml, oldName, newName);
   if (nextHtml === note.contentHtml) {
@@ -130,5 +128,5 @@ async function rewriteNoteBody(
   );
   await noteRepository.save(updated, versioned.expectedVersion);
   collectEvents(eventDrafts);
-  affected.push(updated.id as unknown as NoteId);
+  affected.push(updated.id);
 }

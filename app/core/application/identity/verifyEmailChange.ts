@@ -2,7 +2,7 @@ import { User } from "@/core/domain/identity/entity";
 import { isChallengeError } from "@/core/domain/identity/ports/verificationChallenge";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { EmailAddress, UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
+
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { challengeErrorToBusinessRule } from "./challenge";
@@ -12,7 +12,7 @@ export type VerifyEmailChangeInput = {
 };
 
 export type VerifyEmailChangeOutput = {
-  userId: UserIdDTO;
+  userId: string;
 };
 
 export async function verifyEmailChange({
@@ -56,5 +56,5 @@ export async function verifyEmailChange({
     },
   );
 
-  return { userId: verifiedUserId as unknown as UserIdDTO };
+  return { userId: verifiedUserId };
 }

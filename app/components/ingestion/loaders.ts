@@ -14,9 +14,7 @@ export const loadIngestionJobs = cache(
       const { jobs } = await getIngestionJobs({
         container,
         input: {
-          actorUserId: actorUserId as unknown as Parameters<
-            typeof getIngestionJobs
-          >[0]["input"]["actorUserId"],
+          actorUserId: actorUserId,
           limit: 50,
           ...(options?.includeDiscarded === true
             ? { includeDiscarded: true }

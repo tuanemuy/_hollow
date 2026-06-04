@@ -5,14 +5,13 @@ import {
   isTempFileStorageUnavailableError,
 } from "@/core/domain/ingestion/ports/tempFileStorage";
 import type { IngestionJobId as IngestionJobIdBrand } from "@/core/domain/ingestion/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
+
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type DiscardIngestionPreviewInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 export async function discardIngestionPreview({
