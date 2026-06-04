@@ -201,6 +201,7 @@ function PromptRow({
           onClick={save}
           disabled={isPending}
           className={BTN_PRIMARY}
+          data-primary=""
         >
           {isPending ? "保存中..." : "保存"}
         </button>

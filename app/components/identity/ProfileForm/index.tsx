@@ -145,6 +145,7 @@ export function ProfileForm({ user }: { user: UserDTO }) {
             type="submit"
             disabled={profilePending}
             className={BTN_PRIMARY}
+            data-primary=""
           >
             {profilePending ? "保存中..." : "保存"}
           </button>
@@ -192,6 +193,7 @@ export function ProfileForm({ user }: { user: UserDTO }) {
             type="submit"
             disabled={usernamePending}
             className={BTN_PRIMARY}
+            data-primary=""
           >
             {usernamePending ? "変更中..." : "ユーザー名を変更"}
           </button>

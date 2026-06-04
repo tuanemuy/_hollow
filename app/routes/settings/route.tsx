@@ -75,7 +75,7 @@ function SettingsLayout() {
         </Link>
         <h1 className={SETTINGS_TITLE}>設定</h1>
         <p className={SETTINGS_SUBTITLE}>
-          アカウント、外観、AI の挙動を調整します。
+          アカウントと AI の挙動を調整します。
         </p>
       </header>
       <div className={SETTINGS_GRID}>

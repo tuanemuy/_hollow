@@ -178,7 +178,12 @@ export function SecurityForm({ user }: { user: UserDTO }) {
         </label>
 
         <div className={ACTION_ROW}>
-          <button type="submit" disabled={pwPending} className={BTN_PRIMARY}>
+          <button
+            type="submit"
+            disabled={pwPending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
             {pwPending ? "変更中..." : "パスワードを変更"}
           </button>
         </div>
@@ -243,7 +248,12 @@ export function SecurityForm({ user }: { user: UserDTO }) {
         </div>
 
         <div className={ACTION_ROW}>
-          <button type="submit" disabled={emailPending} className={BTN_PRIMARY}>
+          <button
+            type="submit"
+            disabled={emailPending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
             {emailPending ? "送信中..." : "確認メールを送信"}
           </button>
         </div>
