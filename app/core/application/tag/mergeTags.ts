@@ -40,7 +40,7 @@ export async function mergeTags({
           `Tag not found: ${input.targetTagId}`,
         );
       }
-      const actorId = input.actorUserId as string;
+      const actorId = input.actorUserId;
       if (
         (sourceFound.entity.ownerId as string) !== actorId ||
         (targetFound.entity.ownerId as string) !== actorId

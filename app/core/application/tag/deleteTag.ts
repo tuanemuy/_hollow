@@ -37,7 +37,7 @@ export async function deleteTag({
           `Tag not found: ${input.tagId}`,
         );
       }
-      if ((found.entity.ownerId as string) !== (input.actorUserId as string)) {
+      if ((found.entity.ownerId as string) !== input.actorUserId) {
         throw new ForbiddenError(
           "TAG_OWNER_MISMATCH",
           `Tag ${input.tagId} is not owned by ${input.actorUserId}`,
