@@ -4,27 +4,27 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { internalRouteHead } from "@/core/presentation/head";
 
-const renderProfilePage = createServerFn({ method: "GET" })
+const renderSecurityPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
-    const { ProfilePage } = await import(
-      "@/components/identity/ProfileForm/Page"
+    const { SecurityPage } = await import(
+      "@/components/identity/SecurityForm/Page"
     );
-    return renderServerComponent(<ProfilePage />);
+    return renderServerComponent(<SecurityPage />);
   });
 
-export const Route = createFileRoute("/settings/profile")({
+export const Route = createFileRoute("/_app/settings/security")({
   staleTime: 0,
   head: ({ match }) =>
     internalRouteHead(
       match.context?.config,
-      "プロフィール",
-      "/settings/profile",
+      "セキュリティ",
+      "/settings/security",
     ),
-  loader: () => renderProfilePage(),
-  component: ProfileRoute,
+  loader: () => renderSecurityPage(),
+  component: SecurityRoute,
 });
 
-function ProfileRoute() {
+function SecurityRoute() {
   return Route.useLoaderData();
 }

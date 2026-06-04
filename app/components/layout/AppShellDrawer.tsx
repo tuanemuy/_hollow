@@ -45,6 +45,7 @@ export function useDrawer(): DrawerContextValue {
 type Props = {
   header: ReactNode;
   sidebar: ReactNode;
+  settingsSidebar?: ReactNode;
   children: ReactNode;
 };
 
@@ -60,7 +61,12 @@ type Props = {
  * is `inert` while closed. At `lg` and up the sidebar is an in-flow column,
  * so none of that applies.
  */
-export function AppShellDrawer({ header, sidebar, children }: Props) {
+export function AppShellDrawer({
+  header,
+  sidebar,
+  settingsSidebar,
+  children,
+}: Props) {
   const [open, setOpen] = useState(false);
   // Resolved after mount so SSR/first paint assumes the desktop (in-flow)
   // sidebar and never marks it inert before hydration.
@@ -74,6 +80,7 @@ export function AppShellDrawer({ header, sidebar, children }: Props) {
   // Close on route change so tapping a nav link inside the drawer dismisses
   // it.
   const pathname = useLocation({ select: (l) => l.pathname });
+  const inSettings = pathname.startsWith("/settings");
   // biome-ignore lint/correctness/useExhaustiveDependencies: closing keys off the pathname change, not `close` identity.
   useEffect(() => {
     setOpen(false);
@@ -180,7 +187,7 @@ export function AppShellDrawer({ header, sidebar, children }: Props) {
           {...(isMobile ? { role: "dialog", "aria-modal": open } : {})}
           {...(inert ? { inert: true } : {})}
         >
-          {sidebar}
+          {inSettings && settingsSidebar ? settingsSidebar : sidebar}
         </aside>
         <main className={APP_MAIN}>{children}</main>
       </div>

@@ -1,8 +1,9 @@
 // Shared utility class strings for the settings (identity) surface. Mirrors
 // `auth/styles.ts`: composes the domain-agnostic primitives from
-// `common/styles.ts` and keeps styles inline (no @apply). `/settings` is a
-// top-level surface that does not inherit the app shell, so it owns its own
-// layout constants rather than reusing `layout/styles.ts`.
+// `common/styles.ts` and keeps styles inline (no @apply). `/settings` now lives
+// under `/_app` and inherits the shared app shell (common Header + `APP_MAIN`
+// frame) and the shared sidebar tokens from `layout/styles.ts`, so only the
+// settings-specific form / error styles live here.
 
 import {
   field,
@@ -14,40 +15,7 @@ import {
   pillBtnPrimary,
 } from "../common/styles";
 
-// ===== Layout (settings/route.tsx) =====
-
-export const SETTINGS_WRAP = "w-full";
-
-export const SETTINGS_HEADER =
-  "max-w-[1100px] mx-auto w-full px-6 pt-8 lg:px-12";
-
-export const SETTINGS_BACK_LINK =
-  "inline-flex items-center gap-1 text-sm text-ink-secondary no-underline transition-colors motion-reduce:transition-none hover:text-ink mb-4";
-
-export const SETTINGS_TITLE =
-  "text-3xl font-normal tracking-tightest leading-tight text-ink mb-1.5 [overflow-wrap:anywhere] min-w-0";
-
-export const SETTINGS_SUBTITLE = "text-md text-ink-secondary mb-6";
-
-// Single-column below `lg`; sub-nav rail + content at `lg`. New media queries
-// are avoided in favour of `lg:` variants so the `--breakpoint-*` duplication
-// stays untouched (CLAUDE.md styling notes).
-export const SETTINGS_GRID =
-  "max-w-[1100px] mx-auto w-full px-6 pb-24 grid grid-cols-1 gap-0 lg:px-12 lg:grid-cols-[220px_1fr] lg:gap-14";
-
-// Sub-nav: horizontal scroll strip below `lg`, sticky vertical rail at `lg`.
-export const SETTINGS_NAV =
-  "flex gap-1 overflow-x-auto pb-4 mb-7 border-b border-hairline [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:gap-0.5 lg:overflow-x-visible lg:pb-0 lg:mb-0 lg:border-b-0 lg:sticky lg:top-[calc(var(--header-height)+32px)] lg:self-start";
-
-// Active colour differs by breakpoint: the horizontal pill (below `lg`) uses an
-// inked fill, the vertical rail item (`lg:`) uses the subtle surface fill. Both
-// `aria-[current=page]:` and `data-[active]:` are kept so the highlight survives
-// regardless of which attribute the consumer sets (aria-current is existing).
-export const SETTINGS_NAV_ITEM =
-  "inline-flex items-center gap-2 shrink-0 px-3.5 py-2 rounded-pill text-sm font-medium text-ink-secondary whitespace-nowrap no-underline cursor-pointer transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink max-lg:aria-[current=page]:bg-ink max-lg:aria-[current=page]:text-white max-lg:data-[active]:bg-ink max-lg:data-[active]:text-white lg:w-full lg:justify-start lg:rounded-md lg:aria-[current=page]:bg-surface lg:aria-[current=page]:text-ink lg:data-[active]:bg-surface lg:data-[active]:text-ink aria-[current=page]:font-medium data-[active]:font-medium";
-
-export const SETTINGS_CONTENT = "max-w-[720px] w-full min-w-0";
-
+// ===== Layout (settings errorComponent) =====
 // errorComponent
 export const SETTINGS_ERROR_BOX =
   "max-w-[720px] mx-auto px-6 py-12 flex flex-col gap-3";

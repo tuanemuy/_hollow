@@ -13,7 +13,7 @@ const renderPromptsPage = createServerFn({ method: "GET" })
     return renderServerComponent(<PromptsPage />);
   });
 
-export const Route = createFileRoute("/settings/prompts")({
+export const Route = createFileRoute("/_app/settings/prompts")({
   staleTime: 0,
   head: ({ match }) =>
     internalRouteHead(match.context?.config, "プロンプト", "/settings/prompts"),
