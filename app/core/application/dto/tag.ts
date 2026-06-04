@@ -1,11 +1,8 @@
 import type { Tag } from "@/core/domain/tag/entity";
-import type { UserId } from "./identity";
-
-export type TagId = string & { readonly __brand: "TagId" };
 
 export type TagDTO = Readonly<{
-  id: TagId;
-  ownerId: UserId;
+  id: string;
+  ownerId: string;
   name: string;
   noteCount: number;
 }>;
@@ -18,8 +15,8 @@ export type TagDTO = Readonly<{
  */
 export function toTagDTO(tag: Tag, noteCount: number): TagDTO {
   return {
-    id: tag.id as unknown as TagId,
-    ownerId: tag.ownerId as unknown as UserId,
+    id: tag.id,
+    ownerId: tag.ownerId,
     name: tag.name,
     noteCount,
   };

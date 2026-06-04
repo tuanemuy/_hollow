@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { UserId } from "@/core/application/dto/identity";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -17,7 +16,7 @@ export const deleteAccountFn = createServerFn({ method: "POST" })
     await module.deleteAccount({
       container,
       input: {
-        actorUserId: actor.id as unknown as UserId,
+        actorUserId: actor.id,
         confirmation: data.confirmation,
       },
     });

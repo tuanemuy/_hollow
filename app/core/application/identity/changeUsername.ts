@@ -1,13 +1,13 @@
 import { User } from "@/core/domain/identity/entity";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { UserId, Username } from "@/core/domain/identity/valueObject";
-import type { UserDTO, UserId as UserIdDTO } from "../dto/identity";
+import type { UserDTO } from "../dto/identity";
 import { toUserDTO } from "../dto/identity";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type ChangeUsernameInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   newUsername: string;
 };
 

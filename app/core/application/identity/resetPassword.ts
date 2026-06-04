@@ -2,7 +2,7 @@ import { isChallengeError } from "@/core/domain/identity/ports/verificationChall
 import { RawPassword, UserId } from "@/core/domain/identity/valueObject";
 import type { Instant } from "../dto/common";
 import { toInstant } from "../dto/common";
-import type { SessionToken, UserId as UserIdDTO } from "../dto/identity";
+import type { SessionToken } from "../dto/identity";
 import type { ServiceArgs } from "../types";
 import { challengeErrorToBusinessRule } from "./challenge";
 
@@ -14,7 +14,7 @@ export type ResetPasswordInput = {
 };
 
 export type ResetPasswordOutput = {
-  userId: UserIdDTO;
+  userId: string;
   sessionToken: SessionToken;
   expiresAt: Instant;
 };
@@ -49,7 +49,7 @@ export async function resetPassword({
   });
 
   return {
-    userId: resetUserId as unknown as UserIdDTO,
+    userId: resetUserId,
     sessionToken: issued.token,
     expiresAt: toInstant(issued.expiresAt),
   };

@@ -11,7 +11,6 @@ import { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSnapshot } from "@/core/domain/search/entity";
 import { TagId } from "@/core/domain/tag/valueObject";
 import type { ConsumerContainer } from "../di/types";
-import type { IngestionJobId as IngestionJobIdDTO } from "../dto/ingestion";
 import { NotFoundError } from "../errors";
 import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../export/handleUserDeletedEvent";
 import { runExportJob } from "../export/runExportJob";
@@ -148,14 +147,10 @@ export async function dispatchDomainEvent(
       case "ingestion.retryRequested":
       case "ingestion.regenerated": {
         const payload = event.payload as Readonly<{ jobId: string }>;
-        // `IngestionJobId` is split into domain VO (validating brand)
-        // and `dto/ingestion.IngestionJobId` (transport brand). Construct
-        // via the VO factory so payload drift throws `BusinessRuleError`
-        // here, then cross the domain↔application boundary explicitly
-        // to satisfy the usecase's DTO parameter shape.
-        const jobId = IngestionJobIdVO.create(
-          payload.jobId,
-        ) as unknown as IngestionJobIdDTO;
+        // Construct via the VO factory so payload drift throws
+        // `BusinessRuleError` here; `runIngestionJob` accepts a plain
+        // `string` jobId (the domain brand is a structural subtype).
+        const jobId = IngestionJobIdVO.create(payload.jobId);
         await runIngestionJob({ container, input: { jobId } });
         return { kind: "handled" };
       }

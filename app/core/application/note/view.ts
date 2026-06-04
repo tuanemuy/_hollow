@@ -2,13 +2,10 @@ import {
   type BacklinkDTO,
   type InternalLinkRefDTO,
   type NoteDTO,
-  type NoteId,
   type NoteListItemDTO,
   toInternalLinkRefDTO,
   toNoteDTO,
 } from "@/core/application/dto";
-import type { DirectoryId } from "@/core/application/dto/directory";
-import type { TagId } from "@/core/application/dto/tag";
 import type { Note } from "@/core/domain/note/entity";
 import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
 
@@ -36,13 +33,13 @@ export function toNoteListItem(
   }>,
 ): NoteListItemDTO {
   return {
-    id: note.id as unknown as NoteId,
-    ownerId: note.ownerId as unknown as NoteListItemDTO["ownerId"],
-    directoryId: note.directoryId as unknown as DirectoryId,
+    id: note.id,
+    ownerId: note.ownerId,
+    directoryId: note.directoryId,
     slug: note.slug,
     title: note.title,
     excerpt: context.excerpt,
-    tagIds: note.tagIds.map((id) => id as unknown as TagId),
+    tagIds: note.tagIds,
     tagNames: context.tagNames,
     updatedAt: note.updatedAt.toISOString(),
     visibility: context.visibility,
@@ -60,7 +57,7 @@ export function toBacklink(
   context: Readonly<{ snippet: string | null }>,
 ): BacklinkDTO {
   return {
-    noteId: note.id as unknown as NoteId,
+    noteId: note.id,
     title: note.title,
     slug: note.slug,
     snippet: context.snippet,

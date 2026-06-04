@@ -7,11 +7,7 @@ import {
 } from "@/core/domain/identity/valueObject";
 import { MediaAsset } from "@/core/domain/media/entity";
 import { MediaAssetId as MediaDomainAssetId } from "@/core/domain/media/valueObject";
-import type {
-  MediaAssetId as MediaAssetIdDTO,
-  UserDTO,
-  UserId as UserIdDTO,
-} from "../dto/identity";
+import type { UserDTO } from "../dto/identity";
 import { toUserDTO } from "../dto/identity";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
@@ -26,10 +22,10 @@ import type { ServiceArgs } from "../types";
  * missing vs `null` natively, so the usecase mirrors that distinction.
  */
 export type UpdateProfileInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   displayName?: string;
   bio?: string | null;
-  avatarMediaId?: MediaAssetIdDTO | null;
+  avatarMediaId?: string | null;
 };
 
 export type UpdateProfileOutput = {

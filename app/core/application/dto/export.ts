@@ -1,14 +1,10 @@
 import type { ExportJob } from "@/core/domain/export/entity";
 import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
-import type { UserId } from "./identity";
-import type { NoteId } from "./note";
-
-export type ExportJobId = string & { readonly __brand: "ExportJobId" };
 
 export type ExportJobDTO = Readonly<{
-  id: ExportJobId;
-  ownerId: UserId;
+  id: string;
+  ownerId: string;
   format: "html" | "markdown" | "pdf";
   scope: "single" | "multiple" | "view";
   status:
@@ -19,7 +15,7 @@ export type ExportJobDTO = Readonly<{
     | "cancelled"
     | "expired";
   progress: Readonly<{ processed: number; total: number }>;
-  failedNoteIds: readonly NoteId[];
+  failedNoteIds: readonly string[];
   errorReason: string | null;
   artifactSize: number | null;
   createdAt: Instant;
@@ -29,8 +25,8 @@ export type ExportJobDTO = Readonly<{
 
 export function toExportJobDTO(job: ExportJob): ExportJobDTO {
   return {
-    id: job.id as unknown as ExportJobId,
-    ownerId: job.ownerId as unknown as UserId,
+    id: job.id,
+    ownerId: job.ownerId,
     format: job.format,
     scope: job.scope,
     status: job.status,
@@ -38,7 +34,7 @@ export function toExportJobDTO(job: ExportJob): ExportJobDTO {
       processed: job.progress.processed,
       total: job.progress.total,
     },
-    failedNoteIds: job.failedNoteIds.map((id) => id as unknown as NoteId),
+    failedNoteIds: job.failedNoteIds,
     errorReason: job.errorReason,
     artifactSize: job.artifactSize,
     createdAt: toInstant(job.createdAt),

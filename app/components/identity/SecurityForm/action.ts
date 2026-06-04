@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { UserId } from "@/core/application/dto/identity";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -35,7 +34,7 @@ export const changePasswordFn = createServerFn({ method: "POST" })
     await module.changePassword({
       container,
       input: {
-        actorUserId: actor.id as unknown as UserId,
+        actorUserId: actor.id,
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
         revokeOtherSessions: data.revokeOtherSessions,
@@ -57,7 +56,7 @@ export const requestEmailChangeFn = createServerFn({ method: "POST" })
     await module.requestEmailChange({
       container,
       input: {
-        actorUserId: actor.id as unknown as UserId,
+        actorUserId: actor.id,
         newEmail: data.newEmail,
         currentPassword: data.currentPassword,
       },
@@ -87,7 +86,7 @@ export const revokeAllOtherSessionsFn = createServerFn({ method: "POST" })
     return module.revokeAllOtherSessions({
       container,
       input: {
-        actorUserId: actor.id as unknown as UserId,
+        actorUserId: actor.id,
         currentSessionToken: token,
       },
     });

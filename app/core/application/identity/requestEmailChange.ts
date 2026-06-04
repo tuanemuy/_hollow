@@ -1,12 +1,11 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { EmailAddress, UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
 import { AuthenticationError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RequestEmailChangeInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   newEmail: string;
   currentPassword: string;
   locale?: string;

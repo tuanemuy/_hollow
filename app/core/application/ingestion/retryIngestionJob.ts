@@ -1,14 +1,12 @@
 import { IngestionJob } from "@/core/domain/ingestion/entity";
 import type { IngestionJobId as IngestionJobIdBrand } from "@/core/domain/ingestion/valueObject";
 import { assertAdmin } from "../adminSettings/authorization";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RetryIngestionJobInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 /**
@@ -30,7 +28,7 @@ export async function retryIngestionJob({
       await assertAdmin(userRepository, input.actorUserId);
 
       const found = await ingestionJobRepository.findById(
-        input.jobId as unknown as IngestionJobIdBrand,
+        input.jobId as IngestionJobIdBrand,
       );
       if (found === null) {
         throw new NotFoundError(

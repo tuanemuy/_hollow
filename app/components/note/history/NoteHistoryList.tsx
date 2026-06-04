@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { pillBtn } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteDetail, loadNoteRevisions } from "../loaders";
 import { historyNavSearch } from "./historyPagination";
@@ -20,7 +19,7 @@ import { historyNavSearch } from "./historyPagination";
  */
 export type NoteHistoryListProps = Readonly<{
   user: UserDTO;
-  noteId: NoteId;
+  noteId: string;
   page: number;
   limit: number;
 }>;
@@ -31,7 +30,6 @@ export async function NoteHistoryList({
   page,
   limit,
 }: NoteHistoryListProps) {
-  const noteIdStr = noteId as unknown as string;
   const offset = (page - 1) * limit;
 
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
@@ -75,7 +73,7 @@ export async function NoteHistoryList({
     <article className="max-w-[760px] mx-auto">
       <header className="mb-6">
         <p className="text-sm text-ink-secondary mb-2">
-          <Link to="/notes/$noteId" params={{ noteId: noteIdStr }}>
+          <Link to="/notes/$noteId" params={{ noteId }}>
             {note.title}
           </Link>
         </p>
@@ -98,7 +96,7 @@ export async function NoteHistoryList({
         <ul className="flex flex-col gap-3">
           {revisions.map((rev) => (
             <li
-              key={rev.id as unknown as string}
+              key={rev.id}
               className="flex items-center justify-between gap-3 rounded-md border border-hairline px-4 py-3"
             >
               <div className="flex flex-col gap-1 min-w-0">
@@ -115,8 +113,8 @@ export async function NoteHistoryList({
               <Link
                 to="/notes/$noteId/history/$revisionId"
                 params={{
-                  noteId: noteIdStr,
-                  revisionId: rev.id as unknown as string,
+                  noteId,
+                  revisionId: rev.id,
                 }}
                 className={pillBtn}
               >
@@ -135,7 +133,7 @@ export async function NoteHistoryList({
           {page > 1 ? (
             <Link
               to="/notes/$noteId/history"
-              params={{ noteId: noteIdStr }}
+              params={{ noteId }}
               search={historyNavSearch(page - 1, limit)}
               className={pillBtn}
             >
@@ -150,7 +148,7 @@ export async function NoteHistoryList({
           {page < totalPages ? (
             <Link
               to="/notes/$noteId/history"
-              params={{ noteId: noteIdStr }}
+              params={{ noteId }}
               search={historyNavSearch(page + 1, limit)}
               className={pillBtn}
             >
@@ -163,7 +161,7 @@ export async function NoteHistoryList({
       ) : null}
 
       <div className="mt-8">
-        <Link to="/notes/$noteId" params={{ noteId: noteIdStr }}>
+        <Link to="/notes/$noteId" params={{ noteId }}>
           ← ノートに戻る
         </Link>
       </div>

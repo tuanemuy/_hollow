@@ -1,7 +1,6 @@
 import { DirectoryService } from "@/core/domain/directory/service";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
-import type { MediaAssetId } from "../dto/identity";
 import type { NoteSourceFileDTO } from "../dto/note";
 import {
   ForbiddenError,
@@ -82,8 +81,8 @@ export async function getNoteDetail({
         );
       }
       sourceFile = {
-        mediaId: asset.id as unknown as MediaAssetId,
-        originalFileName: asset.originalFileName as unknown as string,
+        mediaId: asset.id,
+        originalFileName: asset.originalFileName,
       };
     }
 

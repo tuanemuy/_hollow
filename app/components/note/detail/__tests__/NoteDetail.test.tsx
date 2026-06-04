@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId } from "@/core/application/dto/note";
 import { NotFoundError } from "@/core/application/errors";
 
 /**
@@ -32,7 +31,7 @@ vi.mock("../NoteMetaPanel", () => ({ NoteMetaPanel: () => null }));
 const { NoteDetail } = await import("../NoteDetail");
 
 const user = { id: "user-1" } as unknown as UserDTO;
-const noteId = "missing-note" as unknown as NoteId;
+const noteId = "missing-note";
 
 function resolveOthers() {
   loadPublishStateForNote.mockResolvedValue({

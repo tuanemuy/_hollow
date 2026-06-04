@@ -38,11 +38,7 @@ const renderHistory = createServerFn({ method: "GET" })
     return renderServerComponent(
       <NoteHistoryList
         user={userDto}
-        noteId={
-          data.noteId as unknown as Parameters<
-            typeof NoteHistoryList
-          >[0]["noteId"]
-        }
+        noteId={data.noteId}
         page={data.page}
         limit={data.limit}
       />,

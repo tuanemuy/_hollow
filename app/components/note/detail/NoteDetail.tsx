@@ -1,5 +1,4 @@
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
@@ -33,13 +32,11 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
  */
 export type NoteDetailProps = Readonly<{
   user: UserDTO;
-  noteId: NoteId;
+  noteId: string;
   appUrl: string;
 }>;
 
 export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
-  const noteIdStr = noteId as unknown as string;
-
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
   let publishState: Awaited<ReturnType<typeof loadPublishStateForNote>>;
   let tree: Awaited<ReturnType<typeof loadDirectoryTreeFlat>>;
@@ -55,7 +52,7 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
       // hitting the error boundary; re-throw anything else.
       loadPublishStateForNote({
         actorUserId: user.id,
-        noteId: noteIdStr,
+        noteId,
       }).catch((e): Awaited<ReturnType<typeof loadPublishStateForNote>> => {
         if (isBusinessRuleError(e) && e.code === NoteErrorCode.Trashed) {
           return { visibility: "private", publishedAt: null, links: [] };
@@ -80,7 +77,7 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
   const { note, backlinks, backlinkCount, directorySegments } = detail;
 
   const tagNames = note.tagIds
-    .map((id) => tags.byId.get(id as unknown as string))
+    .map((id) => tags.byId.get(id))
     .filter((name): name is string => name !== undefined);
 
   const firstActiveLink =

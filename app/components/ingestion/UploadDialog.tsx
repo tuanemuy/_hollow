@@ -398,7 +398,7 @@ export function UploadDialog({ open, onClose }: Props) {
             transientFailuresRef.current = 0;
             setView({
               kind: "waiting",
-              jobId: jobId as unknown as string,
+              jobId,
               startedAt: Date.now(),
               origin: "upload",
             });

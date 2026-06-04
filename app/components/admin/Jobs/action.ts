@@ -10,13 +10,10 @@ import {
 } from "@/core/application/dto/adminSettings";
 import {
   type ExportJobDTO,
-  type ExportJobId as ExportJobIdDTO,
   toExportJobDTO,
 } from "@/core/application/dto/export";
-import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
 import {
   type IngestionJobDTO,
-  type IngestionJobId as IngestionJobIdDTO,
   toIngestionJobDTO,
 } from "@/core/application/dto/ingestion";
 import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
@@ -67,18 +64,6 @@ export const loadJobsSnapshot = cache(
   ),
 );
 
-function toUserIdDTO(value: string): UserIdDTO {
-  return value as UserIdDTO;
-}
-
-function toIngestionJobIdDTO(value: string): IngestionJobIdDTO {
-  return value as IngestionJobIdDTO;
-}
-
-function toExportJobIdDTO(value: string): ExportJobIdDTO {
-  return value as ExportJobIdDTO;
-}
-
 export const retryIngestionJobFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetIngestionJobSchema))
@@ -91,8 +76,8 @@ export const retryIngestionJobFn = createServerFn({ method: "POST" })
     await module.retryIngestionJob({
       container,
       input: {
-        actorUserId: toUserIdDTO(actor.id),
-        jobId: toIngestionJobIdDTO(data.jobId),
+        actorUserId: actor.id,
+        jobId: data.jobId,
       },
     });
     return {};
@@ -110,8 +95,8 @@ export const retryExportJobFn = createServerFn({ method: "POST" })
     await module.retryExportJob({
       container,
       input: {
-        actorUserId: toUserIdDTO(actor.id),
-        jobId: toExportJobIdDTO(data.jobId),
+        actorUserId: actor.id,
+        jobId: data.jobId,
       },
     });
     return {};
@@ -127,7 +112,7 @@ export const rebuildSearchIndexFn = createServerFn({ method: "POST" })
     );
     const result = await module.rebuildSearchIndex({
       container,
-      input: { actorUserId: toUserIdDTO(actor.id) },
+      input: { actorUserId: actor.id },
     });
     return toRebuildSearchIndexResultDTO(result);
   });
@@ -145,7 +130,7 @@ export const backfillInternalLinksFn = createServerFn({ method: "POST" })
     );
     const result = await module.backfillAllOwnersInternalLinkResolution({
       container,
-      input: { actorUserId: toUserIdDTO(actor.id) },
+      input: { actorUserId: actor.id },
     });
     return toBackfillInternalLinksResultDTO(result);
   });
@@ -160,7 +145,7 @@ export const reencryptApiKeyFn = createServerFn({ method: "POST" })
     );
     const result = await module.reencryptApiKey({
       container,
-      input: { actorUserId: toUserIdDTO(actor.id) },
+      input: { actorUserId: actor.id },
     });
     return toReencryptApiKeyResultDTO(result);
   });

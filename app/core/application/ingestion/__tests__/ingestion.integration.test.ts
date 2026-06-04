@@ -10,9 +10,6 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
-import type { UserId } from "../../dto/identity";
-import type { IngestionJobId } from "../../dto/ingestion";
-import type { NoteId } from "../../dto/note";
 import { bulkUpload } from "../bulkUpload";
 import { commitIngestionPreview } from "../commitIngestionPreview";
 import { discardIngestionPreview } from "../discardIngestionPreview";
@@ -54,7 +51,7 @@ function nextMediaId(): string {
   return `019d3000-0000-7000-8000-${mediaSeq.toString(16).padStart(12, "0")}`;
 }
 
-async function seedUser(container: TestContainer): Promise<UserId> {
+async function seedUser(container: TestContainer): Promise<string> {
   const suffix = nextUserSuffix();
   const id = `019d0001-0000-7000-8000-${suffix}`;
   await container.db.insert(schema.users).values({
@@ -68,17 +65,17 @@ async function seedUser(container: TestContainer): Promise<UserId> {
     createdAt: iso(0),
     updatedAt: iso(0),
   });
-  return id as UserId;
+  return id;
 }
 
 async function seedDirectory(
   container: TestContainer,
-  ownerId: UserId,
+  ownerId: string,
 ): Promise<string> {
   const id = nextDirId();
   await container.db.insert(schema.directories).values({
     id,
-    ownerId: ownerId as unknown as string,
+    ownerId: ownerId,
     parentId: null,
     name: "root",
     slug: `root-${id.slice(-6)}`,
@@ -92,7 +89,7 @@ async function seedDirectory(
 
 type SeedJobInput = {
   id?: string;
-  ownerId: UserId;
+  ownerId: string;
   status:
     | "pending"
     | "processing"
@@ -141,7 +138,7 @@ async function seedIngestionJob(
         : null;
   await container.db.insert(schema.ingestionJobs).values({
     id,
-    ownerId: input.ownerId as unknown as string,
+    ownerId: input.ownerId,
     originalFileName: input.originalFileName ?? "doc.html",
     mimeType: input.mimeType ?? "text/html",
     byteSize: input.byteSize ?? 16,
@@ -254,7 +251,7 @@ describe("uploadFile", () => {
     const rows = await container.db
       .select()
       .from(schema.ingestionJobs)
-      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows).toHaveLength(1);
     const row = rows[0];
     if (!row) throw new Error("unreachable");
@@ -269,7 +266,7 @@ describe("uploadFile", () => {
     const events = await container.db
       .select()
       .from(schema.outboxEvents)
-      .where(eq(schema.outboxEvents.aggregateId, jobId as unknown as string));
+      .where(eq(schema.outboxEvents.aggregateId, jobId));
     expect(events).toHaveLength(1);
     expect(events[0]?.eventType).toBe("ingestion.created");
 
@@ -445,7 +442,7 @@ describe("uploadFile", () => {
     const rows = await container.db
       .select()
       .from(schema.ingestionJobs)
-      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.structurePromptOverride).toBe("S-OVERRIDE");
     expect(rows[0]?.metadataPromptOverride).toBe("M-OVERRIDE");
 
@@ -509,7 +506,7 @@ describe("uploadFile", () => {
     const rows = await container.db
       .select()
       .from(schema.ingestionJobs)
-      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("processing");
     expect(rows[0]?.structurePromptOverride).toBe("S-KEEP");
     expect(rows[0]?.metadataPromptOverride).toBe("M-KEEP");
@@ -534,7 +531,7 @@ describe("regenerateIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -569,7 +566,7 @@ describe("regenerateIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -598,7 +595,7 @@ describe("regenerateIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -632,7 +629,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -640,7 +637,7 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     expect(noteRows).toHaveLength(1);
 
     const jobRows = await container.db
@@ -687,7 +684,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -695,7 +692,7 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     const sourceFileId = noteRows[0]?.sourceFileId;
     expect(sourceFileId).not.toBeNull();
     expect(sourceFileId).toBeDefined();
@@ -736,7 +733,7 @@ describe("commitIngestionPreview", () => {
     const targetNoteId = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: targetNoteId,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `slug-${targetNoteId.slice(-6)}`,
       title: "Target Note",
@@ -774,7 +771,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -782,9 +779,7 @@ describe("commitIngestionPreview", () => {
     const links = await container.db
       .select()
       .from(schema.noteInternalLinks)
-      .where(
-        eq(schema.noteInternalLinks.fromNoteId, noteId as unknown as string),
-      );
+      .where(eq(schema.noteInternalLinks.fromNoteId, noteId));
     expect(links).toHaveLength(1);
     expect(links[0]?.resolvedNoteId).toBe(targetNoteId);
 
@@ -811,7 +806,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "ingested" },
       },
     });
@@ -819,7 +814,7 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     expect(noteRows).toHaveLength(1);
     const createdDirId = noteRows[0]?.directoryId;
     const dirRows = await container.db
@@ -827,7 +822,7 @@ describe("commitIngestionPreview", () => {
       .from(schema.directories)
       .where(
         and(
-          eq(schema.directories.ownerId, owner as unknown as string),
+          eq(schema.directories.ownerId, owner),
           eq(schema.directories.name, "ingested"),
         ),
       );
@@ -851,7 +846,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "技術/AI" },
       },
     });
@@ -859,13 +854,13 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     const leafId = noteRows[0]?.directoryId;
 
     const all = await container.db
       .select()
       .from(schema.directories)
-      .where(eq(schema.directories.ownerId, owner as unknown as string));
+      .where(eq(schema.directories.ownerId, owner));
     const tech = all.find((d) => d.name === "技術");
     const ai = all.find((d) => d.name === "AI");
     const root = all.find((d) => d.parentId === null);
@@ -886,7 +881,7 @@ describe("commitIngestionPreview", () => {
     const techId = nextDirId();
     await container.db.insert(schema.directories).values({
       id: techId,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       parentId: rootId,
       name: "技術",
       slug: `tech-${techId.slice(-6)}`,
@@ -907,7 +902,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "技術/AI" },
       },
     });
@@ -917,7 +912,7 @@ describe("commitIngestionPreview", () => {
       .from(schema.directories)
       .where(
         and(
-          eq(schema.directories.ownerId, owner as unknown as string),
+          eq(schema.directories.ownerId, owner),
           eq(schema.directories.name, "技術"),
         ),
       );
@@ -928,13 +923,13 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     const aiRows = await container.db
       .select()
       .from(schema.directories)
       .where(
         and(
-          eq(schema.directories.ownerId, owner as unknown as string),
+          eq(schema.directories.ownerId, owner),
           eq(schema.directories.name, "AI"),
         ),
       );
@@ -959,7 +954,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: { directoryNameToCreate: "技術/AI" },
         },
       });
@@ -969,12 +964,12 @@ describe("commitIngestionPreview", () => {
     const afterFirst = await container.db
       .select()
       .from(schema.directories)
-      .where(eq(schema.directories.ownerId, owner as unknown as string));
+      .where(eq(schema.directories.ownerId, owner));
     await commitWithPath(`${owner}/ingestion/idem-2`);
     const afterSecond = await container.db
       .select()
       .from(schema.directories)
-      .where(eq(schema.directories.ownerId, owner as unknown as string));
+      .where(eq(schema.directories.ownerId, owner));
 
     // No new directories on the second commit — root, 技術, AI all reused.
     expect(afterSecond.length).toBe(afterFirst.length);
@@ -998,7 +993,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: { directoryNameToCreate: tooDeep },
         },
       });
@@ -1038,7 +1033,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -1046,11 +1041,11 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     const all = await container.db
       .select()
       .from(schema.directories)
-      .where(eq(schema.directories.ownerId, owner as unknown as string));
+      .where(eq(schema.directories.ownerId, owner));
     const research = all.find((d) => d.name === "研究");
     const paper = all.find((d) => d.name === "論文");
     expect(research).toBeDefined();
@@ -1068,7 +1063,7 @@ describe("commitIngestionPreview", () => {
     const existingNoteId = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: existingNoteId,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `slug-${existingNoteId.slice(-6)}`,
       title: "Original",
@@ -1095,14 +1090,14 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: existingNoteId as unknown as NoteId,
+          overwriteNoteId: existingNoteId,
         },
       },
     });
 
-    expect(noteId as unknown as string).toBe(existingNoteId);
+    expect(noteId).toBe(existingNoteId);
     const noteRows = await container.db
       .select()
       .from(schema.notes)
@@ -1132,7 +1127,7 @@ describe("commitIngestionPreview", () => {
     const oldSourceId = nextMediaId();
     await container.db.insert(schema.mediaAssets).values({
       id: oldSourceId,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       kind: "source",
       mimeType: "application/pdf",
       byteSize: 4,
@@ -1150,7 +1145,7 @@ describe("commitIngestionPreview", () => {
     const existingNoteId = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: existingNoteId,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `slug-${existingNoteId.slice(-6)}`,
       title: "Original",
@@ -1181,14 +1176,14 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: existingNoteId as unknown as NoteId,
+          overwriteNoteId: existingNoteId,
         },
       },
     });
 
-    expect(noteId as unknown as string).toBe(existingNoteId);
+    expect(noteId).toBe(existingNoteId);
 
     const noteRows = await container.db
       .select()
@@ -1227,7 +1222,7 @@ describe("commitIngestionPreview", () => {
     const foreignNoteId = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: foreignNoteId,
-      ownerId: stranger as unknown as string,
+      ownerId: stranger,
       directoryId: strangerDir,
       slug: `slug-${foreignNoteId.slice(-6)}`,
       title: "Foreign",
@@ -1254,9 +1249,9 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: actor,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: foreignNoteId as unknown as NoteId,
+          overwriteNoteId: foreignNoteId,
         },
       },
     }).then(
@@ -1292,7 +1287,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
           frontMatter: { status: "published", priority: 1 },
         },
@@ -1302,7 +1297,7 @@ describe("commitIngestionPreview", () => {
     const noteRows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, noteId as unknown as string));
+      .where(eq(schema.notes.id, noteId));
     expect(noteRows).toHaveLength(1);
     const fm = JSON.parse(noteRows[0]?.frontMatterJson ?? "{}");
     expect(fm).toEqual({ status: "published", priority: 1 });
@@ -1322,7 +1317,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: {},
         },
       });
@@ -1356,7 +1351,7 @@ describe("discardIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -1397,7 +1392,7 @@ describe("discardIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -1416,7 +1411,7 @@ describe("discardIngestionPreview", () => {
     const noteIdRaw = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: noteIdRaw,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `n-${noteIdRaw.slice(-6)}`,
       title: "n",
@@ -1443,7 +1438,7 @@ describe("discardIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -1473,10 +1468,10 @@ describe("getIngestionJob", () => {
       container,
       input: {
         actorUserId: ownerA,
-        jobId: myJob as unknown as IngestionJobId,
+        jobId: myJob,
       },
     });
-    expect(job.id as unknown as string).toBe(myJob);
+    expect(job.id).toBe(myJob);
     expect(job.status).toBe("previewing");
   });
 
@@ -1497,7 +1492,7 @@ describe("getIngestionJob", () => {
         container,
         input: {
           actorUserId: ownerA,
-          jobId: otherJob as unknown as IngestionJobId,
+          jobId: otherJob,
         },
       });
       expect.fail("should have thrown");
@@ -1536,7 +1531,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: ownerA },
     });
-    const ids = jobs.map((j) => j.id as unknown as string).sort();
+    const ids = jobs.map((j) => j.id).sort();
     expect(ids).toEqual([a1, a2].sort());
   });
 
@@ -1557,7 +1552,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: owner },
     });
-    const ids = jobs.map((j) => j.id as unknown as string);
+    const ids = jobs.map((j) => j.id);
     expect(ids).toHaveLength(1);
     expect(ids[0]).toBe(previewing);
   });
@@ -1579,7 +1574,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: owner, includeDiscarded: true },
     });
-    const ids = jobs.map((j) => j.id as unknown as string).sort();
+    const ids = jobs.map((j) => j.id).sort();
     expect(ids).toEqual([previewing, discarded].sort());
   });
 
@@ -1600,7 +1595,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: owner, status: "discarded" },
     });
-    const ids = jobs.map((j) => j.id as unknown as string);
+    const ids = jobs.map((j) => j.id);
     expect(ids).toHaveLength(1);
     expect(ids[0]).toBe(discarded);
   });
@@ -1613,7 +1608,7 @@ describe("getIngestionJobs", () => {
     const noteIdRaw = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: noteIdRaw,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `n-${noteIdRaw.slice(-6)}`,
       title: "n",
@@ -1643,7 +1638,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: owner, status: "saved" },
     });
-    const ids = jobs.map((j) => j.id as unknown as string);
+    const ids = jobs.map((j) => j.id);
     expect(ids).toHaveLength(1);
     expect(ids[0]).toBe(saved);
   });
@@ -1656,7 +1651,7 @@ describe("getIngestionJobs", () => {
     const noteIdRaw = nextNoteId();
     await container.db.insert(schema.notes).values({
       id: noteIdRaw,
-      ownerId: owner as unknown as string,
+      ownerId: owner,
       directoryId: dirId,
       slug: `n-${noteIdRaw.slice(-6)}`,
       title: "n",
@@ -1686,7 +1681,7 @@ describe("getIngestionJobs", () => {
       container,
       input: { actorUserId: owner, status: "saved", includeDiscarded: true },
     });
-    const ids = jobs.map((j) => j.id as unknown as string);
+    const ids = jobs.map((j) => j.id);
     expect(ids).toHaveLength(1);
     expect(ids[0]).toBe(saved);
   });

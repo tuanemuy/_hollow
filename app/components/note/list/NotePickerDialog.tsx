@@ -169,7 +169,7 @@ export function NotePickerDialog({
       event.preventDefault();
       const selected = items[selectedIndex];
       if (selected !== undefined) {
-        commit(selected.noteId as unknown as string);
+        commit(selected.noteId);
       }
     }
   };
@@ -242,7 +242,7 @@ export function NotePickerDialog({
             className="max-h-[320px] overflow-y-auto rounded-md border border-hairline bg-bg py-1"
           >
             {items.map((item, idx) => {
-              const id = item.noteId as unknown as string;
+              const id = item.noteId;
               const isActive = idx === selectedIndex;
               const optionId = `${optionIdBase}-${idx}`;
               return (

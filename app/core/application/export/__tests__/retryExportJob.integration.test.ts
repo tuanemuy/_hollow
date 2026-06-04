@@ -5,8 +5,6 @@ import { isForbiddenError, isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportErrorCode } from "@/core/domain/export/errorCode";
 import { setupTestContainer } from "../../__tests__/helpers";
-import type { ExportJobId } from "../../dto/export";
-import type { UserId } from "../../dto/identity";
 import { retryExportJob } from "../retryExportJob";
 
 const baseTime = new Date("2026-01-01T00:00:00.000Z");
@@ -40,7 +38,7 @@ async function seedUser(
   container: ReturnType<ReturnType<typeof setupTestContainer>>,
   role: "admin" | "member" = "admin",
   status: "active" | "deleted" | "suspended" = "active",
-): Promise<UserId> {
+): Promise<string> {
   const id = nextUserId();
   await container.db.insert(schema.users).values({
     id,
@@ -54,11 +52,11 @@ async function seedUser(
     createdAt: iso(0),
     updatedAt: iso(0),
   });
-  return id as UserId;
+  return id;
 }
 
 type SeedExportJobInput = {
-  ownerId: UserId;
+  ownerId: string;
   status: "pending" | "processing" | "failed" | "completed" | "cancelled";
   errorCode?: string | null;
   errorReason?: string | null;
@@ -78,7 +76,7 @@ async function seedExportJob(
     input.status === "failed" || input.status === "cancelled" ? iso(1) : null;
   await container.db.insert(schema.exportJobs).values({
     id,
-    ownerId: input.ownerId as unknown as string,
+    ownerId: input.ownerId,
     format: "html",
     scope: "single",
     targetNoteIdsJson: JSON.stringify([noteId]),
@@ -132,7 +130,7 @@ describe("retryExportJob", () => {
       container,
       input: {
         actorUserId: admin,
-        jobId: jobId as unknown as ExportJobId,
+        jobId: jobId,
       },
     });
 
@@ -172,7 +170,7 @@ describe("retryExportJob", () => {
         container,
         input: {
           actorUserId: member,
-          jobId: jobId as unknown as ExportJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -197,7 +195,7 @@ describe("retryExportJob", () => {
         container,
         input: {
           actorUserId: deletedAdmin,
-          jobId: jobId as unknown as ExportJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -216,7 +214,7 @@ describe("retryExportJob", () => {
         container,
         input: {
           actorUserId: admin,
-          jobId: missing as unknown as ExportJobId,
+          jobId: missing,
         },
       });
       expect.fail("should have thrown");
@@ -239,7 +237,7 @@ describe("retryExportJob", () => {
         container,
         input: {
           actorUserId: admin,
-          jobId: jobId as unknown as ExportJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");

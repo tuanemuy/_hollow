@@ -132,7 +132,7 @@ describe("createNote (integration)", () => {
     const rows = await container.db
       .select()
       .from(schema.notes)
-      .where(eq(schema.notes.id, note.id as unknown as string));
+      .where(eq(schema.notes.id, note.id));
     const stored = rows[0]?.contentHtml ?? "";
     // The sanitizer strips the disallowed `<script>` tag itself; any
     // text payload that sat between the open / close tokens becomes
@@ -167,7 +167,7 @@ describe("createNote (integration)", () => {
     const links = await container.db
       .select()
       .from(schema.noteTags)
-      .where(eq(schema.noteTags.noteId, note.id as unknown as string));
+      .where(eq(schema.noteTags.noteId, note.id));
     expect(links).toHaveLength(2);
   });
 
@@ -192,9 +192,7 @@ describe("createNote (integration)", () => {
     const links = await container.db
       .select()
       .from(schema.noteInternalLinks)
-      .where(
-        eq(schema.noteInternalLinks.fromNoteId, note.id as unknown as string),
-      );
+      .where(eq(schema.noteInternalLinks.fromNoteId, note.id));
     expect(links).toHaveLength(1);
     expect(links[0]?.refKind).toBe("title");
     expect(links[0]?.refTarget).toBe("Other");
@@ -306,12 +304,10 @@ describe("createNote (integration)", () => {
     const links = await container.db
       .select()
       .from(schema.noteInternalLinks)
-      .where(
-        eq(schema.noteInternalLinks.fromNoteId, linker.id as unknown as string),
-      );
+      .where(eq(schema.noteInternalLinks.fromNoteId, linker.id));
     expect(links).toHaveLength(1);
     expect(links[0]?.refKind).toBe("title");
-    expect(links[0]?.resolvedNoteId).toBe(target.id as unknown as string);
+    expect(links[0]?.resolvedNoteId).toBe(target.id);
 
     // The target note now sees the linker as a backlink.
     const referrers = await container.unitOfWorkProvider.run(
@@ -342,9 +338,7 @@ describe("createNote (integration)", () => {
     const links = await container.db
       .select()
       .from(schema.noteInternalLinks)
-      .where(
-        eq(schema.noteInternalLinks.fromNoteId, note.id as unknown as string),
-      );
+      .where(eq(schema.noteInternalLinks.fromNoteId, note.id));
     expect(links).toHaveLength(1);
     expect(links[0]?.resolvedNoteId).toBeNull();
 
@@ -382,7 +376,7 @@ describe("createNote (integration)", () => {
         actorUserId: owner,
         directoryId: null,
         title: "Id Linker",
-        contentHtml: `<p>see [[${target.id as unknown as string}]]</p>`,
+        contentHtml: `<p>see [[${target.id}]]</p>`,
         frontMatter: {},
         tagNames: [],
         internalLinkRefs: [],
@@ -392,12 +386,10 @@ describe("createNote (integration)", () => {
     const links = await container.db
       .select()
       .from(schema.noteInternalLinks)
-      .where(
-        eq(schema.noteInternalLinks.fromNoteId, linker.id as unknown as string),
-      );
+      .where(eq(schema.noteInternalLinks.fromNoteId, linker.id));
     expect(links).toHaveLength(1);
     expect(links[0]?.refKind).toBe("id");
-    expect(links[0]?.resolvedNoteId).toBe(target.id as unknown as string);
+    expect(links[0]?.resolvedNoteId).toBe(target.id);
 
     const referrers = await container.unitOfWorkProvider.run(
       async ({ noteRepository }) =>

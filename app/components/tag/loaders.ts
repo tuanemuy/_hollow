@@ -17,9 +17,7 @@ export const loadTagsForOwner = cache(
       listTags({
         container,
         input: {
-          actorUserId: actorUserId as unknown as Parameters<
-            typeof listTags
-          >[0]["input"]["actorUserId"],
+          actorUserId,
           limit: TAG_RESOLVE_LIMIT,
         },
       }),
@@ -49,15 +47,13 @@ export async function resolveTagNamesToIds(
   const { tags } = await module.listTags({
     container,
     input: {
-      actorUserId: actorUserId as unknown as Parameters<
-        typeof module.listTags
-      >[0]["input"]["actorUserId"],
+      actorUserId,
       limit: TAG_RESOLVE_LIMIT,
     },
   });
   const byName = new Map<string, string>();
   for (const tag of tags) {
-    byName.set(tag.name, tag.id as unknown as string);
+    byName.set(tag.name, tag.id);
   }
   return names
     .map((name) => byName.get(name))

@@ -6,9 +6,6 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
-import type { UserId } from "../../dto/identity";
-import type { NoteId } from "../../dto/note";
-import type { TagId } from "../../dto/tag";
 import { isForbiddenError, isNotFoundError } from "../../errors";
 import { createTag } from "../createTag";
 import { deleteTag } from "../deleteTag";
@@ -19,8 +16,8 @@ import { renameTag } from "../renameTag";
 const baseTime = new Date("2026-01-01T00:00:00.000Z");
 const iso = (ms: number) => new Date(baseTime.getTime() + ms).toISOString();
 
-const OWNER_A = "01950000-0000-7000-8000-00000000000a" as UserId;
-const OWNER_B = "01950000-0000-7000-8000-00000000000b" as UserId;
+const OWNER_A = "01950000-0000-7000-8000-00000000000a";
+const OWNER_B = "01950000-0000-7000-8000-00000000000b";
 
 const tagRawId = (n: number) =>
   `019d7000-0000-7000-8000-${n.toString(16).padStart(12, "0")}`;
@@ -31,11 +28,11 @@ const dirRawId = (n: number) =>
 
 async function seedUser(
   container: TestContainer,
-  id: UserId,
+  id: string,
   username: string,
 ) {
   await container.db.insert(schema.users).values({
-    id: id as unknown as string,
+    id: id,
     name: username,
     email: `${username}@example.com`,
     emailVerified: 1,
@@ -50,11 +47,11 @@ async function seedUser(
 async function seedDirectory(
   container: TestContainer,
   id: string,
-  ownerId: UserId,
+  ownerId: string,
 ) {
   await container.db.insert(schema.directories).values({
     id,
-    ownerId: ownerId as unknown as string,
+    ownerId: ownerId,
     parentId: null,
     name: "root",
     slug: `root-${id.slice(-6)}`,
@@ -68,12 +65,12 @@ async function seedDirectory(
 async function seedTag(
   container: TestContainer,
   id: string,
-  ownerId: UserId,
+  ownerId: string,
   name: string,
 ) {
   await container.db.insert(schema.tags).values({
     id,
-    ownerId: ownerId as unknown as string,
+    ownerId: ownerId,
     name,
     nameNormalized: name,
     version: 0,
@@ -86,7 +83,7 @@ async function seedNote(
   container: TestContainer,
   params: {
     id: string;
-    ownerId: UserId;
+    ownerId: string;
     directoryId: string;
     title: string;
     contentHtml: string;
@@ -95,7 +92,7 @@ async function seedNote(
 ) {
   await container.db.insert(schema.notes).values({
     id: params.id,
-    ownerId: params.ownerId as unknown as string,
+    ownerId: params.ownerId,
     directoryId: params.directoryId,
     slug: `note-${params.id.slice(-6)}`,
     title: params.title,
@@ -189,7 +186,7 @@ describe("createTag integration", () => {
     const container = getContainer();
     await seedUser(container, OWNER_A, "alpha");
     await container.db.insert(schema.tagBlacklist).values({
-      ownerId: OWNER_A as unknown as string,
+      ownerId: OWNER_A,
       nameNormalized: "revived",
       addedAt: iso(0),
     });
@@ -227,14 +224,14 @@ describe("renameTag integration", () => {
       container,
       input: {
         actorUserId: OWNER_A,
-        tagId: tagId as unknown as TagId,
+        tagId: tagId,
         newName: "renamed",
       },
     });
 
     expect(tag.name).toBe("renamed");
     expect(affectedNoteIds).toHaveLength(1);
-    expect(affectedNoteIds[0]).toBe(noteRawId(1) as unknown as NoteId);
+    expect(affectedNoteIds[0]).toBe(noteRawId(1));
 
     const tagRow = await container.db.select().from(schema.tags);
     expect(tagRow[0]?.name).toBe("renamed");
@@ -257,7 +254,7 @@ describe("renameTag integration", () => {
         container,
         input: {
           actorUserId: OWNER_A,
-          tagId: sourceId as unknown as TagId,
+          tagId: sourceId,
           newName: "taken",
         },
       });
@@ -293,7 +290,7 @@ describe("renameTag integration", () => {
       container,
       input: {
         actorUserId: OWNER_A,
-        tagId: tagId as unknown as TagId,
+        tagId: tagId,
         newName: "batchnew",
       },
     });
@@ -328,8 +325,8 @@ describe("mergeTags integration", () => {
       container,
       input: {
         actorUserId: OWNER_A,
-        sourceTagId: sourceId as unknown as TagId,
-        targetTagId: targetId as unknown as TagId,
+        sourceTagId: sourceId,
+        targetTagId: targetId,
       },
     });
 
@@ -353,8 +350,8 @@ describe("mergeTags integration", () => {
         container,
         input: {
           actorUserId: OWNER_A,
-          sourceTagId: sameId as unknown as TagId,
-          targetTagId: sameId as unknown as TagId,
+          sourceTagId: sameId,
+          targetTagId: sameId,
         },
       });
       expect.fail("should have thrown");
@@ -380,8 +377,8 @@ describe("mergeTags integration", () => {
         container,
         input: {
           actorUserId: OWNER_A,
-          sourceTagId: sourceId as unknown as TagId,
-          targetTagId: targetId as unknown as TagId,
+          sourceTagId: sourceId,
+          targetTagId: targetId,
         },
       });
       expect.fail("should have thrown");
@@ -411,8 +408,8 @@ describe("mergeTags integration", () => {
       container,
       input: {
         actorUserId: OWNER_A,
-        sourceTagId: sourceId as unknown as TagId,
-        targetTagId: targetId as unknown as TagId,
+        sourceTagId: sourceId,
+        targetTagId: targetId,
       },
     });
 
@@ -432,8 +429,8 @@ describe("mergeTags integration", () => {
         container,
         input: {
           actorUserId: OWNER_A,
-          sourceTagId: tagRawId(999) as unknown as TagId,
-          targetTagId: targetId as unknown as TagId,
+          sourceTagId: tagRawId(999),
+          targetTagId: targetId,
         },
       });
       expect.fail("should have thrown");
@@ -463,7 +460,7 @@ describe("deleteTag integration", () => {
 
     const { affectedNoteIds } = await deleteTag({
       container,
-      input: { actorUserId: OWNER_A, tagId: tagId as unknown as TagId },
+      input: { actorUserId: OWNER_A, tagId: tagId },
     });
     expect(affectedNoteIds).toHaveLength(1);
 
@@ -486,7 +483,7 @@ describe("deleteTag integration", () => {
 
     const { affectedNoteIds } = await deleteTag({
       container,
-      input: { actorUserId: OWNER_A, tagId: tagId as unknown as TagId },
+      input: { actorUserId: OWNER_A, tagId: tagId },
     });
     expect(affectedNoteIds).toHaveLength(0);
 
@@ -506,7 +503,7 @@ describe("deleteTag integration", () => {
     try {
       await deleteTag({
         container,
-        input: { actorUserId: OWNER_A, tagId: tagId as unknown as TagId },
+        input: { actorUserId: OWNER_A, tagId: tagId },
       });
       expect.fail("should have thrown");
     } catch (error) {

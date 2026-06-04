@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
 import type {
   BacklinkDTO,
-  NoteId,
   NoteSourceFileDTO,
 } from "@/core/application/dto/note";
 
@@ -17,7 +16,7 @@ import type {
  * (Issue #356 ADR-002 / ADR-003).
  */
 export type NoteMetaPanelProps = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   createdAt: string;
   updatedAt: string;
   tagNames: readonly string[];
@@ -60,13 +59,11 @@ export function NoteMetaPanel({
   backlinkCount,
   sourceFile,
 }: NoteMetaPanelProps) {
-  const noteIdStr = noteId as unknown as string;
   // The `/media/<id>` links below are rendered ONLY as UI controls. They
   // must never be injected into the note body HTML — `MEDIA_ID_FROM_URL`
   // would then fold the source file into `mediaRefs` / refCount and the
   // orphan purge could delete an in-use asset (Issue #452 ADR-002).
-  const sourceMediaId =
-    sourceFile === null ? null : (sourceFile.mediaId as unknown as string);
+  const sourceMediaId = sourceFile === null ? null : sourceFile.mediaId;
   const sourceFileLabel =
     sourceFile === null ? null : sourceFile.originalFileName;
 
@@ -79,10 +76,10 @@ export function NoteMetaPanel({
         ) : (
           <ul className="flex flex-col gap-2 m-0 p-0 list-none">
             {backlinks.map((bl) => (
-              <li key={bl.noteId as unknown as string}>
+              <li key={bl.noteId}>
                 <Link
                   to="/notes/$noteId"
-                  params={{ noteId: bl.noteId as unknown as string }}
+                  params={{ noteId: bl.noteId }}
                   className="block px-4 py-3 rounded-lg border border-hairline text-sm font-medium text-ink transition-colors hover:bg-surface [overflow-wrap:anywhere]"
                 >
                   {bl.title}
@@ -98,7 +95,7 @@ export function NoteMetaPanel({
         )}
         <Link
           to="/"
-          search={{ ...HOME_SEARCH, referencingNoteId: noteIdStr }}
+          search={{ ...HOME_SEARCH, referencingNoteId: noteId }}
           className="inline-block mt-3 text-accent text-xs hover:underline"
         >
           このノートを参照しているノート一覧を見る（{backlinkCount} 件）

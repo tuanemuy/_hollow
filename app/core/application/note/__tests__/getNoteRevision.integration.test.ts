@@ -120,9 +120,7 @@ describe("getNoteRevision (integration)", () => {
     });
     expect(result.revision.title).toBe("snapshot title");
     expect(result.revision.contentHtml).toContain("snapshot body");
-    expect(result.note.id as unknown as string).toBe(
-      noteId as unknown as string,
-    );
+    expect(result.note.id).toBe(noteId as unknown as string);
   });
 
   it("forbids accessing another user's revision via the note id check", async () => {

@@ -1,7 +1,7 @@
 import { EmailAddress } from "@/core/domain/identity/valueObject";
 import type { Instant } from "../dto/common";
 import { toInstant } from "../dto/common";
-import type { SessionToken, UserId as UserIdDTO } from "../dto/identity";
+import type { SessionToken } from "../dto/identity";
 import { AuthenticationError } from "../errors";
 import type { ServiceArgs } from "../types";
 
@@ -13,7 +13,7 @@ export type LogInInput = {
 };
 
 export type LogInOutput = {
-  userId: UserIdDTO;
+  userId: string;
   sessionToken: SessionToken;
   expiresAt: Instant;
 };
@@ -77,7 +77,7 @@ export async function logIn({
   });
 
   return {
-    userId: userId as unknown as UserIdDTO,
+    userId,
     sessionToken: issued.token,
     expiresAt: toInstant(issued.expiresAt),
   };

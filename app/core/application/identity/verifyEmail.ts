@@ -11,7 +11,7 @@ import {
 import type { RequestContainer } from "../di/types";
 import type { Instant } from "../dto/common";
 import { toInstant } from "../dto/common";
-import type { SessionToken, UserId as UserIdDTO } from "../dto/identity";
+import type { SessionToken } from "../dto/identity";
 import { NotFoundError, SystemError, SystemErrorCode } from "../errors";
 import type { Logger } from "../ports/logger";
 import type { ServiceArgs } from "../types";
@@ -25,7 +25,7 @@ export type VerifyEmailInput = {
 };
 
 export type VerifyEmailOutput = {
-  userId: UserIdDTO;
+  userId: string;
   sessionToken: SessionToken;
   expiresAt: Instant;
 };
@@ -69,7 +69,7 @@ export async function verifyEmail({
   const issued = await issueSessionOrFail(container, verifiedUserId, input);
 
   return {
-    userId: verifiedUserId as unknown as UserIdDTO,
+    userId: verifiedUserId,
     sessionToken: issued.token,
     expiresAt: toInstant(issued.expiresAt),
   };

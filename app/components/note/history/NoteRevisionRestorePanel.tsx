@@ -7,7 +7,6 @@ import { useState, useTransition } from "react";
 import { NOTE_HISTORY_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { formError, pillBtn, pillBtnPrimary } from "@/components/common/styles";
-import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -24,8 +23,8 @@ import { restoreNoteRevisionFn } from "../actions";
  * state.
  */
 export type NoteRevisionRestorePanelProps = Readonly<{
-  noteId: NoteId;
-  revisionId: NoteRevisionId;
+  noteId: string;
+  revisionId: string;
   noteStatus: "active" | "trashed";
 }>;
 
@@ -41,19 +40,17 @@ export function NoteRevisionRestorePanel({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const noteIdStr = noteId as unknown as string;
-  const revisionIdStr = revisionId as unknown as string;
   const trashed = noteStatus === "trashed";
 
   const runRestore = () => {
     startTransition(async () => {
       try {
         await restore({
-          data: { noteId: noteIdStr, revisionId: revisionIdStr },
+          data: { noteId, revisionId },
         });
         await router.navigate({
           to: "/notes/$noteId",
-          params: { noteId: noteIdStr },
+          params: { noteId },
         });
       } catch (e) {
         setError(extractSerializedError(e));
@@ -65,7 +62,7 @@ export function NoteRevisionRestorePanel({
     <div className="mt-4 mb-6 flex flex-wrap gap-2 items-center">
       <Link
         to="/notes/$noteId/history"
-        params={{ noteId: noteIdStr }}
+        params={{ noteId }}
         search={NOTE_HISTORY_SEARCH}
         className={pillBtn}
       >

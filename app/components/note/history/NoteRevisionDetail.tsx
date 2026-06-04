@@ -1,5 +1,4 @@
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteRevisionDetail } from "../loaders";
 import { NoteRevisionRestorePanel } from "./NoteRevisionRestorePanel";
@@ -19,8 +18,8 @@ import { NoteRevisionRestorePanel } from "./NoteRevisionRestorePanel";
  */
 export type NoteRevisionDetailProps = Readonly<{
   user: UserDTO;
-  noteId: NoteId;
-  revisionId: NoteRevisionId;
+  noteId: string;
+  revisionId: string;
 }>;
 
 export async function NoteRevisionDetail({

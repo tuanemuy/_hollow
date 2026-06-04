@@ -49,8 +49,6 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
-import type { UserId } from "../../dto/identity";
-import type { IngestionJobId } from "../../dto/ingestion";
 import { runIngestionJob } from "../runIngestionJob";
 import { uploadFile } from "../uploadFile";
 
@@ -69,7 +67,7 @@ function nextJobId(): string {
   return `019df100-0000-7000-8000-${jobSeq.toString(16).padStart(12, "0")}`;
 }
 
-async function seedUser(container: TestContainer): Promise<UserId> {
+async function seedUser(container: TestContainer): Promise<string> {
   const suffix = nextUserSuffix();
   const id = `019d0002-0000-7000-8000-${suffix}`;
   await container.db.insert(schema.users).values({
@@ -83,13 +81,13 @@ async function seedUser(container: TestContainer): Promise<UserId> {
     createdAt: iso(0),
     updatedAt: iso(0),
   });
-  return id as UserId;
+  return id;
 }
 
 async function seedPendingJob(
   container: TestContainer,
   params: {
-    ownerId: UserId;
+    ownerId: string;
     kind: string;
     mimeType: string;
     originalFileName: string;
@@ -103,7 +101,7 @@ async function seedPendingJob(
   await container.tempFileStorage.put(tempStorageKey, params.bodyBytes);
   await container.db.insert(schema.ingestionJobs).values({
     id,
-    ownerId: params.ownerId as unknown as string,
+    ownerId: params.ownerId,
     originalFileName: params.originalFileName,
     mimeType: params.mimeType,
     byteSize: params.bodyBytes.byteLength,
@@ -137,14 +135,14 @@ function nextDirId(): string {
  */
 async function seedDirectory(
   container: TestContainer,
-  params: { ownerId: UserId; name: string },
+  params: { ownerId: string; name: string },
 ): Promise<{ id: string; path: string }> {
   const rootId = nextDirId();
   const childId = nextDirId();
   await container.db.insert(schema.directories).values([
     {
       id: rootId,
-      ownerId: params.ownerId as unknown as string,
+      ownerId: params.ownerId,
       parentId: null,
       name: "",
       slug: "",
@@ -155,7 +153,7 @@ async function seedDirectory(
     },
     {
       id: childId,
-      ownerId: params.ownerId as unknown as string,
+      ownerId: params.ownerId,
       parentId: rootId,
       name: params.name,
       slug: params.name.toLowerCase(),
@@ -173,7 +171,7 @@ async function seedDirectory(
 // `canonicalizeDirectoryPaths` that single-level seeds never hit.
 async function seedNestedDirectory(
   container: TestContainer,
-  params: { ownerId: UserId; parent: string; child: string },
+  params: { ownerId: string; parent: string; child: string },
 ): Promise<{ childId: string; path: string }> {
   const rootId = nextDirId();
   const parentId = nextDirId();
@@ -181,7 +179,7 @@ async function seedNestedDirectory(
   await container.db.insert(schema.directories).values([
     {
       id: rootId,
-      ownerId: params.ownerId as unknown as string,
+      ownerId: params.ownerId,
       parentId: null,
       name: "",
       slug: "",
@@ -192,7 +190,7 @@ async function seedNestedDirectory(
     },
     {
       id: parentId,
-      ownerId: params.ownerId as unknown as string,
+      ownerId: params.ownerId,
       parentId: rootId,
       name: params.parent,
       slug: params.parent.toLowerCase(),
@@ -203,7 +201,7 @@ async function seedNestedDirectory(
     },
     {
       id: childId,
-      ownerId: params.ownerId as unknown as string,
+      ownerId: params.ownerId,
       parentId,
       name: params.child,
       slug: params.child.toLowerCase(),
@@ -365,7 +363,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -395,7 +393,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -429,7 +427,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -463,7 +461,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -501,7 +499,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -534,7 +532,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -567,7 +565,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -602,7 +600,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -638,7 +636,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -667,7 +665,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -703,7 +701,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     // Override reached the LLM verbatim; the resolver was never consulted for
@@ -741,7 +739,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     expect(llm.structureCalls[0]?.prompt).toBe("RESOLVED:structure");
@@ -780,7 +778,7 @@ describe("runIngestionJob", () => {
     // First run lands the job in previewing carrying the override.
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     // Regenerate: return to pending (the override row is untouched — save
@@ -806,7 +804,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     // The second structuring call (after regenerate) still carries the
@@ -848,7 +846,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     expect(llm.structureCalls[0]?.existingDirectories).toEqual([dir.path]);
@@ -886,7 +884,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -930,7 +928,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -971,7 +969,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     expect(llm.structureCalls[0]?.existingDirectories).toEqual([]);
@@ -1018,7 +1016,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -1066,7 +1064,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     // Both the parent ("Work") and the child ("Work/Reports") are navigable
@@ -1116,7 +1114,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -1161,7 +1159,7 @@ describe("runIngestionJob", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -1279,7 +1277,7 @@ describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -1349,7 +1347,7 @@ describe("runIngestionJob (real Anthropic adapters with fake fetch)", () => {
 
     await runIngestionJob({
       container,
-      input: { jobId: jobId as unknown as IngestionJobId },
+      input: { jobId: jobId },
     });
 
     const rows = await container.db
@@ -1415,7 +1413,7 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     const rows = await container.db
       .select()
       .from(schema.ingestionJobs)
-      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("failed");
     // The stub PDF extractor throws BusinessRuleError(UnsupportedFormat),
     // which classifyPipelineError surfaces verbatim as the markFailed
@@ -1446,7 +1444,7 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     await expect(
       runIngestionJob({
         container,
-        input: { jobId: jobId as unknown as IngestionJobId },
+        input: { jobId: jobId },
       }),
     ).rejects.toBeInstanceOf(LLMRateLimitError);
 
@@ -1492,7 +1490,7 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     await expect(
       runIngestionJob({
         container,
-        input: { jobId: jobId as unknown as IngestionJobId },
+        input: { jobId: jobId },
       }),
     ).rejects.toBeInstanceOf(LLMRateLimitError);
 
@@ -1540,7 +1538,7 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     await expect(
       runIngestionJob({
         container,
-        input: { jobId: jobId as unknown as IngestionJobId },
+        input: { jobId: jobId },
       }),
     ).rejects.toBeInstanceOf(LLMRateLimitError);
 

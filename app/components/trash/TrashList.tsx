@@ -73,7 +73,7 @@ export async function TrashList({ user, page, limit }: Props) {
                 <div className="text-base font-medium text-ink tracking-[-0.01em] mb-1 overflow-hidden text-ellipsis whitespace-nowrap">
                   <Link
                     to="/notes/$noteId"
-                    params={{ noteId: note.id as unknown as string }}
+                    params={{ noteId: note.id }}
                     className="text-inherit hover:text-accent"
                   >
                     {note.title}
@@ -88,7 +88,7 @@ export async function TrashList({ user, page, limit }: Props) {
                   <span>削除日 {formatDate(note.updatedAt)}</span>
                 </div>
               </div>
-              <TrashRowActions noteId={note.id as unknown as string} />
+              <TrashRowActions noteId={note.id} />
             </li>
           ))}
         </ul>

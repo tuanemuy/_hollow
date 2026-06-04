@@ -3,8 +3,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { NoteId } from "@/core/application/dto/note";
-import type { TagId } from "@/core/application/dto/tag";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import { InternalLinkSuggestPopup } from "../InternalLinkSuggestPopup";
 
@@ -12,14 +10,14 @@ const POSITION = { left: 10, top: 20 };
 
 const noteItem = (id: string, title: string): InternalLinkSuggestion => ({
   kind: "note",
-  noteId: id as unknown as NoteId,
+  noteId: id,
   title,
   slug: id,
 });
 
 const tagItem = (id: string, name: string): InternalLinkSuggestion => ({
   kind: "tag",
-  tagId: id as unknown as TagId,
+  tagId: id,
   name,
 });
 
