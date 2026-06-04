@@ -56,7 +56,7 @@ describe("toPublicationStateDTO", () => {
     const dto = toPublicationStateDTO(pub);
     expect(dto.visibility).toBe("public");
     expect(dto.publishedAt).not.toBeNull();
-    expect(dto.noteId as unknown as string).toBe(noteIdRaw(1));
+    expect(dto.noteId).toBe(noteIdRaw(1));
   });
 
   it("emits null publishedAt for a private state", () => {

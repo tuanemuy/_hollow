@@ -111,7 +111,7 @@ describe("ownerRetryIngestionJob", () => {
         jobId: jobId,
       },
     });
-    expect(result.jobId as unknown as string).toBe(jobId);
+    expect(result.jobId).toBe(jobId);
 
     const rows = await container.db
       .select()

@@ -99,7 +99,7 @@ describe("createDirectory (integration)", () => {
         container,
         input: { actorUserId: userId, parentId, name: `d${i}` },
       });
-      parentId = directory.id as unknown as string;
+      parentId = directory.id;
     }
 
     try {
@@ -131,7 +131,7 @@ describe("createDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userB,
-          parentId: aDir.id as unknown as string,
+          parentId: aDir.id,
           name: "intruder",
         },
       });
@@ -191,14 +191,14 @@ describe("renameDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: directory.id as unknown as string,
+        directoryId: directory.id,
         newName: "new",
       },
     });
 
     expect(renamed.name).toBe("new");
     const rows = await container.db.select().from(schema.directories);
-    const row = rows.find((r) => r.id === (directory.id as unknown as string));
+    const row = rows.find((r) => r.id === directory.id);
     expect(row?.name).toBe("new");
     expect(row?.version).toBe(1);
   });
@@ -258,7 +258,7 @@ describe("renameDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userId,
-          directoryId: beta.id as unknown as string,
+          directoryId: beta.id,
           newName: "alpha",
         },
       });
@@ -283,14 +283,14 @@ describe("renameDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: directory.id as unknown as string,
+        directoryId: directory.id,
         newName: "notes",
       },
     });
 
     expect(renamed.name).toBe("Notes");
     const rows = await container.db.select().from(schema.directories);
-    const row = rows.find((r) => r.id === (directory.id as unknown as string));
+    const row = rows.find((r) => r.id === directory.id);
     expect(row?.version).toBe(0);
   });
 });
@@ -313,7 +313,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: alpha.id as unknown as string,
+        parentId: alpha.id,
         name: "child",
       },
     });
@@ -323,8 +323,8 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: child.id as unknown as string,
-        newParentId: beta.id as unknown as string,
+        directoryId: child.id,
+        newParentId: beta.id,
       },
     });
     expect(moved.parentId).toBe(beta.id);
@@ -347,7 +347,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: alpha.id as unknown as string,
+        parentId: alpha.id,
         name: "child",
       },
     });
@@ -355,7 +355,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: child.id as unknown as string,
+        parentId: child.id,
         name: "grand",
       },
     });
@@ -365,19 +365,19 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: child.id as unknown as string,
+        directoryId: child.id,
         // Moving child up to root level — its depth drops to 1; grand to 2.
         newParentId: null,
       },
     });
 
     const rows = await container.db.select().from(schema.directories);
-    const childRow = rows.find((r) => r.id === (child.id as unknown as string));
-    const grandRow = rows.find((r) => r.id === (grand.id as unknown as string));
+    const childRow = rows.find((r) => r.id === child.id);
+    const grandRow = rows.find((r) => r.id === grand.id);
     expect(childRow?.depth).toBe(1);
     expect(grandRow?.depth).toBe(2);
     // beta untouched.
-    const betaRow = rows.find((r) => r.id === (beta.id as unknown as string));
+    const betaRow = rows.find((r) => r.id === beta.id);
     expect(betaRow?.depth).toBe(1);
   });
 
@@ -392,7 +392,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: a.id as unknown as string,
+        parentId: a.id,
         name: "b",
       },
     });
@@ -402,8 +402,8 @@ describe("moveDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userId,
-          directoryId: a.id as unknown as string,
-          newParentId: b.id as unknown as string,
+          directoryId: a.id,
+          newParentId: b.id,
         },
       });
       expect.fail("should have thrown");
@@ -431,7 +431,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: alpha.id as unknown as string,
+        parentId: alpha.id,
         name: "common",
       },
     });
@@ -439,7 +439,7 @@ describe("moveDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: beta.id as unknown as string,
+        parentId: beta.id,
         name: "common",
       },
     });
@@ -449,8 +449,8 @@ describe("moveDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userId,
-          directoryId: bCommon.id as unknown as string,
-          newParentId: alpha.id as unknown as string,
+          directoryId: bCommon.id,
+          newParentId: alpha.id,
         },
       });
       expect.fail("should have thrown");
@@ -479,7 +479,7 @@ describe("moveDirectory (integration)", () => {
           name: `c${i}`,
         },
       });
-      chainParent = directory.id as unknown as string;
+      chainParent = directory.id;
       chainIds.push(chainParent);
     }
     const deepest = chainIds[chainIds.length - 1] as string;
@@ -496,7 +496,7 @@ describe("moveDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userId,
-          directoryId: sibling.id as unknown as string,
+          directoryId: sibling.id,
           newParentId: deepest,
         },
       });
@@ -525,7 +525,7 @@ describe("deleteDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: directory.id as unknown as string,
+        directoryId: directory.id,
       },
     });
 
@@ -535,7 +535,7 @@ describe("deleteDirectory (integration)", () => {
     const rows = await container.db
       .select()
       .from(schema.directories)
-      .where(eq(schema.directories.id, directory.id as unknown as string));
+      .where(eq(schema.directories.id, directory.id));
     expect(rows).toHaveLength(0);
 
     // Issue #181: even an empty directory (no child notes → no note.trashed)
@@ -545,11 +545,9 @@ describe("deleteDirectory (integration)", () => {
       (r) => r.eventType === "directory.deleted",
     );
     expect(directoryDeleted).toHaveLength(1);
-    expect(directoryDeleted[0]?.aggregateId).toBe(
-      directory.id as unknown as string,
-    );
+    expect(directoryDeleted[0]?.aggregateId).toBe(directory.id);
     expect(directoryDeleted[0]?.payload).toEqual({
-      directoryId: directory.id as unknown as string,
+      directoryId: directory.id,
       name: "empty",
     });
     expect(
@@ -568,7 +566,7 @@ describe("deleteDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: a.id as unknown as string,
+        parentId: a.id,
         name: "b",
       },
     });
@@ -576,7 +574,7 @@ describe("deleteDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: b.id as unknown as string,
+        parentId: b.id,
         name: "c",
       },
     });
@@ -585,7 +583,7 @@ describe("deleteDirectory (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        directoryId: a.id as unknown as string,
+        directoryId: a.id,
       },
     });
     expect(result.deletedDirectoryIds).toHaveLength(3);
@@ -604,13 +602,7 @@ describe("deleteDirectory (integration)", () => {
       .filter((r) => r.eventType === "directory.deleted")
       .map((r) => r.aggregateId);
     expect(deletedAggregateIds).toHaveLength(3);
-    expect(new Set(deletedAggregateIds)).toEqual(
-      new Set([
-        a.id as unknown as string,
-        b.id as unknown as string,
-        c.id as unknown as string,
-      ]),
-    );
+    expect(new Set(deletedAggregateIds)).toEqual(new Set([a.id, b.id, c.id]));
   });
 
   it("throws CannotDeleteRoot when targeting the root", async () => {
@@ -657,7 +649,7 @@ describe("deleteDirectory (integration)", () => {
         container,
         input: {
           actorUserId: userB,
-          directoryId: directory.id as unknown as string,
+          directoryId: directory.id,
         },
       });
       expect.fail("should have thrown");
@@ -681,7 +673,7 @@ describe("getDirectoryTree (integration)", () => {
       container,
       input: {
         actorUserId: userId,
-        parentId: a.id as unknown as string,
+        parentId: a.id,
         name: "beta",
       },
     });
@@ -703,9 +695,7 @@ describe("getDirectoryTree (integration)", () => {
     expect(root.parentId).toBeNull();
     // Root has two children (alpha, gamma); alpha has one child (beta).
     expect(root.children).toHaveLength(2);
-    const alphaNode = root.children.find(
-      (n) => (n.id as unknown as string) === (a.id as unknown as string),
-    );
+    const alphaNode = root.children.find((n) => n.id === a.id);
     expect(alphaNode).toBeDefined();
     if (alphaNode === undefined) return;
     expect(alphaNode.children).toHaveLength(1);

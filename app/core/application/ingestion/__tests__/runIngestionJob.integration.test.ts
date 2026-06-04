@@ -1413,7 +1413,7 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
     const rows = await container.db
       .select()
       .from(schema.ingestionJobs)
-      .where(eq(schema.ingestionJobs.id, jobId as unknown as string));
+      .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("failed");
     // The stub PDF extractor throws BusinessRuleError(UnsupportedFormat),
     // which classifyPipelineError surfaces verbatim as the markFailed

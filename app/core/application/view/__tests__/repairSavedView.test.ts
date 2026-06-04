@@ -53,7 +53,7 @@ describe("repairSavedView", () => {
 
     const { view: repaired } = await repairSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: created.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: created.id },
     });
 
     expect(repaired.brokenConditions).toHaveLength(0);
@@ -63,9 +63,7 @@ describe("repairSavedView", () => {
     expect(repaired.query.keyword).toBe("todo");
     expect(repaired.query.visibilityFilter).toEqual(["public"]);
 
-    const persisted = await container.savedViewRepository.findById(
-      created.id as unknown as string,
-    );
+    const persisted = await container.savedViewRepository.findById(created.id);
     expect(persisted?.entity.brokenConditions).toHaveLength(0);
   });
 
@@ -88,19 +86,15 @@ describe("repairSavedView", () => {
     });
     expect(created.brokenConditions).toHaveLength(0);
 
-    const before = await container.savedViewRepository.findById(
-      created.id as unknown as string,
-    );
+    const before = await container.savedViewRepository.findById(created.id);
 
     const { view: repaired } = await repairSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: created.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: created.id },
     });
 
     expect(repaired.query.tagIds).toEqual(["t-1"]);
-    const after = await container.savedViewRepository.findById(
-      created.id as unknown as string,
-    );
+    const after = await container.savedViewRepository.findById(created.id);
     // No persistence happened: the version is unchanged.
     expect(after?.entity.version).toBe(before?.entity.version);
   });
@@ -114,7 +108,7 @@ describe("repairSavedView", () => {
     try {
       await repairSavedView({
         container,
-        input: { actorUserId: OTHER, viewId: created.id as unknown as string },
+        input: { actorUserId: OTHER, viewId: created.id },
       });
       expect.fail("should have thrown");
     } catch (error) {

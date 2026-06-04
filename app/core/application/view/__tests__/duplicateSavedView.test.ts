@@ -53,7 +53,7 @@ describe("duplicateSavedView", () => {
 
     const { view: copy } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
 
     expect(copy.name).toBe("Inbox のコピー");
@@ -76,19 +76,19 @@ describe("duplicateSavedView", () => {
 
     const { view: first } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
     expect(first.name).toBe("Inbox のコピー");
 
     const { view: second } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
     expect(second.name).toBe("Inbox のコピー 2");
 
     const { view: third } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
     expect(third.name).toBe("Inbox のコピー 3");
   });
@@ -105,7 +105,7 @@ describe("duplicateSavedView", () => {
 
     const { view: copy } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
 
     expect(copy.name.length).toBeLessThanOrEqual(60);
@@ -132,7 +132,7 @@ describe("duplicateSavedView", () => {
 
     const { view: copy } = await duplicateSavedView({
       container,
-      input: { actorUserId: OWNER, viewId: original.id as unknown as string },
+      input: { actorUserId: OWNER, viewId: original.id },
     });
     expect(copy.brokenConditions).toHaveLength(1);
     expect(copy.brokenConditions[0]?.kind).toBe("tag");
@@ -149,7 +149,7 @@ describe("duplicateSavedView", () => {
     try {
       await duplicateSavedView({
         container,
-        input: { actorUserId: OTHER, viewId: original.id as unknown as string },
+        input: { actorUserId: OTHER, viewId: original.id },
       });
       expect.fail("should have thrown");
     } catch (error) {
