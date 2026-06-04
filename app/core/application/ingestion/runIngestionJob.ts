@@ -43,12 +43,11 @@ import {
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
-import type { IngestionJobId } from "../dto/ingestion";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RunIngestionJobInput = Readonly<{
-  jobId: IngestionJobId;
+  jobId: string;
 }>;
 
 export async function runIngestionJob({
@@ -60,7 +59,7 @@ export async function runIngestionJob({
   const promoted = await container.unitOfWorkProvider.run(
     async ({ ingestionJobRepository, collectEvents }) => {
       const found = await ingestionJobRepository.findById(
-        input.jobId as unknown as IngestionJobIdBrand,
+        input.jobId as IngestionJobIdBrand,
       );
       if (found === null) {
         throw new NotFoundError(
@@ -144,7 +143,7 @@ export async function runIngestionJob({
     await container.unitOfWorkProvider.run(
       async ({ ingestionJobRepository, collectEvents }) => {
         const found = await ingestionJobRepository.findById(
-          input.jobId as unknown as IngestionJobIdBrand,
+          input.jobId as IngestionJobIdBrand,
         );
         if (found === null) {
           throw new NotFoundError(
@@ -181,7 +180,7 @@ export async function runIngestionJob({
         await container.unitOfWorkProvider.run(
           async ({ ingestionJobRepository, collectEvents }) => {
             const found = await ingestionJobRepository.findById(
-              input.jobId as unknown as IngestionJobIdBrand,
+              input.jobId as IngestionJobIdBrand,
             );
             if (found === null) return;
             if (!IngestionJob.isProcessing(found.entity)) {
@@ -544,7 +543,7 @@ function classifyPipelineError(error: unknown): string {
 
 async function markFailedSafely(
   container: ServiceArgs<RunIngestionJobInput>["container"],
-  jobId: IngestionJobId,
+  jobId: string,
   code: string,
   meta: { cause?: unknown; message?: string },
 ): Promise<void> {
@@ -558,7 +557,7 @@ async function markFailedSafely(
     await container.unitOfWorkProvider.run(
       async ({ ingestionJobRepository, collectEvents }) => {
         const found = await ingestionJobRepository.findById(
-          jobId as unknown as IngestionJobIdBrand,
+          jobId as IngestionJobIdBrand,
         );
         if (found === null) return;
         if (

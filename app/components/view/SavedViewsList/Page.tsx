@@ -25,7 +25,7 @@ export async function SavedViewsListPage({
     ]);
 
   const tagOptions = tags.map((tag) => ({
-    id: tag.id as unknown as string,
+    id: tag.id,
     name: tag.name,
   }));
 

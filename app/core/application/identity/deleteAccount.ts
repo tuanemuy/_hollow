@@ -4,12 +4,11 @@ import { User } from "@/core/domain/identity/entity";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { UserId } from "@/core/domain/identity/valueObject";
 import { PublicationState } from "@/core/domain/publication/entity";
-import type { UserId as UserIdDTO } from "../dto/identity";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type DeleteAccountInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   /** Must equal the actor's username (case-sensitive). */
   confirmation: string;
 };

@@ -6,7 +6,6 @@ import {
   RawPassword,
   Username,
 } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
 import type { ServiceArgs } from "../types";
 import { assertSignUpAvailability } from "./signUpAvailability";
 
@@ -26,7 +25,7 @@ export type SignUpInput = {
 };
 
 export type SignUpOutput = {
-  userId: UserIdDTO;
+  userId: string;
 };
 
 const REGISTRATION_CLOSED_CODE = "registration_closed";
@@ -112,7 +111,7 @@ export async function signUp({
     });
   }
 
-  return { userId: userId as unknown as UserIdDTO };
+  return { userId };
 }
 
 export function buildVerificationLink(appUrl: string, token: string): URL {

@@ -2,12 +2,11 @@ import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject"
 import { Tag } from "@/core/domain/tag/entity";
 import { TagService } from "@/core/domain/tag/service";
 import { TagName } from "@/core/domain/tag/valueObject";
-import type { UserId } from "../dto/identity";
 import type { ServiceArgs } from "../types";
 import { type TagView, toTagView } from "./view";
 
 export type CreateTagInput = {
-  actorUserId: UserId;
+  actorUserId: string;
   name: string;
 };
 
@@ -21,7 +20,7 @@ export async function createTag({
 }: ServiceArgs<CreateTagInput>): Promise<CreateTagOutput> {
   const now = container.clock.now();
   const id = container.idGenerator.next();
-  const ownerId = input.actorUserId as unknown as DomainUserId;
+  const ownerId = input.actorUserId as DomainUserId;
   const name = TagName.create(input.name);
 
   const tag = await container.unitOfWorkProvider.run(

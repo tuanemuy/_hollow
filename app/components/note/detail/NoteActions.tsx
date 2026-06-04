@@ -17,7 +17,6 @@ import {
   pillBtnIcon,
   pillBtnPrimary,
 } from "@/components/common/styles";
-import type { NoteId } from "@/core/application/dto/note";
 import type { Visibility } from "@/core/application/dto/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -31,7 +30,7 @@ import { NoteActionsMenu } from "./NoteActionsMenu";
 import { UrlCopyButton } from "./UrlCopyButton";
 
 export type NoteActionsProps = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   status: "active" | "trashed";
   visibility: Visibility;
   publicShareUrl: string | null;
@@ -86,7 +85,7 @@ export function NoteActions({
   const [open, setOpen] = useState<OpenDialog>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const noteIdStr = noteId as unknown as string;
+  const noteIdStr = noteId;
 
   // For visibility public/unlisted prefer the share URL when available;
   // private always falls back to the internal `/notes/<id>` URL. The

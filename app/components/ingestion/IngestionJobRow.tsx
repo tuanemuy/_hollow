@@ -116,7 +116,7 @@ export function IngestionJobRow({ job }: Props) {
         }
         await router.navigate({
           to: "/notes/$noteId",
-          params: { noteId: result.noteId as unknown as string },
+          params: { noteId: result.noteId },
         });
       } catch (e) {
         setError(extractSerializedError(e));

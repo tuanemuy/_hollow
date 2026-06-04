@@ -120,7 +120,7 @@ export function DirectoryTree({ tree }: DirectoryTreeProps) {
         >
           {children.map((node) => (
             <DirectoryTreeNodeView
-              key={node.id as unknown as string}
+              key={node.id}
               node={node}
               depth={1}
               isExpanded={isExpanded}
@@ -203,7 +203,7 @@ function DirectoryTreeNodeView({
   const router = useRouter();
   const renameDirectory = useServerFn(renameDirectoryFn);
 
-  const id = node.id as unknown as string;
+  const id = node.id;
   const hasChildren = node.children.length > 0;
   const expanded = isExpanded(id);
   const isRenaming = renamingId === id;
@@ -413,7 +413,7 @@ function DirectoryTreeNodeView({
         <div role="group" className="list-none m-0 p-0">
           {node.children.map((child) => (
             <DirectoryTreeNodeView
-              key={child.id as unknown as string}
+              key={child.id}
               node={child}
               depth={depth + 1}
               isExpanded={isExpanded}

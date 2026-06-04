@@ -74,10 +74,7 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             >
               <option value="">保存ビューを選択</option>
               {savedViews.map((view) => (
-                <option
-                  key={view.id as unknown as string}
-                  value={view.id as unknown as string}
-                >
+                <option key={view.id} value={view.id}>
                   {view.name}
                 </option>
               ))}

@@ -1,14 +1,12 @@
 import { UserId } from "@/core/domain/identity/valueObject";
 import type { IngestionJobId as IngestionJobIdBrand } from "@/core/domain/ingestion/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { type IngestionJobView, toIngestionJobView } from "./view";
 
 export type GetIngestionJobInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: IngestionJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 export type GetIngestionJobOutput = Readonly<{
@@ -24,7 +22,7 @@ export async function getIngestionJob({
   const job = await container.unitOfWorkProvider.run(
     async ({ ingestionJobRepository }) => {
       const found = await ingestionJobRepository.findById(
-        input.jobId as unknown as IngestionJobIdBrand,
+        input.jobId as IngestionJobIdBrand,
       );
       if (found === null) {
         throw new NotFoundError(

@@ -27,9 +27,7 @@ const renderNoteEditor = createServerFn({ method: "GET" })
     const [detail, tree, tags] = await Promise.all([
       loadNoteDetail({
         actorUserId: userDto.id,
-        noteId: data.noteId as unknown as Parameters<
-          typeof loadNoteDetail
-        >[0]["noteId"],
+        noteId: data.noteId,
       }),
       loadDirectoryTreeFlat({ actorUserId: userDto.id }),
       loadAllTags({ actorUserId: userDto.id }),
@@ -38,7 +36,7 @@ const renderNoteEditor = createServerFn({ method: "GET" })
     const { note } = detail;
 
     const initialTagNames = note.tagIds
-      .map((id) => tags.byId.get(id as unknown as string))
+      .map((id) => tags.byId.get(id))
       .filter((name): name is string => name !== undefined);
 
     const initialEditLock =
@@ -53,12 +51,12 @@ const renderNoteEditor = createServerFn({ method: "GET" })
     return renderServerComponent(
       <NoteEditor
         mode="edit"
-        noteId={note.id as unknown as string}
+        noteId={note.id}
         initialTitle={note.title}
         initialContentHtml={note.contentHtml}
         initialFrontMatter={{ ...note.frontMatter }}
         initialTagNames={initialTagNames}
-        initialDirectoryId={note.directoryId as unknown as string}
+        initialDirectoryId={note.directoryId}
         {...(initialEditLock !== undefined ? { initialEditLock } : {})}
         tree={tree.flat}
       />,

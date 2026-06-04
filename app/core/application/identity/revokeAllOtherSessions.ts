@@ -1,9 +1,8 @@
 import { UserId } from "@/core/domain/identity/valueObject";
-import type { UserId as UserIdDTO } from "../dto/identity";
 import type { ServiceArgs } from "../types";
 
 export type RevokeAllOtherSessionsInput = {
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   currentSessionToken: string;
 };
 

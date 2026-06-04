@@ -1,12 +1,9 @@
 import type { SearchHit } from "@/core/domain/search/valueObject";
 import type { DateRange } from "./common";
-import type { DirectoryId } from "./directory";
-import type { UserId } from "./identity";
-import type { NoteId } from "./note";
 
 export type SearchHitDTO = Readonly<{
-  noteId: NoteId;
-  ownerId: UserId;
+  noteId: string;
+  ownerId: string;
   username: string;
   title: string;
   snippet: string;
@@ -27,17 +24,14 @@ export type SearchHitDTO = Readonly<{
  *   `tagNames` / `score` / `visibility`: search index (eventually
  *   consistent).
  *
- * `directoryId` carries the DTO `DirectoryId` brand, matching the
- * convention documented in `./index.ts` (id brands preserved on DTOs;
- * `to{Entity}DTO` helpers are the single bridge between domain and DTO
- * brand schemes). `slug` is a plain `string` here for the same reason
- * `NoteListItemDTO.slug` / `DirectoryDTO.slug` are — `NoteSlug` is
- * structurally a subtype of `string` and the DTO layer does not carry
- * its brand. `updatedAt` is an ISO 8601 string.
+ * All DTO ids are plain `string` (the legacy brand scheme was removed in
+ * #473); `slug` is likewise a plain `string` even though the domain
+ * `NoteSlug` is a structural subtype of `string`. `updatedAt` is an
+ * ISO 8601 string.
  */
 export type OwnedSearchHitDTO = SearchHitDTO &
   Readonly<{
-    directoryId: DirectoryId;
+    directoryId: string;
     slug: string;
     updatedAt: string;
   }>;
@@ -49,7 +43,7 @@ export type OwnedSearchHitDTO = SearchHitDTO &
  */
 export type SearchQueryDTO = Readonly<{
   keyword: string;
-  ownerIdFilter: UserId | null;
+  ownerIdFilter: string | null;
   visibilityFilter: readonly ("private" | "unlisted" | "public")[];
   tagNames: readonly string[];
   dateRange: DateRange | null;
@@ -59,8 +53,8 @@ export type SearchQueryDTO = Readonly<{
 
 export function toSearchHitDTO(hit: SearchHit): SearchHitDTO {
   return {
-    noteId: hit.noteId as unknown as NoteId,
-    ownerId: hit.ownerId as unknown as UserId,
+    noteId: hit.noteId,
+    ownerId: hit.ownerId,
     username: hit.username as string,
     title: hit.title as string,
     snippet: hit.snippet as string,

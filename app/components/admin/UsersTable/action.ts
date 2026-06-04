@@ -1,10 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { cache } from "react";
-import {
-  toUserDTO,
-  type UserDTO,
-  type UserId as UserIdDTO,
-} from "@/core/application/dto/identity";
+import { toUserDTO, type UserDTO } from "@/core/application/dto/identity";
 import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps, serverData } from "@/core/presentation/serverAction";
@@ -35,14 +31,6 @@ export const loadAdminUsers = cache(
   ),
 );
 
-// The DTO `UserId` brand is the cross-layer wire shape — identity
-// usecases accept it directly. `User.id` on the domain side carries the
-// domain brand, but the two are structurally `string` and the DTO
-// boundary is the canonical bridge.
-function toUserIdDTO(value: string): UserIdDTO {
-  return value as UserIdDTO;
-}
-
 export const suspendUserFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(targetUserSchema))
@@ -55,8 +43,8 @@ export const suspendUserFn = createServerFn({ method: "POST" })
     await module.suspendUser({
       container,
       input: {
-        actorAdminId: toUserIdDTO(actor.id),
-        targetUserId: toUserIdDTO(data.targetUserId),
+        actorAdminId: actor.id,
+        targetUserId: data.targetUserId,
       },
     });
     return {};
@@ -74,8 +62,8 @@ export const reinstateUserFn = createServerFn({ method: "POST" })
     await module.reinstateUser({
       container,
       input: {
-        actorAdminId: toUserIdDTO(actor.id),
-        targetUserId: toUserIdDTO(data.targetUserId),
+        actorAdminId: actor.id,
+        targetUserId: data.targetUserId,
       },
     });
     return {};
@@ -93,8 +81,8 @@ export const promoteUserFn = createServerFn({ method: "POST" })
     await module.promoteUserToAdmin({
       container,
       input: {
-        actorAdminId: toUserIdDTO(actor.id),
-        targetUserId: toUserIdDTO(data.targetUserId),
+        actorAdminId: actor.id,
+        targetUserId: data.targetUserId,
       },
     });
     return {};
@@ -112,8 +100,8 @@ export const demoteUserFn = createServerFn({ method: "POST" })
     await module.demoteAdmin({
       container,
       input: {
-        actorAdminId: toUserIdDTO(actor.id),
-        targetUserId: toUserIdDTO(data.targetUserId),
+        actorAdminId: actor.id,
+        targetUserId: data.targetUserId,
       },
     });
     return {};

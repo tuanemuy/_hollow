@@ -1,6 +1,4 @@
 import { isBusinessRuleError } from "@/core/domain/error";
-import type { UserId as UserIdDTO } from "../dto/identity";
-import type { IngestionJobId } from "../dto/ingestion";
 import type { ServiceArgs } from "../types";
 import { type UploadFileOutput, uploadFile } from "./uploadFile";
 
@@ -12,7 +10,7 @@ export type BulkUploadEntry = Readonly<{
 }>;
 
 export type BulkUploadInput = Readonly<{
-  actorUserId: UserIdDTO;
+  actorUserId: string;
   files: readonly BulkUploadEntry[];
 }>;
 
@@ -22,7 +20,7 @@ export type BulkUploadFailure = Readonly<{
 }>;
 
 export type BulkUploadOutput = Readonly<{
-  jobIds: readonly IngestionJobId[];
+  jobIds: readonly string[];
   failures: readonly BulkUploadFailure[];
 }>;
 
@@ -39,7 +37,7 @@ export async function bulkUpload({
   container,
   input,
 }: ServiceArgs<BulkUploadInput>): Promise<BulkUploadOutput> {
-  const jobIds: IngestionJobId[] = [];
+  const jobIds: string[] = [];
   const failures: BulkUploadFailure[] = [];
 
   for (const file of input.files) {

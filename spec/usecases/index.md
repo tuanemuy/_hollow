@@ -21,23 +21,27 @@
 すべての usecase は以下の共通 DTO を input/output に利用する。型は `app/core/application/dto/` に集約する。
 
 ```ts
-// 識別子は値オブジェクトのラッパー型
-type UserId = string & { readonly __brand: 'UserId' };
-type NoteId = string & { readonly __brand: 'NoteId' };
-type DirectoryId = string & { readonly __brand: 'DirectoryId' };
-type TagId = string & { readonly __brand: 'TagId' };
-type MediaAssetId = string & { readonly __brand: 'MediaAssetId' };
-type ShareLinkId = string & { readonly __brand: 'ShareLinkId' };
+// 識別子は素のプリミティブ string。
+// 旧来は `string & { readonly __brand: 'XId' }` で DTO 専用の brand を付けていたが、
+// brand は実行時に消える型レベルの飾りに過ぎず、ドメイン brand との橋渡しで無駄な
+// `as unknown as` キャストを量産していたため #473 で全廃した。以下の別名は「どの種類の
+// id を指す string か」を読解しやすくするためだけの marker で、実体は素の string と等価。
+// ドメイン側 id は依然 `unique symbol` brand を持つ（string の構造的サブタイプ）ため、
+// `to{Entity}DTO` はドメイン id を DTO の string フィールドへ素の代入で射影できる。
+type UserId = string;
+type NoteId = string;
+type DirectoryId = string;
+type TagId = string;
+type MediaAssetId = string;
+type ShareLinkId = string;
 
 // SessionToken は brand しない不透明文字列 (アダプタ実装次第で平文 / JWT 等を許容するため)。
 // 実体は `string` と等価で型レベルの強制力は持たないが、DTO や usecase 戻り値で「これは
 // セッショントークンを指す string」という意図を読解しやすくするための marker として残す。
-// 将来 brand する場合は SessionService の実装側でも brand 生成を行う必要があり、現状は
-// 「アダプタ実装が外部システムから返す文字列をそのまま透過させる」運用優先で非 brand。
 type SessionToken = string;
-type ExportJobId = string & { readonly __brand: 'ExportJobId' };
-type IngestionJobId = string & { readonly __brand: 'IngestionJobId' };
-type SavedViewId = string & { readonly __brand: 'SavedViewId' };
+type ExportJobId = string;
+type IngestionJobId = string;
+type SavedViewId = string;
 
 type Instant = string;          // ISO 8601 UTC
 type Visibility = 'private' | 'unlisted' | 'public';

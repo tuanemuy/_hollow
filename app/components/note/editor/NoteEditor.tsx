@@ -221,7 +221,7 @@ export function NoteEditor(props: NoteEditorProps) {
     const result = await createDirectory({
       data: { parentId: null, name: state.pendingDirectoryName },
     });
-    return result.directory.id as unknown as string;
+    return result.directory.id;
   };
 
   const saveDisabled =

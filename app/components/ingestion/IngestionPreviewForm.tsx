@@ -185,7 +185,7 @@ export function IngestionPreviewForm({
   const localTitleInputRef = useRef<HTMLInputElement>(null);
   const effectiveTitleInputRef = titleInputRef ?? localTitleInputRef;
 
-  const jobId = job.id as unknown as string;
+  const jobId = job.id;
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -215,7 +215,7 @@ export function IngestionPreviewForm({
           // invalidate（.issue/299/adr.md ADR-003）
           await router.invalidate();
         }
-        onCommitted(result.noteId as unknown as string, trimmedTitle);
+        onCommitted(result.noteId, trimmedTitle);
       } catch (e) {
         setError(extractSerializedError(e));
       }

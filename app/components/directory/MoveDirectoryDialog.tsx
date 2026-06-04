@@ -61,7 +61,7 @@ export function MoveDirectoryDialog({
   // tree[0] is the implicit root (ensured by DirectoryService.ensureRoot
   // at signup). Real users always have it, so the optional chain below
   // is a defensive belt-and-suspenders only.
-  const rootId = tree[0]?.id as unknown as string | undefined;
+  const rootId = tree[0]?.id;
 
   // Cyclic-safe destination list excluding the moving subtree (SSOT is the
   // backend `assertNotCyclicMove`; this mirrors it for UX). The root is

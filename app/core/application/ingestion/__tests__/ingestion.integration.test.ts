@@ -10,9 +10,6 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
-import type { UserId } from "../../dto/identity";
-import type { IngestionJobId } from "../../dto/ingestion";
-import type { NoteId } from "../../dto/note";
 import { bulkUpload } from "../bulkUpload";
 import { commitIngestionPreview } from "../commitIngestionPreview";
 import { discardIngestionPreview } from "../discardIngestionPreview";
@@ -54,7 +51,7 @@ function nextMediaId(): string {
   return `019d3000-0000-7000-8000-${mediaSeq.toString(16).padStart(12, "0")}`;
 }
 
-async function seedUser(container: TestContainer): Promise<UserId> {
+async function seedUser(container: TestContainer): Promise<string> {
   const suffix = nextUserSuffix();
   const id = `019d0001-0000-7000-8000-${suffix}`;
   await container.db.insert(schema.users).values({
@@ -68,17 +65,17 @@ async function seedUser(container: TestContainer): Promise<UserId> {
     createdAt: iso(0),
     updatedAt: iso(0),
   });
-  return id as UserId;
+  return id;
 }
 
 async function seedDirectory(
   container: TestContainer,
-  ownerId: UserId,
+  ownerId: string,
 ): Promise<string> {
   const id = nextDirId();
   await container.db.insert(schema.directories).values({
     id,
-    ownerId: ownerId as unknown as string,
+    ownerId: ownerId,
     parentId: null,
     name: "root",
     slug: `root-${id.slice(-6)}`,
@@ -92,7 +89,7 @@ async function seedDirectory(
 
 type SeedJobInput = {
   id?: string;
-  ownerId: UserId;
+  ownerId: string;
   status:
     | "pending"
     | "processing"
@@ -141,7 +138,7 @@ async function seedIngestionJob(
         : null;
   await container.db.insert(schema.ingestionJobs).values({
     id,
-    ownerId: input.ownerId as unknown as string,
+    ownerId: input.ownerId,
     originalFileName: input.originalFileName ?? "doc.html",
     mimeType: input.mimeType ?? "text/html",
     byteSize: input.byteSize ?? 16,
@@ -534,7 +531,7 @@ describe("regenerateIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -569,7 +566,7 @@ describe("regenerateIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -598,7 +595,7 @@ describe("regenerateIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -632,7 +629,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -687,7 +684,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -774,7 +771,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -811,7 +808,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "ingested" },
       },
     });
@@ -851,7 +848,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "技術/AI" },
       },
     });
@@ -907,7 +904,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: { directoryNameToCreate: "技術/AI" },
       },
     });
@@ -959,7 +956,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: { directoryNameToCreate: "技術/AI" },
         },
       });
@@ -998,7 +995,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: { directoryNameToCreate: tooDeep },
         },
       });
@@ -1038,7 +1035,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {},
       },
     });
@@ -1095,9 +1092,9 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: existingNoteId as unknown as NoteId,
+          overwriteNoteId: existingNoteId,
         },
       },
     });
@@ -1181,9 +1178,9 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: existingNoteId as unknown as NoteId,
+          overwriteNoteId: existingNoteId,
         },
       },
     });
@@ -1254,9 +1251,9 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: actor,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
-          overwriteNoteId: foreignNoteId as unknown as NoteId,
+          overwriteNoteId: foreignNoteId,
         },
       },
     }).then(
@@ -1292,7 +1289,7 @@ describe("commitIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
         modifications: {
           frontMatter: { status: "published", priority: 1 },
         },
@@ -1322,7 +1319,7 @@ describe("commitIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
           modifications: {},
         },
       });
@@ -1356,7 +1353,7 @@ describe("discardIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -1397,7 +1394,7 @@ describe("discardIngestionPreview", () => {
       container,
       input: {
         actorUserId: owner,
-        jobId: jobId as unknown as IngestionJobId,
+        jobId: jobId,
       },
     });
 
@@ -1443,7 +1440,7 @@ describe("discardIngestionPreview", () => {
         container,
         input: {
           actorUserId: owner,
-          jobId: jobId as unknown as IngestionJobId,
+          jobId: jobId,
         },
       });
       expect.fail("should have thrown");
@@ -1473,7 +1470,7 @@ describe("getIngestionJob", () => {
       container,
       input: {
         actorUserId: ownerA,
-        jobId: myJob as unknown as IngestionJobId,
+        jobId: myJob,
       },
     });
     expect(job.id as unknown as string).toBe(myJob);
@@ -1497,7 +1494,7 @@ describe("getIngestionJob", () => {
         container,
         input: {
           actorUserId: ownerA,
-          jobId: otherJob as unknown as IngestionJobId,
+          jobId: otherJob,
         },
       });
       expect.fail("should have thrown");

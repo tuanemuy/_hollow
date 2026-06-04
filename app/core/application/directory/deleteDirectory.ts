@@ -14,8 +14,6 @@ import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { NoteEvents } from "@/core/domain/note/events";
 import type { NoteRepository } from "@/core/domain/note/ports/noteRepository";
 import type { NoteId } from "@/core/domain/note/valueObject";
-import type { DirectoryId as DirectoryIdDTO } from "../dto/directory";
-import type { NoteId as NoteIdDTO } from "../dto/note";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
@@ -25,8 +23,8 @@ export type DeleteDirectoryInput = {
 };
 
 export type DeleteDirectoryOutput = {
-  trashedNoteIds: readonly NoteIdDTO[];
-  deletedDirectoryIds: readonly DirectoryIdDTO[];
+  trashedNoteIds: readonly string[];
+  deletedDirectoryIds: readonly string[];
 };
 
 export async function deleteDirectory({
@@ -113,12 +111,8 @@ export async function deleteDirectory({
   );
 
   return {
-    trashedNoteIds: result.trashedNoteIds.map(
-      (id) => id as unknown as NoteIdDTO,
-    ),
-    deletedDirectoryIds: result.deletedDirectoryIds.map(
-      (id) => id as unknown as DirectoryIdDTO,
-    ),
+    trashedNoteIds: result.trashedNoteIds,
+    deletedDirectoryIds: result.deletedDirectoryIds,
   };
 }
 

@@ -7,8 +7,6 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
-import type { NoteId } from "@/core/application/dto/note";
-import type { TagId } from "@/core/application/dto/tag";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 
 // `useServerFn` is what the dialog uses to acquire the server-fn caller.
@@ -39,14 +37,14 @@ const { NotePickerDialog } = await import("../NotePickerDialog");
 
 const noteItem = (id: string, title: string): InternalLinkSuggestion => ({
   kind: "note",
-  noteId: id as unknown as NoteId,
+  noteId: id,
   title,
   slug: id,
 });
 
 const tagItem = (id: string, name: string): InternalLinkSuggestion => ({
   kind: "tag",
-  tagId: id as unknown as TagId,
+  tagId: id,
   name,
 });
 

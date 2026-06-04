@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { pillBtn } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
-import type { NoteId } from "@/core/application/dto/note";
 import { isNotFoundError } from "@/core/application/errors";
 import { loadNoteDetail, loadNoteRevisions } from "../loaders";
 import { historyNavSearch } from "./historyPagination";
@@ -20,7 +19,7 @@ import { historyNavSearch } from "./historyPagination";
  */
 export type NoteHistoryListProps = Readonly<{
   user: UserDTO;
-  noteId: NoteId;
+  noteId: string;
   page: number;
   limit: number;
 }>;
@@ -31,7 +30,7 @@ export async function NoteHistoryList({
   page,
   limit,
 }: NoteHistoryListProps) {
-  const noteIdStr = noteId as unknown as string;
+  const noteIdStr = noteId;
   const offset = (page - 1) * limit;
 
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
@@ -98,7 +97,7 @@ export async function NoteHistoryList({
         <ul className="flex flex-col gap-3">
           {revisions.map((rev) => (
             <li
-              key={rev.id as unknown as string}
+              key={rev.id}
               className="flex items-center justify-between gap-3 rounded-md border border-hairline px-4 py-3"
             >
               <div className="flex flex-col gap-1 min-w-0">
@@ -116,7 +115,7 @@ export async function NoteHistoryList({
                 to="/notes/$noteId/history/$revisionId"
                 params={{
                   noteId: noteIdStr,
-                  revisionId: rev.id as unknown as string,
+                  revisionId: rev.id,
                 }}
                 className={pillBtn}
               >

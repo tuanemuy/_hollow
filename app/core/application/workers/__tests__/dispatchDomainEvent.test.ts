@@ -17,7 +17,6 @@ import type {
 import type { NoteSnapshot } from "@/core/domain/search/entity";
 import type { TagId } from "@/core/domain/tag/valueObject";
 import type { ConsumerContainer } from "../../di/types";
-import type { IngestionJobId as IngestionJobIdDTO } from "../../dto/ingestion";
 import { NotFoundError } from "../../errors";
 import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../../export/handleUserDeletedEvent";
 import { runExportJob } from "../../export/runExportJob";
@@ -551,7 +550,7 @@ describe("dispatchDomainEvent — ingestion / export routing", () => {
     expect(mockedRunIngestionJob).toHaveBeenCalledTimes(1);
     expect(mockedRunIngestionJob).toHaveBeenCalledWith({
       container,
-      input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
+      input: { jobId: INGESTION_JOB_ID },
     });
     expect(mockedRunExportJob).not.toHaveBeenCalled();
   });
@@ -565,7 +564,7 @@ describe("dispatchDomainEvent — ingestion / export routing", () => {
     expect(outcome).toEqual({ kind: "handled" });
     expect(mockedRunIngestionJob).toHaveBeenCalledWith({
       container,
-      input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
+      input: { jobId: INGESTION_JOB_ID },
     });
   });
 
@@ -607,7 +606,7 @@ describe("dispatchDomainEvent — ingestion / export routing", () => {
     expect(mockedRunIngestionJob).toHaveBeenCalledTimes(1);
     expect(mockedRunIngestionJob).toHaveBeenCalledWith({
       container,
-      input: { jobId: INGESTION_JOB_ID as unknown as IngestionJobIdDTO },
+      input: { jobId: INGESTION_JOB_ID },
     });
     expect(mockedRunExportJob).not.toHaveBeenCalled();
   });

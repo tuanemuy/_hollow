@@ -21,7 +21,7 @@ export const createDirectoryFn = createServerFn({ method: "POST" })
     return module.createDirectory({
       container,
       input: {
-        actorUserId: user.id as unknown as string,
+        actorUserId: user.id,
         parentId: data.parentId,
         name: data.name,
       },
@@ -39,7 +39,7 @@ export const renameDirectoryFn = createServerFn({ method: "POST" })
     return module.renameDirectory({
       container,
       input: {
-        actorUserId: user.id as unknown as string,
+        actorUserId: user.id,
         directoryId: data.directoryId,
         newName: data.newName,
       },
@@ -57,7 +57,7 @@ export const moveDirectoryFn = createServerFn({ method: "POST" })
     return module.moveDirectory({
       container,
       input: {
-        actorUserId: user.id as unknown as string,
+        actorUserId: user.id,
         directoryId: data.directoryId,
         newParentId: data.newParentId,
       },
@@ -75,7 +75,7 @@ export const deleteDirectoryFn = createServerFn({ method: "POST" })
     return module.deleteDirectory({
       container,
       input: {
-        actorUserId: user.id as unknown as string,
+        actorUserId: user.id,
         directoryId: data.directoryId,
       },
     });

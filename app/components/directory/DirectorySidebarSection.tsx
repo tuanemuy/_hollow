@@ -31,7 +31,7 @@ export function DirectorySidebarSection({
   tree,
 }: DirectorySidebarSectionProps) {
   // tree[0] is the implicit root (ensured by DirectoryService.ensureRoot).
-  const rootId = tree[0]?.id as unknown as string | undefined;
+  const rootId = tree[0]?.id;
   const [createOpen, setCreateOpen] = useState(false);
 
   return (

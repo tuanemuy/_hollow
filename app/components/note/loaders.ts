@@ -3,7 +3,6 @@ import {
   resolveTagNamesToIds,
   TAG_RESOLVE_LIMIT,
 } from "@/components/tag/loaders";
-import type { NoteId, NoteRevisionId } from "@/core/application/dto/note";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { DirectoryId as DomainDirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
@@ -171,7 +170,7 @@ export const loadOwnedNotes = cache(
         const result = await searchMod.searchOwnNotes({
           container,
           input: {
-            actorUserId: input.actorUserId as unknown as DomainUserId,
+            actorUserId: input.actorUserId as DomainUserId,
             keyword,
             ...(input.tagNames !== undefined
               ? { tagNames: input.tagNames }
@@ -188,13 +187,13 @@ export const loadOwnedNotes = cache(
         return {
           kind: "search" as const,
           notes: result.hits.map((hit) => ({
-            id: hit.noteId as unknown as string,
-            ownerId: hit.ownerId as unknown as string,
-            title: hit.title as unknown as string,
-            excerpt: hit.snippet as unknown as string,
+            id: hit.noteId,
+            ownerId: hit.ownerId,
+            title: hit.title,
+            excerpt: hit.snippet,
             tagNames: hit.tagNames,
             visibility: hit.visibility,
-            directoryId: hit.directoryId as unknown as string,
+            directoryId: hit.directoryId,
             slug: hit.slug,
             updatedAt: hit.updatedAt,
           })),
@@ -214,7 +213,7 @@ export const loadOwnedNotes = cache(
           input.actorUserId,
           input.tagNames,
         );
-        tagIds = resolved.map((id) => id as unknown as TagId);
+        tagIds = resolved.map((id) => id as TagId);
       }
 
       const dateRange = normalizeListDateRange(input.dateRange);
@@ -253,7 +252,7 @@ export const loadOwnedNotes = cache(
       const { notes, count } = await listMod.listNotesByOwner({
         container,
         input: {
-          actorUserId: input.actorUserId as unknown as DomainUserId,
+          actorUserId: input.actorUserId as DomainUserId,
           status: input.status,
           page: input.page,
           limit: input.limit,
@@ -270,9 +269,9 @@ export const loadOwnedNotes = cache(
       return {
         kind: "filter" as const,
         notes: notes.map((n) => ({
-          id: n.id as unknown as string,
-          ownerId: n.ownerId as unknown as string,
-          directoryId: n.directoryId as unknown as string,
+          id: n.id,
+          ownerId: n.ownerId,
+          directoryId: n.directoryId,
           slug: n.slug,
           title: n.title,
           excerpt: n.excerpt,
@@ -293,15 +292,15 @@ export const loadNoteDetail = cache(
     (
       { container },
       { getNoteDetail },
-      args: { actorUserId: string; noteId: NoteId },
+      args: { actorUserId: string; noteId: string },
     ) =>
       getNoteDetail({
         container,
         input: {
-          actorUserId: args.actorUserId as unknown as Parameters<
+          actorUserId: args.actorUserId as Parameters<
             typeof getNoteDetail
           >[0]["input"]["actorUserId"],
-          noteId: args.noteId as unknown as Parameters<
+          noteId: args.noteId as Parameters<
             typeof getNoteDetail
           >[0]["input"]["noteId"],
         },
@@ -347,16 +346,14 @@ export const loadAllTags = cache(
       const { tags } = await listTags({
         container,
         input: {
-          actorUserId: args.actorUserId as unknown as Parameters<
-            typeof listTags
-          >[0]["input"]["actorUserId"],
+          actorUserId: args.actorUserId,
           limit: TAG_RESOLVE_LIMIT,
         },
       });
       const byName = new Map<string, string>();
       const byId = new Map<string, string>();
       const out = tags.map((t) => {
-        const id = t.id as unknown as string;
+        const id = t.id;
         byName.set(t.name, id);
         byId.set(id, t.name);
         return { id, name: t.name, noteCount: t.noteCount };
@@ -402,9 +399,7 @@ export const loadSavedViewById = cache(
           container,
           input: { actorUserId: args.actorUserId, kind },
         });
-        const match = views.find(
-          (v) => (v.id as unknown as string) === args.viewId,
-        );
+        const match = views.find((v) => v.id === args.viewId);
         if (match !== undefined) return { view: match };
       }
       return { view: null };
@@ -441,7 +436,7 @@ export const loadReferencingNoteTitle = cache(
       return container.unitOfWorkProvider.run(async ({ noteRepository }) => {
         const found = await noteRepository.findById(noteId);
         if (found === null) return { title: null };
-        if ((found.entity.ownerId as unknown as string) !== args.actorUserId) {
+        if (found.entity.ownerId !== args.actorUserId) {
           return { title: null };
         }
         return { title: found.entity.title };
@@ -461,7 +456,7 @@ export const loadNoteRevisions = cache(
       { listNoteRevisions },
       args: {
         actorUserId: string;
-        noteId: NoteId;
+        noteId: string;
         limit: number;
         offset: number;
       },
@@ -469,8 +464,8 @@ export const loadNoteRevisions = cache(
       listNoteRevisions({
         container,
         input: {
-          actorUserId: args.actorUserId as unknown as DomainUserId,
-          noteId: args.noteId as unknown as DomainNoteId,
+          actorUserId: args.actorUserId as DomainUserId,
+          noteId: args.noteId as DomainNoteId,
           limit: args.limit,
           offset: args.offset,
         },
@@ -487,16 +482,16 @@ export const loadNoteRevisionDetail = cache(
       { getNoteRevision },
       args: {
         actorUserId: string;
-        noteId: NoteId;
-        revisionId: NoteRevisionId;
+        noteId: string;
+        revisionId: string;
       },
     ) =>
       getNoteRevision({
         container,
         input: {
-          actorUserId: args.actorUserId as unknown as DomainUserId,
-          noteId: args.noteId as unknown as DomainNoteId,
-          revisionId: args.revisionId as unknown as DomainNoteRevisionId,
+          actorUserId: args.actorUserId as DomainUserId,
+          noteId: args.noteId as DomainNoteId,
+          revisionId: args.revisionId as DomainNoteRevisionId,
         },
       }),
   ),
@@ -513,10 +508,10 @@ export const loadPublishStateForNote = cache(
       const { links } = await listShareLinks({
         container,
         input: {
-          actorUserId: args.actorUserId as unknown as Parameters<
+          actorUserId: args.actorUserId as Parameters<
             typeof listShareLinks
           >[0]["input"]["actorUserId"],
-          noteId: args.noteId as unknown as Parameters<
+          noteId: args.noteId as Parameters<
             typeof listShareLinks
           >[0]["input"]["noteId"],
         },
@@ -524,7 +519,7 @@ export const loadPublishStateForNote = cache(
       const publication = await container.unitOfWorkProvider.run(
         async ({ publicationStateRepository }) => {
           const found = await publicationStateRepository.findById(
-            args.noteId as unknown as Parameters<
+            args.noteId as Parameters<
               typeof publicationStateRepository.findById
             >[0],
           );

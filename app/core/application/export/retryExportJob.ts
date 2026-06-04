@@ -1,14 +1,12 @@
 import { ExportJob } from "@/core/domain/export/entity";
 import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/valueObject";
 import { assertAdmin } from "../adminSettings/authorization";
-import type { ExportJobId } from "../dto/export";
-import type { UserId as UserIdDTO } from "../dto/identity";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RetryExportJobInput = Readonly<{
-  actorUserId: UserIdDTO;
-  jobId: ExportJobId;
+  actorUserId: string;
+  jobId: string;
 }>;
 
 /**
@@ -29,7 +27,7 @@ export async function retryExportJob({
       await assertAdmin(userRepository, input.actorUserId);
 
       const found = await exportJobRepository.findById(
-        input.jobId as unknown as ExportJobIdBrand,
+        input.jobId as ExportJobIdBrand,
       );
       if (found === null) {
         throw new NotFoundError(

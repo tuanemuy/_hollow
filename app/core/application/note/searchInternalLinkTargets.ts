@@ -1,5 +1,3 @@
-import type { NoteId } from "@/core/application/dto/note";
-import type { TagId } from "@/core/application/dto/tag";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { ServiceArgs } from "../types";
 
@@ -8,21 +6,19 @@ import type { ServiceArgs } from "../types";
  * popup. Notes and tags are unioned and capped server-side so the UI
  * can render the list without further filtering.
  *
- * `noteId` / `tagId` carry the wire-side branded types so downstream
- * consumers (server fn boundary, popup component) preserve identity
- * provenance instead of round-tripping bare `string`. `slug` mirrors the
- * existing `NoteListItemDTO.slug` shape (plain `string`).
+ * `noteId` / `tagId` are plain `string` ids on the wire. `slug` mirrors
+ * the existing `NoteListItemDTO.slug` shape (plain `string`).
  */
 export type InternalLinkSuggestion =
   | Readonly<{
       kind: "note";
-      noteId: NoteId;
+      noteId: string;
       title: string;
       slug: string;
     }>
   | Readonly<{
       kind: "tag";
-      tagId: TagId;
+      tagId: string;
       name: string;
     }>;
 
@@ -94,7 +90,7 @@ export async function searchInternalLinkTargets({
     if (/[[\]|]/.test(note.title)) continue;
     suggestions.push({
       kind: "note",
-      noteId: note.id as unknown as NoteId,
+      noteId: note.id,
       title: note.title,
       slug: note.slug,
     });
@@ -103,7 +99,7 @@ export async function searchInternalLinkTargets({
     if (suggestions.length >= limit) break;
     suggestions.push({
       kind: "tag",
-      tagId: tag.id as unknown as TagId,
+      tagId: tag.id,
       name: tag.name,
     });
   }

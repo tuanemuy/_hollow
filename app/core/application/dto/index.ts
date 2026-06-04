@@ -3,12 +3,14 @@
  * helpers consumed by every usecase. See `spec/usecases/index.md` for the
  * canonical definitions; the types here implement that contract.
  *
- * Brand convention:
- *   DTO id brands use `string & { readonly __brand: 'XId' }`. Domain ids
- *   use a `unique symbol` brand. The two are structurally compatible
- *   (both are `string` underneath); projections bridge with `as unknown
- *   as` casts at exactly one boundary — `to{Entity}DTO` — so call sites
- *   never need to know about the discrepancy.
+ * Id convention:
+ *   DTO ids are plain `string`. The earlier `string & { readonly __brand:
+ *   'XId' }` scheme was removed in #473 — it never carried a runtime
+ *   guarantee (brands erase to `string`) and only forced `as unknown as`
+ *   bridging casts at every projection / usecase boundary. Domain ids
+ *   still carry a `unique symbol` brand, which is a structural subtype of
+ *   `string`, so `to{Entity}DTO` helpers project domain ids onto DTO
+ *   `string` fields by plain assignment.
  */
 
 export * from "./adminSettings";

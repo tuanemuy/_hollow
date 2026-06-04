@@ -21,12 +21,7 @@ const renderNoteDetail = createServerFn({ method: "GET" })
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
     return renderServerComponent(
-      <NoteDetail
-        user={userDto}
-        noteId={
-          data.noteId as unknown as Parameters<typeof NoteDetail>[0]["noteId"]
-        }
-      />,
+      <NoteDetail user={userDto} noteId={data.noteId} />,
     );
   });
 

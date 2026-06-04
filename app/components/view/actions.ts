@@ -53,5 +53,5 @@ export const createSavedViewFn = createServerFn({ method: "POST" })
         isDefault: data.isDefault,
       },
     });
-    return { viewId: result.view.id as unknown as string };
+    return { viewId: result.view.id };
   });

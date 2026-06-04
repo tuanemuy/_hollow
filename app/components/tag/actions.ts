@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { UserId as UserIdDTO } from "@/core/application/dto/identity";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -10,13 +9,6 @@ import {
   mergeTagsSchema,
   renameTagSchema,
 } from "./schema";
-
-// Domain `UserId` and DTO `UserId` carry distinct brand symbols even
-// though both reduce to `string` at runtime. The cast below crosses the
-// boundary explicitly — the value is identical, only the brand changes.
-const toDtoUserId = (
-  id: import("@/core/domain/identity/valueObject").UserId,
-): UserIdDTO => id as unknown as UserIdDTO;
 
 export const createTagFn = createServerFn({ method: "POST" })
   .middleware([errorResponseMiddleware])
@@ -29,11 +21,11 @@ export const createTagFn = createServerFn({ method: "POST" })
     const { tag } = await module.createTag({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
+        actorUserId: user.id,
         name: data.name,
       },
     });
-    return { tagId: tag.id as unknown as string };
+    return { tagId: tag.id };
   });
 
 export const renameTagFn = createServerFn({ method: "POST" })
@@ -47,14 +39,12 @@ export const renameTagFn = createServerFn({ method: "POST" })
     const { tag } = await module.renameTag({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        tagId: data.tagId as unknown as Parameters<
-          typeof module.renameTag
-        >[0]["input"]["tagId"],
+        actorUserId: user.id,
+        tagId: data.tagId,
         newName: data.newName,
       },
     });
-    return { tagId: tag.id as unknown as string };
+    return { tagId: tag.id };
   });
 
 export const mergeTagsFn = createServerFn({ method: "POST" })
@@ -68,13 +58,9 @@ export const mergeTagsFn = createServerFn({ method: "POST" })
     const result = await module.mergeTags({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        sourceTagId: data.sourceTagId as unknown as Parameters<
-          typeof module.mergeTags
-        >[0]["input"]["sourceTagId"],
-        targetTagId: data.targetTagId as unknown as Parameters<
-          typeof module.mergeTags
-        >[0]["input"]["targetTagId"],
+        actorUserId: user.id,
+        sourceTagId: data.sourceTagId,
+        targetTagId: data.targetTagId,
       },
     });
     return { affectedCount: result.affectedNoteIds.length };
@@ -91,10 +77,8 @@ export const deleteTagFn = createServerFn({ method: "POST" })
     const result = await module.deleteTag({
       container,
       input: {
-        actorUserId: toDtoUserId(user.id),
-        tagId: data.tagId as unknown as Parameters<
-          typeof module.deleteTag
-        >[0]["input"]["tagId"],
+        actorUserId: user.id,
+        tagId: data.tagId,
       },
     });
     return { affectedCount: result.affectedNoteIds.length };
