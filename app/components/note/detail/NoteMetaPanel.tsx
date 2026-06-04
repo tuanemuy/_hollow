@@ -68,9 +68,7 @@ export function NoteMetaPanel({
   const sourceMediaId =
     sourceFile === null ? null : (sourceFile.mediaId as unknown as string);
   const sourceFileLabel =
-    sourceFile === null
-      ? null
-      : (sourceFile.originalFileName ?? sourceFile.mimeType);
+    sourceFile === null ? null : sourceFile.originalFileName;
 
   return (
     <>

@@ -64,13 +64,13 @@ export type BacklinkDTO = Readonly<{
 
 /**
  * Projection of a note's persistent source file (the ingested original)
- * for the detail panel's 元ファイル section. `null` on notes created
- * before Issue #452 or without an ingestion source.
+ * for the detail panel's 元ファイル section. The whole `sourceFile` is
+ * `null` on notes without an ingestion source; when present, a source
+ * file always carries the filename captured at ingestion upload.
  */
 export type NoteSourceFileDTO = Readonly<{
   mediaId: MediaAssetId;
-  originalFileName: string | null;
-  mimeType: string;
+  originalFileName: string;
 }>;
 
 /**

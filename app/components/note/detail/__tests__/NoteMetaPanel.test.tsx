@@ -137,7 +137,6 @@ describe("NoteMetaPanel source file (Issue #452)", () => {
           sourceFile={{
             mediaId: "media-src-1" as MediaAssetId,
             originalFileName: "report.pdf",
-            mimeType: "application/pdf",
           }}
         />,
       );
@@ -157,23 +156,5 @@ describe("NoteMetaPanel source file (Issue #452)", () => {
     expect(view?.getAttribute("target")).toBe("_blank");
     expect(view?.getAttribute("rel")).toBe("noopener noreferrer");
     expect(download).toBeDefined();
-  });
-
-  it("falls back to the mime type label when originalFileName is null", () => {
-    act(() => {
-      root.render(
-        <NoteMetaPanel
-          {...baseProps}
-          backlinks={[]}
-          backlinkCount={0}
-          sourceFile={{
-            mediaId: "media-src-2" as MediaAssetId,
-            originalFileName: null,
-            mimeType: "image/png",
-          }}
-        />,
-      );
-    });
-    expect(container.textContent).toContain("image/png");
   });
 });

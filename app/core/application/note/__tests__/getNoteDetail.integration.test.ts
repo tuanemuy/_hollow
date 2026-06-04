@@ -181,7 +181,7 @@ describe("getNoteDetail (integration)", () => {
   // Issue #452: when the note carries a persistent source file, the
   // detail projection synthesises a `sourceFile` DTO whose fields match
   // the bound MediaAsset.
-  it("projects sourceFile (mediaId/originalFileName/mimeType) when the note has a bound source", async () => {
+  it("projects sourceFile (mediaId/originalFileName) when the note has a bound source", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
     const dir = await seedDirectory(container, owner);
@@ -198,7 +198,6 @@ describe("getNoteDetail (integration)", () => {
     expect(note.sourceFile).not.toBeNull();
     expect(note.sourceFile?.mediaId as string).toBe(sourceFileId);
     expect(note.sourceFile?.originalFileName).toBe("資料.pdf");
-    expect(note.sourceFile?.mimeType).toBe("application/pdf");
   });
 
   it("projects sourceFile === null when the note has no bound source", async () => {
