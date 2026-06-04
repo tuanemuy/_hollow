@@ -17,11 +17,19 @@ const renderNoteDetail = createServerFn({ method: "GET" })
     // Defensive: `_app.beforeLoad` guarantees a user here, but keep a
     // 1-line fail-safe so a future routing change cannot leak through.
     if (user === null) throw redirect({ to: "/", search: HOME_SEARCH });
+    const { getContainer } = await import(
+      "@/core/application/di/containerStore"
+    );
+    const container = await getContainer();
     const { NoteDetail } = await import("@/components/note/detail/NoteDetail");
     const { toUserDTO } = await import("@/core/application/dto/identity");
     const userDto = toUserDTO(user);
     return renderServerComponent(
-      <NoteDetail user={userDto} noteId={data.noteId} />,
+      <NoteDetail
+        user={userDto}
+        noteId={data.noteId}
+        appUrl={container.config.appUrl}
+      />,
     );
   });
 

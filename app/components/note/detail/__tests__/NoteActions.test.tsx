@@ -44,6 +44,10 @@ vi.mock("@tanstack/react-start", () => ({
 vi.mock("../../list/MoveNoteDialog", () => ({
   MoveNoteDialog: () => null,
 }));
+vi.mock("@/components/publication/PublishSettings", () => ({
+  PublishSettings: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="publish-settings">公開設定</div> : null,
+}));
 vi.mock("../UrlCopyButton", () => ({
   UrlCopyButton: () => <button type="button">URL コピー</button>,
 }));
@@ -72,7 +76,8 @@ function renderActions() {
       <NoteActions
         noteId={"note-1"}
         status="active"
-        visibility="private"
+        publishState={{ visibility: "private", publishedAt: null, links: [] }}
+        appUrl="https://example.test"
         publicShareUrl={null}
         tree={[]}
       />,
@@ -92,6 +97,32 @@ describe("NoteActions icon-only buttons (Issue #382)", () => {
     expect(svg).not.toBeNull();
     // The Icon stays decorative — no second accessible name on the SVG.
     expect(svg?.getAttribute("aria-label")).toBeNull();
+  });
+});
+
+describe("NoteActions 公開設定 dialog (Issue #477)", () => {
+  it("renders 公開設定 as a button (not a link) that opens the dialog on click", () => {
+    renderActions();
+    // Anchor on the pill's stable SR affordance (`<span class="sr-only">公開状態:
+    // </span>`) rather than the volatile `visibilityLabel` text, so renaming a
+    // label or adding another "非公開"-bearing button cannot misidentify it.
+    const pill = Array.from(container.querySelectorAll("button")).find((b) =>
+      Array.from(b.querySelectorAll("span.sr-only")).some((s) =>
+        s.textContent?.includes("公開状態:"),
+      ),
+    );
+    expect(pill).not.toBeUndefined();
+    expect(pill?.tagName).toBe("BUTTON");
+    // Dialog is closed until the pill is clicked.
+    expect(
+      container.querySelector('[data-testid="publish-settings"]'),
+    ).toBeNull();
+    act(() => {
+      pill?.click();
+    });
+    expect(
+      container.querySelector('[data-testid="publish-settings"]'),
+    ).not.toBeNull();
   });
 });
 

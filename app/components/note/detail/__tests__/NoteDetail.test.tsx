@@ -50,7 +50,11 @@ describe("NoteDetail notFound handling", () => {
       new NotFoundError("NOTE_NOT_FOUND", "Note not found: missing-note"),
     );
 
-    const element = await NoteDetail({ user, noteId });
+    const element = await NoteDetail({
+      user,
+      noteId,
+      appUrl: "https://example.test",
+    });
     const html = renderToStaticMarkup(element);
 
     expect(html).toContain('role="alert"');
@@ -61,6 +65,8 @@ describe("NoteDetail notFound handling", () => {
     resolveOthers();
     loadNoteDetail.mockRejectedValue(new Error("boom"));
 
-    await expect(NoteDetail({ user, noteId })).rejects.toThrow("boom");
+    await expect(
+      NoteDetail({ user, noteId, appUrl: "https://example.test" }),
+    ).rejects.toThrow("boom");
   });
 });
