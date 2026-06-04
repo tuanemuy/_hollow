@@ -26,7 +26,7 @@ export function NoteBreadcrumb({ segments, noteTitle }: NoteBreadcrumbProps) {
   return (
     <nav
       aria-label="パンくず"
-      className="flex items-center gap-1.5 text-[13px] text-ink-tertiary flex-wrap mb-6 [overflow-wrap:anywhere]"
+      className="flex items-center gap-1.5 text-sm text-ink-tertiary flex-wrap mb-6 [overflow-wrap:anywhere]"
     >
       <Link to="/" search={HOME_SEARCH} className={CRUMB_LINK}>
         すべてのノート

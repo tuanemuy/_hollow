@@ -48,7 +48,7 @@ export function CalendarView({ notes }: Props) {
     <div className="mt-3 flex flex-col gap-5">
       {grouped.map((bucket) => (
         <section key={bucket.dateKey}>
-          <h2 className="mb-2 pb-2 border-b border-hairline text-[13px] font-medium text-ink-secondary">
+          <h2 className="mb-2 pb-2 border-b border-hairline text-sm font-medium text-ink-secondary">
             {formatDay(bucket.dateKey)}
           </h2>
           <ul className="flex flex-col gap-1 list-none p-0 m-0">

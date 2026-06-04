@@ -63,7 +63,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
             {avatarInitials(owner.displayName || owner.username)}
           </span>
           <span>
-            <span className="text-[13px] font-medium text-ink">
+            <span className="text-sm font-medium text-ink">
               {owner.displayName}
             </span>
             <span className="text-xs text-ink-tertiary ml-0.5">

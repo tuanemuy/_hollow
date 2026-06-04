@@ -91,7 +91,7 @@ export function CreateDirectoryDialog({
           ディレクトリを新規作成
         </h2>
         {parentName !== undefined && parentName !== null ? (
-          <p className="text-[13px] text-ink-secondary mb-2">
+          <p className="text-sm text-ink-secondary mb-2">
             作成先: {parentName}
           </p>
         ) : null}

@@ -207,7 +207,7 @@ function Pagination({
   });
   return (
     <nav className={PAGINATION} aria-label="ページネーション">
-      <span className="text-ink-tertiary text-[13px]">
+      <span className="text-ink-tertiary text-sm">
         {page} / {totalPages}
       </span>
       <div className="flex gap-2">

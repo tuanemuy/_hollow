@@ -18,14 +18,14 @@ function TileBody({ note }: Readonly<{ note: DisplayedNote }>) {
         {note.title}
       </div>
       {note.excerpt.length > 0 ? (
-        <div className="mb-[6px] text-[13px] text-ink-secondary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+        <div className="mb-[6px] text-sm text-ink-secondary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
           {note.excerpt}
         </div>
       ) : null}
-      <div className="flex items-center gap-[10px] flex-wrap text-[13px] text-ink-tertiary">
+      <div className="flex items-center gap-[10px] flex-wrap text-sm text-ink-tertiary">
         {note.tagNames.length > 0 ? (
           <>
-            <span className="text-accent text-[13px] min-w-0 [overflow-wrap:anywhere]">
+            <span className="text-accent text-sm min-w-0 [overflow-wrap:anywhere]">
               {note.tagNames.map((name) => `#${name}`).join(" ")}
             </span>
             <span className="text-hairline-strong">·</span>

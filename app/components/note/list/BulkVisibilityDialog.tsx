@@ -112,7 +112,7 @@ export function BulkVisibilityDialog({ open, onClose }: Props) {
           ))}
         </fieldset>
         {progress !== null ? (
-          <p className="text-[13px] text-ink-secondary" aria-live="polite">
+          <p className="text-sm text-ink-secondary" aria-live="polite">
             {progress}
           </p>
         ) : null}

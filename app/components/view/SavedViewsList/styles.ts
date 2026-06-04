@@ -93,7 +93,7 @@ export const renameInput =
   "h-9 w-full max-w-xs rounded-md border border-transparent bg-surface px-3 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg aria-invalid:border-error disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Inline form error / general error message. */
-export const rowError = "text-error text-[13px] mt-2";
+export const rowError = "text-error text-sm mt-2";
 
 /** Empty-state message. */
 export const emptyState = "px-3 py-12 text-center text-ink-secondary text-sm";

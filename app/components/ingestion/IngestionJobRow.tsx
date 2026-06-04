@@ -176,7 +176,7 @@ export function IngestionJobRow({ job }: Props) {
         </span>
       </div>
       {job.preview !== null ? (
-        <div className="text-[13px] text-ink-secondary">
+        <div className="text-sm text-ink-secondary">
           <strong className="text-ink">{job.preview.title}</strong>
           {job.preview.suggestedTagNames.length > 0 ? (
             <span className="ml-2">

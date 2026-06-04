@@ -116,7 +116,7 @@ export function TagList({ tags }: Props) {
               <li key={tag.id} className={DATA_ROW}>
                 <div>
                   <div className="font-medium">#{tag.name}</div>
-                  <div className="text-[13px] text-ink-tertiary">
+                  <div className="text-sm text-ink-tertiary">
                     {tag.noteCount} 件のノート
                   </div>
                 </div>

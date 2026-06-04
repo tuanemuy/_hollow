@@ -6,7 +6,7 @@ import type { OwnedNoteFilterItem } from "../loaders";
 type Visibility = OwnedNoteFilterItem["visibility"];
 
 export const CHIP_BASE =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill text-xs";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs";
 
 export function visibilityChipClass(v: Visibility): string {
   if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;

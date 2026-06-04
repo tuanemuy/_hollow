@@ -164,6 +164,15 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
 - admin の `pillBtnSm`（`data-[sm]:h-7`=28px、床を `data-[sm]:max-sm:min-h-0` で解除）＝デスクトップ密度優先で 24 床を満たす例。
 - `Dialog` の `dialogCloseButton`（`w-8 h-8`=デスクトップ 32px / `max-sm:min-w-[44px] max-sm:min-h-[44px]`=タッチ時 44px）＝タッチでは目標 44 を満たし、デスクトップでは 24 床は満たすが 44 目標未達を許容する、という文脈判断の例（[#292 ADR-003](../../.issue/292/adr.md)）。
 
+### 7.2 UI コントロールの寸法ノーマライズ
+
+ボタン・入力欄・チップ・アイコンボタンの高さ・横余白・font-size・角丸は、Tailwind 標準スケールに収斂させ、偶発的なばらつき（任意値）を排する。意図的な差（auth/public の大型入力、admin の高密度）は役割差として残す。詳細は [#461 ADR](../../.issue/461/adr.md)。
+
+- **font-size**: 中間サイズの `text-[13px]`（任意値）は使わず `text-sm` に寄せる。タイポグラフィスケールは fluid（clamp）が SSOT で、`--text-sm` はデスクトップ実効値 13px・小画面で 12px へ縮む。固定 px の新トークンは作らない（fluid 思想に逆行するため。ADR-001）。
+- **アイコンボタンの角丸**: 独立した正方形 icon-only ボタン（`ICON_BTN` / `dialogCloseButton` / `EDITOR_TOOLBAR_BTN`）の角丸は `--radius-pill` に統一する（トークン用途定義の pill=ボタンに従う。正方形では pill も full も同一の真円なので視覚不変。ADR-003）。`--radius-full` はアバター・ドット・チェックボックス（`NoteCheckbox`）・チップ内付属の `×` 削除ボタンといった真円装飾に限定する。`MENU_BTN` とディレクトリツリーの行アクションの `rounded-md` は角付き行アクションとして別カテゴリで現状維持。
+- **入力欄の高さ**: 標準フォームと admin の入力欄は 40px（`h-10`）に統一する。`fieldControl` / `FIELD_INPUT` に `h-10` を明示し、縦 padding（`py-2.5`）は textarea 合成のため残す（合成側 `min-h` が height に勝つので textarea は無害。ADR-004）。auth（`h-11`）・public のゲート（`h-11`）/検索ヒーロー（`h-12`）の大型入力は、タッチ／ヒーロー強調の意図的差として 40px には寄せない。
+- **チップ・小型インライン入力**: チップの内 gap は `gap-1.5` に統一（任意値 `gap-[5px]` を排する。原型 `chip` / `CHIP` / `CHIP_BASE` 3 定義すべてに適用）。FilterBar のフィルタチップ・小型インライン入力／セレクトの任意値 `h-[30px]` はチップ原型の高さ `h-7`（28px）に揃える。admin のステータスバッジ（`gap-[5px] px-[9px] py-[2px]`）は micro バッジの一貫したセットとして現状維持。
+
 ---
 
 ## 8. アクセシビリティ

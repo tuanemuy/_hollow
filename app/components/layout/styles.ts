@@ -18,7 +18,7 @@ export const SEARCH_BOX_ICON =
   "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 export const ICON_BTN =
-  "w-9 h-9 rounded-full bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+  "w-9 h-9 rounded-pill bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";
@@ -89,15 +89,15 @@ export const PAGE_SUBTITLE = "text-[15px] text-ink-secondary mb-7";
 
 export const TOOLBAR = "flex justify-between items-center mb-4 gap-3 flex-wrap";
 
-export const FORM_ERROR = "text-error text-[13px] mt-2";
+export const FORM_ERROR = "text-error text-sm mt-2";
 
 // Field primitives for the admin app (slightly different from auth.styles).
 export const FIELD = "flex flex-col gap-2 mb-4";
 
-export const FIELD_LABEL = "text-[13px] font-medium text-ink-secondary";
+export const FIELD_LABEL = "text-sm font-medium text-ink-secondary";
 
 export const FIELD_INPUT =
-  "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all motion-reduce:transition-none focus:bg-bg focus:border-accent";
+  "w-full h-10 bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all motion-reduce:transition-none focus:bg-bg focus:border-accent";
 
 export const FIELD_TEXTAREA =
   "w-full bg-surface border border-transparent rounded-md px-3 py-2.5 text-sm text-ink outline-none transition-all motion-reduce:transition-none focus:bg-bg focus:border-accent min-h-[320px] font-mono text-mono resize-y";
@@ -105,7 +105,7 @@ export const FIELD_TEXTAREA =
 export const FIELD_ROW = "grid gap-4 md:grid-cols-2";
 
 export const CHIP =
-  "h-7 px-3 rounded-pill bg-surface text-xs text-ink inline-flex items-center gap-[5px]";
+  "h-7 px-3 rounded-pill bg-surface text-xs text-ink inline-flex items-center gap-1.5";
 export const CHIP_WARNING = "bg-warning-surface text-warning";
 export const CHIP_SUCCESS = "bg-success-surface text-success";
 export const CHIP_MUTED = "text-ink-tertiary";

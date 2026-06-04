@@ -37,7 +37,7 @@ const TAG_TONE: Record<Tone, string> = {
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
 const FILTER_INPUT_CLASS =
-  "h-9 px-3 bg-surface rounded-md text-sm text-ink outline-none border-none";
+  "h-10 px-3 bg-surface rounded-md text-sm text-ink outline-none border-none";
 
 const CELL_BASE = "px-4 py-3 text-left align-middle";
 

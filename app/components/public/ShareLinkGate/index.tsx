@@ -123,7 +123,7 @@ export function ShareLinkGate({ token }: Props) {
             {message !== null && !isLocked ? (
               <p
                 id={errorId}
-                className="text-[13px] text-error -mt-1 flex items-center gap-1.5"
+                className="text-sm text-error -mt-1 flex items-center gap-1.5"
                 role="alert"
               >
                 {message}

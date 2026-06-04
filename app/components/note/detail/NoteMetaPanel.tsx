@@ -39,10 +39,10 @@ const SECTION = "mt-12 pt-6 border-t border-hairline";
 const SECTION_HEADING =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em] mb-3";
 const META_ROW = "grid grid-cols-[100px_1fr] items-start gap-3 py-1";
-const META_KEY = "text-[13px] text-ink-tertiary";
-const META_VAL = "m-0 flex flex-wrap gap-2 items-center text-[13px] text-ink";
+const META_KEY = "text-sm text-ink-tertiary";
+const META_VAL = "m-0 flex flex-wrap gap-2 items-center text-sm text-ink";
 const CHIP =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-surface text-xs text-ink";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-xs text-ink";
 
 export function NoteMetaPanel({
   noteId,
@@ -61,7 +61,7 @@ export function NoteMetaPanel({
       <section className={SECTION} aria-label="バックリンク">
         <h2 className={SECTION_HEADING}>バックリンク</h2>
         {backlinks.length === 0 ? (
-          <p className="text-[13px] text-ink-tertiary m-0">なし</p>
+          <p className="text-sm text-ink-tertiary m-0">なし</p>
         ) : (
           <ul className="flex flex-col gap-2 m-0 p-0 list-none">
             {backlinks.map((bl) => (
@@ -73,7 +73,7 @@ export function NoteMetaPanel({
                 >
                   {bl.title}
                   {bl.snippet !== null && bl.snippet.length > 0 ? (
-                    <span className="block mt-1 text-[13px] font-normal text-ink-tertiary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
+                    <span className="block mt-1 text-sm font-normal text-ink-tertiary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
                       {bl.snippet}
                     </span>
                   ) : null}
@@ -128,7 +128,7 @@ export function NoteMetaPanel({
             <div className={META_ROW}>
               <dt className={META_KEY}>状態</dt>
               <dd className={META_VAL}>
-                <span className="inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-warning-surface text-warning text-xs">
+                <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-warning-surface text-warning text-xs">
                   ゴミ箱
                 </span>
               </dd>

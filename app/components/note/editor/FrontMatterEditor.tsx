@@ -196,7 +196,7 @@ function KeyRow({
             <span className="inline-flex items-center px-2 py-[2px] rounded-xs bg-surface-hover text-xs font-mono">
               {shape.label}
             </span>
-            <span className="text-[13px]">
+            <span className="text-sm">
               複雑な値です。生編集（JSON）で編集してください。
             </span>
           </div>
@@ -316,7 +316,7 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
             ))}
           </datalist>
           {entries.length === 0 ? (
-            <p className="text-ink-secondary text-[13px] mb-3">
+            <p className="text-ink-secondary text-sm mb-3">
               FrontMatter は空です。下のフォームからキーを追加できます。
             </p>
           ) : (

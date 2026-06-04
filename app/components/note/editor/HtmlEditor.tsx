@@ -42,7 +42,7 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
         />
       </div>
       <details className="mt-2 rounded-md border border-hairline bg-surface-elevated">
-        <summary className="cursor-pointer px-4 py-2 text-[13px] text-ink-secondary">
+        <summary className="cursor-pointer px-4 py-2 text-sm text-ink-secondary">
           プレビュー（保存時にサニタイズされます）
         </summary>
         <div

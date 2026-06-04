@@ -183,21 +183,21 @@ export const textLink =
 export const field = "flex flex-col gap-2 mb-4";
 
 /** Field label. */
-export const fieldLabel = "text-[13px] font-medium text-ink-secondary";
+export const fieldLabel = "text-sm font-medium text-ink-secondary";
 
 /** Field input/textarea/select base. */
 export const fieldControl =
-  "w-full rounded-md border border-transparent bg-surface px-3 py-[10px] text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
+  "w-full h-10 rounded-md border border-transparent bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Field textarea modifier. */
 export const fieldTextarea = "font-mono text-mono min-h-[320px] resize-y";
 
 /** Form error message (inline). */
-export const formError = "text-error text-[13px] mt-2";
+export const formError = "text-error text-sm mt-2";
 
 /** Chip base. */
 export const chip =
-  "inline-flex items-center gap-[5px] h-7 px-3 rounded-pill bg-surface text-xs text-ink";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-xs text-ink";
 
 /** Modal dialog backdrop. */
 export const dialogBackdrop =
@@ -223,7 +223,7 @@ export const dialog =
  * exclusion, `closable=false` disabling).
  */
 export const dialogCloseButton =
-  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-full text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-pill text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Modal dialog title. */
 export const dialogTitle = "text-lg font-medium mb-4";

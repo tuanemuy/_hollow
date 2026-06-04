@@ -28,7 +28,7 @@ const KNOWN_DL = "grid grid-cols-1 gap-2 m-0";
 const KNOWN_ROW =
   "grid grid-cols-[120px_1fr] gap-3 items-start py-2 border-b border-hairline last:border-0";
 const KNOWN_DT = "text-xs font-medium text-ink-tertiary font-mono";
-const KNOWN_DD = "m-0 text-[13px] text-ink break-words";
+const KNOWN_DD = "m-0 text-sm text-ink break-words";
 
 export function renderFrontMatterValue(value: unknown): React.ReactNode {
   if (value === null || value === undefined) {
@@ -85,7 +85,7 @@ export function FrontMatterPanel({ frontMatter }: FrontMatterPanelProps) {
     >
       <h2 className="text-lg font-semibold mb-3">FrontMatter</h2>
       <details className="mt-1" open>
-        <summary className="cursor-pointer py-2 text-[13px] text-ink-secondary">
+        <summary className="cursor-pointer py-2 text-sm text-ink-secondary">
           すべて表示 ({keys.length})
         </summary>
         <dl className={KNOWN_DL}>

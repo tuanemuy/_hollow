@@ -85,7 +85,7 @@ export function DirectoryPicker({
 
   return (
     <fieldset className="mb-4 rounded-lg border border-hairline p-4">
-      <legend className="inline-flex items-center gap-2 px-2 text-[13px] font-medium text-ink-secondary">
+      <legend className="inline-flex items-center gap-2 px-2 text-sm font-medium text-ink-secondary">
         <span>ディレクトリ</span>
         {legendSlot}
       </legend>

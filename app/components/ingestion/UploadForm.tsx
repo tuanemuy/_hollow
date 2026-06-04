@@ -69,7 +69,7 @@ export function UploadForm() {
           <strong className="text-ink">ファイルをドラッグ&ドロップ</strong>{" "}
           またはクリックして選択
         </p>
-        <p className="text-[13px] mt-2 text-ink-tertiary">
+        <p className="text-sm mt-2 text-ink-tertiary">
           {isPending ? "アップロード中..." : "複数選択にも対応"}
         </p>
         <input
