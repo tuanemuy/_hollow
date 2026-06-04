@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
@@ -86,7 +85,7 @@ export const cancelExportFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        jobId: data.jobId as ExportJobId,
+        jobId: data.jobId,
       },
     });
   });
@@ -104,7 +103,7 @@ export const downloadExportFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        jobId: data.jobId as ExportJobId,
+        jobId: data.jobId,
       },
     });
     return { url: url.toString(), expiresAt: expiresAt.toISOString() };

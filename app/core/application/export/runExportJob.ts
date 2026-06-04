@@ -5,14 +5,14 @@ import {
   type ExportAssemblyDeps,
   ExportService,
 } from "@/core/domain/export/service";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
+import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/valueObject";
 import { isStorageUnavailableError } from "@/core/domain/media/ports/objectStorage";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { ServiceArgs } from "../types";
 import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type RunExportJobInput = Readonly<{
-  jobId: ExportJobId;
+  jobId: string;
 }>;
 
 export type RunExportJobOutput = Readonly<{
@@ -71,7 +71,8 @@ export async function runExportJob({
   container,
   input,
 }: ServiceArgs<RunExportJobInput>): Promise<RunExportJobOutput> {
-  const startedJob = await transitionPendingToProcessing(container, input);
+  const jobId = input.jobId as ExportJobIdBrand;
+  const startedJob = await transitionPendingToProcessing(container, jobId);
   if (startedJob === null) return { job: null };
 
   try {
@@ -86,7 +87,7 @@ export async function runExportJob({
     if (targetNoteIds.length === 0) {
       const failed = await failJob(
         container,
-        input.jobId,
+        jobId,
         "export_no_targets",
         "Export has zero target notes",
       );
@@ -101,19 +102,19 @@ export async function runExportJob({
     return { job: completed === null ? null : toExportJobView(completed) };
   } catch (error) {
     const { code, reason } = classifyRunError(error);
-    const failed = await failJob(container, input.jobId, code, reason);
+    const failed = await failJob(container, jobId, code, reason);
     return { job: failed === null ? null : toExportJobView(failed) };
   }
 }
 
 async function transitionPendingToProcessing(
   container: ServiceArgs<RunExportJobInput>["container"],
-  input: RunExportJobInput,
+  jobId: ExportJobIdBrand,
 ): Promise<ExportJob | null> {
   const now = container.clock.now();
   return container.unitOfWorkProvider.run(
     async ({ exportJobRepository, collectEvents }) => {
-      const found = await exportJobRepository.findById(input.jobId);
+      const found = await exportJobRepository.findById(jobId);
       if (found === null) return null;
       if (!ExportJob.isPending(found.entity)) return null;
       // `startProcessing` requires a `total`; we re-record the precise
@@ -134,7 +135,7 @@ async function transitionPendingToProcessing(
 
 async function assembleAndComplete(
   container: ServiceArgs<RunExportJobInput>["container"],
-  jobId: ExportJobId,
+  jobId: ExportJobIdBrand,
   resolvedNoteIds: readonly NoteId[],
 ): Promise<ExportJob | null> {
   const jobSnapshot = await container.unitOfWorkProvider.run(
@@ -279,7 +280,7 @@ function buildAssemblyDeps(
 
 async function failJob(
   container: ServiceArgs<RunExportJobInput>["container"],
-  jobId: ExportJobId,
+  jobId: ExportJobIdBrand,
   code: string,
   reason: string,
 ): Promise<ExportJob | null> {
