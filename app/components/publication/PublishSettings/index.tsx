@@ -2,10 +2,20 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useActionState, useId, useState, useTransition } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  useTransition,
+} from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   chip,
+  dialogActions,
+  dialogTitle,
   field,
   fieldControl,
   fieldLabel,
@@ -19,7 +29,6 @@ import {
   CHIP_PRIVATE,
   CHIP_SUCCESS,
   EMPTY_STATE,
-  PAGE_TITLE,
 } from "@/components/layout/styles";
 import type { ShareLinkDTO } from "@/core/application/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -48,6 +57,8 @@ import {
 type Visibility = "private" | "unlisted" | "public";
 
 type Props = {
+  open: boolean;
+  onClose: () => void;
   noteId: string;
   appUrl: string;
   initial: Readonly<{
@@ -60,7 +71,13 @@ type Props = {
 type FormState = { error: SerializedError | null; ok: boolean };
 const initial: FormState = { error: null, ok: false };
 
-export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
+export function PublishSettings({
+  open,
+  onClose,
+  noteId,
+  appUrl,
+  initial: data,
+}: Props) {
   const router = useRouter();
   const changeVisibility = useServerFn(changeVisibilityFn);
   const issueLink = useServerFn(issueShareLinkFn);
@@ -68,7 +85,15 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
   const [visibility, setVisibility] = useState<Visibility>(data.visibility);
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
 
-  const visibilityFieldId = useId();
+  // Each ShareLinkRow owns a local `useTransition` pending; we lift those into
+  // a counter so the dialog stays non-closable while any row mutation is in
+  // flight, alongside the two useActionState pendings below.
+  const [pendingRows, setPendingRows] = useState(0);
+  const onRowPendingChange = useCallback((rowPending: boolean) => {
+    setPendingRows((n) => (rowPending ? n + 1 : Math.max(0, n - 1)));
+  }, []);
+
+  const titleId = useId();
 
   const [visibilityState, visibilityAction, visibilityPending] = useActionState<
     FormState,
@@ -114,12 +139,19 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
       : `${appUrl.replace(/\/$/, "")}/share/${issuedToken}`;
 
   const isPrivate = visibility === "private";
+  const anyPending = visibilityPending || issuePending || pendingRows > 0;
 
   return (
-    <section aria-labelledby={`${visibilityFieldId}-h`}>
-      <h1 id={`${visibilityFieldId}-h`} className={PAGE_TITLE}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      ariaLabelledBy={titleId}
+      closable={!anyPending}
+      showCloseButton
+    >
+      <h2 id={titleId} className={dialogTitle}>
         公開設定
-      </h1>
+      </h2>
 
       <form action={visibilityAction}>
         <fieldset className="border-0 p-0 m-0">
@@ -167,7 +199,7 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
       </form>
 
       <section className="mt-8">
-        <h2 className={`${PUBLISH_SECTION_TITLE} mb-3`}>限定公開リンク</h2>
+        <h3 className={`${PUBLISH_SECTION_TITLE} mb-3`}>限定公開リンク</h3>
         {isPrivate ? (
           <p className="text-sm text-ink-secondary">
             非公開ステータスではリンクを発行できません。
@@ -210,32 +242,73 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
           </form>
         )}
 
-        <ShareLinkList links={data.links} />
+        <ShareLinkList
+          links={data.links}
+          onPendingChange={onRowPendingChange}
+        />
       </section>
-    </section>
+
+      <div className={dialogActions}>
+        <button
+          type="button"
+          className={pillBtn}
+          onClick={onClose}
+          disabled={anyPending}
+        >
+          閉じる
+        </button>
+      </div>
+    </Dialog>
   );
 }
 
-function ShareLinkList({ links }: { links: readonly ShareLinkDTO[] }) {
+function ShareLinkList({
+  links,
+  onPendingChange,
+}: {
+  links: readonly ShareLinkDTO[];
+  onPendingChange: (pending: boolean) => void;
+}) {
   if (links.length === 0) {
     return <p className={EMPTY_STATE}>発行済みリンクはありません。</p>;
   }
   return (
     <ul className="flex flex-col gap-2">
       {links.map((link) => (
-        <ShareLinkRow key={link.id} link={link} />
+        <ShareLinkRow
+          key={link.id}
+          link={link}
+          onPendingChange={onPendingChange}
+        />
       ))}
     </ul>
   );
 }
 
-function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
+function ShareLinkRow({
+  link,
+  onPendingChange,
+}: {
+  link: ShareLinkDTO;
+  onPendingChange: (pending: boolean) => void;
+}) {
   const router = useRouter();
   const revoke = useServerFn(revokeShareLinkFn);
   const setPassword = useServerFn(setShareLinkPasswordFn);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
   const [passwordDraft, setPasswordDraft] = useState("");
+
+  // Mirror the row's `useTransition` pending up to the dialog so it stays
+  // non-closable while a row mutation is in flight. Only the `true` phase
+  // registers (and de-registers on cleanup), so the parent counter is a clean
+  // +1/-1 balanced pair per in-flight transition — robust to the row
+  // unmounting mid-flight (e.g. revoke removes the active controls).
+  useEffect(() => {
+    if (!isPending) return;
+    onPendingChange(true);
+    return () => onPendingChange(false);
+  }, [isPending, onPendingChange]);
 
   const onRevoke = () => {
     startTransition(async () => {
