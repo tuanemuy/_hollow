@@ -274,6 +274,136 @@ export function formatReferencingNoteChipLabel(
   return id.slice(0, 8);
 }
 
+/**
+ * Date-range presets offered by the FilterBar's 期間 popover (Issue #476).
+ * The order here is the visual grid order in the popover.
+ */
+export const DATE_RANGE_PRESETS = [
+  "today",
+  "thisWeek",
+  "thisMonth",
+  "last30",
+  "last90",
+  "thisYear",
+] as const;
+
+export type DateRangePreset = (typeof DATE_RANGE_PRESETS)[number];
+
+export const dateRangePresetLabels: Readonly<Record<DateRangePreset, string>> =
+  {
+    today: "今日",
+    thisWeek: "今週",
+    thisMonth: "今月",
+    last30: "過去30日",
+    last90: "過去90日",
+    thisYear: "今年",
+  };
+
+function toLocalDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Resolve a 期間 preset into a `{ from, to }` pair of `YYYY-MM-DD` strings
+ * (Issue #476). `baseDate` is injected so the calculation is deterministic
+ * and React-agnostic — callers pass `new Date()`; the logic here never reads
+ * the ambient clock. All arithmetic is local-calendar based
+ * (`getFullYear`/`getMonth`/`getDate`) so a UTC offset never shifts the day.
+ *
+ * Definitions:
+ * - today: from = to = baseDate
+ * - thisWeek: Monday..Sunday of the week containing baseDate (week starts Mon)
+ * - thisMonth: 1st..last day of baseDate's month
+ * - last30: baseDate − 29 days .. baseDate (30 days inclusive)
+ * - last90: baseDate − 89 days .. baseDate (90 days inclusive)
+ * - thisYear: Jan 1 .. baseDate
+ */
+export function resolveDateRangePreset(
+  preset: DateRangePreset,
+  baseDate: Date,
+): Readonly<{ from: string; to: string }> {
+  const y = baseDate.getFullYear();
+  const m = baseDate.getMonth();
+  const d = baseDate.getDate();
+  const base = new Date(y, m, d);
+
+  switch (preset) {
+    case "today":
+      return { from: toLocalDateOnly(base), to: toLocalDateOnly(base) };
+    case "thisWeek": {
+      // getDay(): 0=Sun..6=Sat. Shift so Monday is the week start.
+      const dow = base.getDay();
+      const offsetToMonday = (dow + 6) % 7;
+      const monday = new Date(y, m, d - offsetToMonday);
+      const sunday = new Date(y, m, d - offsetToMonday + 6);
+      return { from: toLocalDateOnly(monday), to: toLocalDateOnly(sunday) };
+    }
+    case "thisMonth": {
+      const first = new Date(y, m, 1);
+      // Day 0 of the next month is the last day of this month.
+      const last = new Date(y, m + 1, 0);
+      return { from: toLocalDateOnly(first), to: toLocalDateOnly(last) };
+    }
+    case "last30": {
+      const from = new Date(y, m, d - 29);
+      return { from: toLocalDateOnly(from), to: toLocalDateOnly(base) };
+    }
+    case "last90": {
+      const from = new Date(y, m, d - 89);
+      return { from: toLocalDateOnly(from), to: toLocalDateOnly(base) };
+    }
+    case "thisYear": {
+      const first = new Date(y, 0, 1);
+      return { from: toLocalDateOnly(first), to: toLocalDateOnly(base) };
+    }
+  }
+}
+
+/**
+ * Find which preset (if any) exactly matches the current `from`/`to`
+ * relative to `baseDate`. Used by the popover to highlight the active
+ * preset; manual edits that match no preset return `null`.
+ */
+export function matchDateRangePreset(
+  from: string | undefined,
+  to: string | undefined,
+  baseDate: Date,
+): DateRangePreset | null {
+  if (from === undefined || to === undefined) return null;
+  for (const preset of DATE_RANGE_PRESETS) {
+    const r = resolveDateRangePreset(preset, baseDate);
+    if (r.from === from && r.to === to) return preset;
+  }
+  return null;
+}
+
+/**
+ * Compact chip label for an applied 期間 filter, e.g. `6/1–6/30`. Drops
+ * leading zeros on month/day; when only one bound is set, renders the
+ * open-ended side as `…` (`6/1–…` / `…–6/30`). Returns `null` when neither
+ * bound is set (no chip should render).
+ */
+export function formatDateRangeChipLabel(
+  from: string | undefined,
+  to: string | undefined,
+): string | null {
+  if (from === undefined && to === undefined) return null;
+  return `${shortDate(from)}–${shortDate(to)}`;
+}
+
+function shortDate(date: string | undefined): string {
+  if (date === undefined) return "…";
+  const parts = date.split("-");
+  if (parts.length !== 3) return date;
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (Number.isNaN(month) || Number.isNaN(day)) return date;
+  return `${month}/${day}`;
+}
+
 function isoToDateOnly(iso: string): string {
   // The view-query payload uses full ISO datetime, but the URL search
   // schema constrains `from` / `to` to `YYYY-MM-DD`. Slice rather than

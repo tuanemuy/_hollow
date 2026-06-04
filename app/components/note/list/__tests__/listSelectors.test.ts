@@ -3,8 +3,11 @@ import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { NoteListSearch } from "../../schema";
 import {
   emptySelection,
+  formatDateRangeChipLabel,
   formatReferencingNoteChipLabel,
   groupNotesByDay,
+  matchDateRangePreset,
+  resolveDateRangePreset,
   searchToViewQuery,
   selectDisplay,
   selectionReducer,
@@ -12,6 +15,7 @@ import {
   viewQueryEquals,
   viewQueryToSearch,
 } from "../listSelectors";
+import { visibilityLabel, visibilitySwatchClass } from "../styles";
 
 const baseSearch: NoteListSearch = {
   page: 1,
@@ -559,5 +563,158 @@ describe("shouldRedirectForSavedView", () => {
 
   it("returns false when there is no viewId in the URL", () => {
     expect(shouldRedirectForSavedView({ search: {}, view })).toBe(false);
+  });
+});
+
+// Issue #476: date-range presets are computed client-side from an injected
+// base date so the conversion is deterministic and React-agnostic. Local
+// calendar arithmetic must never shift the day due to a UTC offset.
+describe("resolveDateRangePreset", () => {
+  // 2026-06-15 is a Monday → easy to reason about week boundaries.
+  const monday = new Date(2026, 5, 15);
+
+  it("today: from === to === base date", () => {
+    expect(resolveDateRangePreset("today", new Date(2026, 5, 15))).toEqual({
+      from: "2026-06-15",
+      to: "2026-06-15",
+    });
+  });
+
+  it("thisWeek: Monday..Sunday when base is the Monday", () => {
+    expect(resolveDateRangePreset("thisWeek", monday)).toEqual({
+      from: "2026-06-15",
+      to: "2026-06-21",
+    });
+  });
+
+  it("thisWeek: Monday..Sunday when base is mid-week (Wed)", () => {
+    expect(resolveDateRangePreset("thisWeek", new Date(2026, 5, 17))).toEqual({
+      from: "2026-06-15",
+      to: "2026-06-21",
+    });
+  });
+
+  it("thisWeek: Monday..Sunday when base is the Sunday (week end)", () => {
+    expect(resolveDateRangePreset("thisWeek", new Date(2026, 5, 21))).toEqual({
+      from: "2026-06-15",
+      to: "2026-06-21",
+    });
+  });
+
+  it("thisWeek: spans a month boundary", () => {
+    // 2026-07-01 is a Wednesday; its week starts Mon 2026-06-29.
+    expect(resolveDateRangePreset("thisWeek", new Date(2026, 6, 1))).toEqual({
+      from: "2026-06-29",
+      to: "2026-07-05",
+    });
+  });
+
+  it("thisMonth: first..last day of the month", () => {
+    expect(resolveDateRangePreset("thisMonth", new Date(2026, 5, 15))).toEqual({
+      from: "2026-06-01",
+      to: "2026-06-30",
+    });
+  });
+
+  it("thisMonth: February of a leap year ends on the 29th", () => {
+    expect(resolveDateRangePreset("thisMonth", new Date(2024, 1, 10))).toEqual({
+      from: "2024-02-01",
+      to: "2024-02-29",
+    });
+  });
+
+  it("last30: base − 29 days .. base (inclusive 30 days)", () => {
+    expect(resolveDateRangePreset("last30", new Date(2026, 5, 15))).toEqual({
+      from: "2026-05-17",
+      to: "2026-06-15",
+    });
+  });
+
+  it("last30: crosses a year boundary", () => {
+    expect(resolveDateRangePreset("last30", new Date(2026, 0, 10))).toEqual({
+      from: "2025-12-12",
+      to: "2026-01-10",
+    });
+  });
+
+  it("last90: base − 89 days .. base (inclusive 90 days)", () => {
+    expect(resolveDateRangePreset("last90", new Date(2026, 5, 15))).toEqual({
+      from: "2026-03-18",
+      to: "2026-06-15",
+    });
+  });
+
+  it("thisYear: Jan 1 .. base date", () => {
+    expect(resolveDateRangePreset("thisYear", new Date(2026, 5, 15))).toEqual({
+      from: "2026-01-01",
+      to: "2026-06-15",
+    });
+  });
+
+  it("zero-pads single-digit months and days", () => {
+    expect(resolveDateRangePreset("today", new Date(2026, 0, 3))).toEqual({
+      from: "2026-01-03",
+      to: "2026-01-03",
+    });
+  });
+});
+
+describe("matchDateRangePreset", () => {
+  const base = new Date(2026, 5, 15);
+
+  it("returns the matching preset for a from/to that lines up", () => {
+    expect(matchDateRangePreset("2026-06-01", "2026-06-30", base)).toBe(
+      "thisMonth",
+    );
+  });
+
+  it("returns null for a manual range that matches no preset", () => {
+    expect(matchDateRangePreset("2026-06-02", "2026-06-09", base)).toBe(null);
+  });
+
+  it("returns null when either bound is missing", () => {
+    expect(matchDateRangePreset("2026-06-15", undefined, base)).toBe(null);
+    expect(matchDateRangePreset(undefined, "2026-06-15", base)).toBe(null);
+    expect(matchDateRangePreset(undefined, undefined, base)).toBe(null);
+  });
+});
+
+describe("formatDateRangeChipLabel", () => {
+  it("formats both bounds with stripped leading zeros", () => {
+    expect(formatDateRangeChipLabel("2026-06-01", "2026-06-30")).toBe(
+      "6/1–6/30",
+    );
+  });
+
+  it("renders an open-ended start as …", () => {
+    expect(formatDateRangeChipLabel(undefined, "2026-06-30")).toBe("…–6/30");
+  });
+
+  it("renders an open-ended end as …", () => {
+    expect(formatDateRangeChipLabel("2026-06-01", undefined)).toBe("6/1–…");
+  });
+
+  it("returns null when neither bound is set", () => {
+    expect(formatDateRangeChipLabel(undefined, undefined)).toBe(null);
+  });
+});
+
+// Issue #476: the 公開状態 popover adds an "all" (解除) option, so the label
+// helper widens to `Visibility | "all"`.
+describe("visibilityLabel", () => {
+  it("labels each visibility plus the 'all' reset option", () => {
+    expect(visibilityLabel("all")).toBe("すべて");
+    expect(visibilityLabel("private")).toBe("非公開");
+    expect(visibilityLabel("unlisted")).toBe("限定公開");
+    expect(visibilityLabel("public")).toBe("公開");
+  });
+});
+
+describe("visibilitySwatchClass", () => {
+  it("maps each option to its status color (all/private share ink-tertiary)", () => {
+    expect(visibilitySwatchClass("public")).toBe("bg-success");
+    expect(visibilitySwatchClass("unlisted")).toBe("bg-warning");
+    expect(visibilitySwatchClass("private")).toBe("bg-ink-tertiary");
+    expect(visibilitySwatchClass("all")).toBe("bg-ink-tertiary");
   });
 });

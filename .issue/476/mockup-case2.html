@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>#476 案2 詳細モック ― チップ＋ポップオーバー統一</title>
+<style>
+  :root {
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60, 60, 67, 0.12);
+    --color-hairline-strong: rgba(60, 60, 67, 0.18);
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 980px;
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #e9e9ec; font-family: var(--font-sans); color: var(--color-ink);
+    -webkit-font-smoothing: antialiased; letter-spacing: -0.003em; padding: 32px 16px 80px;
+  }
+  .page-head { max-width: 860px; margin: 0 auto 26px; }
+  .page-head h1 { font-size: 22px; margin: 0 0 6px; }
+  .page-head p { font-size: 13px; color: var(--color-ink-secondary); margin: 0; line-height: 1.6; }
+
+  .panel {
+    max-width: 860px; margin: 0 auto 22px; background: var(--color-bg);
+    border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); overflow: visible;
+    box-shadow: var(--shadow-sm);
+  }
+  .panel > header { padding: 12px 20px; border-bottom: 1px solid var(--color-hairline); background: var(--color-surface-elevated); }
+  .panel > header .tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #fff;
+    background: var(--color-ink); border-radius: var(--radius-pill); padding: 2px 10px; margin-right: 8px; vertical-align: middle;
+  }
+  .panel > header h2 { display: inline; font-size: 14px; vertical-align: middle; }
+  .panel > header .desc { margin: 7px 0 0; font-size: 12px; color: var(--color-ink-secondary); line-height: 1.55; }
+  .stage { padding: 18px 20px 22px; }
+
+  .list-title { font-size: 19px; font-weight: 600; margin: 0 0 10px; letter-spacing: -0.014em; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; }
+  .seg { display: inline-flex; background: var(--color-surface); border-radius: var(--radius-pill); padding: 3px; }
+  .seg button { border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--color-ink-secondary); padding: 4px 12px; border-radius: var(--radius-pill); cursor: pointer; }
+  .seg button[data-on] { background: #fff; color: var(--color-ink); box-shadow: var(--shadow-sm); }
+
+  .filterbar-shell { border-bottom: 1px solid var(--color-hairline); padding: 12px 8px; }
+
+  .flabel { font-size: 11px; font-weight: 500; color: var(--color-ink-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .vsep { width: 1px; height: 20px; background: var(--color-hairline); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: var(--radius-pill);
+    background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-ink); border: 0; cursor: pointer;
+    transition: background .12s; white-space: nowrap;
+  }
+  .chip:hover { background: var(--color-surface-hover); }
+  .chip[data-active] { background: var(--color-ink); color: #fff; }
+  .chip .count { margin-left: 6px; font-size: 11px; color: var(--color-ink-tertiary); }
+  .chip[data-active] .count { color: rgba(255,255,255,.85); }
+  .chip .caret { font-size: 10px; opacity: .6; margin-left: 2px; }
+  .chip .x { margin-left: 3px; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
+  .chip[data-active] .x { color: rgba(255,255,255,.85); }
+  .chip[data-active] .x:hover { background: rgba(255,255,255,.18); }
+  /* dashed = unset trigger chip */
+  .chip.ghost { background: transparent; border: 1px dashed var(--color-hairline-strong); color: var(--color-ink-secondary); }
+  .chip.ghost:hover { background: var(--color-surface); }
+
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--color-hairline-strong); background: var(--color-bg); font: inherit; font-size: 13px; color: var(--color-ink-secondary); cursor: pointer;
+  }
+  .pill-btn:hover { background: var(--color-surface); }
+
+  /* popover */
+  .pop { position: relative; display: inline-block; }
+  .pop-panel {
+    margin-top: 8px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: #fff;
+    box-shadow: var(--shadow-md); padding: 12px; width: max-content;
+  }
+  .pop-float { position: absolute; left: 0; top: 100%; z-index: 5; }
+  .opt { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; min-width: 180px; }
+  .opt:hover { background: var(--color-surface); }
+  .opt[data-sel] { background: var(--color-surface); font-weight: 600; }
+  .opt .swatch { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
+  .opt .check { margin-left: auto; color: var(--color-success); font-size: 13px; }
+
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .preset { font: inherit; font-size: 12px; border: 1px solid var(--color-hairline); background: var(--color-bg); border-radius: var(--radius-pill); padding: 6px 4px; cursor: pointer; color: var(--color-ink); }
+  .preset:hover { background: var(--color-surface); }
+  .preset[data-sel] { background: var(--color-ink); color: #fff; border-color: var(--color-ink); }
+  .date-row { display: flex; align-items: center; gap: 8px; }
+  .input-sm { height: 30px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline); background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-ink); }
+  .pop-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .link-btn { background: 0; border: 0; font: inherit; font-size: 12px; color: var(--color-ink-secondary); cursor: pointer; text-decoration: underline; }
+  .apply-btn { font: inherit; font-size: 12px; font-weight: 600; color: #fff; background: var(--color-ink); border: 0; border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer; }
+
+  .annot { font-size: 11.5px; color: var(--color-ink-tertiary); margin: 12px 2px 0; line-height: 1.6; }
+  .annot b { color: var(--color-ink-secondary); font-weight: 600; }
+
+  .notes { margin-top: 14px; display: grid; gap: 10px; }
+  .note { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: 12px 14px; }
+  .note h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .note p { margin: 0; font-size: 12.5px; color: var(--color-ink-tertiary); }
+  .chip-status { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--radius-pill); font-size: 11px; margin-top: 8px; }
+  .chip-status.public { background: var(--color-success-surface); color: var(--color-success); }
+  .chip-status.unlisted { background: var(--color-warning-surface); color: var(--color-warning); }
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>#476 案2 ― 全フィルターをチップ＋ポップオーバーに統一</h1>
+    <p>タグは従来どおりチップ常時表示。<b>期間・公開状態</b>もチップ化し、押すとポップオーバーで入力。<b>ディレクトリ・内部リンク参照</b>は性質が違う（ツリー／ノート検索由来）ため現状維持＝適用時のみチップ表示。各状態を上から順に並べています。</p>
+  </div>
+
+  <!-- STATE A: 通常（未適用トリガーが並ぶ） -->
+  <section class="panel">
+    <header><span class="tag">状態A</span><h2>初期表示（フィルター未適用）</h2>
+      <p class="desc">タグは件数つきチップで一覧。期間・公開状態は破線の「トリガーチップ」。最小限の主張で並ぶ。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <span style="font-size:12px;color:var(--color-ink-tertiary)">保存ビュー ▾</span>
+      </div>
+      <div class="filterbar-shell">
+        <div class="row">
+          <button class="chip">#日記<span class="count">42</span></button>
+          <button class="chip">#技術<span class="count">18</span></button>
+          <button class="chip">#読書<span class="count">9</span></button>
+          <button class="chip">#料理<span class="count">5</span></button>
+          <button class="chip ghost">もっと見る (+9)</button>
+          <span class="vsep"></span>
+          <button class="chip ghost">期間 <span class="caret">▾</span></button>
+          <button class="chip ghost">公開状態 <span class="caret">▾</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATE B: 期間ポップオーバー展開 -->
+  <section class="panel">
+    <header><span class="tag">状態B</span><h2>「期間」チップを押した状態（ポップオーバー）</h2>
+      <p class="desc">プリセット（よく使う範囲）＋ from/to の日付入力。下部に「クリア／適用」。プリセット選択で2つの date input が連動。</p>
+    </header>
+    <div class="stage">
+      <div class="filterbar-shell" style="min-height:230px">
+        <div class="row">
+          <button class="chip" data-active>#日記<span class="count">42</span></button>
+          <span class="vsep"></span>
+          <div class="pop">
+            <button class="chip" data-active>期間 <span class="caret">▾</span></button>
+            <div class="pop-panel pop-float">
+              <div class="flabel" style="margin-bottom:8px">プリセット</div>
+              <div class="preset-grid">
+                <button class="preset">今日</button>
+                <button class="preset">今週</button>
+                <button class="preset" data-sel>今月</button>
+                <button class="preset">過去30日</button>
+                <button class="preset">過去90日</button>
+                <button class="preset">今年</button>
+              </div>
+              <div class="flabel" style="margin-bottom:8px">範囲指定</div>
+              <div class="date-row">
+                <input class="input-sm" type="date" value="2026-06-01" />
+                <span>–</span>
+                <input class="input-sm" type="date" value="2026-06-30" />
+              </div>
+              <div class="pop-foot">
+                <button class="link-btn">クリア</button>
+                <button class="apply-btn">適用</button>
+              </div>
+            </div>
+          </div>
+          <button class="chip ghost" style="margin-left:188px">公開状態 <span class="caret">▾</span></button>
+        </div>
+      </div>
+      <p class="annot"><b>挙動:</b> プリセットを押すと from/to が自動セット。手で日付を変えるとプリセットの選択は外れる。「適用」または範囲確定で URL の <code>from</code>/<code>to</code> を更新（既存スキーマそのまま）。</p>
+    </div>
+  </section>
+
+  <!-- STATE C: 公開状態ポップオーバー展開 -->
+  <section class="panel">
+    <header><span class="tag">状態C</span><h2>「公開状態」チップを押した状態（単一選択）</h2>
+      <p class="desc">select の置き換え。状態色（公開=緑／限定公開=橙／非公開=グレー）のスウォッチ付きで選択。選んだ瞬間に適用＆閉じる。</p>
+    </header>
+    <div class="stage">
+      <div class="filterbar-shell" style="min-height:210px">
+        <div class="row">
+          <button class="chip" data-active>#日記<span class="count">42</span></button>
+          <span class="vsep"></span>
+          <button class="chip ghost">期間 <span class="caret">▾</span></button>
+          <div class="pop">
+            <button class="chip" data-active>公開状態 <span class="caret">▾</span></button>
+            <div class="pop-panel pop-float">
+              <div class="opt"><span class="swatch" style="background:var(--color-ink-tertiary)"></span>すべて</div>
+              <div class="opt"><span class="swatch" style="background:var(--color-ink-tertiary)"></span>非公開</div>
+              <div class="opt"><span class="swatch" style="background:var(--color-warning)"></span>限定公開</div>
+              <div class="opt" data-sel><span class="swatch" style="background:var(--color-success)"></span>公開 <span class="check">✓</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="annot"><b>挙動:</b> 単一選択なので選んだ瞬間に <code>visibility</code> を更新してポップオーバーを閉じる。「すべて」を選ぶと解除（<code>visibility=undefined</code>）。</p>
+    </div>
+  </section>
+
+  <!-- STATE D: 全適用（値がチップに乗る） -->
+  <section class="panel">
+    <header><span class="tag">状態D</span><h2>適用後（チップに値が乗り、×で個別解除）</h2>
+      <p class="desc">適用中は darkチップになり値を表示。<code>期間: 6/1–6/30 ×</code> / <code>公開状態: 公開 ×</code>。末尾に全解除。ディレクトリ・内部リンク参照も同じ見た目で並ぶ。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <span style="font-size:12px;color:var(--color-ink-tertiary)">保存ビュー ▾</span>
+      </div>
+      <div class="filterbar-shell">
+        <div class="row">
+          <button class="chip" data-active>#日記<span class="count">42</span></button>
+          <button class="chip">#技術<span class="count">18</span></button>
+          <button class="chip ghost">もっと見る (+10)</button>
+          <span class="vsep"></span>
+          <button class="chip" data-active>期間: 6/1–6/30 <span class="x">×</span></button>
+          <button class="chip" data-active>公開状態: 公開 <span class="x">×</span></button>
+          <button class="chip" data-active>📁 開発メモ <span class="x">×</span></button>
+          <button class="chip" data-active>🔗 参照: 設計ノート <span class="x">×</span></button>
+          <button class="pill-btn" style="margin-left:auto">すべてクリア</button>
+        </div>
+      </div>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園であじさいが咲き始めていた…</p><span class="chip-status public">公開</span></article>
+        <article class="note"><h3>TanStack Start メモ</h3><p>server function の入力検証境界について…</p><span class="chip-status unlisted">限定公開</span></article>
+      </div>
+      <p class="annot"><b>一貫性:</b> タグ／期間／公開状態／ディレクトリ／内部リンク参照が、すべて同じ「pill チップ＋×解除」の語彙で並ぶ。トリガー方法だけ違う（タグ＝トグル、期間/公開状態＝ポップオーバー、ディレクトリ＝ツリー、参照＝ダイアログ）。</p>
+    </div>
+  </section>
+
+  <!-- STATE E: モバイル -->
+  <section class="panel" style="max-width:390px">
+    <header><span class="tag">状態E</span><h2>モバイル幅（折返し）</h2>
+      <p class="desc">チップは自然に折り返す。ポップオーバーは幅いっぱい寄りに開く。むき出しの input/select が無いので縦の圧迫が小さい。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="filterbar-shell">
+        <div class="row" style="gap:8px">
+          <button class="chip" data-active>#日記<span class="count">42</span></button>
+          <button class="chip">#技術<span class="count">18</span></button>
+          <button class="chip ghost">もっと見る (+10)</button>
+          <button class="chip" data-active>期間: 6/1–6/30 <span class="x">×</span></button>
+          <button class="chip" data-active>公開: 公開 <span class="x">×</span></button>
+          <button class="pill-btn">クリア</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
