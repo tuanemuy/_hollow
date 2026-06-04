@@ -203,9 +203,7 @@ export function DesignTokensForm({
       <form action={formAction}>
         <p className="text-sm text-ink-secondary m-0 mb-5">
           ビルトインの既定値が初期表示されています。値を変更して保存すると上書きされ、既定値のままの行は永続化されません。設定したトークンはエクスポート時の
-          CSS に注入されます。トークンの一覧は{" "}
-          <code className="font-mono text-xs">spec/design/tokens.md</code>{" "}
-          を参照してください。
+          CSS に注入されます。
         </p>
 
         {entries.length === 0 ? (
@@ -224,7 +222,7 @@ export function DesignTokensForm({
                   key={index}
                   className="grid grid-cols-[220px_1fr] gap-3 py-2 items-start border-b border-hairline last:border-b-0"
                 >
-                  <div className="flex flex-col gap-1 pt-2">
+                  <div className="flex flex-col gap-1 pt-1">
                     <div className="flex items-center gap-2">
                       <input
                         type="text"

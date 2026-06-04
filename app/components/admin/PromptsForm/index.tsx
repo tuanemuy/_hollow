@@ -31,6 +31,7 @@ type PromptDescriptor = {
   purpose: "structure" | "title" | "directory" | "metadata" | "ocr_assist";
   title: string;
   description: string;
+  placeholder: string;
 };
 
 // Domain SSOT: `PromptPurpose.values` (Issue #218 ADR-005). Keep this list
@@ -40,36 +41,38 @@ const PROMPT_DESCRIPTORS: readonly PromptDescriptor[] = [
     purpose: "structure",
     title: "取り込み構造化プロンプト",
     description: "本文をどう構造化・整形してほしいかの意図を補足できます",
+    placeholder: "例: 箇条書きの見出しを残しつつ、要点を3行で要約してほしい",
   },
   {
     purpose: "title",
     title: "タイトル生成プロンプト",
     description: "どんな観点でタイトルを付けてほしいかの意図を補足できます",
+    placeholder: "例: 内容が一目で分かる体言止めのタイトルにしてほしい",
   },
   {
     purpose: "directory",
     title: "ディレクトリ提案プロンプト",
     description: "どんな基準で配置先を提案してほしいかの意図を補足できます",
+    placeholder: "例: 日付よりも内容のテーマを優先して配置先を決めてほしい",
   },
   {
     purpose: "metadata",
     title: "メタデータ抽出プロンプト",
     description: "どんな粒度でタグ付けしてほしいかの意図を補足できます",
+    placeholder: "例: 技術トピックは固有名詞をそのままタグにしてほしい",
   },
   {
     purpose: "ocr_assist",
     title: "OCR 補助プロンプト",
     description:
       "OCR 結果の補正・整形の意図を補足できます（OCR 機能は今後の実装で利用予定）",
+    placeholder: "例: 誤認識しやすい数字と記号を文脈から補正してほしい",
   },
 ];
 
 // Shown as the resolved default value when no override is in place — the
 // empty system default means "operator added no extra instruction" (#396).
 const NO_OVERRIDE_LABEL = "（追加の指示なし）";
-// Textarea placeholder prompting the operator to write their analysis intent.
-const INTENT_PLACEHOLDER =
-  "どう分析してほしいかの意図を記入（空欄ならシステム既定の動作）";
 
 const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
 const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
@@ -188,7 +191,7 @@ function PromptCard({
           className={TEXTAREA_CLASS}
           value={text}
           spellCheck={false}
-          placeholder={INTENT_PLACEHOLDER}
+          placeholder={descriptor.placeholder}
           onChange={(event) => setText(event.target.value)}
           disabled={isPending}
         />

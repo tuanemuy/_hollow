@@ -40,7 +40,7 @@ type ExportStatus = ExportJobDTO["status"];
 type Tone = "info" | "success" | "warning" | "error";
 
 const TAG_BASE =
-  "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium";
+  "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium whitespace-nowrap";
 const TAG_TONE: Record<Tone, string> = {
   info: "bg-accent-surface text-accent-ink",
   success: "bg-success-surface text-success",
