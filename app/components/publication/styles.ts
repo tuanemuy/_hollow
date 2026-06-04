@@ -49,13 +49,20 @@ export const RADIO_CARD_TITLE =
 export const PUBLISH_SECTION_TITLE = "text-md font-medium text-ink";
 
 /**
- * Link-row card for an issued share link. The URL inside truncates with
- * ellipsis (`[&_code]:truncate`) so a long token does not break the layout.
+ * Link-row card for an issued share link. Truncation of the long URL is handled
+ * by `LINK_URL` (`truncate`) inside a `min-w-0` flex row, not on this card.
  */
 export const LINK_ROW =
   "flex flex-col gap-2 p-3.5 rounded-md border border-hairline";
 
-/** Monospace, ellipsis-truncated URL inside a link row. */
+/**
+ * Monospace, ellipsis-truncated URL inside a link row.
+ *
+ * Uses `text-accent-ink` (not `text-ink`) to mirror the mock's `.link-text`
+ * color, which is intentionally distinct from the issued-URL preview box
+ * (`URL_PREVIEW_URL`, `text-ink` — mock's `.url-preview .url`). The two are
+ * different surfaces in the design, hence the deliberate color split.
+ */
 export const LINK_URL =
   "block min-w-0 truncate font-mono text-xs text-accent-ink";
 
@@ -68,4 +75,5 @@ export const URL_PREVIEW = "bg-surface rounded-md p-3.5";
 export const URL_PREVIEW_LABEL =
   "text-xs text-ink-tertiary uppercase tracking-[0.06em] font-medium mb-1";
 
+/** Preview-box URL uses `text-ink` per the mock's `.url-preview .url` (see `LINK_URL`). */
 export const URL_PREVIEW_URL = "font-mono text-sm text-ink break-all";
