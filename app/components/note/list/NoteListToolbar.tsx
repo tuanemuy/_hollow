@@ -33,16 +33,20 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
       // Issue #215: `page` / `limit` are dropped so the URL collapses to
       // `/` (or `/?display=...`) — `noteListSearchSchema` fills the
       // defaults on parse.
-      startTransition(() => {
-        router.navigate({
-          to: "/",
-          search: (prev) => {
-            const p = prev as Partial<NoteListSearch>;
-            return {
-              display: p.display,
-            };
-          },
-        });
+      startTransition(async () => {
+        try {
+          await router.navigate({
+            to: "/",
+            search: (prev) => {
+              const p = prev as Partial<NoteListSearch>;
+              return {
+                display: p.display,
+              };
+            },
+          });
+        } catch {
+          // Navigation cancelled/superseded — `isPending` settles either way.
+        }
       });
       return;
     }
@@ -51,11 +55,15 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
     // `display = view.displayMode` (Issue #219 ADR-002), so the URL
     // ends up normalised to the SavedView's stored mode. Keeping a
     // stale `prev.display` would suppress that redirect.
-    startTransition(() => {
-      router.navigate({
-        to: "/",
-        search: () => ({ viewId }),
-      });
+    startTransition(async () => {
+      try {
+        await router.navigate({
+          to: "/",
+          search: () => ({ viewId }),
+        });
+      } catch {
+        // Navigation cancelled/superseded — `isPending` settles either way.
+      }
     });
   };
 

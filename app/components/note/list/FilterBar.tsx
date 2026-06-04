@@ -114,15 +114,25 @@ export function FilterBar({
 
   // Wrap an optimistic patch + the URL navigation in a single transition so
   // the patched value renders immediately and the loader fetch shows as
-  // pending. Controls stay enabled throughout so rapid toggles are not
-  // dropped.
+  // pending. The navigation (loader round-trip included) is awaited inside
+  // the transition so it stays pending until the fresh props commit —
+  // otherwise the transition ends synchronously and `useOptimistic` snaps
+  // back to baseline before the selection is reflected (Issue #478). The
+  // await is wrapped so a rejected/cancelled navigation still settles the
+  // transition cleanly, letting `useOptimistic` revert to the server-
+  // confirmed baseline; a failed filter nav has no error surface of its own.
+  // Controls stay enabled throughout so rapid toggles are not dropped.
   const run = (
     action: FilterAction,
     nav: (prev: Partial<NoteListSearch>) => Partial<NoteListSearch>,
   ) => {
-    startTransition(() => {
+    startTransition(async () => {
       applyOptimistic(action);
-      router.navigate({ to: "/", search: (prev) => nav(prev) });
+      try {
+        await router.navigate({ to: "/", search: (prev) => nav(prev) });
+      } catch {
+        // Reverting to baseline is the correct fallback for a filter toggle.
+      }
     });
   };
 
