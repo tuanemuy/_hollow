@@ -9,13 +9,6 @@
  */
 
 /**
- * Page body width wrapper. Narrower than `NoteDetail` (`max-w-[760px]`) — the
- * publish screen is a form, so a tighter measure keeps controls readable. Sits
- * between the mock modal width (560px) and the note-detail width (760px).
- */
-export const PUBLISH_BODY = "max-w-[640px]";
-
-/**
  * Visibility-status dot, colored by a `data-visibility` value-match variant
  * (CLAUDE.md state-style convention) rather than conditional class strings.
  *

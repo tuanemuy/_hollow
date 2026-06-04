@@ -17,8 +17,12 @@ import {
   pillBtnIcon,
   pillBtnPrimary,
 } from "@/components/common/styles";
+import { PublishSettings } from "@/components/publication/PublishSettings";
 import type { NoteId } from "@/core/application/dto/note";
-import type { Visibility } from "@/core/application/dto/publication";
+import type {
+  ShareLinkDTO,
+  Visibility,
+} from "@/core/application/dto/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -33,12 +37,17 @@ import { UrlCopyButton } from "./UrlCopyButton";
 export type NoteActionsProps = Readonly<{
   noteId: NoteId;
   status: "active" | "trashed";
-  visibility: Visibility;
+  publishState: Readonly<{
+    visibility: Visibility;
+    publishedAt: string | null;
+    links: readonly ShareLinkDTO[];
+  }>;
+  appUrl: string;
   publicShareUrl: string | null;
   tree: readonly FlatDirectory[];
 }>;
 
-type OpenDialog = "move" | null;
+type OpenDialog = "move" | "publish" | null;
 
 function visibilityLabel(v: Visibility): string {
   switch (v) {
@@ -73,10 +82,12 @@ const ICON_BTN_PRIMARY = `${pillBtn} ${pillBtnIcon} ${pillBtnPrimary}`;
 export function NoteActions({
   noteId,
   status,
-  visibility,
+  publishState,
+  appUrl,
   publicShareUrl,
   tree,
 }: NoteActionsProps) {
+  const visibility = publishState.visibility;
   const router = useRouter();
   const remove = useServerFn(deleteNoteFn);
   const duplicate = useServerFn(duplicateNoteFn);
@@ -162,10 +173,10 @@ export function NoteActions({
         >
           <Icon icon={Pencil} size={20} />
         </Link>
-        <Link
-          to="/notes/$noteId/publish"
-          params={{ noteId: noteIdStr }}
+        <button
+          type="button"
           className={pillBtn}
+          onClick={() => setOpen("publish")}
         >
           <span
             className={VISIBILITY_DOT}
@@ -175,7 +186,7 @@ export function NoteActions({
           <Icon icon={Globe} />
           <span className="sr-only">公開状態: </span>
           {visibilityLabel(visibility)}
-        </Link>
+        </button>
         <button
           type="button"
           className={ICON_BTN}
@@ -215,6 +226,13 @@ export function NoteActions({
         open={open === "move"}
         onClose={() => setOpen(null)}
         tree={tree}
+      />
+      <PublishSettings
+        open={open === "publish"}
+        onClose={() => setOpen(null)}
+        noteId={noteIdStr}
+        appUrl={appUrl}
+        initial={publishState}
       />
       <ConfirmDialog
         open={confirmDeleteOpen}

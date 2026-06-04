@@ -55,7 +55,6 @@ import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$no
 import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppNotesNoteIdIndexRouteImport } from './routes/_app/notes/$noteId/index'
-import { Route as AppNotesNoteIdPublishRouteImport } from './routes/_app/notes/$noteId/publish'
 import { Route as AppNotesNoteIdEditRouteImport } from './routes/_app/notes/$noteId/edit'
 import { Route as AppNotesNoteIdHistoryRouteRouteImport } from './routes/_app/notes/$noteId/history/route'
 import { Route as AppNotesNoteIdHistoryIndexRouteImport } from './routes/_app/notes/$noteId/history/index'
@@ -290,11 +289,6 @@ const AppNotesNoteIdIndexRoute = AppNotesNoteIdIndexRouteImport.update({
   path: '/notes/$noteId/',
   getParentRoute: () => AppRouteRoute,
 } as any)
-const AppNotesNoteIdPublishRoute = AppNotesNoteIdPublishRouteImport.update({
-  id: '/notes/$noteId/publish',
-  path: '/notes/$noteId/publish',
-  getParentRoute: () => AppRouteRoute,
-} as any)
 const AppNotesNoteIdEditRoute = AppNotesNoteIdEditRouteImport.update({
   id: '/notes/$noteId/edit',
   path: '/notes/$noteId/edit',
@@ -366,7 +360,6 @@ export interface FileRoutesByFullPath {
   '/u/$username/': typeof UUsernameIndexRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
-  '/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -414,7 +407,6 @@ export interface FileRoutesByTo {
   '/upload': typeof AppUploadIndexRoute
   '/u/$username': typeof UUsernameIndexRoute
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
-  '/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/notes/$noteId': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryIndexRoute
@@ -468,7 +460,6 @@ export interface FileRoutesById {
   '/u/$username/': typeof UUsernameIndexRoute
   '/_app/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/_app/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
-  '/_app/notes/$noteId/publish': typeof AppNotesNoteIdPublishRoute
   '/_app/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/_app/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/_app/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -522,7 +513,6 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
-    | '/notes/$noteId/publish'
     | '/notes/$noteId/'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history/'
@@ -570,7 +560,6 @@ export interface FileRouteTypes {
     | '/upload'
     | '/u/$username'
     | '/notes/$noteId/edit'
-    | '/notes/$noteId/publish'
     | '/notes/$noteId'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history'
@@ -623,7 +612,6 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/_app/notes/$noteId/history'
     | '/_app/notes/$noteId/edit'
-    | '/_app/notes/$noteId/publish'
     | '/_app/notes/$noteId/'
     | '/_app/notes/$noteId/history/$revisionId'
     | '/_app/notes/$noteId/history/'
@@ -979,13 +967,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesNoteIdIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/_app/notes/$noteId/publish': {
-      id: '/_app/notes/$noteId/publish'
-      path: '/notes/$noteId/publish'
-      fullPath: '/notes/$noteId/publish'
-      preLoaderRoute: typeof AppNotesNoteIdPublishRouteImport
-      parentRoute: typeof AppRouteRoute
-    }
     '/_app/notes/$noteId/edit': {
       id: '/_app/notes/$noteId/edit'
       path: '/notes/$noteId/edit'
@@ -1041,7 +1022,6 @@ interface AppRouteRouteChildren {
   AppUploadIndexRoute: typeof AppUploadIndexRoute
   AppNotesNoteIdHistoryRouteRoute: typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   AppNotesNoteIdEditRoute: typeof AppNotesNoteIdEditRoute
-  AppNotesNoteIdPublishRoute: typeof AppNotesNoteIdPublishRoute
   AppNotesNoteIdIndexRoute: typeof AppNotesNoteIdIndexRoute
 }
 
@@ -1053,7 +1033,6 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppUploadIndexRoute: AppUploadIndexRoute,
   AppNotesNoteIdHistoryRouteRoute: AppNotesNoteIdHistoryRouteRouteWithChildren,
   AppNotesNoteIdEditRoute: AppNotesNoteIdEditRoute,
-  AppNotesNoteIdPublishRoute: AppNotesNoteIdPublishRoute,
   AppNotesNoteIdIndexRoute: AppNotesNoteIdIndexRoute,
 }
 

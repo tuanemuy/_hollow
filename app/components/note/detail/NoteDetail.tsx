@@ -34,9 +34,10 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
 export type NoteDetailProps = Readonly<{
   user: UserDTO;
   noteId: NoteId;
+  appUrl: string;
 }>;
 
-export async function NoteDetail({ user, noteId }: NoteDetailProps) {
+export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
   const noteIdStr = noteId as unknown as string;
 
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
@@ -97,7 +98,8 @@ export async function NoteDetail({ user, noteId }: NoteDetailProps) {
         <NoteActions
           noteId={note.id}
           status={note.status}
-          visibility={publishState.visibility}
+          publishState={publishState}
+          appUrl={appUrl}
           publicShareUrl={publicShareUrl}
           tree={tree.flat}
         />
