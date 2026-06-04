@@ -5,6 +5,20 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
+import {
+  SETTINGS_BACK_LINK,
+  SETTINGS_CONTENT,
+  SETTINGS_ERROR_BODY,
+  SETTINGS_ERROR_BOX,
+  SETTINGS_ERROR_TITLE,
+  SETTINGS_GRID,
+  SETTINGS_HEADER,
+  SETTINGS_NAV,
+  SETTINGS_NAV_ITEM,
+  SETTINGS_SUBTITLE,
+  SETTINGS_TITLE,
+  SETTINGS_WRAP,
+} from "@/components/identity/styles";
 import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { buildHead } from "@/core/presentation/head";
@@ -44,9 +58,9 @@ export const Route = createFileRoute("/settings")({
   },
   component: SettingsLayout,
   errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+    <div role="alert" className={SETTINGS_ERROR_BOX}>
+      <h1 className={SETTINGS_ERROR_TITLE}>エラーが発生しました</h1>
+      <pre className={SETTINGS_ERROR_BODY}>{sanitizeRouteError(error)}</pre>
     </div>
   ),
 });
@@ -54,29 +68,38 @@ export const Route = createFileRoute("/settings")({
 function SettingsLayout() {
   const { pathname } = useLocation();
   return (
-    <div>
-      <header>
-        <Link to="/" search={HOME_SEARCH}>
+    <div className={SETTINGS_WRAP}>
+      <header className={SETTINGS_HEADER}>
+        <Link to="/" search={HOME_SEARCH} className={SETTINGS_BACK_LINK}>
           ← Home
         </Link>
-        <h1>設定</h1>
+        <h1 className={SETTINGS_TITLE}>設定</h1>
+        <p className={SETTINGS_SUBTITLE}>
+          アカウント、外観、AI の挙動を調整します。
+        </p>
       </header>
-      <nav aria-label="設定ナビゲーション">
-        <ul>
+      <div className={SETTINGS_GRID}>
+        <nav aria-label="設定ナビゲーション" className={SETTINGS_NAV}>
           {NAV.map((item) => {
             const active =
               pathname === item.to || pathname.startsWith(`${item.to}/`);
             return (
-              <li key={item.to}>
-                <Link to={item.to} aria-current={active ? "page" : undefined}>
-                  {item.label}
-                </Link>
-              </li>
+              <Link
+                key={item.to}
+                to={item.to}
+                aria-current={active ? "page" : undefined}
+                data-active={active || undefined}
+                className={SETTINGS_NAV_ITEM}
+              >
+                {item.label}
+              </Link>
             );
           })}
-        </ul>
-      </nav>
-      <Outlet />
+        </nav>
+        <div className={SETTINGS_CONTENT}>
+          <Outlet />
+        </div>
+      </div>
     </div>
   );
 }

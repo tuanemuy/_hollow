@@ -6,7 +6,7 @@ export async function ProfilePage() {
   const user = await requireCurrentUser();
   return (
     <main>
-      <h1>プロフィール設定</h1>
+      <h1 className="sr-only">プロフィール設定</h1>
       <ProfileForm user={toUserDTO(user)} />
     </main>
   );

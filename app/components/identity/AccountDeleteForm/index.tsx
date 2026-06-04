@@ -15,6 +15,13 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { USERNAME_MAX } from "../schema";
+import {
+  ACTION_ROW,
+  FIELD_ERROR,
+  SECTION,
+  SECTION_DESC,
+  SECTION_TITLE,
+} from "../styles";
 import { deleteAccountFn } from "./action";
 
 export function AccountDeleteForm({ user }: { user: UserDTO }) {
@@ -72,29 +79,31 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
   };
 
   return (
-    <section>
-      <h2>アカウント削除</h2>
-      <p>
+    <section className={SECTION}>
+      <h2 className={SECTION_TITLE}>アカウント削除</h2>
+      <p className={SECTION_DESC}>
         アカウントを削除すると、ノート、メディア、公開リンク、進行中の
         エクスポートジョブを含むすべてのデータが失われます。この操作は
         取り消せません。
       </p>
-      <button
-        type="button"
-        className={`${pillBtn} ${pillBtnDanger}`}
-        data-danger=""
-        onClick={() => {
-          setError(null);
-          setDraft("");
-          setConfirmOpen(true);
-        }}
-        disabled={isPending}
-      >
-        <Icon icon={Trash2} />
-        続けて削除する
-      </button>
+      <div className={ACTION_ROW}>
+        <button
+          type="button"
+          className={`${pillBtn} ${pillBtnDanger}`}
+          data-danger=""
+          onClick={() => {
+            setError(null);
+            setDraft("");
+            setConfirmOpen(true);
+          }}
+          disabled={isPending}
+        >
+          <Icon icon={Trash2} />
+          続けて削除する
+        </button>
+      </div>
       {summary !== "" ? (
-        <p role="alert" aria-live="polite">
+        <p role="alert" aria-live="polite" className={FIELD_ERROR}>
           {summary}
         </p>
       ) : null}
