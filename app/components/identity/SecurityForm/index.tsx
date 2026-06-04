@@ -12,6 +12,23 @@ import {
 } from "@/core/presentation/errorResponse";
 import { PASSWORD_MAX } from "../schema";
 import {
+  ACTION_ROW,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  CHECKBOX_ROW,
+  CURRENT_VALUE,
+  CURRENT_VALUE_STRONG,
+  FIELD,
+  FIELD_ERROR,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FORM,
+  SECTION,
+  SECTION_DIVIDER,
+  SECTION_TITLE,
+  SUCCESS_MSG,
+} from "../styles";
+import {
   changePasswordFn,
   requestEmailChangeFn,
   revokeAllOtherSessionsFn,
@@ -106,38 +123,52 @@ export function SecurityForm({ user }: { user: UserDTO }) {
     sessionsError !== null ? displayError(sessionsError) : "";
 
   return (
-    <section>
-      <h2>パスワード変更</h2>
-      <form action={pwAction}>
-        <label htmlFor={cpwId}>現在のパスワード</label>
-        <input
-          id={cpwId}
-          name="currentPassword"
-          type="password"
-          autoComplete="current-password"
-          maxLength={PASSWORD_MAX}
-          required
-          disabled={pwPending}
-        />
-        {pwFieldErrors?.currentPassword !== undefined ? (
-          <p role="alert">{pwFieldErrors.currentPassword[0]}</p>
-        ) : null}
+    <section className={SECTION}>
+      <h2 className={SECTION_TITLE}>パスワード変更</h2>
+      <form action={pwAction} className={FORM}>
+        <div className={FIELD}>
+          <label htmlFor={cpwId} className={FIELD_LABEL}>
+            現在のパスワード
+          </label>
+          <input
+            id={cpwId}
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            maxLength={PASSWORD_MAX}
+            required
+            disabled={pwPending}
+            className={FIELD_INPUT}
+          />
+          {pwFieldErrors?.currentPassword !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {pwFieldErrors.currentPassword[0]}
+            </p>
+          ) : null}
+        </div>
 
-        <label htmlFor={npwId}>新しいパスワード</label>
-        <input
-          id={npwId}
-          name="newPassword"
-          type="password"
-          autoComplete="new-password"
-          maxLength={PASSWORD_MAX}
-          required
-          disabled={pwPending}
-        />
-        {pwFieldErrors?.newPassword !== undefined ? (
-          <p role="alert">{pwFieldErrors.newPassword[0]}</p>
-        ) : null}
+        <div className={FIELD}>
+          <label htmlFor={npwId} className={FIELD_LABEL}>
+            新しいパスワード
+          </label>
+          <input
+            id={npwId}
+            name="newPassword"
+            type="password"
+            autoComplete="new-password"
+            maxLength={PASSWORD_MAX}
+            required
+            disabled={pwPending}
+            className={FIELD_INPUT}
+          />
+          {pwFieldErrors?.newPassword !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {pwFieldErrors.newPassword[0]}
+            </p>
+          ) : null}
+        </div>
 
-        <label>
+        <label className={CHECKBOX_ROW}>
           <input
             type="checkbox"
             name="revokeOtherSessions"
@@ -146,73 +177,122 @@ export function SecurityForm({ user }: { user: UserDTO }) {
           <span>他の端末からはログアウトする</span>
         </label>
 
-        <button type="submit" disabled={pwPending}>
-          {pwPending ? "変更中..." : "パスワードを変更"}
-        </button>
-        {pwSummary !== "" ? <p role="alert">{pwSummary}</p> : null}
-        {pwState.ok ? <p aria-live="polite">変更しました</p> : null}
+        <div className={ACTION_ROW}>
+          <button
+            type="submit"
+            disabled={pwPending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
+            {pwPending ? "変更中..." : "パスワードを変更"}
+          </button>
+        </div>
+        {pwSummary !== "" ? (
+          <p role="alert" className={FIELD_ERROR}>
+            {pwSummary}
+          </p>
+        ) : null}
+        {pwState.ok ? (
+          <p aria-live="polite" className={SUCCESS_MSG}>
+            変更しました
+          </p>
+        ) : null}
       </form>
 
-      <hr />
+      <hr className={SECTION_DIVIDER} />
 
-      <h2>メールアドレス変更</h2>
-      <p>
-        現在: <strong>{user.email}</strong>
+      <h2 className={SECTION_TITLE}>メールアドレス変更</h2>
+      <p className={CURRENT_VALUE}>
+        現在: <strong className={CURRENT_VALUE_STRONG}>{user.email}</strong>
       </p>
-      <form action={emailAction}>
-        <label htmlFor={emailId}>新しいメールアドレス</label>
-        <input
-          id={emailId}
-          name="newEmail"
-          type="email"
-          autoComplete="email"
-          required
-          disabled={emailPending}
-        />
-        {emailFieldErrors?.newEmail !== undefined ? (
-          <p role="alert">{emailFieldErrors.newEmail[0]}</p>
-        ) : null}
+      <form action={emailAction} className={FORM}>
+        <div className={FIELD}>
+          <label htmlFor={emailId} className={FIELD_LABEL}>
+            新しいメールアドレス
+          </label>
+          <input
+            id={emailId}
+            name="newEmail"
+            type="email"
+            autoComplete="email"
+            required
+            disabled={emailPending}
+            className={FIELD_INPUT}
+          />
+          {emailFieldErrors?.newEmail !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {emailFieldErrors.newEmail[0]}
+            </p>
+          ) : null}
+        </div>
 
-        <label htmlFor={pwForEmailId}>現在のパスワード</label>
-        <input
-          id={pwForEmailId}
-          name="currentPassword"
-          type="password"
-          autoComplete="current-password"
-          maxLength={PASSWORD_MAX}
-          required
-          disabled={emailPending}
-        />
-        {emailFieldErrors?.currentPassword !== undefined ? (
-          <p role="alert">{emailFieldErrors.currentPassword[0]}</p>
-        ) : null}
+        <div className={FIELD}>
+          <label htmlFor={pwForEmailId} className={FIELD_LABEL}>
+            現在のパスワード
+          </label>
+          <input
+            id={pwForEmailId}
+            name="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            maxLength={PASSWORD_MAX}
+            required
+            disabled={emailPending}
+            className={FIELD_INPUT}
+          />
+          {emailFieldErrors?.currentPassword !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {emailFieldErrors.currentPassword[0]}
+            </p>
+          ) : null}
+        </div>
 
-        <button type="submit" disabled={emailPending}>
-          {emailPending ? "送信中..." : "確認メールを送信"}
-        </button>
-        {emailSummary !== "" ? <p role="alert">{emailSummary}</p> : null}
+        <div className={ACTION_ROW}>
+          <button
+            type="submit"
+            disabled={emailPending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
+            {emailPending ? "送信中..." : "確認メールを送信"}
+          </button>
+        </div>
+        {emailSummary !== "" ? (
+          <p role="alert" className={FIELD_ERROR}>
+            {emailSummary}
+          </p>
+        ) : null}
         {emailState.ok ? (
-          <p aria-live="polite">
+          <p aria-live="polite" className={SUCCESS_MSG}>
             確認メールを送信しました。リンクをクリックすると変更が確定します。
           </p>
         ) : null}
       </form>
 
-      <hr />
+      <hr className={SECTION_DIVIDER} />
 
-      <h2>セッション</h2>
-      <button
-        id={revokeId}
-        type="button"
-        onClick={onRevokeAll}
-        disabled={isPending}
-      >
-        {isPending ? "処理中..." : "他のすべてのセッションをログアウト"}
-      </button>
+      <h2 className={SECTION_TITLE}>セッション</h2>
+      <div className={ACTION_ROW}>
+        <button
+          id={revokeId}
+          type="button"
+          onClick={onRevokeAll}
+          disabled={isPending}
+          className={BTN_SECONDARY}
+        >
+          {isPending ? "処理中..." : "他のすべてのセッションをログアウト"}
+        </button>
+      </div>
       {revokedCount !== null ? (
-        <p aria-live="polite">{revokedCount} 件のセッションを無効化しました</p>
+        <p aria-live="polite" className={SUCCESS_MSG}>
+          {revokedCount} 件のセッションを無効化しました
+        </p>
       ) : null}
-      {sessionsSummary !== "" ? <p role="alert">{sessionsSummary}</p> : null}
+      {sessionsSummary !== "" ? (
+        <p role="alert" className={FIELD_ERROR}>
+          {sessionsSummary}
+        </p>
+      ) : null}
     </section>
   );
 }

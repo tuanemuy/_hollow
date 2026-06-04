@@ -10,6 +10,28 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  FIELD,
+  FIELD_ERROR,
+  FIELD_LABEL,
+  PROMPT_ACTION_ROW,
+  PROMPT_BADGE,
+  PROMPT_CARD,
+  PROMPT_CARD_DESC,
+  PROMPT_CARD_HEADER,
+  PROMPT_CARD_NAME,
+  PROMPT_DETAILS,
+  PROMPT_META,
+  PROMPT_PRE,
+  PROMPT_SUMMARY,
+  PROMPT_TEXTAREA,
+  SECTION,
+  SECTION_DESC,
+  SECTION_TITLE,
+  SUCCESS_MSG,
+} from "../styles";
 import { updateUserPromptFn } from "./action";
 
 // Textarea placeholder prompting the user to write their own analysis intent.
@@ -42,9 +64,9 @@ type Props = {
 
 export function PromptsForm({ defaults, overrides }: Props) {
   return (
-    <section>
-      <h2>カスタムプロンプト</h2>
-      <p>
+    <section className={SECTION}>
+      <h2 className={SECTION_TITLE}>カスタムプロンプト</h2>
+      <p className={SECTION_DESC}>
         各用途について、あなたの分析の意図を補足できます。空欄のままなら
         システム既定の動作が適用されます。
       </p>
@@ -134,43 +156,76 @@ function PromptRow({
   const inheriting = override === null;
 
   return (
-    <article>
-      <h3>{PURPOSE_LABEL[purpose]}</h3>
-      <p>
+    <article className={PROMPT_CARD}>
+      <div className={PROMPT_CARD_HEADER}>
+        <h3 className={PROMPT_CARD_NAME}>
+          {PURPOSE_LABEL[purpose]}
+          {!inheriting ? (
+            <span className={PROMPT_BADGE}>カスタム適用中</span>
+          ) : null}
+        </h3>
+      </div>
+      <p className={PROMPT_CARD_DESC}>
         {inheriting
           ? "インスタンスデフォルトを使用中"
           : "個別オーバーライドが有効"}
       </p>
-      <details>
-        <summary>デフォルトプロンプト</summary>
-        <pre>{defaultPrompt.text}</pre>
-        <small>
+      <details className={PROMPT_DETAILS}>
+        <summary className={PROMPT_SUMMARY}>デフォルトプロンプト</summary>
+        <pre className={PROMPT_PRE}>{defaultPrompt.text}</pre>
+        <small className={PROMPT_META}>
           想定変数:{" "}
           {defaultPrompt.expectedVariables.length === 0
             ? "（なし）"
             : defaultPrompt.expectedVariables.join(", ")}
         </small>
       </details>
-      <label htmlFor={textId}>あなたの分析の指示（任意）</label>
-      <textarea
-        id={textId}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        maxLength={10_000}
-        disabled={isPending}
-        placeholder={INTENT_PLACEHOLDER}
-      />
-      <button type="button" onClick={save} disabled={isPending}>
-        {isPending ? "保存中..." : "保存"}
-      </button>
-      {!inheriting ? (
-        <button type="button" onClick={clear} disabled={isPending}>
-          デフォルトに戻す
+      <div className={FIELD}>
+        <label htmlFor={textId} className={FIELD_LABEL}>
+          あなたの分析の指示（任意）
+        </label>
+        <textarea
+          id={textId}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={6}
+          maxLength={10_000}
+          disabled={isPending}
+          placeholder={INTENT_PLACEHOLDER}
+          className={PROMPT_TEXTAREA}
+        />
+      </div>
+      <div className={PROMPT_ACTION_ROW}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={isPending}
+          className={BTN_PRIMARY}
+          data-primary=""
+        >
+          {isPending ? "保存中..." : "保存"}
         </button>
+        {!inheriting ? (
+          <button
+            type="button"
+            onClick={clear}
+            disabled={isPending}
+            className={BTN_SECONDARY}
+          >
+            デフォルトに戻す
+          </button>
+        ) : null}
+      </div>
+      {message !== "" ? (
+        <p role="alert" className={FIELD_ERROR}>
+          {message}
+        </p>
       ) : null}
-      {message !== "" ? <p role="alert">{message}</p> : null}
-      {ok ? <p aria-live="polite">保存しました</p> : null}
+      {ok ? (
+        <p aria-live="polite" className={SUCCESS_MSG}>
+          保存しました
+        </p>
+      ) : null}
     </article>
   );
 }

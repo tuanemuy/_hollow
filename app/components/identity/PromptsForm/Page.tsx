@@ -10,7 +10,7 @@ export async function PromptsPage() {
   ]);
   return (
     <main>
-      <h1>プロンプト設定</h1>
+      <h1 className="sr-only">プロンプト設定</h1>
       <PromptsForm defaults={defaults} overrides={prompts} />
     </main>
   );

@@ -6,7 +6,7 @@ export async function AccountDeletePage() {
   const user = await requireCurrentUser();
   return (
     <main>
-      <h1>アカウント削除</h1>
+      <h1 className="sr-only">アカウント削除</h1>
       <AccountDeleteForm user={toUserDTO(user)} />
     </main>
   );

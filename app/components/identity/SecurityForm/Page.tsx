@@ -6,7 +6,7 @@ export async function SecurityPage() {
   const user = await requireCurrentUser();
   return (
     <main>
-      <h1>セキュリティ設定</h1>
+      <h1 className="sr-only">セキュリティ設定</h1>
       <SecurityForm user={toUserDTO(user)} />
     </main>
   );

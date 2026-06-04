@@ -11,6 +11,22 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { BIO_MAX, DISPLAY_NAME_MAX, USERNAME_MAX } from "../schema";
+import {
+  ACTION_ROW,
+  BTN_PRIMARY,
+  CURRENT_VALUE,
+  CURRENT_VALUE_STRONG,
+  FIELD,
+  FIELD_ERROR,
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_TEXTAREA,
+  FORM,
+  SECTION,
+  SECTION_DIVIDER,
+  SECTION_TITLE,
+  SUCCESS_MSG,
+} from "../styles";
 import { changeUsernameFn, updateProfileFn } from "./action";
 
 type FormState = { error: SerializedError | null; ok: boolean };
@@ -79,68 +95,119 @@ export function ProfileForm({ user }: { user: UserDTO }) {
       : "";
 
   return (
-    <section>
-      <h2>プロフィール</h2>
+    <section className={SECTION}>
+      <h2 className={SECTION_TITLE}>プロフィール</h2>
 
-      <form action={profileAction}>
-        <label htmlFor={displayNameId}>表示名</label>
-        <input
-          id={displayNameId}
-          name="displayName"
-          type="text"
-          defaultValue={user.displayName}
-          maxLength={DISPLAY_NAME_MAX}
-          disabled={profilePending}
-          required
-        />
-        {profileFieldErrors?.displayName !== undefined ? (
-          <p role="alert">{profileFieldErrors.displayName[0]}</p>
+      <form action={profileAction} className={FORM}>
+        <div className={FIELD}>
+          <label htmlFor={displayNameId} className={FIELD_LABEL}>
+            表示名
+          </label>
+          <input
+            id={displayNameId}
+            name="displayName"
+            type="text"
+            defaultValue={user.displayName}
+            maxLength={DISPLAY_NAME_MAX}
+            disabled={profilePending}
+            required
+            className={FIELD_INPUT}
+          />
+          {profileFieldErrors?.displayName !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {profileFieldErrors.displayName[0]}
+            </p>
+          ) : null}
+        </div>
+
+        <div className={FIELD}>
+          <label htmlFor={bioId} className={FIELD_LABEL}>
+            自己紹介
+          </label>
+          <textarea
+            id={bioId}
+            name="bio"
+            rows={4}
+            maxLength={BIO_MAX}
+            defaultValue={user.bio ?? ""}
+            disabled={profilePending}
+            className={FIELD_TEXTAREA}
+          />
+          {profileFieldErrors?.bio !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {profileFieldErrors.bio[0]}
+            </p>
+          ) : null}
+        </div>
+
+        <div className={ACTION_ROW}>
+          <button
+            type="submit"
+            disabled={profilePending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
+            {profilePending ? "保存中..." : "保存"}
+          </button>
+        </div>
+        {profileSummary !== "" ? (
+          <p role="alert" className={FIELD_ERROR}>
+            {profileSummary}
+          </p>
         ) : null}
-
-        <label htmlFor={bioId}>自己紹介</label>
-        <textarea
-          id={bioId}
-          name="bio"
-          rows={4}
-          maxLength={BIO_MAX}
-          defaultValue={user.bio ?? ""}
-          disabled={profilePending}
-        />
-        {profileFieldErrors?.bio !== undefined ? (
-          <p role="alert">{profileFieldErrors.bio[0]}</p>
+        {profileState.ok ? (
+          <p aria-live="polite" className={SUCCESS_MSG}>
+            保存しました
+          </p>
         ) : null}
-
-        <button type="submit" disabled={profilePending}>
-          {profilePending ? "保存中..." : "保存"}
-        </button>
-        {profileSummary !== "" ? <p role="alert">{profileSummary}</p> : null}
-        {profileState.ok ? <p aria-live="polite">保存しました</p> : null}
       </form>
 
-      <hr />
+      <hr className={SECTION_DIVIDER} />
 
-      <h2>ユーザー名（URL）</h2>
-      <p>
-        現在: <strong>@{user.username}</strong>
+      <h2 className={SECTION_TITLE}>ユーザー名（URL）</h2>
+      <p className={CURRENT_VALUE}>
+        現在: <strong className={CURRENT_VALUE_STRONG}>@{user.username}</strong>
       </p>
-      <form action={usernameAction}>
-        <label htmlFor={usernameId}>新しいユーザー名</label>
-        <input
-          id={usernameId}
-          name="newUsername"
-          type="text"
-          maxLength={USERNAME_MAX}
-          disabled={usernamePending}
-          required
-        />
-        {usernameFieldErrors !== undefined ? (
-          <p role="alert">{usernameFieldErrors[0]}</p>
+      <form action={usernameAction} className={FORM}>
+        <div className={FIELD}>
+          <label htmlFor={usernameId} className={FIELD_LABEL}>
+            新しいユーザー名
+          </label>
+          <input
+            id={usernameId}
+            name="newUsername"
+            type="text"
+            maxLength={USERNAME_MAX}
+            disabled={usernamePending}
+            required
+            className={FIELD_INPUT}
+          />
+          {usernameFieldErrors !== undefined ? (
+            <p role="alert" className={FIELD_ERROR}>
+              {usernameFieldErrors[0]}
+            </p>
+          ) : null}
+        </div>
+        <div className={ACTION_ROW}>
+          <button
+            type="submit"
+            disabled={usernamePending}
+            className={BTN_PRIMARY}
+            data-primary=""
+          >
+            {usernamePending ? "変更中..." : "ユーザー名を変更"}
+          </button>
+        </div>
+        {usernameSummary !== "" ? (
+          <p role="alert" className={FIELD_ERROR}>
+            {usernameSummary}
+          </p>
         ) : null}
-        <button type="submit" disabled={usernamePending}>
-          {usernamePending ? "変更中..." : "ユーザー名を変更"}
-        </button>
-        {usernameSummary !== "" ? <p role="alert">{usernameSummary}</p> : null}
-        {usernameState.ok ? <p aria-live="polite">変更しました</p> : null}
+        {usernameState.ok ? (
+          <p aria-live="polite" className={SUCCESS_MSG}>
+            変更しました
+          </p>
+        ) : null}
       </form>
     </section>
   );
