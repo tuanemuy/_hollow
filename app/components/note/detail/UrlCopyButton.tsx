@@ -3,14 +3,16 @@
 import { Check, Link2 } from "lucide-react";
 import { useId, useState } from "react";
 import { Icon } from "@/components/common/Icon";
-import { pillBtn } from "@/components/common/styles";
+import { pillBtn, pillBtnIcon } from "@/components/common/styles";
 
 /**
- * Client-side URL copy button.
+ * Client-side URL copy button — a circular icon-only toolbar action (#459).
  *
  * - Uses `navigator.clipboard.writeText`.
- * - Surfaces success / failure via an `aria-live` region next to the
- *   button so screen readers announce the state change.
+ * - Visual feedback is the icon swap (Link2 → Check); the textual
+ *   success / failure message lives in an `sr-only` `aria-live` region so
+ *   screen readers announce the state change without a visible status string
+ *   stretching the icon row.
  *
  * The caller decides which URL string to pass (public share URL vs.
  * internal `/notes/<id>` URL based on visibility).
@@ -27,7 +29,7 @@ type CopyState =
 
 export function UrlCopyButton({
   url,
-  label = "URLコピー",
+  label = "URLをコピー",
 }: UrlCopyButtonProps) {
   const [state, setState] = useState<CopyState>({ kind: "idle" });
   const statusId = useId();
@@ -55,22 +57,19 @@ export function UrlCopyButton({
   };
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex items-center">
       <button
         type="button"
-        className={pillBtn}
+        className={`${pillBtn} ${pillBtnIcon}`}
+        data-icon=""
+        aria-label={label}
+        title={label}
         onClick={onCopy}
         aria-describedby={statusId}
       >
-        <Icon icon={state.kind === "copied" ? Check : Link2} />
-        {label}
+        <Icon icon={state.kind === "copied" ? Check : Link2} size={20} />
       </button>
-      <span
-        id={statusId}
-        className="text-xs text-ink-tertiary min-w-0"
-        role="status"
-        aria-live="polite"
-      >
+      <span id={statusId} className="sr-only" role="status" aria-live="polite">
         {state.kind === "copied"
           ? "URL をコピーしました"
           : state.kind === "error"
