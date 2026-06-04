@@ -114,6 +114,12 @@ function reduceFilters(
         directoryId: undefined,
         referencingNoteId: undefined,
       };
+    default: {
+      // Exhaustiveness guard: a new FilterAction variant breaks the build here
+      // until it is handled above.
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
   }
 }
 
@@ -224,13 +230,16 @@ export function FilterBar({
 
   const clearReferencingNoteId = () => {
     run({ type: "setReferencing", id: undefined }, (prev) =>
-      homeSearchUpdater(prev, { referencingNoteId: undefined }),
+      homeSearchUpdater(prev, {
+        referencingNoteId: undefined,
+        page: undefined,
+      }),
     );
   };
 
   const clearDirectory = () => {
     run({ type: "clearDirectory" }, (prev) =>
-      homeSearchUpdater(prev, { directoryId: undefined }),
+      homeSearchUpdater(prev, { directoryId: undefined, page: undefined }),
     );
   };
 
@@ -680,35 +689,36 @@ function VisibilityPopover({
         )
       }
     >
-      <div className="w-full">
-        {VISIBILITY_OPTIONS.map((option, index) => {
-          const checked =
-            option === "all" ? value === undefined : option === value;
-          return (
-            <button
-              key={option}
-              type="button"
-              role="menuitemradio"
-              aria-checked={checked}
-              tabIndex={index === activeIndex ? 0 : -1}
-              data-active={checked || undefined}
-              onClick={() => onSelect(option)}
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus:bg-surface data-[active]:bg-surface data-[active]:font-medium"
-            >
-              <span
-                aria-hidden="true"
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${visibilitySwatchClass(option)}`}
-              />
-              {visibilityLabel(option)}
-              {checked ? (
-                <span aria-hidden="true" className="ml-auto text-success">
-                  ✓
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      {VISIBILITY_OPTIONS.map((option, index) => {
+        const checked =
+          option === "all" ? value === undefined : option === value;
+        return (
+          // Rendered as a direct child of the `role="menu"` panel — no
+          // wrapper element — so the menu→menuitemradio ownership the WAI-ARIA
+          // Menu pattern requires is not broken by an intervening generic node.
+          <button
+            key={option}
+            type="button"
+            role="menuitemradio"
+            aria-checked={checked}
+            tabIndex={index === activeIndex ? 0 : -1}
+            data-active={checked || undefined}
+            onClick={() => onSelect(option)}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus:bg-surface data-[active]:bg-surface data-[active]:font-medium"
+          >
+            <span
+              aria-hidden="true"
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${visibilitySwatchClass(option)}`}
+            />
+            {visibilityLabel(option)}
+            {checked ? (
+              <span aria-hidden="true" className="ml-auto text-success">
+                ✓
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
     </FilterPopover>
   );
 }

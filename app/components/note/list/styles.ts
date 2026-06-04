@@ -14,6 +14,11 @@ export function visibilityChipClass(v: Visibility): string {
   return `${CHIP_BASE} bg-surface text-ink-tertiary`;
 }
 
+/**
+ * Human label for a visibility value. Accepts the synthetic `"all"` option
+ * used by the FilterBar's 公開状態 popover to represent "no filter / reset"
+ * (#476); the applied-filter chip only ever passes a real `Visibility`.
+ */
 export function visibilityLabel(v: Visibility | "all"): string {
   if (v === "all") return "すべて";
   if (v === "public") return "公開";
@@ -36,8 +41,10 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
 /**
  * FilterBar chip vocabulary (Issue #476 案2). Every applied filter
  * (tag / 期間 / 公開状態 / directory / referencing note) renders with the
- * same "pill chip + ×" language; only the trigger differs. These constants
- * are the single source of truth so the chips stay visually identical.
+ * same "pill chip + ×" language so the chips stay visually identical; only
+ * the trigger differs. The ghost trigger (`filterChipGhost`) is used by 期間 /
+ * 公開状態 only — directory / referencing note have no in-bar trigger and show
+ * just the active chip (ADR-004).
  *
  * - `filterChip`: base pill. `data-[active]` flips it to the dark
  *   (ink / white) applied state, matching the existing tag-toggle look.

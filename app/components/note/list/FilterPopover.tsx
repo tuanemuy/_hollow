@@ -97,7 +97,9 @@ export function FilterPopover({
   // After opening, nudge the panel horizontally so it stays inside the
   // viewport regardless of where the trigger sits in the wrapping filter row.
   // Runs in a layout effect so the correction is applied before paint (no
-  // flicker). `shiftX` resets to 0 on close so the next open re-measures clean.
+  // flicker). The effect runs once per open transition, and `shiftX` is 0 here
+  // (reset on the previous close), so the measured rect is the natural,
+  // unshifted position and the correction is an absolute value.
   useLayoutEffect(() => {
     if (!open) {
       setShiftX(0);
@@ -107,12 +109,12 @@ export function FilterPopover({
     if (el === null) return;
     const rect = el.getBoundingClientRect();
     const vw = window.innerWidth;
-    let dx = 0;
+    let shift = 0;
     if (rect.right > vw - VIEWPORT_MARGIN)
-      dx = vw - VIEWPORT_MARGIN - rect.right;
-    if (rect.left + dx < VIEWPORT_MARGIN) dx = VIEWPORT_MARGIN - rect.left;
-    // `rect` already reflects any prior shift, so accumulate the correction.
-    if (dx !== 0) setShiftX((prev) => prev + dx);
+      shift = vw - VIEWPORT_MARGIN - rect.right;
+    if (rect.left + shift < VIEWPORT_MARGIN)
+      shift = VIEWPORT_MARGIN - rect.left;
+    if (shift !== 0) setShiftX(shift);
   }, [open]);
 
   const panelStyle =

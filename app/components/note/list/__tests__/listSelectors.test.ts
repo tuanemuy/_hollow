@@ -697,6 +697,16 @@ describe("formatDateRangeChipLabel", () => {
   it("returns null when neither bound is set", () => {
     expect(formatDateRangeChipLabel(undefined, undefined)).toBe(null);
   });
+
+  // The URL schema (`z.string().date()`) guarantees a `YYYY-MM-DD` shape, but
+  // pin the defensive fallback so a malformed bound renders verbatim rather
+  // than as a garbage `0/0`.
+  it("passes a malformed bound through unchanged", () => {
+    expect(formatDateRangeChipLabel("not-a-date", "2026-06-30")).toBe(
+      "not-a-date–6/30",
+    );
+    expect(formatDateRangeChipLabel("2026-06", undefined)).toBe("2026-06–…");
+  });
 });
 
 // Issue #476: the 公開状態 popover adds an "all" (解除) option, so the label
