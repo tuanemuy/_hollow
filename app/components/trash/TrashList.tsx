@@ -84,7 +84,7 @@ export async function TrashList({ user, page, limit }: Props) {
                     {note.excerpt}
                   </div>
                 ) : null}
-                <div className="text-[13px] text-ink-tertiary flex items-center gap-2.5 flex-wrap">
+                <div className="text-sm text-ink-tertiary flex items-center gap-2.5 flex-wrap">
                   <span>削除日 {formatDate(note.updatedAt)}</span>
                 </div>
               </div>

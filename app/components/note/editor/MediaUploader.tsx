@@ -119,7 +119,7 @@ export function MediaUploader({
       ) : null}
       {state.kind === "error" ? (
         <div
-          className="text-error text-[13px] mt-2 flex flex-col gap-2"
+          className="text-error text-sm mt-2 flex flex-col gap-2"
           role="alert"
         >
           <p>アップロードに失敗: {displayError(state.error)}</p>

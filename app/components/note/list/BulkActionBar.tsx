@@ -38,7 +38,7 @@ const BULK_ACTIONS =
   "inline-flex items-center gap-1 ml-auto overflow-x-auto flex-nowrap";
 
 const BULK_ACTION =
-  "h-8 px-3 rounded-pill text-white text-[13px] font-medium inline-flex items-center gap-[5px] whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/12 disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:hover:not-disabled:bg-error/60";
+  "h-7 px-3 rounded-pill text-white text-sm font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/12 disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:hover:not-disabled:bg-error/60";
 
 const BULK_DIVIDER = "w-px h-[18px] bg-white/20 mx-1 shrink-0";
 

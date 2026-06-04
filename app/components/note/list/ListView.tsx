@@ -61,10 +61,10 @@ function NoteListRow({
             {note.excerpt}
           </div>
         ) : null}
-        <div className="flex items-center gap-[10px] flex-wrap text-[13px] text-ink-tertiary">
+        <div className="flex items-center gap-[10px] flex-wrap text-sm text-ink-tertiary">
           {note.tagNames.length > 0 ? (
             <>
-              <span className="text-accent text-[13px]">
+              <span className="text-accent text-sm">
                 {note.tagNames.map((name) => `#${name}`).join(" ")}
               </span>
               <span className="text-hairline-strong">·</span>
@@ -75,7 +75,7 @@ function NoteListRow({
           </span>
         </div>
       </div>
-      <div className="text-[13px] text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
+      <div className="text-sm text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
         {updatedAtDisplay}
       </div>
     </li>

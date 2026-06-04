@@ -31,7 +31,7 @@ type Props = {
   onClose: () => void;
 };
 
-const DIALOG_DESCRIPTION = "text-[13px] text-ink-secondary mt-2";
+const DIALOG_DESCRIPTION = "text-sm text-ink-secondary mt-2";
 
 export function MergeTagDialog({
   sourceTagId,
@@ -118,7 +118,7 @@ export function MergeTagDialog({
         ) : null}
         {isPending && sourceNoteCount > 0 ? (
           <div className="mt-3">
-            <span aria-live="polite" className="text-[13px] text-ink-secondary">
+            <span aria-live="polite" className="text-sm text-ink-secondary">
               <strong>{sourceNoteCount} 件のノートを更新中…</strong>
             </span>
             <div

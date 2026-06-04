@@ -82,7 +82,7 @@ export async function NoteHistoryList({
         <h1 className="text-2xl font-regular tracking-tightest leading-tight text-ink">
           履歴
         </h1>
-        <p className="text-[13px] text-ink-secondary mt-2">
+        <p className="text-sm text-ink-secondary mt-2">
           保存ごとに過去版が積み上がります。 全
           <span className="mx-1 tabular-nums">{totalCount}</span>
           件。

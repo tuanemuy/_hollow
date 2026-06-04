@@ -68,7 +68,7 @@ export function TagActions({
             onChange={(e) => setDraft(e.target.value)}
             // biome-ignore lint/a11y/noAutofocus: inline edit field
             autoFocus
-            className="h-[30px] px-2.5 bg-surface border border-transparent rounded-md text-[13px] text-ink outline-none focus:bg-bg focus:border-accent"
+            className="h-7 px-2.5 bg-surface border border-transparent rounded-md text-sm text-ink outline-none focus:bg-bg focus:border-accent"
           />
           <button
             type="button"

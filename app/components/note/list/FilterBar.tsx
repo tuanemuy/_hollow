@@ -9,7 +9,7 @@ import { formatReferencingNoteChipLabel } from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
 
 const CHIP =
-  "inline-flex items-center gap-[5px] h-[30px] px-3 rounded-pill bg-surface text-[13px] text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
+  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-sm text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
 
 const FILTER_LABEL =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
@@ -200,7 +200,7 @@ export function FilterBar({
     optimisticReferencingNoteId !== undefined;
 
   const inputSm =
-    "h-[30px] px-2 rounded-md border border-hairline bg-surface text-[13px] text-ink max-sm:flex-1 max-sm:min-w-0";
+    "h-7 px-2 rounded-md border border-hairline bg-surface text-sm text-ink max-sm:flex-1 max-sm:min-w-0";
 
   const visibleTags = showAllTags ? tags : tags.slice(0, VISIBLE_TAG_LIMIT);
   const hiddenTagCount = tags.length - visibleTags.length;

@@ -63,7 +63,7 @@ type Props = Readonly<{
 }>;
 
 const FRONT_MATTER_SUMMARY =
-  "list-none inline-flex items-center gap-2 cursor-pointer select-none text-[13px] font-medium text-ink-secondary [&::-webkit-details-marker]:hidden";
+  "list-none inline-flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-ink-secondary [&::-webkit-details-marker]:hidden";
 
 const AI_BADGE = "text-[11px] font-normal text-ink-tertiary";
 

@@ -222,12 +222,12 @@ export function NotePickerDialog({
           className={fieldControl}
         />
         {status === "idle" ? (
-          <p className="text-[13px] text-ink-tertiary">{hint}</p>
+          <p className="text-sm text-ink-tertiary">{hint}</p>
         ) : (
           <p
             aria-live="polite"
             aria-busy={status === "loading"}
-            className="text-[13px] text-ink-tertiary"
+            className="text-sm text-ink-tertiary"
             data-status={status}
             {...(status === "error" ? { role: "alert" } : {})}
           >

@@ -203,7 +203,7 @@ export function DirectorySelectField({
         {label}
       </label>
       {selectedRow !== undefined && selectedRow !== null ? (
-        <p className="text-[13px] text-ink" data-selected="">
+        <p className="text-sm text-ink" data-selected="">
           選択中: {selectedRow.primary}
           {selectedRow.secondary !== null ? (
             <span className="text-ink-tertiary">
@@ -249,7 +249,7 @@ export function DirectorySelectField({
       />
       <p
         aria-live="polite"
-        className="text-[13px] text-ink-tertiary"
+        className="text-sm text-ink-tertiary"
         data-empty={filtered.length === 0 || undefined}
       >
         {statusMessage}

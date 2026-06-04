@@ -32,7 +32,7 @@ export const PUBLIC_MAIN =
 export const PUBLIC_FOOTER = "border-t border-hairline pt-7 pb-10 mt-4";
 
 export const PUBLIC_FOOTER_INNER =
-  "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] flex justify-between gap-4 flex-wrap text-[13px] text-ink-tertiary";
+  "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] flex justify-between gap-4 flex-wrap text-sm text-ink-tertiary";
 
 export const PUBLIC_FOOTER_LINKS = "flex gap-4.5 flex-wrap";
 
@@ -53,10 +53,9 @@ export const NOTE_TITLE =
 export const NOTE_SNIPPET =
   "text-sm text-ink-secondary leading-[1.45] overflow-hidden mb-1.5 [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]";
 export const NOTE_META =
-  "text-[13px] text-ink-tertiary flex items-center gap-2.5 flex-wrap";
-export const NOTE_TAGS = "text-accent text-[13px]";
-export const NOTE_DATE =
-  "text-[13px] text-ink-tertiary whitespace-nowrap max-sm:text-xs";
+  "text-sm text-ink-tertiary flex items-center gap-2.5 flex-wrap";
+export const NOTE_TAGS = "text-accent text-sm";
+export const NOTE_DATE = "text-sm text-ink-tertiary whitespace-nowrap";
 export const EMPTY_LIST = "px-3 py-20 text-center text-ink-secondary text-md";
 
 // ===== P30 profile =====
@@ -81,11 +80,11 @@ export const USER_SEARCH_INPUT =
 export const NOTE_DETAIL_WRAP =
   "max-w-[920px] mx-auto px-[var(--container-padding)] pt-8 pb-16";
 export const NOTE_DETAIL_BREADCRUMB =
-  "flex items-center gap-1.5 text-[13px] text-ink-tertiary mb-4 flex-wrap";
+  "flex items-center gap-1.5 text-sm text-ink-tertiary mb-4 flex-wrap";
 export const DOC_TITLE =
   "text-3xl font-normal tracking-tightest leading-tight text-ink mb-4.5 max-w-[var(--content-max)] max-sm:text-[26px]";
 export const NOTE_META_INLINE =
-  "flex items-center gap-2.5 text-[13px] text-ink-tertiary flex-wrap mb-4.5";
+  "flex items-center gap-2.5 text-sm text-ink-tertiary flex-wrap mb-4.5";
 export const PUB_PILL =
   "inline-flex items-center gap-1 px-2 py-0.5 rounded-pill bg-success-surface text-success text-[11px] font-medium";
 export const PUB_PILL_DOT = "w-1.5 h-1.5 rounded-full bg-success";
@@ -137,20 +136,19 @@ export const GATE_TITLE =
 export const GATE_SUB =
   "text-sm text-ink-secondary text-center leading-relaxed mb-6";
 export const GATE_FORM = "flex flex-col gap-3";
-export const GATE_LABEL = "text-[13px] text-ink-secondary font-medium";
+export const GATE_LABEL = "text-sm text-ink-secondary font-medium";
 export const GATE_INPUT =
   "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus:border-accent focus:shadow-focus data-[error]:border-error";
-export const GATE_ERROR =
-  "text-[13px] text-error -mt-1 flex items-center gap-1.5";
+export const GATE_ERROR = "text-sm text-error -mt-1 flex items-center gap-1.5";
 // Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
 // consumer button, else the accent variant never applies and it renders surface.
 export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;
 export const GATE_FOOT =
   "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
 export const LOCKOUT =
-  "bg-warning-surface border border-warning text-warning rounded-md px-3.5 py-2.5 text-[13px] flex items-center gap-2 mb-4.5";
+  "bg-warning-surface border border-warning text-warning rounded-md px-3.5 py-2.5 text-sm flex items-center gap-2 mb-4.5";
 export const SHARE_NOTE_BANNER =
-  "flex items-center gap-2 px-3.5 py-2.5 bg-warning-surface text-warning rounded-md text-[13px] mb-6";
+  "flex items-center gap-2 px-3.5 py-2.5 bg-warning-surface text-warning rounded-md text-sm mb-6";
 
 // ===== P34 error =====
 export const ERR_PAGE =
