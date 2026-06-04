@@ -96,8 +96,6 @@ export function NoteActions({
   const [open, setOpen] = useState<OpenDialog>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const noteIdStr = noteId;
-
   // For visibility public/unlisted prefer the share URL when available;
   // private always falls back to the internal `/notes/<id>` URL. The
   // origin is resolved at click time so SSR doesn't pre-bake `location`.
@@ -106,13 +104,13 @@ export function NoteActions({
     publicShareUrl !== null
       ? publicShareUrl
       : typeof location === "undefined"
-        ? `/notes/${noteIdStr}`
-        : `${location.origin}/notes/${noteIdStr}`;
+        ? `/notes/${noteId}`
+        : `${location.origin}/notes/${noteId}`;
 
   const runDelete = () => {
     startTransition(async () => {
       try {
-        await remove({ data: { noteId: noteIdStr } });
+        await remove({ data: { noteId } });
         await router.navigate({ to: "/", search: HOME_SEARCH });
       } catch (e) {
         setError(extractSerializedError(e));
@@ -123,7 +121,7 @@ export function NoteActions({
   const onDuplicate = () => {
     startTransition(async () => {
       try {
-        const result = await duplicate({ data: { noteId: noteIdStr } });
+        const result = await duplicate({ data: { noteId } });
         await router.navigate({
           to: "/notes/$noteId/edit",
           params: { noteId: result.noteId },
@@ -137,7 +135,7 @@ export function NoteActions({
   const onHistory = () => {
     router.navigate({
       to: "/notes/$noteId/history",
-      params: { noteId: noteIdStr },
+      params: { noteId },
       search: NOTE_HISTORY_SEARCH,
     });
   };
@@ -163,7 +161,7 @@ export function NoteActions({
       <div className={MENU} role="toolbar" aria-label="ノート操作">
         <Link
           to="/notes/$noteId/edit"
-          params={{ noteId: noteIdStr }}
+          params={{ noteId }}
           data-icon=""
           data-primary
           aria-label="編集"
@@ -200,7 +198,7 @@ export function NoteActions({
         <UrlCopyButton url={copyUrl} />
         <Link
           to="/notes/$noteId/export"
-          params={{ noteId: noteIdStr }}
+          params={{ noteId }}
           data-icon=""
           aria-label="エクスポート"
           title="エクスポート"
@@ -221,7 +219,7 @@ export function NoteActions({
         ) : null}
       </div>
       <MoveNoteDialog
-        noteIds={[noteIdStr]}
+        noteIds={[noteId]}
         open={open === "move"}
         onClose={() => setOpen(null)}
         tree={tree}
@@ -229,7 +227,7 @@ export function NoteActions({
       <PublishSettings
         open={open === "publish"}
         onClose={() => setOpen(null)}
-        noteId={noteIdStr}
+        noteId={noteId}
         appUrl={appUrl}
         initial={publishState}
       />

@@ -59,7 +59,6 @@ export function NoteMetaPanel({
   backlinkCount,
   sourceFile,
 }: NoteMetaPanelProps) {
-  const noteIdStr = noteId;
   // The `/media/<id>` links below are rendered ONLY as UI controls. They
   // must never be injected into the note body HTML — `MEDIA_ID_FROM_URL`
   // would then fold the source file into `mediaRefs` / refCount and the
@@ -96,7 +95,7 @@ export function NoteMetaPanel({
         )}
         <Link
           to="/"
-          search={{ ...HOME_SEARCH, referencingNoteId: noteIdStr }}
+          search={{ ...HOME_SEARCH, referencingNoteId: noteId }}
           className="inline-block mt-3 text-accent text-xs hover:underline"
         >
           このノートを参照しているノート一覧を見る（{backlinkCount} 件）

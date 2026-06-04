@@ -37,8 +37,6 @@ export type NoteDetailProps = Readonly<{
 }>;
 
 export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
-  const noteIdStr = noteId;
-
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
   let publishState: Awaited<ReturnType<typeof loadPublishStateForNote>>;
   let tree: Awaited<ReturnType<typeof loadDirectoryTreeFlat>>;
@@ -54,7 +52,7 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
       // hitting the error boundary; re-throw anything else.
       loadPublishStateForNote({
         actorUserId: user.id,
-        noteId: noteIdStr,
+        noteId,
       }).catch((e): Awaited<ReturnType<typeof loadPublishStateForNote>> => {
         if (isBusinessRuleError(e) && e.code === NoteErrorCode.Trashed) {
           return { visibility: "private", publishedAt: null, links: [] };

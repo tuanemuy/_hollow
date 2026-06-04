@@ -40,19 +40,17 @@ export function NoteRevisionRestorePanel({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const noteIdStr = noteId;
-  const revisionIdStr = revisionId;
   const trashed = noteStatus === "trashed";
 
   const runRestore = () => {
     startTransition(async () => {
       try {
         await restore({
-          data: { noteId: noteIdStr, revisionId: revisionIdStr },
+          data: { noteId, revisionId },
         });
         await router.navigate({
           to: "/notes/$noteId",
-          params: { noteId: noteIdStr },
+          params: { noteId },
         });
       } catch (e) {
         setError(extractSerializedError(e));
@@ -64,7 +62,7 @@ export function NoteRevisionRestorePanel({
     <div className="mt-4 mb-6 flex flex-wrap gap-2 items-center">
       <Link
         to="/notes/$noteId/history"
-        params={{ noteId: noteIdStr }}
+        params={{ noteId }}
         search={NOTE_HISTORY_SEARCH}
         className={pillBtn}
       >

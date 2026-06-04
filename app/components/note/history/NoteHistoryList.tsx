@@ -30,7 +30,6 @@ export async function NoteHistoryList({
   page,
   limit,
 }: NoteHistoryListProps) {
-  const noteIdStr = noteId;
   const offset = (page - 1) * limit;
 
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
@@ -74,7 +73,7 @@ export async function NoteHistoryList({
     <article className="max-w-[760px] mx-auto">
       <header className="mb-6">
         <p className="text-sm text-ink-secondary mb-2">
-          <Link to="/notes/$noteId" params={{ noteId: noteIdStr }}>
+          <Link to="/notes/$noteId" params={{ noteId }}>
             {note.title}
           </Link>
         </p>
@@ -114,7 +113,7 @@ export async function NoteHistoryList({
               <Link
                 to="/notes/$noteId/history/$revisionId"
                 params={{
-                  noteId: noteIdStr,
+                  noteId,
                   revisionId: rev.id,
                 }}
                 className={pillBtn}
@@ -134,7 +133,7 @@ export async function NoteHistoryList({
           {page > 1 ? (
             <Link
               to="/notes/$noteId/history"
-              params={{ noteId: noteIdStr }}
+              params={{ noteId }}
               search={historyNavSearch(page - 1, limit)}
               className={pillBtn}
             >
@@ -149,7 +148,7 @@ export async function NoteHistoryList({
           {page < totalPages ? (
             <Link
               to="/notes/$noteId/history"
-              params={{ noteId: noteIdStr }}
+              params={{ noteId }}
               search={historyNavSearch(page + 1, limit)}
               className={pillBtn}
             >
@@ -162,7 +161,7 @@ export async function NoteHistoryList({
       ) : null}
 
       <div className="mt-8">
-        <Link to="/notes/$noteId" params={{ noteId: noteIdStr }}>
+        <Link to="/notes/$noteId" params={{ noteId }}>
           ← ノートに戻る
         </Link>
       </div>
