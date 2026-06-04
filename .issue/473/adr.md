@@ -56,7 +56,7 @@ DTO ブランド（`UserId`, `NoteId` 等）は domain ブランド（同名の�
 
 - 良い点: domain ブランドの誤削除という最大リスクを構造的に排除できる。
 - トレードオフ: 単純な sed 一括置換ではなく import 文脈を見た置換が必要。typecheck を段階的に回して安全性を担保する。
-- 残課題: export スライスは id 入力契約が DTO（`retryExportJob`）と domain（`getExportJob` 等）で不統一。この不整合の統一は本 Issue のスコープ外（別 Issue 候補）。
+- 残課題: export スライスは id 入力契約が DTO（`retryExportJob`）と domain（`getExportJob` 等）で不統一。この不整合の統一は本 Issue のスコープ外として #482 に起票済み。
 
 ---
 
