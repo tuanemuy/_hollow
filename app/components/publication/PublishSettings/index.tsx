@@ -95,6 +95,15 @@ export function PublishSettings({
 
   const titleId = useId();
 
+  // Dialog unmounts only its own children; this component stays mounted under
+  // NoteActions, so reset transient state when the modal closes — otherwise the
+  // one-time issued URL banner and the optimistic visibility leak across opens.
+  useEffect(() => {
+    if (open) return;
+    setIssuedToken(null);
+    setVisibility(data.visibility);
+  }, [open, data.visibility]);
+
   const [visibilityState, visibilityAction, visibilityPending] = useActionState<
     FormState,
     FormData

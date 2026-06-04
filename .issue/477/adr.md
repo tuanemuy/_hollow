@@ -73,3 +73,20 @@ Accepted
 - トレードオフ: 子 → 親のコールバック 1 段が増える。`useCallback` で関数 ID を固定し effect の再実行を抑えている。
 
 ---
+
+## ADR-005: `PublishSettings` の transient state は close 時に明示リセットする
+
+### Status
+Accepted
+
+### Context
+plan / ADR-001〜004 は「`Dialog` が unmount するので再オープン時に state が再初期化される」を暗黙の前提にしていた。しかし `Dialog`（`app/components/common/Dialog.tsx`）が `!open` で unmount するのは `DialogInner` と children のみで、state（`visibility` / `issuedToken` / `pendingRows`）を持つ `PublishSettings` 本体は `NoteActions` 配下で常時マウントされたままだった。このため発行直後URLバナーが再オープン後も残存し（FE-W-001）、外部（一覧の BulkVisibilityDialog 等）由来の visibility 変更が再フェッチされてもモーダルのラジオに追従しなかった（FE-W-002）。
+
+### Decision
+`open` が false に遷移したら `issuedToken` を null・`visibility` を `data.visibility` に戻す `useEffect` を追加する。`!open` ガードによりモーダルが開いている間の `data.visibility` 変更で内部の楽観 state を上書きせず、閉じている間の変更は次回オープンでサーバー最新状態として反映される。
+
+### Consequences
+- 良い点: 「一度だけ表示」ラベルと実挙動が一致し、外部 visibility 変更にも追従する。
+- トレードオフ: 常時マウントゆえ僅かなマウントコストは残るが、`Dialog` の Portal / focus 制御は open 時のみ作動するため実害はない。
+
+---

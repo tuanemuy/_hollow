@@ -104,8 +104,13 @@ describe("NoteActions icon-only buttons (Issue #382)", () => {
 describe("NoteActions 公開設定 dialog (Issue #477)", () => {
   it("renders 公開設定 as a button (not a link) that opens the dialog on click", () => {
     renderActions();
+    // Anchor on the pill's stable SR affordance (`<span class="sr-only">公開状態:
+    // </span>`) rather than the volatile `visibilityLabel` text, so renaming a
+    // label or adding another "非公開"-bearing button cannot misidentify it.
     const pill = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes("非公開"),
+      Array.from(b.querySelectorAll("span.sr-only")).some((s) =>
+        s.textContent?.includes("公開状態:"),
+      ),
     );
     expect(pill).not.toBeUndefined();
     expect(pill?.tagName).toBe("BUTTON");
