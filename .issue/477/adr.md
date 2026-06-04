@@ -85,8 +85,12 @@ plan / ADR-001〜004 は「`Dialog` が unmount するので再オープン時�
 ### Decision
 `open` が false に遷移したら `issuedToken` を null・`visibility` を `data.visibility` に戻す `useEffect` を追加する。`!open` ガードによりモーダルが開いている間の `data.visibility` 変更で内部の楽観 state を上書きせず、閉じている間の変更は次回オープンでサーバー最新状態として反映される。
 
+加えて、フォームエラー（visibility 更新・リンク発行）も同じ close 時リセットの対象に含める（FE-W-003 / review-002）。ただし `useActionState` の state はプログラム的に reset する手段がない（setter が公開されていない）ため、エラーを `useActionState` の reducer 戻り値で保持し続けると close→reopen 直後に前回のエラーが `role="alert"` で再表示されてしまう。これを回避するため、フォームエラーは `useActionState` の戻り値ではなく専用の `useState<SerializedError | null>`（`visibilityError` / `issueError`）で保持し、reducer 内では成功時に `setXxxError(null)`・失敗時に `setXxxError(extractSerializedError(e))` を呼ぶ。`useActionState` の reducer 戻り値（`FormState`）は使わないため `void` に簡略化し、reducer は pending 追跡（第3戻り値）のためだけに使う。close 時リセット effect で `issuedToken`/`visibility` と一緒に `visibilityError`/`issueError` も null に戻す。
+
+`ShareLinkRow` のエラーは元から行ローカルの `useState` で保持されており、行は失効/操作で unmount され得るため close 時リセットの対象外で問題ない（現状維持）。
+
 ### Consequences
-- 良い点: 「一度だけ表示」ラベルと実挙動が一致し、外部 visibility 変更にも追従する。
-- トレードオフ: 常時マウントゆえ僅かなマウントコストは残るが、`Dialog` の Portal / focus 制御は open 時のみ作動するため実害はない。
+- 良い点: 「一度だけ表示」ラベルと実挙動が一致し、外部 visibility 変更にも追従する。フォームエラーも close で確実に消え、「閉じればリセット」の意図がエラー挙動を含めて一貫する。
+- トレードオフ: 常時マウントゆえ僅かなマウントコストは残るが、`Dialog` の Portal / focus 制御は open 時のみ作動するため実害はない。pending は引き続き `useActionState` 由来、エラーは `useState` 由来と取得元が分かれるが、`useActionState` が reset 不可という制約への回避策として割り切る。
 
 ---

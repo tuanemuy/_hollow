@@ -68,8 +68,11 @@ type Props = {
   }>;
 };
 
-type FormState = { error: SerializedError | null; ok: boolean };
-const initial: FormState = { error: null, ok: false };
+// `useActionState` state is reset-proof (no programmatic setter), so form
+// errors are kept in dedicated `useState` that the close-time effect can null
+// out (see ADR-005). The reducer state is unused — it only drives the pending
+// flag (third tuple element).
+type FormState = void;
 
 export function PublishSettings({
   open,
@@ -84,6 +87,9 @@ export function PublishSettings({
 
   const [visibility, setVisibility] = useState<Visibility>(data.visibility);
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [visibilityError, setVisibilityError] =
+    useState<SerializedError | null>(null);
+  const [issueError, setIssueError] = useState<SerializedError | null>(null);
 
   // Each ShareLinkRow owns a local `useTransition` pending; we lift those into
   // a counter so the dialog stays non-closable while any row mutation is in
@@ -102,46 +108,47 @@ export function PublishSettings({
     if (open) return;
     setIssuedToken(null);
     setVisibility(data.visibility);
+    setVisibilityError(null);
+    setIssueError(null);
   }, [open, data.visibility]);
 
-  const [visibilityState, visibilityAction, visibilityPending] = useActionState<
+  const [, visibilityAction, visibilityPending] = useActionState<
     FormState,
     FormData
   >(async (_prev, formData) => {
     const next = String(formData.get("nextVisibility") ?? "") as Visibility;
     if (next !== "private" && next !== "unlisted" && next !== "public") {
-      return { error: null, ok: false };
+      return;
     }
     try {
       await changeVisibility({ data: { noteId, nextVisibility: next } });
       setVisibility(next);
+      setVisibilityError(null);
       await routerInvalidate(router);
-      return { error: null, ok: true };
     } catch (e) {
-      return { error: extractSerializedError(e), ok: false };
+      setVisibilityError(extractSerializedError(e));
     }
-  }, initial);
+  }, undefined);
 
-  const [issueState, issueAction, issuePending] = useActionState<
-    FormState,
-    FormData
-  >(async (_prev, formData) => {
-    const passwordRaw = String(formData.get("password") ?? "");
-    const password = passwordRaw.length === 0 ? null : passwordRaw;
-    try {
-      const result = await issueLink({ data: { noteId, password } });
-      setIssuedToken(result.urlToken);
-      await routerInvalidate(router);
-      return { error: null, ok: true };
-    } catch (e) {
-      return { error: extractSerializedError(e), ok: false };
-    }
-  }, initial);
+  const [, issueAction, issuePending] = useActionState<FormState, FormData>(
+    async (_prev, formData) => {
+      const passwordRaw = String(formData.get("password") ?? "");
+      const password = passwordRaw.length === 0 ? null : passwordRaw;
+      try {
+        const result = await issueLink({ data: { noteId, password } });
+        setIssuedToken(result.urlToken);
+        setIssueError(null);
+        await routerInvalidate(router);
+      } catch (e) {
+        setIssueError(extractSerializedError(e));
+      }
+    },
+    undefined,
+  );
 
   const visibilitySummary =
-    visibilityState.error !== null ? displayError(visibilityState.error) : "";
-  const issueSummary =
-    issueState.error !== null ? displayError(issueState.error) : "";
+    visibilityError !== null ? displayError(visibilityError) : "";
+  const issueSummary = issueError !== null ? displayError(issueError) : "";
   const issuedUrl =
     issuedToken === null
       ? null
