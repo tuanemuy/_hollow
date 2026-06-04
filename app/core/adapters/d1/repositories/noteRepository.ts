@@ -191,6 +191,7 @@ export class D1NoteRepository implements NoteRepository {
           displayText: link.displayText,
         })),
         mediaRefs: mediaIds,
+        sourceFileId: row.sourceFileId,
         status: row.status,
         trashedAt:
           row.trashedAt === null
@@ -1179,6 +1180,7 @@ export class D1NoteRepository implements NoteRepository {
       frontMatterJson: JSON.stringify(note.frontMatter),
       status: note.status,
       trashedAt: note.trashedAt === null ? null : note.trashedAt.toISOString(),
+      sourceFileId: note.sourceFileId,
       createdAt: note.createdAt.toISOString(),
       updatedAt: note.updatedAt.toISOString(),
       editLockUserId: note.editLock?.userId ?? null,
@@ -1197,6 +1199,7 @@ export class D1NoteRepository implements NoteRepository {
       frontMatterJson: JSON.stringify(note.frontMatter),
       status: note.status,
       trashedAt: note.trashedAt === null ? null : note.trashedAt.toISOString(),
+      sourceFileId: note.sourceFileId,
       updatedAt: note.updatedAt.toISOString(),
       editLockUserId: note.editLock?.userId ?? null,
       editLockAcquiredAt: note.editLock?.acquiredAt.toISOString() ?? null,

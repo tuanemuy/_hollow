@@ -15,6 +15,10 @@ export type DownloadMediaInput = Readonly<{
   mediaId: MediaAssetId;
   viaShareLinkId: ShareLinkId | null;
   relatedNoteId: NoteId | null;
+  // When `true`, presign the URL with an `attachment` content-disposition
+  // so the browser saves the object under its original file name instead
+  // of rendering it inline. Defaults to inline (preview) behaviour.
+  download?: boolean;
 }>;
 
 export type DownloadMediaOutput = Readonly<{
@@ -70,8 +74,14 @@ export async function downloadMedia({
     hasShareLink: input.viaShareLinkId !== null,
   });
 
+  const downloadFileName =
+    input.download === true ? (asset.originalFileName ?? asset.id) : undefined;
   const redirectUrl = await safePresign(() =>
-    container.objectStorage.presignDownload(asset.storageKey, DOWNLOAD_TTL_SEC),
+    container.objectStorage.presignDownload(
+      asset.storageKey,
+      DOWNLOAD_TTL_SEC,
+      downloadFileName === undefined ? undefined : { downloadFileName },
+    ),
   );
 
   return { redirectUrl };

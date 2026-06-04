@@ -1,7 +1,14 @@
 import { DirectoryService } from "@/core/domain/directory/service";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
-import { ForbiddenError, NotFoundError } from "../errors";
+import type { MediaAssetId } from "../dto/identity";
+import type { NoteSourceFileDTO } from "../dto/note";
+import {
+  ForbiddenError,
+  NotFoundError,
+  SystemError,
+  SystemErrorCode,
+} from "../errors";
 import type { ServiceArgs } from "../types";
 import type { BacklinkDTO, NoteDTO } from "./view";
 import { buildBacklinkSnippet, toBacklink, toNoteView } from "./view";
@@ -12,7 +19,7 @@ export type GetNoteDetailInput = Readonly<{
 }>;
 
 export type GetNoteDetailOutput = Readonly<{
-  note: NoteDTO;
+  note: NoteDTO & { sourceFile: NoteSourceFileDTO | null };
   backlinks: readonly BacklinkDTO[];
   backlinkCount: number;
   directoryPath: string;
@@ -56,6 +63,30 @@ export async function getNoteDetail({
         referencingNoteId: found.entity.id,
       }),
     ]);
+    // Source-file projection: one confirmed read inside the existing UoW
+    // (Issue #452). `sourceFile` is synthesised locally and merged onto
+    // the note DTO so `toNoteView` / `toNoteDTO` keep their signatures.
+    // A bound sourceFileId always resolves to a source asset (the FK is
+    // ON DELETE SET NULL, so it clears rather than dangles) carrying the
+    // filename captured at ingestion upload — a miss on either is drifted
+    // persistence, not a "no source file" case, so fail loud.
+    let sourceFile: NoteSourceFileDTO | null = null;
+    if (found.entity.sourceFileId !== null) {
+      const asset = await ctx.mediaAssetRepository.findById(
+        found.entity.sourceFileId,
+      );
+      if (asset === null || asset.originalFileName === null) {
+        throw new SystemError(
+          SystemErrorCode.DataIntegrityError,
+          `Source media for note ${found.entity.id} is missing or has no filename`,
+        );
+      }
+      sourceFile = {
+        mediaId: asset.id as unknown as MediaAssetId,
+        originalFileName: asset.originalFileName as unknown as string,
+      };
+    }
+
     const dir = await ctx.directoryRepository.findById(
       found.entity.directoryId,
     );
@@ -74,7 +105,7 @@ export async function getNoteDetail({
         }))
       : [];
     return {
-      note: toNoteView(found.entity),
+      note: { ...toNoteView(found.entity), sourceFile },
       backlinks: referrers.map((referrer) =>
         toBacklink(referrer, {
           snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),

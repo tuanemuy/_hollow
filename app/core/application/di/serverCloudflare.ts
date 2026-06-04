@@ -397,7 +397,11 @@ function createUnavailableObjectStorage(): ObjectStorage {
     delete: async (_key: string): Promise<void> => {
       throw new StorageUnavailableError("object_storage_not_configured");
     },
-    presignDownload: async (_key: string, _ttlSec: number): Promise<URL> => {
+    presignDownload: async (
+      _key: string,
+      _ttlSec: number,
+      _options?: { downloadFileName?: string },
+    ): Promise<URL> => {
       throw new StorageUnavailableError("object_storage_not_configured");
     },
     presignUpload: async (

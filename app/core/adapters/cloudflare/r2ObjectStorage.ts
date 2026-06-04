@@ -123,8 +123,18 @@ export class R2ObjectStorage implements ObjectStorage {
     }
   }
 
-  presignDownload(key: string, ttlSec: number): Promise<URL> {
-    return this.presign("GET", key, ttlSec, undefined);
+  presignDownload(
+    key: string,
+    ttlSec: number,
+    options?: { downloadFileName?: string },
+  ): Promise<URL> {
+    return this.presign(
+      "GET",
+      key,
+      ttlSec,
+      undefined,
+      options?.downloadFileName,
+    );
   }
 
   presignUpload(
@@ -132,7 +142,7 @@ export class R2ObjectStorage implements ObjectStorage {
     contentType: string,
     ttlSec: number,
   ): Promise<URL> {
-    return this.presign("PUT", key, ttlSec, contentType);
+    return this.presign("PUT", key, ttlSec, contentType, undefined);
   }
 
   // ---- SigV4 query-string signing -----------------------------------
@@ -151,6 +161,7 @@ export class R2ObjectStorage implements ObjectStorage {
     key: string,
     ttlSec: number,
     contentType: string | undefined,
+    downloadFileName: string | undefined,
   ): Promise<URL> {
     if (!Number.isFinite(ttlSec) || ttlSec <= 0 || ttlSec > 7 * 86_400) {
       throw new StorageUnavailableError(
@@ -186,6 +197,19 @@ export class R2ObjectStorage implements ObjectStorage {
         ["X-Amz-Expires", String(Math.floor(ttlSec))],
         ["X-Amz-SignedHeaders", signedHeaders],
       ];
+      // `response-content-disposition` overrides the served disposition
+      // for this presigned GET. It is a SigV4-signed query parameter, so
+      // it MUST be pushed onto `queryParams` BEFORE the canonical string
+      // is built and signed. Appending it to the URL after signing would
+      // fall outside the signature coverage and R2 returns 403
+      // `SignatureDoesNotMatch` (Issue #452 ADR-003). `encodeRfc3986`
+      // below makes `;`, spaces and `"` safe.
+      if (method === "GET" && downloadFileName !== undefined) {
+        queryParams.push([
+          "response-content-disposition",
+          buildAttachmentDisposition(downloadFileName),
+        ]);
+      }
       const canonicalQueryString = queryParams
         .map(([k, v]) => `${encodeRfc3986(k)}=${encodeRfc3986(v)}`)
         .sort()
@@ -247,6 +271,26 @@ function encodeRfc3986(value: string): string {
     /[!*'()]/g,
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
   );
+}
+
+// Build a `Content-Disposition: attachment` value with both an ASCII
+// `filename` fallback (RFC 6266) and an RFC 5987 `filename*=UTF-8''`
+// form so non-ASCII names survive. `OriginalFileName` admits arbitrary
+// printable text (incl. quotes / non-ASCII), so the ASCII fallback
+// strips control / quote / path-separator bytes to keep the quoted token
+// well-formed, while `filename*` carries the exact UTF-8 name. The whole
+// string is later percent-encoded by `encodeRfc3986` for the query
+// parameter, so it stays a single signed token.
+export function buildAttachmentDisposition(fileName: string): string {
+  const asciiFallback =
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: strip C0 controls from the quoted token
+    fileName.replace(/[ -"\\/]/g, "_").replace(/[^\x20-\x7e]/g, "_") ||
+    "download";
+  const rfc5987 = encodeURIComponent(fileName).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${rfc5987}`;
 }
 
 // S3 keys are percent-encoded segment-wise but `/` is preserved as a

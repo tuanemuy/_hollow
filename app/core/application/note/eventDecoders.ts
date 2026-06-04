@@ -77,6 +77,10 @@ const notePurgedSchema = z
     // generic label.
     title: z.string().optional(),
     mediaRefs: mediaIdArraySchema,
+    // `sourceFileId` is optional for backward compatibility: events
+    // enqueued before Issue #452 do not carry it. Missing decodes to
+    // `null` (no bound source file to reclaim).
+    sourceFileId: z.string().nullable().optional(),
   })
   .strict();
 
@@ -147,6 +151,10 @@ export const noteEventDecoders: NoteEventDecoders = {
     ownerId: UserId.create(p.ownerId),
     title: (p.title ?? "") as NoteTitle,
     mediaRefs: p.mediaRefs.map((id) => MediaAssetId.create(id)),
+    sourceFileId:
+      p.sourceFileId === null || p.sourceFileId === undefined
+        ? null
+        : MediaAssetId.create(p.sourceFileId),
   })),
   "note.tags_replaced": buildEventDecoder(
     "note.tags_replaced",

@@ -63,6 +63,17 @@ export type BacklinkDTO = Readonly<{
 }>;
 
 /**
+ * Projection of a note's persistent source file (the ingested original)
+ * for the detail panel's 元ファイル section. The whole `sourceFile` is
+ * `null` on notes without an ingestion source; when present, a source
+ * file always carries the filename captured at ingestion upload.
+ */
+export type NoteSourceFileDTO = Readonly<{
+  mediaId: MediaAssetId;
+  originalFileName: string;
+}>;
+
+/**
  * List-projection of a `NoteRevision`. Drops the body to keep the listing
  * payload small — the detail page fetches the full revision separately
  * via `GetNoteRevision`.

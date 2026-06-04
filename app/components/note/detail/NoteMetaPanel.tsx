@@ -1,6 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
-import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
+import type {
+  BacklinkDTO,
+  NoteId,
+  NoteSourceFileDTO,
+} from "@/core/application/dto/note";
 
 /**
  * Pure presentational panel for the *lower* note metadata region (P11).
@@ -21,6 +25,7 @@ export type NoteMetaPanelProps = Readonly<{
   status: "active" | "trashed";
   backlinks: readonly BacklinkDTO[];
   backlinkCount: number;
+  sourceFile: NoteSourceFileDTO | null;
 }>;
 
 function formatDate(iso: string): string {
@@ -53,8 +58,17 @@ export function NoteMetaPanel({
   status,
   backlinks,
   backlinkCount,
+  sourceFile,
 }: NoteMetaPanelProps) {
   const noteIdStr = noteId as unknown as string;
+  // The `/media/<id>` links below are rendered ONLY as UI controls. They
+  // must never be injected into the note body HTML — `MEDIA_ID_FROM_URL`
+  // would then fold the source file into `mediaRefs` / refCount and the
+  // orphan purge could delete an in-use asset (Issue #452 ADR-002).
+  const sourceMediaId =
+    sourceFile === null ? null : (sourceFile.mediaId as unknown as string);
+  const sourceFileLabel =
+    sourceFile === null ? null : sourceFile.originalFileName;
 
   return (
     <>
@@ -124,6 +138,30 @@ export function NoteMetaPanel({
               )}
             </dd>
           </div>
+          {sourceFile !== null && sourceMediaId !== null ? (
+            <div className={META_ROW}>
+              <dt className={META_KEY}>元ファイル</dt>
+              <dd className={META_VAL}>
+                <span className="[overflow-wrap:anywhere]">
+                  {sourceFileLabel}
+                </span>
+                <a
+                  href={`/media/${sourceMediaId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent text-xs hover:underline"
+                >
+                  閲覧
+                </a>
+                <a
+                  href={`/media/${sourceMediaId}?download=1`}
+                  className="text-accent text-xs hover:underline"
+                >
+                  ダウンロード
+                </a>
+              </dd>
+            </div>
+          ) : null}
           {status === "trashed" ? (
             <div className={META_ROW}>
               <dt className={META_KEY}>状態</dt>

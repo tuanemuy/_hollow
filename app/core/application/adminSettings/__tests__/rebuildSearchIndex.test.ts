@@ -90,6 +90,7 @@ function fakeNote(params: {
     tagIds: params.tagIds ?? [],
     internalLinkRefs: [],
     mediaRefs: [],
+    sourceFileId: null,
     status: "active",
     trashedAt: null,
     editLock: null,

@@ -77,6 +77,10 @@ export type NotePurgedEvent = DomainEventBase<
     // broken-condition banner (Issue #405 ADR-A).
     title: NoteTitle;
     mediaRefs: readonly MediaAssetId[];
+    // Persistent source file bound to the purged note, if any. The media
+    // purge handler decrements its refCount to orphan the blob so the
+    // standard purge worker reclaims it (Issue #452 ADR-005).
+    sourceFileId: MediaAssetId | null;
   }>
 >;
 
@@ -231,6 +235,7 @@ export const NoteEvents = {
       ownerId: UserId;
       title: NoteTitle;
       mediaRefs: readonly MediaAssetId[];
+      sourceFileId: MediaAssetId | null;
     },
     occurredAt: Date,
   ): EventDraft<NotePurgedEvent> => ({
@@ -240,6 +245,7 @@ export const NoteEvents = {
       ownerId: params.ownerId,
       title: params.title,
       mediaRefs: params.mediaRefs,
+      sourceFileId: params.sourceFileId,
     },
     occurredAt,
     aggregateId: params.noteId,

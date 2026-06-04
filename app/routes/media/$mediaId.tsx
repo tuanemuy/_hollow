@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { validateMediaSearch } from "@/components/media/mediaSearch";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -20,7 +21,14 @@ import { validateInput } from "@/core/presentation/validator";
  */
 const resolveMediaRedirect = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
-  .inputValidator(validateInput(z.object({ mediaId: z.string().min(1) })))
+  .inputValidator(
+    validateInput(
+      z.object({
+        mediaId: z.string().min(1),
+        download: z.boolean().optional(),
+      }),
+    ),
+  )
   .handler(async ({ data }) => {
     const { getCurrentUser } = await import("@/lib/server/currentUser");
     const viewer = await getCurrentUser();
@@ -34,14 +42,19 @@ const resolveMediaRedirect = createServerFn({ method: "GET" })
         mediaId: data.mediaId as MediaAssetId,
         viaShareLinkId: null,
         relatedNoteId: null,
+        download: data.download === true,
       },
     });
     throw redirect({ href: result.redirectUrl.toString(), statusCode: 302 });
   });
 
 export const Route = createFileRoute("/media/$mediaId")({
-  loader: ({ params }) =>
-    resolveMediaRedirect({ data: { mediaId: params.mediaId } }),
+  validateSearch: validateMediaSearch,
+  loaderDeps: ({ search }) => ({ download: search.download }),
+  loader: ({ params, deps }) =>
+    resolveMediaRedirect({
+      data: { mediaId: params.mediaId, download: deps.download },
+    }),
   component: MediaRedirectPlaceholder,
   errorComponent: ({ error }) => (
     <div role="alert">

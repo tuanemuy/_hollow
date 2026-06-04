@@ -187,7 +187,7 @@
 
 ### 処理フロー
 1. Note 取得、所有者確認、`status === 'trashed'`
-2. UoW: `NoteRepository.purge(id)`、Outbox `note.purged`（Media が refCount を減算）
+2. UoW: `NoteRepository.purge(id)`、Outbox `note.purged`（`mediaRefs` と `sourceFileId` を含む。Media が `mediaRefs` の refCount 減算と、`sourceFileId` の orphan 化を行う — Issue #452）
 3. **`note_revisions` は `ON DELETE CASCADE` で物理削除される** — 履歴は別途消す必要なし（Issue #158）
 
 ### エラーケース

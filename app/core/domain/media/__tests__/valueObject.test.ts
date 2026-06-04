@@ -44,7 +44,12 @@ describe("MediaAssetId", () => {
 });
 
 describe("MediaKind", () => {
-  it.each(["image", "video", "avatar"] as const)("accepts %s", (k) => {
+  it.each([
+    "image",
+    "video",
+    "avatar",
+    "source",
+  ] as const)("accepts %s", (k) => {
     expect(MediaKind.create(k)).toBe(k);
   });
 

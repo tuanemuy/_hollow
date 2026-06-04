@@ -153,6 +153,7 @@ type MediaSeedOptions = Readonly<{
   byteSize?: number;
   mimeType?: string;
   storageKey?: string;
+  originalFileName?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }>;
@@ -173,7 +174,7 @@ async function seedMedia(
     byteSize: opts.byteSize ?? 1024,
     backend: "r2",
     storageKey: opts.storageKey ?? `${opts.ownerId}/${kind}/${id}`,
-    originalFileName: null,
+    originalFileName: opts.originalFileName ?? null,
     width: null,
     height: null,
     durationMs: null,
@@ -631,6 +632,67 @@ describe("downloadMedia (integration)", () => {
       }
     }
   });
+
+  // Issue #452: source-kind assets are owner-only (called with
+  // relatedNoteId=null). The owner can download; another viewer cannot.
+  it("authorises a source-kind asset for its owner and presigns an attachment when download=true", async () => {
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const mediaId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+    });
+
+    const { redirectUrl } = await downloadMedia({
+      container,
+      input: {
+        viewerUserId: ownerId,
+        mediaId,
+        viaShareLinkId: null,
+        relatedNoteId: null,
+        download: true,
+      },
+    });
+    expect(redirectUrl).toBeInstanceOf(URL);
+    expect(
+      redirectUrl.searchParams.get("response-content-disposition"),
+    ).toContain("report.pdf");
+  });
+
+  it("rejects a source-kind asset for a non-owner viewer", async () => {
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const viewerId = await seedUser(container);
+    const mediaId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+    });
+
+    try {
+      await downloadMedia({
+        container,
+        input: {
+          viewerUserId: viewerId,
+          mediaId,
+          viaShareLinkId: null,
+          relatedNoteId: null,
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(MediaErrorCode.NotViewable);
+      } else {
+        throw error;
+      }
+    }
+  });
 });
 
 describe("handleNotePurgedEvent (integration)", () => {
@@ -692,6 +754,69 @@ describe("handleNotePurgedEvent (integration)", () => {
     // `updatedAt` must not advance — proves no second decrement ran.
     expect(second?.updatedAt).toBe(firstUpdatedAt);
   });
+
+  it("orphans the persistent source file when a note purge event carries a sourceFileId", async () => {
+    // ADR-005: the ingested original is bound 1:1 outside the refCount
+    // machinery (attached/refCount=1) and must be explicitly decremented
+    // to `orphan` so the standard purge worker reclaims its blob.
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const dir = await seedDirectory(container, ownerId);
+    const noteId = await seedNote(container, ownerId, dir);
+    const sourceFileId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+    });
+    const event = buildNotePurgedEvent({
+      noteId,
+      ownerId,
+      mediaRefs: [],
+      sourceFileId,
+    });
+
+    await handleNotePurgedEvent({ container, input: { event } });
+
+    const row = await fetchMediaRow(container, sourceFileId);
+    expect(row?.status).toBe("orphan");
+    expect(row?.refCount).toBe(0);
+  });
+
+  it("is idempotent for the source file: a redelivered purge event leaves an already-orphaned source unchanged", async () => {
+    // The outbox is at-least-once; `handleNotePurgedEvent` short-circuits
+    // on an already-`orphan` source before `decrementRef` (which only
+    // accepts pending/attached) would throw.
+    const container = getContainer();
+    const ownerId = await seedUser(container);
+    const dir = await seedDirectory(container, ownerId);
+    const noteId = await seedNote(container, ownerId, dir);
+    const sourceFileId = await seedMedia(container, {
+      ownerId,
+      kind: "source",
+      status: "attached",
+      refCount: 1,
+    });
+    const event = buildNotePurgedEvent({
+      noteId,
+      ownerId,
+      mediaRefs: [],
+      sourceFileId,
+    });
+
+    await handleNotePurgedEvent({ container, input: { event } });
+    const first = await fetchMediaRow(container, sourceFileId);
+    const firstUpdatedAt = first?.updatedAt;
+    expect(first?.status).toBe("orphan");
+    expect(first?.refCount).toBe(0);
+
+    await handleNotePurgedEvent({ container, input: { event } });
+    const second = await fetchMediaRow(container, sourceFileId);
+    expect(second?.status).toBe("orphan");
+    expect(second?.refCount).toBe(0);
+    // `updatedAt` must not advance — proves no second decrement ran.
+    expect(second?.updatedAt).toBe(firstUpdatedAt);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -702,6 +827,7 @@ function buildNotePurgedEvent(params: {
   noteId: NoteId;
   ownerId: UserId;
   mediaRefs: readonly MediaAssetId[];
+  sourceFileId?: MediaAssetId | null;
 }): NotePurgedEvent {
   const draft = NoteEvents.purged(
     {
@@ -709,6 +835,7 @@ function buildNotePurgedEvent(params: {
       ownerId: params.ownerId,
       title: NoteTitle.create("Purged"),
       mediaRefs: params.mediaRefs,
+      sourceFileId: params.sourceFileId ?? null,
     },
     BASE_TIME,
   );

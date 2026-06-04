@@ -8,7 +8,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 |---|---|---|
 | MediaAsset | メディアアセット | R2 に保存された 1 つのファイル |
 | MediaAssetId | メディアID | UUID v7 |
-| MediaKind | メディア種別 | `image` / `video` / `avatar` |
+| MediaKind | メディア種別 | `image` / `video` / `avatar` / `source` |
 | StorageBackend | ストレージバックエンド | 現状 `r2` のみ。将来 `s3` / `github` 拡張余地 |
 | MediaStatus | ステータス | `pending` / `attached` / `orphan` / `deleting` |
 | RefCount | 参照カウント | 利用箇所の数 |
@@ -47,7 +47,8 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 ## 値オブジェクト
 
 ### MediaKind（列挙）
-- `'image' | 'video' | 'avatar'`
+- `'image' | 'video' | 'avatar' | 'source'`
+- `source` は取り込み（ingestion）確定時に永続保存される元ファイル（Issue #452）。本文 HTML には現れないため `MediaService.reconcileRefs` の対象外。commit 時に `markAttached` で `attached`/refCount=1 に固定し、デタッチ（overwrite 差し替え・note purge）は `decrementRef` で orphan 化して標準 purge worker に回収させる。Note とは `mediaRefs` ではなく `notes.source_file_id` で 1:1 紐付け。storageKey は `<userId>/source/<id>`。所有者のみ閲覧/DL 可（`/media/<id>` を `relatedNoteId: null` で呼ぶため公開ノートでも非所有者には見えない）。
 
 ### StorageBackend（列挙）
 - `'r2'`（MVP）

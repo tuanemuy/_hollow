@@ -120,3 +120,4 @@ Note 保存後に呼ばれ、参照差分をメディア側に反映する。
 
 ### 処理フロー
 - `note.purged` イベントに含まれる `mediaRefs` について `MediaService.reconcileRefs(mediaRefs, [], ...)` を実行
+- イベントの `sourceFileId !== null`（Issue #452）のとき、その `MediaAsset` を `findById` し、`status` が `orphan`/`deleting` なら何もしない（冪等ガード）。`attached`/`pending` のときだけ `decrementRef` で orphan 化して save（標準 purge worker が blob 回収）。`decrementRef` は pending/attached のみ扱え、outbox は at-least-once のため `reconcileRefs` と同じスキップガードが必須

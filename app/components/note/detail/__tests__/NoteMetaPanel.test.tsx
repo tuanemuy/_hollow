@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MediaAssetId } from "@/core/application/dto/identity";
 import type { BacklinkDTO, NoteId } from "@/core/application/dto/note";
 
 /**
@@ -40,6 +41,7 @@ const baseProps = {
   tagNames: [] as readonly string[],
   publishedAt: null,
   status: "active" as const,
+  sourceFile: null,
 };
 
 let container: HTMLDivElement;
@@ -112,5 +114,47 @@ describe("NoteMetaPanel backlink count", () => {
     expect(section.textContent).toContain("Backlink 1");
     expect(section.textContent).toContain("Backlink 2");
     expect(section.textContent).toContain("Backlink 3");
+  });
+});
+
+describe("NoteMetaPanel source file (Issue #452)", () => {
+  it("renders nothing for the 元ファイル row when sourceFile is null", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel {...baseProps} backlinks={[]} backlinkCount={0} />,
+      );
+    });
+    expect(container.textContent).not.toContain("元ファイル");
+  });
+
+  it("renders 閲覧/ダウンロード links pointing at /media/<id> when present", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          backlinks={[]}
+          backlinkCount={0}
+          sourceFile={{
+            mediaId: "media-src-1" as MediaAssetId,
+            originalFileName: "report.pdf",
+          }}
+        />,
+      );
+    });
+    expect(container.textContent).toContain("元ファイル");
+    expect(container.textContent).toContain("report.pdf");
+    const links = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("a"),
+    );
+    const view = links.find(
+      (a) => a.getAttribute("href") === "/media/media-src-1",
+    );
+    const download = links.find(
+      (a) => a.getAttribute("href") === "/media/media-src-1?download=1",
+    );
+    expect(view).toBeDefined();
+    expect(view?.getAttribute("target")).toBe("_blank");
+    expect(view?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(download).toBeDefined();
   });
 });

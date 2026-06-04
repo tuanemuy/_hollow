@@ -221,6 +221,7 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 | edit_lock_user_id | TEXT | NULL, REFERENCES users(id) ON DELETE SET NULL |
 | edit_lock_acquired_at | TEXT | NULL |
 | edit_lock_expires_at | TEXT | NULL |
+| source_file_id | TEXT | NULL, REFERENCES media_assets(id) ON DELETE SET NULL — 取り込み元ファイル（`MediaAsset(kind='source')`）への 1:1 参照（Issue #452）。`note_media_refs` とは別物 |
 | version | INTEGER | NOT NULL DEFAULT 0 — OCC トークン |
 
 インデックス:
@@ -393,7 +394,7 @@ CREATE UNIQUE INDEX uniq_directories_owner_root
 |---|---|---|
 | id | TEXT | PRIMARY KEY |
 | owner_id | TEXT | NOT NULL, REFERENCES users(id) ON DELETE CASCADE |
-| kind | TEXT | NOT NULL CHECK (kind IN ('image','video','avatar')) |
+| kind | TEXT | NOT NULL CHECK (kind IN ('image','video','avatar','source')) |
 | mime_type | TEXT | NOT NULL |
 | byte_size | INTEGER | NOT NULL |
 | backend | TEXT | NOT NULL DEFAULT 'r2' |
