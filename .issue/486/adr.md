@@ -3,7 +3,7 @@
 ## ADR-001: 設定画面を `/_app` 配下にネストし、サイドバーを client 側で差し替える（案A）
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 設定画面は現状トップレベルルート（`app/routes/settings/route.tsx`）として `/_app` の外にあり、独自の `SETTINGS_*` スタイルで Header（手書き「← Home」）・外枠・サブナビを再発明している。共通シェルと一貫させたいが、`/_app` の Sidebar は「ライブラリ/管理」を表示する固定 chrome（`_app` loader が `loadDirectoryTree` を実行し `staleTime: Infinity` でキャッシュ）であり、設定画面では設定専用サブナビを出す必要がある。
@@ -31,7 +31,7 @@ Proposed
 ## ADR-002: サイドバー差し替えを `AppShellDrawer`（client）で行い、設定ナビは prop で受け取る
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 pathname に応じたサイドバー差し替えにはクライアントフック（`useLocation`）が必要。chrome の構成要素のうち、`AppShellFrame` は `UploadDialogMount` と ingestion の side-effect import をサーバ側に閉じ込めるサーバコンポーネント（Issue #354 ADR-002）であり、`AppLayout`（`_app/route.tsx`）のサーバ/クライアント境界も RSC ペイロード（`renderServerComponent`）を介する設計。確実に `"use client"` なのは `AppShellDrawer` のみ。

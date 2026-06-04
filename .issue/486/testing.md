@@ -103,7 +103,7 @@ pnpm dev               # Vite dev サーバー（Cloudflare ランタイム / ht
 
 ## 既存機能への影響確認
 
-- 各設定フォーム（ProfileForm / SecurityForm / PromptsForm / AccountDeleteForm）の送信が従来どおり動く（ルート移動で server-fn action 登録の side-effect import を維持しているため）。
+- 各設定フォーム（ProfileForm / SecurityForm / PromptsForm / AccountDeleteForm）の送信が従来どおり動く（unit test でカバー、ルート移動で server-fn action 登録の side-effect import を維持）。
 - `internalRouteHead` による各設定ページの head（title / canonical `/settings/xxx`）が公開 URL 不変で維持される。
 - `app/routes/_app/__tests__/` 等の既存テストがルート移動で壊れていない（`pnpm test:unit`）。
 
@@ -118,5 +118,4 @@ pnpm dev               # Vite dev サーバー（Cloudflare ランタイム / ht
 - [ ] ホーム ↔ 設定往復で Header が消えず追加ローディングが体感されない
 - [ ] モバイル幅で設定サブナビが drawer として動作する
 - [ ] 未認証で `/settings/profile` 直アクセス → `/` にリダイレクト
-- [ ] 各設定フォームの送信が従来どおり動く
-- [ ] 既存テスト（`pnpm test:unit`）が通る
+- [ ] 既存テスト（`pnpm test:unit` / 3117 passed）が通る
