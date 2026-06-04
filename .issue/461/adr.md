@@ -116,6 +116,7 @@ Accepted（実装時に確定）
 ステップ7は `gap-[5px]`（チップ系→`gap-1.5`、バッジ系→個別判断）と `navItem` の `py-[7px]`、micro-adjust 系 `px-[*]` を対象とする。実装時に以下を個別判断した。
 
 ### Decision
+- **`BULK_ACTION`（BulkActionBar の操作ボタン）の font-size は `text-sm` を維持。** 棚卸し表の「小型ボタン」行は `BULK_ACTION` を原型 `pillBtnSm`(h-7/px-3/text-xs) に寄せるとしており、高さ・横余白は `h-7 px-3` に揃えた。font-size だけは `text-xs` ではなく `text-sm` を維持した。理由: BulkActionBar は暗背景バー（`bg-ink text-white`）で、白文字の可読性確保として `text-sm`(13px) が妥当。かつ同じバー内の件数表示 `BULK_COUNT` も `text-sm` であり、バー内のテキストサイズを `text-sm` で揃える方が一貫する（操作ボタンだけ `text-xs` に落とすと件数より小さくなり不整合）。寸法（h-7/px-3）は原型準拠としつつ、暗背景コンテキストの font-size のみ意図的に `text-sm` とした。
 - **admin ステータスバッジの `gap-[5px] px-[9px] py-[2px]` は現状維持。** `UsersTable`(:27)・`Metrics`(:206)・`Jobs`(:43) の3箇所が**完全に同一シグネチャ**（`inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium`）で、h-7 チップより一回り小さい micro バッジとして自己整合した1つの族を成している。`gap` だけ `gap-1.5` に変えると `px-[9px]/py-[2px]` との視覚バランスが崩れ、族の一貫性が壊れる。棚卸し表の「バッジ=要判断」「迷ったら現状維持」に従い、3箇所セットで現状維持とした（チップとは役割が異なる）。
 - **`navItem` の `py-[7px]` は現状維持。** `navItem`（common/styles.ts）はサイドバー nav リンクとディレクトリツリーリンクの共有プリミティブで、変更の波及範囲が広い。7px は近傍の標準値（`py-1.5`=6px / `py-2`=8px）のどちらでもなく、nav 行高を狙って選ばれた意図的な値とみられる。±1px の行高変化がサイドバー全体に及ぶリスクに対し得るものが薄いため、「micro-adjust は意図を確認のうえ標準値へ寄せ、判断に迷うものは現状維持で報告」の方針に従い現状維持とした。
 - **その他の micro 任意値（`px-2 py-[2px]` のインラインmonoバッジ、prose `[&_code]` の `px-[6px]`、textarea の `py-[10px]`、`DesignTokensForm` の `px-[10px] py-[6px]`）は本Issueステップ7の明示スコープ（チップ系 gap / navItem）外のため対象外。** 自己整合しており偶発差ではないと判断し、現状維持とした。
