@@ -60,8 +60,6 @@ export const SETTINGS_ERROR_BODY =
 
 // ===== Form section (4 forms) =====
 
-// Sections after the first get a divider + top spacing. Replaces the bare
-// `<hr>` separators used inside the forms with a structural rule on the section.
 export const SECTION = "mb-12 last:mb-0";
 
 export const SECTION_TITLE =
@@ -82,7 +80,6 @@ export const FIELD_INPUT = fieldControl;
 
 export const FIELD_TEXTAREA = `${fieldControl} min-h-24 resize-y leading-normal`;
 
-// Mono textarea for the prompt editor (P23).
 export const PROMPT_TEXTAREA = `${fieldControl} ${fieldTextarea} min-h-[140px] max-h-[300px]`;
 
 export const FIELD_ERROR = formError;
@@ -105,7 +102,7 @@ export const BTN_PRIMARY = `${pillBtn} ${pillBtnPrimary}`;
 
 export const BTN_SECONDARY = pillBtn;
 
-// ===== Prompts form (P23) =====
+// ===== Prompts form =====
 
 export const PROMPT_CARD = "py-6 border-t border-hairline first:border-t-0";
 
