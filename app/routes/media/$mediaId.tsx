@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { validateMediaSearch } from "@/components/media/mediaSearch";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -46,30 +47,6 @@ const resolveMediaRedirect = createServerFn({ method: "GET" })
     });
     throw redirect({ href: result.redirectUrl.toString(), statusCode: 302 });
   });
-
-const mediaSearchSchema = z.object({
-  // `?download=1` requests an attachment (named save) instead of inline
-  // preview. TanStack Router's default search parser JSON-parses values,
-  // so a bare `?download=1` arrives as the number `1` (not the string
-  // "1"); accept the boolean, string, and number forms so the
-  // `<a href="/media/<id>?download=1">` form works regardless of parsing.
-  download: z
-    .union([
-      z.boolean(),
-      z.literal("1"),
-      z.literal("0"),
-      z.literal(1),
-      z.literal(0),
-    ])
-    .optional()
-    .transform((v) => v === true || v === "1" || v === 1),
-});
-
-// Exported for regression testing: the `?download` flag must survive
-// TanStack Router's JSON-parsing search reader, which turns a bare
-// `?download=1` into the number `1` (see schema note above).
-export const validateMediaSearch = (search: Record<string, unknown>) =>
-  mediaSearchSchema.parse(search);
 
 export const Route = createFileRoute("/media/$mediaId")({
   validateSearch: validateMediaSearch,

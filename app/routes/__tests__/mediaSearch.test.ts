@@ -1,8 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  serverFnChainStub,
-  useServerFnRouter,
-} from "@/components/_test-utils/serverFnMock";
+import { describe, expect, it } from "vitest";
+import { validateMediaSearch } from "@/components/media/mediaSearch";
 
 /**
  * Issue #452: the note-detail "ダウンロード" link renders
@@ -11,18 +8,6 @@ import {
  * string "1"). The route schema must accept the boolean, string, and
  * number forms; a regression here surfaces as an HTTP 500 on download.
  */
-
-vi.mock("@tanstack/react-start", () => ({
-  createServerFn: () => serverFnChainStub(),
-  createMiddleware: () => serverFnChainStub(),
-  useServerFn: useServerFnRouter([], vi.fn()),
-}));
-
-vi.mock("@tanstack/react-start/rsc", () => ({
-  renderServerComponent: () => null,
-}));
-
-const { validateMediaSearch } = await import("../media/$mediaId");
 
 describe("validateMediaSearch", () => {
   it("treats a bare numeric `download=1` (TanStack JSON parse) as download", () => {
