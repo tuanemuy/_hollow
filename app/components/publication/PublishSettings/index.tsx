@@ -4,12 +4,40 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import {
+  chip,
+  field,
+  fieldControl,
+  fieldLabel,
+  formError,
+  pillBtn,
+  pillBtnGhostDanger,
+  pillBtnPrimary,
+  pillBtnSm,
+} from "@/components/common/styles";
+import {
+  CHIP_PRIVATE,
+  CHIP_SUCCESS,
+  EMPTY_STATE,
+  PAGE_TITLE,
+} from "@/components/layout/styles";
 import type { ShareLinkDTO } from "@/core/application/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  LINK_ROW,
+  LINK_URL,
+  PUBLISH_SECTION_TITLE,
+  RADIO_CARD,
+  RADIO_CARD_TITLE,
+  STATUS_DOT,
+  URL_PREVIEW,
+  URL_PREVIEW_LABEL,
+  URL_PREVIEW_URL,
+} from "../styles";
 import {
   changeVisibilityFn,
   issueShareLinkFn,
@@ -89,62 +117,95 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
 
   return (
     <section aria-labelledby={`${visibilityFieldId}-h`}>
-      <h2 id={`${visibilityFieldId}-h`}>公開設定</h2>
+      <h1 id={`${visibilityFieldId}-h`} className={PAGE_TITLE}>
+        公開設定
+      </h1>
 
       <form action={visibilityAction}>
-        <fieldset>
-          <legend>公開ステータス</legend>
-          {(["private", "unlisted", "public"] as const).map((v) => (
-            <label key={v}>
-              <input
-                type="radio"
-                name="nextVisibility"
-                value={v}
-                defaultChecked={v === visibility}
-                disabled={visibilityPending}
-              />
-              <span>
-                {v === "private"
-                  ? "非公開"
-                  : v === "unlisted"
-                    ? "限定公開（リンクを知っている人のみ）"
-                    : "公開"}
-              </span>
-            </label>
-          ))}
+        <fieldset className="border-0 p-0 m-0">
+          <legend className={`${fieldLabel} mb-2`}>公開ステータス</legend>
+          <div className="flex flex-col gap-2">
+            {(["private", "unlisted", "public"] as const).map((v) => (
+              <label key={v} className={RADIO_CARD}>
+                <input
+                  type="radio"
+                  name="nextVisibility"
+                  value={v}
+                  defaultChecked={v === visibility}
+                  disabled={visibilityPending}
+                />
+                <span className={RADIO_CARD_TITLE}>
+                  <span
+                    className={STATUS_DOT}
+                    data-visibility={v}
+                    aria-hidden="true"
+                  />
+                  {v === "private"
+                    ? "非公開"
+                    : v === "unlisted"
+                      ? "限定公開（リンクを知っている人のみ）"
+                      : "公開"}
+                </span>
+              </label>
+            ))}
+          </div>
         </fieldset>
-        <button type="submit" disabled={visibilityPending}>
+        <button
+          type="submit"
+          disabled={visibilityPending}
+          aria-busy={visibilityPending}
+          data-primary=""
+          className={`${pillBtn} ${pillBtnPrimary} mt-4`}
+        >
           {visibilityPending ? "適用中..." : "公開状態を更新"}
         </button>
         {visibilitySummary !== "" ? (
-          <p role="alert">{visibilitySummary}</p>
+          <p role="alert" className={formError}>
+            {visibilitySummary}
+          </p>
         ) : null}
       </form>
 
-      <section>
-        <h3>限定公開リンク</h3>
+      <section className="mt-8">
+        <h2 className={`${PUBLISH_SECTION_TITLE} mb-3`}>限定公開リンク</h2>
         {isPrivate ? (
-          <p>非公開ステータスではリンクを発行できません。</p>
+          <p className="text-sm text-ink-secondary">
+            非公開ステータスではリンクを発行できません。
+          </p>
         ) : (
-          <form action={issueAction}>
-            <label>
-              <span>パスワード（任意）</span>
+          <form action={issueAction} className="mb-4">
+            <label className={field}>
+              <span className={fieldLabel}>パスワード（任意）</span>
               <input
                 type="password"
                 name="password"
                 autoComplete="new-password"
                 maxLength={128}
                 disabled={issuePending}
+                className={fieldControl}
               />
             </label>
-            <button type="submit" disabled={issuePending}>
+            <button
+              type="submit"
+              disabled={issuePending}
+              aria-busy={issuePending}
+              data-primary=""
+              className={`${pillBtn} ${pillBtnPrimary}`}
+            >
               {issuePending ? "発行中..." : "リンクを発行"}
             </button>
-            {issueSummary !== "" ? <p role="alert">{issueSummary}</p> : null}
-            {issuedUrl !== null ? (
-              <p>
-                発行されたリンク（一度だけ表示）: <code>{issuedUrl}</code>
+            {issueSummary !== "" ? (
+              <p role="alert" className={formError}>
+                {issueSummary}
               </p>
+            ) : null}
+            {issuedUrl !== null ? (
+              <div className={`${URL_PREVIEW} mt-4`}>
+                <p className={URL_PREVIEW_LABEL}>
+                  発行されたリンク（一度だけ表示）
+                </p>
+                <code className={URL_PREVIEW_URL}>{issuedUrl}</code>
+              </div>
             ) : null}
           </form>
         )}
@@ -157,10 +218,10 @@ export function PublishSettings({ noteId, appUrl, initial: data }: Props) {
 
 function ShareLinkList({ links }: { links: readonly ShareLinkDTO[] }) {
   if (links.length === 0) {
-    return <p>発行済みリンクはありません。</p>;
+    return <p className={EMPTY_STATE}>発行済みリンクはありません。</p>;
   }
   return (
-    <ul>
+    <ul className="flex flex-col gap-2">
       {links.map((link) => (
         <ShareLinkRow key={link.id} link={link} />
       ))}
@@ -207,14 +268,22 @@ function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
   const message = error === null ? "" : displayError(error);
 
   return (
-    <li>
-      <div>
-        <code>{link.url}</code>
-        <span>{link.status === "active" ? "有効" : "失効済み"}</span>
-        {link.hasPassword ? <span>パスワード設定中</span> : null}
+    <li className={LINK_ROW}>
+      <div className="flex items-center gap-2 min-w-0">
+        <code className={LINK_URL}>{link.url}</code>
+        <span
+          className={`${chip} shrink-0 ${
+            link.status === "active" ? CHIP_SUCCESS : CHIP_PRIVATE
+          }`}
+        >
+          {link.status === "active" ? "有効" : "失効済み"}
+        </span>
+        {link.hasPassword ? (
+          <span className={`${chip} shrink-0`}>パスワード設定中</span>
+        ) : null}
       </div>
       {link.status === "active" ? (
-        <>
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="password"
             value={passwordDraft}
@@ -222,11 +291,15 @@ function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
             placeholder="新しいパスワード"
             maxLength={128}
             disabled={isPending}
+            className={`${fieldControl} flex-1 min-w-[160px]`}
           />
           <button
             type="button"
             onClick={() => onSetPassword(false)}
             disabled={isPending || passwordDraft.length === 0}
+            aria-busy={isPending}
+            data-sm=""
+            className={`${pillBtn} ${pillBtnSm}`}
           >
             パスワードを設定
           </button>
@@ -235,16 +308,32 @@ function ShareLinkRow({ link }: { link: ShareLinkDTO }) {
               type="button"
               onClick={() => onSetPassword(true)}
               disabled={isPending}
+              aria-busy={isPending}
+              data-ghost-danger=""
+              data-sm=""
+              className={`${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`}
             >
               パスワードを解除
             </button>
           ) : null}
-          <button type="button" onClick={onRevoke} disabled={isPending}>
+          <button
+            type="button"
+            onClick={onRevoke}
+            disabled={isPending}
+            aria-busy={isPending}
+            data-ghost-danger=""
+            data-sm=""
+            className={`${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`}
+          >
             失効させる
           </button>
-        </>
+        </div>
       ) : null}
-      {message !== "" ? <p role="alert">{message}</p> : null}
+      {message !== "" ? (
+        <p role="alert" className={formError}>
+          {message}
+        </p>
+      ) : null}
     </li>
   );
 }

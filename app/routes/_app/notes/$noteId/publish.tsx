@@ -7,9 +7,6 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
-// Register publish-settings server-fn handlers with the RSC manifest.
-import "@/components/publication/PublishSettings/action";
-
 const renderPublishSettings = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(z.object({ noteId: z.string().min(1) })))
@@ -29,7 +26,7 @@ const renderPublishSettings = createServerFn({ method: "GET" })
     );
   });
 
-export const Route = createFileRoute("/notes/$noteId/publish")({
+export const Route = createFileRoute("/_app/notes/$noteId/publish")({
   staleTime: 0,
   head: ({ match, params }) =>
     internalRouteHead(
@@ -41,12 +38,16 @@ export const Route = createFileRoute("/notes/$noteId/publish")({
     renderPublishSettings({ data: { noteId: params.noteId } }),
   component: PublishRoute,
   errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
+    <div role="alert" className="p-6">
+      <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
+      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
+        {sanitizeRouteError(error)}
+      </pre>
     </div>
   ),
-  notFoundComponent: () => <div>ノートが見つかりません</div>,
+  notFoundComponent: () => (
+    <div className="p-6 text-ink-secondary">ノートが見つかりません</div>
+  ),
 });
 
 function PublishRoute() {

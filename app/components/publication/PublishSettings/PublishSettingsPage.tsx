@@ -1,5 +1,6 @@
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { requireCurrentUser } from "@/lib/server/currentUser";
+import { PUBLISH_BODY } from "../styles";
 import { PublishSettings } from "./index";
 import { loadPublishStateOrNotFound } from "./loader";
 
@@ -12,9 +13,11 @@ export async function PublishSettingsPage({ noteId, appUrl }: Props) {
     actorUserId: user.id,
   });
 
+  // `_app`'s AppShellDrawer owns the single `<main>`; this leaf renders a
+  // `<section>` to avoid a second landmark (mirrors NoteDetail).
   return (
-    <main>
+    <section className={PUBLISH_BODY}>
       <PublishSettings noteId={noteId} appUrl={appUrl} initial={initial} />
-    </main>
+    </section>
   );
 }
