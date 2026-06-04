@@ -39,7 +39,8 @@ const SECTION_CLASS = "py-8 border-b border-hairline last:border-b-0";
 const SECTION_TITLE_CLASS = "text-xl font-semibold tracking-tight m-0 mb-2";
 const SECTION_DESC_CLASS = "text-sm text-ink-secondary m-0 mb-5";
 const FIELD_CLASS = "mb-4";
-const FIELD_LABEL_CLASS = "block text-sm font-medium text-ink mb-[6px]";
+const FIELD_LABEL_CLASS =
+  "flex items-center gap-2 text-sm font-medium text-ink mb-[6px]";
 const FIELD_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 const INPUT_CLASS =
@@ -53,9 +54,9 @@ const BANNER_BASE =
 const CODE_INLINE_CLASS =
   "font-mono text-xs px-[5px] py-[1px] bg-surface rounded-xs";
 const REQUIRED_BADGE_CLASS =
-  "inline-flex items-center h-5 px-2 ml-2 rounded-pill bg-error-surface text-error text-[11px] font-semibold align-middle";
+  "inline-flex items-center h-5 px-2 rounded-pill bg-error-surface text-error text-[11px] font-semibold";
 const LOCK_BADGE_CLASS =
-  "inline-flex items-center h-5 px-2 ml-2 rounded-pill bg-surface text-ink-secondary text-[11px] font-semibold align-middle";
+  "inline-flex items-center h-5 px-2 rounded-pill bg-surface text-ink-secondary text-[11px] font-semibold";
 const LOCK_HINT_CLASS = "text-xs text-ink-tertiary mt-1";
 
 function isProviderId(value: string): value is ProviderId {
