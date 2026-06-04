@@ -3,7 +3,7 @@
 ## ADR-001: `text-[13px]`（56箇所/32ファイル）の解消方針
 
 ### Status
-Proposed
+Accepted（実装で確定）
 
 ### Context
 `text-[13px]` が 56箇所/32ファイルに散在しており、Tailwind 標準スケール外の任意値として SSOT 原則から逸脱している。これだけ広範に使われている事実は「`text-xs`(12px) と `text-base`(14px〜) の中間の固定サイズ」に実需があることを示す。
@@ -39,7 +39,7 @@ Proposed
 ## ADR-002: `text-[15px]` の扱い
 
 ### Status
-Proposed
+Accepted（実装で確定）
 
 ### Context
 `text-[15px]` は 4箇所のみ。実コードでの内訳: `public SEARCH_FORM_INPUT`(public/styles.ts:104)・`public GATE_INPUT`(:142)（public 大型入力、意図的なタッチ/ヒーロー強調）、`PAGE_SUBTITLE`(layout/styles.ts:88)、`IngestionJobRow` JOB_CARD_NAME(:46)。`--text-md: clamp(15px, 1vw + 12px, 17px)`（最小15px）が存在する。なお auth INPUT は `text-md` であって `text-[15px]` ではない。
@@ -56,7 +56,7 @@ Proposed
 ## ADR-003: アイコンボタンの段数整理
 
 ### Status
-Proposed
+Accepted（実装で確定）
 
 ### Context
 アイコンボタンが w-9/w-8/w-7/w-6/w-5 の5段、角丸が `rounded-full`/`rounded-pill`/`rounded-md`/`rounded` で混在。
@@ -77,7 +77,7 @@ Proposed
 ## ADR-004: `fieldControl` の高さ目標値
 
 ### Status
-Proposed
+Accepted（実装で確定）
 
 ### Context
 `fieldControl`（`common/styles.ts` 164行目で宣言、値は `px-3 py-[10px] text-sm` で高さ未明示）は **input 専用ではなく、textarea / select / div field のベースとしても合成されている**:
