@@ -102,7 +102,7 @@ describe("CodeHighlight", () => {
     });
     await flushDebounce();
     // previousElementSibling would be <hr> here; resolving by class keeps it
-    // working (review W-F-001).
+    // working.
     expect(highlightCodeElement).toHaveBeenCalledTimes(1);
   });
 });

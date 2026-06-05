@@ -27,7 +27,7 @@ export function CodeHighlight({ contentKey }: CodeHighlightProps = {}) {
   // The highlighter reads the already-rendered sibling DOM rather than a
   // prop. `contentKey` re-triggers the effect for live previews; it is
   // debounced so per-keystroke previews (HtmlEditor) do not re-tokenize on
-  // every change (Issue #498 review W-P-002). The `import.meta.env.SSR`
+  // every change. The `import.meta.env.SSR`
   // guard keeps shiki out of the Workers (SSR/RSC) bundle entirely
   // (ADR-005): Vite tree-shakes this branch for the SSR targets, so the
   // dynamic `import()` and its chunks never reach `dist/server`.
@@ -36,8 +36,7 @@ export function CodeHighlight({ contentKey }: CodeHighlightProps = {}) {
     if (import.meta.env.SSR) return;
     const marker = markerRef.current;
     // Resolve the content root within the shared parent by class, so an
-    // element inserted between marker and content does not break it
-    // (review W-F-001).
+    // element inserted between marker and content does not break it.
     const content =
       marker?.parentElement?.querySelector(".note-detail-content") ?? null;
     if (content === null) return;

@@ -187,7 +187,7 @@ function insertTextAtCaret(host: HTMLElement, text: string): void {
  * line inside `<pre>` (Shift+Tab dedent, Issue #498 ADR-004). Operates on
  * the whole code block's text via document-order offsets, so a prior
  * `Tab`/`Enter` that split the text into several nodes does not hide the
- * line start (review W-L-002). Text-only in effect (it rewrites the
+ * line start. Text-only in effect (it rewrites the
  * block's text and restores the caret); no-op when the line has no leading
  * space or the selection is unavailable.
  */
@@ -203,7 +203,7 @@ function dedentAtCaret(host: HTMLElement): void {
   const text = target.textContent ?? "";
   // Start of the caret's line. `slice(0, caret)` avoids `lastIndexOf`'s
   // negative-fromIndex clamp, which would wrongly return 0 (→ lineStart 1)
-  // when `caret === 0` and the block begins with a newline (review W-L-001).
+  // when `caret === 0` and the block begins with a newline.
   const lineStart = text.slice(0, caret).lastIndexOf("\n") + 1;
   let removable = 0;
   while (removable < 2 && text[lineStart + removable] === " ") removable += 1;
@@ -582,7 +582,7 @@ export function InlineEditor({
       // Only restore the caret while this block still holds focus. On the
       // focusout path (Esc / click away) the user has intentionally left,
       // so re-adding a selection here would steal focus / scroll the block
-      // back into view (review W-L-001).
+      // back into view.
       if (
         caretOffset !== null &&
         target.contains(host.ownerDocument.activeElement)

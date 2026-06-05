@@ -450,7 +450,7 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelectorAll("pre")).toHaveLength(1);
   });
 
-  it("keeps an element inserted inside <pre> in the DOM but strips it from saved HTML (Issue #498, was #285 rollback)", async () => {
+  it("keeps an element inserted inside <pre> in the DOM but strips it from saved HTML (Issue #498)", async () => {
     // Issue #498 ADR-002 changes the #285 contract: a `<pre>` is now an
     // opaque region whose decoration spans are allowed in the live DOM
     // (we can't tell highlighter spans from other element churn inside
@@ -553,7 +553,7 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("code")?.textContent).toBe("  foo");
   });
 
-  it("does not dedent another line on Shift+Tab at offset 0 of a newline-led <pre> (Issue #498 review W-L-001)", async () => {
+  it("does not dedent another line on Shift+Tab at offset 0 of a newline-led <pre> (Issue #498)", async () => {
     // The block begins with a newline; the caret sits at offset 0 (the
     // empty first line). Shift+Tab must be a no-op for that line, not strip
     // the indentation of line 2 (the lastIndexOf negative-fromIndex trap).
