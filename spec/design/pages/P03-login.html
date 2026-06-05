@@ -325,8 +325,7 @@
   }
   /*
     実装 CALLOUT_BODY=`flex flex-col gap-2` に合わせ、callout-body 内の
-    縦並び（strong / 本文 / action）の間隔を gap-2 に統一する（#500 要判断 P03 の決着）。
-    個別の margin（strong の mb-1・action の mt-2）は gap に集約して廃止。
+    縦並び（strong / 本文 / action）の間隔は gap-2 に統一する。
   */
   .callout-body {
     flex: 1;
@@ -352,8 +351,7 @@
     未認証 callout の正準配色 (ADR-004): neutral surface + accent アイコン。
     実装 app/components/auth/styles.ts の CALLOUT / CALLOUT_ICON に合わせる
     （bg-surface / text-ink-secondary / rounded-md / px-4 py-3 / icon=accent）。
-    本体ブロックも含め全 callout を neutral に統一した。warning 配色は
-    P06 の .alert（メール変更確定の注意喚起）が担うため、本ファイルからは外す。
+    warning 配色は P06 の .alert（メール変更確定の注意喚起）が担うため、本ファイルでは neutral に統一する。
   */
   .callout-neutral {
     background: var(--color-surface);
