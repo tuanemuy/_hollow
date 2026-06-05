@@ -48,3 +48,18 @@ server-fn action の RSC マニフェスト登録は、到達しうるルート�
 ### Consequences
 - 良い点: 登録が確実。`_app/route.tsx` への副作用なし。スコープ最小。
 - トレードオフ: import が2箇所に分散するが、それぞれのページが当該 action の到達点であり妥当。
+
+## ADR-004: 認証ゲート一元化に伴う `requireAuthenticatedRoute` の削除（review-001 W-001）
+
+### Status
+Accepted
+
+### Context
+本 PR が export 2 leaf から `beforeLoad: requireAuthenticatedRoute` を削除した結果、`app/core/presentation/authGuard.ts` の `requireAuthenticatedRoute` は呼び出し元ゼロのデッドコードになった（origin/main 時点で唯一の呼び出し元がこの 2 leaf だった）。残すか削除するか。
+
+### Decision
+削除する。認証ゲートが `_app` の `loadAppShell` へ完全に一元化された帰結であり、Issue #502 の移行作業と同一機能の総仕上げ（同じ機能内で完結する軽微な作業）としてスコープ内と判断。`checkAuthenticated`（private）と `redirectAuthenticatedRoute`（login/signup で使用中）は残置。working tree 全体で `requireAuthenticatedRoute` の参照がゼロであることを grep 確認し、削除後 typecheck/lint がクリーンであることを確認した。#342（child RSC の `requireCurrentUser()` throw が errorComponent に出る問題）は、認証必須ルートがすべて `_app` 配下に入りゲートが loader 前に走る現構成で解消されるため、本関数の削除で再発しない。
+
+### Consequences
+- 良い点: デッドコードを残さず、認証ゲートが `_app` 単一経路に統一されたことがコード上も明確になる。
+- トレードオフ: 将来 `_app` 外に認証必須ルートを足したくなった場合は再導入が必要だが、現方針（pathless `_app` 一元化）では発生しない。git 履歴に残るため復元も容易。
