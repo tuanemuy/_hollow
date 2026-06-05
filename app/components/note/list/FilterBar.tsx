@@ -29,7 +29,6 @@ import {
   filterChipGhost,
   filterChipRemove,
   filterLabel,
-  filterSeparator,
   visibilityLabel,
   visibilitySwatchClass,
 } from "./styles";
@@ -307,43 +306,36 @@ export function FilterBar({
       aria-busy={isPending}
     >
       {tags.length > 0 ? (
-        <div className="inline-flex items-center gap-2 flex-wrap">
-          <span className={filterLabel}>タグ</span>
-          <div className="inline-flex gap-1.5 flex-wrap">
-            {visibleTags.map((tag) => {
-              const active = selected.has(tag.name);
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  data-active={active || undefined}
-                  className={filterChip}
-                  aria-pressed={active}
-                  onClick={() => toggleTag(tag.name)}
-                >
-                  #{tag.name}
-                  <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
-                    {tag.noteCount}
-                  </span>
-                </button>
-              );
-            })}
-            {tags.length > VISIBLE_TAG_LIMIT ? (
+        <div className="inline-flex gap-1.5 flex-wrap">
+          {visibleTags.map((tag) => {
+            const active = selected.has(tag.name);
+            return (
               <button
+                key={tag.id}
                 type="button"
-                className={filterChipGhost}
-                aria-expanded={showAllTags}
-                onClick={() => setShowAllTags((v) => !v)}
+                data-active={active || undefined}
+                className={filterChip}
+                aria-pressed={active}
+                onClick={() => toggleTag(tag.name)}
               >
-                {showAllTags ? "閉じる" : `もっと見る (+${hiddenTagCount})`}
+                #{tag.name}
+                <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
+                  {tag.noteCount}
+                </span>
               </button>
-            ) : null}
-          </div>
+            );
+          })}
+          {tags.length > VISIBLE_TAG_LIMIT ? (
+            <button
+              type="button"
+              className={filterChipGhost}
+              aria-expanded={showAllTags}
+              onClick={() => setShowAllTags((v) => !v)}
+            >
+              {showAllTags ? "閉じる" : `もっと見る (+${hiddenTagCount})`}
+            </button>
+          ) : null}
         </div>
-      ) : null}
-
-      {tags.length > 0 ? (
-        <span className={filterSeparator} aria-hidden="true" />
       ) : null}
 
       <DatePopover
@@ -369,56 +361,53 @@ export function FilterBar({
       />
 
       {optimisticDirectoryId !== undefined ? (
-        <div className="inline-flex items-center gap-2 flex-wrap">
-          <span className={filterLabel}>ディレクトリ</span>
-          <span data-active className={filterChip}>
-            {optimisticDirectoryId === directoryId
-              ? directoryName || "ディレクトリ"
-              : "ディレクトリ"}
-            <button
-              type="button"
-              aria-label="ディレクトリフィルタを解除"
-              onClick={clearDirectory}
-              className={filterChipRemove}
-            >
-              ×
-            </button>
-          </span>
-        </div>
-      ) : null}
-
-      <div className="inline-flex items-center gap-2 flex-wrap">
-        <span className={filterLabel}>内部リンク参照</span>
-        {optimisticReferencingNoteId !== undefined ? (
-          <span data-active className={filterChip}>
-            参照中:{" "}
-            {formatReferencingNoteChipLabel(
-              optimisticReferencingNoteId,
-              optimisticReferencingNoteId === referencingNoteId
-                ? (referencingNoteTitle ?? null)
-                : null,
-            )}
-            <button
-              type="button"
-              aria-label="内部リンク参照フィルタを解除"
-              onClick={clearReferencingNoteId}
-              className={filterChipRemove}
-            >
-              ×
-            </button>
-          </span>
-        ) : (
+        <span data-active className={filterChip}>
+          {optimisticDirectoryId === directoryId
+            ? directoryName || "ディレクトリ"
+            : "ディレクトリ"}
           <button
             type="button"
-            className={pillBtn}
-            aria-haspopup="dialog"
-            aria-expanded={pickerOpen}
-            onClick={() => setPickerOpen(true)}
+            aria-label="ディレクトリフィルタを解除"
+            onClick={clearDirectory}
+            className={filterChipRemove}
           >
-            ノートを選ぶ…
+            ×
           </button>
-        )}
-      </div>
+        </span>
+      ) : null}
+
+      {optimisticReferencingNoteId !== undefined ? (
+        <span data-active className={filterChip}>
+          参照中:{" "}
+          {formatReferencingNoteChipLabel(
+            optimisticReferencingNoteId,
+            optimisticReferencingNoteId === referencingNoteId
+              ? (referencingNoteTitle ?? null)
+              : null,
+          )}
+          <button
+            type="button"
+            aria-label="内部リンク参照フィルタを解除"
+            onClick={clearReferencingNoteId}
+            className={filterChipRemove}
+          >
+            ×
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className={filterChipGhost}
+          aria-haspopup="dialog"
+          aria-expanded={pickerOpen}
+          onClick={() => setPickerOpen(true)}
+        >
+          内部リンク参照
+          <span className={filterChipCaret} aria-hidden="true">
+            ▾
+          </span>
+        </button>
+      )}
 
       {hasAnyFilter ? (
         <button
