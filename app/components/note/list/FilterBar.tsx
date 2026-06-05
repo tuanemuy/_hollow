@@ -1,22 +1,52 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
-import { useId, useOptimistic, useState, useTransition } from "react";
+import {
+  useEffect,
+  useId,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { pillBtn } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
+import { FilterPopover } from "./FilterPopover";
 import { homeSearchUpdater } from "./homeSearch";
-import { formatReferencingNoteChipLabel } from "./listSelectors";
+import {
+  DATE_RANGE_PRESETS,
+  type DateRangePreset,
+  dateRangePresetLabels,
+  formatDateRangeChipLabel,
+  formatReferencingNoteChipLabel,
+  matchDateRangePreset,
+  resolveDateRangePreset,
+} from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
-
-const CHIP =
-  "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-sm text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
-
-const FILTER_LABEL =
-  "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
+import {
+  filterChip,
+  filterChipCaret,
+  filterChipGhost,
+  filterChipRemove,
+  filterLabel,
+  filterSeparator,
+  visibilityLabel,
+  visibilitySwatchClass,
+} from "./styles";
 
 // Tags beyond this count are collapsed behind a "もっと見る" toggle so the
 // facet never overflows on mobile (Issue #354).
 const VISIBLE_TAG_LIMIT = 12;
+
+type Visibility = NoteListSearch["visibility"];
+type VisibilityValue = NonNullable<Visibility>;
+type VisibilityOption = VisibilityValue | "all";
+const VISIBILITY_OPTIONS: readonly VisibilityOption[] = [
+  "all",
+  "private",
+  "unlisted",
+  "public",
+];
 
 type TagOption = Readonly<{ id: string; name: string; noteCount: number }>;
 
@@ -25,7 +55,7 @@ type Props = {
   selectedTagNames: readonly string[];
   from: string | undefined;
   to: string | undefined;
-  visibility: NoteListSearch["visibility"];
+  visibility: Visibility;
   directoryId: string | undefined;
   directoryName?: string;
   referencingNoteId: string | undefined;
@@ -36,15 +66,20 @@ type OptimisticFilters = Readonly<{
   tagNames: ReadonlySet<string>;
   from: string | undefined;
   to: string | undefined;
-  visibility: NoteListSearch["visibility"];
+  visibility: Visibility;
   directoryId: string | undefined;
   referencingNoteId: string | undefined;
 }>;
 
 type FilterAction =
   | Readonly<{ type: "toggleTag"; name: string }>
+  | Readonly<{
+      type: "setDateRange";
+      from: string | undefined;
+      to: string | undefined;
+    }>
   | Readonly<{ type: "setDate"; key: "from" | "to"; value: string | undefined }>
-  | Readonly<{ type: "setVisibility"; value: NoteListSearch["visibility"] }>
+  | Readonly<{ type: "setVisibility"; value: Visibility }>
   | Readonly<{ type: "setReferencing"; id: string | undefined }>
   | Readonly<{ type: "clearDirectory" }>
   | Readonly<{ type: "clearAll" }>;
@@ -60,6 +95,8 @@ function reduceFilters(
       else next.add(action.name);
       return { ...cur, tagNames: next };
     }
+    case "setDateRange":
+      return { ...cur, from: action.from, to: action.to };
     case "setDate":
       return { ...cur, [action.key]: action.value };
     case "setVisibility":
@@ -77,6 +114,12 @@ function reduceFilters(
         directoryId: undefined,
         referencingNoteId: undefined,
       };
+    default: {
+      // Exhaustiveness guard: a new FilterAction variant breaks the build here
+      // until it is handled above.
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
   }
 }
 
@@ -95,6 +138,10 @@ export function FilterBar({
   const [isPending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
+  // Mutually-exclusive popover state: opening one closes the other (#476).
+  const [openPopover, setOpenPopover] = useState<"date" | "visibility" | null>(
+    null,
+  );
   const fromId = useId();
   const toId = useId();
 
@@ -138,30 +185,61 @@ export function FilterBar({
     );
   };
 
-  const updateDate = (key: "from" | "to", value: string) => {
-    const v = value === "" ? undefined : value;
-    run({ type: "setDate", key, value: v }, (prev) =>
-      homeSearchUpdater(prev, { [key]: v }),
+  // Adding / changing a filter resets pagination to page 1 (drops any prior
+  // `?page=N`), matching `handlePick`'s existing behaviour (#476 page rule).
+  const applyDateRange = (
+    nextFrom: string | undefined,
+    nextTo: string | undefined,
+  ) => {
+    run({ type: "setDateRange", from: nextFrom, to: nextTo }, (prev) =>
+      homeSearchUpdater(prev, {
+        from: nextFrom,
+        to: nextTo,
+        page: undefined,
+      }),
     );
   };
 
-  const updateVisibility = (value: string) => {
-    const v =
-      value === "" ? undefined : (value as NoteListSearch["visibility"]);
+  const updateDate = (key: "from" | "to", value: string) => {
+    const v = value === "" ? undefined : value;
+    run({ type: "setDate", key, value: v }, (prev) =>
+      homeSearchUpdater(prev, { [key]: v, page: undefined }),
+    );
+  };
+
+  const selectPreset = (preset: DateRangePreset) => {
+    const { from: f, to: t } = resolveDateRangePreset(preset, new Date());
+    applyDateRange(f, t);
+  };
+
+  const clearDateRange = () => applyDateRange(undefined, undefined);
+
+  const selectVisibility = (value: VisibilityOption) => {
+    const v: Visibility = value === "all" ? undefined : value;
+    setOpenPopover(null);
     run({ type: "setVisibility", value: v }, (prev) =>
-      homeSearchUpdater(prev, { visibility: v }),
+      homeSearchUpdater(prev, { visibility: v, page: undefined }),
+    );
+  };
+
+  const clearVisibility = () => {
+    run({ type: "setVisibility", value: undefined }, (prev) =>
+      homeSearchUpdater(prev, { visibility: undefined, page: undefined }),
     );
   };
 
   const clearReferencingNoteId = () => {
     run({ type: "setReferencing", id: undefined }, (prev) =>
-      homeSearchUpdater(prev, { referencingNoteId: undefined }),
+      homeSearchUpdater(prev, {
+        referencingNoteId: undefined,
+        page: undefined,
+      }),
     );
   };
 
   const clearDirectory = () => {
     run({ type: "clearDirectory" }, (prev) =>
-      homeSearchUpdater(prev, { directoryId: undefined }),
+      homeSearchUpdater(prev, { directoryId: undefined, page: undefined }),
     );
   };
 
@@ -190,17 +268,25 @@ export function FilterBar({
   const selected = optimistic.tagNames;
   const optimisticReferencingNoteId = optimistic.referencingNoteId;
   const optimisticDirectoryId = optimistic.directoryId;
+  const optimisticFrom = optimistic.from;
+  const optimisticTo = optimistic.to;
+  const optimisticVisibility = optimistic.visibility;
+
+  const hasDateRange =
+    optimisticFrom !== undefined || optimisticTo !== undefined;
+  const dateChipLabel = formatDateRangeChipLabel(optimisticFrom, optimisticTo);
+  const selectedPreset = matchDateRangePreset(
+    optimisticFrom,
+    optimisticTo,
+    new Date(),
+  );
 
   const hasAnyFilter =
     selected.size > 0 ||
-    optimistic.from !== undefined ||
-    optimistic.to !== undefined ||
-    optimistic.visibility !== undefined ||
+    hasDateRange ||
+    optimisticVisibility !== undefined ||
     optimisticDirectoryId !== undefined ||
     optimisticReferencingNoteId !== undefined;
-
-  const inputSm =
-    "h-7 px-2 rounded-md border border-hairline bg-surface text-sm text-ink max-sm:flex-1 max-sm:min-w-0";
 
   const visibleTags = showAllTags ? tags : tags.slice(0, VISIBLE_TAG_LIMIT);
   const hiddenTagCount = tags.length - visibleTags.length;
@@ -212,7 +298,7 @@ export function FilterBar({
     >
       {tags.length > 0 ? (
         <div className="inline-flex items-center gap-2 flex-wrap">
-          <span className={FILTER_LABEL}>タグ</span>
+          <span className={filterLabel}>タグ</span>
           <div className="inline-flex gap-1.5 flex-wrap">
             {visibleTags.map((tag) => {
               const active = selected.has(tag.name);
@@ -221,7 +307,7 @@ export function FilterBar({
                   key={tag.id}
                   type="button"
                   data-active={active || undefined}
-                  className={CHIP}
+                  className={filterChip}
                   aria-pressed={active}
                   onClick={() => toggleTag(tag.name)}
                 >
@@ -235,7 +321,7 @@ export function FilterBar({
             {tags.length > VISIBLE_TAG_LIMIT ? (
               <button
                 type="button"
-                className={CHIP}
+                className={filterChipGhost}
                 aria-expanded={showAllTags}
                 onClick={() => setShowAllTags((v) => !v)}
               >
@@ -246,58 +332,36 @@ export function FilterBar({
         </div>
       ) : null}
 
-      <div className="inline-flex items-center gap-2 flex-wrap max-sm:w-full">
-        <span className={FILTER_LABEL}>期間</span>
-        <div className="inline-flex items-center gap-1.5 max-sm:flex-1">
-          <label
-            htmlFor={fromId}
-            className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
-          >
-            開始日
-          </label>
-          <input
-            id={fromId}
-            type="date"
-            value={optimistic.from ?? ""}
-            onChange={(e) => updateDate("from", e.target.value)}
-            className={inputSm}
-          />
-          <span aria-hidden="true">–</span>
-          <label
-            htmlFor={toId}
-            className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]"
-          >
-            終了日
-          </label>
-          <input
-            id={toId}
-            type="date"
-            value={optimistic.to ?? ""}
-            onChange={(e) => updateDate("to", e.target.value)}
-            className={inputSm}
-          />
-        </div>
-      </div>
+      {tags.length > 0 ? (
+        <span className={filterSeparator} aria-hidden="true" />
+      ) : null}
 
-      <div className="inline-flex items-center gap-2 flex-wrap">
-        <span className={FILTER_LABEL}>公開状態</span>
-        <select
-          value={optimistic.visibility ?? ""}
-          onChange={(e) => updateVisibility(e.target.value)}
-          aria-label="公開状態フィルタ"
-          className={inputSm}
-        >
-          <option value="">すべて</option>
-          <option value="private">非公開</option>
-          <option value="unlisted">限定公開</option>
-          <option value="public">公開</option>
-        </select>
-      </div>
+      <DatePopover
+        fromId={fromId}
+        toId={toId}
+        from={optimisticFrom}
+        to={optimisticTo}
+        chipLabel={dateChipLabel}
+        selectedPreset={selectedPreset}
+        open={openPopover === "date"}
+        onOpenChange={(next) => setOpenPopover(next ? "date" : null)}
+        onSelectPreset={selectPreset}
+        onChangeDate={updateDate}
+        onClear={clearDateRange}
+      />
+
+      <VisibilityPopover
+        value={optimisticVisibility}
+        open={openPopover === "visibility"}
+        onOpenChange={(next) => setOpenPopover(next ? "visibility" : null)}
+        onSelect={selectVisibility}
+        onClear={clearVisibility}
+      />
 
       {optimisticDirectoryId !== undefined ? (
         <div className="inline-flex items-center gap-2 flex-wrap">
-          <span className={FILTER_LABEL}>ディレクトリ</span>
-          <span data-active className={CHIP}>
+          <span className={filterLabel}>ディレクトリ</span>
+          <span data-active className={filterChip}>
             {optimisticDirectoryId === directoryId
               ? directoryName || "ディレクトリ"
               : "ディレクトリ"}
@@ -305,7 +369,7 @@ export function FilterBar({
               type="button"
               aria-label="ディレクトリフィルタを解除"
               onClick={clearDirectory}
-              className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white/85 hover:text-white"
+              className={filterChipRemove}
             >
               ×
             </button>
@@ -314,9 +378,9 @@ export function FilterBar({
       ) : null}
 
       <div className="inline-flex items-center gap-2 flex-wrap">
-        <span className={FILTER_LABEL}>内部リンク参照</span>
+        <span className={filterLabel}>内部リンク参照</span>
         {optimisticReferencingNoteId !== undefined ? (
-          <span data-active className={CHIP}>
+          <span data-active className={filterChip}>
             参照中:{" "}
             {formatReferencingNoteChipLabel(
               optimisticReferencingNoteId,
@@ -328,7 +392,7 @@ export function FilterBar({
               type="button"
               aria-label="内部リンク参照フィルタを解除"
               onClick={clearReferencingNoteId}
-              className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white/85 hover:text-white"
+              className={filterChipRemove}
             >
               ×
             </button>
@@ -347,8 +411,12 @@ export function FilterBar({
       </div>
 
       {hasAnyFilter ? (
-        <button type="button" className={pillBtn} onClick={clearAll}>
-          クリア
+        <button
+          type="button"
+          className={`${pillBtn} max-sm:ml-0 ml-auto`}
+          onClick={clearAll}
+        >
+          すべてクリア
         </button>
       ) : null}
 
@@ -359,5 +427,298 @@ export function FilterBar({
         isPending={isPending}
       />
     </div>
+  );
+}
+
+type DatePopoverProps = Readonly<{
+  fromId: string;
+  toId: string;
+  from: string | undefined;
+  to: string | undefined;
+  chipLabel: string | null;
+  selectedPreset: DateRangePreset | null;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onSelectPreset: (preset: DateRangePreset) => void;
+  onChangeDate: (key: "from" | "to", value: string) => void;
+  onClear: () => void;
+}>;
+
+const SR_ONLY =
+  "absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]";
+// `flex-1 min-w-0` keeps the two native date inputs sharing the popover's
+// fixed width instead of reporting their large intrinsic `max-content` width,
+// which would otherwise balloon the `w-max` panel to the full content area
+// (#476).
+const DATE_INPUT_SM =
+  "h-7 px-2 rounded-md border border-hairline bg-surface text-sm text-ink flex-1 min-w-0";
+
+function DatePopover({
+  fromId,
+  toId,
+  from,
+  to,
+  chipLabel,
+  selectedPreset,
+  open,
+  onOpenChange,
+  onSelectPreset,
+  onChangeDate,
+  onClear,
+}: DatePopoverProps) {
+  const applied = chipLabel !== null;
+  return (
+    <FilterPopover
+      open={open}
+      onOpenChange={onOpenChange}
+      haspopup="dialog"
+      label="期間フィルタ"
+      trigger={(triggerProps) =>
+        applied ? (
+          <span data-active className={filterChip}>
+            <button
+              ref={triggerProps.ref}
+              type="button"
+              aria-haspopup={triggerProps["aria-haspopup"]}
+              aria-expanded={triggerProps["aria-expanded"]}
+              aria-controls={triggerProps["aria-controls"]}
+              onClick={() => onOpenChange(!open)}
+              className="inline-flex items-center gap-1.5 outline-none"
+            >
+              期間: {chipLabel}
+              <span className={filterChipCaret} aria-hidden="true">
+                ▾
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="期間フィルタを解除"
+              onClick={onClear}
+              className={filterChipRemove}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            ref={triggerProps.ref}
+            type="button"
+            aria-haspopup={triggerProps["aria-haspopup"]}
+            aria-expanded={triggerProps["aria-expanded"]}
+            aria-controls={triggerProps["aria-controls"]}
+            onClick={() => onOpenChange(!open)}
+            className={filterChipGhost}
+          >
+            期間
+            <span className={filterChipCaret} aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        )
+      }
+    >
+      {({ close }) => (
+        <div className="flex flex-col gap-3 w-full">
+          {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the preset toggle buttons; <fieldset> carries form-control semantics that are inappropriate here (mirrors DirectoryTree). */}
+          <div role="group" aria-label="プリセット">
+            <div className={`${filterLabel} mb-2`}>プリセット</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {DATE_RANGE_PRESETS.map((preset) => {
+                const sel = selectedPreset === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    data-active={sel || undefined}
+                    aria-pressed={sel}
+                    onClick={() => onSelectPreset(preset)}
+                    className="text-xs rounded-pill border border-hairline bg-bg px-1 py-1.5 text-ink transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-ink data-[active]:text-white data-[active]:border-ink"
+                  >
+                    {dateRangePresetLabels[preset]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <div className={`${filterLabel} mb-2`}>範囲指定</div>
+            <div className="flex items-center gap-2">
+              <label htmlFor={fromId} className={SR_ONLY}>
+                開始日
+              </label>
+              <input
+                id={fromId}
+                type="date"
+                value={from ?? ""}
+                onChange={(e) => onChangeDate("from", e.target.value)}
+                className={DATE_INPUT_SM}
+              />
+              <span aria-hidden="true">–</span>
+              <label htmlFor={toId} className={SR_ONLY}>
+                終了日
+              </label>
+              <input
+                id={toId}
+                type="date"
+                value={to ?? ""}
+                onChange={(e) => onChangeDate("to", e.target.value)}
+                className={DATE_INPUT_SM}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-xs text-ink-secondary underline hover:text-ink"
+            >
+              クリア
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              className="text-xs text-ink-secondary hover:text-ink"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+    </FilterPopover>
+  );
+}
+
+type VisibilityPopoverProps = Readonly<{
+  value: Visibility;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onSelect: (value: VisibilityOption) => void;
+  onClear: () => void;
+}>;
+
+function VisibilityPopover({
+  value,
+  open,
+  onOpenChange,
+  onSelect,
+  onClear,
+}: VisibilityPopoverProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const applied = value !== undefined;
+
+  // Roving tabindex (WAI-ARIA Menu pattern): the active menuitemradio holds
+  // focus while open. Mirrors NoteActionsMenu.
+  useEffect(() => {
+    if (!open) return;
+    const initial = VISIBILITY_OPTIONS.findIndex((o) =>
+      o === "all" ? value === undefined : o === value,
+    );
+    setActiveIndex(initial < 0 ? 0 : initial);
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const items = menuRef.current?.querySelectorAll<HTMLElement>(
+      '[role="menuitemradio"]',
+    );
+    items?.[activeIndex]?.focus();
+  }, [open, activeIndex]);
+
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const count = VISIBILITY_OPTIONS.length;
+    let next: number | null = null;
+    if (event.key === "ArrowDown") next = (activeIndex + 1) % count;
+    else if (event.key === "ArrowUp") next = (activeIndex - 1 + count) % count;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = count - 1;
+    if (next === null) return;
+    event.preventDefault();
+    setActiveIndex(next);
+  };
+
+  return (
+    <FilterPopover
+      open={open}
+      onOpenChange={onOpenChange}
+      haspopup="menu"
+      label="公開状態フィルタ"
+      panelRef={menuRef}
+      onMenuKeyDown={onMenuKeyDown}
+      trigger={(triggerProps) =>
+        applied ? (
+          <span data-active className={filterChip}>
+            <button
+              ref={triggerProps.ref}
+              type="button"
+              aria-haspopup={triggerProps["aria-haspopup"]}
+              aria-expanded={triggerProps["aria-expanded"]}
+              aria-controls={triggerProps["aria-controls"]}
+              onClick={() => onOpenChange(!open)}
+              className="inline-flex items-center gap-1.5 outline-none"
+            >
+              公開状態: {visibilityLabel(value)}
+              <span className={filterChipCaret} aria-hidden="true">
+                ▾
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="公開状態フィルタを解除"
+              onClick={onClear}
+              className={filterChipRemove}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            ref={triggerProps.ref}
+            type="button"
+            aria-haspopup={triggerProps["aria-haspopup"]}
+            aria-expanded={triggerProps["aria-expanded"]}
+            aria-controls={triggerProps["aria-controls"]}
+            onClick={() => onOpenChange(!open)}
+            className={filterChipGhost}
+          >
+            公開状態
+            <span className={filterChipCaret} aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        )
+      }
+    >
+      {VISIBILITY_OPTIONS.map((option, index) => {
+        const checked =
+          option === "all" ? value === undefined : option === value;
+        return (
+          // Rendered as a direct child of the `role="menu"` panel — no
+          // wrapper element — so the menu→menuitemradio ownership the WAI-ARIA
+          // Menu pattern requires is not broken by an intervening generic node.
+          <button
+            key={option}
+            type="button"
+            role="menuitemradio"
+            aria-checked={checked}
+            tabIndex={index === activeIndex ? 0 : -1}
+            data-active={checked || undefined}
+            onClick={() => onSelect(option)}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus:bg-surface data-[active]:bg-surface data-[active]:font-medium"
+          >
+            <span
+              aria-hidden="true"
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${visibilitySwatchClass(option)}`}
+            />
+            {visibilityLabel(option)}
+            {checked ? (
+              <span aria-hidden="true" className="ml-auto text-success">
+                ✓
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </FilterPopover>
   );
 }

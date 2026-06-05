@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>#476 ノート一覧 絞り込みUI モック比較</title>
+<style>
+  :root {
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60, 60, 67, 0.12);
+    --color-hairline-strong: rgba(60, 60, 67, 0.18);
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 980px;
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #e9e9ec;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.003em;
+    padding: 32px 16px 80px;
+  }
+  .page-head { max-width: 980px; margin: 0 auto 28px; }
+  .page-head h1 { font-size: 22px; margin: 0 0 6px; }
+  .page-head p { font-size: 13px; color: var(--color-ink-secondary); margin: 0; line-height: 1.6; }
+
+  .case {
+    max-width: 980px;
+    margin: 0 auto 28px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .case > header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-hairline);
+    background: var(--color-surface-elevated);
+  }
+  .case > header .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: var(--color-ink);
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .case.before > header .tag { background: var(--color-warning); }
+  .case > header h2 { display: inline; font-size: 15px; vertical-align: middle; }
+  .case > header .desc { margin: 8px 0 0; font-size: 12.5px; color: var(--color-ink-secondary); line-height: 1.6; }
+  .stage { padding: 18px 20px 22px; }
+
+  /* ---- shared list-screen scaffolding ---- */
+  .list-title { font-size: 19px; font-weight: 600; margin: 0 0 10px; letter-spacing: -0.014em; }
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding-bottom: 12px; margin-bottom: 0;
+  }
+  .toolbar .seg {
+    display: inline-flex; background: var(--color-surface); border-radius: var(--radius-pill); padding: 3px;
+  }
+  .toolbar .seg button {
+    border: 0; background: transparent; font: inherit; font-size: 12px; color: var(--color-ink-secondary);
+    padding: 4px 12px; border-radius: var(--radius-pill); cursor: pointer;
+  }
+  .toolbar .seg button[data-on] { background: #fff; color: var(--color-ink); box-shadow: var(--shadow-sm); }
+
+  .notes { margin-top: 14px; display: grid; gap: 10px; }
+  .note {
+    border: 1px solid var(--color-hairline); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg);
+  }
+  .note h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .note p { margin: 0; font-size: 12.5px; color: var(--color-ink-tertiary); }
+  .note .meta { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+
+  /* ---- shared filter atoms (mirrors FilterBar.tsx) ---- */
+  .flabel { font-size: 11px; font-weight: 500; color: var(--color-ink-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px;
+    border-radius: var(--radius-pill); background: var(--color-surface); font-size: 13px; color: var(--color-ink);
+    border: 0; cursor: pointer; transition: background .12s; white-space: nowrap;
+  }
+  .chip:hover { background: var(--color-surface-hover); }
+  .chip[data-active] { background: var(--color-ink); color: #fff; }
+  .chip .count { margin-left: 6px; font-size: 11px; color: var(--color-ink-tertiary); }
+  .chip[data-active] .count { color: rgba(255,255,255,.85); }
+  .chip .x { margin-left: 4px; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: rgba(255,255,255,.85); }
+  .chip-status { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px; border-radius: var(--radius-pill); font-size: 12px; }
+  .chip-status.public { background: var(--color-success-surface); color: var(--color-success); }
+  .chip-status.unlisted { background: var(--color-warning-surface); color: var(--color-warning); }
+  .input-sm {
+    height: 30px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline);
+    background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-ink);
+  }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--color-hairline-strong); background: var(--color-bg); font: inherit; font-size: 13px;
+    color: var(--color-ink); cursor: pointer;
+  }
+  .pill-btn:hover { background: var(--color-surface); }
+  .pill-btn .badge {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px; background: var(--color-ink); color: #fff; font-size: 11px; font-weight: 600;
+  }
+  .icon-btn {
+    width: 34px; height: 30px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline);
+    background: var(--color-bg); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink-secondary); position: relative;
+  }
+  .icon-btn:hover { background: var(--color-surface); }
+  .icon-btn[data-on] { background: var(--color-ink); color: #fff; border-color: var(--color-ink); }
+  .icon-btn .dot { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 999px; background: var(--color-warning); border: 2px solid #fff; }
+
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .group { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* ---- popover ---- */
+  .pop {
+    position: relative; display: inline-block;
+  }
+  .pop-panel {
+    margin-top: 8px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: #fff;
+    box-shadow: var(--shadow-md); padding: 12px; width: max-content; max-width: 320px;
+  }
+  .pop-panel.detached {
+    position: relative; display: inline-block; vertical-align: top;
+  }
+  .pop-arrow-note { font-size: 11px; color: var(--color-ink-tertiary); margin: 6px 2px 0; }
+  .opt {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer;
+  }
+  .opt:hover { background: var(--color-surface); }
+  .opt[data-sel] { background: var(--color-surface); font-weight: 600; }
+  .opt .swatch { width: 9px; height: 9px; border-radius: 999px; }
+
+  .divider { height: 1px; background: var(--color-hairline); border: 0; margin: 14px 0; }
+  .filterbar-shell { border-bottom: 1px solid var(--color-hairline); padding: 12px 8px; margin-bottom: 2px; }
+  .annot { font-size: 11.5px; color: var(--color-ink-tertiary); margin: 10px 2px 0; line-height: 1.55; }
+  .annot b { color: var(--color-ink-secondary); font-weight: 600; }
+  .pros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin: 10px 2px 0; }
+  .pros div { font-size: 11.5px; line-height: 1.5; }
+  .pros .ok::before { content: "○ "; color: var(--color-success); }
+  .pros .ng::before { content: "△ "; color: var(--color-warning); }
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>#476 ノート一覧の絞り込みUI ― モック比較</h1>
+    <p>実際のデザイントークン（surface / ink / hairline / pill）と <code>FilterBar.tsx</code> の chip / input 寸法に合わせた静的モックです。ポップオーバーは「開いた状態」を見せるため一部を展開済みで描画しています。挙動確認用で、実装ではありません。</p>
+  </div>
+
+  <!-- ============ BEFORE ============ -->
+  <section class="case before">
+    <header>
+      <span class="tag">現状 Before</span><h2>すべて常時展開（フォーム然としている）</h2>
+      <p class="desc">期間が <code>&lt;input type="date"&gt;</code>×2、公開状態が <code>&lt;select&gt;</code> でむき出し。タグだけチップで操作モデルがバラバラ。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <span style="font-size:12px;color:var(--color-ink-tertiary)">保存ビュー ▾</span>
+      </div>
+      <div class="filterbar-shell">
+        <div class="row">
+          <div class="group">
+            <span class="flabel">タグ</span>
+            <button class="chip" data-active>#日記<span class="count">42</span></button>
+            <button class="chip">#技術<span class="count">18</span></button>
+            <button class="chip">#読書<span class="count">9</span></button>
+            <button class="chip">もっと見る (+9)</button>
+          </div>
+          <div class="group">
+            <span class="flabel">期間</span>
+            <input class="input-sm" type="date" value="2026-01-01" />
+            <span aria-hidden="true">–</span>
+            <input class="input-sm" type="date" value="2026-06-01" />
+          </div>
+          <div class="group">
+            <span class="flabel">公開状態</span>
+            <select class="input-sm"><option>すべて</option><option selected>公開</option></select>
+          </div>
+          <button class="pill-btn">クリア</button>
+        </div>
+      </div>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園であじさいが咲き始めていた…</p><div class="meta"><span class="chip-status public">公開</span></div></article>
+        <article class="note"><h3>TanStack Start メモ</h3><p>server function の入力検証境界について…</p><div class="meta"><span class="chip-status unlisted">限定公開</span></div></article>
+      </div>
+      <p class="annot"><b>問題:</b> 未使用時も全要素が出続け、一覧上部を圧迫。入力フォームに見える。</p>
+    </div>
+  </section>
+
+  <!-- ============ 案1 折りたたみ ============ -->
+  <section class="case">
+    <header>
+      <span class="tag">案1</span><h2>折りたたみ式（絞り込みボタン＋件数バッジ → パネル展開）</h2>
+      <p class="desc">普段はボタン1つ。押すとパネルが開いて全フィルターを表示。一覧上部が最大限すっきり。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <button class="pill-btn" data-on style="background:var(--color-surface)">⚙ 絞り込み <span class="badge">3</span></button>
+      </div>
+      <div class="filterbar-shell" style="padding-top:14px">
+        <div class="pop-panel" style="width:100%;max-width:none;box-shadow:none;border:1px solid var(--color-hairline)">
+          <div class="row" style="gap:16px">
+            <div class="group"><span class="flabel">タグ</span>
+              <button class="chip" data-active>#日記<span class="count">42</span></button>
+              <button class="chip">#技術<span class="count">18</span></button>
+              <button class="chip">#読書<span class="count">9</span></button>
+              <button class="chip">もっと見る (+9)</button>
+            </div>
+          </div>
+          <hr class="divider" />
+          <div class="row" style="gap:24px">
+            <div class="group"><span class="flabel">期間</span>
+              <input class="input-sm" type="date" value="2026-01-01" /><span>–</span><input class="input-sm" type="date" value="2026-06-01" />
+            </div>
+            <div class="group"><span class="flabel">公開状態</span>
+              <select class="input-sm"><option>すべて</option><option selected>公開</option></select>
+            </div>
+            <div style="margin-left:auto"><button class="pill-btn">すべてクリア</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園であじさいが咲き始めていた…</p><div class="meta"><span class="chip-status public">公開</span></div></article>
+      </div>
+      <div class="pros">
+        <div class="ok">一覧領域を最大化。閉じれば1行のみ。</div>
+        <div class="ng">中身を見るのに1クリック必要。</div>
+        <div class="ok">既存のフォーム要素をそのまま中に収められ実装が軽い。</div>
+        <div class="ng">適用中フィルターがバッジ数でしか見えない。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 案2 チップ＋ポップオーバー統一 ============ -->
+  <section class="case">
+    <header>
+      <span class="tag">案2</span><h2>全フィルターをチップ＋ポップオーバーに統一</h2>
+      <p class="desc">期間・公開状態もチップ化。押すとポップオーバーで日付/選択肢が出る。タグと操作モデルが完全に揃う。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <span style="font-size:12px;color:var(--color-ink-tertiary)">保存ビュー ▾</span>
+      </div>
+      <div class="filterbar-shell">
+        <div class="row">
+          <button class="chip" data-active>#日記<span class="count">42</span></button>
+          <button class="chip">#技術<span class="count">18</span></button>
+          <button class="chip">タグ ＋</button>
+          <span style="width:1px;height:20px;background:var(--color-hairline)"></span>
+          <!-- 期間 chip (closed) -->
+          <button class="chip" data-active>期間: 1/1–6/1 <span class="x">×</span></button>
+          <!-- 公開状態 chip (open popover) -->
+          <div class="pop">
+            <button class="chip" data-active>公開状態: 公開 ▾</button>
+            <div class="pop-panel">
+              <div class="opt"><span class="swatch" style="background:var(--color-ink-tertiary)"></span>すべて</div>
+              <div class="opt"><span class="swatch" style="background:var(--color-ink-tertiary)"></span>非公開</div>
+              <div class="opt"><span class="swatch" style="background:var(--color-warning)"></span>限定公開</div>
+              <div class="opt" data-sel><span class="swatch" style="background:var(--color-success)"></span>公開</div>
+            </div>
+          </div>
+          <button class="pill-btn" style="margin-left:auto">クリア</button>
+        </div>
+        <p class="annot">↑ 公開状態チップを押した状態（ポップオーバー展開）。期間チップを押すと同様に日付ピッカーが出る。</p>
+      </div>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園であじさいが…</p><div class="meta"><span class="chip-status public">公開</span></div></article>
+      </div>
+      <div class="pros">
+        <div class="ok">操作モデルが全フィルターで統一。一貫性◎</div>
+        <div class="ng">日付ピッカーをポップオーバー内に自作する手間。</div>
+        <div class="ok">適用値がチップ上に出る（公開状態: 公開）。</div>
+        <div class="ng">チップが多いと横に伸びる→折返し設計が要る。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 案3 faceted ============ -->
+  <section class="case">
+    <header>
+      <span class="tag">案3</span><h2>適用中のみ常時表示＋「フィルターを追加」</h2>
+      <p class="desc">未適用のフィルターは隠し、適用中のものだけチップで表示。＋メニューから追加する faceted 方式。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <span style="font-size:12px;color:var(--color-ink-tertiary)">保存ビュー ▾</span>
+      </div>
+      <div class="filterbar-shell">
+        <div class="row">
+          <!-- active facets -->
+          <button class="chip" data-active>#日記 <span class="x">×</span></button>
+          <button class="chip" data-active>期間: 1/1–6/1 <span class="x">×</span></button>
+          <button class="chip" data-active>公開: 公開 <span class="x">×</span></button>
+          <!-- add menu (open) -->
+          <div class="pop">
+            <button class="pill-btn">＋ フィルターを追加</button>
+            <div class="pop-panel">
+              <div class="opt">＃ タグ</div>
+              <div class="opt" style="opacity:.45">📅 期間（適用中）</div>
+              <div class="opt" style="opacity:.45">◐ 公開状態（適用中）</div>
+              <div class="opt">📁 ディレクトリ</div>
+              <div class="opt">🔗 内部リンク参照</div>
+            </div>
+          </div>
+          <button class="chip" style="margin-left:auto;color:var(--color-ink-secondary)">すべて解除</button>
+        </div>
+        <p class="annot">何も適用していなければ「＋ フィルターを追加」だけが残り、最小表示になる。</p>
+      </div>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園で…</p><div class="meta"><span class="chip-status public">公開</span></div></article>
+      </div>
+      <div class="pros">
+        <div class="ok">適用中の条件が一目瞭然。空状態が最小。</div>
+        <div class="ng">「何で絞れるか」の発見性がメニューに依存。</div>
+        <div class="ok">タグ・期間・公開状態を同じ見た目で並べられる。</div>
+        <div class="ng">タグ一覧をその場で眺めて選ぶ用途には不向き。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 案4 アイコントリガー ============ -->
+  <section class="case">
+    <header>
+      <span class="tag">案4</span><h2>ツールバーにアイコントリガー＋ポップオーバー</h2>
+      <p class="desc">各フィルターをアイコンボタン化してツールバー右に収納。クリックでポップオーバー展開、適用中はドット表示。</p>
+    </header>
+    <div class="stage">
+      <h2 class="list-title">ノート</h2>
+      <div class="toolbar">
+        <div class="seg"><button data-on>カード</button><button>リスト</button></div>
+        <div class="group" style="gap:6px">
+          <div class="pop">
+            <button class="icon-btn" data-on title="タグ"># <span class="dot"></span></button>
+          </div>
+          <button class="icon-btn" title="期間">📅<span class="dot"></span></button>
+          <button class="icon-btn" title="公開状態">◐</button>
+          <span style="width:1px;height:20px;background:var(--color-hairline);margin:0 2px"></span>
+          <button class="icon-btn" title="クリア" style="width:auto;padding:0 12px;font-size:12px">クリア</button>
+        </div>
+      </div>
+      <div class="filterbar-shell" style="display:flex;justify-content:flex-end">
+        <div class="pop-panel" style="margin-top:0">
+          <span class="flabel">タグ</span>
+          <div class="row" style="margin-top:8px;max-width:280px">
+            <button class="chip" data-active>#日記<span class="count">42</span></button>
+            <button class="chip">#技術<span class="count">18</span></button>
+            <button class="chip">#読書<span class="count">9</span></button>
+            <button class="chip">#料理<span class="count">5</span></button>
+          </div>
+        </div>
+      </div>
+      <p class="annot" style="text-align:right">↑ 「#」アイコンを押した状態。アイコン右上のドット＝適用中。</p>
+      <div class="notes">
+        <article class="note"><h3>梅雨入り前の散歩</h3><p>近所の公園で…</p><div class="meta"><span class="chip-status public">公開</span></div></article>
+      </div>
+      <div class="pros">
+        <div class="ok">最小フットプリント。ツールバーに同居。</div>
+        <div class="ng">アイコンだけだと意味が伝わりにくい（ラベル要検討）。</div>
+        <div class="ok">モバイルでも省スペース。</div>
+        <div class="ng">適用値がドットでしか見えず詳細が分かりにくい。</div>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
