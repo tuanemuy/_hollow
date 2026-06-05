@@ -9,7 +9,6 @@ import {
 } from "@/core/presentation/errorResponse";
 import {
   GATE_CARD,
-  GATE_FOOT,
   GATE_FORM,
   GATE_ICON,
   GATE_INPUT,
@@ -139,10 +138,6 @@ export function ShareLinkGate({ token }: Props) {
             </button>
           </form>
         ) : null}
-
-        <div className={GATE_FOOT}>
-          パスワードはサーバー側でのみ検証され、保存されません。
-        </div>
       </div>
     </div>
   );
