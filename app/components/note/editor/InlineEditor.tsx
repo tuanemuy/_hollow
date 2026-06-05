@@ -22,9 +22,11 @@ import { useEffect, useRef } from "react";
  * 1. **Allow-list block contentEditable.** Only the allow-listed block
  *    tags get `contentEditable=true`. Inline children (`<strong>` /
  *    `<em>` / `<a>` / `<code>` …) inherit editability from the parent
- *    so the user can edit decorated text in place. Tags outside the
- *    allow-list (notably `<pre>`) stay read-only — code-block editing
- *    is delegated to the `html` mode.
+ *    so the user can edit decorated text in place. `<pre>` is on the
+ *    allow-list (Issue #285): it is decorated even when it has no direct
+ *    text child (the standard `<pre><code>…</code></pre>` shape), so the
+ *    nested `<code>` text becomes editable via contentEditable
+ *    inheritance. Tags outside the allow-list stay read-only.
  *
  * 2. **Structure rollback via MutationObserver.** A snapshot of the
  *    parsed `<body>` is kept; any structural mutation that is not a
@@ -103,6 +105,7 @@ const EDITABLE_TAGS: ReadonlySet<string> = new Set([
   "caption",
   "dt",
   "dd",
+  "pre",
 ]);
 
 const ONCHANGE_DEBOUNCE_MS = 50;
@@ -122,6 +125,41 @@ function hasDirectTextChild(el: Element): boolean {
   return false;
 }
 
+/**
+ * True if `node` is `<pre>` or lives inside one, walking ancestors up to
+ * (but not past) `host`. `node` is typically the selection's `anchorNode`
+ * — a TEXT_NODE under `<pre><code>` — so `closest` is unavailable; we
+ * walk `parentNode` manually. A `null` node (no selection) is safely
+ * `false`.
+ */
+function isWithinPre(node: Node | null, host: HTMLElement): boolean {
+  let current: Node | null = node;
+  while (current !== null && current !== host) {
+    if (
+      current.nodeType === Node.ELEMENT_NODE &&
+      (current as Element).tagName.toLowerCase() === "pre"
+    ) {
+      return true;
+    }
+    current = current.parentNode;
+  }
+  return false;
+}
+
+/** Insert `text` as a literal text node at the current caret position. */
+function insertTextAtCaret(host: HTMLElement, text: string): void {
+  const selection = host.ownerDocument.getSelection();
+  if (selection === null || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const node = host.ownerDocument.createTextNode(text);
+  range.insertNode(node);
+  range.setStartAfter(node);
+  range.setEndAfter(node);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function applyEditable(host: HTMLElement, enabled: boolean): void {
   const stack: Element[] = [host];
   while (stack.length > 0) {
@@ -136,7 +174,13 @@ function applyEditable(host: HTMLElement, enabled: boolean): void {
     // individually. The mixed case (text + nested editable block) is
     // covered by HTML5's contentEditable semantics — both can carry
     // `true` without conflict, and the outer text becomes editable.
-    if (!hasDirectTextChild(el)) continue;
+    //
+    // `<pre>` is the lone exception (Issue #285 ADR-001): the standard
+    // `<pre><code>…</code></pre>` shape has no direct text child, so we
+    // bypass the gate and always decorate `<pre>` — its nested `<code>`
+    // text becomes editable via contentEditable inheritance.
+    const isPre = el.tagName.toLowerCase() === "pre";
+    if (!isPre && !hasDirectTextChild(el)) continue;
     if (enabled) {
       el.setAttribute("contenteditable", "true");
     } else {
@@ -380,7 +424,21 @@ export function InlineEditor({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing) return;
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === "Enter") {
+        // Always prevent the browser default so it cannot grow new
+        // blocks (`<br>` / `<div>`) that would be rolled back as
+        // structural drift. Inside `<pre>` we substitute a literal `\n`
+        // text node so the change stays text-only (Issue #285 ADR-002).
+        e.preventDefault();
+        const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
+        if (isWithinPre(anchor, host)) {
+          insertTextAtCaret(host, "\n");
+        }
+        return;
+      }
+      if (e.key === "Tab") {
+        // Prevented inside and outside `<pre>` alike (Issue #285 ADR-003):
+        // tab-key indent insertion is out of scope and would trap focus.
         e.preventDefault();
       }
     };
@@ -389,16 +447,7 @@ export function InlineEditor({
       e.preventDefault();
       const text = e.clipboardData?.getData("text/plain") ?? "";
       if (text.length === 0) return;
-      const selection = host.ownerDocument.getSelection();
-      if (selection === null || selection.rangeCount === 0) return;
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const node = host.ownerDocument.createTextNode(text);
-      range.insertNode(node);
-      range.setStartAfter(node);
-      range.setEndAfter(node);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      insertTextAtCaret(host, text);
     };
 
     const onCompositionStart = () => {
