@@ -79,6 +79,43 @@ function tagButton(name: string): HTMLButtonElement {
   return found;
 }
 
+type BarProps = {
+  visibility?: "private" | "unlisted" | "public" | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
+};
+
+function renderBarWith({ visibility, from, to }: BarProps = {}) {
+  act(() => {
+    root.render(
+      <FilterBar
+        tags={[]}
+        selectedTagNames={[]}
+        from={from}
+        to={to}
+        visibility={visibility}
+        directoryId={undefined}
+        referencingNoteId={undefined}
+      />,
+    );
+  });
+}
+
+function buttonByText(text: string): HTMLButtonElement {
+  const btns = Array.from(
+    container.querySelectorAll<HTMLButtonElement>("button"),
+  );
+  const found = btns.find((b) => (b.textContent ?? "").trim().startsWith(text));
+  if (!found) throw new Error(`button "${text}" not found`);
+  return found;
+}
+
+function radioItems(): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+  );
+}
+
 describe("FilterBar — optimistic selection (Issue #478)", () => {
   it("reflects the tag selection immediately while navigation is pending", async () => {
     // Hold the navigation open so the transition stays pending; the
@@ -139,5 +176,87 @@ describe("FilterBar — optimistic selection (Issue #478)", () => {
     // selection snaps back to the server-confirmed baseline.
     expect(tagButton("alpha").getAttribute("aria-pressed")).toBe("false");
     expect(tagButton("alpha").getAttribute("data-active")).toBeNull();
+  });
+});
+
+/**
+ * Issue #467: the existing #478 cases above only cover tag chips, not the
+ * Date/Visibility popovers. These lock the popover migration onto the shared
+ * `<Popover>` + `useRovingMenu` primitives.
+ */
+describe("FilterBar — VisibilityPopover (Issue #467)", () => {
+  it("opens as a role=menu with menuitemradio options and aria-checked reflecting the value", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith({ visibility: "public" });
+
+    expect(radioItems()).toHaveLength(0);
+    act(() => {
+      buttonByText("公開状態").click();
+    });
+
+    const items = radioItems();
+    expect(items.length).toBeGreaterThan(0);
+    // The selected option (public) is checked and lands roving focus.
+    const checked = items.filter(
+      (el) => el.getAttribute("aria-checked") === "true",
+    );
+    expect(checked).toHaveLength(1);
+    expect(checked[0].textContent).toContain("公開");
+    expect(checked[0].getAttribute("tabindex")).toBe("0");
+    expect(document.activeElement).toBe(checked[0]);
+  });
+
+  it("selects an option, navigates, and closes the popover", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith({ visibility: undefined });
+    act(() => {
+      buttonByText("公開状態").click();
+    });
+    const items = radioItems();
+    // Pick a non-"all" option (private is index 1).
+    await act(async () => {
+      (items[1] as HTMLButtonElement).click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    // Selecting closes the menu.
+    expect(radioItems()).toHaveLength(0);
+  });
+});
+
+describe("FilterBar — DatePopover (Issue #467)", () => {
+  function datePanel(): HTMLElement | null {
+    return container.querySelector<HTMLElement>('[role="dialog"]');
+  }
+
+  it("opens as a role=dialog and closes on Escape", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith();
+    expect(datePanel()).toBeNull();
+    act(() => {
+      buttonByText("期間").click();
+    });
+    const panel = datePanel();
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute("aria-label")).toBe("期間フィルタ");
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(datePanel()).toBeNull();
+  });
+
+  it("closes via the 閉じる button", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith();
+    act(() => {
+      buttonByText("期間").click();
+    });
+    expect(datePanel()).not.toBeNull();
+    act(() => {
+      buttonByText("閉じる").click();
+    });
+    expect(datePanel()).toBeNull();
   });
 });

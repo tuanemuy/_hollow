@@ -1,17 +1,11 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
-import {
-  useEffect,
-  useId,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useId, useOptimistic, useRef, useState, useTransition } from "react";
+import { Popover } from "@/components/common/Popover";
 import { pillBtn } from "@/components/common/styles";
+import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { NoteListSearch } from "../schema";
-import { FilterPopover } from "./FilterPopover";
 import { homeSearchUpdater } from "./homeSearch";
 import {
   DATE_RANGE_PRESETS,
@@ -443,6 +437,17 @@ type DatePopoverProps = Readonly<{
   onClear: () => void;
 }>;
 
+// `left-0` anchors the panel to the trigger's left edge; the `<Popover>`
+// `clampToViewport` then nudges it horizontally into the viewport (`shiftX`).
+// Anchoring alone breaks because FilterBar triggers sit anywhere in a wrapping
+// row — a fixed `left-0`/`right-0` overflows one side or the other depending
+// on the trigger's position (#476). The fixed `w-[280px]` (rather than
+// `w-max`) keeps the native `<input type="date">` children from ballooning the
+// panel to their huge intrinsic `max-content` width; `max-w` still caps it on
+// narrow viewports (#476).
+const FILTER_POPOVER_PANEL =
+  "absolute left-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-3 w-[280px] max-w-[calc(100vw-2rem)]";
+
 const SR_ONLY =
   "absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]";
 // `flex-1 min-w-0` keeps the two native date inputs sharing the popover's
@@ -467,21 +472,19 @@ function DatePopover({
 }: DatePopoverProps) {
   const applied = chipLabel !== null;
   return (
-    <FilterPopover
+    <Popover
       open={open}
       onOpenChange={onOpenChange}
       haspopup="dialog"
       label="期間フィルタ"
+      panelClassName={FILTER_POPOVER_PANEL}
+      clampToViewport
       trigger={(triggerProps) =>
         applied ? (
           <span data-active className={filterChip}>
             <button
-              ref={triggerProps.ref}
+              {...triggerProps}
               type="button"
-              aria-haspopup={triggerProps["aria-haspopup"]}
-              aria-expanded={triggerProps["aria-expanded"]}
-              aria-controls={triggerProps["aria-controls"]}
-              onClick={() => onOpenChange(!open)}
               className="inline-flex items-center gap-1.5 outline-none"
             >
               期間: {chipLabel}
@@ -499,15 +502,7 @@ function DatePopover({
             </button>
           </span>
         ) : (
-          <button
-            ref={triggerProps.ref}
-            type="button"
-            aria-haspopup={triggerProps["aria-haspopup"]}
-            aria-expanded={triggerProps["aria-expanded"]}
-            aria-controls={triggerProps["aria-controls"]}
-            onClick={() => onOpenChange(!open)}
-            className={filterChipGhost}
-          >
+          <button {...triggerProps} type="button" className={filterChipGhost}>
             期間
             <span className={filterChipCaret} aria-hidden="true">
               ▾
@@ -583,7 +578,7 @@ function DatePopover({
           </div>
         </div>
       )}
-    </FilterPopover>
+    </Popover>
   );
 }
 
@@ -595,6 +590,14 @@ type VisibilityPopoverProps = Readonly<{
   onClear: () => void;
 }>;
 
+// menuitemradio highlight: `focus-visible:` (not `focus:`) so the roving
+// programmatic focus on open does not grey the landed item; `data-[active]`
+// keeps the selected-option surface + weight. The shared `menuItem` style is
+// intentionally NOT reused here because it lacks the `data-[active]` selection
+// indicator this radio group needs (#467 plan ステップ9).
+const VISIBILITY_OPTION_ITEM =
+  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
+
 function VisibilityPopover({
   value,
   open,
@@ -602,58 +605,43 @@ function VisibilityPopover({
   onSelect,
   onClear,
 }: VisibilityPopoverProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const menuRef = useRef<HTMLElement | null>(null);
   const applied = value !== undefined;
 
-  // Roving tabindex (WAI-ARIA Menu pattern): the active menuitemradio holds
-  // focus while open. Mirrors NoteActionsMenu.
-  useEffect(() => {
-    if (!open) return;
-    const initial = VISIBILITY_OPTIONS.findIndex((o) =>
+  // Land roving focus on the currently-selected option when the menu opens.
+  const initialIndex = (() => {
+    const i = VISIBILITY_OPTIONS.findIndex((o) =>
       o === "all" ? value === undefined : o === value,
     );
-    setActiveIndex(initial < 0 ? 0 : initial);
-  }, [open, value]);
+    return i < 0 ? 0 : i;
+  })();
 
-  useEffect(() => {
-    if (!open) return;
-    const items = menuRef.current?.querySelectorAll<HTMLElement>(
-      '[role="menuitemradio"]',
-    );
-    items?.[activeIndex]?.focus();
-  }, [open, activeIndex]);
-
-  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const count = VISIBILITY_OPTIONS.length;
-    let next: number | null = null;
-    if (event.key === "ArrowDown") next = (activeIndex + 1) % count;
-    else if (event.key === "ArrowUp") next = (activeIndex - 1 + count) % count;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = count - 1;
-    if (next === null) return;
-    event.preventDefault();
-    setActiveIndex(next);
-  };
+  const roving = useRovingMenu({
+    open,
+    itemCount: VISIBILITY_OPTIONS.length,
+    panelRef: menuRef,
+    itemRole: "menuitemradio",
+    initialIndex,
+  });
 
   return (
-    <FilterPopover
+    <Popover
       open={open}
       onOpenChange={onOpenChange}
       haspopup="menu"
       label="公開状態フィルタ"
-      panelRef={menuRef}
-      onMenuKeyDown={onMenuKeyDown}
+      panelClassName={FILTER_POPOVER_PANEL}
+      clampToViewport
+      panelRef={(node) => {
+        menuRef.current = node;
+      }}
+      onMenuKeyDown={roving.onKeyDown}
       trigger={(triggerProps) =>
         applied ? (
           <span data-active className={filterChip}>
             <button
-              ref={triggerProps.ref}
+              {...triggerProps}
               type="button"
-              aria-haspopup={triggerProps["aria-haspopup"]}
-              aria-expanded={triggerProps["aria-expanded"]}
-              aria-controls={triggerProps["aria-controls"]}
-              onClick={() => onOpenChange(!open)}
               className="inline-flex items-center gap-1.5 outline-none"
             >
               公開状態: {visibilityLabel(value)}
@@ -671,15 +659,7 @@ function VisibilityPopover({
             </button>
           </span>
         ) : (
-          <button
-            ref={triggerProps.ref}
-            type="button"
-            aria-haspopup={triggerProps["aria-haspopup"]}
-            aria-expanded={triggerProps["aria-expanded"]}
-            aria-controls={triggerProps["aria-controls"]}
-            onClick={() => onOpenChange(!open)}
-            className={filterChipGhost}
-          >
+          <button {...triggerProps} type="button" className={filterChipGhost}>
             公開状態
             <span className={filterChipCaret} aria-hidden="true">
               ▾
@@ -700,10 +680,10 @@ function VisibilityPopover({
             type="button"
             role="menuitemradio"
             aria-checked={checked}
-            tabIndex={index === activeIndex ? 0 : -1}
+            tabIndex={roving.getTabIndex(index)}
             data-active={checked || undefined}
             onClick={() => onSelect(option)}
-            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus:bg-surface data-[active]:bg-surface data-[active]:font-medium"
+            className={VISIBILITY_OPTION_ITEM}
           >
             <span
               aria-hidden="true"
@@ -718,6 +698,6 @@ function VisibilityPopover({
           </button>
         );
       })}
-    </FilterPopover>
+    </Popover>
   );
 }

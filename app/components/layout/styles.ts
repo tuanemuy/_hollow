@@ -23,14 +23,9 @@ export const ICON_BTN =
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";
 
-// User menu (header avatar dropdown). Mirrors the WAI-ARIA menu pattern used
-// by `directory/DirectoryActionsMenu`, anchored to the right edge under the
-// avatar.
-export const USER_MENU_WRAPPER = "relative";
-
-export const USER_MENU_PANEL =
-  "absolute right-0 mt-2 z-50 min-w-[220px] rounded-md border border-hairline bg-bg shadow-md py-1";
-
+// User menu (header avatar dropdown). The panel chrome / roving items now come
+// from the shared `<Menu>` primitive (`common/Menu`, #467); only the identity
+// header sub-styles remain domain-local.
 export const USER_MENU_INFO =
   "flex flex-col gap-0.5 px-3 py-2.5 border-b border-hairline";
 
@@ -39,16 +34,6 @@ export const USER_MENU_INFO_NAME = "text-sm font-medium text-ink truncate";
 export const USER_MENU_INFO_EMAIL = "text-xs text-ink-secondary truncate";
 
 export const USER_MENU_INFO_ROLE = "text-xs text-ink-tertiary";
-
-// The menu opens with a programmatic `.focus()` on the first item (roving
-// tabindex, UserMenu.tsx). Using `focus:` would paint the hover-gray on
-// mouse-driven open; `focus-visible:` restricts the highlight to keyboard
-// navigation. `data-[danger]:focus-visible:bg-error-surface` is required
-// alongside it so danger items keep a keyboard highlight (the 2-stack variant
-// sorts after the single `focus-visible:` and wins deterministically, same as
-// `auth/styles.ts` INPUT / ADR-003). See `.issue/463`.
-export const USER_MENU_ITEM =
-  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus-visible:bg-surface outline-none disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface data-[danger]:focus-visible:bg-error-surface";
 
 export const APP_LAYOUT =
   "grid grid-cols-1 min-h-[calc(100vh-var(--header-height))]";
