@@ -11,6 +11,7 @@ import "@/components/ingestion/actions";
 type Props = {
   header: ReactNode;
   sidebar: ReactNode;
+  settingsSidebar?: ReactNode;
   children: ReactNode;
 };
 
@@ -18,10 +19,19 @@ type Props = {
 // routed children via the client `AppShellDrawer` (which owns the mobile
 // drawer state). Kept server-side so the ingestion side-effect import and
 // `UploadDialogMount` stay out of the client bundle (Issue #354 ADR-002).
-export function AppShellFrame({ header, sidebar, children }: Props) {
+export function AppShellFrame({
+  header,
+  sidebar,
+  settingsSidebar,
+  children,
+}: Props) {
   return (
     <>
-      <AppShellDrawer header={header} sidebar={sidebar}>
+      <AppShellDrawer
+        header={header}
+        sidebar={sidebar}
+        settingsSidebar={settingsSidebar}
+      >
         {children}
       </AppShellDrawer>
       <UploadDialogMount />

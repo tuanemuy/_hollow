@@ -13,7 +13,7 @@ const renderAccountDeletePage = createServerFn({ method: "GET" })
     return renderServerComponent(<AccountDeletePage />);
   });
 
-export const Route = createFileRoute("/settings/account-delete")({
+export const Route = createFileRoute("/_app/settings/account-delete")({
   staleTime: 0,
   head: ({ match }) =>
     internalRouteHead(

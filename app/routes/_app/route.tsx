@@ -11,6 +11,7 @@ import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { appShellInvalidate } from "@/components/common/routerInvalidate";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import { SettingsSidebarNav } from "@/components/identity/SettingsSidebarNav";
 import { AppShellFrame } from "@/components/layout/AppShellFrame";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
@@ -122,7 +123,11 @@ function AppLayout() {
     return <Outlet />;
   }
   return (
-    <AppShellFrame header={header} sidebar={sidebar}>
+    <AppShellFrame
+      header={header}
+      sidebar={sidebar}
+      settingsSidebar={<SettingsSidebarNav />}
+    >
       <Outlet />
     </AppShellFrame>
   );
