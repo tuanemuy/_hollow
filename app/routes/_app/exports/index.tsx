@@ -26,7 +26,7 @@ const exportsSearchSchema = z.object({
   offset: z.coerce.number().int().min(0).max(10_000).catch(0),
 });
 
-export const Route = createFileRoute("/exports/")({
+export const Route = createFileRoute("/_app/exports/")({
   staleTime: 0,
   validateSearch: (search) => exportsSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,

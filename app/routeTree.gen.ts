@@ -18,21 +18,16 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ErrorRouteImport } from './routes/error'
 import { Route as AboutRouteImport } from './routes/about'
-import { Route as ViewsRouteRouteImport } from './routes/views/route'
 import { Route as URouteRouteImport } from './routes/u/route'
-import { Route as ExportsRouteRouteImport } from './routes/exports/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
-import { Route as ViewsIndexRouteImport } from './routes/views/index'
 import { Route as PasswordResetIndexRouteImport } from './routes/password-reset/index'
-import { Route as ExportsIndexRouteImport } from './routes/exports/index'
 import { Route as ExportIndexRouteImport } from './routes/export/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ShareTokenRouteImport } from './routes/share/$token'
 import { Route as PasswordResetConfirmRouteImport } from './routes/password-reset/confirm'
 import { Route as MediaMediaIdRouteImport } from './routes/media/$mediaId'
-import { Route as ExportsJobIdRouteImport } from './routes/exports/$jobId'
 import { Route as EmailChangeConfirmRouteImport } from './routes/email-change/confirm'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminRegistrationRouteImport } from './routes/admin/registration'
@@ -41,12 +36,16 @@ import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
 import { Route as AdminLlmRouteImport } from './routes/admin/llm'
 import { Route as AdminJobsRouteImport } from './routes/admin/jobs'
 import { Route as AdminDesignRouteImport } from './routes/admin/design'
+import { Route as AppViewsRouteRouteImport } from './routes/_app/views/route'
 import { Route as AppSettingsRouteRouteImport } from './routes/_app/settings/route'
+import { Route as AppExportsRouteRouteImport } from './routes/_app/exports/route'
 import { Route as UUsernameIndexRouteImport } from './routes/u/$username/index'
+import { Route as AppViewsIndexRouteImport } from './routes/_app/views/index'
 import { Route as AppUploadIndexRouteImport } from './routes/_app/upload/index'
 import { Route as AppTrashIndexRouteImport } from './routes/_app/trash/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppExportsIndexRouteImport } from './routes/_app/exports/index'
 import { Route as UUsernameNoteSlugRouteImport } from './routes/u/$username/$noteSlug'
 import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$noteId'
 import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
@@ -55,6 +54,7 @@ import { Route as AppSettingsPromptsRouteImport } from './routes/_app/settings/p
 import { Route as AppSettingsProfileRouteImport } from './routes/_app/settings/profile'
 import { Route as AppSettingsAccountDeleteRouteImport } from './routes/_app/settings/account-delete'
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
+import { Route as AppExportsJobIdRouteImport } from './routes/_app/exports/$jobId'
 import { Route as AppNotesNoteIdIndexRouteImport } from './routes/_app/notes/$noteId/index'
 import { Route as AppNotesNoteIdEditRouteImport } from './routes/_app/notes/$noteId/edit'
 import { Route as AppNotesNoteIdHistoryRouteRouteImport } from './routes/_app/notes/$noteId/history/route'
@@ -106,19 +106,9 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ViewsRouteRoute = ViewsRouteRouteImport.update({
-  id: '/views',
-  path: '/views',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const URouteRoute = URouteRouteImport.update({
   id: '/u',
   path: '/u',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExportsRouteRoute = ExportsRouteRouteImport.update({
-  id: '/exports',
-  path: '/exports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -130,20 +120,10 @@ const AppRouteRoute = AppRouteRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ViewsIndexRoute = ViewsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ViewsRouteRoute,
-} as any)
 const PasswordResetIndexRoute = PasswordResetIndexRouteImport.update({
   id: '/password-reset/',
   path: '/password-reset/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ExportsIndexRoute = ExportsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ExportsRouteRoute,
 } as any)
 const ExportIndexRoute = ExportIndexRouteImport.update({
   id: '/export/',
@@ -174,11 +154,6 @@ const MediaMediaIdRoute = MediaMediaIdRouteImport.update({
   id: '/media/$mediaId',
   path: '/media/$mediaId',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ExportsJobIdRoute = ExportsJobIdRouteImport.update({
-  id: '/$jobId',
-  path: '/$jobId',
-  getParentRoute: () => ExportsRouteRoute,
 } as any)
 const EmailChangeConfirmRoute = EmailChangeConfirmRouteImport.update({
   id: '/email-change/confirm',
@@ -220,15 +195,30 @@ const AdminDesignRoute = AdminDesignRouteImport.update({
   path: '/design',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AppViewsRouteRoute = AppViewsRouteRouteImport.update({
+  id: '/views',
+  path: '/views',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppSettingsRouteRoute = AppSettingsRouteRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppExportsRouteRoute = AppExportsRouteRouteImport.update({
+  id: '/exports',
+  path: '/exports',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const UUsernameIndexRoute = UUsernameIndexRouteImport.update({
   id: '/$username/',
   path: '/$username/',
   getParentRoute: () => URouteRoute,
+} as any)
+const AppViewsIndexRoute = AppViewsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppViewsRouteRoute,
 } as any)
 const AppUploadIndexRoute = AppUploadIndexRouteImport.update({
   id: '/upload/',
@@ -249,6 +239,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppSettingsRouteRoute,
+} as any)
+const AppExportsIndexRoute = AppExportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppExportsRouteRoute,
 } as any)
 const UUsernameNoteSlugRoute = UUsernameNoteSlugRouteImport.update({
   id: '/$username/$noteSlug',
@@ -291,6 +286,11 @@ const AppNotesNewRoute = AppNotesNewRouteImport.update({
   path: '/notes/new',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppExportsJobIdRoute = AppExportsJobIdRouteImport.update({
+  id: '/$jobId',
+  path: '/$jobId',
+  getParentRoute: () => AppExportsRouteRoute,
+} as any)
 const AppNotesNoteIdIndexRoute = AppNotesNoteIdIndexRouteImport.update({
   id: '/notes/$noteId/',
   path: '/notes/$noteId/',
@@ -323,9 +323,7 @@ const AppNotesNoteIdHistoryRevisionIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
-  '/exports': typeof ExportsRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
-  '/views': typeof ViewsRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/login': typeof LoginRoute
@@ -335,7 +333,9 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/exports': typeof AppExportsRouteRouteWithChildren
   '/settings': typeof AppSettingsRouteRouteWithChildren
+  '/views': typeof AppViewsRouteRouteWithChildren
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
@@ -344,15 +344,13 @@ export interface FileRoutesByFullPath {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
-  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/share/$token': typeof ShareTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/export/': typeof ExportIndexRoute
-  '/exports/': typeof ExportsIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
-  '/views/': typeof ViewsIndexRoute
+  '/exports/$jobId': typeof AppExportsJobIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/settings/account-delete': typeof AppSettingsAccountDeleteRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -361,10 +359,12 @@ export interface FileRoutesByFullPath {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/exports/': typeof AppExportsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/tags/': typeof AppTagsIndexRoute
   '/trash/': typeof AppTrashIndexRoute
   '/upload/': typeof AppUploadIndexRoute
+  '/views/': typeof AppViewsIndexRoute
   '/u/$username/': typeof UUsernameIndexRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
@@ -391,16 +391,14 @@ export interface FileRoutesByTo {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
-  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/share/$token': typeof ShareTokenRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
   '/export': typeof ExportIndexRoute
-  '/exports': typeof ExportsIndexRoute
   '/password-reset': typeof PasswordResetIndexRoute
-  '/views': typeof ViewsIndexRoute
+  '/exports/$jobId': typeof AppExportsJobIdRoute
   '/notes/new': typeof AppNotesNewRoute
   '/settings/account-delete': typeof AppSettingsAccountDeleteRoute
   '/settings/profile': typeof AppSettingsProfileRoute
@@ -409,10 +407,12 @@ export interface FileRoutesByTo {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/exports': typeof AppExportsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/tags': typeof AppTagsIndexRoute
   '/trash': typeof AppTrashIndexRoute
   '/upload': typeof AppUploadIndexRoute
+  '/views': typeof AppViewsIndexRoute
   '/u/$username': typeof UUsernameIndexRoute
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
   '/notes/$noteId': typeof AppNotesNoteIdIndexRoute
@@ -423,9 +423,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
-  '/exports': typeof ExportsRouteRouteWithChildren
   '/u': typeof URouteRouteWithChildren
-  '/views': typeof ViewsRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/error': typeof ErrorRoute
   '/login': typeof LoginRoute
@@ -435,7 +433,9 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/_app/exports': typeof AppExportsRouteRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteRouteWithChildren
+  '/_app/views': typeof AppViewsRouteRouteWithChildren
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
@@ -444,16 +444,14 @@ export interface FileRoutesById {
   '/admin/registration': typeof AdminRegistrationRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
-  '/exports/$jobId': typeof ExportsJobIdRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/share/$token': typeof ShareTokenRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/export/': typeof ExportIndexRoute
-  '/exports/': typeof ExportsIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
-  '/views/': typeof ViewsIndexRoute
+  '/_app/exports/$jobId': typeof AppExportsJobIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
   '/_app/settings/account-delete': typeof AppSettingsAccountDeleteRoute
   '/_app/settings/profile': typeof AppSettingsProfileRoute
@@ -462,10 +460,12 @@ export interface FileRoutesById {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/_app/exports/': typeof AppExportsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
   '/_app/trash/': typeof AppTrashIndexRoute
   '/_app/upload/': typeof AppUploadIndexRoute
+  '/_app/views/': typeof AppViewsIndexRoute
   '/u/$username/': typeof UUsernameIndexRoute
   '/_app/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/_app/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
@@ -478,9 +478,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/exports'
     | '/u'
-    | '/views'
     | '/about'
     | '/error'
     | '/login'
@@ -490,7 +488,9 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/verify-email'
+    | '/exports'
     | '/settings'
+    | '/views'
     | '/admin/design'
     | '/admin/jobs'
     | '/admin/llm'
@@ -499,15 +499,13 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
-    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/password-reset/confirm'
     | '/share/$token'
     | '/admin/'
     | '/export/'
-    | '/exports/'
     | '/password-reset/'
-    | '/views/'
+    | '/exports/$jobId'
     | '/notes/new'
     | '/settings/account-delete'
     | '/settings/profile'
@@ -516,10 +514,12 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/exports/'
     | '/settings/'
     | '/tags/'
     | '/trash/'
     | '/upload/'
+    | '/views/'
     | '/u/$username/'
     | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
@@ -546,16 +546,14 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
-    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/password-reset/confirm'
     | '/share/$token'
     | '/'
     | '/admin'
     | '/export'
-    | '/exports'
     | '/password-reset'
-    | '/views'
+    | '/exports/$jobId'
     | '/notes/new'
     | '/settings/account-delete'
     | '/settings/profile'
@@ -564,10 +562,12 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/exports'
     | '/settings'
     | '/tags'
     | '/trash'
     | '/upload'
+    | '/views'
     | '/u/$username'
     | '/notes/$noteId/edit'
     | '/notes/$noteId'
@@ -577,9 +577,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/admin'
-    | '/exports'
     | '/u'
-    | '/views'
     | '/about'
     | '/error'
     | '/login'
@@ -589,7 +587,9 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/verify-email'
+    | '/_app/exports'
     | '/_app/settings'
+    | '/_app/views'
     | '/admin/design'
     | '/admin/jobs'
     | '/admin/llm'
@@ -598,16 +598,14 @@ export interface FileRouteTypes {
     | '/admin/registration'
     | '/admin/users'
     | '/email-change/confirm'
-    | '/exports/$jobId'
     | '/media/$mediaId'
     | '/password-reset/confirm'
     | '/share/$token'
     | '/_app/'
     | '/admin/'
     | '/export/'
-    | '/exports/'
     | '/password-reset/'
-    | '/views/'
+    | '/_app/exports/$jobId'
     | '/_app/notes/new'
     | '/_app/settings/account-delete'
     | '/_app/settings/profile'
@@ -616,10 +614,12 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/_app/exports/'
     | '/_app/settings/'
     | '/_app/tags/'
     | '/_app/trash/'
     | '/_app/upload/'
+    | '/_app/views/'
     | '/u/$username/'
     | '/_app/notes/$noteId/history'
     | '/_app/notes/$noteId/edit'
@@ -631,9 +631,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
-  ExportsRouteRoute: typeof ExportsRouteRouteWithChildren
   URouteRoute: typeof URouteRouteWithChildren
-  ViewsRouteRoute: typeof ViewsRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   ErrorRoute: typeof ErrorRoute
   LoginRoute: typeof LoginRoute
@@ -718,25 +716,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/views': {
-      id: '/views'
-      path: '/views'
-      fullPath: '/views'
-      preLoaderRoute: typeof ViewsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/u': {
       id: '/u'
       path: '/u'
       fullPath: '/u'
       preLoaderRoute: typeof URouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/exports': {
-      id: '/exports'
-      path: '/exports'
-      fullPath: '/exports'
-      preLoaderRoute: typeof ExportsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -753,26 +737,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/views/': {
-      id: '/views/'
-      path: '/'
-      fullPath: '/views/'
-      preLoaderRoute: typeof ViewsIndexRouteImport
-      parentRoute: typeof ViewsRouteRoute
-    }
     '/password-reset/': {
       id: '/password-reset/'
       path: '/password-reset'
       fullPath: '/password-reset/'
       preLoaderRoute: typeof PasswordResetIndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/exports/': {
-      id: '/exports/'
-      path: '/'
-      fullPath: '/exports/'
-      preLoaderRoute: typeof ExportsIndexRouteImport
-      parentRoute: typeof ExportsRouteRoute
     }
     '/export/': {
       id: '/export/'
@@ -815,13 +785,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/media/$mediaId'
       preLoaderRoute: typeof MediaMediaIdRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/exports/$jobId': {
-      id: '/exports/$jobId'
-      path: '/$jobId'
-      fullPath: '/exports/$jobId'
-      preLoaderRoute: typeof ExportsJobIdRouteImport
-      parentRoute: typeof ExportsRouteRoute
     }
     '/email-change/confirm': {
       id: '/email-change/confirm'
@@ -879,11 +842,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDesignRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_app/views': {
+      id: '/_app/views'
+      path: '/views'
+      fullPath: '/views'
+      preLoaderRoute: typeof AppViewsRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/exports': {
+      id: '/_app/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof AppExportsRouteRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/u/$username/': {
@@ -892,6 +869,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/u/$username/'
       preLoaderRoute: typeof UUsernameIndexRouteImport
       parentRoute: typeof URouteRoute
+    }
+    '/_app/views/': {
+      id: '/_app/views/'
+      path: '/'
+      fullPath: '/views/'
+      preLoaderRoute: typeof AppViewsIndexRouteImport
+      parentRoute: typeof AppViewsRouteRoute
     }
     '/_app/upload/': {
       id: '/_app/upload/'
@@ -920,6 +904,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/'
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRouteRoute
+    }
+    '/_app/exports/': {
+      id: '/_app/exports/'
+      path: '/'
+      fullPath: '/exports/'
+      preLoaderRoute: typeof AppExportsIndexRouteImport
+      parentRoute: typeof AppExportsRouteRoute
     }
     '/u/$username/$noteSlug': {
       id: '/u/$username/$noteSlug'
@@ -977,6 +968,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotesNewRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/exports/$jobId': {
+      id: '/_app/exports/$jobId'
+      path: '/$jobId'
+      fullPath: '/exports/$jobId'
+      preLoaderRoute: typeof AppExportsJobIdRouteImport
+      parentRoute: typeof AppExportsRouteRoute
+    }
     '/_app/notes/$noteId/': {
       id: '/_app/notes/$noteId/'
       path: '/notes/$noteId'
@@ -1015,6 +1013,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppExportsRouteRouteChildren {
+  AppExportsJobIdRoute: typeof AppExportsJobIdRoute
+  AppExportsIndexRoute: typeof AppExportsIndexRoute
+}
+
+const AppExportsRouteRouteChildren: AppExportsRouteRouteChildren = {
+  AppExportsJobIdRoute: AppExportsJobIdRoute,
+  AppExportsIndexRoute: AppExportsIndexRoute,
+}
+
+const AppExportsRouteRouteWithChildren = AppExportsRouteRoute._addFileChildren(
+  AppExportsRouteRouteChildren,
+)
+
 interface AppSettingsRouteRouteChildren {
   AppSettingsAccountDeleteRoute: typeof AppSettingsAccountDeleteRoute
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
@@ -1034,6 +1046,18 @@ const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
 const AppSettingsRouteRouteWithChildren =
   AppSettingsRouteRoute._addFileChildren(AppSettingsRouteRouteChildren)
 
+interface AppViewsRouteRouteChildren {
+  AppViewsIndexRoute: typeof AppViewsIndexRoute
+}
+
+const AppViewsRouteRouteChildren: AppViewsRouteRouteChildren = {
+  AppViewsIndexRoute: AppViewsIndexRoute,
+}
+
+const AppViewsRouteRouteWithChildren = AppViewsRouteRoute._addFileChildren(
+  AppViewsRouteRouteChildren,
+)
+
 interface AppNotesNoteIdHistoryRouteRouteChildren {
   AppNotesNoteIdHistoryRevisionIdRoute: typeof AppNotesNoteIdHistoryRevisionIdRoute
   AppNotesNoteIdHistoryIndexRoute: typeof AppNotesNoteIdHistoryIndexRoute
@@ -1051,7 +1075,9 @@ const AppNotesNoteIdHistoryRouteRouteWithChildren =
   )
 
 interface AppRouteRouteChildren {
+  AppExportsRouteRoute: typeof AppExportsRouteRouteWithChildren
   AppSettingsRouteRoute: typeof AppSettingsRouteRouteWithChildren
+  AppViewsRouteRoute: typeof AppViewsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
@@ -1063,7 +1089,9 @@ interface AppRouteRouteChildren {
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppExportsRouteRoute: AppExportsRouteRouteWithChildren,
   AppSettingsRouteRoute: AppSettingsRouteRouteWithChildren,
+  AppViewsRouteRoute: AppViewsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppNotesNewRoute: AppNotesNewRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
@@ -1104,20 +1132,6 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
   AdminRouteRouteChildren,
 )
 
-interface ExportsRouteRouteChildren {
-  ExportsJobIdRoute: typeof ExportsJobIdRoute
-  ExportsIndexRoute: typeof ExportsIndexRoute
-}
-
-const ExportsRouteRouteChildren: ExportsRouteRouteChildren = {
-  ExportsJobIdRoute: ExportsJobIdRoute,
-  ExportsIndexRoute: ExportsIndexRoute,
-}
-
-const ExportsRouteRouteWithChildren = ExportsRouteRoute._addFileChildren(
-  ExportsRouteRouteChildren,
-)
-
 interface URouteRouteChildren {
   UUsernameNoteSlugRoute: typeof UUsernameNoteSlugRoute
   UUsernameIndexRoute: typeof UUsernameIndexRoute
@@ -1131,24 +1145,10 @@ const URouteRouteChildren: URouteRouteChildren = {
 const URouteRouteWithChildren =
   URouteRoute._addFileChildren(URouteRouteChildren)
 
-interface ViewsRouteRouteChildren {
-  ViewsIndexRoute: typeof ViewsIndexRoute
-}
-
-const ViewsRouteRouteChildren: ViewsRouteRouteChildren = {
-  ViewsIndexRoute: ViewsIndexRoute,
-}
-
-const ViewsRouteRouteWithChildren = ViewsRouteRoute._addFileChildren(
-  ViewsRouteRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   AdminRouteRoute: AdminRouteRouteWithChildren,
-  ExportsRouteRoute: ExportsRouteRouteWithChildren,
   URouteRoute: URouteRouteWithChildren,
-  ViewsRouteRoute: ViewsRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   ErrorRoute: ErrorRoute,
   LoginRoute: LoginRoute,
