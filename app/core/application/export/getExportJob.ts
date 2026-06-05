@@ -1,5 +1,5 @@
 import { ExportJob } from "@/core/domain/export/entity";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
+import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
@@ -7,7 +7,7 @@ import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type GetExportJobInput = Readonly<{
   actorUserId: UserId;
-  jobId: ExportJobId;
+  jobId: string;
 }>;
 
 export type GetExportJobOutput = Readonly<{
@@ -25,7 +25,9 @@ export async function getExportJob({
 }: ServiceArgs<GetExportJobInput>): Promise<GetExportJobOutput> {
   const job = await container.unitOfWorkProvider.run(
     async ({ exportJobRepository }) => {
-      const found = await exportJobRepository.findById(input.jobId);
+      const found = await exportJobRepository.findById(
+        input.jobId as ExportJobIdBrand,
+      );
       if (found === null) {
         throw new NotFoundError(
           "EXPORT_JOB_NOT_FOUND",

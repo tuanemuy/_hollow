@@ -1,14 +1,14 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import { ExportJob } from "@/core/domain/export/entity";
 import { ExportErrorCode } from "@/core/domain/export/errorCode";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
+import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type DownloadExportArtifactInput = Readonly<{
   actorUserId: UserId;
-  jobId: ExportJobId;
+  jobId: string;
 }>;
 
 export type DownloadExportArtifactOutput = Readonly<{
@@ -31,7 +31,9 @@ export async function downloadExportArtifact({
   const now = container.clock.now();
   const completed = await container.unitOfWorkProvider.run(
     async ({ exportJobRepository }) => {
-      const found = await exportJobRepository.findById(input.jobId);
+      const found = await exportJobRepository.findById(
+        input.jobId as ExportJobIdBrand,
+      );
       if (found === null) {
         throw new NotFoundError(
           "EXPORT_JOB_NOT_FOUND",

@@ -1,11 +1,10 @@
 import { cache } from "react";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 
 export type LoadExportJobInput = Readonly<{
   actorUserId: UserId;
-  jobId: ExportJobId;
+  jobId: string;
 }>;
 
 export const loadExportJob = cache(

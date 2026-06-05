@@ -2,7 +2,6 @@ import { isNotFoundError } from "@/core/application/errors";
 import type { ExportJobDTO } from "@/core/application/export/view";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { ExportErrorCode } from "@/core/domain/export/errorCode";
-import type { ExportJobId } from "@/core/domain/export/valueObject";
 import { requireCurrentUser } from "@/lib/server/currentUser";
 import { ExportJobDetailView } from "./index";
 import { loadExportJob } from "./loader";
@@ -19,7 +18,7 @@ import { loadExportJob } from "./loader";
  * に流れる挙動が確認されている。そのためここでは notFound() を経由せず
  * JSX を直接返す形を取る。
  */
-export async function ExportJobDetailPage({ jobId }: { jobId: ExportJobId }) {
+export async function ExportJobDetailPage({ jobId }: { jobId: string }) {
   const user = await requireCurrentUser();
   let job: ExportJobDTO;
   try {
