@@ -2,6 +2,7 @@ import { Link, notFound } from "@tanstack/react-router";
 import { cache } from "react";
 import { isNotFoundError } from "@/core/application/errors";
 import { serverData } from "@/core/presentation/serverAction";
+import { CodeHighlight } from "../note/content/CodeHighlight";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
   AUTHOR_AVATAR,
@@ -106,6 +107,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
           // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized at save time via HtmlSanitizer
           dangerouslySetInnerHTML={{ __html: note.contentHtml }}
         />
+        <CodeHighlight />
       </div>
     </PublicLayout>
   );

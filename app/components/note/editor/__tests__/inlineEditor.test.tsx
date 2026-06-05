@@ -5,6 +5,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineEditor } from "@/components/note/editor/InlineEditor";
 
+// shiki is client-only and heavy; the inline editor loads it via a
+// dynamic import for `<pre>` highlighting (Issue #498). Mock it so these
+// structural tests stay deterministic and never pull the real engine.
+vi.mock("@/components/note/content/highlighter", () => ({
+  highlightCodeElement: vi.fn(async () => {}),
+}));
+
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -443,10 +450,20 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelectorAll("pre")).toHaveLength(1);
   });
 
-  it("rolls back a forced element insertion inside <pre> (Issue #285)", async () => {
+  it("keeps an element inserted inside <pre> in the DOM but strips it from saved HTML (Issue #498)", async () => {
+    // Issue #498 ADR-002 changes the #285 contract: a `<pre>` is now an
+    // opaque region whose decoration spans are allowed in the live DOM
+    // (we can't tell highlighter spans from other element churn inside
+    // `<pre>`). The saved-HTML guarantee is preserved differently —
+    // `serializeHostContent` normalizes every `<pre>` to plain text — so
+    // nothing leaks even though the live span survives.
+    const onChange = vi.fn();
     await act(async () => {
       root.render(
-        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={onChange}
+        />,
       );
     });
     const host = findHost();
@@ -457,12 +474,21 @@ describe("InlineEditor structural preservation", () => {
       extra.textContent = "x";
       code?.appendChild(extra);
     });
+    // Force a text diff so an onChange fires for assertion.
+    await act(async () => {
+      const firstText = code?.firstChild;
+      if (firstText != null) (firstText as Text).textContent = "foobar";
+    });
     await flushMutations();
-    expect(host.querySelector("span")).toBeNull();
-    expect(host.querySelector("code")?.textContent).toBe("foo");
+    // Live DOM keeps the span (not rolled back).
+    expect(host.querySelector("span")).not.toBeNull();
+    // Saved HTML is clean — the span never leaks.
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0];
+    expect(lastArg).not.toContain("<span");
+    expect(lastArg).toContain("<pre><code>");
   });
 
-  it("prevents Tab inside <pre> so no tab character is inserted (Issue #285)", async () => {
+  it("inserts two spaces on Tab inside <pre> without rollback (Issue #498)", async () => {
     await act(async () => {
       root.render(
         <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
@@ -488,7 +514,248 @@ describe("InlineEditor structural preservation", () => {
     });
     await flushMutations();
     expect(event.defaultPrevented).toBe(true);
+    // Two spaces inserted at the caret; no rollback, no tab character.
+    expect(host.querySelector("code")?.textContent).toBe("foo  ");
+    expect(host.querySelectorAll("pre")).toHaveLength(1);
+  });
+
+  it("removes up to two leading spaces on Shift+Tab inside <pre> (Issue #498)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>    foo</code></pre>"
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    const sel = document.getSelection();
+    const range = document.createRange();
+    // Caret somewhere on the line (after the leading spaces).
+    range.setStart(textNode!, 6);
+    range.setEnd(textNode!, 6);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    expect(host.querySelector("code")?.textContent).toBe("  foo");
+  });
+
+  it("does not dedent another line on Shift+Tab at offset 0 of a newline-led <pre> (Issue #498)", async () => {
+    // The block begins with a newline; the caret sits at offset 0 (the
+    // empty first line). Shift+Tab must be a no-op for that line, not strip
+    // the indentation of line 2 (the lastIndexOf negative-fromIndex trap).
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value={"<pre><code>\n  foo</code></pre>"}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 0);
+    range.setEnd(textNode!, 0);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    // Line 2's two leading spaces are untouched.
+    expect(host.querySelector("code")?.textContent).toBe("\n  foo");
+  });
+
+  it("strips highlight <span>s from <pre> in the emitted HTML (Issue #498)", async () => {
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>const</code></pre>"
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    expect(code).not.toBeNull();
+    // Simulate the highlighter injecting decoration spans into <pre>.
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "const";
+      code?.replaceChildren(span);
+    });
+    // The span add inside <pre> is allowed (opaque region), so an emit
+    // fires. Force a characterData edit to guarantee an onChange.
+    await act(async () => {
+      const span = host.querySelector("span");
+      if (span?.firstChild != null) {
+        (span.firstChild as Text).textContent = "constx";
+      }
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalled();
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    // The saved HTML must be clean — no decoration spans leak.
+    expect(lastArg).not.toContain("<span");
+    expect(lastArg).not.toContain("shiki-token");
+    expect(lastArg).toContain("<pre><code>constx</code></pre>");
+    // The live DOM still holds the span (display-only); only serialize
+    // normalizes it.
+    expect(host.querySelector("span")).not.toBeNull();
+  });
+
+  it("strips highlight <span>s from a bare <pre> in the emitted HTML (Issue #498)", async () => {
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre>const</pre>" onChange={onChange} />,
+      );
+    });
+    const host = findHost();
+    const pre = host.querySelector("pre");
+    expect(pre).not.toBeNull();
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "const";
+      pre?.replaceChildren(span);
+    });
+    await act(async () => {
+      const span = host.querySelector("span");
+      if (span?.firstChild != null) {
+        (span.firstChild as Text).textContent = "constx";
+      }
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalled();
+    const lastArg = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(lastArg).not.toContain("<span");
+    expect(lastArg).toContain("<pre>constx</pre>");
+  });
+
+  it("does not roll back when a <span> is added inside <pre> (Issue #498)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "foo";
+      code?.replaceChildren(span);
+    });
+    await flushMutations();
+    // The span inside <pre> survives (opaque region) — not rolled back.
+    expect(host.querySelector("span")).not.toBeNull();
     expect(host.querySelector("code")?.textContent).toBe("foo");
+  });
+
+  it("does not roll back on compositionend when spans were injected inside <pre> (Issue #498 structureSignature opacity)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    // IME composition in flight.
+    await act(async () => {
+      host.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+    // The highlighter injects decoration spans inside <pre> mid-composition.
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "foo";
+      code?.replaceChildren(span);
+    });
+    // compositionend compares structure signatures. Because <pre> is opaque
+    // (its descendants are not walked), the span injection must NOT register
+    // as drift, so no rollback fires. Were the <pre>-skip removed, the snap
+    // signature (plain text) and current signature (span) would diverge and
+    // roll the span away — this test guards that regression.
+    await act(async () => {
+      host.dispatchEvent(new Event("compositionend", { bubbles: true }));
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).not.toBeNull();
+    expect(host.querySelector("code")?.textContent).toBe("foo");
+  });
+
+  it("still rolls back a <span> added outside <pre> (Issue #498 boundary)", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    await act(async () => {
+      const span = document.createElement("span");
+      span.textContent = "x";
+      p?.appendChild(span);
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+    expect(host.querySelector("p")?.textContent).toBe("foo");
+  });
+
+  it("blurs the editor on Escape inside <pre> to escape the focus trap (Issue #498)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const pre = host.querySelector("pre");
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    pre?.focus();
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 1);
+    range.setEnd(textNode!, 1);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    const blurSpy = vi.spyOn(pre as HTMLElement, "blur");
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+    expect(blurSpy).toHaveBeenCalled();
   });
 
   it("allows childList mutations during IME composition without rollback", async () => {

@@ -2,6 +2,7 @@ import type { UserDTO } from "@/core/application/dto/identity";
 import { isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
+import { CodeHighlight } from "../content/CodeHighlight";
 import {
   loadAllTags,
   loadDirectoryTreeFlat,
@@ -107,6 +108,7 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
         dangerouslySetInnerHTML={{ __html: note.contentHtml }}
       />
+      <CodeHighlight />
 
       <NoteMetaPanel
         noteId={note.id}
