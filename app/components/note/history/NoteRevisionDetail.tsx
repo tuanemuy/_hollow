@@ -1,5 +1,6 @@
 import type { UserDTO } from "@/core/application/dto/identity";
 import { isNotFoundError } from "@/core/application/errors";
+import { CodeHighlight } from "../content/CodeHighlight";
 import { loadNoteRevisionDetail } from "../loaders";
 import { NoteRevisionRestorePanel } from "./NoteRevisionRestorePanel";
 
@@ -78,6 +79,7 @@ export async function NoteRevisionDetail({
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
         dangerouslySetInnerHTML={{ __html: revision.contentHtml }}
       />
+      <CodeHighlight />
     </article>
   );
 }

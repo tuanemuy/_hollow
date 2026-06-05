@@ -7,6 +7,7 @@ import {
   fieldLabel,
   fieldTextarea,
 } from "@/components/common/styles";
+import { CodeHighlight } from "../content/CodeHighlight";
 
 /**
  * HTML edit pane with a sanitized-on-save preview folded under
@@ -50,6 +51,7 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
           // biome-ignore lint/security/noDangerouslySetInnerHtml: preview-only; the persisted form is sanitized server-side at save time
           dangerouslySetInnerHTML={{ __html: value }}
         />
+        <CodeHighlight contentKey={value} />
       </details>
     </div>
   );

@@ -258,6 +258,32 @@
     font-size: inherit;
   }
 
+  /*
+   * Syntax-highlight token colors (Issue #498). The highlighter (shiki,
+   * client-only) injects `<span class="shiki-token-*">` into code blocks;
+   * the colors resolve to the `--code-*` tokens so per-instance overrides
+   * (#397) and a future dark theme follow automatically.
+   */
+  .note-detail-content .shiki-token-keyword {
+    color: var(--code-keyword);
+  }
+
+  .note-detail-content .shiki-token-string {
+    color: var(--code-string);
+  }
+
+  .note-detail-content .shiki-token-comment {
+    color: var(--code-comment);
+  }
+
+  .note-detail-content .shiki-token-function {
+    color: var(--code-function);
+  }
+
+  .note-detail-content .shiki-token-number {
+    color: var(--code-number);
+  }
+
   .note-detail-content blockquote {
     border-left: 3px solid var(--color-hairline-strong);
     padding: 2px 0 2px 18px;

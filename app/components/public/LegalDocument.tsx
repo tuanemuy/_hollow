@@ -1,3 +1,5 @@
+import { CodeHighlight } from "../note/content/CodeHighlight";
+
 type LegalDocumentProps = {
   markdown: string;
 };
@@ -27,6 +29,7 @@ export async function LegalDocument({ markdown }: LegalDocumentProps) {
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via HtmlSanitizer port
         dangerouslySetInnerHTML={{ __html: html as string }}
       />
+      <CodeHighlight />
     </main>
   );
 }

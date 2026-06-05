@@ -65,6 +65,23 @@ import { useEffect, useRef } from "react";
  *    snapshot) so media inserts and external edits show up.
  *    `lastEmittedHtmlRef` guards the self-emit round-trip.
  *
+ * 6. **`<pre>` is an opaque, highlight-on-blur region (Issue #498).**
+ *    Syntax highlighting injects display-only `<span>`s into `<pre>`,
+ *    which must never reach the saved HTML. `serializeHostContent`
+ *    resets every `<pre>` to its plain text, `structureSignature` stops
+ *    at `<pre>`, and `classifyRecords` allows span add/remove inside
+ *    `<pre>` (and any mutation while `isHighlightingRef` is set). A
+ *    `<pre>` is plain while focused (focusin strips its decoration so
+ *    editing happens on a single text node — caret / IME stable) and
+ *    re-highlighted on focusout (caret offset saved → re-decorate →
+ *    restored; suppressed during IME composition).
+ *
+ * 7. **Tab / Escape inside `<pre>` (Issue #498 ADR-004).** Tab inserts
+ *    two spaces (text-only); Shift+Tab removes up to two leading spaces
+ *    from the caret's line; Escape blurs the focused element to leave the
+ *    contentEditable focus trap (and triggers focusout re-highlight).
+ *    Outside `<pre>`, Tab is still prevented so focus cannot escape.
+ *
  * Styling: the host element wears the existing `.note-detail-content`
  * class so the editing view reuses the read-only view's typographic
  * styles (Issue #233 ADR-007). The class is the lone documented
@@ -160,6 +177,91 @@ function insertTextAtCaret(host: HTMLElement, text: string): void {
   selection.addRange(range);
 }
 
+/**
+ * Remove up to two leading spaces from the start of the caret's current
+ * line inside `<pre>` (Shift+Tab dedent, Issue #498 ADR-004). Text-only
+ * and single-line: it edits the caret's text node in place via
+ * `characterData`, so the structure-rollback invariant holds. No-op when
+ * the line has no leading space or the selection is unavailable.
+ */
+function dedentAtCaret(host: HTMLElement): void {
+  const selection = host.ownerDocument.getSelection();
+  if (selection === null || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) return;
+  const text = node.textContent ?? "";
+  const caret = range.startOffset;
+  // Find the start of the current line within this text node.
+  const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
+  let removable = 0;
+  while (removable < 2 && text[lineStart + removable] === " ") removable += 1;
+  if (removable === 0) return;
+  (node as Text).textContent =
+    text.slice(0, lineStart) + text.slice(lineStart + removable);
+  const nextCaret = Math.max(lineStart, caret - removable);
+  const newRange = host.ownerDocument.createRange();
+  newRange.setStart(node, nextCaret);
+  newRange.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+}
+
+/** Resolve the `<code>` (if any) else the `<pre>` itself — the element
+ * whose text is the source of truth for highlighting (Issue #498). */
+function highlightTarget(pre: Element): Element {
+  return pre.querySelector("code") ?? pre;
+}
+
+/**
+ * Caret offset within `root`'s text content, counting characters in
+ * document order. Returns `null` when the selection is outside `root`.
+ * Used to restore the caret after the highlighter rebuilds a `<pre>`'s
+ * descendants into spans (Issue #498).
+ */
+function caretOffsetWithin(root: Element): number | null {
+  const selection = root.ownerDocument.getSelection();
+  if (selection === null || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.startContainer)) return null;
+  const measure = root.ownerDocument.createRange();
+  measure.selectNodeContents(root);
+  measure.setEnd(range.startContainer, range.startOffset);
+  return measure.toString().length;
+}
+
+/**
+ * Place the caret at character `offset` within `root` (counting text in
+ * document order). Falls back to the end of `root` when the offset cannot
+ * be resolved (Issue #498 ADR-002).
+ */
+function restoreCaretWithin(root: Element, offset: number): void {
+  const doc = root.ownerDocument;
+  const selection = doc.getSelection();
+  if (selection === null) return;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let remaining = offset;
+  let node = walker.nextNode();
+  const range = doc.createRange();
+  while (node !== null) {
+    const len = node.textContent?.length ?? 0;
+    if (remaining <= len) {
+      range.setStart(node, remaining);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+    remaining -= len;
+    node = walker.nextNode();
+  }
+  // Fallback: caret at the end of the target.
+  range.selectNodeContents(root);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function applyEditable(host: HTMLElement, enabled: boolean): void {
   const stack: Element[] = [host];
   while (stack.length > 0) {
@@ -218,6 +320,17 @@ function serializeHostContent(host: HTMLElement): string {
   for (const el of clone.querySelectorAll("[contenteditable]")) {
     el.removeAttribute("contenteditable");
   }
+  // `<pre>` is an opaque region (Issue #498 ADR-002): the highlighter
+  // injects display-only `<span>`s that must never leak into the saved
+  // HTML. Reset each `<pre>` to its plain text so the persisted form is
+  // always a clean `<pre><code>text</code></pre>` / `<pre>text</pre>`.
+  // `querySelectorAll("pre")` (not `pre code`) covers the bare-`<pre>`
+  // shape too (#285 ADR-001).
+  for (const pre of clone.querySelectorAll("pre")) {
+    const code = pre.querySelector("code");
+    const target = code ?? pre;
+    target.textContent = target.textContent ?? "";
+  }
   return clone.innerHTML;
 }
 
@@ -232,7 +345,8 @@ function structureSignature(root: Element | DocumentFragment): string {
   const walk = (node: Node) => {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element;
-      parts.push(`<${el.tagName.toLowerCase()}`);
+      const tag = el.tagName.toLowerCase();
+      parts.push(`<${tag}`);
       // Sort attributes for deterministic comparison; skip contenteditable
       // since we add/remove it dynamically.
       const attrs = Array.from(el.attributes)
@@ -241,8 +355,14 @@ function structureSignature(root: Element | DocumentFragment): string {
         .sort();
       for (const a of attrs) parts.push(` ${a}`);
       parts.push(">");
-      for (const child of el.childNodes) walk(child);
-      parts.push(`</${el.tagName.toLowerCase()}>`);
+      // `<pre>` is opaque (Issue #498 ADR-002): the highlighter mutates
+      // its descendants (span add/remove), so do not descend — otherwise
+      // the signature would drift purely from decoration and fire a false
+      // compositionend rollback.
+      if (tag !== "pre") {
+        for (const child of el.childNodes) walk(child);
+      }
+      parts.push(`</${tag}>`);
     }
   };
   for (const child of root.childNodes) walk(child);
@@ -254,9 +374,20 @@ type Mutability = { kind: "allowed" } | { kind: "rollback" };
 function classifyRecords(
   records: readonly MutationRecord[],
   isComposing: boolean,
+  host: HTMLElement,
+  isHighlighting: boolean,
 ): Mutability {
+  // While we are re-highlighting a `<pre>` (Issue #498), the span churn
+  // we inject is self-driven and always allowed.
+  if (isHighlighting) return { kind: "allowed" };
   for (const r of records) {
     if (r.type === "characterData") continue;
+    // `<pre>` is an opaque region (Issue #498 ADR-002): the highlighter's
+    // span add/remove inside a `<pre>` is display-only and never reaches
+    // the saved HTML (serialize normalizes it), so allow it. The
+    // exception is confined to within `<pre>`; structure protection
+    // outside `<pre>` is unchanged.
+    if (isWithinPre(r.target, host)) continue;
     if (r.type === "childList") {
       if (isComposing) continue;
       const target = r.target;
@@ -291,6 +422,9 @@ export function InlineEditor({
   const snapshotRef = useRef<HTMLBodyElement | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
   const isComposingRef = useRef(false);
+  // True while we re-decorate a `<pre>` so the observer ignores the
+  // self-driven span churn (Issue #498).
+  const isHighlightingRef = useRef(false);
   const lastEmittedHtmlRef = useRef<string>(value);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initFailedFiredRef = useRef(false);
@@ -404,10 +538,51 @@ export function InlineEditor({
           attributes: true,
         });
       }
+      // Re-decorate after restoring the plain snapshot (Issue #498).
+      highlightAll();
+    };
+
+    // Re-decorate one `<pre>` (Issue #498). Highlighting is display-only;
+    // editing always happens on plain text, so this runs on mount /
+    // resync / focusout, never while the block is focused.
+    // `isHighlightingRef` suppresses the observer's self-trigger. The
+    // caret offset (relative to the block's text) is saved before and
+    // restored after so a focus move between blocks keeps the caret.
+    const highlightPre = async (pre: Element) => {
+      // Keep shiki out of the Workers (SSR/RSC) bundle — Vite tree-shakes
+      // this branch for the SSR targets so the dynamic import and its
+      // chunks never reach `dist/server` (Issue #498 ADR-005).
+      if (import.meta.env.SSR) return;
+      if (disabledRef.current) return;
+      if (isComposingRef.current) return;
+      const target = highlightTarget(pre);
+      const caretOffset = caretOffsetWithin(target);
+      isHighlightingRef.current = true;
+      try {
+        const { highlightCodeElement } = await import(
+          "@/components/note/content/highlighter"
+        );
+        await highlightCodeElement(target);
+      } catch {
+        // best-effort: a load failure leaves the block plain.
+      } finally {
+        if (observerRef.current !== null) observerRef.current.takeRecords();
+        isHighlightingRef.current = false;
+      }
+      if (caretOffset !== null) restoreCaretWithin(target, caretOffset);
+    };
+
+    const highlightAll = () => {
+      for (const pre of host.querySelectorAll("pre")) void highlightPre(pre);
     };
 
     const observer = new MutationObserver((records) => {
-      const verdict = classifyRecords(records, isComposingRef.current);
+      const verdict = classifyRecords(
+        records,
+        isComposingRef.current,
+        host,
+        isHighlightingRef.current,
+      );
       if (verdict.kind === "rollback") {
         rollback();
         return;
@@ -437,9 +612,35 @@ export function InlineEditor({
         return;
       }
       if (e.key === "Tab") {
-        // Prevented inside and outside `<pre>` alike (Issue #285 ADR-003):
-        // tab-key indent insertion is out of scope and would trap focus.
         e.preventDefault();
+        const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
+        if (!isWithinPre(anchor, host)) {
+          // Outside `<pre>`: keep focus from escaping to the next block
+          // (Issue #285 ADR-003).
+          return;
+        }
+        if (e.shiftKey) {
+          dedentAtCaret(host);
+        } else {
+          // Indent with two spaces (Issue #498 ADR-004). Text-only so the
+          // structure-rollback invariant holds.
+          insertTextAtCaret(host, "  ");
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        // Escape the contentEditable focus trap from inside `<pre>`
+        // (Issue #498 ADR-004). `blur()` fires focusout → re-highlight.
+        const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
+        if (isWithinPre(anchor, host)) {
+          e.preventDefault();
+          const active = host.ownerDocument.activeElement;
+          if (active instanceof HTMLElement) {
+            active.blur();
+          } else {
+            host.blur();
+          }
+        }
       }
     };
 
@@ -463,7 +664,12 @@ export function InlineEditor({
       if (observerRef.current !== null) {
         const pending = observerRef.current.takeRecords();
         if (pending.length > 0) {
-          const verdict = classifyRecords(pending, true);
+          const verdict = classifyRecords(
+            pending,
+            true,
+            host,
+            isHighlightingRef.current,
+          );
           if (verdict.kind === "rollback") {
             rollback();
             isComposingRef.current = false;
@@ -493,11 +699,60 @@ export function InlineEditor({
       emit();
     };
 
+    // Issue #498: a `<pre>` is plain while focused and highlighted while
+    // not. On focusin, strip the decoration of the focused block back to
+    // plain text so editing happens on a single text node (caret / IME
+    // stable). On focusout, re-highlight that block.
+    const preOf = (node: EventTarget | null): Element | null => {
+      let current = node instanceof Node ? node : null;
+      while (current !== null && current !== host) {
+        if (
+          current.nodeType === Node.ELEMENT_NODE &&
+          (current as Element).tagName.toLowerCase() === "pre"
+        ) {
+          return current as Element;
+        }
+        current = current.parentNode;
+      }
+      return null;
+    };
+
+    const onFocusIn = (e: FocusEvent) => {
+      const pre = preOf(e.target);
+      if (pre === null) return;
+      const target = highlightTarget(pre);
+      if (target.querySelector("span") === null) return;
+      // Preserve the click/caret position: stripping the spans destroys
+      // the text node the caret sits in, so save its offset and restore
+      // it on the rebuilt single text node (Issue #498).
+      const caretOffset = caretOffsetWithin(target);
+      const plain = target.textContent ?? "";
+      isHighlightingRef.current = true;
+      target.textContent = plain;
+      if (observerRef.current !== null) observerRef.current.takeRecords();
+      isHighlightingRef.current = false;
+      if (caretOffset !== null) restoreCaretWithin(target, caretOffset);
+    };
+
+    const onFocusOut = (e: FocusEvent) => {
+      const pre = preOf(e.target);
+      if (pre === null) return;
+      // Skip when focus moved to another node within the same `<pre>`.
+      const next = e.relatedTarget;
+      if (next instanceof Node && pre.contains(next)) return;
+      void highlightPre(pre);
+    };
+
     host.addEventListener("keydown", onKeyDown);
     host.addEventListener("paste", onPaste);
     host.addEventListener("compositionstart", onCompositionStart);
     host.addEventListener("compositionend", onCompositionEnd);
     host.addEventListener("input", onInput);
+    host.addEventListener("focusin", onFocusIn);
+    host.addEventListener("focusout", onFocusOut);
+
+    // Decorate all code blocks once the DOM is in place.
+    highlightAll();
 
     return () => {
       host.removeEventListener("keydown", onKeyDown);
@@ -505,6 +760,8 @@ export function InlineEditor({
       host.removeEventListener("compositionstart", onCompositionStart);
       host.removeEventListener("compositionend", onCompositionEnd);
       host.removeEventListener("input", onInput);
+      host.removeEventListener("focusin", onFocusIn);
+      host.removeEventListener("focusout", onFocusOut);
       if (observerRef.current !== null) {
         observerRef.current.disconnect();
         observerRef.current.takeRecords();
@@ -518,7 +775,6 @@ export function InlineEditor({
     };
     // `disabled` is intentionally NOT in the dep list: it is handled by
     // the dedicated effect below to avoid a full rebuild on toggle.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: see comment
   }, [value]);
 
   useEffect(() => {
