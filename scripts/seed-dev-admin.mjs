@@ -39,10 +39,10 @@ const EXPIRES_AT = "2999-12-31T23:59:59.000Z";
 // directories.parent_id → directories) abort the cascade with
 // SQLITE_CONSTRAINT_TRIGGER once any nested data exists — and even when the
 // cascade succeeds it destroys data we want to keep. Re-asserting the
-// canonical admin state via ON CONFLICT leaves owned data intact (Issue
-// #512). Sessions are leaf rows (nothing FK-references them), so a
-// delete-then-insert is safe and also clears the fixed token if it was
-// attached to a different user.
+// canonical admin state via ON CONFLICT leaves owned data intact. Sessions
+// are leaf rows (nothing FK-references them), so a delete-then-insert is
+// safe and also clears the fixed token if it was attached to a different
+// user.
 const SQL = `
 DELETE FROM sessions WHERE token = '${TOKEN}' OR user_id = '${USER_ID}' OR id = '${SESSION_ID}';
 -- A *different* user (e.g. a manual sign-up) may already hold our fixed
