@@ -65,6 +65,7 @@ describe("highlightCodeElement", () => {
     // control the token stream (sentinel colors per ADR-003).
     vi.doMock("shiki/core", () => ({
       createHighlighterCore: async () => ({
+        loadLanguage: async () => {},
         codeToTokens: () => ({
           tokens: [
             [
@@ -117,6 +118,7 @@ describe("highlightCodeElement", () => {
   it("leaves the element plain when tokenization throws (best-effort)", async () => {
     vi.doMock("shiki/core", () => ({
       createHighlighterCore: async () => ({
+        loadLanguage: async () => {},
         codeToTokens: () => {
           throw new Error("boom");
         },

@@ -139,8 +139,13 @@ const LANG_ALIASES: ReadonlyMap<string, string> = new Map([
 ]);
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
+// Per-language load promises, so a grammar is fetched at most once and
+// concurrent requests for the same language dedupe (Issue #498 review
+// W-P-001 — grammars load on demand, not all 14 upfront).
+const langLoads = new Map<string, Promise<void>>();
 
-/** Lazily create the singleton highlighter (client-only, no WASM). */
+/** Lazily create the singleton highlighter with no grammars (client-only,
+ * no WASM). Languages are added on demand via {@link ensureLang}. */
 async function getHighlighter(): Promise<HighlighterCore> {
   if (highlighterPromise === null) {
     highlighterPromise = (async () => {
@@ -149,15 +154,9 @@ async function getHighlighter(): Promise<HighlighterCore> {
           import("shiki/core"),
           import("shiki/engine/javascript"),
         ]);
-      const langs = await Promise.all(
-        Array.from(LANG_LOADERS.values()).map((load) => load()),
-      );
       return createHighlighterCore({
         themes: [SENTINEL_THEME],
-        // Each grammar module's default export is a `LanguageRegistration[]`.
-        langs: langs.map(
-          (m) => (m as { default: LanguageRegistration[] }).default,
-        ),
+        langs: [],
         engine: createJavaScriptRegexEngine({ forgiving: true }),
       });
     })().catch((e) => {
@@ -167,6 +166,29 @@ async function getHighlighter(): Promise<HighlighterCore> {
     });
   }
   return highlighterPromise;
+}
+
+/** Load `lang`'s grammar into the highlighter once, deduping concurrent
+ * loads. A failed load is not cached so the next call can retry. */
+function ensureLang(highlighter: HighlighterCore, lang: string): Promise<void> {
+  let load = langLoads.get(lang);
+  if (load === undefined) {
+    const loader = LANG_LOADERS.get(lang);
+    if (loader === undefined) return Promise.resolve();
+    load = loader()
+      .then((mod) =>
+        highlighter.loadLanguage(
+          (mod as { default: LanguageRegistration[] }).default,
+        ),
+      )
+      .then(() => undefined)
+      .catch((e) => {
+        langLoads.delete(lang);
+        throw e;
+      });
+    langLoads.set(lang, load);
+  }
+  return load;
 }
 
 /**
@@ -202,6 +224,7 @@ export async function highlightCodeElement(el: Element): Promise<void> {
 
   try {
     const highlighter = await getHighlighter();
+    await ensureLang(highlighter, lang);
     const { tokens } = highlighter.codeToTokens(source, {
       lang,
       theme: SENTINEL_THEME.name ?? "hollow-sentinel",

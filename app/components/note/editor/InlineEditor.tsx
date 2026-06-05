@@ -143,24 +143,29 @@ function hasDirectTextChild(el: Element): boolean {
 }
 
 /**
- * True if `node` is `<pre>` or lives inside one, walking ancestors up to
- * (but not past) `host`. `node` is typically the selection's `anchorNode`
- * — a TEXT_NODE under `<pre><code>` — so `closest` is unavailable; we
- * walk `parentNode` manually. A `null` node (no selection) is safely
- * `false`.
+ * The `<pre>` ancestor of `node` (inclusive), walking up to but not past
+ * `host`, or `null` if none. `node` is typically the selection's
+ * `anchorNode` — a TEXT_NODE under `<pre><code>` — so `closest` is
+ * unavailable; we walk `parentNode` manually. A `null` node (no
+ * selection) is safely `null`.
  */
-function isWithinPre(node: Node | null, host: HTMLElement): boolean {
+function enclosingPre(node: Node | null, host: HTMLElement): Element | null {
   let current: Node | null = node;
   while (current !== null && current !== host) {
     if (
       current.nodeType === Node.ELEMENT_NODE &&
       (current as Element).tagName.toLowerCase() === "pre"
     ) {
-      return true;
+      return current as Element;
     }
     current = current.parentNode;
   }
-  return false;
+  return null;
+}
+
+/** True if `node` is `<pre>` or lives inside one (see {@link enclosingPre}). */
+function isWithinPre(node: Node | null, host: HTMLElement): boolean {
+  return enclosingPre(node, host) !== null;
 }
 
 /** Insert `text` as a literal text node at the current caret position. */
@@ -179,32 +184,34 @@ function insertTextAtCaret(host: HTMLElement, text: string): void {
 
 /**
  * Remove up to two leading spaces from the start of the caret's current
- * line inside `<pre>` (Shift+Tab dedent, Issue #498 ADR-004). Text-only
- * and single-line: it edits the caret's text node in place via
- * `characterData`, so the structure-rollback invariant holds. No-op when
- * the line has no leading space or the selection is unavailable.
+ * line inside `<pre>` (Shift+Tab dedent, Issue #498 ADR-004). Operates on
+ * the whole code block's text via document-order offsets, so a prior
+ * `Tab`/`Enter` that split the text into several nodes does not hide the
+ * line start (review W-L-002). Text-only in effect (it rewrites the
+ * block's text and restores the caret); no-op when the line has no leading
+ * space or the selection is unavailable.
  */
 function dedentAtCaret(host: HTMLElement): void {
   const selection = host.ownerDocument.getSelection();
   if (selection === null || selection.rangeCount === 0) return;
   const range = selection.getRangeAt(0);
-  const node = range.startContainer;
-  if (node.nodeType !== Node.TEXT_NODE) return;
-  const text = node.textContent ?? "";
-  const caret = range.startOffset;
-  // Find the start of the current line within this text node.
+  const pre = enclosingPre(range.startContainer, host);
+  if (pre === null) return;
+  const target = highlightTarget(pre);
+  const caret = caretOffsetWithin(target);
+  if (caret === null) return;
+  const text = target.textContent ?? "";
   const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
   let removable = 0;
   while (removable < 2 && text[lineStart + removable] === " ") removable += 1;
   if (removable === 0) return;
-  (node as Text).textContent =
+  const removedBeforeCaret = Math.min(
+    removable,
+    Math.max(0, caret - lineStart),
+  );
+  target.textContent =
     text.slice(0, lineStart) + text.slice(lineStart + removable);
-  const nextCaret = Math.max(lineStart, caret - removable);
-  const newRange = host.ownerDocument.createRange();
-  newRange.setStart(node, nextCaret);
-  newRange.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(newRange);
+  restoreCaretWithin(target, caret - removedBeforeCaret);
 }
 
 /** Resolve the `<code>` (if any) else the `<pre>` itself — the element
@@ -569,7 +576,16 @@ export function InlineEditor({
         if (observerRef.current !== null) observerRef.current.takeRecords();
         isHighlightingRef.current = false;
       }
-      if (caretOffset !== null) restoreCaretWithin(target, caretOffset);
+      // Only restore the caret while this block still holds focus. On the
+      // focusout path (Esc / click away) the user has intentionally left,
+      // so re-adding a selection here would steal focus / scroll the block
+      // back into view (review W-L-001).
+      if (
+        caretOffset !== null &&
+        target.contains(host.ownerDocument.activeElement)
+      ) {
+        restoreCaretWithin(target, caretOffset);
+      }
     };
 
     const highlightAll = () => {

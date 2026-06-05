@@ -642,6 +642,38 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("code")?.textContent).toBe("foo");
   });
 
+  it("does not roll back on compositionend when spans were injected inside <pre> (Issue #498 structureSignature opacity)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    // IME composition in flight.
+    await act(async () => {
+      host.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+    // The highlighter injects decoration spans inside <pre> mid-composition.
+    await act(async () => {
+      const span = document.createElement("span");
+      span.className = "shiki-token-keyword";
+      span.textContent = "foo";
+      code?.replaceChildren(span);
+    });
+    // compositionend compares structure signatures. Because <pre> is opaque
+    // (its descendants are not walked), the span injection must NOT register
+    // as drift, so no rollback fires. Were the <pre>-skip removed, the snap
+    // signature (plain text) and current signature (span) would diverge and
+    // roll the span away — this test guards that regression.
+    await act(async () => {
+      host.dispatchEvent(new Event("compositionend", { bubbles: true }));
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).not.toBeNull();
+    expect(host.querySelector("code")?.textContent).toBe("foo");
+  });
+
   it("still rolls back a <span> added outside <pre> (Issue #498 boundary)", async () => {
     await act(async () => {
       root.render(<InlineEditor value="<p>foo</p>" onChange={vi.fn()} />);
