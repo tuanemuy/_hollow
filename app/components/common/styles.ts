@@ -231,6 +231,38 @@ export const dialogTitle = "text-lg font-medium mb-4";
 /** Modal dialog actions row. */
 export const dialogActions = "inline-flex gap-2 mt-4 justify-end w-full";
 
+/**
+ * Popover panel shell for the WAI-ARIA `role="menu"` dropdowns
+ * (`<Menu>`/`<MenuItem>` primitive). Holds only the panel chrome
+ * (border / surface / shadow / vertical padding / stacking); width and
+ * anchor position differ per consumer (Directory 160px, User 220px, Note
+ * 180px) and are supplied via the caller's `panelClassName`
+ * (`absolute right-0 mt-1 min-w-[…]`). See `.issue/467`.
+ */
+export const menuPanel =
+  "rounded-md border border-hairline bg-bg shadow-sm py-1";
+
+/**
+ * A single `role="menuitem"` row inside `menuPanel`.
+ *
+ * Highlight uses `focus-visible:` (not `focus:`) because the roving-tabindex
+ * primitive moves DOM `.focus()` to the active item programmatically — a plain
+ * `focus:` would paint the hover-gray on mouse-driven open. `focus-visible:`
+ * restricts the highlight to keyboard navigation (#463 ADR-001, #467 ADR-002).
+ *
+ * Disabled items use `aria-disabled` (not the `disabled` attribute) so they
+ * stay focusable and keep their place in the roving cycle (#467 ADR-003).
+ * Hover (base and danger) is guarded with `not-aria-disabled:` so disabled
+ * items show no hover change. The `data-[danger]:…:bg-error-surface` 2-stack
+ * variants sort after the single `focus-visible:`/`hover:` rules and win
+ * deterministically (same mechanism as `auth/styles.ts` INPUT / ADR-003).
+ */
+export const menuItem =
+  "flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-ink outline-none hover:not-aria-disabled:bg-surface focus-visible:bg-surface aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:not-aria-disabled:bg-error-surface data-[danger]:focus-visible:bg-error-surface";
+
+/** Separator (`<hr>`) between menu item groups inside `menuPanel`. */
+export const menuSeparator = "my-1 h-0 border-0 border-t border-hairline";
+
 /** Radio/checkbox row. */
 export const radioRow =
   "flex items-center gap-2 py-1 text-sm cursor-pointer [&_input]:accent-accent";

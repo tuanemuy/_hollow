@@ -43,14 +43,6 @@ export const TREE_ACTION_BUTTON =
 export const SECTION_ACTION_BUTTON =
   "inline-flex items-center justify-center w-6 h-6 rounded-md text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
-/** Popover panel for the `︙` actions menu. */
-export const ACTIONS_MENU_PANEL =
-  "absolute right-0 mt-1 z-40 min-w-[160px] rounded-md border border-hairline bg-bg shadow-sm py-1";
-
-/** Single menu item inside the actions popover. */
-export const ACTIONS_MENU_ITEM =
-  "flex items-center w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface focus:bg-surface outline-none disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:bg-error-surface";
-
 /** Inline rename input rendered in place of the link. */
 export const TREE_ITEM_RENAME_INPUT =
   "flex-1 min-w-0 px-3 py-[5px] rounded-md border border-accent bg-bg text-sm text-ink outline-none";
