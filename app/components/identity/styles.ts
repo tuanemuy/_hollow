@@ -16,7 +16,6 @@ import {
 } from "../common/styles";
 
 // ===== Layout (settings errorComponent) =====
-// errorComponent
 export const SETTINGS_ERROR_BOX =
   "max-w-[720px] mx-auto px-6 py-12 flex flex-col gap-3";
 
