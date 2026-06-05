@@ -35,7 +35,7 @@
 
 ### Warnings
 - **[W-001]** VisibilityPopover（`<Popover haspopup="menu">` 経由）のパネルに `onMouseDown preventDefault` が無く、Safari/FF でマウス選択時に mousedown→focus body→onFocusOut→unmount で click がドロップしうる（`FilterBar.tsx`）。`<Menu>` は同ガードを持つ。plan ステップ9 は「選択即 close で focus 維持不要」と判断したが、リスクは focus 維持でなく click ドロップ。→ **このPRで対応**（menu モードの Popover パネルに `onMouseDown preventDefault` を付与し `<Menu>` と一貫させる）
-- **[W-002]** dialog モード（DatePopover）に初期フォーカス移動が無く、`role="dialog"` 非モーダル無トラップの SR 体験が中途半端（`Popover.tsx` / `FilterBar.tsx`）。→ **現状維持**（ADR で「non-modal by design: no focus trap」と明言済みの意図的設計、FilterPopover からの既存挙動踏襲で退行でない。リファクタのスコープ外。Phase 4 で follow-up 検討）
+- **[W-002]** dialog モード（DatePopover）に初期フォーカス移動が無く、`role="dialog"` 非モーダル無トラップの SR 体験が中途半端（`Popover.tsx` / `FilterBar.tsx`）。→ **別Issue #506 で対応**（ADR で「non-modal by design: no focus trap」と明言済みの意図的設計、FilterPopover からの既存挙動踏襲で退行でない。リファクタのスコープ外のため follow-up Issue を起票）
 
 ### Notes
 - N-001: roving panelRef = containerRef（Frontend N-001 と同旨）。
