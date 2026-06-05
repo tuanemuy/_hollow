@@ -136,7 +136,7 @@ describe("getPublicationState (integration)", () => {
       input: { actorUserId: owner, noteId },
     });
     expect(publicationState).not.toBeNull();
-    expect(publicationState?.noteId as string).toBe(noteId);
+    expect(publicationState?.noteId).toBe(noteId);
     expect(publicationState?.visibility).toBe("public");
     expect(publicationState?.publishedAt).toBe(PUBLISHED_AT);
   });
