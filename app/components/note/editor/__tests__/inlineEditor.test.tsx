@@ -553,6 +553,43 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("code")?.textContent).toBe("  foo");
   });
 
+  it("does not dedent another line on Shift+Tab at offset 0 of a newline-led <pre> (Issue #498 review W-L-001)", async () => {
+    // The block begins with a newline; the caret sits at offset 0 (the
+    // empty first line). Shift+Tab must be a no-op for that line, not strip
+    // the indentation of line 2 (the lastIndexOf negative-fromIndex trap).
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value={"<pre><code>\n  foo</code></pre>"}
+          onChange={vi.fn()}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 0);
+    range.setEnd(textNode!, 0);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    // Line 2's two leading spaces are untouched.
+    expect(host.querySelector("code")?.textContent).toBe("\n  foo");
+  });
+
   it("strips highlight <span>s from <pre> in the emitted HTML (Issue #498)", async () => {
     const onChange = vi.fn();
     await act(async () => {

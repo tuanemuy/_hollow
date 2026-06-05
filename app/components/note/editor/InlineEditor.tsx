@@ -201,7 +201,10 @@ function dedentAtCaret(host: HTMLElement): void {
   const caret = caretOffsetWithin(target);
   if (caret === null) return;
   const text = target.textContent ?? "";
-  const lineStart = text.lastIndexOf("\n", caret - 1) + 1;
+  // Start of the caret's line. `slice(0, caret)` avoids `lastIndexOf`'s
+  // negative-fromIndex clamp, which would wrongly return 0 (→ lineStart 1)
+  // when `caret === 0` and the block begins with a newline (review W-L-001).
+  const lineStart = text.slice(0, caret).lastIndexOf("\n") + 1;
   let removable = 0;
   while (removable < 2 && text[lineStart + removable] === " ") removable += 1;
   if (removable === 0) return;
