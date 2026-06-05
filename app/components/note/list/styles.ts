@@ -43,13 +43,14 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  * (tag / 期間 / 公開状態 / directory / referencing note) renders with the
  * same "pill chip + ×" language so the chips stay visually identical; only
  * the trigger differs. The ghost trigger (`filterChipGhost`) is used by 期間 /
- * 公開状態 only — directory / referencing note have no in-bar trigger and show
- * just the active chip (ADR-004).
+ * 公開状態 / 内部リンク参照 — each shows a dashed ghost chip when unset.
+ * Directory has no in-bar trigger (it is set from the directory tree) and shows
+ * just the active chip (#497 ADR-001).
  *
  * - `filterChip`: base pill. `data-[active]` flips it to the dark
  *   (ink / white) applied state, matching the existing tag-toggle look.
- * - `filterChipGhost`: dashed-outline unset trigger chip (期間 / 公開状態
- *   when no value is set). Transparent at rest, surface on hover.
+ * - `filterChipGhost`: dashed-outline unset trigger chip (期間 / 公開状態 /
+ *   内部リンク参照 when no value is set). Transparent at rest, surface on hover.
  * - `filterChipRemove`: the inline `×` button inside an active chip.
  * - `filterChipCaret`: the `▾` affordance on a popover trigger chip.
  */
@@ -64,9 +65,6 @@ export const filterChipRemove =
 
 export const filterChipCaret = "ml-0.5 text-[10px] opacity-60";
 
-/** Uppercase facet label (`タグ` / `期間` / `公開状態`) in the FilterBar. */
+/** Uppercase label used for the section headings inside the 期間 popover. */
 export const filterLabel =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
-
-/** Vertical hairline separator between facet groups in the FilterBar. */
-export const filterSeparator = "w-px h-5 bg-hairline";
