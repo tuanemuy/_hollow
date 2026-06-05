@@ -323,17 +323,26 @@
     flex-shrink: 0;
     margin-top: 2px;
   }
-  .callout-body { flex: 1; min-width: 0; }
+  /*
+    実装 CALLOUT_BODY=`flex flex-col gap-2` に合わせ、callout-body 内の
+    縦並び（strong / 本文 / action）の間隔を gap-2 に統一する（#500 要判断 P03 の決着）。
+    個別の margin（strong の mb-1・action の mt-2）は gap に集約して廃止。
+  */
+  .callout-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
   .callout-body strong {
     font-weight: var(--weight-semibold);
-    display: block;
-    margin-bottom: var(--space-1);
   }
   .callout-action {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    margin-top: var(--space-2);
     color: var(--color-accent);
     font-weight: var(--weight-medium);
   }
@@ -445,7 +454,7 @@
       </span>
       <div class="callout-body">
         <strong>メールアドレスの確認が未完了です</strong>
-        受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
+        <span>受信した確認メールのリンクをクリックすると、すべての機能を利用できます。</span>
         <button type="button" class="callout-action">
           確認メールを再送
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
@@ -603,7 +612,7 @@
       </span>
       <div class="callout-body">
         <strong>メールアドレスの確認が未完了です</strong>
-        受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
+        <span>受信した確認メールのリンクをクリックすると、すべての機能を利用できます。</span>
         <button type="button" class="callout-action">
           確認メールを再送
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>

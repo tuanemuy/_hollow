@@ -469,6 +469,48 @@
   }
   .fix-btn:hover { background: rgba(255,255,255,0.95); }
 
+  /* Empty state (認証側 EMPTY_STATE: 破線枠 + 24px アイキャッチ。index.md §7.1) */
+  .empty-state {
+    border: 1px dashed var(--color-hairline-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-12) var(--space-6);
+    text-align: center;
+    color: var(--color-ink-secondary);
+    margin-top: var(--space-6);
+  }
+  .empty-state svg {
+    display: block;
+    margin: 0 auto var(--space-3);
+    color: var(--color-ink-tertiary);
+  }
+  .empty-state-title {
+    font-size: var(--text-md);
+    color: var(--color-ink);
+    margin-bottom: var(--space-2);
+  }
+  .empty-state-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    max-width: 44ch;
+    margin: 0 auto var(--space-5);
+    line-height: var(--leading-snug);
+  }
+  .empty-state-cta {
+    height: 36px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .empty-state-cta:hover { background: var(--color-accent-hover); }
+  .empty-state-cta:active { background: var(--color-accent-pressed); }
+
   /* Sidebar drawer mobile */
   .sidebar-backdrop {
     display: none; position: fixed; inset: 0;
@@ -515,6 +557,8 @@
   @media (max-width: 640px) {
     .header { padding: 0 var(--space-4); gap: var(--space-2); }
     .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
     .main { padding: var(--space-6) var(--space-4) var(--space-16); }
   }
 </style>
@@ -834,6 +878,26 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- 空状態の見本（認証側 EMPTY_STATE: 破線枠 + 24px アイキャッチ。index.md §7.1）。
+         実データではビューが 1 件も無いときに、いずれかのセクション本体をこの体裁で置き換える。 -->
+    <section class="section-block">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">空状態の見本</h2>
+          <p class="section-desc">保存ビューが 1 件も無いときの表示。素テキストではなく破線枠 + アイキャッチで「ここに何が入るか」を伝える。</p>
+        </div>
+      </div>
+      <div class="empty-state">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <div class="empty-state-title">保存ビューはまだありません</div>
+        <div class="empty-state-desc">よく使う絞り込み条件と表示形式を保存すると、サイドバーから 1 クリックで呼び出せます。</div>
+        <button class="empty-state-cta">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新しいビューを作成
+        </button>
       </div>
     </section>
   </main>

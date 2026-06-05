@@ -126,6 +126,9 @@
     --transition-bg: background-color var(--duration-fast) var(--ease-standard);
     --transition-color: color var(--duration-fast) var(--ease-standard);
 
+    /* State */
+    --opacity-disabled: 0.55;
+
     /* Header */
     --header-bg: rgba(255,255,255,0.85);
     --header-blur: saturate(180%) blur(20px);
@@ -395,6 +398,8 @@
   @media (max-width: 640px) {
     .header { padding: 12px 16px; gap: 10px; }
     .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
     .main { padding: 24px 16px 80px; }
   }
 
@@ -504,11 +509,10 @@
   .banner .title { font-weight: var(--weight-medium); margin-bottom: 2px; }
   .banner .body { color: inherit; opacity: 0.85; }
 
-  /* ===== Action bar ===== */
+  /* ===== Queue summary bar ===== */
   .action-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     margin-bottom: var(--space-4);
     padding: 12px 14px;
@@ -522,68 +526,43 @@
     color: var(--color-ink-secondary);
   }
   .action-bar-left strong { color: var(--color-ink); font-weight: var(--weight-medium); }
-  .action-bar-right { display: flex; gap: 8px; flex-wrap: wrap; }
 
-  /* ===== Queue ===== */
+  /* ===== Queue (card-based, per #510 横断#4) =====
+     実装 IngestionJobRow（カード型）を基調に、OCR 進捗バー・形式バッジ・
+     抽出タイトル・保存先をカード内へ取り込む折衷。7 カラムテーブルは採らない
+     （多列だが「1 ジョブ = 進捗・状態・提案を内包する 1 単位」なのでカード基調が
+     UX 上適切。index.md §2.5 の画面最適優先に従う）。 */
   .queue {
-    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .job-card {
     border: 1px solid var(--color-hairline);
+    background: var(--color-surface-elevated);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    padding: var(--space-4) var(--space-5);
+    transition: var(--transition-default);
   }
-  .queue-head, .queue-row {
-    display: grid;
-    grid-template-columns: 28px minmax(160px, 1.4fr) 90px 1fr minmax(180px, 1.2fr) minmax(140px, 1fr) 100px;
-    gap: 12px;
-    padding: 12px 16px;
-    align-items: center;
-  }
-  .queue-head {
-    background: var(--color-surface);
-    font-size: var(--text-xs);
-    color: var(--color-ink-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: var(--weight-medium);
-    border-bottom: 1px solid var(--color-hairline);
-  }
-  .queue-row {
-    border-top: 1px solid var(--color-hairline);
-    font-size: var(--text-sm);
-    transition: var(--transition-bg);
-  }
-  .queue-row:first-of-type { border-top: none; }
-  .queue-row:hover { background: var(--color-surface-elevated); }
-  .queue-checkbox {
-    width: 20px; height: 20px;
-    border-radius: var(--radius-full);
-    border: 1.5px solid var(--color-hairline-strong);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    background: transparent;
-    color: transparent;
-    opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-standard),
-                background-color var(--duration-fast) var(--ease-standard),
-                border-color var(--duration-fast) var(--ease-standard);
-  }
-  .queue-row:hover .queue-checkbox { opacity: 1; }
-  .queue-head .queue-checkbox { opacity: 1; }
-  .queue-checkbox:hover { border-color: var(--color-ink-secondary); }
-  .queue-checkbox.checked {
-    opacity: 1;
-    background: var(--color-accent);
+  .job-card:hover { border-color: var(--color-hairline-strong); }
+  .job-card.is-selected {
     border-color: var(--color-accent);
-    color: #fff;
+    background: var(--color-accent-surface);
   }
-
+  /* head: file identity (icon + name + meta + format badge) と status を両端に */
+  .job-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
   .file-cell {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     min-width: 0;
+    flex: 1;
   }
   .file-icon {
     width: 32px; height: 32px;
@@ -618,10 +597,33 @@
     color: var(--color-ink-tertiary);
   }
 
-  .format-cell {
+  /* 形式バッジ: ファイル名の隣に置く小ピル。拡張子を機械的に示す */
+  .format-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
     font-size: var(--text-xs);
-    color: var(--color-ink-secondary);
     font-family: var(--font-mono);
+    color: var(--color-ink-secondary);
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+
+  /* card body: status / 進捗 / 抽出タイトル / 保存先 を縦に積む */
+  .job-body {
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .job-status-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
   }
 
   /* Status */
@@ -645,23 +647,52 @@
   .status.done { color: var(--color-success); }
   .status.failed .dot { background: var(--color-error); }
   .status.failed { color: var(--color-error); }
+  .status.preview .dot { background: var(--color-accent); }
+  .status.preview { color: var(--color-accent-ink); }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.15); }
   }
 
+  /* 進捗バー: 処理中カードで OCR / 音声認識の進捗を可視化（#221）。
+     ラベル（状態 + %）の下に full-width のバーを敷く。 */
+  .job-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
   .progress {
     height: 4px;
     background: var(--color-surface);
     border-radius: var(--radius-pill);
     overflow: hidden;
-    margin-top: 5px;
+    width: 100%;
   }
   .progress-bar {
     height: 100%;
     background: var(--color-accent);
     transition: width var(--duration-slow) var(--ease-standard);
+  }
+
+  /* 抽出フィールド（タイトル / 保存先）の 2 カラム。狭幅で 1 カラムへ */
+  .job-fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  @media (min-width: 640px) {
+    .job-fields { grid-template-columns: 1.4fr 1fr; }
+  }
+  .field-group { min-width: 0; }
+  .field-group-label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 5px;
   }
 
   /* LLM suggestion fields */
@@ -712,31 +743,40 @@
   .llm-field.disabled select { color: var(--color-ink-tertiary); }
   .llm-field.disabled .llm-tag { display: none; }
 
-  /* Actions in row */
-  .row-actions {
+  /* card footer のアクション。実装 IngestionJobRow に合わせ、ラベル付き
+     ピルボタンで操作を明示する（アイコンのみにしない）。 */
+  .job-actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
   }
-  .icon-mini {
-    width: 28px; height: 28px;
-    border-radius: var(--radius-md);
+  .job-actions .small-pill {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    color: var(--color-ink-secondary);
+    gap: 6px;
     transition: var(--transition-bg);
   }
-  .icon-mini:hover { background: var(--color-surface); color: var(--color-ink); }
-  .icon-mini.danger:hover { background: var(--color-error-surface); color: var(--color-error); }
+  .job-actions .small-pill:hover { background: var(--color-surface-hover); }
+  .job-actions .small-pill.primary { background: var(--color-accent); color: #fff; }
+  .job-actions .small-pill.primary:hover { background: var(--color-accent-hover); }
+  .job-actions .small-pill.danger { background: transparent; color: var(--color-error); }
+  .job-actions .small-pill.danger:hover { background: var(--color-error-surface); }
+  .job-actions .small-pill[disabled] { opacity: var(--opacity-disabled); cursor: default; }
 
-  /* Failed row detail */
+  /* Failed job detail (card 内インライン) */
   .row-error {
-    grid-column: 1 / -1;
     background: var(--color-error-surface);
     border-radius: var(--radius-md);
     padding: 10px 12px;
-    margin-top: 8px;
+    margin-top: var(--space-3);
     font-size: var(--text-xs);
     color: var(--color-error);
     display: flex;
@@ -744,13 +784,12 @@
     gap: 8px;
   }
 
-  /* Preview expansion */
+  /* Preview expansion (card 内) */
   .row-preview {
-    grid-column: 1 / -1;
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-hairline);
     border-radius: var(--radius-md);
-    margin-top: 10px;
+    margin-top: var(--space-3);
     overflow: hidden;
   }
   .preview-header {
@@ -807,29 +846,6 @@
     padding: 2px 8px;
     border-radius: var(--radius-pill);
     font-size: var(--text-xs);
-  }
-
-  /* Responsive table -> stack */
-  @media (max-width: 1023px) {
-    .queue-head { display: none; }
-    .queue-row {
-      grid-template-columns: 28px 1fr;
-      grid-template-areas:
-        "check file"
-        ". format"
-        ". status"
-        ". title"
-        ". dir"
-        ". actions";
-      row-gap: 8px;
-    }
-    .queue-row > :nth-child(1) { grid-area: check; }
-    .queue-row > :nth-child(2) { grid-area: file; }
-    .queue-row > :nth-child(3) { grid-area: format; }
-    .queue-row > :nth-child(4) { grid-area: status; }
-    .queue-row > :nth-child(5) { grid-area: title; }
-    .queue-row > :nth-child(6) { grid-area: dir; }
-    .queue-row > :nth-child(7) { grid-area: actions; justify-content: flex-start; }
   }
 </style>
 </head>
@@ -944,257 +960,258 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
         <div class="title">対応外の形式が含まれています</div>
-        <div class="body"><code style="font-family: var(--font-mono); font-size: 12px;">archive.zip</code> はアップロードできません。対応形式 (HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト) のみ取り込めます。</div>
+        <div class="body"><code style="font-family: var(--font-mono); font-size: var(--text-xs);">archive.zip</code> はアップロードできません。対応形式 (HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト) のみ取り込めます。</div>
       </div>
     </div>
     <div class="banner warning">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <div>
         <div class="title">サイズ超過のファイル</div>
-        <div class="body"><code style="font-family: var(--font-mono); font-size: 12px;">large-dataset.xlsx (72.4 MB)</code> は上限 50 MB を超えています。分割するか、ZIP を解凍せず個別にアップロードしてください。</div>
+        <div class="body"><code style="font-family: var(--font-mono); font-size: var(--text-xs);">large-dataset.xlsx (72.4 MB)</code> は上限 50 MB を超えています。分割するか、ZIP を解凍せず個別にアップロードしてください。</div>
       </div>
     </div>
 
-    <!-- Action bar -->
+    <!-- Queue summary (件数のみ。一括操作 UI は実装未対応のため別Issue引き渡し:
+         #510 plan「取り込み一括操作」/ followups P13-upload) -->
     <div class="action-bar">
       <div class="action-bar-left">
         取り込みキュー <strong>5 件</strong> · 完了 <strong>2</strong> · 処理中 <strong>2</strong> · 待機 <strong>1</strong>
       </div>
-      <div class="action-bar-right">
-        <button class="pill-btn ghost">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-          すべて再生成
-        </button>
-        <button class="pill-btn danger">破棄</button>
-        <button class="pill-btn">個別保存</button>
-        <button class="pill-btn primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          完了分をまとめて保存 (2)
-        </button>
-      </div>
     </div>
 
-    <!-- Queue -->
-    <div class="queue">
-      <div class="queue-head">
-        <div></div>
-        <div>ファイル名</div>
-        <div>形式</div>
-        <div>状態</div>
-        <div>抽出タイトル</div>
-        <div>保存先</div>
-        <div style="text-align: right;">アクション</div>
-      </div>
+    <!-- Queue (card-based; 1 ジョブ = 1 カード。進捗は aria-live で読み上げ #221) -->
+    <div class="queue" aria-live="polite">
 
-      <!-- Row 1: queued -->
-      <div class="queue-row">
-        <div class="queue-checkbox" aria-label="select"></div>
-        <div class="file-cell">
-          <div class="file-icon docx">DOCX</div>
-          <div style="min-width:0;">
-            <div class="file-name">research-notes-quiet-design.docx</div>
-            <div class="file-size">2.1 MB</div>
+      <!-- Card 1: queued -->
+      <div class="job-card">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon docx">DOCX</div>
+            <div style="min-width:0;">
+              <div class="file-name">research-notes-quiet-design.docx</div>
+              <div class="file-size">2.1 MB</div>
+            </div>
+            <span class="format-badge">.docx</span>
           </div>
+          <span class="status queued"><span class="dot"></span>待機中</span>
         </div>
-        <div class="format-cell">.docx</div>
-        <div><span class="status queued"><span class="dot"></span>待機中</span></div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">処理待機 — まもなく開始</div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
-        <div class="row-actions">
-          <button class="icon-mini" title="再生成" disabled style="opacity:0.4;" aria-label="再生成">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-          </button>
-          <button class="icon-mini danger" title="削除" aria-label="削除">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+        <div class="job-body">
+          <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">処理待機 — まもなく開始します</div>
+        </div>
+        <div class="job-actions">
+          <button class="small-pill danger">破棄</button>
         </div>
       </div>
 
-      <!-- Row 2: processing -->
-      <div class="queue-row">
-        <div class="queue-checkbox" aria-label="select"></div>
-        <div class="file-cell">
-          <div class="file-icon pdf">PDF</div>
-          <div style="min-width:0;">
-            <div class="file-name">A-Pattern-Language-ch12.pdf</div>
-            <div class="file-size">8.7 MB · 24 ページ</div>
+      <!-- Card 2: processing (OCR 進捗バー) -->
+      <div class="job-card">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon pdf">PDF</div>
+            <div style="min-width:0;">
+              <div class="file-name">A-Pattern-Language-ch12.pdf</div>
+              <div class="file-size">8.7 MB · 24 ページ</div>
+            </div>
+            <span class="format-badge">.pdf</span>
           </div>
+          <span class="status processing"><span class="dot"></span>処理中</span>
         </div>
-        <div class="format-cell">.pdf</div>
-        <div>
-          <span class="status processing"><span class="dot"></span>OCR 中… 68%</span>
-          <div class="progress"><div class="progress-bar" style="width: 68%;"></div></div>
-        </div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs); font-style: italic;">解析中…</div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
-        <div class="row-actions">
-          <button class="icon-mini" title="キャンセル" aria-label="キャンセル">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Row 3: processing audio -->
-      <div class="queue-row">
-        <div class="queue-checkbox" aria-label="select"></div>
-        <div class="file-cell">
-          <div class="file-icon audio">AUD</div>
-          <div style="min-width:0;">
-            <div class="file-name">interview-2026-05-15.m4a</div>
-            <div class="file-size">15.2 MB · 32:14</div>
-          </div>
-        </div>
-        <div class="format-cell">.m4a</div>
-        <div>
-          <span class="status processing"><span class="dot"></span>音声認識中… 34%</span>
-          <div class="progress"><div class="progress-bar" style="width: 34%;"></div></div>
-        </div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs); font-style: italic;">文字起こし中…</div>
-        <div style="color: var(--color-ink-tertiary); font-size: var(--text-xs);">—</div>
-        <div class="row-actions">
-          <button class="icon-mini" title="キャンセル" aria-label="キャンセル">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Row 4: done (with preview expanded) -->
-      <div class="queue-row" style="background: var(--color-surface-elevated);">
-        <div class="queue-checkbox checked" aria-label="select">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div class="file-cell">
-          <div class="file-icon md">MD</div>
-          <div style="min-width:0;">
-            <div class="file-name">静かなインターフェース論.md</div>
-            <div class="file-size">42 KB</div>
-          </div>
-        </div>
-        <div class="format-cell">.md</div>
-        <div><span class="status done"><span class="dot"></span>完了</span></div>
-        <div class="llm-field">
-          <span class="llm-tag">AI</span>
-          <input type="text" value="静かなインターフェースについての覚書">
-        </div>
-        <div class="llm-field">
-          <span class="llm-tag">AI</span>
-          <select>
-            <option>Research / 論文メモ</option>
-            <option>Research / 書籍要約</option>
-            <option>雑記</option>
-            <option>+ 新規ディレクトリ</option>
-          </select>
-        </div>
-        <div class="row-actions">
-          <button class="icon-mini" title="プレビュー" id="previewBtn" style="background: var(--color-accent-surface); color: var(--color-accent-ink);" aria-label="プレビュー">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button class="icon-mini" title="再生成" aria-label="再生成">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-          </button>
-          <button class="icon-mini danger" title="削除" aria-label="削除">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-
-        <!-- Expanded preview -->
-        <div class="row-preview">
-          <div class="preview-header">
-            <div class="ttl">抽出プレビュー</div>
-            <button class="pill-btn ghost" style="height: 28px; padding: 0 12px; font-size: var(--text-xs);">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
-              閉じる
-            </button>
-          </div>
-          <div class="preview-body">
-            <h2>静かなインターフェースについての覚書</h2>
-            <p>余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。重要なのは、各要素が「主張する量」を意図的に抑えることだ。</p>
-            <ul>
-              <li>ヘアラインで境界を作り、ボックスで囲わない</li>
-              <li>シャドウは最小限。代わりに余白でレイヤーを表現する</li>
-              <li>アクセント色は一色だけ。ステータスにのみ補助色を許す</li>
-            </ul>
-            <div class="meta-row">
-              <span class="meta-tag">#design</span>
-              <span class="meta-tag">#essay</span>
-              <span class="meta-tag">#apple</span>
-              <span style="margin-left: auto;">FrontMatter: date / title / description などを検出</span>
+        <div class="job-body">
+          <div class="job-progress">
+            <div class="job-status-line">
+              <span style="font-size: var(--text-xs); color: var(--color-accent-ink); font-weight: var(--weight-medium);">OCR 中… 68%</span>
+              <span style="font-size: var(--text-xs); color: var(--color-ink-tertiary);">タイトルとメタデータを解析中</span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68" aria-label="OCR 進捗">
+              <div class="progress-bar" style="width: 68%;"></div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Row 5: done -->
-      <div class="queue-row">
-        <div class="queue-checkbox checked" aria-label="select">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div class="file-cell">
-          <div class="file-icon img">IMG</div>
-          <div style="min-width:0;">
-            <div class="file-name">whiteboard-roadmap-q2.png</div>
-            <div class="file-size">3.4 MB · 1920×1080</div>
-          </div>
-        </div>
-        <div class="format-cell">.png</div>
-        <div><span class="status done"><span class="dot"></span>完了</span></div>
-        <div class="llm-field">
-          <span class="llm-tag">AI</span>
-          <input type="text" value="Q2 ロードマップ ホワイトボード メモ">
-        </div>
-        <div class="llm-field">
-          <span class="llm-tag">AI</span>
-          <select>
-            <option>プロジェクト / Hollow</option>
-            <option>プロジェクト</option>
-            <option>雑記</option>
-          </select>
-        </div>
-        <div class="row-actions">
-          <button class="icon-mini" title="プレビュー" aria-label="プレビュー">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button class="icon-mini" title="再生成" aria-label="再生成">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-          </button>
-          <button class="icon-mini danger" title="削除" aria-label="削除">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+        <div class="job-actions">
+          <button class="small-pill danger">キャンセル</button>
         </div>
       </div>
 
-      <!-- Row 6: failed -->
-      <div class="queue-row">
-        <div class="queue-checkbox" aria-label="select"></div>
-        <div class="file-cell">
-          <div class="file-icon xlsx">XLSX</div>
-          <div style="min-width:0;">
-            <div class="file-name">budget-2026-encrypted.xlsx</div>
-            <div class="file-size">1.2 MB</div>
+      <!-- Card 3: processing audio -->
+      <div class="job-card">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon audio">AUD</div>
+            <div style="min-width:0;">
+              <div class="file-name">interview-2026-05-15.m4a</div>
+              <div class="file-size">15.2 MB · 32:14</div>
+            </div>
+            <span class="format-badge">.m4a</span>
+          </div>
+          <span class="status processing"><span class="dot"></span>処理中</span>
+        </div>
+        <div class="job-body">
+          <div class="job-progress">
+            <div class="job-status-line">
+              <span style="font-size: var(--text-xs); color: var(--color-accent-ink); font-weight: var(--weight-medium);">音声認識中… 34%</span>
+              <span style="font-size: var(--text-xs); color: var(--color-ink-tertiary);">文字起こし中</span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-label="音声認識 進捗">
+              <div class="progress-bar" style="width: 34%;"></div>
+            </div>
           </div>
         </div>
-        <div class="format-cell">.xlsx</div>
-        <div><span class="status failed"><span class="dot"></span>失敗</span></div>
-        <div class="llm-field disabled">
-          <input type="text" placeholder="抽出できませんでした" disabled>
+        <div class="job-actions">
+          <button class="small-pill danger">キャンセル</button>
         </div>
-        <div class="llm-field disabled">
-          <select disabled><option>—</option></select>
-        </div>
-        <div class="row-actions">
-          <button class="icon-mini" title="再生成" aria-label="再生成">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-          </button>
-          <button class="icon-mini danger" title="削除" aria-label="削除">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="row-error">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div>
-            <strong>ファイルが暗号化されています。</strong>
-            パスワード保護された Excel は取り込めません。保護を解除して再度アップロードしてください。
+      </div>
+
+      <!-- Card 4: previewing (プレビュー可能・抽出タイトル/保存先を編集) -->
+      <div class="job-card is-selected">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon md">MD</div>
+            <div style="min-width:0;">
+              <div class="file-name">静かなインターフェース論.md</div>
+              <div class="file-size">42 KB</div>
+            </div>
+            <span class="format-badge">.md</span>
           </div>
+          <span class="status preview"><span class="dot"></span>プレビュー可能</span>
+        </div>
+        <div class="job-body">
+          <div class="job-fields">
+            <div class="field-group">
+              <span class="field-group-label">抽出タイトル</span>
+              <div class="llm-field">
+                <span class="llm-tag">AI</span>
+                <input type="text" value="静かなインターフェースについての覚書" aria-label="抽出タイトル">
+              </div>
+            </div>
+            <div class="field-group">
+              <span class="field-group-label">保存先</span>
+              <div class="llm-field">
+                <span class="llm-tag">AI</span>
+                <select aria-label="保存先ディレクトリ">
+                  <option>Research / 論文メモ</option>
+                  <option>Research / 書籍要約</option>
+                  <option>雑記</option>
+                  <option>+ 新規ディレクトリ</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 抽出プレビュー（カード内インライン展開） -->
+          <div class="row-preview">
+            <div class="preview-header">
+              <div class="ttl">抽出プレビュー</div>
+              <button class="small-pill" style="height: 28px; padding: 0 12px; font-size: var(--text-xs);">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                閉じる
+              </button>
+            </div>
+            <div class="preview-body">
+              <h2>静かなインターフェースについての覚書</h2>
+              <p>余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。重要なのは、各要素が「主張する量」を意図的に抑えることだ。</p>
+              <ul>
+                <li>ヘアラインで境界を作り、ボックスで囲わない</li>
+                <li>シャドウは最小限。代わりに余白でレイヤーを表現する</li>
+                <li>アクセント色は一色だけ。ステータスにのみ補助色を許す</li>
+              </ul>
+              <div class="meta-row">
+                <span class="meta-tag">#design</span>
+                <span class="meta-tag">#essay</span>
+                <span class="meta-tag">#apple</span>
+                <span style="margin-left: auto;">FrontMatter: date / title / description などを検出</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="job-actions">
+          <button class="small-pill primary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            ノートとして保存
+          </button>
+          <button class="small-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再生成
+          </button>
+          <button class="small-pill danger">破棄</button>
+        </div>
+      </div>
+
+      <!-- Card 5: previewing (image) -->
+      <div class="job-card">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon img">IMG</div>
+            <div style="min-width:0;">
+              <div class="file-name">whiteboard-roadmap-q2.png</div>
+              <div class="file-size">3.4 MB · 1920×1080</div>
+            </div>
+            <span class="format-badge">.png</span>
+          </div>
+          <span class="status preview"><span class="dot"></span>プレビュー可能</span>
+        </div>
+        <div class="job-body">
+          <div class="job-fields">
+            <div class="field-group">
+              <span class="field-group-label">抽出タイトル</span>
+              <div class="llm-field">
+                <span class="llm-tag">AI</span>
+                <input type="text" value="Q2 ロードマップ ホワイトボード メモ" aria-label="抽出タイトル">
+              </div>
+            </div>
+            <div class="field-group">
+              <span class="field-group-label">保存先</span>
+              <div class="llm-field">
+                <span class="llm-tag">AI</span>
+                <select aria-label="保存先ディレクトリ">
+                  <option>プロジェクト / Hollow</option>
+                  <option>プロジェクト</option>
+                  <option>雑記</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="job-actions">
+          <button class="small-pill primary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            ノートとして保存
+          </button>
+          <button class="small-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再生成
+          </button>
+          <button class="small-pill danger">破棄</button>
+        </div>
+      </div>
+
+      <!-- Card 6: failed -->
+      <div class="job-card">
+        <div class="job-head">
+          <div class="file-cell">
+            <div class="file-icon xlsx">XLSX</div>
+            <div style="min-width:0;">
+              <div class="file-name">budget-2026-encrypted.xlsx</div>
+              <div class="file-size">1.2 MB</div>
+            </div>
+            <span class="format-badge">.xlsx</span>
+          </div>
+          <span class="status failed"><span class="dot"></span>失敗</span>
+        </div>
+        <div class="job-body">
+          <div class="row-error" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+              <strong>ファイルが暗号化されています。</strong>
+              パスワード保護された Excel は取り込めません。保護を解除して再度アップロードしてください。
+            </div>
+          </div>
+        </div>
+        <div class="job-actions">
+          <button class="small-pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+            再試行
+          </button>
+          <button class="small-pill danger">破棄</button>
         </div>
       </div>
     </div>

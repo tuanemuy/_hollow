@@ -171,7 +171,7 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 --container-padding: clamp(16px, 4vw, 32px);
 
 --sidebar-width: 260px;         /* lg 以上で常時表示 */
---meta-rail-width: 260px;       /* lg 以上で右レール表示 */
+--meta-rail-width: 260px;       /* 旧 3 カラム（右メタレール）用。ノート詳細は単一カラム + 本文下メタへ移行したため現状未使用（index.md §2.1）。トークン自体は将来の右レール用途のために残置 */
 
 --content-max: 760px;           /* ノート本文の読みやすい行長 */
 --header-height: 64px;
@@ -252,7 +252,7 @@ UI のホバー・フォーカスは `--duration-fast` で素早く反応させ�
 | (base) | 0 | （未指定） | サイドバーは drawer、メタ情報は本文下に縦積み |
 | `sm` | 640px | `@media (min-width: 640px)` | 一部の余白を拡大、リストのメタ情報を 1 行化 |
 | `md` | 768px | `@media (min-width: 768px)` | フィルタバーの折り返しを抑制 |
-| `lg` | 1024px | `@media (min-width: 1024px)` | サイドバー常時表示、ノート詳細の右メタレールを表示 |
+| `lg` | 1024px | `@media (min-width: 1024px)` | サイドバー常時表示（ノート詳細は単一カラムのまま） |
 | `xl` | 1280px | `@media (min-width: 1280px)` | コンテンツ最大幅で中央寄せ |
 | `2xl` | 1536px | `@media (min-width: 1536px)` | 余白増加のみ（カラム構成は変えない） |
 
@@ -491,7 +491,7 @@ Apple Calm の象徴的な要素。
   --container-max: 1280px;
   --container-padding: clamp(16px, 4vw, 32px);
   --sidebar-width: 260px;
-  --meta-rail-width: 260px;
+  --meta-rail-width: 260px; /* 現状未使用（ノート詳細は単一カラム）。残置: tokens.md §4 参照 */
   --content-max: 760px;
   --header-height: 64px;
 

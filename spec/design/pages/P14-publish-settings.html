@@ -461,12 +461,31 @@
     bottom: 0;
   }
 
+  /* ===== Section ===== */
+  /* 実装 PublishSettings は 2 セクション構成（(1)公開ステータス + 更新ボタン、
+     (2)限定公開リンク操作）+ inline 適用。フッターは「閉じる」のみ。 */
+  .pub-section { margin-bottom: var(--space-8); }
+  .pub-section:last-child { margin-bottom: 0; }
+  .pub-section-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-3);
+  }
+  .pub-section-note {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+  }
+  .apply-btn { margin-top: var(--space-4); }
+
   /* ===== Radio cards ===== */
   .radio-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: var(--space-6);
+    margin-bottom: 0;
   }
   .radio-card {
     display: flex;
@@ -524,14 +543,61 @@
     line-height: var(--leading-snug);
   }
 
-  /* ===== Link-only details ===== */
+  /* ===== Link section details ===== */
   .link-detail {
-    margin-top: 12px;
-    padding-top: 14px;
-    border-top: 1px dashed var(--color-hairline-strong);
     display: flex;
     flex-direction: column;
     gap: 14px;
+  }
+  /* 発行済みリンク 1 件（実装 ShareLinkRow に相当）。URL + 有効バッジ + 操作。 */
+  .link-card {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    background: var(--color-surface-elevated);
+  }
+  .link-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .link-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 10px;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+  }
+  .link-chip.active { background: var(--color-success-surface); color: var(--color-success); }
+  .link-chip.locked { background: var(--color-surface); color: var(--color-ink-secondary); }
+
+  /* QR コード表示（実装 PublishSettings は QR 未対応 → 別Issue引き渡し）。
+     モックでは SVG モジュールで雰囲気を示す軽量プレースホルダ。 */
+  .qr-block {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3);
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+  }
+  .qr-code {
+    width: 96px; height: 96px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    padding: 6px;
+  }
+  .qr-caption {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    line-height: var(--leading-snug);
   }
 
   .field-label {
@@ -672,31 +738,12 @@
   .safety-item .body { flex: 1; }
   .safety-item .body strong { font-weight: var(--weight-medium); }
 
-  /* ===== Bulk mode (hidden variant) ===== */
-  .bulk-mode { display: none; }
-  /* uncomment to view: .bulk-mode { display: block; } */
-
-  .bulk-summary {
-    padding: 12px 14px;
-    background: var(--color-accent-surface);
-    border-radius: var(--radius-md);
-    color: var(--color-accent-ink);
-    font-size: var(--text-sm);
-    margin-bottom: var(--space-5);
-  }
-  .bulk-summary strong { font-weight: var(--weight-semibold); }
-  .bulk-impact {
-    margin-top: 8px;
-    font-size: var(--text-xs);
-    line-height: var(--leading-snug);
-    color: var(--color-accent-ink);
-    opacity: 0.85;
-  }
-
   @media (max-width: 640px) {
     .modal-header, .modal-body, .modal-footer { padding-left: 20px; padding-right: 20px; }
     .header { padding: 12px 16px; }
     .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
   }
 </style>
 </head>
@@ -790,107 +837,114 @@
 
     <div class="modal-body">
 
-      <!-- Bulk-mode summary (only visible when .bulk-mode is on) -->
-      <div class="bulk-mode">
-        <div class="bulk-summary">
-          <strong>3 件のノートに一括適用</strong>
-          <div class="bulk-impact">
-            「静かなインターフェース…」「Cloudflare Workers + D1 …」「A Pattern Language を読みながら」<br>
-            このうち 2 件は既に公開済み、1 件は非公開です。設定変更は全 3 件に反映されます。
+      <!-- Section 1: 公開ステータス + inline 適用（実装 PublishSettings の (1)）。
+           ラジオは説明文付き（実装は説明文未対応 → 別Issue引き渡し）。 -->
+      <div class="pub-section">
+        <div class="pub-section-title">公開ステータス</div>
+        <div class="radio-group" id="radioGroup">
+
+          <label class="radio-card" data-value="private">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot private"></span>
+                非公開
+              </div>
+              <div class="radio-desc">本人のみが閲覧できます。共有リンクは発行されません。</div>
+            </div>
+          </label>
+
+          <label class="radio-card selected" data-value="link">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot link"></span>
+                限定公開（リンクを知っている人のみ）
+              </div>
+              <div class="radio-desc">共有リンクを知っている人だけが閲覧できます。任意でパスワードを設定できます。検索対象にはなりません。</div>
+            </div>
+          </label>
+
+          <label class="radio-card" data-value="public">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot public"></span>
+                公開
+              </div>
+              <div class="radio-desc">同一インスタンス内で誰でも閲覧でき、検索対象になります。ユーザー名のネームスペース URL で公開されます。</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- URL preview (公開時の参考) -->
+        <div class="url-preview">
+          <div class="title">公開時の URL</div>
+          <div class="url">https://hollow.example/yumenaut/quiet-interface-memo</div>
+        </div>
+
+        <!-- Safety check -->
+        <div class="safety-check">
+          <div class="safety-item warn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <div class="body">
+              <strong>未保存の変更があります。</strong>
+              公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。
+            </div>
           </div>
         </div>
+
+        <!-- inline 適用（このセクション単独で確定） -->
+        <button class="pill-btn primary apply-btn">公開状態を更新</button>
       </div>
 
-      <!-- Radio: visibility -->
-      <div class="radio-group" id="radioGroup">
+      <!-- Section 2: 限定公開リンク操作（実装 PublishSettings の (2)）。 -->
+      <div class="pub-section">
+        <div class="pub-section-title">限定公開リンク</div>
 
-        <label class="radio-card" data-value="private">
-          <span class="radio-dot"></span>
-          <div class="radio-body">
-            <div class="radio-title">
-              <span class="status-dot private"></span>
-              非公開
-            </div>
-            <div class="radio-desc">本人のみが閲覧できます。共有リンクは発行されません。</div>
+        <div class="link-detail">
+          <!-- 新規発行フォーム（パスワード任意 → リンクを発行） -->
+          <div>
+            <span class="field-label">パスワード（任意）</span>
+            <input type="password" class="input-text" placeholder="設定する場合は入力">
+            <div class="input-help">英数記号 8 文字以上を推奨。パスワード自体は保存されません。</div>
           </div>
-        </label>
+          <button class="pill-btn primary" style="align-self: flex-start;">リンクを発行</button>
 
-        <label class="radio-card selected" data-value="link">
-          <span class="radio-dot"></span>
-          <div class="radio-body">
-            <div class="radio-title">
-              <span class="status-dot link"></span>
-              限定公開
+          <!-- 発行済みリンク 1 件（実装 ShareLinkRow に相当） -->
+          <div class="link-card">
+            <div class="link-card-head">
+              <span class="link-chip active">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                有効
+              </span>
+              <span class="last-access">最終アクセス: 5 月 14 日 09:42</span>
             </div>
-            <div class="radio-desc">共有リンクを知っている人だけが閲覧できます。任意でパスワードを設定できます。</div>
-
-            <!-- Link-only detail -->
-            <div class="link-detail">
-              <div>
-                <span class="field-label">共有リンク</span>
-                <div class="link-row">
-                  <span class="link-text">https://hollow.example/share/q9X4kZv-Tn2GfYpL8m</span>
-                  <button class="icon-mini" title="コピー" aria-label="コピー">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  </button>
-                  <button class="icon-mini" title="QR コード" aria-label="QR コード">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="6"/><rect x="15" y="3" width="6" height="6"/><rect x="3" y="15" width="6" height="6"/><line x1="15" y1="15" x2="15" y2="21"/><line x1="21" y1="15" x2="21" y2="21"/><line x1="18" y1="18" x2="18" y2="18.01"/></svg>
-                  </button>
-                </div>
-                <div class="link-mini-row">
-                  <button class="small-btn">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-                    再発行
-                  </button>
-                  <button class="small-btn danger">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                    リンクを失効
-                  </button>
-                  <span class="last-access">最終アクセス: 5 月 14 日 09:42</span>
-                </div>
-              </div>
-
-              <div>
-                <span class="field-label">パスワード（任意）</span>
-                <input type="password" class="input-text" placeholder="設定する場合は入力" value="••••••••">
-                <div class="input-help">英数記号 8 文字以上を推奨。パスワード自体は保存されません。</div>
-              </div>
+            <div class="link-row">
+              <span class="link-text">https://hollow.example/share/q9X4kZv-Tn2GfYpL8m</span>
+              <button class="icon-mini" title="コピー" aria-label="コピー">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
             </div>
-          </div>
-        </label>
 
-        <label class="radio-card" data-value="public">
-          <span class="radio-dot"></span>
-          <div class="radio-body">
-            <div class="radio-title">
-              <span class="status-dot public"></span>
-              公開
+            <!-- QR コード表示（実装は QR 未対応 → 別Issue引き渡し） -->
+            <div class="qr-block" style="margin-top: var(--space-3);">
+              <svg class="qr-code" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="QR コード">
+                <rect width="29" height="29" fill="#fff"/>
+                <path fill="#1d1d1f" d="M0 0h7v7h-7zM8 0h1v1h-1zM10 0h2v1h-2zM13 0h1v2h-1zM15 0h2v1h-2zM18 0h1v1h-1zM22 0h7v7h-7zM1 1h5v5h-5zM9 1h1v2h-1zM11 1h1v1h-1zM16 1h1v3h-1zM19 1h2v1h-2zM23 1h5v5h-5zM2 2h3v3h-3zM12 2h1v2h-1zM14 2h1v1h-1zM18 2h1v2h-1zM24 2h3v3h-3zM10 3h1v1h-1zM20 3h1v2h-1zM11 4h2v1h-2zM14 4h1v2h-1zM9 5h1v1h-1zM12 5h1v3h-1zM17 5h1v1h-1zM8 6h1v2h-1zM10 6h1v1h-1zM15 6h1v2h-1zM19 6h1v1h-1zM0 8h1v1h-1zM2 8h1v3h-1zM4 8h2v1h-2zM7 8h2v1h-2zM10 8h1v1h-1zM13 8h2v1h-2zM18 8h1v1h-1zM21 8h1v2h-1zM25 8h1v1h-1zM27 8h2v1h-2zM1 9h1v2h-1zM6 9h1v2h-1zM11 9h1v2h-1zM16 9h2v1h-2zM23 9h1v3h-1zM26 9h1v2h-1zM0 10h1v3h-1zM4 10h2v2h-2zM8 10h2v1h-2zM14 10h1v3h-1zM19 10h1v2h-1zM24 10h1v1h-1zM28 10h1v3h-1zM9 11h1v1h-1zM12 11h1v2h-1zM17 11h1v2h-1zM22 11h1v1h-1zM25 11h1v3h-1zM3 12h1v2h-1zM7 12h2v1h-2zM10 12h1v1h-1zM16 12h1v1h-1zM20 12h2v1h-2zM27 12h1v2h-1zM1 13h2v1h-2zM5 13h1v3h-1zM9 13h1v2h-1zM13 13h1v1h-1zM18 13h1v3h-1zM23 13h2v1h-2zM6 14h2v1h-2zM11 14h2v1h-2zM15 14h2v2h-2zM21 14h1v2h-1zM26 14h2v1h-2zM0 15h1v2h-1zM3 15h1v1h-1zM8 15h1v1h-1zM12 15h1v3h-1zM19 15h1v1h-1zM24 15h1v2h-1zM28 15h1v2h-1zM2 16h2v1h-2zM7 16h1v3h-1zM10 16h2v1h-2zM14 16h1v2h-1zM17 16h1v1h-1zM22 16h2v1h-2zM26 16h1v1h-1zM1 17h1v3h-1zM4 17h2v1h-2zM9 17h1v1h-1zM16 17h1v2h-1zM20 17h2v1h-2zM25 17h1v2h-1zM8 18h1v1h-1zM11 18h2v1h-2zM14 18h1v1h-1zM19 18h1v3h-1zM23 18h2v1h-2zM27 18h2v1h-2zM0 19h7v7h-7zM10 19h1v2h-1zM13 19h2v1h-2zM17 19h2v1h-2zM22 19h1v2h-1zM26 19h1v2h-1zM1 20h5v5h-5zM8 20h1v3h-1zM12 20h1v2h-1zM15 20h2v1h-2zM20 20h1v3h-1zM24 20h2v1h-2zM2 21h3v3h-3zM14 21h1v3h-1zM17 21h2v1h-2zM23 21h1v2h-1zM27 21h1v3h-1zM10 22h2v1h-2zM16 22h1v3h-1zM18 22h1v1h-1zM21 22h2v1h-2zM25 22h2v1h-2zM9 23h1v2h-1zM12 23h2v1h-2zM19 23h2v1h-2zM24 23h1v3h-1zM11 24h1v2h-1zM13 24h1v1h-1zM17 24h1v2h-1zM20 24h3v1h-3zM26 24h2v1h-2zM8 25h1v1h-1zM10 25h1v3h-1zM15 25h1v1h-1zM18 25h2v1h-2zM23 25h1v1h-1zM28 25h1v1h-1zM12 26h2v1h-2zM16 26h1v2h-1zM21 26h3v1h-3zM25 26h1v2h-1zM9 27h1v1h-1zM14 27h2v1h-2zM18 27h1v1h-1zM20 27h1v2h-1zM27 27h1v1h-1zM8 28h1v1h-1zM11 28h2v1h-2zM17 28h1v1h-1zM22 28h2v1h-2z"/>
+              </svg>
+              <div class="qr-caption">スマホのカメラで読み取って共有できます。<br>リンクと同じアクセス範囲です。</div>
             </div>
-            <div class="radio-desc">同一インスタンス内で誰でも閲覧でき、検索対象になります。ユーザー名のネームスペース URL で公開されます。</div>
-          </div>
-        </label>
-      </div>
 
-      <!-- URL preview -->
-      <div class="url-preview">
-        <div class="title">公開時の URL</div>
-        <div class="url">https://hollow.example/yumenaut/quiet-interface-memo</div>
-      </div>
-
-      <!-- Safety check -->
-      <div class="safety-check">
-        <div class="safety-item warn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <div class="body">
-            <strong>他人のメディアを参照しています。</strong>
-            本文中の <code style="font-family: var(--font-mono); font-size: 12px;">cover.jpg</code> は <code style="font-family: var(--font-mono); font-size: 12px;">@alice</code> がアップロードしたメディアです。公開すると参照不可になる可能性があります。
-          </div>
-        </div>
-        <div class="safety-item warn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <div class="body">
-            <strong>未保存の変更があります。</strong>
-            公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。
+            <!-- パスワード設定 / 失効（実装 ShareLinkRow のアクション） -->
+            <div class="link-mini-row" style="margin-top: var(--space-3);">
+              <input type="password" class="input-text" placeholder="新しいパスワード" style="flex: 1; min-width: 160px; width: auto;">
+              <button class="small-btn">パスワードを設定</button>
+              <button class="small-btn danger">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                失効させる
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -898,8 +952,7 @@
     </div>
 
     <div class="modal-footer">
-      <button class="pill-btn ghost">キャンセル</button>
-      <button class="pill-btn primary">適用</button>
+      <button class="pill-btn ghost">閉じる</button>
     </div>
 
   </div>

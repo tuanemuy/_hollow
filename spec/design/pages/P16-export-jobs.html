@@ -557,6 +557,8 @@
     gap: 4px;
     transition: var(--transition-default);
     border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
   }
   .small-btn:hover { background: var(--color-surface-hover); }
   .small-btn.primary {
@@ -567,54 +569,18 @@
   .small-btn.danger { color: var(--color-error); background: transparent; }
   .small-btn.danger:hover { background: var(--color-error-surface); }
 
-  /* Failed detail expanded */
-  .failed-detail {
-    grid-column: 1 / -1;
-    margin-top: 12px;
-    padding: 14px 16px;
-    background: var(--color-error-surface);
-    border-radius: var(--radius-md);
+  /* 失敗の要約（1 行）。詳細・スタックは別ルート（/exports/$jobId）に寄せる
+     （#510: ジョブ詳細は一覧内展開にしない）。 */
+  .fail-summary {
+    margin-top: 5px;
+    font-size: var(--text-xs);
     color: var(--color-error);
-    font-size: var(--text-sm);
-  }
-  .failed-detail .ttl {
-    font-weight: var(--weight-medium);
-    margin-bottom: 6px;
-  }
-  .failed-detail .body {
     line-height: var(--leading-snug);
-    color: var(--color-error);
-    opacity: 0.85;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .failed-detail pre {
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: #fff;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--color-ink-secondary);
-    overflow-x: auto;
-  }
-  .failed-detail .footer {
-    margin-top: 12px;
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-
-  .expand-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: var(--text-xs);
-    color: var(--color-error);
-    background: transparent;
-    padding: 0;
-    cursor: pointer;
-    margin-top: 6px;
-  }
-  .expand-toggle:hover { text-decoration: underline; }
 
   /* Empty state spacer + section */
   .empty-state {
@@ -789,6 +755,7 @@
         </div>
         <div class="expiry">—</div>
         <div class="actions">
+          <a class="small-btn" href="#">詳細</a>
           <button class="small-btn danger">キャンセル</button>
         </div>
       </div>
@@ -813,6 +780,7 @@
         </div>
         <div class="expiry">—</div>
         <div class="actions">
+          <a class="small-btn" href="#">詳細</a>
           <button class="small-btn danger">キャンセル</button>
         </div>
       </div>
@@ -828,7 +796,7 @@
         </div>
         <div class="count-cell">31</div>
         <div>
-          <span class="status queued"><span class="dot"></span>キュー待ち</span>
+          <span class="status queued"><span class="dot"></span>待機中</span>
         </div>
         <div class="meta-cell">
           <span class="strong">今日 14:52</span>
@@ -836,6 +804,7 @@
         </div>
         <div class="expiry">—</div>
         <div class="actions">
+          <a class="small-btn" href="#">詳細</a>
           <button class="small-btn danger">キャンセル</button>
         </div>
       </div>
@@ -860,16 +829,16 @@
         </div>
         <div class="expiry">5 月 23 日まで</div>
         <div class="actions">
-          <button class="small-btn primary">
+          <a class="small-btn primary" href="#">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            DL
-          </button>
-          <button class="small-btn">詳細</button>
+            ダウンロード
+          </a>
+          <a class="small-btn" href="#">詳細</a>
         </div>
       </div>
 
-      <!-- Row 5: failed -->
-      <div class="job-row" id="failedRow">
+      <!-- Row 5: failed（要約のみ。詳細・スタックは「詳細」→別ルート） -->
+      <div class="job-row">
         <div class="job-name">
           <div class="ttl">全ノート PDF エクスポート</div>
           <div class="id">job_01HFKZ2BCV5Y9NMPK8RTAWGQH3</div>
@@ -880,10 +849,7 @@
         <div class="count-cell">312</div>
         <div>
           <span class="status failed"><span class="dot"></span>失敗</span>
-          <button class="expand-toggle" id="expandFailed">
-            失敗の詳細
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
+          <div class="fail-summary" role="alert">PDF レンダリングがタイムアウトしました（312 件中 248 件まで生成）。詳細を開いて確認してください。</div>
         </div>
         <div class="meta-cell">
           <span class="strong">昨日 23:48</span>
@@ -891,28 +857,11 @@
         </div>
         <div class="expiry">—</div>
         <div class="actions">
-          <button class="small-btn primary">
+          <a class="small-btn" href="#">詳細</a>
+          <a class="small-btn primary" href="#">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-            再試行
-          </button>
-          <button class="small-btn danger">削除</button>
-        </div>
-
-        <div class="failed-detail" id="failedDetail">
-          <div class="ttl">PDF レンダリングがタイムアウトしました</div>
-          <div class="body">
-            312 件中 248 件まで生成しましたが、巨大なメディアを含む 3 件で 10 分のタイムアウトに到達しました。フィルタで対象を絞り込むか、形式を HTML に切り替えるとサイズと所要時間を抑えられます。
-          </div>
-          <pre>worker error: render_timeout (note_id=nt_8K2P, size=42.1MB)
-worker error: render_timeout (note_id=nt_3J9X, size=38.7MB)
-worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
-          <div class="footer">
-            <button class="small-btn">フィルタを編集</button>
-            <button class="small-btn primary">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-              再試行
-            </button>
-          </div>
+            再エクスポート
+          </a>
         </div>
       </div>
 
@@ -936,11 +885,11 @@ worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
         </div>
         <div class="expiry warn">明日まで</div>
         <div class="actions">
-          <button class="small-btn primary">
+          <a class="small-btn primary" href="#">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            DL
-          </button>
-          <button class="small-btn">詳細</button>
+            ダウンロード
+          </a>
+          <a class="small-btn" href="#">詳細</a>
         </div>
       </div>
 
@@ -962,13 +911,13 @@ worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
           <span class="strong">4 月 2 日</span>
           <span class="sub">所要 1 分 48 秒</span>
         </div>
-        <div class="expiry expired">4 月 9 日</div>
+        <div class="expiry expired">4 月 9 日 期限切れ</div>
         <div class="actions">
-          <button class="small-btn primary">
+          <a class="small-btn" href="#">詳細</a>
+          <a class="small-btn primary" href="#">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-            再実行
-          </button>
-          <button class="small-btn danger">削除</button>
+            再エクスポート
+          </a>
         </div>
       </div>
 
@@ -983,7 +932,7 @@ worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
         </div>
         <div class="count-cell">9</div>
         <div>
-          <span class="status cancelled"><span class="dot"></span>キャンセル済み</span>
+          <span class="status cancelled"><span class="dot"></span>キャンセル</span>
         </div>
         <div class="meta-cell">
           <span class="strong">4 月 1 日</span>
@@ -991,11 +940,11 @@ worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
         </div>
         <div class="expiry">—</div>
         <div class="actions">
-          <button class="small-btn primary">
+          <a class="small-btn" href="#">詳細</a>
+          <a class="small-btn primary" href="#">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
-            再実行
-          </button>
-          <button class="small-btn danger">削除</button>
+            再エクスポート
+          </a>
         </div>
       </div>
 
@@ -1021,16 +970,6 @@ worker error: render_timeout (note_id=nt_1A4B, size=51.2MB)</pre>
     backdrop.addEventListener('click', () => {
       sidebar.classList.remove('open');
       backdrop.classList.remove('open');
-    });
-  }
-
-  const failedDetail = document.getElementById('failedDetail');
-  const expandBtn = document.getElementById('expandFailed');
-  if (failedDetail && expandBtn) {
-    failedDetail.style.display = 'block';
-    expandBtn.addEventListener('click', () => {
-      const shown = failedDetail.style.display !== 'none';
-      failedDetail.style.display = shown ? 'none' : 'block';
     });
   }
 
