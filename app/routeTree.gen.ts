@@ -46,6 +46,7 @@ import { Route as UUsernameIndexRouteImport } from './routes/u/$username/index'
 import { Route as AppUploadIndexRouteImport } from './routes/_app/upload/index'
 import { Route as AppTrashIndexRouteImport } from './routes/_app/trash/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as UUsernameNoteSlugRouteImport } from './routes/u/$username/$noteSlug'
 import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$noteId'
 import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
@@ -244,6 +245,11 @@ const AppTagsIndexRoute = AppTagsIndexRouteImport.update({
   path: '/tags/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRouteRoute,
+} as any)
 const UUsernameNoteSlugRoute = UUsernameNoteSlugRouteImport.update({
   id: '/$username/$noteSlug',
   path: '/$username/$noteSlug',
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/settings/': typeof AppSettingsIndexRoute
   '/tags/': typeof AppTagsIndexRoute
   '/trash/': typeof AppTrashIndexRoute
   '/upload/': typeof AppUploadIndexRoute
@@ -376,7 +383,6 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
-  '/settings': typeof AppSettingsRouteRouteWithChildren
   '/admin/design': typeof AdminDesignRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/llm': typeof AdminLlmRoute
@@ -403,6 +409,7 @@ export interface FileRoutesByTo {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/settings': typeof AppSettingsIndexRoute
   '/tags': typeof AppTagsIndexRoute
   '/trash': typeof AppTrashIndexRoute
   '/upload': typeof AppUploadIndexRoute
@@ -455,6 +462,7 @@ export interface FileRoutesById {
   '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
   '/_app/trash/': typeof AppTrashIndexRoute
   '/_app/upload/': typeof AppUploadIndexRoute
@@ -508,6 +516,7 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/settings/'
     | '/tags/'
     | '/trash/'
     | '/upload/'
@@ -529,7 +538,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/verify-email'
-    | '/settings'
     | '/admin/design'
     | '/admin/jobs'
     | '/admin/llm'
@@ -556,6 +564,7 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/settings'
     | '/tags'
     | '/trash'
     | '/upload'
@@ -607,6 +616,7 @@ export interface FileRouteTypes {
     | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/_app/settings/'
     | '/_app/tags/'
     | '/_app/trash/'
     | '/_app/upload/'
@@ -904,6 +914,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTagsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRouteRoute
+    }
     '/u/$username/$noteSlug': {
       id: '/u/$username/$noteSlug'
       path: '/$username/$noteSlug'
@@ -1003,6 +1020,7 @@ interface AppSettingsRouteRouteChildren {
   AppSettingsProfileRoute: typeof AppSettingsProfileRoute
   AppSettingsPromptsRoute: typeof AppSettingsPromptsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
@@ -1010,6 +1028,7 @@ const AppSettingsRouteRouteChildren: AppSettingsRouteRouteChildren = {
   AppSettingsProfileRoute: AppSettingsProfileRoute,
   AppSettingsPromptsRoute: AppSettingsPromptsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 
 const AppSettingsRouteRouteWithChildren =
