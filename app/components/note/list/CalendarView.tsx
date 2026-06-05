@@ -60,22 +60,30 @@ export function CalendarView({ notes }: Props) {
                   key={note.id}
                   data-selected={checked || undefined}
                   data-mode={mode || undefined}
-                  className="grid grid-cols-[1fr] data-[mode]:grid-cols-[auto_1fr] items-center gap-2 px-2 py-[6px] rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
+                  className="grid grid-cols-[1fr] data-[mode]:grid-cols-[auto_1fr] items-center gap-2 p-0 rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface"
                 >
                   {mode ? (
-                    <NoteCheckbox
-                      checked={checked}
-                      onToggle={toggle}
-                      label={`${note.title} を選択`}
-                    />
+                    <span className="pl-2">
+                      <NoteCheckbox
+                        checked={checked}
+                        onToggle={toggle}
+                        label={`${note.title} を選択`}
+                      />
+                    </span>
                   ) : null}
                   {mode ? (
-                    <span className="text-sm text-ink">{note.title}</span>
+                    <button
+                      type="button"
+                      onClick={toggle}
+                      className="block w-full text-left text-sm text-ink cursor-pointer px-2 py-[6px]"
+                    >
+                      {note.title}
+                    </button>
                   ) : (
                     <Link
                       to="/notes/$noteId"
                       params={{ noteId: note.id }}
-                      className="text-sm text-ink hover:text-accent"
+                      className="block text-sm text-ink hover:text-accent px-2 py-[6px]"
                     >
                       {note.title}
                     </Link>
