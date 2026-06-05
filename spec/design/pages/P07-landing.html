@@ -195,6 +195,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-5);
+    border-bottom: 1px solid var(--color-hairline);
   }
   @supports not (backdrop-filter: blur(1px)) {
     .header { background: var(--color-bg); }
@@ -603,7 +604,6 @@
   <a href="#" class="logo">Hollow</a>
   <nav class="header-nav" aria-label="Primary">
     <a href="#features" class="header-link">機能</a>
-    <a href="#" class="header-link">公開検索</a>
     <a href="#" class="header-link">ログイン</a>
     <a href="#" class="header-cta">アカウント作成</a>
   </nav>
@@ -765,7 +765,8 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <span class="logo">Hollow</span>
-        <p class="footer-tagline">散らかった頭の中に、静かな置き場所を。<br>個人のための、ひっそりとしたノートサーバーです。</p>
+        <p class="footer-tagline">散らかった頭の中に、静かな置き場所を。</p>
+        <p class="footer-tagline" style="margin-top: var(--space-2);">個人のための、ひっそりとしたノートサーバーです。</p>
       </div>
       <div>
         <div class="footer-col-title">プロダクト</div>

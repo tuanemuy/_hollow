@@ -433,11 +433,12 @@
 
 <!--
   (a) validation エラー: field 直下エラー + aria-invalid + 入力保持(value)。
-  注意: 以下の日本語 field hint は「あるべき」設計提案であり、現行実装の文言転記ではない。
-  現行 app/components/auth/schema.ts の Zod スキーマは message 未指定で、
-  app/core/presentation/validator.ts は Zod デフォルト（英語）の issue.message を
-  そのまま fieldErrors に格納する（errorMap/i18n 層なし）。
-  validation 文言の日本語化は実装 Issue #201 の申し送り事項。
+  以下の日本語 field hint は現行実装に追随済み（Issue #201 で対応）:
+  app/components/auth/schema.ts の signUpSchema が transport 境界の日本語 message を
+  持ち（min/max/email/literal 各 issue.message）、形式違反はそのまま field 直下に出る。
+  文字種・予約語・パスワード複雑度といった値オブジェクト由来の業務不変条件は
+  app/core/presentation/errorDisplay.ts の renderIdentityBusinessMessage が日本語化し、
+  summary 側に出る（field 直下ではなく callout、ADR-003）。下の hint 例はその両系統の文言。
 -->
 <!-- (a) validation エラー: field 直下エラー + aria-invalid + 入力保持(value) -->
 <main class="auth-shell is-variant" style="padding-top: var(--space-6);">

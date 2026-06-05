@@ -205,16 +205,20 @@
     width: 100%;
     height: 40px;
     padding: 0 12px;
-    border: 1px solid var(--color-hairline);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: var(--color-bg);
+    background: var(--color-surface);
     font-size: var(--text-sm);
     color: var(--color-ink);
-    transition: var(--transition-default);
+    transition: var(--transition-color);
   }
-  .input:hover, .select:hover { border-color: var(--color-hairline-strong); }
-  .input:focus, .select:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .input:focus, .select:focus { outline: none; border-color: var(--color-hairline-strong); background: var(--color-bg); }
   .input.mono { font-family: var(--font-mono); font-size: var(--text-mono); }
+  .input:disabled, .select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+  /* Env-lock badge (環境変数で固定中) */
+  .lock-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-ink-secondary); font-size: 11px; font-weight: var(--weight-semibold); }
+  .field-label { display: inline-flex; align-items: center; gap: 8px; }
 
   .row { display: flex; gap: var(--space-3); align-items: stretch; flex-wrap: wrap; }
   .row > .input { flex: 1; min-width: 200px; }
@@ -293,16 +297,11 @@
 
 <header class="header">
   <div class="header-left">
-    <button class="menu-btn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
     <div class="logo">Hollow</div>
     <span class="admin-pill">管理者モード</span>
   </div>
-  <div class="search">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="設定項目を検索">
-  </div>
+  <div></div>
   <div class="header-right">
-    <button class="icon-btn" aria-label="Notifications"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
     <div class="avatar" aria-hidden="true">AD</div>
   </div>
 </header>
@@ -324,111 +323,59 @@
   <p class="page-subtitle">API キー・モデル・クォータの設定。設定の変更は即時に反映されます。</p>
 
   <section class="form-section">
-    <h2 class="form-section-title">プロバイダ</h2>
-    <p class="form-section-desc">Hollow は MVP では Anthropic Claude のみをサポートします。プロバイダ変更は ADR-004 により固定されています。</p>
-    <div class="locked-display">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8 M12 8v8"/></svg>
-      <div>
-        <div class="name">Anthropic Claude</div>
-        <div class="sub">api.anthropic.com · v1</div>
-      </div>
-      <span class="lock">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        固定 (ADR-004)
-      </span>
+    <h2 class="form-section-title">LLM プロバイダ</h2>
+    <p class="form-section-desc">対応プロバイダ: Anthropic / OpenAI-compatible / Google Gemini。切り替えると API キーの再入力が必要です。</p>
+    <div class="field">
+      <label class="field-label" for="provider">プロバイダ</label>
+      <select class="select" id="provider">
+        <option>Anthropic Claude</option>
+        <option>OpenAI-compatible</option>
+        <option>Google Gemini</option>
+      </select>
+      <p class="field-hint">現在の保存値: Anthropic Claude</p>
     </div>
+    <!-- OpenAI-compatible 選択時、または ADMIN_LLM_BASE_URL が設定されているときのみ表示 -->
+    <!-- <div class="field">
+      <label class="field-label" for="base-url">Base URL（任意）</label>
+      <input class="input mono" id="base-url" type="url" placeholder="https://api.openai.com/v1">
+    </div> -->
   </section>
 
   <section class="form-section">
     <h2 class="form-section-title">API キー</h2>
-    <p class="form-section-desc">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ANTHROPIC_API_KEY</code> が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。</p>
+    <p class="form-section-desc">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_LLM_API_KEY</code> が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。</p>
 
     <div class="note-card">
-      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
         <div class="note-card-title">現在の状態</div>
-        <div class="note-card-body">環境変数から読み込み中 (<code>ANTHROPIC_API_KEY</code> 設定済み)。DB 値はフォールバックとして保持されています。</div>
+        <div class="note-card-body">環境変数から読み込み中。</div>
       </div>
     </div>
 
     <div class="field">
-      <label class="field-label" for="api-key">テスト用 API キー</label>
+      <label class="field-label" for="api-key">新しい API キー</label>
       <div class="row">
-        <input class="input mono" id="api-key" type="password" value="sk-ant-api03-•••••••••••••••••••••••••••••••••••••••••••••" placeholder="sk-ant-...">
+        <input class="input mono" id="api-key" type="password" placeholder="sk-ant-...">
         <button class="btn">接続テスト</button>
       </div>
-      <p class="field-hint">この入力欄は保存されません。接続テストのみに使用されます。</p>
-      <div class="test-result success" role="status">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        接続成功 · モデル 3 件取得 · 応答 682ms
-      </div>
-      <div class="test-result error" role="status" style="margin-top: var(--space-2)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        認証失敗 (401) — API キーを確認してください
-      </div>
+      <p class="field-hint">未入力で保存すると現在のキーが維持されます。</p>
+      <!-- 接続テスト結果は banner で表示（success / error） -->
+      <div class="test-result success" role="status">接続成功 · 応答 682ms</div>
     </div>
   </section>
 
   <section class="form-section">
     <h2 class="form-section-title">モデル</h2>
-    <p class="form-section-desc">取り込み・タイトル生成・ディレクトリ提案で使用するモデル。コスト目安は 1M tokens あたり。</p>
+    <p class="form-section-desc">取り込み・タイトル生成・ディレクトリ提案で使用するモデル。</p>
     <div class="field">
       <label class="field-label" for="model">既定モデル</label>
-      <select class="select" id="model">
-        <option>claude-sonnet-4-6 (推奨)</option>
-        <option>claude-haiku-4-5</option>
-        <option>claude-opus-4-7</option>
-      </select>
-      <p class="field-hint">用途別の上書き設定は今後追加予定です。</p>
-    </div>
-    <div class="cost-table">
-      <table>
-        <thead>
-          <tr>
-            <th>モデル</th>
-            <th>Input</th>
-            <th>Output</th>
-            <th>用途</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td class="mono">claude-haiku-4-5</td><td>$0.80</td><td>$4.00</td><td>低コスト · 取り込み軽量タスク向き</td></tr>
-          <tr><td class="mono">claude-sonnet-4-6</td><td>$3.00</td><td>$15.00</td><td>標準 · 多くのユースケースに最適</td></tr>
-          <tr><td class="mono">claude-opus-4-7</td><td>$15.00</td><td>$75.00</td><td>高精度 · 長文要約や複雑な構造化に</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="form-section">
-    <h2 class="form-section-title">クォータ</h2>
-    <p class="form-section-desc">想定外のコスト増を防ぐためのしきい値です。超過時はジョブが拒否され、ダッシュボードに通知が表示されます。</p>
-    <div class="quota-grid">
-      <div class="field">
-        <label class="field-label" for="user-quota">1 ユーザーあたり (24h)</label>
-        <input class="input" id="user-quota" type="number" value="200" min="0">
-        <p class="field-hint">呼び出し回数 / 24 時間</p>
-      </div>
-      <div class="field">
-        <label class="field-label" for="instance-quota">インスタンス全体 (24h)</label>
-        <input class="input" id="instance-quota" type="number" value="50000" min="0">
-        <p class="field-hint">呼び出し回数 / 24 時間</p>
-      </div>
-      <div class="field">
-        <label class="field-label" for="alert-threshold">アラート閾値</label>
-        <input class="input" id="alert-threshold" type="number" value="80" min="0" max="100">
-        <p class="field-hint">クォータ消費率がこの % を超えたら通知 (0–100)</p>
-      </div>
-      <div class="field">
-        <label class="field-label" for="rate-limit">レート制限 (req/分)</label>
-        <input class="input" id="rate-limit" type="number" value="60" min="1">
-        <p class="field-hint">プロバイダ側の RPM を考慮した上限</p>
-      </div>
+      <input class="input" id="model" type="text" value="claude-sonnet-4-6">
+      <p class="field-hint">例: claude-sonnet-4-6</p>
     </div>
   </section>
 
   <div class="form-footer">
-    <button class="btn ghost">キャンセル</button>
+    <span style="color:var(--color-success);font-size:var(--text-sm);align-self:center">保存しました</span>
     <button class="btn primary">変更を保存</button>
   </div>
 </main>

@@ -398,9 +398,9 @@
   .field { margin-bottom: var(--space-6); }
   .field-label {
     display: block;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-secondary);
     margin-bottom: 6px;
   }
   .field-help {
@@ -411,22 +411,26 @@
   }
   .field-help.warning { color: var(--color-warning); }
   .field-help.error { color: var(--color-error); }
+  /* fieldControl 原型（common/styles.ts）: surface 背景・透明ボーダー・h-10、
+     focus で白背景＋アクセントボーダー。box-shadow フォーカスリングは
+     :focus-visible 共通ルールが担う。 */
   .input, .textarea {
     width: 100%;
-    border: 1px solid var(--color-hairline-strong);
-    background: var(--color-bg);
+    height: 40px;
+    border: 1px solid transparent;
+    background: var(--color-surface);
     color: var(--color-ink);
     border-radius: var(--radius-md);
     padding: 10px 12px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     outline: none;
-    transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
   }
-  .input:hover, .textarea:hover { border-color: var(--color-ink-tertiary); }
-  .input:focus, .textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .input:focus, .textarea:focus { border-color: var(--color-accent); background: var(--color-bg); }
   .input.error, .textarea.error { border-color: var(--color-error); }
   .input::placeholder, .textarea::placeholder { color: var(--color-ink-tertiary); }
   .textarea {
+    height: auto;
     min-height: 96px;
     resize: vertical;
     line-height: var(--leading-normal);
@@ -723,17 +727,7 @@
         </a>
         <a class="settings-nav-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          カスタムプロンプト
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg>
-          言語・タイムゾーン
-          <span class="badge">準備中</span>
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          通知
-          <span class="badge">準備中</span>
+          プロンプト
         </a>
         <a class="settings-nav-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -774,29 +768,28 @@
             <div class="char-counter">73 / 160</div>
           </div>
 
-          <div class="field">
-            <label class="field-label" for="username">ユーザー名</label>
-            <div class="input-group">
-              <span class="prefix">hollow.example/</span>
-              <input id="username" type="text" value="yui_k" autocomplete="off">
-            </div>
-            <div class="preview-line">公開 URL: <strong>hollow.example/yui_k</strong></div>
-            <div class="field-help warning">変更すると古い URL は失効し、以後 30 日間は同名で再取得できません。レート制限: 90 日に 1 回まで。</div>
-          </div>
-
-          <div class="field">
-            <label class="field-label">公開プロフィールページ</label>
-            <a class="external-link" href="#" target="_blank" rel="noopener">
-              プレビューを新しいタブで開く
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
-          </div>
-
           <div class="action-row">
-            <button class="pill-btn primary">変更を保存</button>
+            <button class="pill-btn primary">保存</button>
             <button class="pill-btn">リセット</button>
             <div class="spacer"></div>
             <span class="field-help" style="margin: 0;">最終保存: 2026年5月14日 18:24</span>
+          </div>
+        </section>
+
+        <!-- 実装では「ユーザー名（URL）」は別フォームのセクションに分離されている
+             （`ProfileForm` の changeUsername フォーム）。input-group の prefix /
+             公開 URL プレビュー / レート制限ヘルプは未実装（B 参照）。 -->
+        <section class="settings-section">
+          <h2 class="section-title">ユーザー名（URL）</h2>
+          <p class="section-desc">現在: <strong style="color: var(--color-ink); font-weight: var(--weight-medium);">@yui_k</strong></p>
+
+          <div class="field">
+            <label class="field-label" for="new-username">新しいユーザー名</label>
+            <input class="input" id="new-username" type="text" autocomplete="off">
+          </div>
+
+          <div class="action-row" style="margin-top: var(--space-6); padding-top: 0; border-top: none;">
+            <button class="pill-btn primary">ユーザー名を変更</button>
           </div>
         </section>
 

@@ -229,7 +229,7 @@
     background: var(--color-surface);
     border-radius: var(--radius-pill);
     padding: 0 16px 0 38px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     color: var(--color-ink);
     outline: none;
     transition: var(--transition-bg);
@@ -250,7 +250,7 @@
     padding: 0 16px;
     border-radius: var(--radius-pill);
     background: var(--color-surface);
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     color: var(--color-ink);
     display: inline-flex;
@@ -329,7 +329,7 @@
     gap: var(--space-2);
     padding: 7px var(--space-3);
     border-radius: var(--radius-md);
-    font-size: 14px;
+    font-size: var(--text-sm);
     color: var(--color-ink);
     cursor: pointer;
     transition: var(--transition-bg);
@@ -428,102 +428,134 @@
     margin-bottom: 10px;
   }
   .page-subtitle {
-    font-size: 15px;
+    font-size: var(--text-md);
     color: var(--color-ink-secondary);
     margin-bottom: 28px;
   }
 
-  /* Filter chips */
-  .filter-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-6);
-    flex-wrap: wrap;
-  }
-  .filter-row-end {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  .chip {
-    height: 30px;
-    padding: 0 13px;
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    font-size: 13px;
-    color: var(--color-ink);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: var(--transition-bg);
-  }
-  .chip:hover { background: var(--color-surface-hover); }
-  .chip.active {
-    background: var(--color-ink);
-    color: #fff;
-  }
-  .chip .remove { font-size: 14px; color: var(--color-ink-tertiary); margin-left: 2px; }
-  .chip.active .remove { color: rgba(255,255,255,0.7); }
-  .save-view-pill {
-    height: 30px;
-    padding: 0 13px;
-    border-radius: var(--radius-pill);
-    background: var(--color-accent-surface);
-    color: var(--color-accent-ink);
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: var(--transition-bg);
-  }
-  .save-view-pill:hover { background: oklch(92.2% 0 0); }
-
-  /* Segmented control */
+  /* ===== Toolbar (NoteListToolbar) =====
+     実装は表示モードをセグメントではなく pill-btn タブ群で表現し、
+     右側に 選択 / ビューとして保存 / 新規作成 / アップロード CTA を並べる
+     (#292 ADR-002: 選択UIは別カテゴリなので pill 群で揃える)。 */
   .toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-4);
     gap: var(--space-3);
     flex-wrap: wrap;
   }
-  .segmented {
-    background: var(--color-surface);
-    border-radius: 9px;
-    padding: 2px;
-    display: inline-flex;
-    position: relative;
-  }
-  .segmented button {
-    padding: 6px 14px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    background: transparent;
-    transition: all var(--duration-base) var(--ease-standard);
+  .toolbar-group {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--space-2);
+    flex-wrap: wrap;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  /* 表示モードタブ = pill-btn を data-primary でアクティブ表現 (DisplayModeSwitch) */
+  .display-tabs { display: inline-flex; gap: 4px; }
+  .display-tab {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
   }
-  .sort-btn {
-    font-size: 13px;
+  .display-tab:hover { background: var(--color-surface-hover); }
+  .display-tab.active {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .display-tab.active:hover { background: var(--color-accent-hover); }
+  /* 保存ビュー select (NoteListToolbar) */
+  .view-select {
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-hairline);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+  }
+
+  /* ===== FilterBar (#497) =====
+     枠線で囲った 1 行のフィルタ帯。タグチップ（件数バッジ付き）+ 期間/公開状態/
+     内部リンク参照のゴーストチップ + すべてクリア。 */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-2);
+    border-bottom: 1px solid var(--color-hairline);
+    margin-bottom: var(--space-3);
+  }
+  .filter-tags { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  /* フィルタチップ = filterChip (h-7=28px, text-sm, data-active で ink/white 反転) */
+  .filter-chip {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .filter-chip:hover { background: var(--color-surface-hover); }
+  .filter-chip.active {
+    background: var(--color-ink);
+    color: #fff;
+  }
+  .filter-chip .chip-count { font-size: 11px; color: var(--color-ink-tertiary); margin-left: 6px; }
+  .filter-chip.active .chip-count { color: rgba(255,255,255,0.85); }
+  /* ゴーストチップ = filterChipGhost (破線枠、未設定トリガ) */
+  .filter-chip-ghost {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    border: 1px dashed var(--color-hairline-strong);
+    font-size: var(--text-sm);
     color: var(--color-ink-secondary);
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px var(--space-2);
-    border-radius: var(--radius-md);
+    gap: 6px;
     transition: var(--transition-bg);
   }
-  .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
+  .filter-chip-ghost:hover { background: var(--color-surface); }
+  .filter-chip .chip-caret { font-size: 10px; opacity: 0.6; margin-left: 2px; }
+  .filter-chip .chip-remove {
+    margin-left: 4px;
+    width: 16px; height: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-full);
+    color: rgba(255,255,255,0.85);
+  }
+  .filter-chip .chip-remove:hover { color: #fff; background: rgba(255,255,255,0.18); }
+  /* すべてクリア = pillBtn を右寄せ */
+  .filter-clear {
+    margin-left: auto;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    font-size: var(--text-sm);
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition-bg);
+  }
+  .filter-clear:hover { background: var(--color-surface-hover); }
 
   /* Note list */
   .note-list { margin-top: var(--space-2); }
@@ -565,7 +597,7 @@
   }
   .note-main { min-width: 0; }
   .note-title {
-    font-size: 16px;
+    font-size: var(--text-base);
     font-weight: var(--weight-medium);
     color: var(--color-ink);
     letter-spacing: -0.01em;
@@ -575,7 +607,7 @@
     white-space: nowrap;
   }
   .note-snippet {
-    font-size: 14px;
+    font-size: var(--text-sm);
     color: var(--color-ink-secondary);
     line-height: 1.45;
     overflow: hidden;
@@ -585,7 +617,7 @@
     margin-bottom: 6px;
   }
   .note-meta {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--color-ink-tertiary);
     display: flex;
     align-items: center;
@@ -594,26 +626,31 @@
   }
   .note-tags {
     color: var(--color-accent);
-    font-size: 13px;
+    font-size: var(--text-sm);
   }
   .note-meta .dot { color: var(--color-hairline-strong); }
   .note-date {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--color-ink-tertiary);
     white-space: nowrap;
     align-self: start;
     margin-top: 3px;
   }
-  .pub-dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: var(--radius-full);
-    background: var(--color-status-public);
-    margin-right: 4px;
-    vertical-align: 1px;
+  /* 公開状態は小ドットではなく可視ラベルのチップで表示
+     (visibilityChipClass / CHIP_BASE = h-7 px-3 rounded-pill text-xs)。
+     SR でもテキストで識別できる (index.md §8)。 */
+  .vis-chip {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .pub-dot.private { background: var(--color-status-private); }
-  .pub-dot.link { background: var(--color-status-link); }
+  .vis-chip.public { background: var(--color-success-surface); color: var(--color-success); }
+  .vis-chip.unlisted { background: var(--color-warning-surface); color: var(--color-warning); }
+  .vis-chip.private { background: var(--color-surface); color: var(--color-ink-tertiary); }
 
   /* Bulk action bar */
   .bulk-bar {
@@ -632,7 +669,7 @@
     box-shadow: var(--shadow-md);
   }
   .bulk-bar .bulk-count {
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     flex-shrink: 0;
     white-space: nowrap;
@@ -646,15 +683,15 @@
     flex-wrap: nowrap;
   }
   .bulk-action {
-    height: 32px;
+    height: 28px;
     padding: 0 12px;
     border-radius: var(--radius-pill);
     color: #fff;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     transition: var(--transition-bg);
   }
   .bulk-action:hover { background: rgba(255,255,255,0.12); }
@@ -748,16 +785,17 @@
 
   <div class="search">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="ノート、タグ、本文を検索" aria-label="検索">
+    <input type="text" placeholder="ノートを検索" aria-label="検索">
   </div>
 
   <div class="header-right">
-    <button class="pill-btn primary" aria-label="新規ノート">
+    <button class="pill-btn primary" aria-label="新規作成">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="label">新規</span>
+      <span class="label">新規作成</span>
     </button>
-    <button class="icon-btn" aria-label="アップロード">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <button class="pill-btn" aria-label="アップロード">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="label">アップロード</span>
     </button>
     <div class="avatar" aria-label="ユーザーメニュー">YK</div>
   </div>
@@ -899,52 +937,51 @@
   </aside>
 
   <main class="main">
-    <nav class="breadcrumb" aria-label="パンくず" style="font-size:13px; color:var(--color-ink-tertiary); margin-bottom:14px; display:flex; align-items:center; gap:6px;">
-      <a href="#" style="color:var(--color-ink-tertiary);">ホーム</a>
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-hairline-strong);"><polyline points="9 18 15 12 9 6"/></svg>
-      <span style="color:var(--color-ink-secondary);">すべてのノート</span>
-    </nav>
-
+    <!-- 実装(NoteList)はホーム先頭にパンくずを置かず、見出し+件数サブタイトル。 -->
     <h1 class="page-title">すべてのノート</h1>
-    <div class="page-subtitle">127 件 · 最終更新 たった今</div>
+    <div class="page-subtitle">127 件のノート</div>
 
-    <div class="filter-row">
-      <button class="chip active">すべて</button>
-      <button class="chip">公開済み</button>
-      <button class="chip">#research <span class="remove">×</span></button>
-      <button class="chip">#日記 <span class="remove">×</span></button>
-      <button class="chip">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        フィルター追加
-      </button>
-      <div class="filter-row-end">
-        <button class="save-view-pill" aria-label="現在のビューを保存">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          ビューとして保存
+    <!-- NoteListToolbar: 表示モードタブ + 保存ビュー select / 選択・ビュー保存・新規・アップロード -->
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <div class="display-tabs" role="tablist" aria-label="表示形式">
+          <button class="display-tab active" role="tab" aria-selected="true">リスト</button>
+          <button class="display-tab" role="tab" aria-selected="false">タイル</button>
+          <button class="display-tab" role="tab" aria-selected="false">カレンダー</button>
+        </div>
+        <select class="view-select" aria-label="保存済みビュー">
+          <option>保存ビューを選択</option>
+        </select>
+      </div>
+      <div class="toolbar-group">
+        <button class="pill-btn" aria-pressed="false" aria-label="選択モード">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span class="label">選択</span>
+        </button>
+        <button class="pill-btn" aria-label="ビューとして保存">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span class="label">ビューとして保存</span>
+        </button>
+        <button class="pill-btn primary" aria-label="新規作成">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="pill-btn" aria-label="アップロード">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </button>
       </div>
     </div>
 
-    <div class="toolbar">
-      <div class="segmented" role="tablist" aria-label="表示形式">
-        <button class="active" role="tab" aria-selected="true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-          リスト
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          タイル
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
-          カレンダー
-        </button>
+    <!-- FilterBar (#497): タグチップ(件数バッジ) + 期間/公開状態/内部リンク参照ゴーストチップ + すべてクリア -->
+    <div class="filter-bar" aria-label="フィルタ">
+      <div class="filter-tags">
+        <button class="filter-chip active">#research<span class="chip-count">23</span></button>
+        <button class="filter-chip">#日記<span class="chip-count">14</span></button>
+        <button class="filter-chip">#essay<span class="chip-count">9</span></button>
       </div>
-
-      <button class="sort-btn">
-        更新順
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+      <button class="filter-chip-ghost">期間<span class="chip-caret">▾</span></button>
+      <button class="filter-chip-ghost">公開状態<span class="chip-caret">▾</span></button>
+      <button class="filter-chip-ghost">内部リンク参照<span class="chip-caret">▾</span></button>
+      <button class="filter-clear">すべてクリア</button>
     </div>
 
     <div class="note-list" id="noteList">
@@ -957,11 +994,9 @@
           <div class="note-title">静かなインターフェースについての覚書</div>
           <div class="note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。</div>
           <div class="note-meta">
-            <span class="note-tags">#design  #essay</span>
+            <span class="note-tags">#design #essay</span>
             <span class="dot">·</span>
-            <span>Research / 論文メモ</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot"></span>公開中</span>
+            <span class="vis-chip public">公開</span>
           </div>
         </div>
         <div class="note-date">今日 14:32</div>
@@ -973,11 +1008,9 @@
           <div class="note-title">2026年5月の読書記録</div>
           <div class="note-snippet">『ノルウェイの森』を再読。15年ぶりに開いたら、印象がまるで違っていた。当時メモした感想と並べて読むと面白い。</div>
           <div class="note-meta">
-            <span class="note-tags">#読書  #日記</span>
+            <span class="note-tags">#読書 #日記</span>
             <span class="dot">·</span>
-            <span>日記 / 2026</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot private"></span>非公開</span>
+            <span class="vis-chip private">非公開</span>
           </div>
         </div>
         <div class="note-date">今日 09:15</div>
@@ -991,11 +1024,9 @@
           <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
           <div class="note-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。東京リージョンからは…</div>
           <div class="note-meta">
-            <span class="note-tags">#cloudflare  #performance</span>
+            <span class="note-tags">#cloudflare #performance</span>
             <span class="dot">·</span>
-            <span>プロジェクト / Hollow</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot"></span>公開中</span>
+            <span class="vis-chip public">公開</span>
           </div>
         </div>
         <div class="note-date">昨日</div>
@@ -1007,11 +1038,9 @@
           <div class="note-title">Meeting notes — 5/14 プロダクトレビュー</div>
           <div class="note-snippet">Q2 のロードマップ調整について。優先度を絞る方向で合意。詳細は議事録参照。</div>
           <div class="note-meta">
-            <span class="note-tags">#meeting  #work</span>
+            <span class="note-tags">#meeting #work</span>
             <span class="dot">·</span>
-            <span>プロジェクト / Hollow</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot link"></span>限定公開</span>
+            <span class="vis-chip unlisted">限定公開</span>
           </div>
         </div>
         <div class="note-date">5月14日</div>
@@ -1023,9 +1052,9 @@
           <div class="note-title">京都 三泊四日の旅程メモ</div>
           <div class="note-snippet">朝の哲学の道。誰もいない時間に歩くと別の景色に見える。一日目は南禅寺周辺、二日目は宇治へ。</div>
           <div class="note-meta">
-            <span class="note-tags">#travel  #日記</span>
+            <span class="note-tags">#travel #日記</span>
             <span class="dot">·</span>
-            <span>雑記</span>
+            <span class="vis-chip private">非公開</span>
           </div>
         </div>
         <div class="note-date">5月12日</div>
@@ -1037,11 +1066,9 @@
           <div class="note-title">A Pattern Language を読みながら</div>
           <div class="note-snippet">パタン・ランゲージの考え方は、ソフトウェア設計だけでなく、生活そのものに応用できる。アレグザンダーの…</div>
           <div class="note-meta">
-            <span class="note-tags">#建築  #読書</span>
+            <span class="note-tags">#建築 #読書</span>
             <span class="dot">·</span>
-            <span>Research / 書籍要約</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot"></span>公開中</span>
+            <span class="vis-chip public">公開</span>
           </div>
         </div>
         <div class="note-date">5月10日</div>
@@ -1053,9 +1080,9 @@
           <div class="note-title">Headless CMS 候補比較（2026年版）</div>
           <div class="note-snippet">Sanity / Contentful / Payload / 自前実装。コストと開発体験のトレードオフを表にまとめた。</div>
           <div class="note-meta">
-            <span class="note-tags">#cms  #research</span>
+            <span class="note-tags">#cms #research</span>
             <span class="dot">·</span>
-            <span>Research</span>
+            <span class="vis-chip private">非公開</span>
           </div>
         </div>
         <div class="note-date">5月8日</div>
@@ -1067,9 +1094,9 @@
           <div class="note-title">朝の散歩で考えたこと</div>
           <div class="note-snippet">外を歩いている時にしか出てこない種類の思考がある。デスクの前ではどうしても辿り着けない場所。</div>
           <div class="note-meta">
-            <span class="note-tags">#essay  #日記</span>
+            <span class="note-tags">#essay #日記</span>
             <span class="dot">·</span>
-            <span>日記 / 2026</span>
+            <span class="vis-chip private">非公開</span>
           </div>
         </div>
         <div class="note-date">5月7日</div>
@@ -1081,11 +1108,9 @@
           <div class="note-title">TanStack Start に乗り換えた理由</div>
           <div class="note-snippet">Next.js から TanStack Start へ。React Server Components のメンタルモデルがすっきりした。</div>
           <div class="note-meta">
-            <span class="note-tags">#react  #tanstack</span>
+            <span class="note-tags">#react #tanstack</span>
             <span class="dot">·</span>
-            <span>プロジェクト</span>
-            <span class="dot">·</span>
-            <span><span class="pub-dot"></span>公開中</span>
+            <span class="vis-chip public">公開</span>
           </div>
         </div>
         <div class="note-date">5月5日</div>
@@ -1099,7 +1124,7 @@
           <div class="note-meta">
             <span class="note-tags">#quote</span>
             <span class="dot">·</span>
-            <span>雑記</span>
+            <span class="vis-chip private">非公開</span>
           </div>
         </div>
         <div class="note-date">5月2日</div>
@@ -1124,9 +1149,9 @@
           エクスポート
         </button>
         <div class="bulk-divider"></div>
-        <button class="bulk-action danger" aria-label="削除">
+        <button class="bulk-action danger" aria-label="ゴミ箱へ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-          削除
+          ゴミ箱へ
         </button>
         <button class="bulk-action" aria-label="選択解除">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

@@ -80,13 +80,15 @@
     white-space: pre-wrap;
   }
 
+  /* 実装 PROMPT_TEXTAREA = fieldControl + fieldTextarea + min-h-[140px] max-h-[300px]:
+     surface 背景・透明ボーダー・mono フォント、focus で白背景＋アクセントボーダー。 */
   .prompt-textarea {
     width: 100%;
-    border: 1px solid var(--color-hairline-strong);
-    background: var(--color-bg);
+    border: 1px solid transparent;
+    background: var(--color-surface);
     color: var(--color-ink);
     border-radius: var(--radius-md);
-    padding: 12px 14px;
+    padding: 10px 12px;
     font-family: var(--font-mono);
     font-size: var(--text-mono);
     line-height: 1.6;
@@ -95,10 +97,9 @@
     resize: vertical;
     outline: none;
     overflow-y: auto;
-    transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
   }
-  .prompt-textarea:hover { border-color: var(--color-ink-tertiary); }
-  .prompt-textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .prompt-textarea:focus { border-color: var(--color-accent); background: var(--color-bg); }
   .prompt-textarea::placeholder { color: var(--color-ink-tertiary); font-family: var(--font-sans); }
 
   .preview-panel {
@@ -556,9 +557,9 @@
   .field { margin-bottom: var(--space-6); }
   .field-label {
     display: block;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-secondary);
     margin-bottom: 6px;
   }
   .field-help {
@@ -569,22 +570,25 @@
   }
   .field-help.warning { color: var(--color-warning); }
   .field-help.error { color: var(--color-error); }
+  /* fieldControl 原型（common/styles.ts）: surface 背景・透明ボーダー・h-10、
+     focus で白背景＋アクセントボーダー。 */
   .input, .textarea {
     width: 100%;
-    border: 1px solid var(--color-hairline-strong);
-    background: var(--color-bg);
+    height: 40px;
+    border: 1px solid transparent;
+    background: var(--color-surface);
     color: var(--color-ink);
     border-radius: var(--radius-md);
     padding: 10px 12px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     outline: none;
-    transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
   }
-  .input:hover, .textarea:hover { border-color: var(--color-ink-tertiary); }
-  .input:focus, .textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .input:focus, .textarea:focus { border-color: var(--color-accent); background: var(--color-bg); }
   .input.error, .textarea.error { border-color: var(--color-error); }
   .input::placeholder, .textarea::placeholder { color: var(--color-ink-tertiary); }
   .textarea {
+    height: auto;
     min-height: 96px;
     resize: vertical;
     line-height: var(--leading-normal);
@@ -881,17 +885,7 @@
         </a>
         <a class="settings-nav-item active">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          カスタムプロンプト
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg>
-          言語・タイムゾーン
-          <span class="badge">準備中</span>
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          通知
-          <span class="badge">準備中</span>
+          プロンプト
         </a>
         <a class="settings-nav-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -903,17 +897,20 @@
 
         <section class="settings-section">
           <h2 class="section-title">カスタムプロンプト</h2>
-          <p class="section-desc">LLM の挙動をカスタマイズします。空欄の場合はインスタンスのデフォルトが使われます。変数は <code style="background: var(--color-surface); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.88em;">{{input}}</code> / <code style="background: var(--color-surface); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.88em;">{{title}}</code> / <code style="background: var(--color-surface); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.88em;">{{existing_directories}}</code> が利用できます。</p>
+          <p class="section-desc">各用途について、あなたの分析の意図を補足できます。空欄のままなら システム既定の動作が適用されます。</p>
 
+          <!-- 実装(`PromptsForm`)は用途ごとに 5 カード（取り込み構造化/タイトル生成/
+               ディレクトリ提案/メタデータ抽出/OCR 補正）を縦に並べ、各カードが独立した
+               保存・デフォルトに戻すボタンを持つ。プレビューパネル（入出力サンプル・
+               「サンプルで実行」）と末尾のグローバル action-row は未実装（B 参照）。 -->
           <div class="prompt-card">
             <div class="prompt-card-header">
               <div class="prompt-card-name">取り込み構造化 <span class="badge">カスタム適用中</span></div>
-              <a class="reset-link">デフォルトに戻す</a>
             </div>
-            <div class="prompt-card-desc">アップロードしたメモを Markdown に整形する際の指示。</div>
+            <div class="prompt-card-desc">個別オーバーライドが有効</div>
 
             <details class="default-prompt">
-              <summary>インスタンスのデフォルトを表示</summary>
+              <summary>デフォルトプロンプト</summary>
               <div class="default-body">あなたは個人ノート整理アシスタントです。与えられた本文を Markdown として読みやすく整形してください。
 - 重複した空行は 1 行にまとめる
 - 箇条書きと見出しを推測して付与
@@ -922,9 +919,11 @@
 
 INPUT:
 {{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: input</small>
             </details>
 
-            <textarea class="prompt-textarea" placeholder="カスタムプロンプトを入力">あなたは静かな書斎の整理係です。下記の本文を、以下の方針で Markdown に整形してください。
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）">あなたは静かな書斎の整理係です。下記の本文を、以下の方針で Markdown に整形してください。
 
 - 短い独立した思考断片はそのまま箇条書きに
 - まとまった段落は H2 を立てる
@@ -934,97 +933,53 @@ INPUT:
 本文:
 {{input}}</textarea>
 
-            <div class="preview-panel">
-              <div class="preview-panel-head">
-                <div class="preview-panel-title">プレビュー</div>
-                <button class="btn-sm">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  サンプルで実行
-                </button>
-              </div>
-              <div class="preview-pair">
-                <div class="preview-block">
-                  <div class="preview-block-label">入力サンプル</div>
-                  <div class="preview-block-body">朝の散歩で気づいたこと
-歩いている時にしか出てこない種類の思考がある
-"In the midst of movement and chaos, keep stillness inside of you."
-Deepak Chopra
-デスクの前ではどうしても辿り着けない</div>
-                </div>
-                <div class="preview-arrow">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </div>
-                <div class="preview-block">
-                  <div class="preview-block-label">出力サンプル</div>
-                  <div class="preview-block-body">## 朝の散歩で気づいたこと
-
-- 歩いている時にしか出てこない種類の思考がある
-- デスクの前ではどうしても辿り着けない
-
-> "In the midst of movement and chaos, keep stillness inside of you."
-> — Deepak Chopra</div>
-                </div>
-              </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+              <button class="pill-btn primary">保存</button>
+              <button class="pill-btn">デフォルトに戻す</button>
             </div>
           </div>
 
           <div class="prompt-card">
             <div class="prompt-card-header">
               <div class="prompt-card-name">タイトル生成</div>
-              <a class="reset-link">デフォルトに戻す</a>
             </div>
-            <div class="prompt-card-desc">タイトル未指定のノートに対して、本文から生成するタイトル。</div>
+            <div class="prompt-card-desc">インスタンスデフォルトを使用中</div>
 
             <details class="default-prompt">
-              <summary>インスタンスのデフォルトを表示</summary>
+              <summary>デフォルトプロンプト</summary>
               <div class="default-body">本文から、24 文字以内・体言止め・記号なしのタイトルを 1 つ生成してください。
 本文: {{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: input</small>
             </details>
 
-            <textarea class="prompt-textarea" placeholder="空欄の場合はデフォルトが使われます"></textarea>
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）"></textarea>
 
-            <div class="preview-panel">
-              <div class="preview-panel-head">
-                <div class="preview-panel-title">プレビュー</div>
-                <button class="btn-sm">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  サンプルで実行
-                </button>
-              </div>
-              <div class="preview-pair">
-                <div class="preview-block">
-                  <div class="preview-block-label">入力サンプル</div>
-                  <div class="preview-block-body">Hono経由でD1にクエリを投げる構成で、Cold startとP99レイテンシを計測した。東京リージョンからの値は…</div>
-                </div>
-                <div class="preview-arrow">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </div>
-                <div class="preview-block">
-                  <div class="preview-block-label">出力サンプル</div>
-                  <div class="preview-block-body">Cloudflare Workers + D1 のパフォーマンス計測</div>
-                </div>
-              </div>
+            <!-- inheriting（オーバーライド未設定）のため「デフォルトに戻す」は非表示。 -->
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+              <button class="pill-btn primary">保存</button>
             </div>
           </div>
 
           <div class="prompt-card">
             <div class="prompt-card-header">
               <div class="prompt-card-name">ディレクトリ提案 <span class="badge">カスタム適用中</span></div>
-              <a class="reset-link">デフォルトに戻す</a>
             </div>
-            <div class="prompt-card-desc">取り込んだノートを既存ディレクトリのどこに置くか提案する指示。</div>
+            <div class="prompt-card-desc">個別オーバーライドが有効</div>
 
             <details class="default-prompt">
-              <summary>インスタンスのデフォルトを表示</summary>
+              <summary>デフォルトプロンプト</summary>
               <div class="default-body">タイトルと本文から、最も適した配置先を以下から 1 つ選んでください。
 - 既存ディレクトリ: {{existing_directories}}
 - 該当なしの場合は新規ディレクトリ名を提案
 
 タイトル: {{title}}
 本文: {{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: existing_directories, title, input</small>
             </details>
 
-            <textarea class="prompt-textarea" placeholder="カスタムプロンプトを入力">下記ノートの配置先を提案してください。判断は以下を優先します。
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）">下記ノートの配置先を提案してください。判断は以下を優先します。
 
 1. 既存ディレクトリの命名と一貫すること
 2. 「日記」「Research」「プロジェクト」「雑記」の 4 トップレベルを優先
@@ -1033,14 +988,17 @@ Deepak Chopra
 タイトル: {{title}}
 本文: {{input}}
 既存: {{existing_directories}}</textarea>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;">
+              <button class="pill-btn primary">保存</button>
+              <button class="pill-btn">デフォルトに戻す</button>
+            </div>
           </div>
 
-          <div class="action-row">
-            <button class="pill-btn primary">変更を保存</button>
-            <button class="pill-btn">キャンセル</button>
-            <div class="spacer"></div>
-            <span class="field-help" style="margin: 0;">未保存の変更があります</span>
-          </div>
+          <!-- 実装には用途「メタデータ抽出」「OCR 補正」のカードも存在する（計 5 用途）。
+               モックは代表 3 用途のみ描画。残り 2 用途は B 参照。
+               グローバルの「変更を保存／キャンセル／未保存」action-row は実装に無い
+               （各カードが独立保存するため）。 -->
         </section>
 
       </div>

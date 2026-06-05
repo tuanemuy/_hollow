@@ -451,9 +451,9 @@
   .field { margin-bottom: var(--space-6); }
   .field-label {
     display: block;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-secondary);
     margin-bottom: 6px;
   }
   .field-help {
@@ -464,22 +464,25 @@
   }
   .field-help.warning { color: var(--color-warning); }
   .field-help.error { color: var(--color-error); }
+  /* fieldControl 原型（common/styles.ts）: surface 背景・透明ボーダー・h-10、
+     focus で白背景＋アクセントボーダー。 */
   .input, .textarea {
     width: 100%;
-    border: 1px solid var(--color-hairline-strong);
-    background: var(--color-bg);
+    height: 40px;
+    border: 1px solid transparent;
+    background: var(--color-surface);
     color: var(--color-ink);
     border-radius: var(--radius-md);
     padding: 10px 12px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     outline: none;
-    transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
   }
-  .input:hover, .textarea:hover { border-color: var(--color-ink-tertiary); }
-  .input:focus, .textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .input:focus, .textarea:focus { border-color: var(--color-accent); background: var(--color-bg); }
   .input.error, .textarea.error { border-color: var(--color-error); }
   .input::placeholder, .textarea::placeholder { color: var(--color-ink-tertiary); }
   .textarea {
+    height: auto;
     min-height: 96px;
     resize: vertical;
     line-height: var(--leading-normal);
@@ -776,17 +779,7 @@
         </a>
         <a class="settings-nav-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          カスタムプロンプト
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg>
-          言語・タイムゾーン
-          <span class="badge">準備中</span>
-        </a>
-        <a class="settings-nav-item disabled" aria-disabled="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          通知
-          <span class="badge">準備中</span>
+          プロンプト
         </a>
         <a class="settings-nav-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -807,19 +800,18 @@
 
           <div class="field">
             <label class="field-label" for="new-pw">新しいパスワード</label>
-            <input class="input" id="new-pw" type="password" placeholder="12 文字以上、英数字記号を含む" autocomplete="new-password">
-            <div class="field-help">12 文字以上 / 大文字・小文字・数字・記号のうち 3 種類以上を含めてください。</div>
+            <input class="input" id="new-pw" type="password" autocomplete="new-password">
           </div>
 
-          <div class="field">
-            <label class="field-label" for="confirm-pw">新しいパスワード（確認）</label>
-            <input class="input error" id="confirm-pw" type="password" value="••••••••" autocomplete="new-password">
-            <div class="field-help error">入力内容が一致しません。</div>
-          </div>
+          <!-- 実装は「新しいパスワード（確認）」フィールドを持たず、代わりに
+               「他の端末からはログアウトする」チェックボックス（任意）を持つ。 -->
+          <label class="checkbox-row" style="display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--color-ink-secondary); cursor: pointer; margin-bottom: var(--space-6);">
+            <input type="checkbox" style="width: 16px; height: 16px; accent-color: var(--color-accent); cursor: pointer;">
+            <span>他の端末からはログアウトする</span>
+          </label>
 
           <div style="display: flex; gap: 10px;">
             <button class="pill-btn primary">パスワードを変更</button>
-            <button class="pill-btn">キャンセル</button>
           </div>
         </section>
 
@@ -827,15 +819,17 @@
           <h2 class="section-title">メールアドレス変更</h2>
           <p class="section-desc">新しいアドレスに確認メールを送信します。リンクをクリックして完了するまで、現在のアドレスは有効です。</p>
 
-          <div class="field">
-            <label class="field-label">現在のアドレス</label>
-            <div class="preview-line"><strong>yui.kashiwagi@example.com</strong></div>
-          </div>
+          <p class="section-desc" style="margin-bottom: var(--space-6);">現在: <strong style="color: var(--color-ink); font-weight: var(--weight-medium);">yui.kashiwagi@example.com</strong></p>
 
           <div class="field">
-            <label class="field-label" for="new-email">新しいアドレス</label>
-            <input class="input" id="new-email" type="email" placeholder="new@example.com" autocomplete="email">
-            <div class="field-help">変更後、確認メールを送信します。リンクは 24 時間有効です。</div>
+            <label class="field-label" for="new-email">新しいメールアドレス</label>
+            <input class="input" id="new-email" type="email" autocomplete="email">
+          </div>
+
+          <!-- 実装は本人確認のため「現在のパスワード」入力を要求する。 -->
+          <div class="field">
+            <label class="field-label" for="email-pw">現在のパスワード</label>
+            <input class="input" id="email-pw" type="password" autocomplete="current-password">
           </div>
 
           <div style="display: flex; gap: 10px;">
@@ -844,15 +838,12 @@
         </section>
 
         <section class="settings-section">
-          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 6px;">
-            <div>
-              <h2 class="section-title" style="margin-bottom: 6px;">アクティブセッション</h2>
-              <p class="section-desc" style="margin-bottom: 0;">現在 Hollow にログインしている端末の一覧です。</p>
-            </div>
-            <button class="btn-sm danger-text" style="height: 36px; padding: 0 16px; border-radius: var(--radius-pill);">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              他のすべてからログアウト
-            </button>
+          <h2 class="section-title">セッション</h2>
+          <!-- 実装は ACTION_ROW 内に surface ピルの「他のすべてのセッションを
+               ログアウト」ボタンのみを持つ。アクティブセッション一覧（端末ごとの
+               行・行単位ログアウト）は未実装（B 参照）。 -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: var(--space-6);">
+            <button class="pill-btn">他のすべてのセッションをログアウト</button>
           </div>
 
           <div class="session-list" style="margin-top: 20px;">

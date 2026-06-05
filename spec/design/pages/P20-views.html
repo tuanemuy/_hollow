@@ -531,13 +531,17 @@
 
   <div class="search">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="ノート、タグ、本文を検索">
+    <input type="text" placeholder="ノートを検索">
   </div>
 
   <div class="header-right">
     <button class="pill-btn primary">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="label">新規</span>
+      <span class="label">新規作成</span>
+    </button>
+    <button class="pill-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="label">アップロード</span>
     </button>
     <div class="avatar" aria-hidden="true">YK</div>
   </div>
@@ -550,60 +554,24 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-section-title">ライブラリ</div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
-        すべてのノート
-        <span class="count">127</span>
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-        最近更新
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
-        お気に入り
-      </div>
+      <div class="nav-item">すべてのノート</div>
+      <div class="nav-item active">保存ビュー</div>
     </div>
 
     <div class="sidebar-section">
       <div class="sidebar-section-title">ディレクトリ</div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
-        Research
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
-        日記
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
-        プロジェクト
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
-        雑記
-      </div>
+      <div class="nav-item">Research</div>
+      <div class="nav-item">日記</div>
+      <div class="nav-item">プロジェクト</div>
+      <div class="nav-item">雑記</div>
     </div>
 
     <div class="sidebar-section">
       <div class="sidebar-section-title">管理</div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-        タグ
-      </div>
-      <div class="nav-item active">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="9 12 12 9 15 12"/><line x1="12" y1="9" x2="12" y2="16"/></svg>
-        ビュー
-        <span class="count">7</span>
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        ゴミ箱
-      </div>
-      <div class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        エクスポート
-      </div>
+      <div class="nav-item">タグ</div>
+      <div class="nav-item">ゴミ箱</div>
+      <div class="nav-item">エクスポートジョブ</div>
+      <div class="nav-item">アップロード</div>
     </div>
   </aside>
 
@@ -656,7 +624,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定を解除</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -690,7 +660,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -716,7 +688,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -749,7 +723,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -773,7 +749,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -781,12 +759,12 @@
       </div>
     </section>
 
-    <!-- 公開ビュー -->
+    <!-- 共有ビュー -->
     <section class="section-block">
       <div class="section-head">
         <div>
-          <h2 class="section-title">公開ビュー</h2>
-          <p class="section-desc">公開プロフィール (<code style="font-family: var(--font-mono); font-size: 0.92em;">/yumenaut</code>) に表示されるビュー。読者があなたのノートを絞り込んで読めます。</p>
+          <h2 class="section-title">共有ビュー</h2>
+          <p class="section-desc">公開プロフィールに表示されるビュー。読者があなたのノートを絞り込んで読めます。</p>
         </div>
         <div class="section-count">2 件</div>
       </div>
@@ -817,7 +795,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>
@@ -847,7 +827,9 @@
           <div class="row-actions">
             <button class="text-action apply">適用</button>
             <button class="text-action">編集</button>
+            <button class="text-action">名前変更</button>
             <button class="text-action">複製</button>
+            <button class="text-action">既定にする</button>
             <button class="text-action destructive">削除</button>
           </div>
         </div>

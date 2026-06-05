@@ -107,91 +107,82 @@
   /* Main toggle card */
   .toggle-card {
     border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-xl);
-    padding: var(--space-8);
-    margin-bottom: var(--space-8);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    margin-bottom: var(--space-6);
     background: var(--color-bg);
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-6);
+    display: flex;
+    gap: var(--space-4);
     align-items: center;
   }
-  .toggle-card-label { font-size: var(--text-lg); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
+  .toggle-card-body { flex: 1; min-width: 0; }
+  .toggle-card-label { font-size: var(--text-md); font-weight: var(--weight-medium); margin-bottom: 2px; }
   .toggle-card-state {
-    display: inline-flex; align-items: center; gap: 8px;
     font-size: var(--text-sm); color: var(--color-ink-secondary);
   }
-  .toggle-card-state .dot { width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--color-success); box-shadow: 0 0 0 4px rgba(31,143,58,0.12); }
   .toggle-card-state strong { color: var(--color-ink); font-weight: var(--weight-medium); }
 
-  /* Big switch */
+  /* Switch (実装: 48x28, surface -> accent) */
   .switch {
-    --w: 80px; --h: 44px; --p: 4px;
+    --w: 48px; --h: 28px; --p: 3px;
     position: relative;
     width: var(--w); height: var(--h);
     border-radius: var(--radius-pill);
-    background: var(--color-success);
+    background: var(--color-surface);
     transition: background var(--duration-base) var(--ease-standard);
     cursor: pointer;
     flex-shrink: 0;
   }
+  .switch[aria-checked="true"] { background: var(--color-accent); }
   .switch::after {
     content: "";
     position: absolute;
-    top: var(--p); left: calc(var(--w) - var(--h) + var(--p));
-    width: calc(var(--h) - var(--p) * 2);
-    height: calc(var(--h) - var(--p) * 2);
+    top: var(--p); left: var(--p);
+    width: 22px; height: 22px;
     border-radius: var(--radius-full);
     background: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-    transition: left var(--duration-base) var(--ease-standard);
+    box-shadow: var(--shadow-xs);
+    transition: transform var(--duration-base) var(--ease-standard);
   }
-  .switch.off { background: var(--color-ink-tertiary); }
-  .switch.off::after { left: var(--p); }
+  .switch[aria-checked="true"]::after { transform: translateX(20px); }
   .switch:focus-visible { box-shadow: var(--shadow-focus); }
 
-  @media (max-width: 640px) {
-    .toggle-card { grid-template-columns: 1fr; }
-  }
-
   /* Section */
-  .section { margin-bottom: var(--space-8); }
+  .section { margin-bottom: var(--space-10); }
   .section-title { font-size: var(--text-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); margin-bottom: var(--space-2); }
   .section-desc { font-size: var(--text-sm); color: var(--color-ink-secondary); margin-bottom: var(--space-4); }
+  .field-label { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); margin-bottom: 6px; }
 
   .textarea {
     width: 100%;
-    min-height: 100px;
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--color-hairline);
+    min-height: 140px;
+    padding: 10px var(--space-3);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: var(--color-bg);
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
+    background: var(--color-surface);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
     line-height: var(--leading-relaxed);
     color: var(--color-ink);
     resize: vertical;
-    transition: var(--transition-default);
+    transition: var(--transition-color);
   }
-  .textarea:hover { border-color: var(--color-hairline-strong); }
-  .textarea:focus { outline: none; border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
-  .field-hint { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: var(--space-2); }
+  .textarea:focus { outline: none; border-color: var(--color-hairline-strong); background: var(--color-bg); }
+  .field-hint { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: var(--space-1); }
 
   /* Notice */
   .notice {
     border-radius: var(--radius-lg);
     padding: var(--space-4) var(--space-5);
     background: var(--color-accent-surface);
-    color: var(--color-accent-ink);
     display: flex; gap: var(--space-3); align-items: flex-start;
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-6);
     font-size: var(--text-sm);
   }
-  .notice .icon { flex-shrink: 0; margin-top: 1px; }
-  .notice strong { font-weight: var(--weight-semibold); display: block; margin-bottom: 2px; color: var(--color-accent-ink); }
+  .notice strong { font-weight: var(--weight-semibold); display: block; margin-bottom: 2px; color: var(--color-ink); }
   .notice-body { color: var(--color-ink); }
 
-  /* History */
+  /* History (※未実装。モックを正に残す — followups 参照) */
   .history-list { border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); overflow: hidden; }
   .history-item { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); padding: var(--space-4) var(--space-5); align-items: center; }
   .history-item + .history-item { border-top: 1px solid var(--color-hairline); }
@@ -210,7 +201,7 @@
   .history-meta { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 2px; }
   .history-time { font-size: var(--text-xs); color: var(--color-ink-tertiary); white-space: nowrap; }
 
-  .form-footer { display: flex; gap: var(--space-3); justify-content: flex-end; padding-top: var(--space-6); border-top: 1px solid var(--color-hairline); margin-top: var(--space-10); }
+  .form-footer { display: flex; gap: var(--space-3); justify-content: flex-end; align-items: center; padding-top: var(--space-6); border-top: 1px solid var(--color-hairline); margin-top: var(--space-10); }
 
   @media (max-width: 640px) { .header { padding: 0 16px; gap: 10px; } .logo { display: none; } }
   @media (min-width: 1024px) { .menu-btn { display: none; } }
@@ -221,16 +212,11 @@
 
 <header class="header">
   <div class="header-left">
-    <button class="menu-btn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
     <div class="logo">Hollow</div>
     <span class="admin-pill">管理者モード</span>
   </div>
-  <div class="search">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="検索">
-  </div>
+  <div></div>
   <div class="header-right">
-    <button class="icon-btn" aria-label="Notifications"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
     <div class="avatar" aria-hidden="true">AD</div>
   </div>
 </header>
@@ -252,10 +238,9 @@
   <p class="page-subtitle">新規サインアップの公開状態を切り替えます。</p>
 
   <section class="toggle-card">
-    <div>
+    <div class="toggle-card-body">
       <div class="toggle-card-label">サインアップ公開</div>
       <div class="toggle-card-state">
-        <span class="dot" aria-hidden="true"></span>
         現在の状態: <strong>公開中</strong>
       </div>
     </div>
@@ -263,23 +248,21 @@
   </section>
 
   <div class="notice">
-    <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     <div>
       <strong>既存ユーザーには影響しません</strong>
-      <div class="notice-body">このトグルを停止状態にしても、登録済みのユーザーは通常通りログイン・利用できます。サインアップ画面のみが「停止中」表示に切り替わります。</div>
+      <div class="notice-body">停止状態にしても、登録済みのユーザーは通常通りログイン・利用できます。サインアップ画面のみが「停止中」表示に切り替わります。</div>
     </div>
   </div>
 
   <section class="section">
     <h2 class="section-title">停止中の表示文言</h2>
     <p class="section-desc">サインアップ停止状態のとき、サインアップ画面に表示されるメッセージ。Markdown 非対応。</p>
-    <textarea class="textarea" spellcheck="false">現在、新規アカウントの受付を停止しています。
-ご不便をおかけしますが、再開までお待ちください。
-
-お問い合わせ: hello@hollow.example</textarea>
-    <p class="field-hint">空欄の場合はデフォルト文言「現在、新規登録を停止しています。」が使用されます。</p>
+    <label class="field-label">表示文言</label>
+    <textarea class="textarea" spellcheck="false" placeholder="現在、新規登録を停止しています。"></textarea>
+    <p class="field-hint">空欄の場合はデフォルト文言が使用されます。</p>
   </section>
 
+  <!-- ※状態変更履歴は未実装。モックを正に残す（followups 参照） -->
   <section class="section">
     <h2 class="section-title">状態変更履歴</h2>
     <p class="section-desc">直近 20 件の状態切り替え。</p>
@@ -328,7 +311,7 @@
   </section>
 
   <div class="form-footer">
-    <button class="btn ghost">変更を破棄</button>
+    <span style="color:var(--color-success);font-size:var(--text-sm)">保存しました</span>
     <button class="btn primary">変更を保存</button>
   </div>
 </main>

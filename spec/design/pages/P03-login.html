@@ -341,12 +341,16 @@
 
   /*
     未認証 callout の正準配色 (ADR-004): neutral surface + accent アイコン。
-    実装 app/components/auth/styles.ts の CALLOUT / CALLOUT_ICON に合わせる。
-    既存の warning 配色 .callout はリファレンスとして上の本体ブロックに残す。
+    実装 app/components/auth/styles.ts の CALLOUT / CALLOUT_ICON に合わせる
+    （bg-surface / text-ink-secondary / rounded-md / px-4 py-3 / icon=accent）。
+    本体ブロックも含め全 callout を neutral に統一した。warning 配色は
+    P06 の .alert（メール変更確定の注意喚起）が担うため、本ファイルからは外す。
   */
   .callout-neutral {
     background: var(--color-surface);
     color: var(--color-ink-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
   }
   .callout-neutral .callout-icon { color: var(--color-accent); }
   .callout-neutral .callout-body strong { color: var(--color-ink); }
@@ -435,17 +439,17 @@
       <button type="submit" class="btn-primary">ログイン</button>
     </form>
 
-    <div class="callout" role="status" style="margin-top: var(--space-6);">
+    <div class="callout callout-neutral" role="status" style="margin-top: var(--space-6);">
       <span class="callout-icon" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19.5 16v3"/><path d="M19.5 22.01v.01"/></svg>
       </span>
       <div class="callout-body">
         <strong>メールアドレスの確認が未完了です</strong>
         受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
-        <a href="#" class="callout-action">
+        <button type="button" class="callout-action">
           確認メールを再送
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </div>
 
@@ -470,11 +474,11 @@
 
 <!--
   (a) validation エラー: email / password の field 直下エラー、email は入力保持。
-  注意: 以下の日本語 field hint は「あるべき」設計提案であり、現行実装の文言転記ではない。
-  現行 app/components/auth/schema.ts の Zod スキーマは message 未指定で、
-  app/core/presentation/validator.ts は Zod デフォルト（英語）の issue.message を
-  そのまま fieldErrors に格納する（errorMap/i18n 層なし）。
-  validation 文言の日本語化は実装 Issue #201 の申し送り事項。
+  注意: loginSchema（app/components/auth/schema.ts）は signUpSchema と異なり
+  transport 境界の日本語 message を持たない（trimmedString + .email() のみで、
+  Zod デフォルト message）。LoginForm は field 直下に fieldErrors を出すが、
+  ログインの主たる失敗は unauthorized（下の (b)）であり、validation 由来の
+  field hint が前面に出る場面は限定的。以下の日本語 hint は設計上の体裁提案。
 -->
 <!-- (a) validation エラー: email / password の field 直下エラー、email は入力保持 -->
 <main class="auth-shell is-variant" style="padding-top: var(--space-6);">
