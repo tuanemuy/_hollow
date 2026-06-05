@@ -346,6 +346,77 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("code")?.textContent).toBe("a\nb");
   });
 
+  it("inserts a literal \\n on Enter inside a bare <pre> with direct text (Issue #285 W-A)", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<pre>ab</pre>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const pre = host.querySelector("pre");
+    expect(pre?.getAttribute("contenteditable")).toBe("true");
+    const textNode = pre?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    // Seed caret between "a" and "b" so we can pin the insertion point.
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 1);
+    range.setEnd(textNode!, 1);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    expect(host.querySelector("br")).toBeNull();
+    // Still exactly one <pre>; no <br> or new elements appeared.
+    expect(host.querySelectorAll("pre")).toHaveLength(1);
+    expect(host.querySelector("pre")?.textContent).toBe("a\nb");
+  });
+
+  it("clears and re-applies <pre> contentEditable across a disabled toggle (Issue #285 W-B)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    expect(host.querySelector("pre")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+    // disabled = true: the disabled effect clears the attribute outright.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={vi.fn()}
+          disabled
+        />,
+      );
+    });
+    expect(
+      host.querySelector("pre")?.getAttribute("contenteditable"),
+    ).toBeNull();
+    // disabled = false again: editability is re-applied to <pre>.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={vi.fn()}
+          disabled={false}
+        />,
+      );
+    });
+    expect(host.querySelector("pre")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+  });
+
   it("emits onChange for characterData edits inside <pre><code> without rollback (Issue #285)", async () => {
     const onChange = vi.fn();
     await act(async () => {
