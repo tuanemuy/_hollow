@@ -2,7 +2,6 @@ import {
   type NoteRevisionDTO,
   toNoteRevisionDTO,
 } from "@/core/application/dto/note";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId, NoteRevisionId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
@@ -10,9 +9,9 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type GetNoteRevisionInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
-  revisionId: NoteRevisionId;
+  actorUserId: string;
+  noteId: string;
+  revisionId: string;
 }>;
 
 export type GetNoteRevisionOutput = Readonly<{
@@ -33,7 +32,7 @@ export async function getNoteRevision({
   input,
 }: ServiceArgs<GetNoteRevisionInput>): Promise<GetNoteRevisionOutput> {
   return container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
@@ -48,7 +47,7 @@ export async function getNoteRevision({
     }
 
     const revision = await ctx.noteRevisionRepository.findById(
-      input.revisionId,
+      input.revisionId as NoteRevisionId,
     );
     if (!revision) {
       throw new NotFoundError(

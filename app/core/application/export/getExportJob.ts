@@ -1,12 +1,12 @@
 import { ExportJob } from "@/core/domain/export/entity";
 import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/valueObject";
-import type { UserId } from "@/core/domain/identity/valueObject";
+import type { UserId as UserIdBrand } from "@/core/domain/identity/valueObject";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type GetExportJobInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   jobId: string;
 }>;
 
@@ -34,7 +34,7 @@ export async function getExportJob({
           `Export job not found: ${input.jobId}`,
         );
       }
-      ExportJob.assertOwnedBy(found.entity, input.actorUserId);
+      ExportJob.assertOwnedBy(found.entity, input.actorUserId as UserIdBrand);
       return found.entity;
     },
   );

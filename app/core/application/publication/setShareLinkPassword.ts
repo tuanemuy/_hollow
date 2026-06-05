@@ -1,5 +1,4 @@
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { ShareLink } from "@/core/domain/publication/entity";
 import { PublicationErrorCode } from "@/core/domain/publication/errorCode";
 import {
@@ -10,8 +9,8 @@ import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type SetShareLinkPasswordInput = Readonly<{
-  actorUserId: UserId;
-  shareLinkId: ShareLinkId;
+  actorUserId: string;
+  shareLinkId: string;
   newPassword: string | null;
 }>;
 
@@ -38,7 +37,9 @@ export async function setShareLinkPassword({
         );
 
   await container.unitOfWorkProvider.run(async ({ shareLinkRepository }) => {
-    const found = await shareLinkRepository.findById(input.shareLinkId);
+    const found = await shareLinkRepository.findById(
+      input.shareLinkId as ShareLinkId,
+    );
     if (found === null) {
       throw new NotFoundError(
         "SHARE_LINK_NOT_FOUND",

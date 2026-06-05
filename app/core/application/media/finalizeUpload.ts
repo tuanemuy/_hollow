@@ -1,5 +1,4 @@
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { MediaErrorCode } from "@/core/domain/media/errorCode";
 import {
   isStorageNotFoundError,
@@ -14,8 +13,8 @@ import { NotFoundError, SystemError, SystemErrorCode } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type FinalizeUploadInput = Readonly<{
-  actorUserId: UserId;
-  mediaId: MediaAssetId;
+  actorUserId: string;
+  mediaId: string;
 }>;
 
 export type FinalizeUploadOutput = Readonly<{
@@ -39,10 +38,10 @@ export async function finalizeUpload({
   input,
 }: ServiceArgs<FinalizeUploadInput>): Promise<FinalizeUploadOutput> {
   const now = container.clock.now();
+  const mediaId = input.mediaId as MediaAssetId;
 
   const asset = await container.unitOfWorkProvider.run(
-    async ({ mediaAssetRepository }) =>
-      mediaAssetRepository.findById(input.mediaId),
+    async ({ mediaAssetRepository }) => mediaAssetRepository.findById(mediaId),
   );
   if (asset === null) {
     throw new NotFoundError(
@@ -65,7 +64,7 @@ export async function finalizeUpload({
   const headMimeType = MimeType.create(meta.contentType);
 
   await container.unitOfWorkProvider.run(async ({ mediaAssetRepository }) => {
-    const fresh = await mediaAssetRepository.findById(input.mediaId);
+    const fresh = await mediaAssetRepository.findById(mediaId);
     if (fresh === null) {
       throw new NotFoundError(
         "MEDIA_NOT_FOUND",

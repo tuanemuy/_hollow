@@ -1,5 +1,3 @@
-import type { UserId } from "@/core/domain/identity/valueObject";
-import type { NoteId } from "@/core/domain/note/valueObject";
 import type { ServiceArgs } from "../types";
 import {
   changePublicationVisibility,
@@ -7,13 +5,13 @@ import {
 } from "./changePublicationVisibility";
 
 export type BulkChangePublicationVisibilityInput = Readonly<{
-  actorUserId: UserId;
-  noteIds: readonly NoteId[];
+  actorUserId: string;
+  noteIds: readonly string[];
   nextVisibility: Visibility;
 }>;
 
 export type BulkChangeFailure = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   reason: string;
 }>;
 

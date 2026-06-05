@@ -12,7 +12,7 @@ import {
   type FrontMatterRecord,
   InternalLinkRef,
   type InternalLinkRef as InternalLinkRefType,
-  type NoteId,
+  type NoteId as NoteIdBrand,
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import type { TagId } from "@/core/domain/tag/valueObject";
@@ -23,8 +23,8 @@ import type { InternalLinkRefDTO, NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type SaveNoteInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   title?: string;
   contentHtml?: string;
   frontMatter?: FrontMatterRecord;
@@ -59,6 +59,8 @@ export async function saveNote({
   input,
 }: ServiceArgs<SaveNoteInput>): Promise<SaveNoteOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
+  const noteId = input.noteId as NoteIdBrand;
   const titleOverride =
     input.title === undefined ? undefined : NoteTitle.create(input.title);
   const frontMatterOverride =
@@ -67,14 +69,14 @@ export async function saveNote({
       : FrontMatter.create(input.frontMatter);
 
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(noteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
         `Note not found: ${input.noteId}`,
       );
     }
-    if (found.entity.ownerId !== input.actorUserId) {
+    if (found.entity.ownerId !== actorUserId) {
       throw new ForbiddenError(
         "NOTE_FORBIDDEN",
         `Note ${input.noteId} is owned by another user`,
@@ -143,7 +145,7 @@ export async function saveNote({
         ? { frontMatter: frontMatterOverride }
         : {}),
       now,
-      actorUserId: input.actorUserId,
+      actorUserId,
       requireLock: input.requireLock,
     });
 
@@ -169,7 +171,7 @@ export async function saveNote({
         title: next.title,
         contentHtml: next.contentHtml,
         frontMatter: next.frontMatter,
-        createdByUserId: input.actorUserId,
+        createdByUserId: actorUserId,
       },
       now,
     );

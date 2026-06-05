@@ -1,6 +1,5 @@
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import type { NoteId } from "@/core/domain/note/valueObject";
@@ -10,9 +9,9 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type MoveNoteInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
-  newDirectoryId: DirectoryId;
+  actorUserId: string;
+  noteId: string;
+  newDirectoryId: string;
 }>;
 
 export type MoveNoteOutput = Readonly<{ note: NoteDTO }>;
@@ -23,8 +22,10 @@ export async function moveNote({
 }: ServiceArgs<MoveNoteInput>): Promise<MoveNoteOutput> {
   const now = container.clock.now();
 
+  const newDirectoryId = input.newDirectoryId as DirectoryId;
+
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
@@ -43,7 +44,7 @@ export async function moveNote({
         `Cannot move trashed note ${input.noteId}`,
       );
     }
-    const dir = await ctx.directoryRepository.findById(input.newDirectoryId);
+    const dir = await ctx.directoryRepository.findById(newDirectoryId);
     if (!dir) {
       throw new ForbiddenError(
         "DIRECTORY_NOT_FOUND",
@@ -59,7 +60,7 @@ export async function moveNote({
 
     const { entity: next, eventDrafts } = Note.moveTo(
       found.entity,
-      input.newDirectoryId,
+      newDirectoryId,
       now,
     );
     if (eventDrafts.length === 0) {

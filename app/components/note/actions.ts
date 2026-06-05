@@ -1,11 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { BusinessRuleError } from "@/core/domain/error";
-import type {
-  NoteId as DomainNoteId,
-  NoteRevisionId as DomainNoteRevisionId,
-  FrontMatterRecord,
-} from "@/core/domain/note/valueObject";
+import type { FrontMatterRecord } from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -102,8 +97,7 @@ export const createNoteFn = createServerFn({ method: "POST" })
         actorUserId: user.id,
         title: data.title,
         contentHtml: data.contentHtml,
-        directoryId:
-          data.directoryId === null ? null : (data.directoryId as DirectoryId),
+        directoryId: data.directoryId,
         frontMatter,
         tagNames: data.tagNames,
         internalLinkRefs: [],
@@ -125,7 +119,7 @@ export const saveNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
         ...(data.title === undefined ? {} : { title: data.title }),
         ...(data.contentHtml === undefined
           ? {}
@@ -150,7 +144,7 @@ export const renameNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
         newTitle: data.newTitle,
         regenerateSlug: data.regenerateSlug,
       },
@@ -170,8 +164,8 @@ export const moveNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
-        newDirectoryId: data.newDirectoryId as DirectoryId,
+        noteId: data.noteId,
+        newDirectoryId: data.newDirectoryId,
       },
     });
     return { noteId: result.note.id };
@@ -189,7 +183,7 @@ export const deleteNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
       },
     });
     return { ok: true as const };
@@ -207,11 +201,8 @@ export const restoreNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
-        restoreDirectoryId:
-          data.restoreDirectoryId === null
-            ? null
-            : (data.restoreDirectoryId as DirectoryId),
+        noteId: data.noteId,
+        restoreDirectoryId: data.restoreDirectoryId,
       },
     });
     return { noteId: result.note.id };
@@ -229,7 +220,7 @@ export const purgeNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
       },
     });
     return { ok: true as const };
@@ -247,7 +238,7 @@ export const duplicateNoteFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
       },
     });
     return { noteId: result.note.id };
@@ -265,8 +256,8 @@ export const bulkMoveNotesFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteIds: data.noteIds.map((id) => id as DomainNoteId),
-        newDirectoryId: data.newDirectoryId as DirectoryId,
+        noteIds: data.noteIds,
+        newDirectoryId: data.newDirectoryId,
       },
     });
     return {
@@ -291,7 +282,7 @@ export const bulkTrashNotesFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteIds: data.noteIds.map((id) => id as DomainNoteId),
+        noteIds: data.noteIds,
       },
     });
     return {
@@ -324,7 +315,7 @@ export const bulkExportNotesFn = createServerFn({ method: "POST" })
         actorUserId: user.id,
         format: data.format,
         scope: "multiple",
-        noteIds: data.noteIds.map((id) => id as DomainNoteId),
+        noteIds: data.noteIds,
         options: data.options,
       },
     });
@@ -344,7 +335,7 @@ export const saveNoteDraftFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
         ...(data.title === undefined ? {} : { title: data.title }),
         ...(data.contentHtml === undefined
           ? {}
@@ -368,7 +359,7 @@ export const acquireEditLockFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
         ttlSec: EDIT_LOCK_TTL_SEC,
       },
     });
@@ -390,7 +381,7 @@ export const extendEditLockFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
         ttlSec: EDIT_LOCK_TTL_SEC,
       },
     });
@@ -436,8 +427,8 @@ export const restoreNoteRevisionFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
-        revisionId: data.revisionId as DomainNoteRevisionId,
+        noteId: data.noteId,
+        revisionId: data.revisionId,
       },
     });
     return { noteId: result.note.id };
@@ -455,7 +446,7 @@ export const releaseEditLockFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        noteId: data.noteId as DomainNoteId,
+        noteId: data.noteId,
       },
     });
     return { ok: true as const };

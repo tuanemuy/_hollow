@@ -23,7 +23,7 @@ export type InternalLinkSuggestion =
     }>;
 
 export type SearchInternalLinkTargetsInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   query: string;
   limit?: number;
 }>;
@@ -66,15 +66,12 @@ export async function searchInternalLinkTargets({
   const trimmed = input.query.trim();
   if (trimmed.length === 0) return { suggestions: [] };
 
+  const actorUserId = input.actorUserId as UserId;
   const { notes, tags } = await container.unitOfWorkProvider.run(
     async (ctx) => {
       const [notesResult, tagsResult] = await Promise.all([
-        ctx.noteRepository.searchByTitlePrefix(
-          input.actorUserId,
-          trimmed,
-          limit,
-        ),
-        ctx.tagRepository.searchByNamePrefix(input.actorUserId, trimmed, limit),
+        ctx.noteRepository.searchByTitlePrefix(actorUserId, trimmed, limit),
+        ctx.tagRepository.searchByNamePrefix(actorUserId, trimmed, limit),
       ]);
       return { notes: notesResult, tags: tagsResult };
     },

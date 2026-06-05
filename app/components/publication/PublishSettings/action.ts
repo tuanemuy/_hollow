@@ -1,6 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { NoteId } from "@/core/domain/note/valueObject";
-import type { ShareLinkId } from "@/core/domain/publication/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -26,7 +24,7 @@ export const changeVisibilityFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        noteId: data.noteId as NoteId,
+        noteId: data.noteId,
         nextVisibility: data.nextVisibility,
       },
     });
@@ -44,7 +42,7 @@ export const issueShareLinkFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        noteId: data.noteId as NoteId,
+        noteId: data.noteId,
         password: data.password,
       },
     });
@@ -62,7 +60,7 @@ export const revokeShareLinkFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        shareLinkId: data.shareLinkId as ShareLinkId,
+        shareLinkId: data.shareLinkId,
       },
     });
     return { ok: true };
@@ -89,7 +87,7 @@ export const bulkChangeVisibilityFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        noteIds: data.noteIds.map((id) => id as NoteId),
+        noteIds: data.noteIds,
         nextVisibility: data.nextVisibility,
       },
     });
@@ -114,7 +112,7 @@ export const setShareLinkPasswordFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: actor.id,
-        shareLinkId: data.shareLinkId as ShareLinkId,
+        shareLinkId: data.shareLinkId,
         newPassword: data.newPassword,
       },
     });

@@ -21,18 +21,18 @@ import type { ExportOptionsInput } from "./startExportJob";
 import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type ViewQuerySnapshotInput = Readonly<{
-  directoryId: DirectoryId | null;
-  tagIds: readonly TagId[];
+  directoryId: string | null;
+  tagIds: readonly string[];
   dateRange: Readonly<{ from: Date | null; to: Date | null }> | null;
   keyword: string | null;
-  referencingNoteId: NoteId | null;
+  referencingNoteId: string | null;
 }>;
 
 export type EnqueueExportJobInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   format: ExportFormat;
   scope: Exclude<ExportScope, "single">;
-  noteIds?: readonly NoteId[];
+  noteIds?: readonly string[];
   viewQuery?: ViewQuerySnapshotInput;
   options: ExportOptionsInput;
 }>;
@@ -45,14 +45,14 @@ function buildViewQuerySnapshot(
   raw: ViewQuerySnapshotInput,
 ): ViewQuerySnapshotType {
   return ViewQuerySnapshot.create({
-    directoryId: raw.directoryId,
-    tagIds: raw.tagIds,
+    directoryId: raw.directoryId as DirectoryId | null,
+    tagIds: raw.tagIds as readonly TagId[],
     dateRange:
       raw.dateRange === null
         ? null
         : DateRange.create({ from: raw.dateRange.from, to: raw.dateRange.to }),
     keyword: raw.keyword,
-    referencingNoteId: raw.referencingNoteId,
+    referencingNoteId: raw.referencingNoteId as NoteId | null,
   });
 }
 
@@ -82,7 +82,8 @@ export async function enqueueExportJob({
     input.viewQuery !== undefined
       ? buildViewQuerySnapshot(input.viewQuery)
       : null;
-  const noteIds: readonly NoteId[] = input.noteIds ?? [];
+  const noteIds = (input.noteIds ?? []) as readonly NoteId[];
+  const actorUserId = input.actorUserId as UserId;
 
   const job = await container.unitOfWorkProvider.run(
     async ({
@@ -121,7 +122,7 @@ export async function enqueueExportJob({
           );
         }
         ExportService.assertCanAccess({
-          viewerOwnerId: input.actorUserId,
+          viewerOwnerId: actorUserId,
           targetNoteIds: notes.map((n) => n.id),
           visibilityMap,
           ownerMap,
@@ -129,8 +130,12 @@ export async function enqueueExportJob({
       }
 
       const existingActive = await exportJobRepository.findByOwner(
-        input.actorUserId,
-        { limit: 100, offset: 0, order: "desc" },
+        actorUserId,
+        {
+          limit: 100,
+          offset: 0,
+          order: "desc",
+        },
       );
       const currentUsage = existingActive.filter(
         (j) => j.status === "pending" || j.status === "processing",
@@ -139,7 +144,7 @@ export async function enqueueExportJob({
       const { entity, eventDrafts } = ExportJob.create(
         {
           id,
-          ownerId: input.actorUserId,
+          ownerId: actorUserId,
           format: input.format,
           scope: input.scope,
           targetNoteIds: noteIds,

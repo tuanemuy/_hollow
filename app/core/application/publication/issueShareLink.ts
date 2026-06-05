@@ -11,8 +11,8 @@ import { loadOwnedNote } from "./internal";
 import { generateShareLinkToken, hashShareLinkToken } from "./token";
 
 export type IssueShareLinkInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   password: string | null;
 }>;
 
@@ -40,6 +40,8 @@ export async function issueShareLink({
   input,
 }: ServiceArgs<IssueShareLinkInput>): Promise<IssueShareLinkOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
+  const noteId = input.noteId as NoteId;
   const id = container.idGenerator.next();
   const rawToken = generateShareLinkToken(TOKEN_BYTES);
   const tokenHash = await hashShareLinkToken(rawToken);
@@ -58,11 +60,7 @@ export async function issueShareLink({
       shareLinkRepository,
       collectEvents,
     }) => {
-      const note = await loadOwnedNote(
-        noteRepository,
-        input.noteId,
-        input.actorUserId,
-      );
+      const note = await loadOwnedNote(noteRepository, noteId, actorUserId);
       if (note.status !== "active") {
         throw new BusinessRuleError(
           NoteErrorCode.Trashed,
@@ -88,7 +86,7 @@ export async function issueShareLink({
         {
           id,
           noteId: note.id,
-          ownerId: input.actorUserId,
+          ownerId: actorUserId,
           tokenHash,
           passwordHash,
         },

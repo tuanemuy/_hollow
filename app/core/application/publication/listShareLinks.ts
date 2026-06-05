@@ -7,8 +7,8 @@ import { loadOwnedNote } from "./internal";
 import { type ShareLinkDTO, toShareLinkDTOFromId } from "./view";
 
 export type ListShareLinksInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
 }>;
 
 export type ListShareLinksOutput = Readonly<{
@@ -27,13 +27,11 @@ export async function listShareLinks({
   container,
   input,
 }: ServiceArgs<ListShareLinksInput>): Promise<ListShareLinksOutput> {
+  const actorUserId = input.actorUserId as UserId;
+  const noteId = input.noteId as NoteId;
   const links = await container.unitOfWorkProvider.run(
     async ({ noteRepository, shareLinkRepository }) => {
-      const note = await loadOwnedNote(
-        noteRepository,
-        input.noteId,
-        input.actorUserId,
-      );
+      const note = await loadOwnedNote(noteRepository, noteId, actorUserId);
       if (note.status !== "active") {
         throw new BusinessRuleError(
           NoteErrorCode.Trashed,
