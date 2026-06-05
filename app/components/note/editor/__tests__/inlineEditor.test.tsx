@@ -296,7 +296,7 @@ describe("InlineEditor structural preservation", () => {
     expect(p?.getAttribute("contenteditable")).toBe("true");
   });
 
-  it("does not decorate <pre> or <code> inside <pre><code>x</code></pre>", async () => {
+  it("decorates <pre> editable and lets inner <code> inherit editability (Issue #285)", async () => {
     await act(async () => {
       root.render(
         <InlineEditor value="<pre><code>x</code></pre>" onChange={vi.fn()} />,
@@ -305,8 +305,190 @@ describe("InlineEditor structural preservation", () => {
     const host = findHost();
     const pre = host.querySelector("pre");
     const code = host.querySelector("code");
-    expect(pre?.getAttribute("contenteditable")).toBeNull();
+    expect(pre?.getAttribute("contenteditable")).toBe("true");
+    // <code> is not decorated itself; it inherits editability from <pre>.
     expect(code?.getAttribute("contenteditable")).toBeNull();
+    expect(code?.isContentEditable).toBe(true);
+  });
+
+  it("inserts a literal \\n on Enter inside <pre> without growing <br>/elements (Issue #285)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>ab</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    // Seed caret between "a" and "b" so we can pin the insertion point.
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 1);
+    range.setEnd(textNode!, 1);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    expect(host.querySelector("br")).toBeNull();
+    // Still exactly one <pre> and one <code>; no new elements appeared.
+    expect(host.querySelectorAll("pre")).toHaveLength(1);
+    expect(host.querySelectorAll("code")).toHaveLength(1);
+    expect(host.querySelector("code")?.textContent).toBe("a\nb");
+  });
+
+  it("inserts a literal \\n on Enter inside a bare <pre> with direct text (Issue #285 W-A)", async () => {
+    await act(async () => {
+      root.render(<InlineEditor value="<pre>ab</pre>" onChange={vi.fn()} />);
+    });
+    const host = findHost();
+    const pre = host.querySelector("pre");
+    expect(pre?.getAttribute("contenteditable")).toBe("true");
+    const textNode = pre?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    // Seed caret between "a" and "b" so we can pin the insertion point.
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 1);
+    range.setEnd(textNode!, 1);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    expect(host.querySelector("br")).toBeNull();
+    // Still exactly one <pre>; no <br> or new elements appeared.
+    expect(host.querySelectorAll("pre")).toHaveLength(1);
+    expect(host.querySelector("pre")?.textContent).toBe("a\nb");
+  });
+
+  it("clears and re-applies <pre> contentEditable across a disabled toggle (Issue #285 W-B)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    expect(host.querySelector("pre")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+    // disabled = true: the disabled effect clears the attribute outright.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={vi.fn()}
+          disabled
+        />,
+      );
+    });
+    expect(
+      host.querySelector("pre")?.getAttribute("contenteditable"),
+    ).toBeNull();
+    // disabled = false again: editability is re-applied to <pre>.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={vi.fn()}
+          disabled={false}
+        />,
+      );
+    });
+    expect(host.querySelector("pre")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
+  });
+
+  it("emits onChange for characterData edits inside <pre><code> without rollback (Issue #285)", async () => {
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<pre><code>foo</code></pre>"
+          onChange={onChange}
+        />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    await act(async () => {
+      if (textNode !== null && textNode !== undefined) {
+        (textNode as Text).textContent = "foobar";
+      }
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalled();
+    // Not rolled back: the edited text survives and structure is intact.
+    expect(host.querySelector("code")?.textContent).toBe("foobar");
+    expect(host.querySelectorAll("pre")).toHaveLength(1);
+  });
+
+  it("rolls back a forced element insertion inside <pre> (Issue #285)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    expect(code).not.toBeNull();
+    await act(async () => {
+      const extra = document.createElement("span");
+      extra.textContent = "x";
+      code?.appendChild(extra);
+    });
+    await flushMutations();
+    expect(host.querySelector("span")).toBeNull();
+    expect(host.querySelector("code")?.textContent).toBe("foo");
+  });
+
+  it("prevents Tab inside <pre> so no tab character is inserted (Issue #285)", async () => {
+    await act(async () => {
+      root.render(
+        <InlineEditor value="<pre><code>foo</code></pre>" onChange={vi.fn()} />,
+      );
+    });
+    const host = findHost();
+    const code = host.querySelector("code");
+    const textNode = code?.firstChild;
+    const sel = document.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode!, 3);
+    range.setEnd(textNode!, 3);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      host.dispatchEvent(event);
+    });
+    await flushMutations();
+    expect(event.defaultPrevented).toBe(true);
+    expect(host.querySelector("code")?.textContent).toBe("foo");
   });
 
   it("allows childList mutations during IME composition without rollback", async () => {
