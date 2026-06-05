@@ -80,7 +80,6 @@ function getDialog(): HTMLElement | null {
   return document.body.querySelector<HTMLElement>('[role="alertdialog"]');
 }
 
-// Open the confirm dialog via the danger trigger button.
 function openDialog() {
   const trigger = Array.from(container.querySelectorAll("button")).find((b) =>
     b.textContent?.includes("続けて削除する"),
