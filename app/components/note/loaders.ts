@@ -231,11 +231,10 @@ export const loadOwnedNotes = cache(
       }
 
       // Transport boundary: a malformed `?directoryId=...` is silently
-      // dropped rather than failing the whole loader (mirrors the
-      // `referencingNoteId` fallback above). Sidebar selection only needs
-      // the listing to switch; a bad id falls back to "no directory
-      // filter" instead of an error. `.create()` validates only; the
-      // original string is forwarded on success (ADR-002).
+      // dropped rather than failing the whole loader (same validate-only
+      // fallback as `referencingNoteId` above). Sidebar selection only
+      // needs the listing to switch; a bad id falls back to "no directory
+      // filter" instead of an error.
       let directoryId: string | undefined;
       if (input.directoryId !== undefined && input.directoryId !== null) {
         try {
