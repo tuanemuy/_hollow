@@ -22,7 +22,7 @@ const viewsSearchSchema = z.object({
   kind: z.enum(["personal", "public"]).catch("personal"),
 });
 
-export const Route = createFileRoute("/views/")({
+export const Route = createFileRoute("/_app/views/")({
   staleTime: 0,
   validateSearch: (search) => viewsSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,

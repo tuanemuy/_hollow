@@ -18,7 +18,7 @@ const renderExportJobDetail = createServerFn({ method: "GET" })
     return renderServerComponent(<ExportJobDetailPage jobId={data.jobId} />);
   });
 
-export const Route = createFileRoute("/exports/$jobId")({
+export const Route = createFileRoute("/_app/exports/$jobId")({
   staleTime: 0,
   head: ({ match, params }) =>
     internalRouteHead(

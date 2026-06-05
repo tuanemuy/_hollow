@@ -1,21 +1,19 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { buildHead } from "@/core/presentation/head";
 
-import "@/components/export/ExportForm/action";
+import "@/components/view/SavedViewsList/action";
 
-export const Route = createFileRoute("/exports")({
-  beforeLoad: requireAuthenticatedRoute,
+export const Route = createFileRoute("/_app/views")({
   head: ({ match }) => {
     const config = match.context?.config;
     if (!config) return {};
     return buildHead(config, {
-      title: `エクスポート — ${config.siteName}`,
+      title: `ビュー — ${config.siteName}`,
       noIndex: true,
     });
   },
-  component: ExportsLayout,
+  component: ViewsLayout,
   errorComponent: ({ error }) => (
     <div role="alert">
       <h1>エラーが発生しました</h1>
@@ -24,6 +22,6 @@ export const Route = createFileRoute("/exports")({
   ),
 });
 
-function ExportsLayout() {
+function ViewsLayout() {
   return <Outlet />;
 }
