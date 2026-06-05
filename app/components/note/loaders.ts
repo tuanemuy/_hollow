@@ -501,12 +501,8 @@ export const loadPublishStateForNote = cache(
       const { links } = await listShareLinks({
         container,
         input: {
-          actorUserId: args.actorUserId as Parameters<
-            typeof listShareLinks
-          >[0]["input"]["actorUserId"],
-          noteId: args.noteId as Parameters<
-            typeof listShareLinks
-          >[0]["input"]["noteId"],
+          actorUserId: args.actorUserId,
+          noteId: args.noteId,
         },
       });
       const publication = await container.unitOfWorkProvider.run(

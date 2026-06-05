@@ -73,3 +73,30 @@ usecase 入力を `string` に統一する際、この `.create()` 検証を (A)
 - トレードオフ:
   - usecase は受け取った `directoryId` / `referencingNoteId` string が「検証済み」であることを型では表現しない。ただし presentation 起点の他 id（`noteId` 等）と同じ前提（zod / `.create()` で検証済みの string を渡す）であり、一貫している。
   - loader で `.create()` を「検証のみ」に使い結果を捨てる形になるため、意図が分かるコメントを残す（why コメント）。
+
+---
+
+## ADR-003: loader → domain repository 直接アクセス起因の残存ブランドキャストは本 Issue スコープ外とし別 Issue 化する
+
+### Status
+Accepted
+
+### Context
+
+PR #495 のレビューで、`app/components/note/loaders.ts` の `loadPublishStateForNote`（L514 付近）が usecase を介さず `publicationStateRepository.findById(args.noteId as Parameters<typeof publicationStateRepository.findById>[0])` で domain repository ポートを直接叩いていることが判明した。引数に `string → NoteId` ブランドの橋渡しキャストが presentation 層に残る。
+
+同関数の `listShareLinks` への `Parameters<>` キャスト（L504-510）は、`listShareLinks` 入力が本 Issue で string 化された結果 no-op になっていたため除去した（W-PR-001 で修正済み）。一方 L514 のキャストは、publication state を読むだけの usecase が存在せず loader が repo を直接呼ぶために**型として必要**なものであり、no-op ではない。`Parameters<>` 形は domain id 型を import せずにブリッジする意図的なパターンで、import 漏れではない。
+
+本 Issue のスコープは「presentation 起点で呼ばれる **usecase の id 入力を string に統一**し、橋渡しを usecase 内部に閉じ込める」こと。loader → domain repository の直接アクセス（usecase バイパス）の解消は、(1) 読み取り usecase の新設（スコープ拡大）か (2) `.create()` 検証への置換（不正 id 時の挙動変更）を要し、本 Issue の型統一とは別系統の作業になる。なお本 PR でこのキャストが増えたわけではない（pre-existing）。
+
+### Decision
+
+**L514 の直接 repo アクセス起因のブランドキャストは本 Issue スコープ外とし、別 Issue #496 でフォローアップする。** 本 PR では no-op キャスト（L504-510）の除去のみ行う。
+
+### Consequences
+
+- 良い点:
+  - 本 Issue のスコープ（usecase の id 入力 string 統一）に集中でき、挙動変更リスク（読み取り usecase 化に伴う設計判断）を持ち込まない。
+  - フォローアップ Issue #496 で loader→repo 直接アクセス全体（`loadReferencingNoteTitle` 等も含む）を一貫した方針で整理できる。
+- トレードオフ:
+  - presentation 層に 1 箇所だけブランドキャストが残る（ただし domain id 型の import は伴わず、pre-existing）。
