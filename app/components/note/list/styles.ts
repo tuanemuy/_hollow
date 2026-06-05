@@ -49,8 +49,8 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  *
  * - `filterChip`: base pill. `data-[active]` flips it to the dark
  *   (ink / white) applied state, matching the existing tag-toggle look.
- * - `filterChipGhost`: dashed-outline unset trigger chip (期間 / 公開状態
- *   when no value is set). Transparent at rest, surface on hover.
+ * - `filterChipGhost`: dashed-outline unset trigger chip (期間 / 公開状態 /
+ *   内部リンク参照 when no value is set). Transparent at rest, surface on hover.
  * - `filterChipRemove`: the inline `×` button inside an active chip.
  * - `filterChipCaret`: the `▾` affordance on a popover trigger chip.
  */
