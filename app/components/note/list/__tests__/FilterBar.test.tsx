@@ -259,4 +259,20 @@ describe("FilterBar — DatePopover (Issue #467)", () => {
     });
     expect(datePanel()).toBeNull();
   });
+
+  it("clears the date range from an applied chip via the 解除 button", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    // Applied state: from/to set so the chip (applied=true) renders the
+    // "期間フィルタを解除" remove button.
+    renderBarWith({ from: "2026-01-01", to: "2026-01-31" });
+    const clearBtn = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="期間フィルタを解除"]',
+    );
+    expect(clearBtn).not.toBeNull();
+    await act(async () => {
+      clearBtn?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+  });
 });

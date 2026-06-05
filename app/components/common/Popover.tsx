@@ -80,6 +80,12 @@ export function Popover({
       {trigger(popover.triggerProps)}
       {open ? (
         haspopup === "menu" ? (
+          // onMouseDown preventDefault keeps focus on the active item during
+          // mouse interaction: on macOS Safari/Firefox a `<button>` click moves
+          // focus to <body>, which would otherwise trigger the container's
+          // onBlur → close → click on an unmounted item (the click drops). This
+          // matches `<Menu>`'s guard. Menu mode only — the dialog branch
+          // deliberately omits it so form-input focus inside the dialog works.
           <div
             ref={assignPanelRef}
             id={popover.panelId}
@@ -88,6 +94,9 @@ export function Popover({
             className={panelClassName}
             style={popover.panelStyle}
             onKeyDown={onMenuKeyDown}
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
           >
             {body}
           </div>

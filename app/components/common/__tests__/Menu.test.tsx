@@ -144,6 +144,16 @@ describe("Menu", () => {
     expect(menuitems()[0].getAttribute("tabindex")).toBe("0");
   });
 
+  it("wraps roving focus to the last item when ArrowUp is pressed on the first", () => {
+    render();
+    open();
+    // Opens with the first item (index 0) active; ArrowUp wraps to the last.
+    expect(menuitems()[0].getAttribute("tabindex")).toBe("0");
+    keydownOnMenu("ArrowUp");
+    expect(menuitems()[2].getAttribute("tabindex")).toBe("0");
+    expect(menuitems()[0].getAttribute("tabindex")).toBe("-1");
+  });
+
   it("closes on Escape and restores focus to the trigger", () => {
     render();
     open();

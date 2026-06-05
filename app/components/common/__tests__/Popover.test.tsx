@@ -138,6 +138,31 @@ describe("Popover (dialog mode)", () => {
     expect(panel()).toBeNull();
   });
 
+  it("closes on focus-out when focus moves to an element outside the container", () => {
+    // A focus target outside the popover container; the onFocusOut handler
+    // closes only when relatedTarget is outside the container.
+    const outside = document.createElement("button");
+    outside.type = "button";
+    document.body.appendChild(outside);
+    try {
+      render({ initialOpen: true });
+      const body = panel()?.querySelector("span") as HTMLElement;
+      // React maps the bubbling native `focusout` event to `onBlur`; happy-dom
+      // needs relatedTarget supplied explicitly.
+      act(() => {
+        body.dispatchEvent(
+          new FocusEvent("focusout", {
+            bubbles: true,
+            relatedTarget: outside,
+          }),
+        );
+      });
+      expect(panel()).toBeNull();
+    } finally {
+      outside.remove();
+    }
+  });
+
   it("the close render-prop callback closes and restores focus to the trigger", () => {
     render({ initialOpen: true });
     const closeBtn = Array.from(
