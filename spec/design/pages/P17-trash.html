@@ -258,6 +258,9 @@
   .pill-btn.primary { background: var(--color-accent); color: #fff; }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
   .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  /* danger pill (pillBtnDanger): error-surface 背景 + error 文字 */
+  .pill-btn.danger { background: var(--color-error-surface); color: var(--color-error); }
+  .pill-btn.danger:hover { background: var(--color-error-surface); }
   .icon-btn {
     width: 36px; height: 36px;
     border-radius: 50%;
@@ -718,13 +721,17 @@
 
   <div class="search">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="ノート、タグ、本文を検索">
+    <input type="text" placeholder="ノートを検索">
   </div>
 
   <div class="header-right">
-    <button class="pill-btn primary">
+    <button class="pill-btn primary" aria-label="新規作成">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="label">新規</span>
+      <span class="label">新規作成</span>
+    </button>
+    <button class="pill-btn" aria-label="アップロード">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="label">アップロード</span>
     </button>
     <div class="avatar" aria-hidden="true">YK</div>
   </div>
@@ -796,7 +803,7 @@
 
   <main class="main">
     <h1 class="page-title">ゴミ箱</h1>
-    <p class="page-subtitle">削除されたノートは 30 日間保管されます。期限を過ぎたものは自動的に完全削除されます。</p>
+    <p class="page-subtitle">3 件のノートがゴミ箱にあります。保存期間を過ぎたものは自動的に完全削除されます。</p>
 
     <div class="filter-bar">
       <div class="field">
@@ -872,11 +879,13 @@
         <span class="trash-date">2026/04/18</span>
         <span><span class="days-pill urgent">残 2 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元">
+          <button class="pill-btn" aria-label="復元">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            復元
           </button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除">
+          <button class="pill-btn danger" aria-label="完全削除">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            完全削除
           </button>
         </span>
       </div>
@@ -893,8 +902,8 @@
         <span class="trash-date">2026/04/20</span>
         <span><span class="days-pill urgent">残 3 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -910,8 +919,8 @@
         <span class="trash-date">2026/04/24</span>
         <span><span class="days-pill">残 8 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -925,8 +934,8 @@
         <span class="trash-date">2026/04/28</span>
         <span><span class="days-pill">残 12 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -940,8 +949,8 @@
         <span class="trash-date">2026/05/01</span>
         <span><span class="days-pill">残 15 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -955,8 +964,8 @@
         <span class="trash-date">2026/05/05</span>
         <span><span class="days-pill">残 19 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -970,8 +979,8 @@
         <span class="trash-date">2026/05/08</span>
         <span><span class="days-pill">残 22 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
 
@@ -985,8 +994,8 @@
         <span class="trash-date">2026/05/14</span>
         <span><span class="days-pill">残 28 日</span></span>
         <span class="row-actions">
-          <button class="icon-action" title="復元" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-          <button class="icon-action destructive" title="完全削除" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          <button class="pill-btn" aria-label="復元"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>復元</button>
+          <button class="pill-btn danger" aria-label="完全削除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>完全削除</button>
         </span>
       </div>
     </div>

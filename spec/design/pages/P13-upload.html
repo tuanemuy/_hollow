@@ -415,13 +415,14 @@
   /* ===== Dropzone ===== */
   .dropzone {
     border: 2px dashed var(--color-hairline-strong);
-    background: var(--color-surface);
+    background: var(--color-surface-elevated);
     border-radius: var(--radius-xl);
-    padding: 56px 24px;
+    padding: 48px 24px;
     text-align: center;
     transition: var(--transition-default);
     cursor: pointer;
     margin-bottom: var(--space-6);
+    color: var(--color-ink-secondary);
   }
   .dropzone:hover {
     border-color: var(--color-accent);
@@ -443,15 +444,14 @@
     box-shadow: var(--shadow-xs);
   }
   .dropzone-title {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    margin-bottom: 6px;
+    font-size: var(--text-base);
+    color: var(--color-ink-secondary);
+    margin-bottom: 8px;
   }
+  .dropzone-title strong { color: var(--color-ink); font-weight: var(--weight-semibold); }
   .dropzone-sub {
     font-size: var(--text-sm);
-    color: var(--color-ink-secondary);
-    margin-bottom: 16px;
+    color: var(--color-ink-tertiary);
   }
   .dropzone .pill-btn.primary { display: inline-flex; }
 
@@ -844,12 +844,16 @@
   </div>
   <div class="search">
     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="ノート、タグ、本文を検索">
+    <input type="text" placeholder="ノートを検索">
   </div>
   <div class="header-right">
-    <button class="pill-btn primary">
+    <button class="pill-btn primary" aria-label="新規作成">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span class="label">新規</span>
+      <span class="label">新規作成</span>
+    </button>
+    <button class="pill-btn" aria-label="アップロード">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="label">アップロード</span>
     </button>
     <div class="avatar" aria-hidden="true">YK</div>
   </div>
@@ -912,19 +916,13 @@
 
   <main class="main">
     <h1 class="page-title">アップロード</h1>
-    <p class="page-subtitle">ファイルから新しいノートを作成します。LLM がタイトルと保存先を提案します。</p>
+    <p class="page-subtitle">裏で進行中・失敗・プレビュー保留のアップロードを管理する画面です。新規取り込みはヘッダーの「アップロード」ボタンから開くモーダルで完結します。</p>
 
-    <!-- Dropzone -->
+    <!-- Dropzone (UploadForm): アイコン・別ボタンを持たず、領域全体がクリック可能な
+         label。コピーは「ファイルをドラッグ&ドロップ またはクリックして選択 / 複数選択にも対応」。 -->
     <div class="dropzone" id="dropzone">
-      <div class="dropzone-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      </div>
-      <div class="dropzone-title">ファイルをドラッグ&ドロップ</div>
-      <div class="dropzone-sub">または クリックしてファイルを選択（複数選択可・1 ファイルあたり最大 50 MB）</div>
-      <button class="pill-btn primary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        ファイルを選択
-      </button>
+      <div class="dropzone-title"><strong>ファイルをドラッグ&ドロップ</strong> またはクリックして選択</div>
+      <div class="dropzone-sub">複数選択にも対応</div>
     </div>
 
     <!-- Format chips -->

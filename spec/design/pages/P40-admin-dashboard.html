@@ -577,22 +577,11 @@
 
 <header class="header">
   <div class="header-left">
-    <button class="menu-btn" aria-label="Menu">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-    </button>
     <div class="logo">Hollow</div>
     <span class="admin-pill">管理者モード</span>
   </div>
-
-  <div class="search">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" placeholder="ユーザー、ジョブ、イベントを検索">
-  </div>
-
+  <div></div>
   <div class="header-right">
-    <button class="icon-btn" aria-label="Notifications">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-    </button>
     <div class="avatar" aria-hidden="true">AD</div>
   </div>
 </header>
@@ -611,30 +600,16 @@
 
 <main class="main">
   <h1 class="page-title">ダッシュボード</h1>
-  <p class="page-subtitle">Hollow インスタンス全体の状態 · 最終更新 2026-05-16 14:32 JST</p>
+  <p class="page-subtitle">Hollow インスタンス全体の状態</p>
 
-  <div class="banner warning" role="alert">
-    <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    <div class="banner-body">
-      <strong>ストレージが 80% を超えています</strong>
-      R2 の利用量が割り当ての 82% に達しました。早期のクリーンアップ、もしくは上限引き上げをご検討ください。
-    </div>
-    <button class="btn ghost">詳細</button>
-  </div>
-
+  <!-- アラートが無いときの既定表示（single status banner）。
+       alerts がある場合は banner.error / banner.warning を上に積む。 -->
   <div class="status-banners">
     <div class="status-banner">
       <span class="status-dot" aria-hidden="true"></span>
       <div class="status-banner-body">
         <div class="status-banner-title">All systems operational</div>
-        <div class="status-banner-meta">LLM provider (Anthropic) · 平均応答 720ms</div>
-      </div>
-    </div>
-    <div class="status-banner degraded">
-      <span class="status-dot" aria-hidden="true"></span>
-      <div class="status-banner-body">
-        <div class="status-banner-title">R2 — Degraded performance</div>
-        <div class="status-banner-meta">アップロード遅延が断続的に発生中 · 開始 13:48</div>
+        <div class="status-banner-meta">重大アラートはありません</div>
       </div>
     </div>
   </div>
@@ -643,7 +618,7 @@
     <div class="metric-card">
       <div class="metric-label">ユーザー数</div>
       <div class="metric-value">1,284</div>
-      <div class="metric-sub"><span class="delta-positive">+3</span> 今日</div>
+      <div class="metric-sub">現在の登録数</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">ストレージ消費</div>
@@ -653,12 +628,12 @@
     <div class="metric-card">
       <div class="metric-label">当日アップロード</div>
       <div class="metric-value">468</div>
-      <div class="metric-sub"><span class="delta-positive">+12%</span> vs 昨日</div>
+      <div class="metric-sub">件 / 24h</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">LLM 呼び出し (24h)</div>
       <div class="metric-value">6,310</div>
-      <div class="metric-sub">エラー率 0.4% · 平均 720ms</div>
+      <div class="metric-sub">回 / 24h</div>
     </div>
   </section>
 

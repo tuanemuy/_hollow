@@ -211,7 +211,7 @@
     background: var(--color-surface);
     border-radius: var(--radius-pill);
     padding: 0 16px 0 38px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-family: inherit;
     color: var(--color-ink);
     outline: none;
@@ -220,7 +220,7 @@
   .header-search input::placeholder { color: var(--color-ink-tertiary); }
   .header-search input:focus { background: var(--color-surface-hover); }
   .search-icon {
-    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
     color: var(--color-ink-tertiary);
     pointer-events: none;
   }
@@ -253,15 +253,6 @@
   .pill-btn:hover { background: var(--color-surface-hover); }
   .pill-btn.primary { background: var(--color-accent); color: #fff; }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
-
-  .menu-btn {
-    width: 36px; height: 36px;
-    display: none;
-    align-items: center; justify-content: center;
-    border-radius: var(--radius-md);
-    color: var(--color-ink);
-  }
-  .menu-btn:hover { background: var(--color-surface); }
 
   /* ===== Layout ===== */
   .main-wrap {
@@ -310,7 +301,7 @@
     font-size: var(--text-base);
     color: var(--color-ink);
     line-height: var(--leading-relaxed);
-    max-width: 60ch;
+    max-width: var(--content-max);
     margin-bottom: 14px;
   }
   .profile-stats {
@@ -346,7 +337,7 @@
     background: var(--color-surface);
     border-radius: var(--radius-pill);
     padding: 0 16px 0 40px;
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-family: inherit;
     color: var(--color-ink);
     outline: none;
@@ -354,7 +345,6 @@
   }
   .user-search input:focus { background: var(--color-surface-hover); }
   .user-search input::placeholder { color: var(--color-ink-tertiary); }
-  .user-search .search-icon { left: 14px; }
 
   .filter-row {
     display: flex;
@@ -449,12 +439,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .internal-icon {
-    color: var(--color-ink-tertiary);
-    flex-shrink: 0;
-  }
   .note-snippet {
-    font-size: 14px;
+    font-size: var(--text-sm);
     color: var(--color-ink-secondary);
     line-height: 1.45;
     overflow: hidden;
@@ -464,17 +450,17 @@
     margin-bottom: 6px;
   }
   .note-meta {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--color-ink-tertiary);
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
   }
-  .note-tags { color: var(--color-accent); font-size: 13px; }
+  .note-tags { color: var(--color-accent); font-size: var(--text-sm); }
   .note-meta .dot { color: var(--color-hairline-strong); }
   .note-date {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--color-ink-tertiary);
     white-space: nowrap;
   }
@@ -505,7 +491,6 @@
     .header { padding: 12px 16px; gap: 10px; grid-template-columns: auto 1fr auto; }
     .header-search { display: none; }
     .text-link.signup { display: none; }
-    .menu-btn { display: inline-flex; }
     .profile-hero {
       grid-template-columns: auto 1fr;
       gap: 16px;
@@ -525,9 +510,6 @@
 
 <header class="header">
   <div class="header-left">
-    <button class="menu-btn" aria-label="Menu">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-    </button>
     <a href="/" class="logo">Hollow</a>
   </div>
 
@@ -552,8 +534,6 @@
       <p class="profile-bio">フリーランスのソフトウェアエンジニア。Cloudflare / TypeScript / DDD まわりが好き。最近は個人ノートとパーソナルナレッジマネジメントの設計を考えています。読書記録と技術メモを少しずつ公開しています。</p>
       <div class="profile-stats">
         <span><strong>42</strong>公開ノート</span>
-        <span class="dot">·</span>
-        <span><strong>18</strong>タグ</span>
         <span class="dot">·</span>
         <span>2024年4月から</span>
       </div>
@@ -610,9 +590,7 @@
     <a href="/tuanemuy/quiet-interface" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">静かなインターフェースについての覚書</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">静かなインターフェースについての覚書</div>        </div>
         <div class="note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。最近Appleのデザインを観察しながら考えたことを残しておく。</div>
         <div class="note-meta">
           <span class="note-tags">#design #essay #apple</span>
@@ -626,9 +604,7 @@
     <a href="/tuanemuy/cloudflare-d1-perf" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>        </div>
         <div class="note-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。東京リージョンからは…</div>
         <div class="note-meta">
           <span class="note-tags">#cloudflare #performance</span>
@@ -642,9 +618,7 @@
     <a href="/tuanemuy/outbox-pattern" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">Outbox パターンを Cloudflare Queues で実装する</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">Outbox パターンを Cloudflare Queues で実装する</div>        </div>
         <div class="note-snippet">D1 上にイベントを書き込み、リレーワーカーが Queues に詰める。少なくとも一回 (at-least-once) 配信で、コンシューマは冪等性を…</div>
         <div class="note-meta">
           <span class="note-tags">#cloudflare #ddd #architecture</span>
@@ -658,9 +632,7 @@
     <a href="/tuanemuy/tanstack-start" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">TanStack Start に乗り換えた理由</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">TanStack Start に乗り換えた理由</div>        </div>
         <div class="note-snippet">Next.js から TanStack Start へ移行した。React Server Components のメンタルモデルがすっきりした、というのが第一印象。</div>
         <div class="note-meta">
           <span class="note-tags">#react #tanstack</span>
@@ -674,9 +646,7 @@
     <a href="/tuanemuy/a-pattern-language" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">A Pattern Language を読みながら</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">A Pattern Language を読みながら</div>        </div>
         <div class="note-snippet">パタン・ランゲージの考え方は、ソフトウェア設計だけでなく、生活そのものに応用できる。アレグザンダーの…</div>
         <div class="note-meta">
           <span class="note-tags">#建築 #読書 #design</span>
@@ -690,9 +660,7 @@
     <a href="/tuanemuy/morning-walk" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">朝の散歩で考えたこと</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">朝の散歩で考えたこと</div>        </div>
         <div class="note-snippet">外を歩いている時にしか出てこない種類の思考がある。デスクの前ではどうしても辿り着けない場所。</div>
         <div class="note-meta">
           <span class="note-tags">#essay #日記</span>
@@ -706,9 +674,7 @@
     <a href="/tuanemuy/kyoto-trip" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">京都 三泊四日の旅程メモ</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">京都 三泊四日の旅程メモ</div>        </div>
         <div class="note-snippet">朝の哲学の道。誰もいない時間に歩くと別の景色に見える。一日目は南禅寺周辺、二日目は宇治へ。</div>
         <div class="note-meta">
           <span class="note-tags">#travel #日記</span>
@@ -722,9 +688,7 @@
     <a href="/tuanemuy/norwegian-wood" class="note-row">
       <div class="note-main">
         <div class="note-title-row">
-          <div class="note-title">『ノルウェイの森』再読メモ</div>
-          <svg class="internal-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>
-        </div>
+          <div class="note-title">『ノルウェイの森』再読メモ</div>        </div>
         <div class="note-snippet">15年ぶりに開いたら、印象がまるで違っていた。当時メモした感想と並べて読むと面白い。</div>
         <div class="note-meta">
           <span class="note-tags">#読書 #日記</span>

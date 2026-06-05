@@ -239,7 +239,7 @@
     letter-spacing: var(--tracking-tightest);
     line-height: var(--leading-tight);
     color: var(--color-ink);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
   }
   .auth-body {
     font-size: var(--text-md);
@@ -273,12 +273,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 44px;
-    padding: 0 var(--space-6);
+    height: 48px;
+    padding: 0 var(--space-8);
+    min-width: 200px;
     border-radius: var(--radius-pill);
     background: var(--color-surface);
     color: var(--color-ink);
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
     font-weight: var(--weight-medium);
     transition: var(--transition-bg);
     margin-top: var(--space-3);
@@ -309,20 +310,20 @@
     <!-- Success state (default) -->
     <div class="state-success">
       <div class="status-icon success" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <h1 class="auth-title">メールアドレスを確認しました</h1>
-      <p class="auth-body"><span class="email">you@example.com</span> のアドレスを認証しました。<br>これでアカウントを利用できます。</p>
+      <p class="auth-body">これでアカウントを利用できます。ログイン状態でホームへ進めます。</p>
       <a href="#" class="btn-primary">ホームへ進む</a>
     </div>
 
     <!-- Expired state (variant) -->
     <div class="state-expired">
       <div class="status-icon error" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
       </div>
       <h1 class="auth-title">リンクの期限が切れています</h1>
-      <p class="auth-body">確認リンクは発行から24時間で無効になります。<br>もう一度確認メールをお送りします。</p>
+      <p class="auth-body">確認リンクは発行から24時間で無効になります。<br>メールアドレスを入力すると確認メールを再送します。</p>
       <button type="button" class="btn-primary">確認メールを再送する</button>
       <a href="#" class="btn-secondary">ログインに戻る</a>
     </div>
@@ -330,7 +331,7 @@
     <!-- Used state (variant) -->
     <div class="state-used">
       <div class="status-icon error" aria-hidden="true">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
       <h1 class="auth-title">このリンクは使用済みです</h1>
       <p class="auth-body">この確認リンクはすでに使用されています。<br>ログインして続きの操作を行ってください。</p>
