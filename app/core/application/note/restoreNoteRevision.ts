@@ -16,9 +16,9 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type RestoreNoteRevisionInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
-  revisionId: NoteRevisionId;
+  actorUserId: string;
+  noteId: string;
+  revisionId: string;
 }>;
 
 export type RestoreNoteRevisionOutput = Readonly<{ note: NoteDTO }>;
@@ -50,16 +50,17 @@ export async function restoreNoteRevision({
   input,
 }: ServiceArgs<RestoreNoteRevisionInput>): Promise<RestoreNoteRevisionOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
 
   const restored = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
         `Note not found: ${input.noteId}`,
       );
     }
-    if (found.entity.ownerId !== input.actorUserId) {
+    if (found.entity.ownerId !== actorUserId) {
       throw new ForbiddenError(
         "NOTE_FORBIDDEN",
         `Note ${input.noteId} is owned by another user`,
@@ -73,7 +74,7 @@ export async function restoreNoteRevision({
     }
 
     const revision = await ctx.noteRevisionRepository.findById(
-      input.revisionId,
+      input.revisionId as NoteRevisionId,
     );
     if (!revision) {
       throw new NotFoundError(
@@ -86,10 +87,7 @@ export async function restoreNoteRevision({
     // transfer feature cannot let a stale revision restore data the actor
     // never owned. Treated as `REVISION_NOT_FOUND` (not `FORBIDDEN`) to avoid
     // leaking the existence of cross-note revision IDs.
-    if (
-      revision.noteId !== input.noteId ||
-      revision.ownerId !== input.actorUserId
-    ) {
+    if (revision.noteId !== input.noteId || revision.ownerId !== actorUserId) {
       throw new NotFoundError(
         "REVISION_NOT_FOUND",
         `Note revision not found: ${input.revisionId}`,
@@ -107,7 +105,7 @@ export async function restoreNoteRevision({
         title: found.entity.title,
         contentHtml: found.entity.contentHtml,
         frontMatter: found.entity.frontMatter,
-        createdByUserId: input.actorUserId,
+        createdByUserId: actorUserId,
       },
       now,
     );
@@ -142,7 +140,7 @@ export async function restoreNoteRevision({
       internalLinkRefs: assembled.internalLinkRefs,
       mediaRefs: assembled.mediaRefs,
       now,
-      actorUserId: input.actorUserId,
+      actorUserId,
       requireLock: false,
     });
 

@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -57,7 +56,7 @@ export const finalizeMediaUploadFn = createServerFn({ method: "POST" })
       container,
       input: {
         actorUserId: user.id,
-        mediaId: data.mediaId as MediaAssetId,
+        mediaId: data.mediaId,
       },
     });
     return {

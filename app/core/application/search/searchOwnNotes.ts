@@ -12,7 +12,7 @@ import type { ServiceArgs } from "../types";
 import { type OwnedSearchHitDTO, toOwnedSearchHitView } from "./view";
 
 export type SearchOwnNotesInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   keyword: string;
   tagNames?: readonly string[];
   directoryId?: string | null;
@@ -46,7 +46,7 @@ export async function searchOwnNotes({
 
   const query = SearchQuery.create({
     keyword: input.keyword,
-    ownerIdFilter: input.actorUserId,
+    ownerIdFilter: input.actorUserId as UserId,
     visibilityFilter: input.visibility ?? ["private", "unlisted", "public"],
     tagNames: input.tagNames ?? [],
     directoryPathPrefix,

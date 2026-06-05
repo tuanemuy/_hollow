@@ -24,8 +24,8 @@ import { toNoteView } from "./view";
 const DEFAULT_NOTE_TITLE = "無題";
 
 export type CreateNoteInput = Readonly<{
-  actorUserId: UserId;
-  directoryId: DirectoryId | null;
+  actorUserId: string;
+  directoryId: string | null;
   title: string;
   contentHtml: string;
   frontMatter: FrontMatterRecord;
@@ -93,11 +93,11 @@ export async function createNote({
 
   const result = await container.unitOfWorkProvider.run(
     async (ctx: UnitOfWorkContext) => {
-      const ownerId = input.actorUserId;
+      const ownerId = input.actorUserId as UserId;
       const directory = await resolveDirectory(
         ctx,
         ownerId,
-        input.directoryId,
+        input.directoryId as DirectoryId | null,
         now,
         container.idGenerator,
       );

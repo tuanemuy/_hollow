@@ -1,5 +1,4 @@
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { MediaService } from "@/core/domain/media/service";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import { NoteService } from "@/core/domain/note/service";
@@ -10,8 +9,8 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type DuplicateNoteInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
 }>;
 
 export type DuplicateNoteOutput = Readonly<{ note: NoteDTO }>;
@@ -23,7 +22,7 @@ export async function duplicateNote({
   const now = container.clock.now();
 
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",

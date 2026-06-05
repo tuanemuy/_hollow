@@ -5,13 +5,8 @@ import {
 } from "@/components/tag/loaders";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import { DirectoryId as DomainDirectoryId } from "@/core/domain/directory/valueObject";
-import type { UserId as DomainUserId } from "@/core/domain/identity/valueObject";
-import {
-  NoteId as DomainNoteId,
-  type NoteRevisionId as DomainNoteRevisionId,
-} from "@/core/domain/note/valueObject";
+import { NoteId as DomainNoteId } from "@/core/domain/note/valueObject";
 import type { PublicationVisibility } from "@/core/domain/publication/valueObject";
-import type { TagId } from "@/core/domain/tag/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 import { flattenDirectoryTree } from "./directoryTree";
 
@@ -170,7 +165,7 @@ export const loadOwnedNotes = cache(
         const result = await searchMod.searchOwnNotes({
           container,
           input: {
-            actorUserId: input.actorUserId as DomainUserId,
+            actorUserId: input.actorUserId,
             keyword,
             ...(input.tagNames !== undefined
               ? { tagNames: input.tagNames }
@@ -207,13 +202,9 @@ export const loadOwnedNotes = cache(
       }
 
       // Filter-only path: resolve tag names -> ids when present.
-      let tagIds: readonly TagId[] | undefined;
+      let tagIds: readonly string[] | undefined;
       if (input.tagNames !== undefined && input.tagNames.length > 0) {
-        const resolved = await resolveTagNamesToIds(
-          input.actorUserId,
-          input.tagNames,
-        );
-        tagIds = resolved.map((id) => id as TagId);
+        tagIds = await resolveTagNamesToIds(input.actorUserId, input.tagNames);
       }
 
       const dateRange = normalizeListDateRange(input.dateRange);
@@ -222,14 +213,18 @@ export const loadOwnedNotes = cache(
 
       // Transport boundary: a malformed `?referencingNoteId=...` (rare —
       // the schema already rejects empty strings) is silently dropped
-      // rather than failing the whole loader.
-      let referencingNoteId: DomainNoteId | undefined;
+      // rather than failing the whole loader. `.create()` is used purely
+      // to validate the id shape; on success we forward the original
+      // string (the usecase re-brands it internally) so the conditional
+      // spread below still gates an invalid id out of the filter (ADR-002).
+      let referencingNoteId: string | undefined;
       if (
         input.referencingNoteId !== undefined &&
         input.referencingNoteId !== null
       ) {
         try {
-          referencingNoteId = DomainNoteId.create(input.referencingNoteId);
+          DomainNoteId.create(input.referencingNoteId);
+          referencingNoteId = input.referencingNoteId;
         } catch {
           referencingNoteId = undefined;
         }
@@ -239,11 +234,13 @@ export const loadOwnedNotes = cache(
       // dropped rather than failing the whole loader (mirrors the
       // `referencingNoteId` fallback above). Sidebar selection only needs
       // the listing to switch; a bad id falls back to "no directory
-      // filter" instead of an error.
-      let directoryId: DomainDirectoryId | undefined;
+      // filter" instead of an error. `.create()` validates only; the
+      // original string is forwarded on success (ADR-002).
+      let directoryId: string | undefined;
       if (input.directoryId !== undefined && input.directoryId !== null) {
         try {
-          directoryId = DomainDirectoryId.create(input.directoryId);
+          DomainDirectoryId.create(input.directoryId);
+          directoryId = input.directoryId;
         } catch {
           directoryId = undefined;
         }
@@ -252,7 +249,7 @@ export const loadOwnedNotes = cache(
       const { notes, count } = await listMod.listNotesByOwner({
         container,
         input: {
-          actorUserId: input.actorUserId as DomainUserId,
+          actorUserId: input.actorUserId,
           status: input.status,
           page: input.page,
           limit: input.limit,
@@ -297,12 +294,8 @@ export const loadNoteDetail = cache(
       getNoteDetail({
         container,
         input: {
-          actorUserId: args.actorUserId as Parameters<
-            typeof getNoteDetail
-          >[0]["input"]["actorUserId"],
-          noteId: args.noteId as Parameters<
-            typeof getNoteDetail
-          >[0]["input"]["noteId"],
+          actorUserId: args.actorUserId,
+          noteId: args.noteId,
         },
       }),
   ),
@@ -464,8 +457,8 @@ export const loadNoteRevisions = cache(
       listNoteRevisions({
         container,
         input: {
-          actorUserId: args.actorUserId as DomainUserId,
-          noteId: args.noteId as DomainNoteId,
+          actorUserId: args.actorUserId,
+          noteId: args.noteId,
           limit: args.limit,
           offset: args.offset,
         },
@@ -489,9 +482,9 @@ export const loadNoteRevisionDetail = cache(
       getNoteRevision({
         container,
         input: {
-          actorUserId: args.actorUserId as DomainUserId,
-          noteId: args.noteId as DomainNoteId,
-          revisionId: args.revisionId as DomainNoteRevisionId,
+          actorUserId: args.actorUserId,
+          noteId: args.noteId,
+          revisionId: args.revisionId,
         },
       }),
   ),

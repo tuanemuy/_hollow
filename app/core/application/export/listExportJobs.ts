@@ -1,9 +1,9 @@
-import type { UserId } from "@/core/domain/identity/valueObject";
+import type { UserId as UserIdBrand } from "@/core/domain/identity/valueObject";
 import type { ServiceArgs } from "../types";
 import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type ListExportJobsInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   limit?: number;
   offset?: number;
 }>;
@@ -29,7 +29,7 @@ export async function listExportJobs({
 
   const jobs = await container.unitOfWorkProvider.run(
     async ({ exportJobRepository }) =>
-      exportJobRepository.findByOwner(input.actorUserId, {
+      exportJobRepository.findByOwner(input.actorUserId as UserIdBrand, {
         limit,
         offset,
         order: "desc",

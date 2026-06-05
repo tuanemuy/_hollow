@@ -1,5 +1,4 @@
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import { NoteEvents } from "@/core/domain/note/events";
 import type { NoteId } from "@/core/domain/note/valueObject";
@@ -7,8 +6,8 @@ import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type PurgeNoteInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
 }>;
 
 export async function purgeNote({
@@ -18,7 +17,7 @@ export async function purgeNote({
   const now = container.clock.now();
 
   await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",

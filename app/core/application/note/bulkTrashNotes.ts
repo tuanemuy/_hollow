@@ -1,17 +1,15 @@
 import { isBusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
-import type { NoteId } from "@/core/domain/note/valueObject";
 import { isApplicationError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { deleteNote } from "./deleteNote";
 
 export type BulkTrashNotesInput = Readonly<{
-  actorUserId: UserId;
-  noteIds: readonly NoteId[];
+  actorUserId: string;
+  noteIds: readonly string[];
 }>;
 
 export type BulkTrashNoteFailure = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   code: string;
   message: string;
 }>;
@@ -21,7 +19,7 @@ export type BulkTrashNotesOutput = Readonly<{
   failures: readonly BulkTrashNoteFailure[];
 }>;
 
-function describeFailure(noteId: NoteId, error: unknown): BulkTrashNoteFailure {
+function describeFailure(noteId: string, error: unknown): BulkTrashNoteFailure {
   if (isApplicationError(error) || isBusinessRuleError(error)) {
     return { noteId, code: error.code, message: error.message };
   }

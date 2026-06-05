@@ -1,19 +1,16 @@
-import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
-import type { NoteId } from "@/core/domain/note/valueObject";
 import { isApplicationError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { moveNote } from "./moveNote";
 
 export type BulkMoveNotesInput = Readonly<{
-  actorUserId: UserId;
-  noteIds: readonly NoteId[];
-  newDirectoryId: DirectoryId;
+  actorUserId: string;
+  noteIds: readonly string[];
+  newDirectoryId: string;
 }>;
 
 export type BulkMoveNoteFailure = Readonly<{
-  noteId: NoteId;
+  noteId: string;
   code: string;
   message: string;
 }>;
@@ -23,7 +20,7 @@ export type BulkMoveNotesOutput = Readonly<{
   failures: readonly BulkMoveNoteFailure[];
 }>;
 
-function describeFailure(noteId: NoteId, error: unknown): BulkMoveNoteFailure {
+function describeFailure(noteId: string, error: unknown): BulkMoveNoteFailure {
   if (isApplicationError(error) || isBusinessRuleError(error)) {
     return { noteId, code: error.code, message: error.message };
   }

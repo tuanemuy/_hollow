@@ -14,13 +14,13 @@ import type { NoteListItemDTO } from "./view";
 import { toNoteListItem } from "./view";
 
 export type ListNotesByOwnerInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   status?: NoteStatus;
-  tagIds?: readonly TagId[];
+  tagIds?: readonly string[];
   dateRange?: DateRange;
   visibility?: readonly PublicationVisibility[];
-  referencingNoteId?: NoteId;
-  directoryId?: DirectoryId;
+  referencingNoteId?: string;
+  directoryId?: string;
   page: number;
   limit: number;
   sort?: "updatedAt" | "createdAt" | "title";
@@ -36,6 +36,7 @@ export async function listNotesByOwner({
   container,
   input,
 }: ServiceArgs<ListNotesByOwnerInput>): Promise<ListNotesByOwnerOutput> {
+  const actorUserId = input.actorUserId as UserId;
   const offset = Math.max(0, (input.page - 1) * input.limit);
   // `listWithCount` derives both the page and the total from a single
   // filter resolution, so the rendered count is structurally consistent
@@ -47,11 +48,13 @@ export async function listNotesByOwner({
     ...(input.sort !== undefined ? { sort: input.sort } : {}),
     ...(input.order !== undefined ? { order: input.order } : {}),
     ...(input.status !== undefined ? { status: input.status } : {}),
-    ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
+    ...(input.tagIds !== undefined
+      ? { tagIds: input.tagIds as readonly TagId[] }
+      : {}),
     ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
     ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
     ...(input.referencingNoteId !== undefined
-      ? { referencingNoteId: input.referencingNoteId }
+      ? { referencingNoteId: input.referencingNoteId as NoteId }
       : {}),
   };
 
@@ -67,14 +70,14 @@ export async function listNotesByOwner({
           ? {
               ...baseOpts,
               directoryIds: await DirectoryService.collectSubtreeIds(
-                input.directoryId,
-                input.actorUserId,
+                input.directoryId as DirectoryId,
+                actorUserId,
                 ctx.directoryRepository,
               ),
             }
           : baseOpts;
       const { items: found, count: total } =
-        await ctx.noteRepository.listWithCount(input.actorUserId, opts);
+        await ctx.noteRepository.listWithCount(actorUserId, opts);
       const tagIds = new Set<string>();
       for (const note of found) {
         for (const id of note.tagIds) tagIds.add(id);

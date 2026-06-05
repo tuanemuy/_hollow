@@ -1,5 +1,4 @@
 import { DirectoryService } from "@/core/domain/directory/service";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSourceFileDTO } from "../dto/note";
 import {
@@ -13,8 +12,8 @@ import type { BacklinkDTO, NoteDTO } from "./view";
 import { buildBacklinkSnippet, toBacklink, toNoteView } from "./view";
 
 export type GetNoteDetailInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
 }>;
 
 export type GetNoteDetailOutput = Readonly<{
@@ -36,7 +35,7 @@ export async function getNoteDetail({
   input,
 }: ServiceArgs<GetNoteDetailInput>): Promise<GetNoteDetailOutput> {
   return container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",

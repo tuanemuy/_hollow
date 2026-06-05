@@ -2,7 +2,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { validateMediaSearch } from "@/components/media/mediaSearch";
-import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
@@ -39,7 +38,7 @@ const resolveMediaRedirect = createServerFn({ method: "GET" })
       container,
       input: {
         viewerUserId: viewer === null ? null : viewer.id,
-        mediaId: data.mediaId as MediaAssetId,
+        mediaId: data.mediaId,
         viaShareLinkId: null,
         relatedNoteId: null,
         download: data.download === true,

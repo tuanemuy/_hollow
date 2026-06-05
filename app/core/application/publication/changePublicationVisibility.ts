@@ -17,8 +17,8 @@ import { type PublicationStateDTO, toPublicationStateDTO } from "./view";
 export type Visibility = "private" | "unlisted" | "public";
 
 export type ChangePublicationVisibilityInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   nextVisibility: Visibility;
 }>;
 
@@ -45,6 +45,8 @@ export async function changePublicationVisibility({
   input,
 }: ServiceArgs<ChangePublicationVisibilityInput>): Promise<ChangePublicationVisibilityOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
+  const noteId = input.noteId as NoteId;
 
   const next = await container.unitOfWorkProvider.run(
     async ({
@@ -54,11 +56,7 @@ export async function changePublicationVisibility({
       mediaAssetRepository,
       collectEvents,
     }) => {
-      const note = await loadOwnedNote(
-        noteRepository,
-        input.noteId,
-        input.actorUserId,
-      );
+      const note = await loadOwnedNote(noteRepository, noteId, actorUserId);
       if (note.status !== "active") {
         throw new BusinessRuleError(
           NoteErrorCode.Trashed,
@@ -69,7 +67,7 @@ export async function changePublicationVisibility({
       const current = await loadOrCreateState(
         publicationStateRepository,
         note.id,
-        input.actorUserId,
+        actorUserId,
         now,
       );
 
@@ -77,7 +75,7 @@ export async function changePublicationVisibility({
         const owned = await ownedMediaIds(
           mediaAssetRepository,
           note.mediaRefs,
-          input.actorUserId,
+          actorUserId,
         );
         // `PublicationState.assertCanPublish` is typed against
         // identity's `MediaAssetId` brand while `Note.mediaRefs` carries

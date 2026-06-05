@@ -6,7 +6,7 @@ import {
   ContentHtml,
   FrontMatter,
   type FrontMatterRecord,
-  type NoteId,
+  type NoteId as NoteIdBrand,
   NoteTitle,
 } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
@@ -15,8 +15,8 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type SaveNoteDraftInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   title?: string;
   contentHtml?: string;
   frontMatter?: FrontMatterRecord;
@@ -29,6 +29,8 @@ export async function saveNoteDraft({
   input,
 }: ServiceArgs<SaveNoteDraftInput>): Promise<SaveNoteDraftOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
+  const noteId = input.noteId as NoteIdBrand;
   const titleOverride =
     input.title === undefined ? undefined : NoteTitle.create(input.title);
   const frontMatterOverride =
@@ -51,14 +53,14 @@ export async function saveNoteDraft({
         );
 
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(noteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
         `Note not found: ${input.noteId}`,
       );
     }
-    if (found.entity.ownerId !== input.actorUserId) {
+    if (found.entity.ownerId !== actorUserId) {
       throw new ForbiddenError(
         "NOTE_FORBIDDEN",
         `Note ${input.noteId} is owned by another user`,
@@ -80,7 +82,7 @@ export async function saveNoteDraft({
         ? { frontMatter: frontMatterOverride }
         : {}),
       now,
-      actorUserId: input.actorUserId,
+      actorUserId,
       requireLock: false,
     });
 

@@ -1,9 +1,8 @@
 import { cache } from "react";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 
 export type LoadExportJobsInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   limit: number;
   offset: number;
 }>;

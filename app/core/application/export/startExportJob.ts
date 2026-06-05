@@ -24,9 +24,9 @@ export type ExportOptionsInput = Readonly<{
 }>;
 
 export type StartExportJobInput = Readonly<{
-  actorUserId: UserId | null;
+  actorUserId: string | null;
   format: ExportFormat;
-  targetNoteId: NoteId;
+  targetNoteId: string;
   options: ExportOptionsInput;
 }>;
 
@@ -83,7 +83,7 @@ export async function startExportJob({
 
   const note = await container.unitOfWorkProvider.run(
     async ({ noteRepository, publicationStateRepository }) => {
-      const found = await noteRepository.findById(input.targetNoteId);
+      const found = await noteRepository.findById(input.targetNoteId as NoteId);
       if (found === null || found.entity.status !== "active") {
         throw new NotFoundError(
           "EXPORT_NOTE_NOT_FOUND",
@@ -102,7 +102,7 @@ export async function startExportJob({
         publication === null ? "private" : publication.entity.visibility,
       );
       ExportService.assertCanAccess({
-        viewerOwnerId: input.actorUserId,
+        viewerOwnerId: input.actorUserId as UserId | null,
         targetNoteIds: [found.entity.id],
         visibilityMap,
         ownerMap,
@@ -117,7 +117,7 @@ export async function startExportJob({
       // Anonymous viewers reuse the note owner so the transient job
       // satisfies the `ownerId: UserId` invariant. The job is never
       // persisted, so this attribution does not leak.
-      ownerId: input.actorUserId ?? note.ownerId,
+      ownerId: (input.actorUserId as UserId | null) ?? note.ownerId,
       format: input.format,
       scope: "single",
       targetNoteIds: [note.id],

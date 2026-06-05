@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { NoteId } from "@/core/domain/note/valueObject";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
 import { validateInput } from "@/core/presentation/validator";
@@ -40,7 +39,7 @@ export const startExportFn = createServerFn({ method: "POST" })
       input: {
         actorUserId: actor.id,
         format: data.format,
-        targetNoteId: data.noteId as NoteId,
+        targetNoteId: data.noteId,
         options: data.options,
       },
     });
@@ -66,7 +65,7 @@ export const enqueueExportFn = createServerFn({ method: "POST" })
         actorUserId: actor.id,
         format: data.format,
         scope: data.scope,
-        noteIds: data.noteIds.map((id) => id as NoteId),
+        noteIds: data.noteIds,
         options: data.options,
       },
     });

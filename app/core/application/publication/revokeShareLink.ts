@@ -1,12 +1,11 @@
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { ShareLink } from "@/core/domain/publication/entity";
 import type { ShareLinkId } from "@/core/domain/publication/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type RevokeShareLinkInput = Readonly<{
-  actorUserId: UserId;
-  shareLinkId: ShareLinkId;
+  actorUserId: string;
+  shareLinkId: string;
 }>;
 
 /**
@@ -22,7 +21,9 @@ export async function revokeShareLink({
 
   await container.unitOfWorkProvider.run(
     async ({ shareLinkRepository, collectEvents }) => {
-      const found = await shareLinkRepository.findById(input.shareLinkId);
+      const found = await shareLinkRepository.findById(
+        input.shareLinkId as ShareLinkId,
+      );
       if (found === null) {
         throw new NotFoundError(
           "SHARE_LINK_NOT_FOUND",

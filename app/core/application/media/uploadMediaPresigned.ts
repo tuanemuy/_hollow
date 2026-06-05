@@ -5,7 +5,7 @@ import type { ServiceArgs } from "../types";
 import { buildStorageKey, enforceUploadLimit } from "./uploadMedia";
 
 export type UploadMediaPresignedInput = Readonly<{
-  actorUserId: UserId;
+  actorUserId: string;
   kind: MediaKind;
   mimeType: string;
   byteSize: number;
@@ -33,8 +33,9 @@ export async function uploadMediaPresigned({
   input,
 }: ServiceArgs<UploadMediaPresignedInput>): Promise<UploadMediaPresignedOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
   const id = container.idGenerator.next();
-  const storageKey = buildStorageKey(input.actorUserId, input.kind, id);
+  const storageKey = buildStorageKey(actorUserId, input.kind, id);
 
   await container.unitOfWorkProvider.run(
     async ({ mediaAssetRepository, instanceSettingsRepository }) => {
@@ -44,7 +45,7 @@ export async function uploadMediaPresigned({
       const { entity: asset } = MediaAsset.create(
         {
           id,
-          ownerId: input.actorUserId,
+          ownerId: actorUserId,
           kind: input.kind,
           mimeType: input.mimeType,
           byteSize: input.byteSize,

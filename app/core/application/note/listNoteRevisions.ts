@@ -2,14 +2,13 @@ import {
   type NoteRevisionSummaryDTO,
   toNoteRevisionSummaryDTO,
 } from "@/core/application/dto/note";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type ListNoteRevisionsInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   limit: number;
   offset: number;
 }>;
@@ -31,8 +30,9 @@ export async function listNoteRevisions({
   container,
   input,
 }: ServiceArgs<ListNoteRevisionsInput>): Promise<ListNoteRevisionsOutput> {
+  const noteId = input.noteId as NoteId;
   return container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(noteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
@@ -47,11 +47,11 @@ export async function listNoteRevisions({
     }
 
     const [rows, totalCount] = await Promise.all([
-      ctx.noteRevisionRepository.findByNoteId(input.noteId, {
+      ctx.noteRevisionRepository.findByNoteId(noteId, {
         limit: input.limit,
         offset: input.offset,
       }),
-      ctx.noteRevisionRepository.countByNoteId(input.noteId),
+      ctx.noteRevisionRepository.countByNoteId(noteId),
     ]);
 
     return {

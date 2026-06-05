@@ -1,17 +1,19 @@
 import { BusinessRuleError } from "@/core/domain/error";
-import type { UserId } from "@/core/domain/identity/valueObject";
 import { Note } from "@/core/domain/note/entity";
 import { NoteErrorCode } from "@/core/domain/note/errorCode";
 import { NoteService } from "@/core/domain/note/service";
-import { type NoteId, NoteTitle } from "@/core/domain/note/valueObject";
+import {
+  type NoteId as NoteIdBrand,
+  NoteTitle,
+} from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type RenameNoteInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   newTitle: string;
   regenerateSlug: boolean;
 }>;
@@ -26,7 +28,9 @@ export async function renameNote({
   const newTitle = NoteTitle.create(input.newTitle);
 
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(
+      input.noteId as NoteIdBrand,
+    );
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",

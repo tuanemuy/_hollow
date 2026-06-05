@@ -7,8 +7,8 @@ import type { NoteDTO } from "./view";
 import { toNoteView } from "./view";
 
 export type ExtendEditLockInput = Readonly<{
-  actorUserId: UserId;
-  noteId: NoteId;
+  actorUserId: string;
+  noteId: string;
   ttlSec: number;
 }>;
 
@@ -19,15 +19,16 @@ export async function extendEditLock({
   input,
 }: ServiceArgs<ExtendEditLockInput>): Promise<ExtendEditLockOutput> {
   const now = container.clock.now();
+  const actorUserId = input.actorUserId as UserId;
   const note = await container.unitOfWorkProvider.run(async (ctx) => {
-    const found = await ctx.noteRepository.findById(input.noteId);
+    const found = await ctx.noteRepository.findById(input.noteId as NoteId);
     if (!found) {
       throw new NotFoundError(
         "NOTE_NOT_FOUND",
         `Note not found: ${input.noteId}`,
       );
     }
-    if (found.entity.ownerId !== input.actorUserId) {
+    if (found.entity.ownerId !== actorUserId) {
       throw new ForbiddenError(
         "NOTE_FORBIDDEN",
         `Note ${input.noteId} is owned by another user`,
@@ -35,7 +36,7 @@ export async function extendEditLock({
     }
     const next = Note.extendEditLock(
       found.entity,
-      input.actorUserId,
+      actorUserId,
       now,
       input.ttlSec,
     );
