@@ -9,19 +9,12 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnDanger } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
-import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { USERNAME_MAX } from "../schema";
-import {
-  ACTION_ROW,
-  FIELD_ERROR,
-  SECTION,
-  SECTION_DESC,
-  SECTION_TITLE,
-} from "../styles";
+import { ACTION_ROW, SECTION, SECTION_DESC, SECTION_TITLE } from "../styles";
 import { deleteAccountFn } from "./action";
 
 export function AccountDeleteForm({ user }: { user: UserDTO }) {
@@ -39,8 +32,6 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
 
   const fieldErrors =
     error?.kind === "validation" ? error.fieldErrors?.confirmation : undefined;
-  const summary =
-    error !== null && fieldErrors === undefined ? displayError(error) : "";
 
   const onConfirm = () => {
     if (draft !== user.username) {
@@ -60,14 +51,10 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
         await router.navigate({ to: "/", search: HOME_SEARCH });
         setError(null);
       } catch (e) {
-        const next = extractSerializedError(e);
-        const isFieldValidation =
-          next.kind === "validation" &&
-          next.fieldErrors?.confirmation !== undefined;
-        if (!isFieldValidation) {
-          setConfirmOpen(false);
-        }
-        setError(next);
+        // close しない: サーバーエラーはダイアログを開いたまま in-dialog に出す
+        // （消失＝成功の誤認を避ける）。表示先（入力欄近接 / in-dialog）は render 側の
+        // fieldErrors 分岐が決めるため、ここで分岐しない。
+        setError(extractSerializedError(e));
       }
     });
   };
@@ -75,7 +62,9 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
   const closeDialog = () => {
     setConfirmOpen(false);
     setDraft("");
-    // error は保持: summary 表示寿命は「次のトリガー開」または「次の submit 成功」まで
+    // ダイアログ境界で error を破棄する。open トリガーの setError(null) と対称化し、
+    // ダイアログが表示するのは「その削除操作の結果」だけに保つ（#98 ADR-005）。
+    setError(null);
   };
 
   return (
@@ -102,11 +91,6 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
           続けて削除する
         </button>
       </div>
-      {summary !== "" ? (
-        <p role="alert" aria-live="polite" className={FIELD_ERROR}>
-          {summary}
-        </p>
-      ) : null}
       <ConfirmDialog
         open={confirmOpen}
         title="本当にアカウントを削除しますか？"
@@ -161,6 +145,14 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
         confirmLabel="アカウントを完全に削除する"
         confirmIcon={Trash2}
         isPending={isPending}
+        // validation エラーは入力欄近接（fieldErrors）で出すので error? prop へ渡さず、
+        // 非 validation（サーバーエラー）だけを in-dialog の共通エラー領域へ流す。
+        // confirmOpen ゲートで、開く前の stale error が漏れないようにする。
+        error={
+          confirmOpen && fieldErrors === undefined
+            ? (error ?? undefined)
+            : undefined
+        }
         onConfirm={onConfirm}
         onClose={closeDialog}
       />
