@@ -66,3 +66,22 @@ deleted ケースのテストは実コードの挙動に合わせ、`invalid_cre
 - トレードオフ: plan.md の文言（account_unavailable）とテスト期待値（invalid_credentials）が形式上ずれるが、これは plan.md が `verifyPassword` の deletedAt ガードを見落としていたためで、rehash 不発火という本質要件は完全に満たしている。
 
 ---
+
+## ADR-004: rehash 経路の例外正規化と失敗時挙動（レビュー時の判断）
+
+### Status
+Accepted（レビュー review-001）
+
+### Context
+review-001 で2点の指摘があった: (1) `rehashLegacyPassword` の `hashScrypt` / batch commit 例外が `verifyPassword` / `verifyPasswordForUser` のような `SystemError` 正規化 catch で包まれていない（adapter→application の error contract 一貫性）。(2) rehash UoW 失敗がログイン全体を 500 にする（正しいパスワードでもログイン不能になりうる）。
+
+### Decision
+いずれも現状維持とする。
+- (1) `hashScrypt` を bare で呼ぶのは `registerPassword` / `changePassword` / `resetPassword` を含む全 mutation メソッド共通の既存パターン。`rehashLegacyPassword` だけラップすると逆方向の非対称を生む。scrypt 失敗は真の system fault でクラス全体として untyped に surface する設計であり、port 契約上 `rehashLegacyPassword` は throw 可。
+- (2) status active 確定後の rehash 失敗は真の system error。session 発行前に厳格 await して fail させるのが CLAUDE.md「broad try/catch を避ける」方針と整合。best-effort 化（失敗してもログイン続行・ログのみ）は別の設計トレードオフであり、本 Issue では扱わない。
+
+### Consequences
+- 良い点: クラス内のエラーハンドリングパターンが一貫。方針（厳格 await）と整合。
+- トレードオフ: legacy 行を持つユーザは rehash の DB write 失敗時にログイン不能になりうる（legacy 行 + DB write 失敗という稀ケース）。将来 best-effort 化を検討する余地は残す。
+
+---

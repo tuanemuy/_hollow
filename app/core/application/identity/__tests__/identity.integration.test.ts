@@ -860,8 +860,10 @@ describe("LogIn / LogOut", () => {
         .update(schema.users)
         .set({ banned: 1, updatedAt: frozenUpdatedAt })
         .where(eq(schema.users.id, userId));
-      // Re-freeze the account sentinel: verifyEmail does not touch accounts,
-      // but assert the seed is still in place before the login attempt.
+      // Re-freeze the account sentinel before the login attempt. verifyEmail
+      // does not touch accounts, but this defensively resets updatedAt so the
+      // post-login `expectLegacyUntouched` check cleanly attributes any change
+      // to a (wrongly fired) rehash rather than earlier setup writes.
       await container.db
         .update(schema.accounts)
         .set({ updatedAt: frozenUpdatedAt })

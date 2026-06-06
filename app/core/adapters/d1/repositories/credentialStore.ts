@@ -31,8 +31,9 @@ import { mapDbError } from "./helpers";
 const CREDENTIAL_PROVIDER_ID = "credential";
 
 // Legacy PBKDF2 verify is retained so accounts written before the
-// scrypt migration still authenticate; `maybeRehashLegacy` lazily
-// rewrites them. Form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
+// scrypt migration still authenticate; `rehashLegacyPassword` (sign-in)
+// and `verifyPasswordForUser` (re-auth) lazily rewrite them to scrypt.
+// Form: `<version>$<iter>$<salt-b64>$<hash-b64>`.
 const LEGACY_PBKDF2_ENCODING_VERSION = "pbkdf2-sha256-v1";
 const LEGACY_PBKDF2_HASH = "SHA-256";
 // Cap iterations so a malformed/malicious row can't pin the worker.
@@ -346,6 +347,10 @@ export class D1CredentialStore implements CredentialStore {
     const current = rows[0]?.password;
     // Defensive idempotency: normally only called when needsRehash=true,
     // but a no-op on an already-current hash guards against a double rehash.
+    // When `current` is still legacy it is necessarily the same hash
+    // `verifyPassword` already matched `raw` against — there is no
+    // legacy→legacy overwrite path (change/reset always write scrypt) — so
+    // re-verifying `raw` here is unnecessary.
     if (current == null || isScryptEncoded(current)) return;
     const upgraded = await hashScrypt(raw);
     const now = this.clock.now().toISOString();
@@ -368,7 +373,8 @@ export class D1CredentialStore implements CredentialStore {
   // that `verifyPasswordForUser` performs. `changePassword` overwrites the
   // row with the new scrypt hash immediately, so rehashing the current
   // password first is pure wasted scrypt work (Issue #208). Do NOT collapse
-  // this into `verifyPasswordForUser` — that re-introduces `maybeRehashLegacy`.
+  // this into `verifyPasswordForUser` — that re-introduces the inline lazy
+  // upgrade.
   private async verifyCurrentForChange(
     userId: UserId,
     raw: string,
