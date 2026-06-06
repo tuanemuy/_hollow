@@ -57,3 +57,29 @@
 ## Design Decisions
 
 特になし（既存 ADR-001〜005 で設計判断は記録済み）。本ラウンドの Blocker は範囲表記の波及漏れという機械的修正で、新たな設計判断は伴わない。
+
+---
+
+# PR Review #001 — Round 2（再レビュー）
+
+**Round:** 2回目
+**Verdict:** **APPROVED**
+
+## Summary（Round 2）
+
+- Blockers: 0
+- Warnings: 0
+- Notes: 2（いずれもスコープ外の軽微な未追従）
+
+## SSOT・ドキュメント整合（Round 2）
+
+- **B-001 解消**: `spec/index.md`（35画面 / P40-P47）・`spec/progress.md`（P40-P47）更新済み。
+- **B-002 解消**: `spec/review/cross-phase/001.md:51` の I5 行を `P40, P47` へ更新済み。
+- **W-001 解消**: `.issue/520/adr.md` の severity 表記 `low→info` 修正済み（実装 DTO `"info" | "warning" | "critical"` と一致）。
+- 網羅確認: `spec/` 全体に `P40-P46` / `P40〜P46` / `34 画面` の残存ゼロ。新規不整合なし。`.tsx` 変更皆無（スコープ遵守）。
+
+#### Notes（Round 2）
+- **[N-201]** `spec/domains/adminSettings.md:110` の `GetUsageMetrics（admin の P40 用）` → 同テーマの一語修正として本PR内で `（admin の P40 概況 / P47 詳細 用）` に更新済み。
+- **[N-202]** `spec/manual-tests/admin.md` TC-I5-01/02 が利用状況確認を `P40 ダッシュボード画面` で行う手順のまま。マニュアルテストの再生成は別作業（実装の P40/P47 二画面分担への追従）であり、#514（admin-metrics 追従の受け皿）にコメントで申し送る。→ Phase 4 で対応。
+
+**結論:** 1ラウンド目の全 Blocker/Warning が解消され、2ラウンド目は Blocker 0 / Warning 0。**APPROVED**。

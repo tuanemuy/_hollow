@@ -107,4 +107,4 @@
 - UpdateDesignTokens / ResetDesignTokens
 - ToggleRegistrationPolicy
 - UpdateInstanceLimits
-- GetUsageMetrics（admin の P40 用）
+- GetUsageMetrics（admin の P40 概況 / P47 詳細 用）
