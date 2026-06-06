@@ -83,7 +83,14 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
 
   const firstActiveLink =
     publishState.links.find((l) => l.status === "active") ?? null;
-  const publicShareUrl = firstActiveLink === null ? null : firstActiveLink.url;
+  // The active share link is the `/share/by-id/<id>` URL — used only for
+  // unlisted notes. Public notes copy the canonical public URL below instead.
+  const shareLinkUrl = firstActiveLink === null ? null : firstActiveLink.url;
+  // Canonical public URL for the public route `/u/$username/$noteSlug`. Built
+  // off the configured `appUrl` (same base as share links) so it stays the
+  // canonical host. `slug` is `[a-z0-9][a-z0-9-]*` (NoteSlug invariant), so no
+  // URL encoding is needed.
+  const publicNoteUrl = `${appUrl.replace(/\/$/, "")}/u/${user.username}/${note.slug}`;
 
   return (
     <article className="max-w-[760px] mx-auto">
@@ -98,7 +105,8 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
           status={note.status}
           publishState={publishState}
           appUrl={appUrl}
-          publicShareUrl={publicShareUrl}
+          shareLinkUrl={shareLinkUrl}
+          publicNoteUrl={publicNoteUrl}
           tree={tree.flat}
         />
       </header>

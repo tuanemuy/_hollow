@@ -42,7 +42,10 @@ export type NoteActionsProps = Readonly<{
     links: readonly ShareLinkDTO[];
   }>;
   appUrl: string;
-  publicShareUrl: string | null;
+  /** Active share link (`/share/by-id/<id>`), or null. Used for unlisted. */
+  shareLinkUrl: string | null;
+  /** Canonical public URL (`/u/<username>/<slug>`). Used for public. */
+  publicNoteUrl: string;
   tree: readonly FlatDirectory[];
 }>;
 
@@ -83,7 +86,8 @@ export function NoteActions({
   status,
   publishState,
   appUrl,
-  publicShareUrl,
+  shareLinkUrl,
+  publicNoteUrl,
   tree,
 }: NoteActionsProps) {
   const visibility = publishState.visibility;
@@ -96,16 +100,20 @@ export function NoteActions({
   const [open, setOpen] = useState<OpenDialog>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  // For visibility public/unlisted prefer the share URL when available;
-  // private always falls back to the internal `/notes/<id>` URL. The
+  // Copy URL by visibility: public → the canonical public URL; unlisted →
+  // the active share link when one exists; everything else (private, or
+  // unlisted with no active link) → the internal `/notes/<id>` URL. The
   // origin is resolved at click time so SSR doesn't pre-bake `location`.
+  const internalUrl =
+    typeof location === "undefined"
+      ? `/notes/${noteId}`
+      : `${location.origin}/notes/${noteId}`;
   const copyUrl =
-    (visibility === "public" || visibility === "unlisted") &&
-    publicShareUrl !== null
-      ? publicShareUrl
-      : typeof location === "undefined"
-        ? `/notes/${noteId}`
-        : `${location.origin}/notes/${noteId}`;
+    visibility === "public"
+      ? publicNoteUrl
+      : visibility === "unlisted" && shareLinkUrl !== null
+        ? shareLinkUrl
+        : internalUrl;
 
   const runDelete = () => {
     startTransition(async () => {
