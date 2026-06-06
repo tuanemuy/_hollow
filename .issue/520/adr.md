@@ -74,7 +74,7 @@ Accepted
 Accepted
 
 ### Context
-実装のアラートは severity 3 段（critical→error-surface / warning→warning-surface / low→accent-surface）。インスタンス上限は項目/値の 2 列で値は mono 右寄せ。新規プリミティブ・トークンは作らない方針（Issue 原則）。
+実装のアラートは severity 3 段（critical→error-surface / warning→warning-surface / info→accent-surface）。インスタンス上限は項目/値の 2 列で値は mono 右寄せ。新規プリミティブ・トークンは作らない方針（Issue 原則）。
 
 ### Decision
 - アラートは P40 が定義済みの `.banner.error` / `.banner.warning` のみで表現し、`.banner.info`（accent-surface）variant は新設しない。代表として critical（error）と warning の 2 件を見本表示する。`<strong>` のコードは admin の `err-code` 慣例に合わせ mono で表示。
