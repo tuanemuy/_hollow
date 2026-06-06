@@ -49,7 +49,13 @@ vi.mock("@/components/publication/PublishSettings", () => ({
     open ? <div data-testid="publish-settings">公開設定</div> : null,
 }));
 vi.mock("../UrlCopyButton", () => ({
-  UrlCopyButton: () => <button type="button">URL コピー</button>,
+  // Expose the resolved `url` via a data attribute so copyUrl decisions can be
+  // asserted without touching the clipboard.
+  UrlCopyButton: ({ url }: { url: string }) => (
+    <button type="button" data-testid="url-copy" data-url={url}>
+      URL コピー
+    </button>
+  ),
 }));
 
 const { NoteActions } = await import("../NoteActions");
@@ -70,19 +76,40 @@ afterEach(() => {
   container.remove();
 });
 
-function renderActions() {
+function renderActions(
+  overrides: {
+    visibility?: "private" | "unlisted" | "public";
+    shareLinkUrl?: string | null;
+    publicNoteUrl?: string;
+  } = {},
+) {
   act(() => {
     root.render(
       <NoteActions
         noteId={"note-1"}
         status="active"
-        publishState={{ visibility: "private", publishedAt: null, links: [] }}
+        publishState={{
+          visibility: overrides.visibility ?? "private",
+          publishedAt: null,
+          links: [],
+        }}
         appUrl="https://example.test"
-        publicShareUrl={null}
+        shareLinkUrl={overrides.shareLinkUrl ?? null}
+        publicNoteUrl={
+          overrides.publicNoteUrl ?? "https://example.test/u/alice/my-note"
+        }
         tree={[]}
       />,
     );
   });
+}
+
+function copyUrl(): string | null {
+  return (
+    container
+      .querySelector('[data-testid="url-copy"]')
+      ?.getAttribute("data-url") ?? null
+  );
 }
 
 describe("NoteActions icon-only buttons (Issue #382)", () => {
@@ -156,5 +183,34 @@ describe("NoteActions overflow menu (Issue #459)", () => {
       container.querySelectorAll('[role="menuitem"]'),
     ).find((el) => el.textContent === "削除");
     expect(del?.getAttribute("data-danger")).toBe("true");
+  });
+});
+
+describe("NoteActions copy URL by visibility (Issue #525)", () => {
+  it("public copies the canonical public URL — even when an active share link lingers", () => {
+    renderActions({
+      visibility: "public",
+      shareLinkUrl: "https://example.test/share/by-id/link-1",
+      publicNoteUrl: "https://example.test/u/alice/my-note",
+    });
+    expect(copyUrl()).toBe("https://example.test/u/alice/my-note");
+  });
+
+  it("unlisted copies the active share link", () => {
+    renderActions({
+      visibility: "unlisted",
+      shareLinkUrl: "https://example.test/share/by-id/link-1",
+    });
+    expect(copyUrl()).toBe("https://example.test/share/by-id/link-1");
+  });
+
+  it("unlisted with no active share link falls back to the internal URL", () => {
+    renderActions({ visibility: "unlisted", shareLinkUrl: null });
+    expect(copyUrl()).toBe(`${location.origin}/notes/note-1`);
+  });
+
+  it("private copies the internal URL", () => {
+    renderActions({ visibility: "private", shareLinkUrl: null });
+    expect(copyUrl()).toBe(`${location.origin}/notes/note-1`);
   });
 });

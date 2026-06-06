@@ -34,15 +34,17 @@ export async function logIn({
     );
   }
 
-  const userId = await container.unitOfWorkProvider.run(({ credentialStore }) =>
-    credentialStore.verifyPassword(email, input.password),
+  const verified = await container.unitOfWorkProvider.run(
+    ({ credentialStore }) =>
+      credentialStore.verifyPassword(email, input.password),
   );
-  if (userId === null) {
+  if (verified === null) {
     throw new AuthenticationError(
       "invalid_credentials",
       "Invalid email or password",
     );
   }
+  const { userId, needsRehash } = verified;
 
   const status = await container.unitOfWorkProvider.run(
     async ({ userRepository }) => {
@@ -68,6 +70,15 @@ export async function logIn({
     throw new AuthenticationError(
       "account_unavailable",
       "Account is no longer available",
+    );
+  }
+
+  // Status confirmed OK: now (and only now) upgrade a legacy hash. Done
+  // before issuing the session so a rehash failure fails the whole login
+  // cleanly rather than leaving a session issued behind a 500 (Issue #456).
+  if (needsRehash) {
+    await container.unitOfWorkProvider.run(({ credentialStore }) =>
+      credentialStore.rehashLegacyPassword(userId, input.password),
     );
   }
 

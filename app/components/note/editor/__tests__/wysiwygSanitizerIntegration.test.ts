@@ -5,7 +5,7 @@ import Link from "@tiptap/extension-link";
 import { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, expect, it } from "vitest";
-import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
+import { UltrahtmlHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { MEDIA_ID_FROM_URL } from "@/core/domain/note/service";
 
 /**
@@ -74,7 +74,7 @@ describe("WysiwygEditor sanitizer integration", () => {
     );
     try {
       const emitted = editor.getHTML();
-      const sanitizer = new SanitizeHtmlSanitizer();
+      const sanitizer = new UltrahtmlHtmlSanitizer();
       const result = sanitizer.sanitize(emitted, POLICY);
 
       // No editor-emitted tag should be reported as a `disallowed tag`.
@@ -131,7 +131,7 @@ describe("WysiwygEditor sanitizer integration", () => {
       // Hop 2: after sanitisation (which is what actually lands in the
       // database), the same regex must still extract the id. Together
       // these two assertions prove the end-to-end ADR-009 contract.
-      const sanitizer = new SanitizeHtmlSanitizer();
+      const sanitizer = new UltrahtmlHtmlSanitizer();
       const sanitised = sanitizer.sanitize(html, POLICY).html;
       const afterSanitise = MEDIA_ID_FROM_URL.exec(sanitised);
       expect(afterSanitise?.[1]).toBe(mediaId);
@@ -145,7 +145,7 @@ describe("WysiwygEditor sanitizer integration", () => {
     const editor = buildEditor("");
     try {
       const html = editor.getHTML();
-      const sanitizer = new SanitizeHtmlSanitizer();
+      const sanitizer = new UltrahtmlHtmlSanitizer();
       const result = sanitizer.sanitize(html, POLICY);
       // The sanitiser is allowed to normalise empty bodies (e.g. to
       // `<p></p>` or even ""); what matters is that nothing throws and
@@ -163,7 +163,7 @@ describe("WysiwygEditor sanitizer integration", () => {
     // (Link `isAllowedUri`), but the sanitiser is the actual gatekeeper
     // — assert that any link with a disallowed scheme that does slip
     // through the editor is removed at the boundary.
-    const sanitizer = new SanitizeHtmlSanitizer();
+    const sanitizer = new UltrahtmlHtmlSanitizer();
     const result = sanitizer.sanitize(
       '<p><a href="javascript:alert(1)">x</a></p>',
       POLICY,
@@ -175,7 +175,7 @@ describe("WysiwygEditor sanitizer integration", () => {
     // `Image.configure({ allowBase64: false })` already refuses to emit
     // the node, but we double-check the sanitiser strips the attribute
     // if a raw `data:` `<img>` is fed in from elsewhere.
-    const sanitizer = new SanitizeHtmlSanitizer();
+    const sanitizer = new UltrahtmlHtmlSanitizer();
     const result = sanitizer.sanitize(
       '<img src="data:image/png;base64,iVBORw0K" alt="">',
       POLICY,

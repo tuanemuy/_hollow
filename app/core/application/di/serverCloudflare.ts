@@ -23,8 +23,8 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
-import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
+import { MarkdownItMarkdownConverter } from "@/core/adapters/markdown/markdownConverter";
+import { UltrahtmlHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import {
   selectPreviousSecretBox,
@@ -583,8 +583,8 @@ export function createRequestContainer(
       UuidV7Generator,
       relayTrigger,
     ),
-    htmlSanitizer: new SanitizeHtmlSanitizer(),
-    markdownConverter: new MarkdownItConverter(),
+    htmlSanitizer: new UltrahtmlHtmlSanitizer(),
+    markdownConverter: new MarkdownItMarkdownConverter(),
     passwordHasher: new ScryptPasswordHasher(),
     objectStorage:
       objectStorageBucket && r2PresignConfig

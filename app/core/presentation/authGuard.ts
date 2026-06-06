@@ -22,17 +22,6 @@ const checkAuthenticated = createServerFn({ method: "GET" })
   });
 
 /**
- * `beforeLoad` guard for auth-required routes: an unauthenticated request is
- * redirected to `/login` before any loader runs. Guarding at the route
- * boundary keeps a child RSC's `requireCurrentUser()` throw from surfacing as
- * the route's `errorComponent` (the bug fixed in #342).
- */
-export async function requireAuthenticatedRoute(): Promise<void> {
-  const { authenticated } = await checkAuthenticated();
-  if (!authenticated) throw redirect({ to: "/login" });
-}
-
-/**
  * `beforeLoad` guard for guest-only routes (login / signup): an already
  * authenticated request is redirected to the home view.
  */

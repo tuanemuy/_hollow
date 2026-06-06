@@ -33,13 +33,23 @@ const TOKEN = "dev-admin-session-token";
 const CREATED_AT = "2024-01-01T00:00:00.000Z";
 const EXPIRES_AT = "2999-12-31T23:59:59.000Z";
 
-// Idempotent: clear any prior rows that would collide on the unique
-// columns (token / id / email / username), then insert fresh. Deleting the
-// user cascades to its remaining sessions; deleting sessions by token first
-// also clears the fixed token if it was attached to a different user.
+// Idempotent. The dev admin row (our fixed USER_ID) is upserted, never
+// deleted: deleting it cascades into the dev admin's notes / directories /
+// media, whose RESTRICT back-references (notes.directory_id → directories,
+// directories.parent_id → directories) abort the cascade with
+// SQLITE_CONSTRAINT_TRIGGER once any nested data exists — and even when the
+// cascade succeeds it destroys data we want to keep. Re-asserting the
+// canonical admin state via ON CONFLICT leaves owned data intact. Sessions
+// are leaf rows (nothing FK-references them), so a delete-then-insert is
+// safe and also clears the fixed token if it was attached to a different
+// user.
 const SQL = `
-DELETE FROM sessions WHERE token = '${TOKEN}' OR user_id = '${USER_ID}';
-DELETE FROM users WHERE id = '${USER_ID}' OR email = '${EMAIL}' OR username = '${USERNAME}';
+DELETE FROM sessions WHERE token = '${TOKEN}' OR user_id = '${USER_ID}' OR id = '${SESSION_ID}';
+-- A *different* user (e.g. a manual sign-up) may already hold our fixed
+-- email / username; ON CONFLICT(id) below would not catch that and the
+-- unique indexes would abort the seed. Drop only such foreign rows — our
+-- own USER_ID is excluded so its owned data is preserved by the upsert.
+DELETE FROM users WHERE (email = '${EMAIL}' OR username = '${USERNAME}') AND id <> '${USER_ID}';
 INSERT INTO users (
   id, name, email, email_verified, image, created_at, updated_at,
   username, display_username, role, banned, ban_reason, ban_expires,
@@ -48,7 +58,23 @@ INSERT INTO users (
   '${USER_ID}', '${NAME}', '${EMAIL}', 1, NULL, '${CREATED_AT}', '${CREATED_AT}',
   '${USERNAME}', NULL, 'admin', 0, NULL, NULL,
   NULL, NULL, NULL, NULL
-);
+)
+-- Only the identity + admin-active columns are re-asserted. created_at is
+-- immutable; image / bio / avatar_media_id / last_username_changed_at are
+-- profile data the dev admin may have set and are treated as owned data —
+-- preserved on re-seed, same as the notes / directories above.
+ON CONFLICT(id) DO UPDATE SET
+  name = excluded.name,
+  email = excluded.email,
+  email_verified = excluded.email_verified,
+  updated_at = excluded.updated_at,
+  username = excluded.username,
+  display_username = excluded.display_username,
+  role = excluded.role,
+  banned = excluded.banned,
+  ban_reason = excluded.ban_reason,
+  ban_expires = excluded.ban_expires,
+  deleted_at = excluded.deleted_at;
 INSERT INTO sessions (
   id, user_id, token, expires_at, created_at, updated_at,
   ip_address, user_agent, impersonated_by

@@ -22,7 +22,6 @@ import { Route as URouteRouteImport } from './routes/u/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as PasswordResetIndexRouteImport } from './routes/password-reset/index'
-import { Route as ExportIndexRouteImport } from './routes/export/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ShareTokenRouteImport } from './routes/share/$token'
@@ -46,9 +45,9 @@ import { Route as AppTrashIndexRouteImport } from './routes/_app/trash/index'
 import { Route as AppTagsIndexRouteImport } from './routes/_app/tags/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppExportsIndexRouteImport } from './routes/_app/exports/index'
+import { Route as AppExportIndexRouteImport } from './routes/_app/export/index'
 import { Route as UUsernameNoteSlugRouteImport } from './routes/u/$username/$noteSlug'
 import { Route as NotesPublicNoteIdRouteImport } from './routes/notes/public/$noteId'
-import { Route as NotesNoteIdExportRouteImport } from './routes/notes/$noteId/export'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsPromptsRouteImport } from './routes/_app/settings/prompts'
 import { Route as AppSettingsProfileRouteImport } from './routes/_app/settings/profile'
@@ -56,6 +55,7 @@ import { Route as AppSettingsAccountDeleteRouteImport } from './routes/_app/sett
 import { Route as AppNotesNewRouteImport } from './routes/_app/notes/new'
 import { Route as AppExportsJobIdRouteImport } from './routes/_app/exports/$jobId'
 import { Route as AppNotesNoteIdIndexRouteImport } from './routes/_app/notes/$noteId/index'
+import { Route as AppNotesNoteIdExportRouteImport } from './routes/_app/notes/$noteId/export'
 import { Route as AppNotesNoteIdEditRouteImport } from './routes/_app/notes/$noteId/edit'
 import { Route as AppNotesNoteIdHistoryRouteRouteImport } from './routes/_app/notes/$noteId/history/route'
 import { Route as AppNotesNoteIdHistoryIndexRouteImport } from './routes/_app/notes/$noteId/history/index'
@@ -123,11 +123,6 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const PasswordResetIndexRoute = PasswordResetIndexRouteImport.update({
   id: '/password-reset/',
   path: '/password-reset/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExportIndexRoute = ExportIndexRouteImport.update({
-  id: '/export/',
-  path: '/export/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -245,6 +240,11 @@ const AppExportsIndexRoute = AppExportsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppExportsRouteRoute,
 } as any)
+const AppExportIndexRoute = AppExportIndexRouteImport.update({
+  id: '/export/',
+  path: '/export/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const UUsernameNoteSlugRoute = UUsernameNoteSlugRouteImport.update({
   id: '/$username/$noteSlug',
   path: '/$username/$noteSlug',
@@ -253,11 +253,6 @@ const UUsernameNoteSlugRoute = UUsernameNoteSlugRouteImport.update({
 const NotesPublicNoteIdRoute = NotesPublicNoteIdRouteImport.update({
   id: '/notes/public/$noteId',
   path: '/notes/public/$noteId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotesNoteIdExportRoute = NotesNoteIdExportRouteImport.update({
-  id: '/notes/$noteId/export',
-  path: '/notes/$noteId/export',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
@@ -294,6 +289,11 @@ const AppExportsJobIdRoute = AppExportsJobIdRouteImport.update({
 const AppNotesNoteIdIndexRoute = AppNotesNoteIdIndexRouteImport.update({
   id: '/notes/$noteId/',
   path: '/notes/$noteId/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppNotesNoteIdExportRoute = AppNotesNoteIdExportRouteImport.update({
+  id: '/notes/$noteId/export',
+  path: '/notes/$noteId/export',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppNotesNoteIdEditRoute = AppNotesNoteIdEditRouteImport.update({
@@ -348,7 +348,6 @@ export interface FileRoutesByFullPath {
   '/password-reset/confirm': typeof PasswordResetConfirmRoute
   '/share/$token': typeof ShareTokenRoute
   '/admin/': typeof AdminIndexRoute
-  '/export/': typeof ExportIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
   '/exports/$jobId': typeof AppExportsJobIdRoute
   '/notes/new': typeof AppNotesNewRoute
@@ -356,9 +355,9 @@ export interface FileRoutesByFullPath {
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/prompts': typeof AppSettingsPromptsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
-  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/export/': typeof AppExportIndexRoute
   '/exports/': typeof AppExportsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/tags/': typeof AppTagsIndexRoute
@@ -368,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/u/$username/': typeof UUsernameIndexRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/notes/$noteId/export': typeof AppNotesNoteIdExportRoute
   '/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -396,7 +396,6 @@ export interface FileRoutesByTo {
   '/share/$token': typeof ShareTokenRoute
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
-  '/export': typeof ExportIndexRoute
   '/password-reset': typeof PasswordResetIndexRoute
   '/exports/$jobId': typeof AppExportsJobIdRoute
   '/notes/new': typeof AppNotesNewRoute
@@ -404,9 +403,9 @@ export interface FileRoutesByTo {
   '/settings/profile': typeof AppSettingsProfileRoute
   '/settings/prompts': typeof AppSettingsPromptsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
-  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/export': typeof AppExportIndexRoute
   '/exports': typeof AppExportsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/tags': typeof AppTagsIndexRoute
@@ -415,6 +414,7 @@ export interface FileRoutesByTo {
   '/views': typeof AppViewsIndexRoute
   '/u/$username': typeof UUsernameIndexRoute
   '/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/notes/$noteId/export': typeof AppNotesNoteIdExportRoute
   '/notes/$noteId': typeof AppNotesNoteIdIndexRoute
   '/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/notes/$noteId/history': typeof AppNotesNoteIdHistoryIndexRoute
@@ -449,7 +449,6 @@ export interface FileRoutesById {
   '/share/$token': typeof ShareTokenRoute
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
-  '/export/': typeof ExportIndexRoute
   '/password-reset/': typeof PasswordResetIndexRoute
   '/_app/exports/$jobId': typeof AppExportsJobIdRoute
   '/_app/notes/new': typeof AppNotesNewRoute
@@ -457,9 +456,9 @@ export interface FileRoutesById {
   '/_app/settings/profile': typeof AppSettingsProfileRoute
   '/_app/settings/prompts': typeof AppSettingsPromptsRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
-  '/notes/$noteId/export': typeof NotesNoteIdExportRoute
   '/notes/public/$noteId': typeof NotesPublicNoteIdRoute
   '/u/$username/$noteSlug': typeof UUsernameNoteSlugRoute
+  '/_app/export/': typeof AppExportIndexRoute
   '/_app/exports/': typeof AppExportsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/tags/': typeof AppTagsIndexRoute
@@ -469,6 +468,7 @@ export interface FileRoutesById {
   '/u/$username/': typeof UUsernameIndexRoute
   '/_app/notes/$noteId/history': typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   '/_app/notes/$noteId/edit': typeof AppNotesNoteIdEditRoute
+  '/_app/notes/$noteId/export': typeof AppNotesNoteIdExportRoute
   '/_app/notes/$noteId/': typeof AppNotesNoteIdIndexRoute
   '/_app/notes/$noteId/history/$revisionId': typeof AppNotesNoteIdHistoryRevisionIdRoute
   '/_app/notes/$noteId/history/': typeof AppNotesNoteIdHistoryIndexRoute
@@ -503,7 +503,6 @@ export interface FileRouteTypes {
     | '/password-reset/confirm'
     | '/share/$token'
     | '/admin/'
-    | '/export/'
     | '/password-reset/'
     | '/exports/$jobId'
     | '/notes/new'
@@ -511,9 +510,9 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/prompts'
     | '/settings/security'
-    | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/export/'
     | '/exports/'
     | '/settings/'
     | '/tags/'
@@ -523,6 +522,7 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/notes/$noteId/history'
     | '/notes/$noteId/edit'
+    | '/notes/$noteId/export'
     | '/notes/$noteId/'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history/'
@@ -551,7 +551,6 @@ export interface FileRouteTypes {
     | '/share/$token'
     | '/'
     | '/admin'
-    | '/export'
     | '/password-reset'
     | '/exports/$jobId'
     | '/notes/new'
@@ -559,9 +558,9 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/prompts'
     | '/settings/security'
-    | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/export'
     | '/exports'
     | '/settings'
     | '/tags'
@@ -570,6 +569,7 @@ export interface FileRouteTypes {
     | '/views'
     | '/u/$username'
     | '/notes/$noteId/edit'
+    | '/notes/$noteId/export'
     | '/notes/$noteId'
     | '/notes/$noteId/history/$revisionId'
     | '/notes/$noteId/history'
@@ -603,7 +603,6 @@ export interface FileRouteTypes {
     | '/share/$token'
     | '/_app/'
     | '/admin/'
-    | '/export/'
     | '/password-reset/'
     | '/_app/exports/$jobId'
     | '/_app/notes/new'
@@ -611,9 +610,9 @@ export interface FileRouteTypes {
     | '/_app/settings/profile'
     | '/_app/settings/prompts'
     | '/_app/settings/security'
-    | '/notes/$noteId/export'
     | '/notes/public/$noteId'
     | '/u/$username/$noteSlug'
+    | '/_app/export/'
     | '/_app/exports/'
     | '/_app/settings/'
     | '/_app/tags/'
@@ -623,6 +622,7 @@ export interface FileRouteTypes {
     | '/u/$username/'
     | '/_app/notes/$noteId/history'
     | '/_app/notes/$noteId/edit'
+    | '/_app/notes/$noteId/export'
     | '/_app/notes/$noteId/'
     | '/_app/notes/$noteId/history/$revisionId'
     | '/_app/notes/$noteId/history/'
@@ -645,9 +645,7 @@ export interface RootRouteChildren {
   MediaMediaIdRoute: typeof MediaMediaIdRoute
   PasswordResetConfirmRoute: typeof PasswordResetConfirmRoute
   ShareTokenRoute: typeof ShareTokenRoute
-  ExportIndexRoute: typeof ExportIndexRoute
   PasswordResetIndexRoute: typeof PasswordResetIndexRoute
-  NotesNoteIdExportRoute: typeof NotesNoteIdExportRoute
   NotesPublicNoteIdRoute: typeof NotesPublicNoteIdRoute
 }
 
@@ -742,13 +740,6 @@ declare module '@tanstack/react-router' {
       path: '/password-reset'
       fullPath: '/password-reset/'
       preLoaderRoute: typeof PasswordResetIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/export/': {
-      id: '/export/'
-      path: '/export'
-      fullPath: '/export/'
-      preLoaderRoute: typeof ExportIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -912,6 +903,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExportsIndexRouteImport
       parentRoute: typeof AppExportsRouteRoute
     }
+    '/_app/export/': {
+      id: '/_app/export/'
+      path: '/export'
+      fullPath: '/export/'
+      preLoaderRoute: typeof AppExportIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/u/$username/$noteSlug': {
       id: '/u/$username/$noteSlug'
       path: '/$username/$noteSlug'
@@ -924,13 +922,6 @@ declare module '@tanstack/react-router' {
       path: '/notes/public/$noteId'
       fullPath: '/notes/public/$noteId'
       preLoaderRoute: typeof NotesPublicNoteIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notes/$noteId/export': {
-      id: '/notes/$noteId/export'
-      path: '/notes/$noteId/export'
-      fullPath: '/notes/$noteId/export'
-      preLoaderRoute: typeof NotesNoteIdExportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings/security': {
@@ -980,6 +971,13 @@ declare module '@tanstack/react-router' {
       path: '/notes/$noteId'
       fullPath: '/notes/$noteId/'
       preLoaderRoute: typeof AppNotesNoteIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/notes/$noteId/export': {
+      id: '/_app/notes/$noteId/export'
+      path: '/notes/$noteId/export'
+      fullPath: '/notes/$noteId/export'
+      preLoaderRoute: typeof AppNotesNoteIdExportRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/notes/$noteId/edit': {
@@ -1080,11 +1078,13 @@ interface AppRouteRouteChildren {
   AppViewsRouteRoute: typeof AppViewsRouteRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppNotesNewRoute: typeof AppNotesNewRoute
+  AppExportIndexRoute: typeof AppExportIndexRoute
   AppTagsIndexRoute: typeof AppTagsIndexRoute
   AppTrashIndexRoute: typeof AppTrashIndexRoute
   AppUploadIndexRoute: typeof AppUploadIndexRoute
   AppNotesNoteIdHistoryRouteRoute: typeof AppNotesNoteIdHistoryRouteRouteWithChildren
   AppNotesNoteIdEditRoute: typeof AppNotesNoteIdEditRoute
+  AppNotesNoteIdExportRoute: typeof AppNotesNoteIdExportRoute
   AppNotesNoteIdIndexRoute: typeof AppNotesNoteIdIndexRoute
 }
 
@@ -1094,11 +1094,13 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppViewsRouteRoute: AppViewsRouteRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppNotesNewRoute: AppNotesNewRoute,
+  AppExportIndexRoute: AppExportIndexRoute,
   AppTagsIndexRoute: AppTagsIndexRoute,
   AppTrashIndexRoute: AppTrashIndexRoute,
   AppUploadIndexRoute: AppUploadIndexRoute,
   AppNotesNoteIdHistoryRouteRoute: AppNotesNoteIdHistoryRouteRouteWithChildren,
   AppNotesNoteIdEditRoute: AppNotesNoteIdEditRoute,
+  AppNotesNoteIdExportRoute: AppNotesNoteIdExportRoute,
   AppNotesNoteIdIndexRoute: AppNotesNoteIdIndexRoute,
 }
 
@@ -1162,9 +1164,7 @@ const rootRouteChildren: RootRouteChildren = {
   MediaMediaIdRoute: MediaMediaIdRoute,
   PasswordResetConfirmRoute: PasswordResetConfirmRoute,
   ShareTokenRoute: ShareTokenRoute,
-  ExportIndexRoute: ExportIndexRoute,
   PasswordResetIndexRoute: PasswordResetIndexRoute,
-  NotesNoteIdExportRoute: NotesNoteIdExportRoute,
   NotesPublicNoteIdRoute: NotesPublicNoteIdRoute,
 }
 export const routeTree = rootRouteImport

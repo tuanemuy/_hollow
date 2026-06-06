@@ -143,8 +143,6 @@ export const GATE_ERROR = "text-sm text-error -mt-1 flex items-center gap-1.5";
 // Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
 // consumer button, else the accent variant never applies and it renders surface.
 export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;
-export const GATE_FOOT =
-  "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
 export const LOCKOUT =
   "bg-warning-surface border border-warning text-warning rounded-md px-3.5 py-2.5 text-sm flex items-center gap-2 mb-4.5";
 export const SHARE_NOTE_BANNER =

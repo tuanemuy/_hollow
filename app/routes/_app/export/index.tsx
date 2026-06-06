@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
-import { requireAuthenticatedRoute } from "@/core/presentation/authGuard";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { internalRouteHead } from "@/core/presentation/head";
 
@@ -16,8 +15,7 @@ const renderBulkExportPage = createServerFn({ method: "GET" })
     return renderServerComponent(<ExportFormPage noteId={null} />);
   });
 
-export const Route = createFileRoute("/export/")({
-  beforeLoad: requireAuthenticatedRoute,
+export const Route = createFileRoute("/_app/export/")({
   staleTime: 0,
   head: ({ match }) =>
     internalRouteHead(match.context?.config, "一括エクスポート", "/export"),

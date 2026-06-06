@@ -4,6 +4,7 @@ export {
   type PublicationEventDecoders,
   publicationEventDecoders,
 } from "./eventDecoders";
+export * from "./getPublicationState";
 export * from "./getPublicNote";
 export * from "./getPublicProfile";
 export * from "./handleNotePurgedEvent";
