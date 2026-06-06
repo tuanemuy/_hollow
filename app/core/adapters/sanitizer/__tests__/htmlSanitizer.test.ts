@@ -261,11 +261,17 @@ describe("UltrahtmlHtmlSanitizer", () => {
       ["mailto local unknown named", "mailto:a&copy;b@x.com"],
       ["null reference stays literal", "&#0;//evil.com"],
     ])("keeps legitimate URL: %s", (_label, href) => {
-      const { removed } = sanitizer.sanitize(`<a href="${href}">x</a>`, FULL);
+      const { html, removed } = sanitizer.sanitize(
+        `<a href="${href}">x</a>`,
+        FULL,
+      );
+      // Dual assert (mirrors the attack-case contract): the href is neither
+      // recorded as removed nor silently dropped from the output.
       expect(removed).not.toContainEqual({
         tag: "a",
         reason: "unsafe URL scheme: href",
       });
+      expect(html).toContain("href=");
     });
   });
 
