@@ -356,19 +356,9 @@
   .reveal-btn:hover { color: var(--color-ink); background: var(--color-surface-hover); }
 
   /* Form-level error (token mismatch) */
-  .form-error {
-    display: flex;
-    gap: var(--space-3);
-    background: var(--color-error-surface);
-    color: var(--color-error);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--text-sm);
-    line-height: var(--leading-normal);
-    align-items: flex-start;
-  }
-  .form-error svg { flex-shrink: 0; margin-top: 2px; }
-  .form-error strong { font-weight: var(--weight-semibold); }
+  /* フォーム送信エラーのサマリーは共通 .alert（案D: 白地 + セマンティック枠 + アイコン色）で出す。
+     フォーム内に置くので margin は form の gap に委ね、自前の margin-bottom は打ち消す。 */
+  .form .alert { margin-bottom: 0; }
 
   /* Error-state variant blocks pack tightly (no full-viewport min-height) */
   .auth-shell.is-variant { min-height: 0; }
@@ -519,7 +509,7 @@
   ===== エラー状態バリアント (Issue #198) =====
   上の本体ブロックは既に Setup Token 不一致のエラー状態を埋め込んでいる。
   以下はエラーケースを設計成果物として整理し直したもの。文言の真実のソースは2系統:
-    - callout の <strong> プレフィックス（「登録に失敗しました。」/
+    - alert の見出し（alert-title）に当たる文言（「登録に失敗しました。」/
       「Setup Token が正しくありません。」「Setup Token が設定されていません。」+
       「値を確認してもう一度入力してください。」）は
       app/components/auth/AdminSignUpForm/index.tsx のJSXハードコード由来
@@ -598,7 +588,7 @@
 <!-- (b) unauthorized — Setup Token 不一致（特殊 callout）。実装の2分岐を両方示す。 -->
 <main class="auth-shell is-variant" style="padding-top: var(--space-6);">
   <div class="auth-card">
-    <span class="variant-label">エラー状態 (b) — unauthorized（Setup Token 不一致・特殊 callout / 実装の2分岐）</span>
+    <span class="variant-label">エラー状態 (b) — unauthorized（Setup Token 不一致・専用 alert / 実装の2分岐）</span>
     <span class="admin-eyebrow">管理者セットアップ</span>
     <h1 class="auth-title">初期管理者を作成</h1>
     <p class="auth-subtitle">
@@ -641,15 +631,21 @@
       </div>
 
       <!-- 分岐1: invalid_setup_token（値が不一致） -->
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>Setup Token が正しくありません。</strong> 値を確認してもう一度入力してください。</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">Setup Token が正しくありません。</p>
+          <p class="alert-body">値を確認してもう一度入力してください。</p>
+        </div>
       </div>
 
       <!-- 分岐2: setup_token_disabled（サーバーに Setup Token が未設定）。実際には一度に片方のみ表示される。両分岐を並べて文言を提示するためのモック。 -->
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>Setup Token が設定されていません。</strong> 値を確認してもう一度入力してください。</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">Setup Token が設定されていません。</p>
+          <p class="alert-body">値を確認してもう一度入力してください。</p>
+        </div>
       </div>
 
       <label class="checkbox-row">
@@ -711,9 +707,12 @@
         <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
       </div>
 
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>登録に失敗しました。</strong> すでに登録されています</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">登録に失敗しました。</p>
+          <p class="alert-body">すでに登録されています</p>
+        </div>
       </div>
 
       <label class="checkbox-row">
@@ -838,9 +837,12 @@
         <span class="field-hint">サーバー側の <code style="font-family:var(--font-mono);">ADMIN_SETUP_TOKEN</code> と完全一致が必要です。</span>
       </div>
 
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>登録に失敗しました。</strong> システムエラーが発生しました</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">登録に失敗しました。</p>
+          <p class="alert-body">システムエラーが発生しました</p>
+        </div>
       </div>
 
       <label class="checkbox-row">

@@ -200,23 +200,22 @@
 
   /* ===== Toast primitive =====
      浮く要素なので 白地(elevated) + shadow-md + radius-lg の単一パネル。
-     セマンティックは --alert-accent 1 変数で切替（.alert と共通）。
-     塗りつぶし背景は使わず、左の細いセマンティックバー + アイコン色で意味を出す。 */
+     セマンティックは --alert-accent 1 変数で切替。
+     塗りつぶし背景も左のセマンティックバーも使わず、アイコン色だけで意味を出す（Apple Calm）。 */
   .toast {
     --alert-accent: var(--color-accent);
     position: relative;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-3);
     width: 100%;
     max-width: 380px;
     min-width: 0;
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-hairline);
-    border-left: 3px solid var(--alert-accent);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
-    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+    padding: var(--space-3);
   }
   .toast-success { --alert-accent: var(--color-success); }
   .toast-warning { --alert-accent: var(--color-warning); }
@@ -227,8 +226,15 @@
   .toast-icon {
     flex-shrink: 0;
     display: inline-flex;
+    align-items: center;
     color: var(--alert-accent);
-    margin-top: 1px;
+  }
+  .toast-icon svg { width: 18px; height: 18px; }
+  /* 単一行は .toast の align-items:center で全要素が縦中央に揃う。
+     sub 付き（複数行）だけ上揃えに切替え、アイコンは 1 行目の縦中央へ合わせる。 */
+  .toast:has(.toast-sub) { align-items: flex-start; }
+  .toast:has(.toast-sub) .toast-icon {
+    height: calc(var(--text-sm) * var(--leading-snug));
   }
   .toast-body {
     flex: 1;
@@ -236,7 +242,6 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding-top: 1px;
   }
   .toast-msg {
     font-size: var(--text-sm);
@@ -367,8 +372,8 @@
     画面端に重ねて出す、自動消滅する ephemeral な通知。成功・保存完了・コピー完了・ジョブ受付など
     「結果のフィードバックだが画面の文脈に残す必要がない」ものに使う。文脈に紐づき残すべき情報・恒常的な操作・
     複雑な内容は <code>.alert</code>（インラインアラート）かダイアログに置く。浮く要素なので白地（elevated）+
-    <code>--shadow-md</code> + <code>--radius-lg</code> の単一パネルで、塗りつぶし背景は使わず左の細いセマンティックバー +
-    アイコン色で意味を出す（Apple Calm）。詳細は <code>index.md</code> §フィードバック・エラー表示原則。
+    <code>--shadow-md</code> + <code>--radius-lg</code> の単一パネルで、塗りつぶし背景も左のセマンティックバーも使わず
+    アイコン色だけで意味を出す（Apple Calm）。詳細は <code>index.md</code> §フィードバック・エラー表示原則。
   </p>
 </div>
 
