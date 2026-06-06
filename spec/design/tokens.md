@@ -188,8 +188,8 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 | `--radius-xs` | `4px` | インライン code、小タグ |
 | `--radius-sm` | `6px` | 小ボタン、小チップ |
 | `--radius-md` | `8px` | ナビ項目、カード（小） |
-| `--radius-lg` | `12px` | カード、コードブロック、画像 |
-| `--radius-xl` | `16px` | モーダル、大カード |
+| `--radius-lg` | `12px` | カード、コードブロック、画像、ダイアログ/モーダルパネル（`Dialog` primitive = `rounded-lg`） |
+| `--radius-xl` | `16px` | 大カード、デモ枠（`P13` 旧アップロードモーダル等） |
 | `--radius-pill` | `980px` | ピルボタン、検索バー、ステータスピル |
 | `--radius-full` | `9999px` | アバター、ドット |
 
@@ -205,8 +205,9 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 |-----------|----|----|
 | `--shadow-none` | `none` | デフォルト |
 | `--shadow-xs` | `0 1px 2px rgba(0,0,0,0.04)` | 浮上カード（控えめ） |
-| `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.06)` | ドロップダウン |
-| `--shadow-md` | `0 8px 24px rgba(0,0,0,0.08)` | モーダル、ポップオーバー |
+| `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.06)` | ドロップダウン、メニュー |
+| `--shadow-md` | `0 8px 24px rgba(0,0,0,0.08)` | ポップオーバー |
+| `--shadow-lg` | `0 16px 48px rgba(0,0,0,0.1)` | モーダル / ダイアログ（`Dialog` primitive = `shadow-lg`） |
 | `--shadow-focus` | `0 0 0 4px oklch(37.1% 0 0 / 0.28)` | フォーカスリング |
 
 ベース UI はシャドウなし。区切りはヘアラインで作る。
@@ -509,6 +510,7 @@ Apple Calm の象徴的な要素。
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
   --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
   /* Motion */
