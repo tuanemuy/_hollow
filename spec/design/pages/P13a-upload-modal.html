@@ -369,13 +369,60 @@
   .panel-mobile {
     width: 100%;
   }
+  /* === added state UIs (8-state expansion) === */
+  .result-block { padding: var(--space-2) 0; }
+  .result-block.pad4 { padding: var(--space-4) 0; }
+  .result-lead {
+    font-size: var(--text-base);
+    color: var(--color-ink);
+    margin-bottom: var(--space-2);
+    line-height: var(--leading-snug);
+  }
+  .result-sub {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-normal);
+  }
+  .success-head {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-success);
+    margin-bottom: var(--space-2);
+  }
+  .success-head .ok-text {
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+  }
+  .inline-alert {
+    color: var(--color-error);
+    font-size: var(--text-sm);
+    margin: var(--space-2) 0;
+  }
+  .fail-list {
+    list-style: disc;
+    margin: var(--space-3) 0 0 var(--space-5);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+  .result-actions.mt6 { margin-top: var(--space-6); }
 </style>
 </head>
 <body>
-  <h1>P13a — アップロードモーダルの 3 ステート</h1>
+  <h1>P13a — アップロードモーダルの 8 ステート</h1>
   <p class="lead">
-    Issue #226 で導入する新フロー。ファイル選択 → 推論待ち → プレビュー編集 → 登録 までを 1 つのモーダル内で完結させる。
-    複数ファイル時はキュー画面に誘導する集計表示に切り替わる。本文 HTML は読み取り専用プレビューで、編集はフォローアップ Issue に切り出した（ADR-002）。
+    実装 <code style="font-family:var(--font-mono);font-size:var(--text-mono)">app/components/ingestion/UploadDialog.tsx</code> の状態機械を網羅。
+    ファイル選択 → アップロード → 推論待ち → プレビュー編集 → 登録 までを 1 つのモーダル内で完結させる。
+    単一ファイルは select → uploading → waiting → editing → committed、失敗は failed、180 秒で諦めると timedOut、複数ファイルは multiResult に分岐する。
+    本文 HTML は読み取り専用プレビューで、編集はフォローアップ Issue に切り出した（ADR-002）。
   </p>
 
   <div class="grid">
@@ -383,7 +430,7 @@
     <!-- State 1: select -->
     <div class="panel" aria-label="アップロード">
       <button class="close-btn" aria-label="閉じる">×</button>
-      <div class="panel-caption">State 1 — select</div>
+      <div class="panel-caption">State 1 — select（dropzone + 詳細オプション）</div>
       <h2 class="panel-title">アップロード</h2>
       <p class="lead-secondary">
         ファイルから新規ノートを作成します。HTML / Markdown / Office / PDF / 画像 / 音声に対応しています。
@@ -393,15 +440,58 @@
         またはクリックして選択
         <small>複数選択にも対応</small>
       </div>
+      <details class="fm-block" style="margin-top:var(--space-4); border:1px solid var(--color-hairline); border-radius:var(--radius-md); background:var(--color-surface-elevated);">
+        <summary style="padding:12px 16px; margin-bottom:0;">
+          <span class="caret" aria-hidden="true">▸</span>
+          <span>詳細オプション（カスタムプロンプト）</span>
+        </summary>
+        <div style="padding:0 16px 16px;">
+          <p class="note" style="margin-top:0; margin-bottom:var(--space-3);">
+            このアップロードだけに適用するプロンプトを指定できます。空欄の場合は既定プロンプトが使われます。
+          </p>
+          <div class="field-block">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);">
+              <label class="field-label" style="margin-bottom:0;">構造化プロンプト</label>
+              <span style="font-size:var(--text-xs); border-radius:var(--radius-pill); padding:2px 8px; background:var(--color-surface); color:var(--color-ink-tertiary);">既定を使用中</span>
+            </div>
+            <textarea class="field-textarea" style="min-height:96px; margin-top:6px;" placeholder="システム既定の動作を使用"></textarea>
+            <p class="note" style="margin-top:4px;">既定の出所: <span style="color:var(--color-ink-secondary)">システム既定</span></p>
+          </div>
+          <div class="field-block" style="margin-bottom:0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2);">
+              <label class="field-label" style="margin-bottom:0;">メタデータ抽出プロンプト</label>
+              <span style="font-size:var(--text-xs); border-radius:var(--radius-pill); padding:2px 8px; background:var(--color-accent-surface); color:var(--color-accent);">この回だけ上書き</span>
+            </div>
+            <textarea class="field-textarea" style="min-height:96px; margin-top:6px;">著者・日付・要約を抽出してください</textarea>
+            <p class="note" style="margin-top:4px;">既定の出所: <span style="color:var(--color-ink-secondary)">インスタンス既定</span></p>
+          </div>
+        </div>
+      </details>
       <div style="display:flex; justify-content:flex-end; margin-top:24px;">
         <a class="pill" href="#">取り込みキューを見る</a>
       </div>
     </div>
 
-    <!-- State 2: waiting (skeleton) -->
+    <!-- State 2: uploading -->
     <div class="panel" aria-label="アップロード">
       <button class="close-btn" aria-label="閉じる">×</button>
-      <div class="panel-caption">State 2 — waiting</div>
+      <div class="panel-caption">State 2 — uploading（進捗）</div>
+      <h2 class="panel-title">アップロード</h2>
+      <div class="skeleton" aria-live="polite">
+        <div class="skeleton-bar w75"></div>
+        <div class="skeleton-bar w50"></div>
+        <div class="skeleton-bar w66"></div>
+        <p class="skeleton-text">3 件のファイルをアップロード中...</p>
+      </div>
+      <p class="note">
+        単一ファイルは「アップロード中...」、複数件は「N 件のファイルをアップロード中...」。アップロード中は閉じる操作を抑止（closable=false）。
+      </p>
+    </div>
+
+    <!-- State 3: waiting (skeleton) -->
+    <div class="panel" aria-label="アップロード">
+      <button class="close-btn" aria-label="閉じる">×</button>
+      <div class="panel-caption">State 3 — waiting（skeleton）</div>
       <h2 class="panel-title">アップロード</h2>
       <div class="skeleton" aria-live="polite">
         <div class="skeleton-bar w75"></div>
@@ -415,10 +505,10 @@
       </p>
     </div>
 
-    <!-- State 3: editing -->
+    <!-- State 4: editing -->
     <div class="panel" aria-label="アップロード">
       <button class="close-btn" aria-label="閉じる">×</button>
-      <div class="panel-caption">State 3 — editing</div>
+      <div class="panel-caption">State 4 — editing（AI 提案編集）</div>
       <h2 class="panel-title">アップロード</h2>
 
       <div class="field-block">
@@ -483,6 +573,85 @@
         <button class="pill">再生成</button>
         <button class="pill primary">登録</button>
       </div>
+    </div>
+
+    <!-- State 5: failed -->
+    <div class="panel" aria-label="アップロード">
+      <button class="close-btn" aria-label="閉じる">×</button>
+      <div class="panel-caption">State 5 — failed（エラー + 再試行）</div>
+      <h2 class="panel-title">アップロード</h2>
+      <div class="result-block pad4">
+        <p class="result-lead">取り込みに失敗しました: meeting-notes.docx</p>
+        <p class="inline-alert" role="alert">ファイルの解析中にエラーが発生しました。形式を確認するか、時間をおいて再試行してください。</p>
+        <div class="result-actions">
+          <button class="pill">再試行</button>
+          <a class="pill" href="#">キュー画面で詳細を見る</a>
+          <button class="pill danger">破棄</button>
+        </div>
+      </div>
+      <p class="note">
+        再試行はジョブを pending に戻し、再び waiting（推論待ち）へ遷移する。破棄は danger パレット。
+      </p>
+    </div>
+
+    <!-- State 6: multiResult -->
+    <div class="panel" aria-label="アップロード">
+      <button class="close-btn" aria-label="閉じる">×</button>
+      <div class="panel-caption">State 6 — multiResult（複数結果）</div>
+      <h2 class="panel-title">アップロード</h2>
+      <div class="result-block">
+        <p class="result-lead">5 件中 4 件をキューに追加しました（1 件失敗）。</p>
+        <p class="result-sub">各ジョブのプレビューはキュー画面から順次操作できます。</p>
+        <ul class="fail-list">
+          <li>broken-export.pdf</li>
+        </ul>
+        <div class="result-actions">
+          <button class="pill">閉じる</button>
+          <a class="pill primary" href="#">キュー画面を開く</a>
+        </div>
+      </div>
+      <p class="note">
+        複数ファイル時の集計表示。全件成功なら「（N 件失敗）」と失敗リストは出ない。
+      </p>
+    </div>
+
+    <!-- State 7: committed -->
+    <div class="panel" aria-label="アップロード">
+      <button class="close-btn" aria-label="閉じる">×</button>
+      <div class="panel-caption">State 7 — committed（成功・ノートを開く）</div>
+      <h2 class="panel-title">アップロード</h2>
+      <div class="result-block pad4">
+        <div class="success-head">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span class="ok-text">ノートを登録しました</span>
+        </div>
+        <p class="result-sub">「移行計画ドラフト」を作成しました。</p>
+        <div class="result-actions mt6">
+          <button class="pill">閉じる</button>
+          <a class="pill primary" href="#">ノートを開く</a>
+        </div>
+      </div>
+      <p class="note">
+        登録成功後は即遷移せず、成功確認と新規ノートへのリンクを提示してから閉じる。
+      </p>
+    </div>
+
+    <!-- State 8: timedOut -->
+    <div class="panel" aria-label="アップロード">
+      <button class="close-btn" aria-label="閉じる">×</button>
+      <div class="panel-caption">State 8 — timedOut（タイムアウト + キュー案内）</div>
+      <h2 class="panel-title">アップロード</h2>
+      <div class="result-block">
+        <p class="result-lead">推論の完了を待ちきれませんでした。</p>
+        <p class="result-sub">ジョブはキューに残っています。キュー画面から続きを操作できます。</p>
+        <div class="result-actions">
+          <button class="pill">閉じる</button>
+          <a class="pill primary" href="#">キュー画面を開く</a>
+        </div>
+      </div>
+      <p class="note">
+        waiting が 180 秒（POLL_TIMEOUT_MS）を超えると遷移。ポーリングの致命的失敗時の queueGuidance も同型の案内。
+      </p>
     </div>
 
   </div>

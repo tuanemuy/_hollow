@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — ディレクトリをリネーム（ダイアログ）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  button, .pill-btn { white-space: nowrap; }
+  @media (max-width: 639px) {
+    button, .pill-btn, [role="button"] { min-height: 44px; }
+  }
+  .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Modal backdrop ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.32);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+  }
+
+  .modal {
+    background: var(--color-bg);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    width: min(440px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 22px 24px 12px;
+  }
+  .modal-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    padding-right: var(--space-2);
+  }
+  .modal-close {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+    flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+
+  .modal-body { padding: 4px 24px 8px; }
+
+  /* ===== Form field (fieldControl 相当) ===== */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .field-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+  }
+  .field-control {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    background: var(--color-surface);
+    padding: 10px 12px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-default);
+  }
+  .field-control::placeholder { color: var(--color-ink-tertiary); }
+  .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
+  .field-control:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .form-error {
+    color: var(--color-error);
+    font-size: var(--text-sm);
+    margin-top: var(--space-2);
+  }
+
+  /* ===== Footer actions ===== */
+  .modal-footer {
+    display: inline-flex;
+    width: 100%;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 16px 24px 20px;
+  }
+  .pill-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pill-btn.primary:disabled:hover { background: var(--color-accent); }
+
+  /* ===== Stacked dialog states (モック上の見本) ===== */
+  .states {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 300;
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    max-width: 260px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 640px) {
+    .modal-header { padding: 18px 20px 10px; }
+    .modal-body { padding: 4px 20px 8px; }
+    .modal-footer { padding: 14px 20px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Rename directory dialog（現在名 prefill） ===== -->
+<div class="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="renameTitle">
+
+    <div class="modal-header">
+      <div class="modal-title" id="renameTitle">ディレクトリをリネーム</div>
+      <button class="modal-close" aria-label="閉じる">
+        <span aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+      </button>
+    </div>
+
+    <form class="modal-body">
+      <div class="field">
+        <label class="field-label" for="renameName">新しい名前</label>
+        <!-- 現在名を prefill -->
+        <input id="renameName" class="field-control" type="text" value="Research" autofocus aria-required="true">
+      </div>
+    </form>
+
+    <div class="modal-footer">
+      <button type="button" class="pill-btn">キャンセル</button>
+      <!-- 名前が入っているので「保存」有効。空にすると disabled。 -->
+      <button type="submit" class="pill-btn primary">保存</button>
+    </div>
+
+  </div>
+</div>
+
+<p class="states">
+  Rename ダイアログ（現在名 prefill）。<br>
+  空入力時は「保存」disabled。<br>
+  loading: 「保存中...」, 全コントロール disabled。<br>
+  error: in-dialog の role="alert"（下のソース内コメント参照）。<br>
+  名前が現在名と同じ場合は保存せず閉じる（実装）。
+</p>
+
+<!--
+  ＝＝＝ 状態バリエーション（実装準拠）＝＝＝
+
+  [空入力 → disabled]
+    <input ... value="">
+    <button type="submit" class="pill-btn primary" disabled>保存</button>
+
+  [loading 状態]
+    <input ... class="field-control" disabled>
+    <button type="button" class="pill-btn" disabled>キャンセル</button>
+    <button type="submit" class="pill-btn primary" disabled>保存中...</button>
+    （Dialog は closable={!isPending} なので閉じるボタンも disabled）
+
+  [error 状態 — field の直後に挿入]
+    <p class="form-error" role="alert">同じ名前のディレクトリが既に存在します</p>
+-->
+
+</body>
+</html>

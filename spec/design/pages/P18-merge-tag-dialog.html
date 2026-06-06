@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — タグを統合（モーダル）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  ul { list-style: none; }
+
+  button {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    [role="button"] {
+      min-height: 44px;
+    }
+  }
+  .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Faded background (タグ管理画面の薄い背景) ===== */
+  .bg-page {
+    padding: var(--space-12) var(--container-padding);
+    max-width: 900px;
+    margin: 0 auto;
+    filter: blur(2px);
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+  }
+  .bg-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    margin-bottom: var(--space-6);
+  }
+  .bg-tag-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-2);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .bg-tag-name { font-size: var(--text-base); color: var(--color-ink); }
+  .bg-tag-count { font-size: var(--text-sm); color: var(--color-ink-tertiary); margin-left: auto; }
+
+  /* ===== Modal (P13 シェル踏襲) ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.32);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5);
+  }
+  .modal {
+    background: var(--color-bg);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    max-width: 480px;
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    position: relative;
+    padding: var(--space-6);
+  }
+
+  /* dialogTitle = text-lg / medium / mb-4 */
+  .dialog-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-4);
+  }
+
+  /* フィールド: fieldLabel + fieldControl(select) */
+  .field { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+  .field-label { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink-secondary); }
+  .field-control {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    background: var(--color-surface);
+    padding: 10px var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-color);
+  }
+  .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
+
+  /* 統合先選択時の説明文 (DIALOG_DESCRIPTION = text-sm / ink-secondary / mt-2) */
+  .dialog-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-top: var(--space-2);
+    line-height: var(--leading-snug);
+  }
+  .dialog-desc strong { color: var(--color-ink); font-weight: var(--weight-semibold); }
+
+  /* indeterminate progressbar (tag/styles.ts progressTrack / progressBarIndeterminate) */
+  .progress-block { margin-top: var(--space-3); }
+  .progress-live { font-size: var(--text-sm); color: var(--color-ink-secondary); }
+  .progress-live strong { color: var(--color-ink); font-weight: var(--weight-semibold); }
+  .progress-track {
+    position: relative;
+    height: 4px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    margin-top: var(--space-3);
+  }
+  .progress-bar {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-pill);
+    background: oklch(37.1% 0 0 / 0.6);
+    animation: pulse 1.6s var(--ease-standard) infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-bar { animation: none; }
+  }
+
+  /* dialogActions = inline-flex gap-2 mt-4 justify-end w-full */
+  .dialog-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .pill-btn {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* デモ用: 2 つの状態を縦に並べる切り替え見出し */
+  .state-caption {
+    position: fixed;
+    top: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-pill);
+    padding: 6px 14px;
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    .modal { padding: var(--space-5); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Faded background (タグ管理) ===== -->
+<div class="bg-page">
+  <h1 class="bg-title">タグ</h1>
+  <div class="bg-tag-row"><span class="bg-tag-name">#research</span><span class="bg-tag-count">23 件</span></div>
+  <div class="bg-tag-row"><span class="bg-tag-name">#リサーチ</span><span class="bg-tag-count">8 件</span></div>
+  <div class="bg-tag-row"><span class="bg-tag-name">#日記</span><span class="bg-tag-count">14 件</span></div>
+  <div class="bg-tag-row"><span class="bg-tag-name">#essay</span><span class="bg-tag-count">9 件</span></div>
+</div>
+
+<!-- ===== タグ統合モーダル（統合先選択済み = 説明文 + 通常フッター） ===== -->
+<div class="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
+    <form aria-busy="false">
+      <h2 id="mergeTitle" class="dialog-title">タグを統合</h2>
+
+      <div class="field">
+        <label for="mergeTarget" class="field-label">統合先タグ</label>
+        <select id="mergeTarget" class="field-control" required>
+          <option value="">— 選択してください —</option>
+          <option value="research" selected>#research</option>
+          <option value="diary">#日記</option>
+          <option value="essay">#essay</option>
+        </select>
+      </div>
+
+      <!-- 統合先選択時の説明文。対象ノート > 0 のため件数を強調表示。 -->
+      <p class="dialog-desc">
+        #リサーチ を #research に統合します。 <strong>対象ノート: 8 件</strong>。
+        #リサーチ は削除され、参照ノートは #research を持つよう更新されます。
+      </p>
+
+      <div class="dialog-actions">
+        <button type="button" class="pill-btn">キャンセル</button>
+        <button type="submit" class="pill-btn primary" data-primary="">統合</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== 状態見本（実行中: indeterminate progressbar「N件更新中…」） =====
+     実装では同一モーダルが isPending && sourceNoteCount > 0 のときに
+     この見た目になる。比較用に下部へ並べる（単一ファイルで両状態を確認可能）。 -->
+<div style="height: 100vh;"></div>
+<div class="modal-backdrop" style="position: static; min-height: 100vh; background: rgba(0,0,0,0.32);">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeTitle2">
+    <form aria-busy="true">
+      <h2 id="mergeTitle2" class="dialog-title">タグを統合</h2>
+
+      <div class="field">
+        <label for="mergeTarget2" class="field-label">統合先タグ</label>
+        <select id="mergeTarget2" class="field-control" required disabled>
+          <option value="research" selected>#research</option>
+        </select>
+      </div>
+
+      <p class="dialog-desc">
+        #リサーチ を #research に統合します。 <strong>対象ノート: 8 件</strong>。
+        #リサーチ は削除され、参照ノートは #research を持つよう更新されます。
+      </p>
+
+      <!-- isPending && sourceNoteCount > 0: indeterminate progressbar -->
+      <div class="progress-block">
+        <span class="progress-live" aria-live="polite"><strong>8 件のノートを更新中…</strong></span>
+        <div
+          class="progress-track"
+          role="progressbar"
+          aria-busy="true"
+          aria-valuemin="0"
+          aria-valuemax="8"
+          aria-label="8 件のノートを更新中"
+        >
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="pill-btn" disabled>キャンセル</button>
+        <button type="submit" class="pill-btn primary" data-primary="" disabled>統合中...</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="state-caption">上: 統合先選択済み ／ 下: 実行中（8 件更新中…）</div>
+
+</body>
+</html>
