@@ -14,8 +14,9 @@ import { pillBtn, pillBtnIcon } from "@/components/common/styles";
  *   screen readers announce the state change without a visible status string
  *   stretching the icon row.
  *
- * The caller decides which URL string to pass (public share URL vs.
- * internal `/notes/<id>` URL based on visibility).
+ * The caller decides which URL string to pass based on visibility — the
+ * canonical public URL, an active share link, or the internal
+ * `/notes/<id>` URL.
  */
 export type UrlCopyButtonProps = Readonly<{
   url: string;
