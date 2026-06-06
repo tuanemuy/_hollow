@@ -491,10 +491,14 @@ export const loadNoteRevisionDetail = cache(
 
 export const loadPublishStateForNote = cache(
   serverData(
-    () => import("@/core/application/publication/listShareLinks"),
+    () =>
+      Promise.all([
+        import("@/core/application/publication/listShareLinks"),
+        import("@/core/application/publication/getPublicationState"),
+      ]),
     async (
       { container },
-      { listShareLinks },
+      [{ listShareLinks }, { getPublicationState }],
       args: { actorUserId: string; noteId: string },
     ) => {
       const { links } = await listShareLinks({
@@ -504,23 +508,18 @@ export const loadPublishStateForNote = cache(
           noteId: args.noteId,
         },
       });
-      const publication = await container.unitOfWorkProvider.run(
-        async ({ publicationStateRepository }) => {
-          const found = await publicationStateRepository.findById(
-            args.noteId as Parameters<
-              typeof publicationStateRepository.findById
-            >[0],
-          );
-          if (found === null) return null;
-          return found.entity;
+      const { publicationState } = await getPublicationState({
+        container,
+        input: {
+          actorUserId: args.actorUserId,
+          noteId: args.noteId,
         },
-      );
+      });
       return {
-        visibility: publication === null ? "private" : publication.visibility,
+        visibility:
+          publicationState === null ? "private" : publicationState.visibility,
         publishedAt:
-          publication === null || publication.publishedAt === null
-            ? null
-            : publication.publishedAt.toISOString(),
+          publicationState === null ? null : publicationState.publishedAt,
         links,
       };
     },
