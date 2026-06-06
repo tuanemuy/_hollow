@@ -1,3 +1,13 @@
+import {
+  COMMENT_NODE,
+  DOCTYPE_NODE,
+  ELEMENT_NODE,
+  type ElementNode,
+  type Node,
+  parse,
+  renderSync,
+  TEXT_NODE,
+} from "ultrahtml";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type {
   HtmlSanitizer,
@@ -38,28 +48,25 @@ const decodeEntities = (raw: string): string =>
     return HTML_ENTITIES[lower] ?? match;
   });
 
-// Minimal allowlist-based sanitiser implemented as a small streaming
-// tokeniser. The MVP cannot depend on the `sanitize-html` npm package
-// because the Cloudflare Workers runtime forbids ad-hoc Node API usage
-// at this layer (the bundle stays free of Node polyfills). Adding it as
-// a vendored dependency would be a separate change; until then this
-// implementation enforces the policy documented on `HtmlSanitizer` and
-// keeps every transformation auditable in one file.
+// Allowlist-based sanitiser over the ultrahtml AST. ultrahtml parses the
+// raw HTML, and a recursive transform keeps only allowlisted tags /
+// attributes, then `renderSync` re-serialises. The Cloudflare Workers
+// runtime allows ultrahtml (pure ESM, no Node / DOM deps), so the bundle
+// stays free of polyfills.
 //
-// Trade-offs vs `sanitize-html`:
+// Defence layers ultrahtml does NOT provide and we keep ourselves:
 //
-// - Only well-formed input is accepted. Hostile malformed HTML (e.g.
-//   unbalanced quotes, embedded `<` outside of attributes) is rejected
-//   wholesale rather than best-effort repaired — failing closed is
-//   safer than the alternative for note bodies that already came out of
-//   a Markdown converter.
 // - URL schemes are restricted to a fixed allowlist (`http`, `https`,
-//   `mailto`, plus relative paths).
-// - `style` attributes are stripped unconditionally; the editor relies
-//   on class names for visual treatment.
-// - `[[...]]` placeholders pass through untouched when
-//   `policy.allowInternalLinks` is true (they live in text content, so
-//   the tokeniser ignores them by construction).
+//   `mailto`, plus relative paths) — ultrahtml does not validate URLs.
+// - `on*` event-handler attributes are stripped unconditionally.
+// - Disallowed elements are dropped subtree-and-all. `renderSync` does
+//   not re-escape text, and raw-text elements (`<script>` / `<style>`)
+//   expose their body as a text child, so unwrapping a disallowed node
+//   could re-emit live markup. Dropping the whole subtree fails closed.
+//   Pipeline inputs (markdown-it with `html:false`, TipTap) never emit
+//   disallowed tags, so no legitimate content is lost.
+// - `[[...]]` placeholders live in text content and pass through
+//   untouched when `policy.allowInternalLinks` is true.
 
 type AttrAllowlist = ReadonlySet<string>;
 
@@ -120,8 +127,6 @@ const MEDIA_TAGS: AttrAllowlist = new Set([
   "figcaption",
 ]);
 
-const VOID_TAGS: AttrAllowlist = new Set(["br", "hr", "img", "source"]);
-
 const GLOBAL_ATTRS: AttrAllowlist = new Set([
   "id",
   "class",
@@ -174,116 +179,62 @@ const isSafeUrl = (raw: string): boolean => {
   return SAFE_URL_SCHEMES.has(scheme);
 };
 
-const escapeText = (raw: string): string =>
-  raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
-type ParsedTag = Readonly<{
-  kind: "open" | "close" | "void";
-  name: string;
-  attrs: ReadonlyArray<{ readonly name: string; readonly value: string }>;
-}>;
-
-const parseTag = (raw: string): ParsedTag | null => {
-  // raw is the inner of `<...>` without the angle brackets.
-  if (raw.length === 0) return null;
-  if (raw.startsWith("!") || raw.startsWith("?")) return null;
-  let closing = false;
-  let cursor = 0;
-  if (raw[0] === "/") {
-    closing = true;
-    cursor = 1;
-  }
-  // Read tag name.
-  let nameEnd = cursor;
-  while (nameEnd < raw.length) {
-    const ch = raw.charCodeAt(nameEnd);
-    const isAlnum =
-      (ch >= 0x30 && ch <= 0x39) ||
-      (ch >= 0x41 && ch <= 0x5a) ||
-      (ch >= 0x61 && ch <= 0x7a) ||
-      ch === 0x2d ||
-      ch === 0x5f;
-    if (!isAlnum) break;
-    nameEnd += 1;
-  }
-  const name = raw.slice(cursor, nameEnd).toLowerCase();
-  if (name.length === 0) return null;
-  cursor = nameEnd;
-
-  const attrs: { name: string; value: string }[] = [];
-  let selfClosing = false;
-
-  while (cursor < raw.length) {
-    while (cursor < raw.length && /\s/.test(raw[cursor] ?? "")) cursor += 1;
-    if (cursor >= raw.length) break;
-    if (raw[cursor] === "/") {
-      selfClosing = true;
-      cursor += 1;
+const sanitizeAttributes = (
+  node: ElementNode,
+  removed: SanitizeRemoval[],
+): Record<string, string> => {
+  const clean: Record<string, string> = {};
+  for (const [name, value] of Object.entries(node.attributes)) {
+    if (!isAllowedAttr(node.name, name)) {
+      removed.push({ tag: node.name, reason: `disallowed attribute: ${name}` });
       continue;
     }
-    // Attribute name.
-    const attrStart = cursor;
-    while (cursor < raw.length) {
-      const ch = raw[cursor];
-      if (ch === undefined) break;
-      if (ch === "=" || ch === "/" || ch === ">" || /\s/.test(ch)) {
-        break;
-      }
-      cursor += 1;
-    }
-    const attrName = raw.slice(attrStart, cursor).toLowerCase();
-    if (attrName.length === 0) {
-      cursor += 1;
+    if (name.startsWith("on")) {
+      // Defensive: the allowlists do not list event handlers, but never
+      // let `onclick=` etc. slip through even if widened later.
+      removed.push({
+        tag: node.name,
+        reason: `event handler stripped: ${name}`,
+      });
       continue;
     }
-    let attrValue = "";
-    while (cursor < raw.length && /\s/.test(raw[cursor] ?? "")) cursor += 1;
-    if (raw[cursor] === "=") {
-      cursor += 1;
-      while (cursor < raw.length && /\s/.test(raw[cursor] ?? "")) cursor += 1;
-      const quote = raw[cursor];
-      if (quote === '"' || quote === "'") {
-        cursor += 1;
-        const valStart = cursor;
-        while (cursor < raw.length && raw[cursor] !== quote) cursor += 1;
-        attrValue = raw.slice(valStart, cursor);
-        if (raw[cursor] === quote) cursor += 1;
-      } else {
-        const valStart = cursor;
-        while (cursor < raw.length && !/[\s/>]/.test(raw[cursor] ?? "")) {
-          cursor += 1;
-        }
-        attrValue = raw.slice(valStart, cursor);
-      }
+    if ((name === "href" || name === "src") && !isSafeUrl(value)) {
+      removed.push({ tag: node.name, reason: `unsafe URL scheme: ${name}` });
+      continue;
     }
-    attrs.push({ name: attrName, value: attrValue });
+    clean[name] = value;
   }
-
-  const isVoid = selfClosing || VOID_TAGS.has(name);
-  return {
-    kind: closing ? "close" : isVoid ? "void" : "open",
-    name,
-    attrs,
-  };
+  return clean;
 };
 
-const serialiseAttrs = (
-  attrs: ReadonlyArray<{ readonly name: string; readonly value: string }>,
-): string =>
-  attrs
-    .map(
-      (attr) =>
-        ` ${attr.name}="${attr.value
-          .replace(/&/g, "&amp;")
-          .replace(/"/g, "&quot;")}"`,
-    )
-    .join("");
+const sanitizeChildren = (
+  nodes: readonly Node[],
+  policy: SanitizePolicy,
+  removed: SanitizeRemoval[],
+): Node[] => {
+  const out: Node[] = [];
+  for (const node of nodes) {
+    if (node.type === TEXT_NODE) {
+      out.push(node);
+      continue;
+    }
+    if (node.type === COMMENT_NODE || node.type === DOCTYPE_NODE) {
+      continue;
+    }
+    if (node.type === ELEMENT_NODE) {
+      if (!isAllowedTag(node.name, policy)) {
+        removed.push({ tag: node.name, reason: "disallowed tag" });
+        continue;
+      }
+      node.attributes = sanitizeAttributes(node, removed);
+      node.children = sanitizeChildren(node.children, policy, removed);
+      out.push(node);
+    }
+  }
+  return out;
+};
 
-class SanitizeHtmlSanitizer implements HtmlSanitizer {
+class UltrahtmlHtmlSanitizer implements HtmlSanitizer {
   toPlainText(html: ContentHtml): string {
     try {
       // Strip every tag; collapse runs of whitespace produced by the
@@ -302,7 +253,13 @@ class SanitizeHtmlSanitizer implements HtmlSanitizer {
 
   sanitize(rawHtml: string, policy: SanitizePolicy): SanitizeResult {
     try {
-      return this.runUnchecked(rawHtml, policy);
+      const removed: SanitizeRemoval[] = [];
+      const root = parse(rawHtml) as Node & { children: Node[] };
+      root.children = sanitizeChildren(root.children, policy, removed);
+      return {
+        html: ContentHtml.create(renderSync(root)),
+        removed,
+      };
     } catch (cause) {
       throw new SystemError(
         SystemErrorCode.DataIntegrityError,
@@ -311,127 +268,6 @@ class SanitizeHtmlSanitizer implements HtmlSanitizer {
       );
     }
   }
-
-  private runUnchecked(
-    rawHtml: string,
-    policy: SanitizePolicy,
-  ): SanitizeResult {
-    const out: string[] = [];
-    const removed: SanitizeRemoval[] = [];
-    const openStack: string[] = [];
-
-    let cursor = 0;
-    while (cursor < rawHtml.length) {
-      const lt = rawHtml.indexOf("<", cursor);
-      if (lt === -1) {
-        out.push(escapeText(rawHtml.slice(cursor)));
-        break;
-      }
-      if (lt > cursor) {
-        out.push(escapeText(rawHtml.slice(cursor, lt)));
-      }
-      // Skip <!-- comments --> entirely; also handles `<![CDATA[`.
-      if (rawHtml.startsWith("<!--", lt)) {
-        const end = rawHtml.indexOf("-->", lt + 4);
-        if (end === -1) {
-          // Unterminated comment — strip the tail rather than emit
-          // suspicious markup.
-          removed.push({ tag: "!--", reason: "unterminated comment" });
-          break;
-        }
-        cursor = end + 3;
-        continue;
-      }
-      const gt = rawHtml.indexOf(">", lt + 1);
-      if (gt === -1) {
-        // Unterminated tag — escape the trailing fragment and stop.
-        out.push(escapeText(rawHtml.slice(lt)));
-        break;
-      }
-      const inner = rawHtml.slice(lt + 1, gt);
-      const parsed = parseTag(inner);
-      cursor = gt + 1;
-      if (!parsed) {
-        removed.push({ tag: inner.trim().slice(0, 32), reason: "invalid tag" });
-        continue;
-      }
-
-      if (parsed.kind === "close") {
-        // Pop matching open tag if present; otherwise drop silently.
-        const idx = openStack.lastIndexOf(parsed.name);
-        if (idx === -1) {
-          removed.push({ tag: parsed.name, reason: "unmatched close" });
-          continue;
-        }
-        // Close any intervening unclosed tags too, to keep nesting
-        // balanced after sanitisation.
-        while (openStack.length > idx) {
-          const popped = openStack.pop();
-          if (popped !== undefined) {
-            out.push(`</${popped}>`);
-          }
-        }
-        continue;
-      }
-
-      if (!isAllowedTag(parsed.name, policy)) {
-        removed.push({ tag: parsed.name, reason: "disallowed tag" });
-        continue;
-      }
-
-      const cleanedAttrs: { name: string; value: string }[] = [];
-      for (const attr of parsed.attrs) {
-        if (!isAllowedAttr(parsed.name, attr.name)) {
-          removed.push({
-            tag: parsed.name,
-            reason: `disallowed attribute: ${attr.name}`,
-          });
-          continue;
-        }
-        if (attr.name.startsWith("on")) {
-          // Defensive: GLOBAL_ATTRS / ATTR_ALLOW do not list event
-          // handlers, but never let `onclick=` etc. slip through even
-          // if the allowlist is widened later.
-          removed.push({
-            tag: parsed.name,
-            reason: `event handler stripped: ${attr.name}`,
-          });
-          continue;
-        }
-        if (
-          (attr.name === "href" || attr.name === "src") &&
-          !isSafeUrl(attr.value)
-        ) {
-          removed.push({
-            tag: parsed.name,
-            reason: `unsafe URL scheme: ${attr.name}`,
-          });
-          continue;
-        }
-        cleanedAttrs.push({ name: attr.name, value: attr.value });
-      }
-
-      if (parsed.kind === "void") {
-        out.push(`<${parsed.name}${serialiseAttrs(cleanedAttrs)} />`);
-        continue;
-      }
-      openStack.push(parsed.name);
-      out.push(`<${parsed.name}${serialiseAttrs(cleanedAttrs)}>`);
-    }
-
-    // Close any tags left dangling.
-    while (openStack.length > 0) {
-      const popped = openStack.pop();
-      if (popped !== undefined) {
-        out.push(`</${popped}>`);
-      }
-    }
-
-    return {
-      html: ContentHtml.create(out.join("")),
-      removed,
-    };
-  }
 }
 
-export { SanitizeHtmlSanitizer };
+export { UltrahtmlHtmlSanitizer };
