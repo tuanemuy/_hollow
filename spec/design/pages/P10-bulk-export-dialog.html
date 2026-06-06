@@ -93,7 +93,6 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
     --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     /* Motion */
@@ -137,7 +136,7 @@
     font-size: var(--text-base);
     line-height: var(--leading-normal);
   }
-  .modal-title { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+  .dialog-title { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 
   /* ===== Showcase grid (P13a 方式: 縦並び) ===== */
   .grid {
@@ -159,7 +158,7 @@
     width: min(480px, 100%);
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
   }
   .state-caption {
     font-size: var(--text-xs);
@@ -289,7 +288,7 @@
   <!-- ===== State 1: PDF 非選択（用紙 select 非表示） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="beTitle1">
     <div class="state-caption">State 1 — HTML/MD（用紙 select 非表示）</div>
-    <h2 class="dialog-title modal-title" id="beTitle1">12 件のノートをエクスポート</h2>
+    <h2 class="dialog-title" id="beTitle1">12 件のノートをエクスポート</h2>
 
     <fieldset class="field">
       <legend class="field-label">形式</legend>
@@ -327,7 +326,7 @@
   <!-- ===== State 2: PDF 選択（用紙 select 出現 + 実行中ローディング） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="beTitle2">
     <div class="state-caption">State 2 — PDF（用紙 select 出現）</div>
-    <h2 class="dialog-title modal-title" id="beTitle2">12 件のノートをエクスポート</h2>
+    <h2 class="dialog-title" id="beTitle2">12 件のノートをエクスポート</h2>
 
     <fieldset class="field">
       <legend class="field-label">形式</legend>

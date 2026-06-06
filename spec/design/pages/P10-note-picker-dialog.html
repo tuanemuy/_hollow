@@ -195,8 +195,8 @@
     letter-spacing: 0.06em;
   }
 
-  /* ===== Modal backdrop (P13 踏襲) ===== */
-  .modal-backdrop {
+  /* ===== Dialog backdrop (P13 踏襲) ===== */
+  .dialog-backdrop {
     position: relative;
     background: rgba(0,0,0,0.32);
     border-radius: var(--radius-lg);
@@ -206,7 +206,7 @@
     padding: var(--space-8) var(--space-5);
   }
 
-  .modal {
+  .dialog {
     background: var(--color-bg);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
@@ -219,7 +219,7 @@
     padding: var(--space-6);
   }
 
-  .modal-title {
+  .dialog-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-medium);
     letter-spacing: var(--tracking-tighter);
@@ -295,7 +295,7 @@
   .option .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ===== Actions ===== */
-  .modal-actions {
+  .dialog-actions {
     display: inline-flex;
     gap: var(--space-2);
     margin-top: var(--space-4);
@@ -319,7 +319,7 @@
   .pill:hover { background: var(--color-surface-hover); }
 
   @media (max-width: 640px) {
-    .modal { padding: var(--space-5); }
+    .dialog { padding: var(--space-5); }
     .pill { min-height: 44px; }
   }
 </style>
@@ -337,9 +337,9 @@
       <!-- State: idle -->
       <div class="state-block">
         <div class="state-caption">State 1 — idle（検索ヒント）</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle1">
-            <h2 class="modal-title" id="pickTitle1">ノートを選択</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pickTitle1">
+            <h2 class="dialog-title" id="pickTitle1">ノートを選択</h2>
             <div class="field">
               <label for="pickInput1" class="sr-only">ノートタイトル</label>
               <input
@@ -354,7 +354,7 @@
               >
               <p class="field-status">タイトルの先頭一致でノートを検索できます</p>
             </div>
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill">キャンセル</button>
             </div>
           </div>
@@ -364,9 +364,9 @@
       <!-- State: loading -->
       <div class="state-block">
         <div class="state-caption">State 2 — loading（検索中）</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle2">
-            <h2 class="modal-title" id="pickTitle2">ノートを選択</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pickTitle2">
+            <h2 class="dialog-title" id="pickTitle2">ノートを選択</h2>
             <div class="field">
               <label for="pickInput2" class="sr-only">ノートタイトル</label>
               <input
@@ -381,7 +381,7 @@
               >
               <p class="field-status" aria-live="polite" aria-busy="true" data-status="loading">検索中…</p>
             </div>
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill">キャンセル</button>
             </div>
           </div>
@@ -391,9 +391,9 @@
       <!-- State: ready -->
       <div class="state-block">
         <div class="state-caption">State 3 — ready（結果 N 件）</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle3">
-            <h2 class="modal-title" id="pickTitle3">ノートを選択</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pickTitle3">
+            <h2 class="dialog-title" id="pickTitle3">ノートを選択</h2>
             <div class="field">
               <label for="pickInput3" class="sr-only">ノートタイトル</label>
               <input
@@ -424,7 +424,7 @@
                 </button>
               </div>
             </div>
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill">キャンセル</button>
             </div>
           </div>
@@ -434,9 +434,9 @@
       <!-- State: empty -->
       <div class="state-block">
         <div class="state-caption">State 4 — 空（該当なし）</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle4">
-            <h2 class="modal-title" id="pickTitle4">ノートを選択</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pickTitle4">
+            <h2 class="dialog-title" id="pickTitle4">ノートを選択</h2>
             <div class="field">
               <label for="pickInput4" class="sr-only">ノートタイトル</label>
               <input
@@ -451,7 +451,7 @@
               >
               <p class="field-status" aria-live="polite" data-status="ready">該当するノートが見つかりません。タイトルの先頭の文字を変えて検索してください</p>
             </div>
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill">キャンセル</button>
             </div>
           </div>
@@ -461,9 +461,9 @@
       <!-- State: error -->
       <div class="state-block">
         <div class="state-caption">State 5 — error</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickTitle5">
-            <h2 class="modal-title" id="pickTitle5">ノートを選択</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pickTitle5">
+            <h2 class="dialog-title" id="pickTitle5">ノートを選択</h2>
             <div class="field">
               <label for="pickInput5" class="sr-only">ノートタイトル</label>
               <input
@@ -478,7 +478,7 @@
               >
               <p class="field-status" aria-live="polite" role="alert" data-status="error">検索に失敗しました。時間をおいて再度お試しください</p>
             </div>
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill">キャンセル</button>
             </div>
           </div>

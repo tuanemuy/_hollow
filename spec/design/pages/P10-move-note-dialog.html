@@ -185,8 +185,8 @@
     letter-spacing: 0.06em;
   }
 
-  /* ===== Modal backdrop (P13 踏襲) ===== */
-  .modal-backdrop {
+  /* ===== Dialog backdrop (P13 踏襲) ===== */
+  .dialog-backdrop {
     position: relative;
     background: rgba(0,0,0,0.32);
     border-radius: var(--radius-lg);
@@ -197,7 +197,7 @@
     padding: var(--space-8) var(--space-5);
   }
 
-  .modal {
+  .dialog {
     background: var(--color-bg);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
@@ -210,7 +210,7 @@
     padding: var(--space-6);
   }
 
-  .modal-title {
+  .dialog-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-medium);
     letter-spacing: var(--tracking-tighter);
@@ -290,7 +290,7 @@
   }
 
   /* ===== Actions ===== */
-  .modal-actions {
+  .dialog-actions {
     display: inline-flex;
     gap: var(--space-2);
     margin-top: var(--space-4);
@@ -319,7 +319,7 @@
   .pill.surface[disabled]:hover { background: var(--color-surface); }
 
   @media (max-width: 640px) {
-    .modal { padding: var(--space-5); }
+    .dialog { padding: var(--space-5); }
     .pill { min-height: 44px; }
   }
 </style>
@@ -337,9 +337,9 @@
       <!-- State 1: single / normal -->
       <div class="state-block">
         <div class="state-caption">State 1 — 単体・通常</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moveTitle1">
-            <h2 class="modal-title" id="moveTitle1">ノートを移動</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="moveTitle1">
+            <h2 class="dialog-title" id="moveTitle1">ノートを移動</h2>
 
             <div class="field">
               <label class="field-label" for="moveTarget1" id="moveTargetLabel1">移動先ディレクトリ</label>
@@ -356,7 +356,7 @@
               <p class="field-status" aria-live="polite">12 件</p>
             </div>
 
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill surface">キャンセル</button>
               <button type="submit" class="pill primary" data-primary>移動</button>
             </div>
@@ -367,9 +367,9 @@
       <!-- State 2: multiple + batch failure -->
       <div class="state-block">
         <div class="state-caption">State 2 — 複数件 + batch 失敗</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moveTitle2">
-            <h2 class="modal-title" id="moveTitle2">5 件のノートを移動</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="moveTitle2">
+            <h2 class="dialog-title" id="moveTitle2">5 件のノートを移動</h2>
 
             <div class="field">
               <label class="field-label" for="moveTarget2" id="moveTargetLabel2">移動先ディレクトリ</label>
@@ -404,7 +404,7 @@
 
             <p class="form-error" role="alert">3 件成功、2 件失敗</p>
 
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill surface">キャンセル</button>
               <button type="submit" class="pill primary" data-primary>移動</button>
             </div>
@@ -415,9 +415,9 @@
       <!-- State 3 (補足): loading -->
       <div class="state-block">
         <div class="state-caption">補足 — 送信中 (closable=false)</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moveTitle3">
-            <h2 class="modal-title" id="moveTitle3">5 件のノートを移動</h2>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="moveTitle3">
+            <h2 class="dialog-title" id="moveTitle3">5 件のノートを移動</h2>
 
             <div class="field">
               <label class="field-label" for="moveTarget3" id="moveTargetLabel3">移動先ディレクトリ</label>
@@ -438,7 +438,7 @@
               <p class="field-status" aria-live="polite">12 件</p>
             </div>
 
-            <div class="modal-actions">
+            <div class="dialog-actions">
               <button type="button" class="pill surface" disabled>キャンセル</button>
               <button type="submit" class="pill primary" data-primary disabled>移動中...</button>
             </div>

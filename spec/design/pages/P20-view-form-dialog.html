@@ -93,7 +93,6 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
     --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     /* Motion */
@@ -137,7 +136,7 @@
     font-size: var(--text-base);
     line-height: var(--leading-normal);
   }
-  .modal-title { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+  .dialog-title { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
   .sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -169,7 +168,7 @@
     width: min(480px, 100%);
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
   }
   .state-caption {
     font-size: var(--text-xs);
@@ -290,7 +289,7 @@
 <h1>P20 — ビュー作成/編集ダイアログの 2 ステート</h1>
 <p class="lead">
   保存ビューのフル設定フォーム（名前・公開範囲・ディレクトリ・タグ・キーワード・期間・公開状態・表示モード・ソート）。
-  フィールドが多いため modal-body は縦スクロール（<code>overflow-y:auto + max-height:90vh</code>）。
+  フィールドが多いためダイアログ本体は縦スクロール（<code>overflow-y:auto + max-height:90vh</code>）。
   create と edit の差分は、タイトル文言・公開範囲ラジオの read-only 化（edit では作成後に変更不可）・
   primary ボタン文言（作成 / 保存）。
 </p>
@@ -300,7 +299,7 @@
   <!-- ===== State 1: create（新しいビュー） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="vfTitle1">
     <div class="state-caption">State 1 — create</div>
-    <h2 class="dialog-title modal-title" id="vfTitle1">新しいビュー</h2>
+    <h2 class="dialog-title" id="vfTitle1">新しいビュー</h2>
 
     <div class="field">
       <label class="field-label" for="vf1-name">名前</label>
@@ -406,7 +405,7 @@
   <!-- ===== State 2: edit（ビューを編集 / 公開範囲 read-only + name error） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="vfTitle2">
     <div class="state-caption">State 2 — edit（公開範囲 read-only）</div>
-    <h2 class="dialog-title modal-title" id="vfTitle2">ビューを編集</h2>
+    <h2 class="dialog-title" id="vfTitle2">ビューを編集</h2>
 
     <div class="field">
       <label class="field-label" for="vf2-name">名前</label>

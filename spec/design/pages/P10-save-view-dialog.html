@@ -184,8 +184,8 @@
     letter-spacing: 0.06em;
   }
 
-  /* ===== Modal backdrop (P13 踏襲) ===== */
-  .modal-backdrop {
+  /* ===== Dialog backdrop (P13 踏襲) ===== */
+  .dialog-backdrop {
     position: relative;
     background: rgba(0,0,0,0.32);
     border-radius: var(--radius-lg);
@@ -195,7 +195,7 @@
     padding: var(--space-8) var(--space-5);
   }
 
-  .modal {
+  .dialog {
     background: var(--color-bg);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
@@ -208,7 +208,7 @@
     padding: var(--space-6);
   }
 
-  .modal-title {
+  .dialog-title {
     font-size: var(--text-lg);
     font-weight: var(--weight-medium);
     letter-spacing: var(--tracking-tighter);
@@ -264,7 +264,7 @@
   }
 
   /* ===== Actions ===== */
-  .modal-actions {
+  .dialog-actions {
     display: inline-flex;
     gap: var(--space-2);
     margin-top: var(--space-4);
@@ -293,7 +293,7 @@
   .pill.surface[disabled]:hover { background: var(--color-surface); }
 
   @media (max-width: 640px) {
-    .modal { padding: var(--space-5); }
+    .dialog { padding: var(--space-5); }
     .pill { min-height: 44px; }
   }
 </style>
@@ -311,10 +311,10 @@
       <!-- State 1: idle -->
       <div class="state-block">
         <div class="state-caption">State 1 — 通常</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveTitle1">
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle1">
             <form>
-              <h2 class="modal-title" id="saveTitle1">現在のフィルタをビューとして保存</h2>
+              <h2 class="dialog-title" id="saveTitle1">現在のフィルタをビューとして保存</h2>
 
               <div class="field">
                 <label class="field-label" for="saveName1">名前</label>
@@ -333,7 +333,7 @@
                 </label>
               </fieldset>
 
-              <div class="modal-actions">
+              <div class="dialog-actions">
                 <button type="button" class="pill surface">キャンセル</button>
                 <button type="submit" class="pill primary" data-primary disabled>保存</button>
               </div>
@@ -345,10 +345,10 @@
       <!-- State 2: submitting -->
       <div class="state-block">
         <div class="state-caption">State 2 — 送信中 (closable=false)</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveTitle2">
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle2">
             <form>
-              <h2 class="modal-title" id="saveTitle2">現在のフィルタをビューとして保存</h2>
+              <h2 class="dialog-title" id="saveTitle2">現在のフィルタをビューとして保存</h2>
 
               <div class="field">
                 <label class="field-label" for="saveName2">名前</label>
@@ -367,7 +367,7 @@
                 </label>
               </fieldset>
 
-              <div class="modal-actions">
+              <div class="dialog-actions">
                 <button type="button" class="pill surface" disabled>キャンセル</button>
                 <button type="submit" class="pill primary" data-primary disabled>保存中...</button>
               </div>
@@ -379,10 +379,10 @@
       <!-- State 3: error -->
       <div class="state-block">
         <div class="state-caption">State 3 — エラー</div>
-        <div class="modal-backdrop">
-          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveTitle3">
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle3">
             <form>
-              <h2 class="modal-title" id="saveTitle3">現在のフィルタをビューとして保存</h2>
+              <h2 class="dialog-title" id="saveTitle3">現在のフィルタをビューとして保存</h2>
 
               <div class="field">
                 <label class="field-label" for="saveName3">名前</label>
@@ -403,7 +403,7 @@
 
               <p class="form-error" role="alert">同じ名前のビューがすでに存在します</p>
 
-              <div class="modal-actions">
+              <div class="dialog-actions">
                 <button type="button" class="pill surface">キャンセル</button>
                 <button type="submit" class="pill primary" data-primary>保存</button>
               </div>

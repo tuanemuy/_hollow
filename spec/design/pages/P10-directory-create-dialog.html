@@ -130,6 +130,9 @@
     --header-bg: rgba(255,255,255,0.85);
     --header-blur: saturate(180%) blur(20px);
 
+    /* State */
+    --opacity-disabled: 0.55;
+
     /* Breakpoints (参照用) */
     --bp-sm: 640px;
     --bp-md: 768px;
@@ -156,7 +159,7 @@
   @media (max-width: 639px) {
     button, .pill-btn, [role="button"] { min-height: 44px; }
   }
-  .modal-title {
+  .dialog-title {
     overflow-wrap: anywhere;
     word-break: break-word;
     min-width: 0;
@@ -167,8 +170,8 @@
     border-radius: inherit;
   }
 
-  /* ===== Modal backdrop ===== */
-  .modal-backdrop {
+  /* ===== Dialog backdrop ===== */
+  .dialog-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.32);
@@ -181,7 +184,8 @@
     padding: var(--space-5);
   }
 
-  .modal {
+  /* ===== Dialog panel (フラット: header/body/footer ラッパなし) ===== */
+  .dialog {
     background: var(--color-bg);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
@@ -189,36 +193,16 @@
     max-height: calc(100vh - 40px);
     overflow-y: auto;
     position: relative;
+    padding: var(--space-6);
   }
 
-  .modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: 22px 24px 12px;
-  }
-  .modal-title {
+  .dialog-title {
     font-size: var(--text-xl);
     font-weight: var(--weight-semibold);
     letter-spacing: var(--tracking-tighter);
     color: var(--color-ink);
-    padding-right: var(--space-2);
+    margin-bottom: var(--space-4);
   }
-  .modal-close {
-    width: 32px; height: 32px;
-    border-radius: var(--radius-full);
-    background: var(--color-surface);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-ink-secondary);
-    transition: var(--transition-bg);
-    flex-shrink: 0;
-  }
-  .modal-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
-
-  .modal-body { padding: 4px 24px 8px; }
 
   /* ===== Form field (fieldControl 相当) ===== */
   .destination {
@@ -251,7 +235,7 @@
   }
   .field-control::placeholder { color: var(--color-ink-tertiary); }
   .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
-  .field-control:disabled { opacity: 0.5; cursor: not-allowed; }
+  .field-control:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
   .form-error {
     color: var(--color-error);
@@ -259,14 +243,14 @@
     margin-top: var(--space-2);
   }
 
-  /* ===== Footer actions ===== */
-  .modal-footer {
+  /* ===== Actions row (form 内側) ===== */
+  .dialog-actions {
     display: inline-flex;
     width: 100%;
     justify-content: flex-end;
     align-items: center;
     gap: var(--space-2);
-    padding: 16px 24px 20px;
+    margin-top: var(--space-4);
   }
   .pill-btn {
     height: 36px;
@@ -285,7 +269,7 @@
   .pill-btn:hover { background: var(--color-surface-hover); }
   .pill-btn.primary { background: var(--color-accent); color: #fff; }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
-  .pill-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pill-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
   .pill-btn.primary:disabled:hover { background: var(--color-accent); }
 
   /* ===== Stacked dialog states (モック上の見本) ===== */
@@ -305,26 +289,19 @@
   }
 
   @media (max-width: 640px) {
-    .modal-header { padding: 18px 20px 10px; }
-    .modal-body { padding: 4px 20px 8px; }
-    .modal-footer { padding: 14px 20px 18px; }
+    .dialog { padding: var(--space-5); }
   }
 </style>
 </head>
 <body>
 
 <!-- ===== Create directory dialog（既定: 空入力 → 作成 disabled） ===== -->
-<div class="modal-backdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+<div class="dialog-backdrop">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="createTitle">
 
-    <div class="modal-header">
-      <div class="modal-title" id="createTitle">ディレクトリを新規作成</div>
-      <button class="modal-close" aria-label="閉じる">
-        <span aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
-      </button>
-    </div>
+    <h2 class="dialog-title" id="createTitle">ディレクトリを新規作成</h2>
 
-    <form class="modal-body">
+    <form>
       <!-- parentName が渡されたときのみ表示。ルート作成時は非表示。 -->
       <p class="destination">作成先: Research</p>
 
@@ -332,13 +309,13 @@
         <label class="field-label" for="createName">ディレクトリ名</label>
         <input id="createName" class="field-control" type="text" placeholder="" autofocus aria-required="true">
       </div>
-    </form>
 
-    <div class="modal-footer">
-      <button type="button" class="pill-btn">キャンセル</button>
-      <!-- 空入力時は disabled -->
-      <button type="submit" class="pill-btn primary" disabled>作成</button>
-    </div>
+      <div class="dialog-actions">
+        <button type="button" class="pill-btn">キャンセル</button>
+        <!-- 空入力時は disabled -->
+        <button type="submit" class="pill-btn primary" disabled>作成</button>
+      </div>
+    </form>
 
   </div>
 </div>

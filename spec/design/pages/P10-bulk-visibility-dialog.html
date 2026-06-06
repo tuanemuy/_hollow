@@ -98,7 +98,6 @@
     --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
     --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-    --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
     --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
 
     /* Motion */
@@ -133,14 +132,14 @@
     box-shadow: var(--shadow-focus);
     border-radius: inherit;
   }
-  .modal-title {
+  .dialog-title {
     overflow-wrap: anywhere;
     word-break: break-word;
     min-width: 0;
   }
 
   /* ===== Backdrop ===== */
-  .modal-backdrop {
+  .dialog-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
@@ -162,7 +161,7 @@
     width: min(480px, 100%);
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
   }
   .dialog-title {
     font-size: var(--text-lg);
@@ -259,10 +258,10 @@
 <body>
 
 <!-- ===== 一括公開設定変更ダイアログ ===== -->
-<div class="modal-backdrop">
+<div class="dialog-backdrop">
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bvTitle">
 
-    <h2 class="dialog-title modal-title" id="bvTitle">3 件のノートの公開設定を変更</h2>
+    <h2 class="dialog-title" id="bvTitle">3 件のノートの公開設定を変更</h2>
 
     <fieldset class="field">
       <legend class="field-label">新しい公開状態</legend>
@@ -297,9 +296,9 @@
      - 100件超過時: 「一度に変更できるのは 100 件までです」
      - 部分失敗時:   「N 件成功、M 件失敗」
      下のショーケースは batchError とアイドル時のボタンを見せるための別表示。 -->
-<div class="modal-backdrop" style="position:static; background:transparent; padding:40px 16px; display:block;">
+<div class="dialog-backdrop" style="position:static; background:transparent; padding:40px 16px; display:block;">
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bvTitle2" style="margin:0 auto;">
-    <h2 class="dialog-title modal-title" id="bvTitle2">120 件のノートの公開設定を変更</h2>
+    <h2 class="dialog-title" id="bvTitle2">120 件のノートの公開設定を変更</h2>
 
     <fieldset class="field">
       <legend class="field-label">新しい公開状態</legend>

@@ -119,6 +119,9 @@
     --transition-bg: background-color var(--duration-fast) var(--ease-standard);
     --transition-color: color var(--duration-fast) var(--ease-standard);
 
+    /* State */
+    --opacity-disabled: 0.55;
+
     /* Breakpoints (参照用) */
     --bp-sm: 640px;
     --bp-md: 768px;
@@ -150,7 +153,7 @@
       min-height: 44px;
     }
   }
-  .modal-title {
+  .dialog-title {
     overflow-wrap: anywhere;
     word-break: break-word;
     min-width: 0;
@@ -187,8 +190,8 @@
   .bg-tag-name { font-size: var(--text-base); color: var(--color-ink); }
   .bg-tag-count { font-size: var(--text-sm); color: var(--color-ink-tertiary); margin-left: auto; }
 
-  /* ===== Modal (P13 シェル踏襲) ===== */
-  .modal-backdrop {
+  /* ===== Dialog (P13 シェル踏襲) ===== */
+  .dialog-backdrop {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.32);
@@ -200,7 +203,7 @@
     justify-content: center;
     padding: var(--space-5);
   }
-  .modal {
+  .dialog {
     background: var(--color-bg);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
@@ -297,7 +300,7 @@
   .pill-btn:hover { background: var(--color-surface-hover); }
   .pill-btn.primary { background: var(--color-accent); color: #fff; }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
-  .pill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pill-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
   /* デモ用: 2 つの状態を縦に並べる切り替え見出し */
   .state-caption {
@@ -316,7 +319,7 @@
   }
 
   @media (max-width: 640px) {
-    .modal { padding: var(--space-5); }
+    .dialog { padding: var(--space-5); }
   }
 </style>
 </head>
@@ -332,8 +335,8 @@
 </div>
 
 <!-- ===== タグ統合モーダル（統合先選択済み = 説明文 + 通常フッター） ===== -->
-<div class="modal-backdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
+<div class="dialog-backdrop">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="mergeTitle">
     <form aria-busy="false">
       <h2 id="mergeTitle" class="dialog-title">タグを統合</h2>
 
@@ -365,8 +368,8 @@
      実装では同一モーダルが isPending && sourceNoteCount > 0 のときに
      この見た目になる。比較用に下部へ並べる（単一ファイルで両状態を確認可能）。 -->
 <div style="height: 100vh;"></div>
-<div class="modal-backdrop" style="position: static; min-height: 100vh; background: rgba(0,0,0,0.32);">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mergeTitle2">
+<div class="dialog-backdrop" style="position: static; min-height: 100vh; background: rgba(0,0,0,0.32);">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="mergeTitle2">
     <form aria-busy="true">
       <h2 id="mergeTitle2" class="dialog-title">タグを統合</h2>
 
