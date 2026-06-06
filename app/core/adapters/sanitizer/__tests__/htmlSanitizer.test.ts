@@ -1,10 +1,27 @@
+import { ELEMENT_NODE, type Node, parse } from "ultrahtml";
 import { describe, expect, it } from "vitest";
+import type { ContentHtml as ContentHtmlType } from "@/core/domain/note/valueObject";
 import { ContentHtml } from "@/core/domain/note/valueObject";
 import { UltrahtmlHtmlSanitizer } from "../htmlSanitizer";
 
 const sanitizer = new UltrahtmlHtmlSanitizer();
 const FULL = { allowMedia: true, allowInternalLinks: true } as const;
 const RESTRICTED = { allowMedia: false, allowInternalLinks: false } as const;
+
+// Re-parse sanitised output the way a browser would and collect every
+// element's live attribute names. This proves an injected handler did not
+// survive as a real attribute (vs. sitting inside an escaped value).
+const liveAttrNames = (html: ContentHtmlType): string[] => {
+  const names: string[] = [];
+  const visit = (node: Node): void => {
+    if (node.type === ELEMENT_NODE) {
+      names.push(...Object.keys(node.attributes));
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(parse(html as string));
+  return names;
+};
 
 describe("UltrahtmlHtmlSanitizer", () => {
   describe("tag allow-list", () => {
@@ -61,7 +78,13 @@ describe("UltrahtmlHtmlSanitizer", () => {
       );
       expect(html).not.toContain("onclick");
       expect(html).toContain("<p>x</p>");
-      expect(removed.some((r) => r.tag === "p")).toBe(true);
+      // `on*` is not in any allowlist, so it is reported as a disallowed
+      // attribute (the dedicated event-handler branch is only reached if
+      // the allowlist is ever widened to include an `on*` name).
+      expect(removed).toContainEqual({
+        tag: "p",
+        reason: "disallowed attribute: onclick",
+      });
     });
 
     it("strips disallowed attributes but keeps the tag", () => {
@@ -100,11 +123,15 @@ describe("UltrahtmlHtmlSanitizer", () => {
     });
 
     it("removes data: image sources", () => {
-      const { html } = sanitizer.sanitize(
+      const { html, removed } = sanitizer.sanitize(
         '<img src="data:image/png;base64,iVB" alt="">',
         FULL,
       );
       expect(html).not.toContain("data:image/png");
+      expect(removed).toContainEqual({
+        tag: "img",
+        reason: "unsafe URL scheme: src",
+      });
     });
 
     it("keeps http/https/mailto and relative URLs", () => {
@@ -115,6 +142,47 @@ describe("UltrahtmlHtmlSanitizer", () => {
       expect(html).toContain('href="https://x.com"');
       expect(html).toContain('href="mailto:a@b.c"');
       expect(html).toContain('href="/rel"');
+    });
+  });
+
+  describe("attribute-value breakout (renderSync does not escape)", () => {
+    const hasHandlerAttr = (html: ContentHtmlType): boolean =>
+      liveAttrNames(html).some((n) => n.startsWith("on"));
+
+    it("escapes a raw quote in an attribute value so it cannot inject a handler", () => {
+      const { html } = sanitizer.sanitize(
+        `<img src="/media/x" alt='x"onerror="alert(1)'>`,
+        FULL,
+      );
+      expect(hasHandlerAttr(html)).toBe(false);
+      expect(html).toContain("&quot;");
+    });
+
+    it("neutralises a single-quoted src breakout", () => {
+      const { html } = sanitizer.sanitize(
+        `<img src='/x" onerror="alert(1)'>`,
+        FULL,
+      );
+      expect(hasHandlerAttr(html)).toBe(false);
+    });
+
+    it("neutralises a class-attribute breakout on a block element", () => {
+      const { html } = sanitizer.sanitize(
+        `<div class='a"onmouseover="alert(1)'>t</div>`,
+        FULL,
+      );
+      expect(hasHandlerAttr(html)).toBe(false);
+    });
+
+    it("does not double-encode existing entities in attributes or text", () => {
+      const { html } = sanitizer.sanitize(
+        '<a href="https://x.com" title="he &quot;said&quot;">Tom &amp; Jerry</a>',
+        FULL,
+      );
+      expect(html).toContain('title="he &quot;said&quot;"');
+      expect(html).toContain("Tom &amp; Jerry");
+      expect(html).not.toContain("&amp;quot;");
+      expect(html).not.toContain("&amp;amp;");
     });
   });
 

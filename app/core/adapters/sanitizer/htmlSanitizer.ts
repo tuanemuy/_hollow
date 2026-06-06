@@ -59,14 +59,22 @@ const decodeEntities = (raw: string): string =>
 // - URL schemes are restricted to a fixed allowlist (`http`, `https`,
 //   `mailto`, plus relative paths) — ultrahtml does not validate URLs.
 // - `on*` event-handler attributes are stripped unconditionally.
-// - Disallowed elements are dropped subtree-and-all. `renderSync` does
-//   not re-escape text, and raw-text elements (`<script>` / `<style>`)
-//   expose their body as a text child, so unwrapping a disallowed node
-//   could re-emit live markup. Dropping the whole subtree fails closed.
-//   Pipeline inputs (markdown-it with `html:false`, TipTap) never emit
-//   disallowed tags, so no legitimate content is lost.
-// - `[[...]]` placeholders live in text content and pass through
-//   untouched when `policy.allowInternalLinks` is true.
+// - `renderSync` re-emits attribute values and text verbatim — it does
+//   NOT re-escape. A raw `"` in an attribute value would break out of
+//   the quoted attribute and inject a live handler, so we escape `"` in
+//   attribute values and `<` / `>` in text ourselves. `&` is left as-is
+//   because ultrahtml keeps entities literal (`&amp;` stays `&amp;`),
+//   so escaping it would double-encode markdown-it output.
+// - Disallowed elements are dropped subtree-and-all. Raw-text elements
+//   (`<script>` / `<style>`) expose their body as a text child, so
+//   unwrapping a disallowed node could re-emit live markup. Dropping the
+//   whole subtree fails closed. Pipeline inputs (markdown-it with
+//   `html:false`, TipTap) never emit disallowed tags, so no legitimate
+//   content is lost.
+// - `[[...]]` placeholders live in text content and pass through as
+//   plain text. The policy flag `allowInternalLinks` is advisory only;
+//   placeholders are never stripped here regardless of its value (the
+//   link-extraction pass downstream owns that distinction).
 
 type AttrAllowlist = ReadonlySet<string>;
 
@@ -179,6 +187,15 @@ const isSafeUrl = (raw: string): boolean => {
   return SAFE_URL_SCHEMES.has(scheme);
 };
 
+// `renderSync` does not escape, so we escape just enough to stop a value
+// breaking out of its context. `&` is intentionally untouched (ultrahtml
+// keeps entities literal; escaping it would double-encode).
+const escapeAttrValue = (value: string): string =>
+  value.replace(/"/g, "&quot;");
+
+const escapeTextValue = (value: string): string =>
+  value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 const sanitizeAttributes = (
   node: ElementNode,
   removed: SanitizeRemoval[],
@@ -202,7 +219,7 @@ const sanitizeAttributes = (
       removed.push({ tag: node.name, reason: `unsafe URL scheme: ${name}` });
       continue;
     }
-    clean[name] = value;
+    clean[name] = escapeAttrValue(value);
   }
   return clean;
 };
@@ -215,7 +232,7 @@ const sanitizeChildren = (
   const out: Node[] = [];
   for (const node of nodes) {
     if (node.type === TEXT_NODE) {
-      out.push(node);
+      out.push({ ...node, value: escapeTextValue(node.value) });
       continue;
     }
     if (node.type === COMMENT_NODE || node.type === DOCTYPE_NODE) {
@@ -226,9 +243,11 @@ const sanitizeChildren = (
         removed.push({ tag: node.name, reason: "disallowed tag" });
         continue;
       }
-      node.attributes = sanitizeAttributes(node, removed);
-      node.children = sanitizeChildren(node.children, policy, removed);
-      out.push(node);
+      out.push({
+        ...node,
+        attributes: sanitizeAttributes(node, removed),
+        children: sanitizeChildren(node.children, policy, removed),
+      });
     }
   }
   return out;
@@ -255,9 +274,12 @@ class UltrahtmlHtmlSanitizer implements HtmlSanitizer {
     try {
       const removed: SanitizeRemoval[] = [];
       const root = parse(rawHtml) as Node & { children: Node[] };
-      root.children = sanitizeChildren(root.children, policy, removed);
+      const sanitized = {
+        ...root,
+        children: sanitizeChildren(root.children, policy, removed),
+      };
       return {
-        html: ContentHtml.create(renderSync(root)),
+        html: ContentHtml.create(renderSync(sanitized)),
         removed,
       };
     } catch (cause) {

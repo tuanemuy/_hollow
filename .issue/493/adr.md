@@ -169,3 +169,23 @@ markdown-it 一式（+ `entities`/`uc.micro`/`linkify-it`/`mdurl`/`punycode.js`�
 ### Consequences
 - 良い点: バンドル破綻を実装着手前に検出。レビュー時にサイズ増を数値で判断できる。
 - トレードオフ: PoC の手間。ただし Workers 制約下では必須の確認。
+
+---
+
+## ADR-009: `renderSync` の非エスケープに対し属性値・テキストを自前エスケープする（XSS 防御）
+
+### Status
+Accepted（PR #523 レビュー B-001 対応）
+
+### Context
+ultrahtml の `renderSync` は属性値・テキストを verbatim 出力し再エスケープしない。サニタイザは `parse` 済みツリーの属性マップ／テキストに対して allowlist 検査を行うため、属性値に埋め込まれた生 `"` が serialize 時に属性を閉じて `onerror=...` 等のライブハンドラを注入できてしまう（属性ブレイクアウト型ストアド XSS）。HTML アップロード取り込み経路（`runIngestionJob.ts` の `kind === "html"`）で attacker 制御の生 HTML が markdown-it を経由せず直接 `sanitize()` に入るため到達可能。旧（自作）サニタイザは属性値・テキストを escape しており、本置換が導入した回帰だった。
+
+### Decision
+- 属性値: 生 `"` → `&quot;`（`escapeAttrValue`）。これだけでブレイクアウトを塞げる（`"` が唯一の閉じ文字）。
+- テキスト: 生 `<` / `>` → `&lt;` / `&gt;`（`escapeTextValue`）。パーサ差分による mXSS 余地を塞ぐ。
+- **`&` は escape しない**: ultrahtml は `parse` でエンティティを decode せず literal 保持する（`&amp;` は `&amp;` のまま）。`&` を escape すると markdown-it 出力の既存エンティティを二重エンコードし、ユーザーに `&amp;` が可視化される。生 `&` は属性／テキストいずれでもブレイクアウトしないため escape 不要。
+- 回帰テスト: 出力を ultrahtml で再パースし、live な `on*` 属性が存在しないことを検証（エスケープ済み値の中に文字列 `onerror=` が残っても属性ではないことを正確に判定）。
+
+### Consequences
+- 良い点: 属性ブレイクアウト XSS を閉塞しつつ、既存エンティティの二重エンコードを回避（旧実装の `&` 二重エンコード癖よりむしろ正確）。port 契約・media/wikilink 抽出は不変。
+- トレードオフ: `renderSync` に escape を委ねられず自前 escape 層を持つが、これは「URL/on* 防御は自前維持」という本 Issue の方針と一貫している。
