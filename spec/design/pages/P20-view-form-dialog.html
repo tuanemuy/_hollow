@@ -296,7 +296,6 @@
 
 <div class="grid">
 
-  <!-- ===== State 1: create（新しいビュー） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="vfTitle1">
     <div class="state-caption">State 1 — create</div>
     <h2 class="dialog-title" id="vfTitle1">新しいビュー</h2>
@@ -402,21 +401,19 @@
     </div>
   </div>
 
-  <!-- ===== State 2: edit（ビューを編集 / 公開範囲 read-only + name error） ===== -->
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="vfTitle2">
     <div class="state-caption">State 2 — edit（公開範囲 read-only）</div>
     <h2 class="dialog-title" id="vfTitle2">ビューを編集</h2>
 
     <div class="field">
       <label class="field-label" for="vf2-name">名前</label>
-      <!-- name field error の見本: aria-invalid + form-error -->
       <input id="vf2-name" type="text" class="field-control" maxlength="100" value="" aria-invalid="true">
       <p class="form-error" role="alert">名前を入力してください</p>
     </div>
 
     <fieldset class="field">
       <legend class="field-label">公開範囲</legend>
-      <!-- edit 時はラジオ disabled（updateSavedView が kind 変更非対応） -->
+      <!-- 公開範囲は作成後に変更不可（updateSavedView が kind 変更非対応） -->
       <label class="radio-row">
         <input type="radio" name="vf2-kind" checked disabled>
         個人用

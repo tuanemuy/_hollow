@@ -412,7 +412,7 @@
     浮遊を表現する（index.md §1）。あわせて適用済みチップ（▾＋×）と未適用ゴーストチップの見本も示す。
   </p>
 
-  <!-- ===== FilterBar チップ列 (基準: P10-home #497) ===== -->
+  <!-- ===== FilterBar チップ列 ===== -->
   <section class="demo-section">
     <div class="demo-label">FilterBar（チップ列）</div>
     <div class="filter-bar" aria-label="フィルタ">
@@ -428,14 +428,12 @@
     </div>
   </section>
 
-  <!-- ===== 2 つの Popover を開いた状態で並べる ===== -->
   <section class="demo-section">
     <div class="demo-label">開いた状態の Popover</div>
     <div class="popover-row">
 
       <!-- ① 期間 Popover: role="dialog" -->
       <div class="pop-anchor" style="min-height: 260px;">
-        <!-- トリガ（開いている = aria-expanded="true"、active chip 表示） -->
         <span class="filter-chip active">
           <button class="chip-trigger" type="button" aria-haspopup="dialog" aria-expanded="true" aria-controls="popDate">
             期間: 6/1–6/30
@@ -475,7 +473,6 @@
 
       <!-- ② 公開状態 Popover: role="menu" + menuitemradio -->
       <div class="pop-anchor" style="min-height: 260px;">
-        <!-- トリガ（開いている = aria-expanded="true"、active chip 表示） -->
         <span class="filter-chip active">
           <button class="chip-trigger" type="button" aria-haspopup="menu" aria-expanded="true" aria-controls="popVis">
             公開状態: 公開
@@ -514,11 +511,9 @@
     </p>
   </section>
 
-  <!-- ===== チップ状態の見本 ===== -->
   <section class="demo-section">
     <div class="demo-label">チップ状態の見本</div>
     <div class="filter-bar" aria-label="チップ見本" style="border-bottom: none;">
-      <!-- 適用済みチップ: ▾（トリガ）+ ×（解除） -->
       <span class="filter-chip active">
         <button class="chip-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
           期間: 6/1–6/30
@@ -534,7 +529,6 @@
         <button class="chip-remove" type="button" aria-label="公開状態フィルタを解除">×</button>
       </span>
 
-      <!-- 未適用ゴーストチップ: 破線枠 + ▾ -->
       <button class="filter-chip-ghost" type="button" aria-haspopup="dialog" aria-expanded="false">期間<span class="chip-caret" aria-hidden="true">▾</span></button>
       <button class="filter-chip-ghost" type="button" aria-haspopup="menu" aria-expanded="false">公開状態<span class="chip-caret" aria-hidden="true">▾</span></button>
     </div>

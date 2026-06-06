@@ -370,7 +370,6 @@
           placeholder="ディレクトリを検索"
           value="">
 
-        <!-- 件数 / 空メッセージ（aria-live="polite"） -->
         <p class="select-status" aria-live="polite">4 件</p>
 
         <!-- listbox: マッチがあるときのみ描画。深さに応じて padding-left でインデント。
@@ -396,7 +395,7 @@
 
       <div class="dialog-actions">
         <button type="button" class="pill-btn">キャンセル</button>
-        <!-- 移動先が選択されているので「移動」有効。未選択時は disabled。 -->
+        <!-- 移動先が未選択のときは disabled -->
         <button type="submit" class="pill-btn primary">移動</button>
       </div>
     </form>

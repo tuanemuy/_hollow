@@ -299,13 +299,12 @@
     <form>
       <div class="field">
         <label class="field-label" for="renameName">新しい名前</label>
-        <!-- 現在名を prefill -->
         <input id="renameName" class="field-control" type="text" value="Research" autofocus aria-required="true">
       </div>
 
       <div class="dialog-actions">
         <button type="button" class="pill-btn">キャンセル</button>
-        <!-- 名前が入っているので「保存」有効。空にすると disabled。 -->
+        <!-- 名前が空のときは disabled -->
         <button type="submit" class="pill-btn primary">保存</button>
       </div>
     </form>
