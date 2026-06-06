@@ -12,7 +12,7 @@
 ### 初回投入
 
 ```bash
-pnpm wrangler d1 execute tanstack-start-template-d1 --local --file .manual-test/2026-05-17/seed.sql
+pnpm wrangler d1 execute hollow-local-d1 --local --file .manual-test/2026-05-17/seed.sql
 ```
 
 ### 再投入（D4 プロトコル）

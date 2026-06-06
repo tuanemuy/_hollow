@@ -303,17 +303,14 @@ describe("consumer Worker — handleQueue", () => {
     const noteId = nextNoteId();
     const event = withId(makeTrashedDraft(noteId));
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-1",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-1",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -336,17 +333,14 @@ describe("consumer Worker — handleQueue", () => {
     const event = withId(makeTrashedDraft(noteId));
 
     // First delivery — stamps `processed_events`.
-    const firstBatch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-redeliver-1",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const firstBatch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-redeliver-1",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const firstCtx = createExecutionContext();
     await handleQueue(firstBatch, consumerEnv(), firstCtx);
     await getQueueResult(firstBatch, firstCtx);
@@ -361,17 +355,14 @@ describe("consumer Worker — handleQueue", () => {
 
     // Second delivery (queue redelivery) — must be acked, must not
     // overwrite the original stamp's timestamp.
-    const secondBatch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-redeliver-2",
-          timestamp: new Date(),
-          body: event,
-          attempts: 2,
-        },
-      ],
-    );
+    const secondBatch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-redeliver-2",
+        timestamp: new Date(),
+        body: event,
+        attempts: 2,
+      },
+    ]);
     const secondCtx = createExecutionContext();
     await handleQueue(secondBatch, consumerEnv(), secondCtx);
     const secondResult = await getQueueResult(secondBatch, secondCtx);
@@ -415,23 +406,20 @@ describe("consumer Worker — handleQueue retry path", () => {
       },
     );
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-ok",
-          timestamp: new Date(),
-          body: okEvent,
-          attempts: 1,
-        },
-        {
-          id: "msg-fail",
-          timestamp: new Date(),
-          body: failEvent,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-ok",
+        timestamp: new Date(),
+        body: okEvent,
+        attempts: 1,
+      },
+      {
+        id: "msg-fail",
+        timestamp: new Date(),
+        body: failEvent,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -472,17 +460,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
       aggregateId: jobId,
     };
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-ingestion-created",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-ingestion-created",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -526,17 +511,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
       aggregateId: jobId,
     };
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-export-requested",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-export-requested",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -564,17 +546,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
     const noteId = nextNoteId();
     const event = withId(makeTrashedDraft(noteId));
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-note-trashed",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-note-trashed",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -631,17 +610,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
       aggregateId: jobId,
     };
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-ingestion-retry",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-ingestion-retry",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -680,7 +656,7 @@ describe("consumer Worker — handleQueue dispatch", () => {
     // `structureToHtml`) to reach `previewing`. Stamp + ack.
     suggestMetadataSpy.mockResolvedValueOnce({ tags: [], aliases: [] });
     const redeliverBatch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
+      "hollow-local-events",
       [
         {
           id: "msg-ingestion-retry-2",
@@ -727,17 +703,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
     };
 
     // First delivery — runs dispatch and stamps.
-    const firstBatch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-dedup-1",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const firstBatch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-dedup-1",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const firstCtx = createExecutionContext();
     await handleQueue(firstBatch, consumerEnv(), firstCtx);
     await getQueueResult(firstBatch, firstCtx);
@@ -767,17 +740,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
       D1IdempotencyStore.prototype,
       "markProcessed",
     );
-    const secondBatch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-dedup-2",
-          timestamp: new Date(),
-          body: event,
-          attempts: 2,
-        },
-      ],
-    );
+    const secondBatch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-dedup-2",
+        timestamp: new Date(),
+        body: event,
+        attempts: 2,
+      },
+    ]);
     const secondCtx = createExecutionContext();
     await handleQueue(secondBatch, consumerEnv(), secondCtx);
     const secondResult = await getQueueResult(secondBatch, secondCtx);
@@ -828,17 +798,14 @@ describe("consumer Worker — handleQueue dispatch", () => {
       aggregateId: jobId,
     };
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: "msg-ingestion-r2-smoke",
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: "msg-ingestion-r2-smoke",
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     const result = await getQueueResult(batch, ctx);
@@ -957,17 +924,14 @@ describe("consumer Worker — note.* / publication.* dispatch (#145)", () => {
     msgId: string,
     event: DomainEvent,
   ): Promise<ReturnType<typeof getQueueResult>> {
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events",
-      [
-        {
-          id: msgId,
-          timestamp: new Date(),
-          body: event,
-          attempts: 1,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events", [
+      {
+        id: msgId,
+        timestamp: new Date(),
+        body: event,
+        attempts: 1,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleQueue(batch, consumerEnv(), ctx);
     return getQueueResult(batch, ctx);
@@ -1087,17 +1051,14 @@ describe("DLQ Worker — handleDlq", () => {
     const noteId = nextNoteId();
     const event = withId(makeTrashedDraft(noteId));
 
-    const batch = createMessageBatch<DomainEvent>(
-      "tanstack-start-template-events-dlq",
-      [
-        {
-          id: "dlq-msg-1",
-          timestamp: new Date(),
-          body: event,
-          attempts: 4,
-        },
-      ],
-    );
+    const batch = createMessageBatch<DomainEvent>("hollow-local-events-dlq", [
+      {
+        id: "dlq-msg-1",
+        timestamp: new Date(),
+        body: event,
+        attempts: 4,
+      },
+    ]);
     const ctx = createExecutionContext();
     await handleDlq(batch, dlqEnv(), ctx);
     const result = await getQueueResult(batch, ctx);

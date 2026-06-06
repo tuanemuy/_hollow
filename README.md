@@ -1,8 +1,8 @@
-# tanstack-start-template
+# hollow
 
-A reference template for building applications with **TanStack Start + React 19 (RSC)** on a **DDD / Hexagonal architecture** foundation, targeting **Cloudflare Workers + D1 + Queues**.
+hollow is a quiet, personal text archive — save, organize, and selectively publish your notes — built with **TanStack Start + React 19 (RSC)** on a **DDD / Hexagonal architecture** foundation, targeting **Cloudflare Workers + D1 + Queues**.
 
-The goal is to give you a worked example of:
+The codebase leans on:
 
 - file-based routing and server components as the default data-fetching path,
 - a strict inward dependency flow (`domain → application → adapters → presentation`),

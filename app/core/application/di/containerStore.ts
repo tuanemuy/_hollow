@@ -9,7 +9,7 @@ export type ContainerStore = Readonly<{
 }>;
 
 const STORE_SYMBOL: unique symbol = Symbol.for(
-  "@tanstack-start-template/container-store",
+  "@hollow/container-store",
 ) as never;
 
 type GlobalSlot = { [STORE_SYMBOL]?: ContainerStore };

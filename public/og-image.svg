@@ -2,6 +2,6 @@
   <rect width="1200" height="630" fill="#1a1a1a"/>
   <rect x="80" y="80" width="120" height="120" rx="26" fill="#ffffff"/>
   <text x="140" y="168" font-family="-apple-system, system-ui, sans-serif" font-size="76" font-weight="700" fill="#1a1a1a" text-anchor="middle">H</text>
-  <text x="80" y="380" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="700" fill="#ffffff">TanStack Start Template</text>
-  <text x="80" y="450" font-family="-apple-system, system-ui, sans-serif" font-size="32" font-weight="400" fill="#b0b0b0">Hexagonal-architecture starter</text>
+  <text x="80" y="380" font-family="-apple-system, system-ui, sans-serif" font-size="64" font-weight="700" fill="#ffffff">hollow</text>
+  <text x="80" y="450" font-family="-apple-system, system-ui, sans-serif" font-size="32" font-weight="400" fill="#b0b0b0">A quiet, personal text archive</text>
 </svg>
