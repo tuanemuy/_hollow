@@ -232,6 +232,12 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
   - 文言は「何が起きたか + 何をすればいいか」の 2 部構成。例: 「このファイル形式には対応していません。HTML / Markdown / Office / PDF / 画像 / 音声 形式でお試しください」。
   - 内部 stack / 原文 message / 内部 errorCode は **絶対に UI に出さない**（presentation 層の `redactForClient` で system/unknown を遮蔽、business code はマッピングテーブル経由のみ）。
 - **トースト基盤**: 現状はコンポーネント内 `aria-live` 領域で局所通知する。グローバルトーストはフォローアップ課題として保留。
+- **アラート（インラインの通知箱）の正準パターン**: ページ内に埋め込む注意喚起・案内・エラー表示は、単一の `.alert` パターンに統一する（旧 `.callout` / `.notice` / `.banner` を集約）。構造は **アイコン + 見出し（`.alert-title`）+ 本文（`.alert-body`）+ 薄いセマンティック背景** の「案D」。
+  - **配色**: 白地（`--color-bg`）+ セマンティックカラーのヘアライン枠（`color-mix(in oklab, var(--alert-accent) 30%, transparent)`）+ `--shadow-xs`。アイコンと見出しを `--alert-accent` で着色、本文は `--color-ink-secondary`。Apple Calm のため塗りつぶしは避け、白地 + 細枠で「浮かせず・うるさくせず」。
+  - **セマンティック**: `--alert-accent` 1 変数で切替。`.alert-info` / `.alert-success` / `.alert-warning` / `.alert-error`、modifier 無し = neutral 既定（`--color-accent` グレー）。**info は無彩色グレー**（`--color-info = var(--color-accent)`）を維持し、彩度の高い青は足さない。
+  - **アクセシビリティ**: 用途に応じ `role="alert"`（エラー・即時）/ `role="status"`（進行・案内）/ `role="note"`（補足）を付ける。
+  - **追従**: 実装の `app/components/auth/styles.ts` の `CALLOUT`（P03/P01b の旧称）は本パターンへ追従要（実装は別 Issue）。admin の監視キー見出し（P47）は識別子を mono で出すローカル変種を許容する。
+  - 参照モック: `spec/design/pages/P06`・`P03`・`P01b`・`P04`・`P44`・`P15`・`P13`・`P47`・`common-confirm-dialog`。
 
 ---
 

@@ -498,24 +498,30 @@
     margin-top: 4px;
   }
 
-  /* Banner */
-  .banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文 */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    margin-top: 8px;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-top: var(--space-2);
   }
-  .banner.info {
-    background: var(--color-accent-surface);
-    color: var(--color-accent-ink);
-  }
-  .banner.warning {
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-  }
-  .banner svg { flex-shrink: 0; margin-top: 2px; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body code { font-family: var(--font-mono); font-size: var(--text-xs); }
 
   @media (max-width: 640px) {
     .header { padding: 12px 16px; }
@@ -715,9 +721,12 @@
             </span>
           </label>
         </div>
-        <div class="banner info">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <div>選択中の 12 件は即時 DL 可能ですが、メディア埋め込みで容量が増えるため非同期ジョブを推奨します。完了通知はメールと <code style="font-family: var(--font-mono); font-size: var(--text-xs);">エクスポートジョブ一覧</code> に送られます。</div>
+        <div class="alert alert-info" role="note">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">非同期ジョブを推奨します</p>
+            <p class="alert-body">選択中の 12 件は即時 DL 可能ですが、メディア埋め込みで容量が増えるため非同期ジョブを推奨します。完了通知はメールと <code>エクスポートジョブ一覧</code> に送られます。</p>
+          </div>
         </div>
       </div>
 

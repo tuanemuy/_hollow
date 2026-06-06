@@ -260,34 +260,31 @@
   }
   .auth-subtitle a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-  /* Info / context callout。実装 CALLOUT / CALLOUT_ICON に合わせた neutral 配色
-     （bg-surface / text-ink-secondary / rounded-md / px-4 py-3 / icon=ink-tertiary / strong=ink / mb-6）。
-     accent-surface ベースの旧配色からニュートラルへ寄せた。 */
-  .callout {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文。
+     特権操作の注意喚起は neutral 既定（accent グレー）。実装 CALLOUT は本モックへ追従要（別Issue）。 */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    gap: var(--space-3);
     align-items: flex-start;
-    background: var(--color-surface);
-    color: var(--color-ink-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--text-sm);
-    line-height: var(--leading-normal);
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
     margin-bottom: var(--space-6);
   }
-  .callout svg { flex-shrink: 0; margin-top: 2px; color: var(--color-ink-tertiary); }
-  .callout strong {
-    color: var(--color-ink);
-    font-weight: var(--weight-semibold);
-  }
-  .callout a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
-  .callout code {
-    font-family: var(--font-mono);
-    background: rgba(255,255,255,0.55);
-    padding: 0 4px;
-    border-radius: var(--radius-xs);
-    font-size: 0.92em;
-  }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
 
   /* ===== Form ===== */
   .form { display: flex; flex-direction: column; gap: var(--space-5); }
@@ -461,12 +458,12 @@
       このインスタンスを管理する最初のアカウントを登録します。Setup Token は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
     </p>
 
-    <div class="callout">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-      <span>
-        <strong>このページは特権操作です。</strong>
-        Setup Token を知る運用者のみ作成できます。通常のサインアップは <a href="#">こちら</a> から。新規登録が停止中でもこのフォームは機能します。
-      </span>
+    <div class="alert" role="note">
+      <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>
+      <div class="alert-content">
+        <p class="alert-title">このページは特権操作です</p>
+        <p class="alert-body">Setup Token を知る運用者のみ作成できます。通常のサインアップは <a href="#">こちら</a> から。新規登録が停止中でもこのフォームは機能します。</p>
+      </div>
     </div>
 
     <form class="form" novalidate>

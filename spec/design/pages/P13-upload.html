@@ -487,27 +487,30 @@
     gap: 5px;
   }
 
-  /* ===== Error banner ===== */
-  .banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文 */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    border-radius: var(--radius-md);
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
     margin-bottom: var(--space-4);
-    font-size: var(--text-sm);
   }
-  .banner.error {
-    background: var(--color-error-surface);
-    color: var(--color-error);
-  }
-  .banner.warning {
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-  }
-  .banner svg { flex-shrink: 0; margin-top: 1px; }
-  .banner .title { font-weight: var(--weight-medium); margin-bottom: 2px; }
-  .banner .body { color: inherit; opacity: 0.85; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body code { font-family: var(--font-mono); font-size: var(--text-xs); }
 
   /* ===== Queue summary bar ===== */
   .action-bar {
@@ -956,18 +959,18 @@
     </div>
 
     <!-- Error banners -->
-    <div class="banner error">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div>
-        <div class="title">対応外の形式が含まれています</div>
-        <div class="body"><code style="font-family: var(--font-mono); font-size: var(--text-xs);">archive.zip</code> はアップロードできません。対応形式 (HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト) のみ取り込めます。</div>
+    <div class="alert alert-error" role="alert">
+      <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+      <div class="alert-content">
+        <p class="alert-title">対応外の形式が含まれています</p>
+        <p class="alert-body"><code>archive.zip</code> はアップロードできません。対応形式 (HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト) のみ取り込めます。</p>
       </div>
     </div>
-    <div class="banner warning">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <div>
-        <div class="title">サイズ超過のファイル</div>
-        <div class="body"><code style="font-family: var(--font-mono); font-size: var(--text-xs);">large-dataset.xlsx (72.4 MB)</code> は上限 50 MB を超えています。分割するか、ZIP を解凍せず個別にアップロードしてください。</div>
+    <div class="alert alert-warning" role="alert">
+      <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+      <div class="alert-content">
+        <p class="alert-title">サイズ超過のファイル</p>
+        <p class="alert-body"><code>large-dataset.xlsx (72.4 MB)</code> は上限 50 MB を超えています。分割するか、ZIP を解凍せず個別にアップロードしてください。</p>
       </div>
     </div>
 
