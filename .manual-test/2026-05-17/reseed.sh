@@ -68,9 +68,9 @@ EOF
 )
 
 echo "[reseed] wiping ${#USER_IDS[@]} seeded user IDs (${REMOTE_FLAG})…"
-pnpm wrangler d1 execute tanstack-start-template-d1 "${REMOTE_FLAG}" --command "${WIPE_SQL}" >/dev/null
+pnpm wrangler d1 execute hollow-local-d1 "${REMOTE_FLAG}" --command "${WIPE_SQL}" >/dev/null
 
 echo "[reseed] applying seed.sql…"
-pnpm wrangler d1 execute tanstack-start-template-d1 "${REMOTE_FLAG}" --file "${SEED_FILE}" >/dev/null
+pnpm wrangler d1 execute hollow-local-d1 "${REMOTE_FLAG}" --file "${SEED_FILE}" >/dev/null
 
 echo "[reseed] done."
