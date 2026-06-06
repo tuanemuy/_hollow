@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hollow Admin — ダッシュボード</title>
+<title>Hollow Admin — 利用状況</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -328,85 +328,21 @@
     margin-bottom: var(--space-8);
   }
 
-  /* ===== Buttons ===== */
-  .btn {
-    height: 36px;
-    padding: 0 16px;
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: var(--transition-bg);
-  }
-  .btn:hover { background: var(--color-surface-hover); }
-  .btn.primary { background: var(--color-accent); color: #fff; }
-  .btn.primary:hover { background: var(--color-accent-hover); }
-  .btn.primary:active { background: var(--color-accent-pressed); }
-  .btn.ghost { background: transparent; }
-  .btn.ghost:hover { background: var(--color-surface); }
-  .btn.destructive { background: transparent; color: var(--color-ink-secondary); }
-  .btn.destructive:hover { background: var(--color-error-surface); color: var(--color-error); }
-
-  /* ===== Banners ===== */
+  /* ===== Banners (alerts) ===== */
   .banner {
     border-radius: var(--radius-lg);
     padding: var(--space-4) var(--space-5);
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-3);
     font-size: var(--text-sm);
   }
-  .banner.warning {
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-  }
-  .banner.error {
-    background: var(--color-error-surface);
-    color: var(--color-error);
-  }
-  .banner-body { flex: 1; color: var(--color-ink); }
-  .banner-body strong { color: inherit; font-weight: var(--weight-semibold); display: block; margin-bottom: 2px; }
+  .banner.warning { background: var(--color-warning-surface); color: var(--color-warning); }
+  .banner.error { background: var(--color-error-surface); color: var(--color-error); }
+  .banner-body { flex: 1; min-width: 0; color: var(--color-ink); }
+  .banner-body strong { color: inherit; font-weight: var(--weight-semibold); display: block; margin-bottom: 2px; font-family: var(--font-mono); font-size: var(--text-xs); }
   .banner .icon { flex-shrink: 0; margin-top: 1px; }
-
-  /* Status banner */
-  .status-banners {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
-    margin-bottom: var(--space-8);
-  }
-  @media (min-width: 768px) {
-    .status-banners { grid-template-columns: 1fr 1fr; }
-  }
-  .status-banner {
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4) var(--space-5);
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    background: var(--color-bg);
-  }
-  .status-banner.degraded { background: var(--color-warning-surface); border-color: transparent; }
-  .status-dot {
-    width: 10px; height: 10px;
-    border-radius: var(--radius-full);
-    background: var(--color-success);
-    flex-shrink: 0;
-    box-shadow: 0 0 0 4px rgba(31,143,58,0.12);
-  }
-  .status-banner.degraded .status-dot {
-    background: var(--color-warning);
-    box-shadow: 0 0 0 4px rgba(168,88,11,0.12);
-  }
-  .status-banner-body { flex: 1; min-width: 0; }
-  .status-banner-title { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); }
-  .status-banner-meta { font-size: var(--text-xs); color: var(--color-ink-secondary); margin-top: 2px; }
 
   /* ===== Metric cards ===== */
   .metrics {
@@ -437,60 +373,23 @@
     color: var(--color-ink);
     margin-bottom: 2px;
   }
+  .metric-value.muted { color: var(--color-ink-tertiary); }
   .metric-sub {
     font-size: var(--text-xs);
     color: var(--color-ink-tertiary);
   }
-  .metric-sub .delta-positive { color: var(--color-success); }
-  .metric-sub .delta-negative { color: var(--color-error); }
 
   /* ===== Section ===== */
   .section { margin-bottom: var(--space-10); }
-  .section-header {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: var(--space-4);
-    gap: var(--space-3);
-  }
   .section-title {
     font-size: var(--text-xl);
     font-weight: var(--weight-semibold);
     letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-2);
   }
-  .section-link {
-    font-size: var(--text-sm);
-    color: var(--color-accent);
-  }
-  .section-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .section-desc { font-size: var(--text-sm); color: var(--color-ink-secondary); margin-bottom: var(--space-4); }
 
-  /* ===== Charts ===== */
-  .charts {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-  }
-  @media (min-width: 1024px) { .charts { grid-template-columns: 1fr 1fr; } }
-  .chart-card {
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-  }
-  .chart-card-header {
-    display: flex; justify-content: space-between; align-items: baseline;
-    margin-bottom: var(--space-4);
-  }
-  .chart-card-title {
-    font-size: var(--text-sm);
-    color: var(--color-ink-secondary);
-    font-weight: var(--weight-medium);
-  }
-  .chart-card-value {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-    letter-spacing: var(--tracking-tight);
-  }
-  .chart-svg { width: 100%; height: 140px; display: block; color: var(--color-accent); }
-
-  /* ===== Activity table ===== */
+  /* ===== Limits table ===== */
   .table-wrap {
     border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
@@ -518,7 +417,25 @@
   .table tbody tr { border-top: 1px solid var(--color-hairline); }
   .table tbody tr:first-child { border-top: none; }
   .table tbody tr:hover { background: var(--color-surface-elevated); }
-  .table td .meta { color: var(--color-ink-tertiary); font-size: var(--text-xs); }
+  .table .num {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+  .table thead th.num { text-align: right; }
+
+  /* ===== Registration policy ===== */
+  .panel {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    background: var(--color-bg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
   .tag {
     display: inline-flex;
     align-items: center;
@@ -529,13 +446,20 @@
     font-size: var(--text-xs);
     color: var(--color-ink-secondary);
     font-weight: var(--weight-medium);
+    white-space: nowrap;
   }
   .tag.success { background: var(--color-success-surface); color: var(--color-success); }
   .tag.warning { background: var(--color-warning-surface); color: var(--color-warning); }
-  .tag.error { background: var(--color-error-surface); color: var(--color-error); }
-  .tag.info { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .policy-note { font-size: var(--text-sm); color: var(--color-ink-secondary); }
+  .code {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: 1px 5px;
+    background: var(--color-surface);
+    border-radius: var(--radius-xs);
+  }
 
-  /* Mobile table -> cards */
+  /* Mobile table -> stacked rows */
   @media (max-width: 767px) {
     .table-wrap { border: none; border-radius: 0; }
     .table thead { display: none; }
@@ -547,10 +471,11 @@
       padding: var(--space-3);
     }
     .table td { padding: 4px 0; border: none; }
+    .table .num { text-align: left; }
     .table td::before {
       content: attr(data-label);
       display: inline-block;
-      width: 96px;
+      width: 132px;
       color: var(--color-ink-tertiary);
       font-size: var(--text-xs);
     }
@@ -594,151 +519,125 @@
 
 <nav class="admin-nav" aria-label="管理ナビゲーション">
   <div class="admin-nav-inner">
-    <a href="P40-admin-dashboard.html" class="active">ダッシュボード</a>
+    <a href="P40-admin-dashboard.html">ダッシュボード</a>
     <a href="P41-admin-llm.html">LLM 設定</a>
     <a href="P42-admin-prompts.html">プロンプト</a>
     <a href="P43-admin-tokens.html">デザイントークン</a>
     <a href="P44-admin-registration.html">登録制御</a>
     <a href="P45-admin-users.html">ユーザー</a>
-    <a href="P47-admin-metrics.html">利用状況</a>
+    <a href="P47-admin-metrics.html" class="active">利用状況</a>
     <a href="P46-admin-jobs.html">ジョブ監視</a>
   </div>
 </nav>
 
 <main class="main">
-  <h1 class="page-title">ダッシュボード</h1>
-  <p class="page-subtitle">Hollow インスタンス全体の状態</p>
+  <h1 class="page-title">利用状況</h1>
+  <p class="page-subtitle">インスタンス全体の利用量と、設定済みの上限値。</p>
 
-  <!-- アラートが無いときの既定表示（single status banner）。
-       alerts がある場合は banner.error / banner.warning を上に積む。 -->
-  <div class="status-banners">
-    <div class="status-banner">
-      <span class="status-dot" aria-hidden="true"></span>
-      <div class="status-banner-body">
-        <div class="status-banner-title">All systems operational</div>
-        <div class="status-banner-meta">重大アラートはありません</div>
-      </div>
-    </div>
-  </div>
+  <!-- 責務境界: P40 ダッシュボード=概況（ステータス・主要指標・直近アクティビティ・24h チャート）、
+       本画面 P47=詳細（利用量の実数・アラート全件・インスタンス上限・登録ポリシーの突き合わせ）。
+       両者は重複ではなく粒度の違いで役割分担する（spec/design/index.md §2.4）。
 
-  <section class="metrics" aria-label="主要メトリクス">
+       実装追従の差分（追従は #514）:
+       (1) 実装ヘッダーは検索・通知が未実装。§2.4 が SSOT として「維持」を宣言しているためモックは維持で描く。
+           シェル検索・通知の去就そのものの最終判断は #500 横断#7。
+       (2) インスタンス上限テーブルは admin の .table プリミティブを使い、狭幅では行を積層表示する。
+           実装 LimitsCard は overflow-x-auto の素テーブルでカード化しない。
+       実装 MetricsPage は各メトリクスが nullable で、取得失敗時は "—"（下記 muted）/「取得失敗」プレースホルダを出す。
+       アラートは alerts.length > 0 のときのみ section を描画する。 -->
+
+  <section class="metrics" aria-label="現在の利用量">
     <div class="metric-card">
       <div class="metric-label">ユーザー数</div>
       <div class="metric-value">1,284</div>
-      <div class="metric-sub">現在の登録数</div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">ストレージ消費</div>
+      <div class="metric-label">合計ストレージ</div>
       <div class="metric-value">132.2 GB</div>
-      <div class="metric-sub">R2 124.0 GB · DO 8.2 GB</div>
+      <div class="metric-sub">R2 124.0 GB / DO 8.2 GB</div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">当日アップロード</div>
+      <div class="metric-label">本日アップロード</div>
       <div class="metric-value">468</div>
-      <div class="metric-sub">件 / 24h</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">LLM 呼び出し (24h)</div>
       <div class="metric-value">6,310</div>
-      <div class="metric-sub">回 / 24h</div>
     </div>
   </section>
 
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">直近 24 時間</h2>
-      <a href="#" class="section-link">期間を変更</a>
-    </div>
-    <div class="charts">
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <div class="chart-card-title">アップロード数</div>
-          <div class="chart-card-value">468</div>
-        </div>
-        <svg class="chart-svg" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.18"/>
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <path d="M0,100 L40,90 L80,95 L120,80 L160,70 L200,72 L240,55 L280,60 L320,48 L360,55 L400,38 L440,40 L480,30 L520,42 L560,28 L600,32 L600,140 L0,140 Z" fill="url(#g1)"/>
-          <path d="M0,100 L40,90 L80,95 L120,80 L160,70 L200,72 L240,55 L280,60 L320,48 L360,55 L400,38 L440,40 L480,30 L520,42 L560,28 L600,32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
+  <section class="section" aria-label="アラート">
+    <h2 class="section-title">アラート</h2>
+    <p class="section-desc">しきい値を超えた / 注意が必要な項目。</p>
+    <div class="banner error">
+      <div class="banner-body">
+        <strong>storage_near_capacity</strong>
+        R2 ストレージが確保容量の 95% を超えています。容量の追加を検討してください。
       </div>
-      <div class="chart-card">
-        <div class="chart-card-header">
-          <div class="chart-card-title">LLM 呼び出し</div>
-          <div class="chart-card-value">6,310</div>
-        </div>
-        <svg class="chart-svg" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="g2" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.18"/>
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <path d="M0,80 L40,72 L80,75 L120,60 L160,65 L200,50 L240,58 L280,42 L320,48 L360,30 L400,42 L440,35 L480,50 L520,38 L560,45 L600,40 L600,140 L0,140 Z" fill="url(#g2)"/>
-          <path d="M0,80 L40,72 L80,75 L120,60 L160,65 L200,50 L240,58 L280,42 L320,48 L360,30 L400,42 L440,35 L480,50 L520,38 L560,45 L600,40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
+    </div>
+    <div class="banner warning">
+      <div class="banner-body">
+        <strong>upload_quota_high</strong>
+        本日のアップロード量がインスタンス上限の 82% に達しています。
       </div>
     </div>
   </section>
 
-  <section class="section">
-    <div class="section-header">
-      <h2 class="section-title">最近のアクティビティ</h2>
-      <a href="#" class="section-link">すべて見る</a>
-    </div>
+  <section class="section" aria-label="インスタンス上限">
+    <h2 class="section-title">インスタンス上限</h2>
+    <p class="section-desc">各種クォータ・ストレージ上限の現在値。</p>
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>時刻</th>
-            <th>種類</th>
-            <th>対象</th>
-            <th>詳細</th>
+            <th>項目</th>
+            <th class="num">値</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td data-label="時刻">14:28</td>
-            <td data-label="種類"><span class="tag info">新規ユーザー</span></td>
-            <td data-label="対象">@haru_morisaki</td>
-            <td data-label="詳細">メール確認完了 · ja</td>
+            <td data-label="項目">1 日あたりアップロード上限</td>
+            <td class="num" data-label="値">2.0 GB</td>
           </tr>
           <tr>
-            <td data-label="時刻">14:12</td>
-            <td data-label="種類"><span class="tag warning">大量アップロード</span></td>
-            <td data-label="対象">@k_okada</td>
-            <td data-label="詳細">128 ファイル / 2.4 GB を 5 分間で受信</td>
+            <td data-label="項目">1 取り込み最大サイズ</td>
+            <td class="num" data-label="値">50.0 MB</td>
           </tr>
           <tr>
-            <td data-label="時刻">13:48</td>
-            <td data-label="種類"><span class="tag error">ジョブ失敗</span></td>
-            <td data-label="対象">ingest-job#a4f29c</td>
-            <td data-label="詳細">LLM rate limit · 2 回リトライ後 DLQ へ</td>
+            <td data-label="項目">1 ノート最大サイズ</td>
+            <td class="num" data-label="値">5.0 MB</td>
           </tr>
           <tr>
-            <td data-label="時刻">12:05</td>
-            <td data-label="種類"><span class="tag">設定変更</span></td>
-            <td data-label="対象">登録制御</td>
-            <td data-label="詳細">公開 → 一時停止 (admin@hollow)</td>
+            <td data-label="項目">エクスポート成果物上限</td>
+            <td class="num" data-label="値">500.0 MB</td>
           </tr>
           <tr>
-            <td data-label="時刻">10:32</td>
-            <td data-label="種類"><span class="tag success">バックアップ完了</span></td>
-            <td data-label="対象">D1 / nightly</td>
-            <td data-label="詳細">23.1 MB · 4 分 12 秒</td>
+            <td data-label="項目">ノートあたり共有リンク上限</td>
+            <td class="num" data-label="値">10 件</td>
           </tr>
           <tr>
-            <td data-label="時刻">09:14</td>
-            <td data-label="種類"><span class="tag info">新規ユーザー</span></td>
-            <td data-label="対象">@yui.ishikawa</td>
-            <td data-label="詳細">メール確認完了 · ja</td>
+            <td data-label="項目">編集ロック TTL</td>
+            <td class="num" data-label="値">300 秒</td>
+          </tr>
+          <tr>
+            <td data-label="項目">ゴミ箱保持日数</td>
+            <td class="num" data-label="値">30 日</td>
+          </tr>
+          <tr>
+            <td data-label="項目">ノートあたり履歴保持件数</td>
+            <td class="num" data-label="値">50 件</td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <section class="section" aria-label="登録ポリシー">
+    <h2 class="section-title">登録ポリシー</h2>
+    <p class="section-desc">現在のサインアップ公開状態。<span class="code">/admin/registration</span> から変更できます。</p>
+    <div class="panel">
+      <span class="tag success">公開中</span>
+      <span class="policy-note">新規ユーザーのサインアップを受け付けています。</span>
     </div>
   </section>
 </main>
