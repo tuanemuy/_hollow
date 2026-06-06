@@ -143,6 +143,44 @@ describe("UltrahtmlHtmlSanitizer", () => {
       expect(html).toContain('href="mailto:a@b.c"');
       expect(html).toContain('href="/rel"');
     });
+
+    it("removes protocol-relative href (//host resolves to an external host)", () => {
+      const { html, removed } = sanitizer.sanitize(
+        '<a href="//evil.com/x">x</a>',
+        FULL,
+      );
+      expect(html).not.toContain("evil.com");
+      expect(removed).toContainEqual({
+        tag: "a",
+        reason: "unsafe URL scheme: href",
+      });
+    });
+
+    it("removes protocol-relative img src", () => {
+      const { html, removed } = sanitizer.sanitize(
+        '<img src="//evil.com/x" alt="">',
+        FULL,
+      );
+      expect(html).not.toContain("evil.com");
+      expect(removed).toContainEqual({
+        tag: "img",
+        reason: "unsafe URL scheme: src",
+      });
+    });
+
+    it("removes backslash variants browsers normalise to //", () => {
+      for (const href of ["/\\evil.com", "\\/evil.com", "\\\\evil.com"]) {
+        const { html, removed } = sanitizer.sanitize(
+          `<a href="${href}">x</a>`,
+          FULL,
+        );
+        expect(html).not.toContain("evil.com");
+        expect(removed).toContainEqual({
+          tag: "a",
+          reason: "unsafe URL scheme: href",
+        });
+      }
+    });
   });
 
   describe("attribute-value breakout (renderSync does not escape)", () => {
