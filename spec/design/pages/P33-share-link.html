@@ -282,14 +282,6 @@
     transition: background var(--duration-fast) var(--ease-standard);
   }
   .gate-submit:hover { background: var(--color-accent-hover); }
-  .gate-foot {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid var(--color-hairline);
-    font-size: 12px;
-    color: var(--color-ink-tertiary);
-    text-align: center;
-  }
 
   /* ===== Lockout banner ===== */
   .lockout {
@@ -508,10 +500,6 @@
       </div>
       <button class="gate-submit" type="submit">閲覧する</button>
     </form>
-
-    <div class="gate-foot">
-      パスワードはサーバー側でのみ検証され、保存されません。
-    </div>
   </div>
 </section>
 
@@ -619,9 +607,8 @@
     <h1 class="gate-title">リンクは無効です</h1>
     <p class="gate-sub">リンクが失効しているか、削除された可能性があります。</p>
     <!-- 実装(ShareLinkGate)は expired/gone 状態で「トップへ戻る」CTA を出さず、
-         アイコン+タイトル+サブ+foot のみ。CTA をモックに残すか実装に合わせて消すかは未決のため、モックでは残している。 -->
+         アイコン+タイトル+サブのみ。CTA をモックに残すか実装に合わせて消すかは未決のため、モックでは残している。 -->
     <a href="/" class="gate-submit" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">トップへ戻る</a>
-    <div class="gate-foot">パスワードはサーバー側でのみ検証され、保存されません。</div>
   </div>
 </section>
 
