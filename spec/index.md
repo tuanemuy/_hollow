@@ -16,7 +16,7 @@
 - [x] Phase 4: UI デザイン（design-flow）
   - [x] ドラフト 5 案 → 方向性「Apple Calm」決定
   - [x] デザイントークン定義
-  - [x] 全 34 画面 HTML
+  - [x] 全 35 画面 HTML
   - [x] レビュー（視覚 / critique / polish / audit）
 
 ## 成果物
@@ -57,7 +57,7 @@
 - [デザイン方針](./design/index.md)
 - [デザイントークン](./design/tokens.md)
 - ドラフト: [drafts/](./design/drafts/) — 5 方向性 × 2 画面（採用: draft-4 Apple Calm）
-- 画面デザイン: [pages/](./design/pages/) — 全 34 画面（P01 / P01b / P02-P07 / P10-P24 / P30-P34 / P40-P46）
+- 画面デザイン: [pages/](./design/pages/) — 全 35 画面（P01 / P01b / P02-P07 / P10-P24 / P30-P34 / P40-P47）
 - レビュー: [001](./design/review/001.md) / [002](./design/review/002.md)
 
 ### ADR
