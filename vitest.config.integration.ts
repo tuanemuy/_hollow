@@ -31,12 +31,12 @@ export default defineConfig({
         // `env.TEMP_FILES.put(...)` / `env.OBJECT_STORAGE.put(...)`.
         r2Buckets: ["TEMP_FILES", "OBJECT_STORAGE"],
         queueProducers: {
-          EVENTS_QUEUE: "tanstack-start-template-events",
+          EVENTS_QUEUE: "hollow-local-events",
           // Registered so `createMessageBatch("…-events-dlq", …)` is
           // recognised by the test harness when exercising the DLQ
           // consumer; the production DLQ Worker does not bind it as a
           // producer.
-          EVENTS_DLQ: "tanstack-start-template-events-dlq",
+          EVENTS_DLQ: "hollow-local-events-dlq",
         },
         // Mirror wrangler.toml so the DLQ routing wiring is the same
         // shape miniflare sees in production. Tests that go through
@@ -46,13 +46,13 @@ export default defineConfig({
         // queues would surface the same handler decision, and prevents
         // silent drift when wrangler.toml is tuned.
         queueConsumers: {
-          "tanstack-start-template-events": {
+          "hollow-local-events": {
             maxBatchSize: 25,
             maxBatchTimeout: 30,
             maxRetries: 3,
-            deadLetterQueue: "tanstack-start-template-events-dlq",
+            deadLetterQueue: "hollow-local-events-dlq",
           },
-          "tanstack-start-template-events-dlq": {
+          "hollow-local-events-dlq": {
             maxBatchSize: 25,
             maxBatchTimeout: 30,
             maxRetries: 1,
