@@ -1,0 +1,189 @@
+# 実装計画 — Issue #531: isSafeUrl が HTML エンティティ表記の URL を生値判定でバイパスされる
+
+**Issue:** #531
+**作成日:** 2026-06-06
+**複雑度:** 中〜大規模（セキュリティ判定の挙動変更・設計判断あり）
+
+---
+
+## 目的
+
+`HtmlSanitizer.isSafeUrl` が `href`/`src` の値を**デコードせず生のまま**判定しているため、HTML エンティティ表記でスキーム検査をバイパスできる脆弱性を塞ぐ。ブラウザは属性値を最終的にデコードして URL を解釈するため、サニタイザもブラウザの URL 解釈を近似してから判定する必要がある。
+
+実測でバイパス成立済みの攻撃（PR #529 ブランチで確認）:
+
+| 入力 `href` | デコード後（ブラウザ解釈） | 影響 |
+|---|---|---|
+| `&#47;&#47;evil.com` | `//evil.com` | プロトコル相対（open-redirect、#524 の再現） |
+| `&sol;&sol;evil.com` | `//evil.com` | 同上（`&sol;` は `/`、named entity） |
+| `&#106;avascript&#58;alert(1)` | `javascript:alert(1)` | **クリックで script 実行（XSS）** |
+
+## スコープ
+
+### 含まれるもの
+
+- `app/core/adapters/sanitizer/htmlSanitizer.ts` の `isSafeUrl` を「ブラウザの URL 解釈を近似してデコード・正規化した値」で判定するよう改修。
+- URL 安全判定専用のエンティティデコード＋正規化ヘルパの新設。
+- `app/core/adapters/sanitizer/__tests__/htmlSanitizer.test.ts` への攻撃ケース・回帰ケース追加。
+
+### 含まれないもの
+
+- `toPlainText` 用の `decodeEntities` / `HTML_ENTITIES` の変更（表示用途の別契約。ポート JSDoc「minimal set」を維持）。
+- sanitize フロー全体のリファクタ・URL parse ベースへの再設計（案C 不採用）。
+- UI / presentation / application / domain レイヤーの変更（adapter 層の純粋関数で完結）。
+
+## 採用案の決定と根拠
+
+**採用: 案A（網羅的デコード＋制御文字除去）を主軸、案B（保守的 reject）を多層防御フォールバックとして併用。案C は不採用。**
+
+- **案A 主軸**: 攻撃面は「危険文字（`/`,`\`,`:`,Tab/LF/CR）に decode するエンティティ」に限定される。ASCII 英字に named entity は存在せず、`javascript` の各文字は数値参照（`&#106;` 等）でしか書けない。よって「危険文字に decode する named entity を列挙した小テーブル＋数値/16進参照デコード＋Tab/LF/CR 除去」で Issue の3ケースと `&sol;`/`&colon;` を確実に塞げる。
+- **HTML5 全 named entity（2000+）の包括デコーダは不要**: 攻撃に使える named は危険文字へ decode するものだけで列挙可能。Workers バンドルを膨らませず、`toPlainText` の表示挙動とも無関係。列挙漏れリスクは案B で fail-closed に補償する。
+- **案B フォールバック併用**: デコード後の値の **scheme/authority 区間**（先頭〜最初の `/`,`?`,`#` の手前）に未解決の **named 文字参照**（`&[a-zA-Z][a-zA-Z0-9]*;`）が残っていたら保守的に reject する。列挙漏れの危険 named entity も塞げる。
+- **案C 不採用**: Workers の `URL` は base 無しで相対 URL を解釈できず、`//host`・scheme-less 相対の分類が既存ロジック（ADR-001/002 で確定・テスト済み）と食い違う。再設計はスコープ過大。デコード前処理を足す案A+B が最小差分で確実。
+
+## 実装ステップ
+
+### 1. URL 安全判定専用のデコード・正規化ヘルパを新設
+
+- **対象ファイル:** `app/core/adapters/sanitizer/htmlSanitizer.ts`
+- **変更内容:** 新たに `normalizeUrlForSafetyCheck`（仮称）を追加する。処理は順に:
+  1. **1パス**のエンティティデコード。**必ず数値＋named を1本の alternation 正規表現で単一 `replace` する**（逐次2回 replace は禁止）。
+     - **逐次2回禁止の理由（round-2 P-002）**: 「数値パス→named パス」の2回 replace にすると、`&#x26;sol;` が数値パスで `&sol;` になり、後続の named パスで `/` に化けて過剰拒否される。ブラウザは単一パスで `&#x26;` のみデコードし `&sol;` は literal（相対＝許可）。単一 alternation なら置換結果を再走査しないため browser-faithful になる。
+     - 推奨正規表現: `/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*)(;)?/g`。replacer で分岐:
+       - body が `#` 始まり（数値/16進）→ **セミコロン有無に関わらずデコード**（`parseInt`、`#x`/`#X` 16進、ゼロ埋め吸収、既存の `>0 && <0x110000` 範囲ガード維持）。ブラウザは数値参照を `;` 無しでもデコードするため（例: `&#106avascript` → `javascript`）。
+       - body が英字始まり（named）→ **`;` が在るときのみ** URL 専用テーブルを**case-sensitive（小文字化しない）**で参照。`;` 無し、またはテーブル外は match を未変更で返す。HTML named は case-sensitive（`&colon;`=U+003A ≠ `&Colon;`=U+2237）かつ `&sol` 等は `;` 無しで decode されないため。テーブル外・`;` 無し named は案B で fail-closed に倒す。
+  2. **制御文字の除去**: デコード結果から Tab(U+0009)/LF(U+000A)/CR(U+000D) を **全位置**で除去する（ブラウザは scheme 解析前にこの3文字を URL 全体から剥がす）。
+  3. **先頭の C0 制御文字・空白の除去**: 先頭の `[\u0000-\u0020]+` を除去する。ブラウザは URL 先頭の C0 制御文字（U+0000–U+001F）と空白を剥がすため、`&#1;//evil.com` のような **数値参照で注入した先頭制御文字＋プロトコル相対**を塞ぐ（`trim()` は U+0001–U+0008・U+000E–U+001F を残すので明示除去が必要）。末尾は `trim()` で処理。
+  - **URL 専用 named テーブル**（危険文字に decode するもの**のみ**に厳密化。`lpar`/`rpar` 等の非危険文字は含めない）: `sol`→`/`, `bsol`→`\`, `colon`→`:`, `Tab`→U+0009, `NewLine`→U+000A、加えて `amp`→`&`（二重エンコード整合のため。理由は手順3・ADR-003）。
+- **理由:** `toPlainText` の表示用 `decodeEntities` から切り離し、セキュリティ判定の挙動を表示契約に結合させない（責務分離）。テーブルは「正当 URL を素通しするための利便性」であり、**安全性は手順3の案B フォールバックが fail-closed で担保する**（列挙漏れがあっても scheme/authority 区間の未解決 named は reject される）。
+
+### 2. `isSafeUrl` をデコード後の値で判定するよう改修
+
+- **対象ファイル:** `app/core/adapters/sanitizer/htmlSanitizer.ts`
+- **変更内容:** 冒頭の `const value = raw.trim()` を `const value = normalizeUrlForSafetyCheck(raw)` に差し替え。既存の `/^[/\\]{2}/`（プロトコル相対 reject）・`startsWith` 相対判定・scheme allowlist ロジックはそのまま正規化後 `value` に適用する。
+- **理由:** ADR-001/002 で確定済みの判定ロジックを温存しつつ、入力だけをブラウザ近似に揃える。
+
+### 3. 案B フォールバックを `isSafeUrl` に追加
+
+- **対象ファイル:** `app/core/adapters/sanitizer/htmlSanitizer.ts`
+- **変更内容（round-3 P-001/P-002 を反映して限定）:** 案B は **(a) 明示スキーム allowlist 検査を通らず「bare relative（スキーム無し）」と判定されるフォールスルー経路でのみ**、**(b) テーブルに無い未知 named 参照に対してのみ** 評価する。具体的には、既存の `colonIdx <= 0 → return true`（スキーム無し＝相対）に落ちる直前で、`value` の **最初の `/`,`?`,`#` の手前の区間** に **テーブル外の named 文字参照** `&([a-zA-Z][a-zA-Z0-9]*);`（`;` 必須・name が URL 専用テーブルに**無い**もの）が在れば `return false`。
+  - **適用範囲を「フォールスルー経路 × 未知 named」に限定する理由:**
+    - **(a) 明示スキーム確定値には適用しない**: `mailto:a&copy;b@x.com` は scheme `mailto:` が allowlist で許可される。スキーム確定後の authority/local 部に named 参照があっても外部スキーム偽装・プロトコル相対にはならないため案Bを通さない（round-3 P-002 の誤検知を回避）。
+    - **(b) テーブル既知 named は除外**: `&#x26;sol;` は1パスで `&sol;`（リテラル）になる。`&sol;` は**テーブル既知**だが「リテラルで残った＝二重エンコード or `;` 無し」を意味し、ブラウザも同じく literal（相対）扱いするため安全。よって既知 named の残存は reject しない（round-3 P-001 の自己矛盾を解消、plan が pass と宣言した挙動と一致）。未知 named だけが「我々が decode せず・ブラウザが decode して危険文字になりうる」リスクを持つ。
+  - **数値参照 `&#…;` は対象外**: 手順1で（セミコロン省略含め）完全デコード可能。残る数値参照は二重エンコード（`&amp;#47;` → `&#47;` リテラル）でブラウザも literal 扱い＝バイパスにならない。
+  - **path/query は対象外**: フォールスルー経路かつ「最初の `/`,`?`,`#` の手前」に限定するため、クエリの `&`（`?a=1&b=2`、`?a=1&amp;b=2`）や path 中の `&copy;` を誤検知しない。`startsWith("/")`/`#`/`?`/`.` の各分岐は先頭が単一スラッシュ等で同一オリジン相対が確定するため案B 不要。
+- **理由:** named テーブルの列挙漏れに対する多層防御（fail-closed）。bare-relative フォールスルー＋未知 named に限定することで、明示スキーム URL・既知 named の二重エンコード・クエリの `&` をすべて誤検知しない。
+
+### 4. WHY コメント / JSDoc の付与
+
+- **対象ファイル:** `app/core/adapters/sanitizer/htmlSanitizer.ts`
+- **変更内容:** 非自明な制約を最小限コメント化:「ブラウザは scheme 解析前に Tab/LF/CR を URL 全体から、先頭の C0 制御文字・空白を URL から除去する」「数値参照はセミコロン省略でもブラウザがデコードするため `;?` で吸収する」「1パスデコードに限定（ブラウザ準拠、再帰は正当 URL を誤検知）」「named テーブルは利便性で、安全性は案B が担保。scheme/authority 区間の未解決 named 参照は保守的に reject、数値参照とクエリの `&` は誤検知回避で除外」。
+- **理由:** CLAUDE.md のコメント方針（WHY が非自明なときのみ）に沿う。セキュリティ判定の意図は非自明。
+
+### 5. テスト追加
+
+- **対象ファイル:** `app/core/adapters/sanitizer/__tests__/htmlSanitizer.test.ts`（`describe("URL scheme policy")` ブロック）
+- 詳細は「テスト方針」節。
+
+### 6. 品質ゲート
+
+- `pnpm typecheck && pnpm lint:fix && pnpm format`、`pnpm test:unit` がすべてパスすることを確認。
+
+## 設計判断
+
+詳細は `.issue/531/adr.md` を参照。要点:
+
+- ADR-001: 包括デコーダではなく「危険文字限定 named テーブル＋数値参照＋案B フォールバック」の多層防御を採用。テーブル＝利便性／案B＝安全性の役割分担。
+- ADR-002: URL 判定用デコードを `toPlainText` の `decodeEntities` から分離（責務分離）。
+- ADR-003: 1パスデコードに限定（ブラウザ準拠、二重エンコード誤検知回避）。数値参照はセミコロン省略・ゼロ埋め・大文字 X を許容。案B は named のみ対象・数値とクエリ `&` を除外。
+- ADR-004: ブラウザが URL から除去する文字に正規化を合わせる（Tab/LF/CR 全位置 + 先頭 C0 制御文字・空白）。
+
+## リスクと注意点
+
+- **named 列挙漏れ**: 危険文字へ decode する別名を取りこぼすと案A 単独では抜ける → 案B フォールバックで fail-closed に補償。テストで `&sol;`/`&colon;`/`&Tab;`/`&#x2f;` 等を明示カバー。
+- **案B の誤検知**: scheme/authority 区間の境界を誤ると正当 `&` を弾く → 区間を「先頭〜最初の `/`/`?`/`#`」に厳密化し、数値参照とクエリ `&` を除外。回帰テストで正当 URL がすべて通ることを保証。
+- **`toPlainText` への副作用ゼロ**: `decodeEntities`/`HTML_ENTITIES` を触らないことで既存 `toPlainText` テストが不変。
+- **二重エンコード過剰防御回避**: 再帰デコードを入れない。`&amp;#47;&amp;#47;evil.com` が通過することをテストで固定。
+- **大文字スキーム**: 既存の `.toLowerCase()` 経路を維持。デコード後も `HTTP://` 等が通ることを回帰確認。
+
+## テスト方針
+
+すべて `app/core/adapters/sanitizer/__tests__/htmlSanitizer.test.ts` の `describe("URL scheme policy")` に追加。攻撃ケースは「`evil.com`/`javascript:` が出力に不在」かつ「`removed.toContainEqual({ tag, reason: "unsafe URL scheme: href|src" })`」の両方を assert（N-001 規約で偽陽性防止）。
+
+**攻撃ケース（必須）**
+
+- `<a href="&#47;&#47;evil.com">` → reject（数値参照 `//evil.com`）
+- `<a href="&sol;&sol;evil.com">` → reject（named `&sol;`→`//`）
+- `<a href="&#106;avascript&#58;alert(1)">` → reject（数値参照 XSS）
+- `<a href="javascript&colon;alert(1)">` → reject（named `&colon;`→`:`）
+- Tab 挟み込み `<a href="j&Tab;avascript:alert(1)">`（および `&#9;` 版）→ reject（制御文字除去後 `javascript:`）
+- 16進参照（セミコロン有り）`<a href="&#x2f;&#x2f;evil.com">` → reject
+- `<img src="&#47;&#47;evil.com">` → reject（`src` 経路も同様に塞ぐ）
+- **セミコロン無し10進参照** `<a href="&#106avascript&#58alert(1)">` → reject（ブラウザは `;` 無しでもデコードして `javascript:alert(1)`。round-1 P-001）
+- **セミコロン無し10進チェイン** `<a href="&#47&#47evil.com">` → reject（各 `&#47` が後続 `e`（非桁）で停止し `//evil.com`。round-2 P-001 で16進から訂正）
+- **16進 `;` 無し+有り混在** `<a href="&#x2f&#x2f;evil.com">` → reject（1つ目は `&` で停止＝`/`、2つ目 `&#x2f;`＝`/` で `//evil.com`）
+- **ゼロ埋め / 大文字 X** `<a href="&#047;&#047;evil.com">`・`<a href="&#X2F;&#X2F;evil.com">` → reject
+- **先頭 C0 制御文字注入** `<a href="&#1;//evil.com">` → reject（ブラウザは先頭 U+0001 を剥がして `//evil.com`。round-1 P-001）
+- **大文字 named はテーブル外** `<a href="javascript&Colon;alert(1)">` → 期待は case-B での reject（`&Colon;`=U+2237 ≠ `:`、テーブル外なので未デコードで残り案B が弾く。round-2 S-001）
+
+なお `<a href="&#x2f&#x2fevil.com">`（セミコロン無し16進チェイン）は **reject 対象にしない**。ブラウザは2つ目の `&#x2fevil` を `2fe`(U+02FE) まで貪欲消費し `/˾vil.com`（単一スラッシュの相対パス）になり外部遷移にならないため。テストするなら pass を期待値にする（round-2 P-001）。
+
+**回帰ケース（正当 URL を誤って弾かないこと・必須）**
+
+- クエリの `&`: `<a href="/search?a=1&b=2">`、`https://x.com/p?a=1&b=2` → 通過
+- クエリの `&amp;`: `<a href="https://x.com/p?a=1&amp;b=2">` → 通過（amp をテーブルに含める副作用がクエリ区間に波及しないこと。round-1 S-003）
+- 既存 `https://x.com` / `mailto:a@b.c` / 相対 `/rel` / `#anchor` / `?q=1` / `./x` / `foo/bar` → 通過
+- **既知 named の二重エンコード** `<a href="&#x26;sol;&#x26;sol;evil.com">` → 通過（1パスで `&sol;&sol;evil.com` リテラル＝相対パス。案Bは既知 named を除外。round-3 P-001）
+- **mailto: local 部の named** `<a href="mailto:a&copy;b@x.com">` → 通過（scheme `mailto:` 確定で案B 適用外。round-3 P-002）
+- **NULL 参照** `<a href="&#0;//evil.com">` → 通過（`&#0;` は `cp>0` ガードで literal 残存、先頭が `//` にならず相対扱い。ブラウザも U+FFFD 置換で外部遷移せず結論一致。round-3 S-003）
+- 既存エンティティ `<a href="https://x.com" title="...">Tom &amp; Jerry</a>` → 二重エンコードしないこと不変
+- 大文字スキーム `HTTP://x.com` → 通過
+- 二重エンコード `<a href="&amp;#47;&amp;#47;evil.com">` → 通過（ブラウザは `&#47;&#47;evil.com` リテラル＝相対パスと解釈し外部解決しない。デコード後も数値参照のみ残り案B 対象外、相対パス判定で通過）
+
+**`toPlainText` 回帰**: 既存 `toPlainText` テストが不変で通ること（`decodeEntities` を触らない証明）。
+
+**品質ゲート**: `pnpm typecheck && pnpm lint:fix && pnpm format` と `pnpm test:unit` がすべてパス。
+
+## レビュー履歴
+
+### 1周目
+
+**修正した点（両視点の P-001 を反映）**:
+- [reviewer2 P-001] 数値参照経由の C0 制御文字注入（`&#1;//evil.com`）でプロトコル相対バイパスが新規成立する問題に対応。正規化に「Tab/LF/CR の全位置除去 + 先頭 C0 制御文字・空白の除去」を追加（ADR-004 新設）。攻撃テスト `&#1;//evil.com` を追加。
+- [reviewer1 P-001] セミコロン無し数値参照（`&#106avascript&#58alert(1)`）をブラウザがデコードする一方、`;` 必須正規表現では取りこぼしバイパスが成立する問題に対応。数値デコードを `;?`（省略許容）＋ゼロ埋め・大文字 X 吸収に変更（ADR-003 更新）。攻撃テスト（セミコロン無し10進/16進、ゼロ埋め、大文字 X）を追加。
+
+**取り込んだ改善提案**:
+- [reviewer1 S-002] URL 専用 named テーブルから `lpar`/`rpar` 等の非危険文字を除外し、危険文字 decode のみに厳密化。
+- [reviewer2 S-002] 「テーブル＝利便性／案B＝安全性（fail-closed）」の役割分担を ADR-001 に明文化。
+- [reviewer1 S-001 / reviewer2 S-003] `amp` をテーブルに残す判断を維持（二重エンコードを browser 同様に literal 扱いし誤検知回避）。WHY をコメント化し、`?a=1&amp;b=2` の回帰テストを追加して副作用が無いことを固定。
+- [両 S-001] 案B の scheme/authority 区間限定の根拠（危険文字は scheme/authority でのみ効く・クエリ `&` 誤検知回避）を plan/コメントに明記。
+
+**見送った提案とその理由**:
+- [reviewer1 P-001 提案(1) 案Bを値全体に拡張] 区間限定のまま維持。reviewer2 が区間境界を実測検証し回避不能と確認済み。値全体拡張はクエリ中の正当 named（`&copy;` 等）を誤検知するリスクがあり、区間限定の方が誤検知が少ない。境界の非自明さは WHY コメントで補う。
+
+### 2周目
+
+**修正した点（両視点が収束）**:
+- [両 P-001] テスト `&#x2f&#x2fevil.com → reject` は事実誤認（ブラウザは16進貪欲消費で `/˾vil.com`＝相対パスになり外部遷移しない）。reject 対象から外し、代わりに本物のバイパスである `&#47&#47evil.com`（10進・後続 `e` で停止し `//`）と `&#x2f&#x2f;evil.com`（混在）を reject テストに追加。セミコロン有り `&#x2f;&#x2f;evil.com` は維持。
+- [reviewer2 P-002] 「1パス」を **数値＋named 単一 alternation 正規表現の単一 `replace`** と明記（逐次2回禁止）。逐次2回だと `&#x26;sol;`→`&sol;`→`/` の二次デコードで過剰拒否しブラウザ非忠実になる。ADR-003 更新。
+
+**取り込んだ改善提案**:
+- [reviewer2 S-001] named テーブルは `;` 必須・case-sensitive 厳密一致（小文字化しない）と明記。`&Colon;`(U+2237) 等はテーブル外→案B で reject。攻撃テストに `javascript&Colon;alert(1)` を追加。
+- [reviewer2 S-002/S-003 / reviewer1 S-002] mailto: の region＝全体時に案Bが誤爆しない回帰観点、NULL 参照（`&#0;`）の literal/U+FFFD 非対称でも結論一致、は実装時のコメント/テストで担保（軽微）。
+
+**見送った提案とその理由**:
+- なし（round-2 指摘はすべて反映。残りは軽微な回帰テスト追加で実装フェーズに引き継ぐ）。
+
+### 3周目（最終・上限到達）
+
+reviewer1（要件カバレッジ）= **問題点ゼロ**。reviewer2（アーキ・リスク）が案B の適用範囲に関する整合性欠陥2件を発見、いずれも確定的な修正として反映:
+
+**修正した点**:
+- [reviewer2 P-001] 案B が「テーブル既知 named」まで弾き、plan 自身が pass と宣言した `&#x26;sol;`（→`&sol;` リテラル）を reject する自己矛盾。案Bを **未知 named のみ**対象に限定して解消。回帰テスト `&#x26;sol;&#x26;sol;evil.com` → 通過を追加。
+- [reviewer2 P-002] `mailto:a&copy;b@x.com` の local 部 `&copy;` を案B が過剰 reject。案Bを **bare-relative フォールスルー経路でのみ**評価（明示スキーム確定値には適用しない）よう限定して解消。回帰テスト `mailto:a&copy;b@x.com` → 通過を追加。
+
+**取り込んだ改善提案**:
+- [reviewer2 S-001/S-002] 案B を「scheme 判定の後・未知 named のみ」に整理（手順3 に明記）。既知 named 二重エンコード／mailto local の回帰テストを必須化。
+- [reviewer2 S-003] NULL 参照 `&#0;//evil.com` → 通過（literal 残存、ブラウザ U+FFFD 置換でも結論一致）を回帰テストに固定。
+
+**結論**: reviewer2 の提案実装（案B を「SAFE スキーム確定後・未知 named のみ」に限定）は Node 実測で攻撃16ケース全 reject・正当ケース全 pass（`&#x26;sol;`/`mailto:…&copy;…` 含む）を確認済み。3周（上限）で両視点の指摘を完全反映し、未解決事項なしで実装フェーズへ。

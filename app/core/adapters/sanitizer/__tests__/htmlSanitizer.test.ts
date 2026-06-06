@@ -181,6 +181,98 @@ describe("UltrahtmlHtmlSanitizer", () => {
         });
       }
     });
+
+    // Issue #531: a browser decodes HTML entities in href/src before
+    // interpreting the URL, so the sanitiser must judge the decoded value.
+    describe("entity-encoded URL bypass (Issue #531)", () => {
+      const rejectsHref = (href: string): void => {
+        const { html, removed } = sanitizer.sanitize(
+          `<a href="${href}">x</a>`,
+          FULL,
+        );
+        expect(html).not.toContain("evil.com");
+        expect(html).not.toContain("javascript:");
+        expect(removed).toContainEqual({
+          tag: "a",
+          reason: "unsafe URL scheme: href",
+        });
+      };
+
+      it.each([
+        ["numeric protocol-relative", "&#47;&#47;evil.com"],
+        ["named sol protocol-relative", "&sol;&sol;evil.com"],
+        ["numeric javascript scheme", "&#106;avascript&#58;alert(1)"],
+        ["named colon javascript scheme", "javascript&colon;alert(1)"],
+        ["named Tab injection", "j&Tab;avascript:alert(1)"],
+        ["numeric Tab injection", "j&#9;avascript:alert(1)"],
+        ["hex protocol-relative", "&#x2f;&#x2f;evil.com"],
+        ["semicolon-less decimal scheme", "&#106avascript&#58alert(1)"],
+        ["semicolon-less decimal chain", "&#47&#47evil.com"],
+        ["mixed semicolon hex chain", "&#x2f&#x2f;evil.com"],
+        ["zero-padded decimal", "&#047;&#047;evil.com"],
+        ["uppercase-X hex", "&#X2F;&#X2F;evil.com"],
+        ["leading C0 control injection", "&#1;//evil.com"],
+        [
+          "uppercase named (table-miss, fallback B)",
+          "javascript&Colon;alert(1)",
+        ],
+      ])("rejects %s", (_label, href) => {
+        rejectsHref(href);
+      });
+
+      it("rejects entity-encoded protocol-relative img src", () => {
+        const { html, removed } = sanitizer.sanitize(
+          '<img src="&#47;&#47;evil.com">',
+          FULL,
+        );
+        expect(html).not.toContain("evil.com");
+        expect(removed).toContainEqual({
+          tag: "img",
+          reason: "unsafe URL scheme: src",
+        });
+      });
+
+      // Browsers greedily consume `&#x2fevil` to U+02FE, yielding `/˾vil.com`
+      // (a single-slash relative path), so this is NOT an external redirect.
+      it("keeps the greedy-hex-chain relative path", () => {
+        const { html } = sanitizer.sanitize(
+          '<a href="&#x2f&#x2fevil.com">x</a>',
+          FULL,
+        );
+        expect(html).toContain("href=");
+        expect(html).not.toContain("//evil.com");
+      });
+    });
+
+    it.each([
+      ["https", "https://x.com"],
+      ["mailto", "mailto:a@b.c"],
+      ["root-relative", "/rel"],
+      ["fragment", "#anchor"],
+      ["query", "?q=1"],
+      ["dot-relative", "./x"],
+      ["bare relative", "foo/bar"],
+      ["relative query with &", "/search?a=1&b=2"],
+      ["absolute query with &", "https://x.com/p?a=1&b=2"],
+      ["absolute query with &amp;", "https://x.com/p?a=1&amp;b=2"],
+      ["uppercase scheme", "HTTP://x.com"],
+      ["double-encoded numeric", "&amp;#47;&amp;#47;evil.com"],
+      ["double-encoded known named", "&#x26;sol;&#x26;sol;evil.com"],
+      ["mailto local unknown named", "mailto:a&copy;b@x.com"],
+      ["null reference stays literal", "&#0;//evil.com"],
+    ])("keeps legitimate URL: %s", (_label, href) => {
+      const { html, removed } = sanitizer.sanitize(
+        `<a href="${href}">x</a>`,
+        FULL,
+      );
+      // Dual assert (mirrors the attack-case contract): the href is neither
+      // recorded as removed nor silently dropped from the output.
+      expect(removed).not.toContainEqual({
+        tag: "a",
+        reason: "unsafe URL scheme: href",
+      });
+      expect(html).toContain("href=");
+    });
   });
 
   describe("attribute-value breakout (renderSync does not escape)", () => {
