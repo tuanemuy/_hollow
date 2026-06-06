@@ -171,6 +171,11 @@ const isAllowedAttr = (tag: string, attr: string): boolean => {
 const isSafeUrl = (raw: string): boolean => {
   const value = raw.trim();
   if (value.length === 0) return false;
+  // Protocol-relative URLs (`//host`, plus the backslash variants browsers
+  // normalise to `//`) resolve to an external host. They carry no scheme
+  // colon, so the allowlist below would mis-classify them as relative paths
+  // and admit them — reject here directly.
+  if (/^[/\\]{2}/.test(value)) return false;
   if (value.startsWith("/") || value.startsWith("#") || value.startsWith("?")) {
     return true;
   }
