@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — Toast（一時的・グローバル通知）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* State */
+    --opacity-disabled: 0.55;
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+  body {
+    font-family: var(--font-sans);
+    background: #efeff3;
+    color: var(--color-ink);
+    padding: var(--space-10) var(--space-5);
+    letter-spacing: var(--tracking-normal);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select, textarea { font-family: inherit; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+  h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-tightest);
+  }
+  .lead {
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-8);
+    max-width: 760px;
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+  }
+  .section-title {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: var(--space-10) auto var(--space-4);
+    max-width: var(--container-max);
+    font-weight: var(--weight-medium);
+  }
+  .container { max-width: var(--container-max); margin: 0 auto; }
+
+  /* ===== Showcase grid ===== */
+  .showcase {
+    display: grid;
+    gap: var(--space-8);
+    grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+    max-width: var(--container-max);
+    margin: 0 auto;
+  }
+  .stage {
+    background:
+      repeating-linear-gradient(45deg, rgba(60,60,67,0.04) 0 12px, transparent 12px 24px),
+      var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-xl);
+    padding: var(--space-12) var(--space-6) var(--space-10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 140px;
+  }
+  .stage-label {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-4);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ===== Toast primitive =====
+     浮く要素なので 白地(elevated) + shadow-md + radius-lg の単一パネル。
+     セマンティックは --alert-accent 1 変数で切替（.alert と共通）。
+     塗りつぶし背景は使わず、左の細いセマンティックバー + アイコン色で意味を出す。 */
+  .toast {
+    --alert-accent: var(--color-accent);
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    width: 100%;
+    max-width: 380px;
+    min-width: 0;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
+    border-left: 3px solid var(--alert-accent);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  }
+  .toast-success { --alert-accent: var(--color-success); }
+  .toast-warning { --alert-accent: var(--color-warning); }
+  .toast-error   { --alert-accent: var(--color-error); }
+  /* info = 無彩色グレー（--color-info = --color-accent）。彩度の高い青は足さない */
+  .toast-info    { --alert-accent: var(--color-info); }
+
+  .toast-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    color: var(--alert-accent);
+    margin-top: 1px;
+  }
+  .toast-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 1px;
+  }
+  .toast-msg {
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    line-height: var(--leading-snug);
+    overflow-wrap: anywhere;
+  }
+  .toast-sub {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+  }
+  .toast-action {
+    flex-shrink: 0;
+    align-self: center;
+    height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-accent-ink);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .toast-action:hover { background: var(--color-surface-hover); }
+  .toast-close {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--color-ink-tertiary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-bg), var(--transition-color);
+  }
+  .toast-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+  @media (max-width: 640px) {
+    .toast-close { min-width: 44px; min-height: 44px; }
+    .toast-action { min-height: 44px; }
+  }
+
+  /* スタック（複数同時）。新しいものが上、古いものから自動 dismiss。 */
+  .toast-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 100%;
+    max-width: 380px;
+  }
+
+  /* モバイル位置のステージ表現（下端中央） */
+  .phone {
+    width: 280px;
+    height: 200px;
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-xl);
+    background: var(--color-bg);
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-3);
+  }
+  .phone-hint {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .phone .toast {
+    position: absolute;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    max-width: none;
+  }
+
+  /* ===== Variation table ===== */
+  .table-wrap {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    overflow-x: auto;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 760px;
+    font-size: var(--text-sm);
+  }
+  thead th {
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    color: var(--color-ink-secondary);
+    font-weight: var(--weight-medium);
+    border-bottom: 1px solid var(--color-hairline);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-hairline);
+    vertical-align: top;
+    line-height: var(--leading-snug);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--color-surface-elevated); }
+  td .use { font-weight: var(--weight-medium); color: var(--color-ink); }
+  td code {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    background: var(--color-surface);
+    padding: 1px 6px;
+    border-radius: var(--radius-xs);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Toast — 一時的・グローバル通知</h1>
+  <p class="lead">
+    画面端に重ねて出す、自動消滅する ephemeral な通知。成功・保存完了・コピー完了・ジョブ受付など
+    「結果のフィードバックだが画面の文脈に残す必要がない」ものに使う。文脈に紐づき残すべき情報・恒常的な操作・
+    複雑な内容は <code>.alert</code>（インラインアラート）かダイアログに置く。浮く要素なので白地（elevated）+
+    <code>--shadow-md</code> + <code>--radius-lg</code> の単一パネルで、塗りつぶし背景は使わず左の細いセマンティックバー +
+    アイコン色で意味を出す（Apple Calm）。詳細は <code>index.md</code> §フィードバック・エラー表示原則。
+  </p>
+</div>
+
+<div class="section-title">セマンティック（--alert-accent 1 変数で切替）</div>
+<div class="showcase">
+  <div class="stage">
+    <span class="stage-label">success</span>
+    <div class="toast toast-success" role="status" aria-live="polite">
+      <span class="toast-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </span>
+      <div class="toast-body">
+        <p class="toast-msg">ノートを公開しました。</p>
+      </div>
+      <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">info（無彩色グレー）</span>
+    <div class="toast toast-info" role="status" aria-live="polite">
+      <span class="toast-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </span>
+      <div class="toast-body">
+        <p class="toast-msg">リンクをクリップボードにコピーしました。</p>
+      </div>
+      <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">warning</span>
+    <div class="toast toast-warning" role="status" aria-live="polite">
+      <span class="toast-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </span>
+      <div class="toast-body">
+        <p class="toast-msg">下書きの自動保存に失敗しました。</p>
+        <p class="toast-sub">接続を確認しています。編集内容は端末に保持されています。</p>
+      </div>
+      <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">error（assertive・手動 dismiss）</span>
+    <div class="toast toast-error" role="alert" aria-live="assertive">
+      <span class="toast-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </span>
+      <div class="toast-body">
+        <p class="toast-msg">アップロードに失敗しました。</p>
+        <p class="toast-sub">対応形式（HTML / Markdown / Office / PDF / 画像 / 音声）でお試しください。</p>
+      </div>
+      <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">アクション付き（取り消しは 1 つまで） / スタック / モバイル位置</div>
+<div class="showcase">
+  <div class="stage">
+    <span class="stage-label">アクション付き（元に戻す）</span>
+    <div class="toast" role="status" aria-live="polite">
+      <span class="toast-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </span>
+      <div class="toast-body">
+        <p class="toast-msg">ノートをゴミ箱に移動しました。</p>
+      </div>
+      <button class="toast-action" type="button">元に戻す</button>
+      <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">スタック（新しいものが上）</span>
+    <div class="toast-stack">
+      <div class="toast toast-success" role="status" aria-live="polite">
+        <span class="toast-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+        <div class="toast-body"><p class="toast-msg">3 件のノートを書き出しました。</p></div>
+        <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="toast" role="status" aria-live="polite">
+        <span class="toast-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </span>
+        <div class="toast-body"><p class="toast-msg">取り込みジョブを受け付けました。</p></div>
+        <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <span class="stage-label">モバイル: 下端中央</span>
+    <div class="phone">
+      <span class="phone-hint">画面下端中央に固定（タッチ親指圏）</span>
+      <div class="toast toast-success" role="status" aria-live="polite">
+        <span class="toast-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+        <div class="toast-body"><p class="toast-msg">変更を保存しました。</p></div>
+        <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">トースト vs インラインアラート（.alert）の使い分け</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>場面</th><th>使うもの</th><th>理由</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="use">保存完了 / コピー完了 / 公開しました</span></td>
+        <td><code>toast</code></td>
+        <td>結果のフィードバック。文脈に残す必要がなく、自動で消えてよい。</td>
+      </tr>
+      <tr>
+        <td><span class="use">ゴミ箱へ移動（取り消し可）</span></td>
+        <td><code>toast</code> + action</td>
+        <td>一時的な取り消し導線を 1 つだけ載せる。複数アクションは載せない。</td>
+      </tr>
+      <tr>
+        <td><span class="use">ジョブ受付 / バックグラウンド進捗の節目</span></td>
+        <td><code>toast</code></td>
+        <td>進捗そのものは画面内で可視化し、節目だけトーストで知らせる。</td>
+      </tr>
+      <tr>
+        <td><span class="use">フォームの入力エラー / バリデーション</span></td>
+        <td><code>.alert</code> or フィールド内</td>
+        <td>文脈（該当フォーム）に紐づき、消えずに残すべき情報。</td>
+      </tr>
+      <tr>
+        <td><span class="use">保存期間・自動削除などの恒常的な案内</span></td>
+        <td><code>.alert</code></td>
+        <td>ページに常駐すべき注意喚起。一時通知では流れて消えてしまう。</td>
+      </tr>
+      <tr>
+        <td><span class="use">取り消せない破壊操作の確認</span></td>
+        <td>ConfirmDialog</td>
+        <td>明示的な意思確認が必要。通知ではなくモーダルで止める。</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

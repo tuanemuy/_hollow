@@ -249,13 +249,20 @@
   .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
   .radio-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-2);
     padding: var(--space-1) 0;
     font-size: var(--text-sm);
     cursor: pointer;
   }
-  .radio-row input { accent-color: var(--color-accent); }
+  .radio-row input { accent-color: var(--color-accent); margin-top: 3px; flex-shrink: 0; }
+  .radio-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .radio-title { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .radio-desc {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    line-height: var(--leading-snug);
+  }
 
   /* ===== Error ===== */
   .form-error {
@@ -325,11 +332,17 @@
                 <legend class="field-label">公開範囲</legend>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-1" checked>
-                  個人用
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
                 </label>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-1">
-                  インスタンス内で共有
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
                 </label>
               </fieldset>
 
@@ -358,11 +371,17 @@
                 <legend class="field-label">公開範囲</legend>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-2">
-                  個人用
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
                 </label>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-2" checked>
-                  インスタンス内で共有
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
                 </label>
               </fieldset>
 
@@ -391,11 +410,17 @@
                 <legend class="field-label">公開範囲</legend>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-3" checked>
-                  個人用
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
                 </label>
                 <label class="radio-row">
                   <input type="radio" name="view-kind-3">
-                  インスタンス内で共有
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
                 </label>
               </fieldset>
 
