@@ -24,8 +24,8 @@ import { InMemoryZipArchiveBuilder } from "@/core/adapters/export/archiveBuilder
 import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
-import { MarkdownItConverter } from "@/core/adapters/markdown/markdownConverter";
-import { SanitizeHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
+import { MarkdownItMarkdownConverter } from "@/core/adapters/markdown/markdownConverter";
+import { UltrahtmlHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
@@ -125,8 +125,8 @@ export function createTestContainer(): TestContainer {
       SystemClock,
       UuidV7Generator,
     ),
-    htmlSanitizer: new SanitizeHtmlSanitizer(),
-    markdownConverter: new MarkdownItConverter(),
+    htmlSanitizer: new UltrahtmlHtmlSanitizer(),
+    markdownConverter: new MarkdownItMarkdownConverter(),
     passwordHasher: new ScryptPasswordHasher(),
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
     secretBoxPrevious: null,
