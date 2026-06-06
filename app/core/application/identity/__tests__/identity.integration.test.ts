@@ -781,6 +781,147 @@ describe("LogIn / LogOut", () => {
       });
     }
   });
+
+  // Deferred lazy upgrade — Issue #456. `verifyPassword` no longer rehashes
+  // inline; `logIn` defers the rehash until the user's status is confirmed
+  // OK. For users that will be rejected (pending / suspended / deleted) the
+  // legacy hash must therefore stay untouched. "No rehash fired" is asserted
+  // two ways: the password is still the legacy `pbkdf2-sha256-v1$` prefix,
+  // and `updated_at` keeps the frozen sentinel.
+  describe("does not rehash a legacy hash for a rejected status", () => {
+    const frozenUpdatedAt = "2020-01-01T00:00:00.000Z";
+
+    async function seedLegacy(
+      container: TestContainer,
+      seed: string,
+    ): Promise<{ userId: string; password: string }> {
+      const { userId } = await signUp({ container, input: baseSignUp(seed) });
+      const password = strongPassword(seed);
+      const legacyHash = await makeLegacyPbkdf2Hash(password, 600_000);
+      await container.db
+        .update(schema.accounts)
+        .set({ password: legacyHash, updatedAt: frozenUpdatedAt })
+        .where(eq(schema.accounts.userId, userId));
+      return { userId, password };
+    }
+
+    async function expectLegacyUntouched(
+      container: TestContainer,
+      userId: string,
+    ): Promise<void> {
+      const after = await container.db
+        .select({
+          password: schema.accounts.password,
+          updatedAt: schema.accounts.updatedAt,
+        })
+        .from(schema.accounts)
+        .where(eq(schema.accounts.userId, userId));
+      expect(after[0]?.password?.startsWith("pbkdf2-sha256-v1$")).toBe(true);
+      expect(after[0]?.updatedAt).toBe(frozenUpdatedAt);
+    }
+
+    it("rejects a pending user with unverified and leaves the legacy hash", async () => {
+      const container = getContainer();
+      const { userId, password } = await seedLegacy(container, "lzyp01");
+      // signUp leaves the user pending (email unverified).
+
+      try {
+        await logIn({
+          container,
+          input: {
+            email: uniqueEmail("lzyp01"),
+            password,
+            userAgent: null,
+            ipAddress: null,
+          },
+        });
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(isAuthenticationError(error)).toBe(true);
+        if (isAuthenticationError(error)) {
+          expect(error.code).toBe("unverified");
+        }
+      }
+
+      await expectLegacyUntouched(container, userId);
+    });
+
+    it("rejects a suspended user with account_unavailable and leaves the legacy hash", async () => {
+      const container = getContainer();
+      const { userId, password } = await seedLegacy(container, "lzys01");
+      // Verify email then ban so status derives to "suspended".
+      const verifyTok = await readVerificationToken(
+        container,
+        userId,
+        "email_verification",
+      );
+      await verifyEmail({ container, input: { token: verifyTok } });
+      await container.db
+        .update(schema.users)
+        .set({ banned: 1, updatedAt: frozenUpdatedAt })
+        .where(eq(schema.users.id, userId));
+      // Re-freeze the account sentinel before the login attempt. verifyEmail
+      // does not touch accounts, but this defensively resets updatedAt so the
+      // post-login `expectLegacyUntouched` check cleanly attributes any change
+      // to a (wrongly fired) rehash rather than earlier setup writes.
+      await container.db
+        .update(schema.accounts)
+        .set({ updatedAt: frozenUpdatedAt })
+        .where(eq(schema.accounts.userId, userId));
+
+      try {
+        await logIn({
+          container,
+          input: {
+            email: uniqueEmail("lzys01"),
+            password,
+            userAgent: null,
+            ipAddress: null,
+          },
+        });
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(isAuthenticationError(error)).toBe(true);
+        if (isAuthenticationError(error)) {
+          expect(error.code).toBe("account_unavailable");
+        }
+      }
+
+      await expectLegacyUntouched(container, userId);
+    });
+
+    it("rejects a soft-deleted user and leaves the legacy hash", async () => {
+      const container = getContainer();
+      const { userId, password } = await seedLegacy(container, "lzyd01");
+      await container.db
+        .update(schema.users)
+        .set({ deletedAt: frozenUpdatedAt })
+        .where(eq(schema.users.id, userId));
+
+      // A soft-deleted user is blocked at `verifyPassword` (the deletedAt
+      // guard returns null), so `logIn` surfaces `invalid_credentials`
+      // rather than `account_unavailable` — and rehash is never reached.
+      try {
+        await logIn({
+          container,
+          input: {
+            email: uniqueEmail("lzyd01"),
+            password,
+            userAgent: null,
+            ipAddress: null,
+          },
+        });
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(isAuthenticationError(error)).toBe(true);
+        if (isAuthenticationError(error)) {
+          expect(error.code).toBe("invalid_credentials");
+        }
+      }
+
+      await expectLegacyUntouched(container, userId);
+    });
+  });
 });
 
 describe("RevokeAllOtherSessions", () => {
