@@ -38,10 +38,14 @@
 
 ### lazy upgrade (ADR-003)
 
+> **訂正 (Issue #456)**: 本節の「`verifyPassword` で verify 成功直後に同 UoW へ rehash を積む」「`pending` ユーザでも lazy upgrade が発火するのを許容する」という記述は改めた。
+> `verifyPassword`（サインイン経路）は status 未確定の段階で rehash を走らせないよう rehash-free 化し、`needsRehash` ヒントを返すだけにした。`logIn` は status が active と確定した**後にのみ** `rehashLegacyPassword` を別 UoW で呼ぶ。
+> 結果として **pending / suspended / deleted ユーザでは rehash しない**（拒否されるユーザに無駄な scrypt 演算を走らせない）。`verifyPasswordForUser`（再認証経路）は active 前提のため inline lazy upgrade を維持する。
+
 - **admin password**: lazy upgrade を実装する。`D1CredentialStore.verifyPassword` / `verifyPasswordForUser` で verify 成功 + legacy prefix のとき、`pending.add` で `accounts.password` の update を同 UoW に積む。`accounts` は OCC 対象外 ([spec/database/index.md](../database/index.md)) のため version bump 不要
 - **share-link password**: lazy upgrade を実装しない。short-lived リソースで再発行コストが低く、`PublicationService.verifyShareLinkAccess` のシグネチャを汚すコストに見合わない
 
-副作用として、`users.status === 'pending'` の email-未認証ユーザが credentialStore.verifyPassword を呼ぶと lazy upgrade が発火し、直後 application 層 (logIn) で `AuthenticationError('unverified')` 拒否となる挙動になる。セキュリティ実害はない (hash は正しく upgrade される / セッションは発行されない) ため許容する。
+~~副作用として、`users.status === 'pending'` の email-未認証ユーザが credentialStore.verifyPassword を呼ぶと lazy upgrade が発火し、直後 application 層 (logIn) で `AuthenticationError('unverified')` 拒否となる挙動になる。セキュリティ実害はない (hash は正しく upgrade される / セッションは発行されない) ため許容する。~~ — Issue #456 で訂正（上記参照）。pending / suspended / deleted では rehash を発火させない形へ改めた。
 
 lazy upgrade 導入に伴い、`D1CredentialStore` の verify 系メソッドも UoW 内呼び出し前提として契約を締め直した。実呼び出し (`logIn`, `changePassword` 等) はすべて UoW 内のため破壊的変更ではない。
 

@@ -6,6 +6,17 @@ import type {
 } from "../valueObject";
 
 /**
+ * Success result of `verifyPassword`. Carries the resolved `userId` plus a
+ * `needsRehash` hint computed by prefix inspection only (no cryptographic
+ * work), so the caller can decide — after the user's status is confirmed —
+ * whether to invoke `rehashLegacyPassword` inside its own UoW.
+ */
+export type VerifyPasswordResult = {
+  userId: UserId;
+  needsRehash: boolean;
+};
+
+/**
  * Abstraction over a user's authentication credentials (password / SSO).
  *
  * The domain treats credentials as opaque — hash algorithms, token
@@ -28,6 +39,9 @@ import type {
  *   for any failure (wrong password, unknown user, soft-deleted user)
  *   — never throw — so callers cannot leak existence via timing or
  *   error-shape differences.
+ * - `verifyPassword` no longer rehashes a verified legacy hash inline.
+ *   The rehash is deferred to `rehashLegacyPassword`, which the caller
+ *   runs only after confirming the user's status is OK (Issue #456).
  */
 export interface CredentialStore {
   // -- password credential ------------------------------------------------
@@ -35,12 +49,28 @@ export interface CredentialStore {
   registerPassword(userId: UserId, raw: RawPassword): Promise<void>;
 
   /**
-   * Sign-in entry point. Returns the owning `UserId` on success and
+   * Sign-in entry point. Returns `{ userId, needsRehash }` on success and
    * `null` for any failure (wrong password / unknown email / deleted
    * user). The single null return path is a deliberate enumeration
-   * defence.
+   * defence — `needsRehash` is attached on success only and is a pure
+   * prefix-based hint (legacy hash format detected, no cryptographic
+   * work), so it introduces no timing difference. The caller invokes
+   * `rehashLegacyPassword` itself, after confirming status is OK.
    */
-  verifyPassword(email: EmailAddress, raw: string): Promise<UserId | null>;
+  verifyPassword(
+    email: EmailAddress,
+    raw: string,
+  ): Promise<VerifyPasswordResult | null>;
+
+  /**
+   * Re-hash a verified legacy-format password to the current algorithm.
+   * Idempotent: a no-op when the stored hash is already current. Uses
+   * `pending.add`, so it must be called inside a UoW. Intended to be
+   * invoked only after the caller has confirmed the user's status is OK
+   * (Issue #456), so accounts that will be rejected anyway are not
+   * needlessly rehashed.
+   */
+  rehashLegacyPassword(userId: UserId, raw: string): Promise<void>;
 
   /**
    * Re-authentication for sensitive operations (e.g. RequestEmailChange).

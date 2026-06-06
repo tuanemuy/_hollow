@@ -13,7 +13,10 @@ import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import { BusinessRuleError } from "@/core/domain/error";
 import { IdentityErrorCode } from "@/core/domain/identity/errorCode";
-import type { CredentialStore } from "@/core/domain/identity/ports/credentialStore";
+import type {
+  CredentialStore,
+  VerifyPasswordResult,
+} from "@/core/domain/identity/ports/credentialStore";
 import {
   type CredentialSummary,
   type EmailAddress,
@@ -123,27 +126,32 @@ async function verifyHash(raw: string, encoded: string): Promise<boolean> {
  *
  * **Execution mode.** Mutation methods (`registerPassword`,
  * `changePassword`, `resetPassword`, `removePassword`, `linkProvider`,
- * `unlinkProvider`, `purgeAll`) and verify methods (`verifyPassword`,
- * `verifyPasswordForUser`) must be invoked inside a
+ * `unlinkProvider`, `purgeAll`), `rehashLegacyPassword`, and
+ * `verifyPasswordForUser` must be invoked inside a
  * `D1UnitOfWorkProvider.run` callback so the supplied `PendingBatch`
- * can collect their writes — mutations enqueue the write directly, and
- * verify enqueues a scrypt rehash whenever the stored hash uses a
- * legacy PBKDF2 format (see "Lazy upgrade" below). Pure-read methods
- * (`hasPassword`, `resolveProvider`, `listCredentials`) never touch
- * `pending` and would work outside a UoW, but every current caller
- * runs inside one for consistency.
+ * can collect their writes. `verifyPassword` no longer enqueues a write
+ * — it returns a `needsRehash` hint and the caller runs the rehash via
+ * `rehashLegacyPassword` after status is confirmed (see "Lazy upgrade").
+ * Pure-read methods (`hasPassword`, `resolveProvider`, `listCredentials`)
+ * never touch `pending` and would work outside a UoW, but every current
+ * caller runs inside one for consistency.
  *
- * **Lazy upgrade.** When `verifyPassword` / `verifyPasswordForUser`
- * succeeds against a legacy `pbkdf2-sha256-v1$...` row, the adapter
- * enqueues an `update accounts set password = <new scrypt> ...` onto
- * the surrounding UoW so the row is silently re-hashed on next login.
- * `accounts` is intentionally not under OCC (see
+ * **Lazy upgrade.** A verified legacy `pbkdf2-sha256-v1$...` row is
+ * silently re-hashed to scrypt by enqueueing an
+ * `update accounts set password = <new scrypt> ...` onto the surrounding
+ * UoW. `accounts` is intentionally not under OCC (see
  * `spec/database/index.md`), so a plain `pending.add(update)` is
  * sufficient — no version bump is required. See
- * `spec/adr/011-argon2id-migration.md` (ADR-003) for the rationale and
- * the deliberately-unhandled `users.status === 'pending'` case (the
- * rehash still fires, the subsequent `logIn` still rejects).
- * `changePassword` deliberately opts out of this lazy upgrade — it uses a
+ * `spec/adr/011-argon2id-migration.md` (ADR-003) for the rationale.
+ * `verifyPassword` (sign-in) does NOT rehash inline: status is still
+ * unconfirmed at that point, so rehashing a `pending` / `suspended` /
+ * `deleted` user that `logIn` will reject anyway is wasted work. It
+ * instead returns `needsRehash`, and `logIn` calls `rehashLegacyPassword`
+ * in a later UoW only after confirming the status is OK (Issue #456).
+ * `verifyPasswordForUser` (re-authentication for an already-active user)
+ * keeps the inline lazy upgrade — that path is reached only with a
+ * confirmed-active session, so the rehash is never wasted.
+ * `changePassword` deliberately opts out of any lazy upgrade — it uses a
  * dedicated rehash-free verify because it overwrites the row with the new
  * scrypt hash regardless, so rehashing the current password first is wasted
  * work (Issue #208).
@@ -214,7 +222,7 @@ export class D1CredentialStore implements CredentialStore {
   async verifyPassword(
     email: EmailAddress,
     raw: string,
-  ): Promise<UserId | null> {
+  ): Promise<VerifyPasswordResult | null> {
     // Single-purpose negative path: any lookup / hash mismatch /
     // soft-deleted state collapses to `null` so callers cannot
     // distinguish "no such email" from "wrong password".
@@ -242,8 +250,11 @@ export class D1CredentialStore implements CredentialStore {
       const ok = await verifyHash(raw, row.password);
       if (!ok) return null;
       const verifiedUserId = UserId.create(row.userId);
-      await this.maybeRehashLegacy(verifiedUserId, raw, row.password);
-      return verifiedUserId;
+      // Prefix-only hint, no crypto: the actual rehash is deferred to
+      // `rehashLegacyPassword`, run by the caller after status is
+      // confirmed OK (Issue #456).
+      const needsRehash = !isScryptEncoded(row.password);
+      return { userId: verifiedUserId, needsRehash };
     } catch (error) {
       // Adapter-internal exceptions are still mapped — but `verifyPassword`'s
       // contract forbids throwing on auth failure. Re-raise only true
@@ -280,7 +291,27 @@ export class D1CredentialStore implements CredentialStore {
       if (row.password === null) return false;
       const ok = await verifyHash(raw, row.password);
       if (!ok) return false;
-      await this.maybeRehashLegacy(userId, raw, row.password);
+      // Re-authentication path for an already-active user (status confirmed
+      // out-of-band by session gating), so the inline lazy upgrade is never
+      // wasted work and stays here rather than deferring like `verifyPassword`
+      // (Issue #456). `accounts` is not OCC-tracked, so a bare
+      // `pending.add(update)` suffices (`spec/adr/011-argon2id-migration.md`
+      // ADR-003).
+      if (!isScryptEncoded(row.password)) {
+        const upgraded = await hashScrypt(raw);
+        const now = this.clock.now().toISOString();
+        this.pending.add(
+          this.db
+            .update(accounts)
+            .set({ password: upgraded, updatedAt: now })
+            .where(
+              and(
+                eq(accounts.userId, userId),
+                eq(accounts.providerId, CREDENTIAL_PROVIDER_ID),
+              ),
+            ),
+        );
+      }
       return true;
     } catch (error) {
       throw new SystemError(
@@ -291,16 +322,35 @@ export class D1CredentialStore implements CredentialStore {
     }
   }
 
-  // `accounts` is not OCC-tracked, so a bare `pending.add(update)` is
-  // sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003).
-  private async maybeRehashLegacy(
-    userId: UserId,
-    raw: string,
-    currentEncoded: string,
-  ): Promise<void> {
-    if (isScryptEncoded(currentEncoded)) return;
+  async rehashLegacyPassword(userId: UserId, raw: string): Promise<void> {
+    // Re-SELECT the current hash rather than trusting the value read by
+    // `verifyPassword`: between status confirmation and this UoW a
+    // concurrent login may have already rehashed the row, so a stale
+    // verdict would double-write. Reading inside this UoW closes the
+    // TOCTOU window (Issue #456).
+    const rows = await mapDbError(
+      "Failed to load password for rehash",
+      async () => {
+        return this.db
+          .select({ password: accounts.password })
+          .from(accounts)
+          .where(
+            and(
+              eq(accounts.userId, userId),
+              eq(accounts.providerId, CREDENTIAL_PROVIDER_ID),
+            ),
+          )
+          .limit(1);
+      },
+    );
+    const current = rows[0]?.password;
+    // Defensive idempotency: normally only called when needsRehash=true,
+    // but a no-op on an already-current hash guards against a double rehash.
+    if (current == null || isScryptEncoded(current)) return;
     const upgraded = await hashScrypt(raw);
     const now = this.clock.now().toISOString();
+    // `accounts` is not OCC-tracked, so a bare `pending.add(update)` is
+    // sufficient. See `spec/adr/011-argon2id-migration.md` (ADR-003).
     this.pending.add(
       this.db
         .update(accounts)
