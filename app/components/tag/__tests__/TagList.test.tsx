@@ -48,7 +48,12 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-type Tag = { id: string; name: string; noteCount: number };
+type Tag = {
+  id: string;
+  name: string;
+  noteCount: number;
+  lastUsedAt: string | null;
+};
 
 let container: HTMLDivElement;
 let root: Root;
@@ -75,7 +80,9 @@ afterEach(() => {
 async function renderList(tags: readonly Tag[]) {
   const { TagList } = await import("../TagList");
   act(() => {
-    root.render(<TagList tags={tags} />);
+    root.render(
+      <TagList tags={tags} query={undefined} sort="name" order="asc" />,
+    );
   });
 }
 
@@ -96,7 +103,16 @@ async function flush() {
 }
 
 function makeTag(id: string, name: string, noteCount = 0): Tag {
-  return { id, name, noteCount };
+  return { id, name, noteCount, lastUsedAt: null };
+}
+
+function makeTagWithLastUsed(
+  id: string,
+  name: string,
+  noteCount: number,
+  lastUsedAt: string,
+): Tag {
+  return { id, name, noteCount, lastUsedAt };
 }
 
 describe("reduceTags", () => {
@@ -174,7 +190,9 @@ describe("TagList — optimistic rename", () => {
       }),
     );
 
-    await renderList([{ id: "t1", name: "alpha", noteCount: 3 }]);
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 3, lastUsedAt: null },
+    ]);
 
     expect(document.body.textContent).toContain("#alpha");
 
@@ -235,8 +253,8 @@ describe("TagList — optimistic delete", () => {
     );
 
     await renderList([
-      { id: "t1", name: "alpha", noteCount: 0 },
-      { id: "t2", name: "beta", noteCount: 0 },
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
     ]);
 
     expect(document.body.textContent).toContain("2 件のタグ");
@@ -280,9 +298,9 @@ describe("TagList — optimistic delete", () => {
     // the remaining two tags (beta, gamma) should only see each other as candidates.
     // This ensures the deleted tag is properly removed from all candidate lists.
     await renderList([
-      { id: "t1", name: "alpha", noteCount: 0 },
-      { id: "t2", name: "beta", noteCount: 0 },
-      { id: "t3", name: "gamma", noteCount: 0 },
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+      { id: "t3", name: "gamma", noteCount: 0, lastUsedAt: null },
     ]);
 
     const mergeButtons = () =>
@@ -329,7 +347,9 @@ describe("TagList — optimistic delete", () => {
       }),
     );
 
-    await renderList([{ id: "t1", name: "alpha", noteCount: 0 }]);
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
 
     const deleteBtn = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>("button"),
@@ -363,5 +383,173 @@ describe("TagList — optimistic delete", () => {
       (el) => el.textContent ?? "",
     );
     expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+  });
+});
+
+describe("TagList — lastUsedAt display", () => {
+  it("displays 'unused' for tags with lastUsedAt: null", async () => {
+    await renderList([makeTag("t1", "alpha", 5), makeTag("t2", "beta", 3)]);
+
+    const content = document.body.textContent ?? "";
+    const unusedMatches = (content.match(/未使用/g) ?? []).length;
+    expect(unusedMatches).toBe(2);
+    expect(content).toContain("未使用");
+  });
+
+  it("displays 'lastUsedAt YYYY/MM/DD' for tags with ISO date string", async () => {
+    // UTC noon so the rendered date doesn't shift across timezones; assert the
+    // label and Y/M/D parts loosely to stay timezone-resilient.
+    const lastUsedIso = "2026-06-01T12:00:00.000Z";
+    await renderList([makeTagWithLastUsed("t1", "research", 10, lastUsedIso)]);
+
+    const content = document.body.textContent ?? "";
+    expect(content).toContain("最終使用");
+    expect(content).toMatch(/2026/);
+    expect(content).toMatch(/06/);
+    expect(content).toMatch(/01/);
+  });
+
+  it("displays 'lastUsedAt' with multiple tags of mixed lastUsedAt states", async () => {
+    const iso1 = "2026-05-15T12:00:00.000Z";
+    const iso2 = "2026-06-08T12:00:00.000Z";
+    await renderList([
+      makeTagWithLastUsed("t1", "alpha", 5, iso1),
+      makeTag("t2", "beta", 3),
+      makeTagWithLastUsed("t3", "gamma", 7, iso2),
+    ]);
+
+    // Scope to the list `ul` so the toolbar's buttons don't leak into the text.
+    const ul = container.querySelector("ul");
+    expect(ul).not.toBeNull();
+    const rows = Array.from(ul?.querySelectorAll("li") ?? []);
+    expect(rows.length).toBe(3);
+    expect(rows[0]?.textContent).toContain("2026");
+    expect(rows[0]?.textContent).toContain("05");
+    expect(rows[1]?.textContent).toContain("未使用");
+    expect(rows[2]?.textContent).toContain("2026");
+    expect(rows[2]?.textContent).toContain("06");
+  });
+
+  it("falls back to 'unused' for invalid/unparseable dates", async () => {
+    const invalidIso = "invalid-date-string";
+    await renderList([makeTagWithLastUsed("t1", "test", 1, invalidIso)]);
+
+    const ul = container.querySelector("ul");
+    expect(ul).not.toBeNull();
+    const tagContent = ul?.textContent ?? "";
+    // Unparseable dates fall back to "未使用", never a Y/M/D string.
+    expect(tagContent).toContain("未使用");
+    expect(tagContent).not.toMatch(/\d{4}\/\d{2}\/\d{2}/);
+  });
+
+  it("preserves lastUsedAt during optimistic rename", async () => {
+    const lastUsedIso = "2026-06-05T12:00:00.000Z";
+    let rejectRename: ((e: unknown) => void) | undefined;
+    renameMock.mockReturnValue(
+      new Promise((_res, rej) => {
+        rejectRename = rej;
+      }),
+    );
+
+    await renderList([makeTagWithLastUsed("t1", "original", 5, lastUsedIso)]);
+
+    const content = document.body.textContent ?? "";
+    expect(content).toContain("最終使用");
+    expect(content).toContain("2026");
+
+    await act(async () => {
+      buttonByText("リネーム").click();
+    });
+    const input = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type="text"]'),
+    ).find((el) => el.value === "original");
+    if (!input) throw new Error("rename input not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(input, "renamed");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      buttonByText("保存").click();
+    });
+    await flush();
+
+    const contentAfterRename = document.body.textContent ?? "";
+    expect(contentAfterRename).toContain("最終使用");
+    expect(contentAfterRename).toContain("2026");
+
+    // Settle the pending rename so the test tears down cleanly.
+    await act(async () => {
+      rejectRename?.(
+        new AppServerError({
+          kind: "system",
+          code: null,
+          message: "System error",
+        }),
+      );
+    });
+    await flush();
+  });
+
+  it("preserves lastUsedAt after optimistic delete + revert", async () => {
+    const iso1 = "2026-05-20T12:00:00.000Z";
+    const iso2 = "2026-06-03T12:00:00.000Z";
+    let rejectDelete: ((e: unknown) => void) | undefined;
+    deleteMock.mockReturnValue(
+      new Promise<void>((_res, rej) => {
+        rejectDelete = rej;
+      }),
+    );
+
+    await renderList([
+      makeTagWithLastUsed("t1", "alpha", 2, iso1),
+      makeTagWithLastUsed("t2", "beta", 4, iso2),
+    ]);
+
+    let ul = container.querySelector("ul");
+    let rows = Array.from(ul?.querySelectorAll("li") ?? []);
+    expect(rows.length).toBe(2);
+    expect(rows[0]?.textContent).toContain("2026");
+    expect(rows[1]?.textContent).toContain("2026");
+
+    const deleteBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim().includes("削除"));
+    await act(async () => {
+      deleteBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await flush();
+
+    ul = container.querySelector("ul");
+    rows = Array.from(ul?.querySelectorAll("li") ?? []);
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.textContent).toContain("2026");
+
+    // Fail the server call so the optimistic delete reverts.
+    await act(async () => {
+      rejectDelete?.(
+        new AppServerError({
+          kind: "system",
+          code: null,
+          message: "System error",
+        }),
+      );
+    });
+    await flush();
+
+    ul = container.querySelector("ul");
+    rows = Array.from(ul?.querySelectorAll("li") ?? []);
+    expect(rows.length).toBe(2);
+    expect(rows[0]?.textContent).toContain("2026");
+    expect(rows[1]?.textContent).toContain("2026");
   });
 });

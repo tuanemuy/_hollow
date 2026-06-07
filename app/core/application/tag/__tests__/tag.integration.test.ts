@@ -88,6 +88,7 @@ async function seedNote(
     title: string;
     contentHtml: string;
     tagIds?: readonly string[];
+    updatedAt?: string;
   },
 ) {
   await container.db.insert(schema.notes).values({
@@ -101,7 +102,7 @@ async function seedNote(
     status: "active",
     trashedAt: null,
     createdAt: iso(0),
-    updatedAt: iso(0),
+    updatedAt: params.updatedAt ?? iso(0),
     editLockUserId: null,
     editLockAcquiredAt: null,
     editLockExpiresAt: null,
@@ -576,5 +577,67 @@ describe("listTags integration", () => {
     });
     expect(result.tags).toHaveLength(1);
     expect(result.tags[0]?.name).toBe("mine");
+  });
+
+  it("carries lastUsedAt on the DTO and accepts sort:lastUsedAt (Issue #569)", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    await seedDirectory(container, dirRawId(1), OWNER_A);
+    await seedTag(container, tagRawId(1), OWNER_A, "older");
+    await seedTag(container, tagRawId(2), OWNER_A, "newer");
+    await seedTag(container, tagRawId(3), OWNER_A, "unused");
+    await seedNote(container, {
+      id: noteRawId(1),
+      ownerId: OWNER_A,
+      directoryId: dirRawId(1),
+      title: "n1",
+      contentHtml: "<p>x</p>",
+      tagIds: [tagRawId(1)],
+      updatedAt: iso(1_000),
+    });
+    await seedNote(container, {
+      id: noteRawId(2),
+      ownerId: OWNER_A,
+      directoryId: dirRawId(1),
+      title: "n2",
+      contentHtml: "<p>y</p>",
+      tagIds: [tagRawId(2)],
+      updatedAt: iso(5_000),
+    });
+
+    const result = await listTags({
+      container,
+      input: { actorUserId: OWNER_A, sort: "lastUsedAt", order: "desc" },
+    });
+
+    // newer first, older next, unused (null) at the tail (SQLite NULL is min).
+    expect(result.tags.map((t) => t.name)).toEqual([
+      "newer",
+      "older",
+      "unused",
+    ]);
+    expect(result.tags[0]?.lastUsedAt).toBe(new Date(iso(5_000)).toISOString());
+    expect(result.tags[1]?.lastUsedAt).toBe(new Date(iso(1_000)).toISOString());
+    expect(result.tags[2]?.lastUsedAt).toBeNull();
+  });
+
+  it("forwards query / sort / order through to the repository", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    await seedTag(container, tagRawId(1), OWNER_A, "research");
+    await seedTag(container, tagRawId(2), OWNER_A, "design");
+    await seedTag(container, tagRawId(3), OWNER_A, "reading");
+
+    // query filters to LIKE-matching names; order desc reverses the name sort.
+    const result = await listTags({
+      container,
+      input: {
+        actorUserId: OWNER_A,
+        query: "re",
+        sort: "name",
+        order: "desc",
+      },
+    });
+    expect(result.tags.map((t) => t.name)).toEqual(["research", "reading"]);
   });
 });

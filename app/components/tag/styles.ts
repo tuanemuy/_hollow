@@ -40,6 +40,57 @@ export const TAG_ROW_KEBAB_WRAP = "hidden max-lg:inline-flex";
 export const TAG_COUNT = "text-sm text-ink-tertiary max-lg:hidden";
 
 /**
+ * Tag last-used line (mock `.tag-lastused`) — same visual as
+ * `TAG_COUNT` (`text-sm` / `ink-tertiary` / tabular-nums) with a 2px top
+ * gap, and folded away below `lg` exactly like the count.
+ */
+export const TAG_LASTUSED =
+  "text-sm text-ink-tertiary [font-variant-numeric:tabular-nums] mt-0.5 max-lg:hidden";
+
+/**
+ * Tag toolbar (mock `.tag-toolbar`) — page-scoped search on the
+ * left, sort controls on the right. Wraps and stacks vertically below `sm`.
+ */
+export const TAG_TOOLBAR =
+  "flex items-center justify-between gap-4 mb-5 flex-wrap max-sm:flex-col max-sm:items-stretch max-sm:gap-3";
+
+/**
+ * Search box wrapper (mock `.tag-toolbar .search`) — shares the header
+ * `.search` visual tokens but left-aligned and width-capped for the toolbar.
+ * The inner `<form>` carries `relative` to anchor the leading search icon.
+ */
+export const TAG_SEARCH = "max-w-[320px] flex-1 basis-60 max-sm:max-w-none";
+
+/** Search input (mock header `.search input`) — surface pill with focus shadow. */
+export const TAG_SEARCH_INPUT =
+  "w-full h-9 pl-[38px] pr-4 rounded-pill bg-surface text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover focus:shadow-focus";
+
+/** Leading search icon (mock `.search-icon`) — centered, non-interactive. */
+export const TAG_SEARCH_ICON =
+  "absolute left-[13px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
+
+/** Sort cluster (mock `.tag-sort`) — label + segmented axis + direction toggle. */
+export const TAG_SORT =
+  "flex items-center gap-2 flex-wrap max-sm:justify-between";
+
+/** "並び替え" label (mock `.tag-sort-label`). */
+export const TAG_SORT_LABEL = "text-sm text-ink-tertiary";
+
+/** Segmented control container (mock `.segmented`). */
+export const SEGMENTED = "inline-flex p-0.5 rounded-md bg-surface";
+
+/**
+ * Segmented item (mock `.segmented-item`) — active state via `data-active`.
+ * The selected item gets the `bg` surface + ink color + subtle shadow.
+ */
+export const SEGMENTED_ITEM =
+  "px-3.5 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-data-[active]:text-ink data-[active]:bg-bg data-[active]:text-ink data-[active]:shadow-xs max-sm:min-h-[44px]";
+
+/** Direction toggle (mock `.tag-sort .icon-btn-sm`) — 32px ghost icon button. */
+export const TAG_SORT_DIR =
+  "inline-flex items-center justify-center w-8 h-8 rounded-full text-ink bg-transparent transition-colors motion-reduce:transition-none hover:bg-surface active:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+
+/**
  * Inline-rename editing block wrapper (mock `.tag-editing-block`). Paints the
  * accent-surface background on the whole editing area so the row beneath stays
  * borderless/transparent. Kept inside `TagActions` (TagActions-completed

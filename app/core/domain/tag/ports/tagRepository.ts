@@ -13,20 +13,26 @@ import type { TagId, TagName } from "../valueObject";
 export type TagListOpts = Readonly<{
   limit: number;
   offset: number;
-  sort?: "name" | "noteCount" | "createdAt";
+  sort?: "name" | "noteCount" | "createdAt" | "lastUsedAt";
   order?: "asc" | "desc";
   query?: string;
 }>;
 
 /**
- * A listed tag paired with its read-time note-usage count. `noteCount` is
+ * A listed tag paired with its read-time usage aggregates. `noteCount` is
  * aggregated at query time (active `note_tags` for the owner) rather than
  * stored on the `Tag` aggregate, so it is carried alongside the entity
  * only on the listing path that displays it.
+ *
+ * `lastUsedAt` is the same family of read-time aggregate: the
+ * `MAX(notes.updatedAt)` over the owner's active notes linked to the tag.
+ * It is **not** a field of the `Tag` aggregate. `null` when the tag has no
+ * active note links (an unused tag).
  */
 export type TagWithNoteCount = Readonly<{
   tag: Tag;
   noteCount: number;
+  lastUsedAt: Date | null;
 }>;
 
 /**
