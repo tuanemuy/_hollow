@@ -182,9 +182,8 @@ describe("NoteMetaPanel visibility (Issue #540 ADR-002)", () => {
       throw new Error("properties section not found");
     }
 
-    // プロパティ行のキー（dt）に visibility のラベルが含まれないこと。
-    // 「公開日」は publishedAt のメタ行なので除外し、純粋な状態ラベル
-    // 「公開」「限定公開」「非公開」が dt として存在しないことを見る。
+    // 「公開日」(publishedAt) 行の存在は確認しつつ、状態ラベル
+    // （公開/限定公開/非公開/公開状態）が dt に無いことを見る。
     const keyLabels = Array.from(
       propertiesSection.querySelectorAll<HTMLElement>("dt"),
     ).map((dt) => dt.textContent);
@@ -194,7 +193,6 @@ describe("NoteMetaPanel visibility (Issue #540 ADR-002)", () => {
     expect(keyLabels).not.toContain("非公開");
     expect(keyLabels).not.toContain("公開状態");
 
-    // 値（dd）側にも visibility ラベルが描かれないこと。
     const valueText = Array.from(
       propertiesSection.querySelectorAll<HTMLElement>("dd"),
     )
