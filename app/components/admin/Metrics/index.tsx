@@ -84,37 +84,43 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
       value: `${formatNumber(limits.maxNoteRevisionsPerNote)} 件`,
     },
   ];
+  // Narrow widths (max-md, mock @media max-width:767px) stack each row into a
+  // card. Per ADR-004 the "項目"/"値" labels are real DOM <span>s shown only at
+  // narrow widths (not the mock's `td::before { content: attr(data-label) }`),
+  // so screen readers still receive the column labels when <thead> is hidden.
+  const stackLabel =
+    "hidden max-md:inline-block max-md:w-[132px] text-ink-tertiary text-xs";
   return (
-    <div className="border border-hairline rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3">
-                項目
-              </th>
-              <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-right align-middle px-4 py-3">
-                値
-              </th>
+    <div className="border border-hairline rounded-lg overflow-hidden max-md:border-none max-md:rounded-none">
+      <table className="w-full border-collapse text-sm max-md:block">
+        <thead className="max-md:hidden">
+          <tr>
+            <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3">
+              項目
+            </th>
+            <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-right align-middle px-4 py-3">
+              値
+            </th>
+          </tr>
+        </thead>
+        <tbody className="max-md:block">
+          {rows.map((row) => (
+            <tr
+              key={row.label}
+              className="border-t border-hairline first:border-t-0 hover:bg-surface-elevated max-md:block max-md:border max-md:border-hairline max-md:rounded-lg max-md:mb-3 max-md:p-3"
+            >
+              <td className="px-4 py-3 text-left align-middle max-md:block max-md:px-0 max-md:py-1">
+                <span className={stackLabel}>項目</span>
+                {row.label}
+              </td>
+              <td className="px-4 py-3 text-right align-middle font-mono max-md:block max-md:px-0 max-md:py-1 max-md:text-left">
+                <span className={`${stackLabel} font-sans`}>値</span>
+                {row.value}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.label}
-                className="border-t border-hairline first:border-t-0 hover:bg-surface-elevated"
-              >
-                <td className="px-4 py-3 text-left align-middle">
-                  {row.label}
-                </td>
-                <td className="px-4 py-3 text-right align-middle font-mono">
-                  {row.value}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
