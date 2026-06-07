@@ -16,7 +16,13 @@ import {
   UserStatus,
 } from "./valueObject";
 
-const USERNAME_CHANGE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Cooldown between username changes (30 days). SSOT for the rate limit
+ * enforced in `changeUsername`; the frontend imports it to derive the
+ * "次に変更できる日付" hint so the displayed date cannot drift from the
+ * domain rule.
+ */
+export const USERNAME_CHANGE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 
 type UserBase = Readonly<{
   id: UserId;

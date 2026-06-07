@@ -12,7 +12,9 @@ import {
   fieldTextarea,
   formError,
   pillBtn,
+  pillBtnGhostDanger,
   pillBtnPrimary,
+  pillBtnSm,
 } from "../common/styles";
 
 // ===== Settings sidebar back link ("すべてのノートに戻る") =====
@@ -93,9 +95,38 @@ export const CURRENT_VALUE_STRONG = "font-medium text-ink";
 // Action row(s) hosting submit / secondary buttons.
 export const ACTION_ROW = "flex flex-wrap items-center gap-2.5 mt-6";
 
+// Spacer inside ACTION_ROW (mock `.action-row .spacer`) — pushes the trailing
+// "最終保存" hint to the far end.
+export const ACTION_ROW_SPACER = "flex-1";
+
 export const BTN_PRIMARY = `${pillBtn} ${pillBtnPrimary}`;
 
 export const BTN_SECONDARY = pillBtn;
+
+// ===== Avatar block (mock `.avatar-row` / `.avatar-large` / `.avatar-actions`) =====
+
+// Avatar + actions row. Stacks vertically below `sm` (mock max-width:640px rule).
+export const AVATAR_ROW =
+  "flex items-center gap-5 mb-6 max-sm:flex-col max-sm:items-start max-sm:gap-3";
+
+// 80px circular avatar. Image fills via `object-cover`; the gradient + centered
+// text serve as the initials fallback (mock `.avatar-large`, mirrors
+// `layout/styles.ts` AVATAR at a larger size).
+export const AVATAR_LARGE =
+  "w-20 h-20 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-2xl font-light inline-flex items-center justify-center shrink-0 overflow-hidden";
+
+// The `<img>` rendered inside AVATAR_LARGE when an avatar is set.
+export const AVATAR_IMG = "w-full h-full object-cover";
+
+export const AVATAR_ACTIONS = "flex flex-wrap gap-2";
+
+// Small pill action button (mock `.btn-sm`) — surface chip at the `pillBtnSm`
+// size. Drives `data-sm`.
+export const BTN_SM = `${pillBtn} ${pillBtnSm}`;
+
+// Small destructive (ghost) action button (mock `.btn-sm.danger-text`).
+// Transparent at rest, error-surface on hover. Drives `data-ghost-danger data-sm`.
+export const BTN_SM_DANGER = `${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`;
 
 // ===== Prompts form =====
 

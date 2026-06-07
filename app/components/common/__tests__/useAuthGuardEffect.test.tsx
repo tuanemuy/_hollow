@@ -42,6 +42,8 @@ function makeUser(id: string): UserDTO {
     role: "member",
     status: "active",
     createdAt: new Date(0) as unknown as UserDTO["createdAt"],
+    lastSavedAt: new Date(0) as unknown as UserDTO["lastSavedAt"],
+    lastUsernameChangedAt: null,
   };
 }
 
