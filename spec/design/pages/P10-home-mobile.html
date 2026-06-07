@@ -1126,7 +1126,9 @@
   </main>
 </div>
 
-<!-- 下部固定CTA: ヘッダーから退避した主要CTA。選択中は bulk-bar が上に重なる(z-index 45>40)。 -->
+<!-- 下部固定CTA: ヘッダーから退避した主要CTA。bulk-bar とは排他で、実機では「選択0件」のときだけ表示する。
+     このモックはカタログ目的で cta-bar と bulk-bar（選択中状態）を同時に描画しているが、両者は同時表示しない。
+     選択中は bulk-bar が上に重なる(z-index 45>40)。 -->
 <div class="cta-bar">
   <button class="pill-btn primary" aria-label="新規作成">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1137,7 +1139,7 @@
   </button>
 </div>
 
-<!-- Sticky bulk action bar (shown when items are selected) — 下端固定の横スクロール許容バー -->
+<!-- Sticky bulk action bar — 下端固定の横スクロール許容バー。選択1件以上のときのみ表示（上の cta-bar と排他）。 -->
 <div class="bulk-bar" role="region" aria-label="一括操作">
   <span class="bulk-count">2 件選択中</span>
   <div class="bulk-actions">
