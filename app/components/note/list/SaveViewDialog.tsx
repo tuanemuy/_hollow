@@ -102,28 +102,41 @@ export function SaveViewDialog({ open, onClose, search }: Props) {
             onChange={(e) => setName(e.target.value)}
             required
             maxLength={60}
+            placeholder="ビューの名前"
             className={fieldControl}
           />
         </div>
         <fieldset className={field}>
           <legend className={fieldLabel}>公開範囲</legend>
-          <label className={radioRow}>
+          <label className={`${radioRow} items-start`}>
             <input
               type="radio"
               name="view-kind"
               checked={kind === "personal"}
               onChange={() => setKind("personal")}
+              className="mt-0.5"
             />
-            個人用
+            <span className="flex min-w-0 flex-col gap-px">
+              <span className="font-medium text-ink">個人用</span>
+              <span className="text-xs text-ink-tertiary leading-snug">
+                自分のサイドバーにのみ表示されます。
+              </span>
+            </span>
           </label>
-          <label className={radioRow}>
+          <label className={`${radioRow} items-start`}>
             <input
               type="radio"
               name="view-kind"
               checked={kind === "public"}
               onChange={() => setKind("public")}
+              className="mt-0.5"
             />
-            インスタンス内で共有
+            <span className="flex min-w-0 flex-col gap-px">
+              <span className="font-medium text-ink">インスタンス内で共有</span>
+              <span className="text-xs text-ink-tertiary leading-snug">
+                公開プロフィールに表示され、読者が絞り込んで読めます。
+              </span>
+            </span>
           </label>
         </fieldset>
         {error !== null ? (

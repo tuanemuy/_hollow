@@ -68,6 +68,10 @@ export const SIDEBAR_SECTION_TITLE =
 // tree where it lives on the row).
 export const NAV_ITEM = `${navItem} relative hover:bg-surface aria-[current=page]:bg-surface data-[active]:bg-surface`;
 
+// Right-aligned count badge for sidebar nav items (mock `.nav-item .count`:
+// `margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary)`).
+export const NAV_COUNT = "ml-auto text-xs text-ink-tertiary";
+
 export const APP_MAIN = "px-6 pt-8 pb-20 max-w-[1100px] mx-auto w-full min-w-0";
 
 // Shared icon class for empty-state eyecatches (paired with `EMPTY_STATE`).

@@ -130,6 +130,36 @@ function buttonByLabel(label: string): HTMLButtonElement {
   return found;
 }
 
+/**
+ * The row actions are now a 適用 link + a ⋯ overflow menu (P20). Open the
+ * named row's menu, then call `menuItemByText` for the action.
+ */
+async function openRowMenu(viewName: string) {
+  await act(async () => {
+    buttonByLabel(`${viewName} のその他の操作`).click();
+  });
+}
+
+function menuItemByText(text: string): HTMLButtonElement {
+  const items = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+  );
+  const found = items.find((b) => (b.textContent ?? "").trim() === text);
+  if (!found) throw new Error(`menuitem "${text}" not found`);
+  return found;
+}
+
+/** The trimmed texts of the menuitems inside a named row's open menu panel. */
+function menuItemTextsFor(viewName: string): string[] {
+  const panel = Array.from(
+    document.body.querySelectorAll<HTMLElement>('[role="menu"]'),
+  ).find((p) => p.getAttribute("aria-label") === `${viewName} のその他の操作`);
+  if (!panel) throw new Error(`menu for "${viewName}" not open`);
+  return Array.from(panel.querySelectorAll('[role="menuitem"]')).map((b) =>
+    (b.textContent ?? "").trim(),
+  );
+}
+
 async function flush() {
   await act(async () => {
     await Promise.resolve();
@@ -154,8 +184,9 @@ describe("SavedViewsList — optimistic delete", () => {
 
     expect(document.body.textContent).toContain("Alpha");
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を削除").click();
+      menuItemByText("削除").click();
     });
     const dialog = document.body.querySelector<HTMLElement>(
       '[role="alertdialog"]',
@@ -191,8 +222,9 @@ describe("SavedViewsList — optimistic delete", () => {
 
     await renderList([makeView({ id: "v1", name: "Alpha" })]);
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を削除").click();
+      menuItemByText("削除").click();
     });
     const confirmBtn = document.body
       .querySelector<HTMLElement>('[role="alertdialog"]')
@@ -237,8 +269,9 @@ describe("SavedViewsList — optimistic rename", () => {
 
     await renderList([makeView({ id: "v1", name: "Alpha" })]);
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha の名前を変更").click();
+      menuItemByText("名前変更").click();
     });
     const input =
       container.querySelector<HTMLInputElement>('input[type="text"]');
@@ -300,8 +333,9 @@ describe("SavedViewsList — optimistic duplicate", () => {
 
     expect(document.body.textContent).not.toContain("Alpha のコピー");
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を複製").click();
+      menuItemByText("複製").click();
     });
     await flush();
 
@@ -327,8 +361,9 @@ describe("SavedViewsList — optimistic duplicate", () => {
       makeView({ id: "v2", name: "Beta" }),
     ]);
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を複製").click();
+      menuItemByText("複製").click();
     });
     await flush();
 
@@ -346,8 +381,9 @@ describe("SavedViewsList — optimistic duplicate", () => {
 
     await renderList([makeView({ id: "v1", name: "Alpha" })]);
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を複製").click();
+      menuItemByText("複製").click();
     });
     await flush();
 
@@ -388,8 +424,9 @@ describe("SavedViewsList — optimistic duplicate", () => {
       makeView({ id: "v2", name: "Beta" }),
     ]);
 
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を複製").click();
+      menuItemByText("複製").click();
     });
     await flush();
 
@@ -424,8 +461,9 @@ describe("SavedViewsList — optimistic duplicate", () => {
     ]);
 
     // Duplicate Alpha; this will fail.
+    await openRowMenu("Alpha");
     await act(async () => {
-      buttonByLabel("Alpha を複製").click();
+      menuItemByText("複製").click();
     });
     await flush();
 
@@ -476,19 +514,22 @@ describe("SavedViewsList — optimistic default toggle", () => {
       makeView({ id: "v2", name: "Beta", isDefault: false }),
     ]);
 
+    await openRowMenu("Beta");
     await act(async () => {
-      buttonByLabel("Beta を既定にする").click();
+      menuItemByText("既定にする").click();
     });
     await flush();
 
-    // Beta's own button now reads "既定を解除" (optimistic self-reflection).
-    const labels = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>("button"),
-    ).map((b) => b.getAttribute("aria-label"));
-    expect(labels).toContain("Beta の既定を解除");
-    // Alpha's default is NOT optimistically cleared — it converges on
-    // invalidate (ADR-003 tradeoff: a brief "two defaults" window).
-    expect(labels).toContain("Alpha の既定を解除");
+    // Re-open Beta's menu and inspect its (optimistic) default-toggle label.
+    // Beta's own menuitem now reads "既定を解除" (optimistic self-reflection).
+    await openRowMenu("Beta");
+    expect(menuItemTextsFor("Beta")).toContain("既定を解除");
+
+    // Open Alpha's menu (this dismisses Beta's). Alpha's default is NOT
+    // optimistically cleared — it converges on invalidate (ADR-003 tradeoff:
+    // a brief "two defaults" window).
+    await openRowMenu("Alpha");
+    expect(menuItemTextsFor("Alpha")).toContain("既定を解除");
 
     await act(async () => {
       resolveDefault?.();

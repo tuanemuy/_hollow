@@ -37,6 +37,7 @@ const baseProps = {
   noteId: "note-self",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
+  directorySegments: [] as readonly { id: string; name: string }[],
   tagNames: [] as readonly string[],
   publishedAt: null,
   status: "active" as const,
@@ -113,6 +114,48 @@ describe("NoteMetaPanel backlink count", () => {
     expect(section.textContent).toContain("Backlink 1");
     expect(section.textContent).toContain("Backlink 2");
     expect(section.textContent).toContain("Backlink 3");
+  });
+});
+
+describe("NoteMetaPanel 場所 row (Issue #540)", () => {
+  it("joins directory segment names with ' / '", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          directorySegments={[
+            { id: "d1", name: "Research" },
+            { id: "d2", name: "論文メモ" },
+          ]}
+          backlinks={[]}
+          backlinkCount={0}
+        />,
+      );
+    });
+    expect(container.textContent).toContain("場所");
+    expect(container.textContent).toContain("Research / 論文メモ");
+  });
+
+  it("falls back to すべてのノート for a root-level note", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel {...baseProps} backlinks={[]} backlinkCount={0} />,
+      );
+    });
+    expect(container.textContent).toContain("場所");
+    expect(container.textContent).toContain("すべてのノート");
+  });
+
+  it("renders the プロパティ section before バックリンク (mock order)", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel {...baseProps} backlinks={[]} backlinkCount={0} />,
+      );
+    });
+    const sections = Array.from(
+      container.querySelectorAll<HTMLElement>("section[aria-label]"),
+    ).map((s) => s.getAttribute("aria-label"));
+    expect(sections).toEqual(["ノートのプロパティ", "バックリンク"]);
   });
 });
 

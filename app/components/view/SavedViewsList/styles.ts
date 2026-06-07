@@ -7,6 +7,84 @@
  * `spec/design/pages/P20-views.html` for the source design.
  */
 
+import {
+  dateRangePresetLabels,
+  formatDateRangeChipLabel,
+  matchDateRangePreset,
+} from "@/components/note/list/listSelectors";
+import { visibilityLabel } from "@/components/note/list/styles";
+import type { SavedViewDTO } from "@/core/application/dto/view";
+
+/**
+ * Japanese label for a saved view's sort, e.g. `更新降順` (P20 `.view-chips`'s
+ * `ソート: …` chip). No shared helper exists for `{by, direction}`, so this
+ * small lookup table is local to P20. `title` has no dedicated mock chip but
+ * is part of the DTO union, so it is covered for completeness.
+ */
+const SORT_BY_LABEL: Record<SavedViewDTO["sort"]["by"], string> = {
+  updatedAt: "更新",
+  createdAt: "作成",
+  title: "タイトル",
+};
+
+const SORT_DIRECTION_LABEL: Record<SavedViewDTO["sort"]["direction"], string> =
+  {
+    desc: "降順",
+    asc: "昇順",
+  };
+
+export function sortChipLabel(sort: SavedViewDTO["sort"]): string {
+  return `ソート: ${SORT_BY_LABEL[sort.by]}${SORT_DIRECTION_LABEL[sort.direction]}`;
+}
+
+/**
+ * `公開状態: …` chip label for a saved view's visibility filter. Reuses the
+ * note-list `visibilityLabel` SSOT. When multiple values are selected they are
+ * joined with `・`; an empty filter yields `null` (no chip).
+ */
+export function visibilityChipLabel(
+  filter: SavedViewDTO["query"]["visibilityFilter"],
+): string | null {
+  if (filter.length === 0) return null;
+  return `公開状態: ${filter.map((v) => visibilityLabel(v)).join("・")}`;
+}
+
+/**
+ * `更新: …` chip label for a saved view's date range. The DTO stores ISO
+ * datetimes; the FilterBar preset helpers operate on `YYYY-MM-DD`, so the
+ * bounds are sliced to date-only first. A preset match (e.g. `過去30日`) wins;
+ * otherwise it falls back to the compact `M/D–M/D` form. `baseDate` is injected
+ * so the preset arithmetic stays deterministic. Returns `null` when neither
+ * bound is set (no chip).
+ */
+export function dateRangeChipLabel(
+  range: SavedViewDTO["query"]["dateRange"],
+  baseDate: Date,
+): string | null {
+  if (range === null) return null;
+  const from = range.from === null ? undefined : range.from.slice(0, 10);
+  const to = range.to === null ? undefined : range.to.slice(0, 10);
+  const preset = matchDateRangePreset(from, to, baseDate);
+  if (preset !== null) return `更新: ${dateRangePresetLabels[preset]}`;
+  const compact = formatDateRangeChipLabel(from, to);
+  return compact === null ? null : `更新: ${compact}`;
+}
+
+/**
+ * `ディレクトリ: …` chip label. Resolves `directoryId` to a human path via the
+ * supplied resolver (the flat directory list keyed by id); falls back to the
+ * generic `ディレクトリ` when the id cannot be resolved. Returns `null` when no
+ * directory is pinned (no chip).
+ */
+export function directoryChipLabel(
+  directoryId: string | null,
+  resolveName: (id: string) => string | undefined,
+): string | null {
+  if (directoryId === null) return null;
+  const name = resolveName(directoryId);
+  return name !== undefined ? `ディレクトリ: ${name}` : "ディレクトリ";
+}
+
 /** List container — top hairline; each row carries its own bottom border. */
 export const viewList = "border-t border-hairline";
 
@@ -46,23 +124,36 @@ export const viewChips = "flex items-center gap-1.5 flex-wrap";
 export const chipBroken = "bg-warning-surface text-warning";
 
 /**
- * Row action cluster. Spans the full width and wraps below `lg`, mirroring
- * P20's `.row-actions { grid-column: 1 / -1; flex-wrap: wrap }`.
+ * Row action cluster. P20 `.row-actions` = 適用(主) + ⋯ overflow menu(副).
+ * Spans the full width and wraps below `lg`, mirroring P20's
+ * `.row-actions { grid-column: 1 / -1; flex-wrap: wrap }`. `<Menu>` provides
+ * the popover positioning context internally (`relative`), so this row only
+ * lays out the apply pill + the trigger button side by side.
  */
 export const rowActions =
-  "inline-flex items-center gap-1 max-lg:col-span-full max-lg:flex-wrap";
+  "inline-flex items-center gap-2 max-lg:col-span-full max-lg:flex-wrap";
 
-/** Text action button / link base. */
+/**
+ * "適用" pill (P20 `.apply-btn`). Surface pill that warms to accent-surface on
+ * hover, mirroring the primary row action. Height is implicit (`py-1.5` +
+ * `text-sm` ≈ the mock's 30px) so no literal px is introduced; used for the
+ * `<Link>` apply action.
+ */
+export const applyBtn =
+  "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:not-aria-disabled:bg-accent-surface aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+
+/**
+ * "⋯" overflow trigger (P20 `.row-menu-btn`). Circular icon button that fills
+ * with surface on hover. `w-8 h-8` (32px) is the nearest token to the mock's
+ * 30px; the `max-sm:min-w/h-[44px]` floor matches the codebase touch-target
+ * convention. Pairs with the shared `<Menu>` primitive's panel.
+ */
+export const menuBtn =
+  "inline-flex items-center justify-center w-8 h-8 rounded-pill text-ink-secondary transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover hover:not-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px]";
+
+/** Text action button / link base (inline rename editor save/cancel). */
 export const textAction =
   "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
-
-/** Append for the "適用" action (accent coloring). */
-export const textActionApply =
-  "text-accent hover:not-disabled:not-aria-disabled:bg-accent-surface hover:not-disabled:not-aria-disabled:text-accent-ink";
-
-/** Append for destructive actions (error coloring on hover). */
-export const textActionDanger =
-  "hover:not-disabled:not-aria-disabled:bg-error-surface hover:not-disabled:not-aria-disabled:text-error";
 
 /** Broken-conditions warning banner (warning surface). */
 export const brokenBanner =

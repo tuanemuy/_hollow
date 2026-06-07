@@ -296,7 +296,7 @@ export function FilterBar({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-3 px-2 py-3 border-b border-hairline mb-3 max-sm:gap-2"
+      className="flex flex-wrap items-center gap-3 mb-5 max-sm:gap-2"
       aria-busy={isPending}
     >
       {tags.length > 0 ? (
