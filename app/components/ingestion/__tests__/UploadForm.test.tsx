@@ -30,7 +30,7 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate: invalidateMock }),
 }));
 
-const { UploadForm } = await import("../UploadForm");
+const { UploadForm, validateUploadFiles } = await import("../UploadForm");
 
 let container: HTMLDivElement;
 let root: Root;
@@ -57,6 +57,14 @@ function findFileInput(): HTMLInputElement {
   return input;
 }
 
+function makeFile(name: string, type: string, size = 1): File {
+  const file = new File(["x"], name, { type });
+  // happy-dom derives `size` from content; override so size-limit tests can
+  // simulate large uploads without allocating real bytes.
+  Object.defineProperty(file, "size", { value: size });
+  return file;
+}
+
 function dispatchFile(input: HTMLInputElement, files: File[]) {
   const fileList = {
     length: files.length,
@@ -69,11 +77,126 @@ function dispatchFile(input: HTMLInputElement, files: File[]) {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-describe("UploadForm error path", () => {
-  // Issue #221: when uploadFileFn throws a BusinessRuleError with code
-  // `unsupported_format`, the UI must render the mapped Japanese
-  // message — never the raw lowercase code.
-  it("renders the mapped user-facing message for unsupported_format", async () => {
+async function flush() {
+  for (let i = 0; i < 10; i++) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+}
+
+const MB = 1024 * 1024;
+
+describe("validateUploadFiles", () => {
+  it("classifies supported, unsupported, and oversized files", () => {
+    const ok = makeFile("photo.png", "image/png", 1 * MB);
+    const bad = makeFile("archive.zip", "application/zip", 1 * MB);
+    const big = makeFile("big.png", "image/png", 60 * MB);
+    const result = validateUploadFiles([ok, bad, big]);
+    expect(result.unsupported).toEqual(["archive.zip"]);
+    expect(result.oversized.map((o) => o.name)).toEqual(["big.png"]);
+    expect(result.accepted).toEqual([ok]);
+  });
+
+  it("falls back to extension when file.type is empty, and rejects no-extension", () => {
+    // (d): empty MIME with a known extension passes via the extension fallback.
+    const png = makeFile("photo.png", "", 1 * MB);
+    const noExt = makeFile("archive", "", 1 * MB);
+    const result = validateUploadFiles([png, noExt]);
+    expect(result.accepted).toEqual([png]);
+    expect(result.unsupported).toEqual(["archive"]);
+  });
+
+  it("formats the oversize label in MB", () => {
+    const big = makeFile("big.png", "image/png", Math.round(72.4 * MB));
+    const result = validateUploadFiles([big]);
+    expect(result.oversized[0]?.sizeLabel).toBe("72.4 MB");
+  });
+});
+
+describe("UploadForm client validation", () => {
+  // (a): unsupported format renders the error banner and never calls upload.
+  it("shows the unsupported-format banner and does not upload", async () => {
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("archive.zip", "application/zip", 1 * MB),
+      ]);
+    });
+    await flush();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("対応外の形式が含まれています");
+    expect(text).toContain("archive.zip");
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  // (b): oversized file renders the warning banner and does not upload.
+  it("shows the size-over banner and does not upload", async () => {
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("big.png", "image/png", 60 * MB),
+      ]);
+    });
+    await flush();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("サイズ超過のファイル");
+    expect(text).toContain("big.png");
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  // Mixed batch (unsupported + oversized + accepted): only the accepted file
+  // reaches the server fn, and both rejected files are surfaced in banners.
+  it("uploads only the accepted files when some are rejected", async () => {
+    uploadMock.mockResolvedValue({ jobId: "j1" });
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("archive.zip", "application/zip", 1 * MB),
+        makeFile("big.png", "image/png", 60 * MB),
+        makeFile("photo.png", "image/png", 1 * MB),
+      ]);
+    });
+    await flush();
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const sentFormData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect((sentFormData.get("file") as File).name).toBe("photo.png");
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("archive.zip");
+    expect(text).toContain("big.png");
+  });
+
+  // TEST-W-002: oversized-with-accepted batch shows the warning banner AND
+  // still uploads only the in-limit file.
+  it("shows the size-over banner and uploads only the in-limit file", async () => {
+    uploadMock.mockResolvedValue({ jobId: "j1" });
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("ok.md", "text/markdown", 1 * MB),
+        makeFile("big.md", "text/markdown", 60 * MB),
+      ]);
+    });
+    await flush();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("サイズ超過のファイル");
+    expect(text).toContain("big.md");
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const sentFormData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect((sentFormData.get("file") as File).name).toBe("ok.md");
+  });
+
+  // Issue #221: a server-side error (for inputs that pass the client guard)
+  // still renders the mapped Japanese message, never the raw code.
+  it("renders the mapped server error message for inputs passing the client guard", async () => {
     uploadMock.mockRejectedValue(
       new AppServerError({
         kind: "business",
@@ -81,25 +204,15 @@ describe("UploadForm error path", () => {
         message: "unsupported_format",
       }),
     );
-
     act(() => {
       root.render(<UploadForm />);
     });
-
-    const file = new File(["x"], "evil.exe", {
-      type: "application/octet-stream",
-    });
     act(() => {
-      dispatchFile(findFileInput(), [file]);
+      dispatchFile(findFileInput(), [
+        makeFile("photo.png", "image/png", 1 * MB),
+      ]);
     });
-    // useTransition needs several microtask flushes for the rejected
-    // upload promise → catch → setError → re-render chain to land.
-    for (let i = 0; i < 10; i++) {
-      await act(async () => {
-        await Promise.resolve();
-      });
-    }
-
+    await flush();
     const text = document.body.textContent ?? "";
     expect(text).toContain("このファイル形式には対応していません");
     expect(text).not.toContain("unsupported_format");

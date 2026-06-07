@@ -29,6 +29,16 @@ const BYTE_SIZE_ABSOLUTE_MAX = 5 * 1024 * 1024 * 1024 * 1024;
 // so the upper bound is intentionally identical.
 const PROMPT_OVERRIDE_MAX_BYTES = 16 * 1024;
 
+/**
+ * Default per-upload byte cap (50 MiB) used as `IngestionLimits.defaultMaxBytes`.
+ *
+ * Exported as the single source of truth so the client-side UX guard
+ * (`UploadForm` validation) can reject obvious overflows before submit
+ * without duplicating the literal. The authoritative per-kind enforcement
+ * still happens server-side via `IngestionService.assertWithinLimits`.
+ */
+export const DEFAULT_MAX_INGESTION_BYTES = 50 * 1024 * 1024;
+
 declare const ingestionJobIdBrand: unique symbol;
 
 /**
@@ -313,7 +323,7 @@ export const IngestionLimits = {
    */
   defaults: (): IngestionLimits =>
     ({
-      defaultMaxBytes: 50 * 1024 * 1024,
+      defaultMaxBytes: DEFAULT_MAX_INGESTION_BYTES,
       maxBytesByKind: Object.freeze({}),
       maxRegenerations: 5,
     }) as unknown as IngestionLimits,
