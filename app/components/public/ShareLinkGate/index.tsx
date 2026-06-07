@@ -1,8 +1,18 @@
 "use client";
 
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { AlertTriangle } from "lucide-react";
 import { useActionState, useId } from "react";
+import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_WARNING,
+} from "@/components/common/styles";
 import {
   extractSerializedError,
   type SerializedError,
@@ -16,7 +26,6 @@ import {
   GATE_SUB,
   GATE_SUBMIT,
   GATE_TITLE,
-  LOCKOUT,
   SHARE_PAGE,
 } from "../styles";
 import { resolveShareLinkFn } from "./action";
@@ -35,8 +44,6 @@ type Props = {
 export function ShareLinkGate({ token }: Props) {
   const router = useRouter();
   const resolve = useServerFn(resolveShareLinkFn);
-  const passwordId = useId();
-  const errorId = useId();
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -65,6 +72,32 @@ export function ShareLinkGate({ token }: Props) {
     },
     initialState,
   );
+
+  return (
+    <ShareLinkGateView
+      state={state}
+      formAction={formAction}
+      isPending={isPending}
+    />
+  );
+}
+
+type ViewProps = {
+  state: FormState;
+  formAction: (formData: FormData) => void;
+  isPending: boolean;
+};
+
+/**
+ * Pure presentational gate body. Split from the stateful container so the
+ * error-driven branching (expired/gone CTA, lockout alert, inline error) is
+ * testable by passing a `state` directly, without driving React 19's
+ * `useActionState` form-submit machinery (not reliably simulatable under
+ * happy-dom). See `.issue/544/adr.md` ADR-008.
+ */
+export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
+  const passwordId = useId();
+  const errorId = useId();
 
   const message = state.error !== null ? gateErrorMessage(state.error) : null;
   const isLocked =
@@ -97,9 +130,25 @@ export function ShareLinkGate({ token }: Props) {
         </p>
 
         {isLocked ? (
-          <div className={LOCKOUT} role="alert">
-            <span>{message}</span>
+          <div className={`${ALERT} ${ALERT_WARNING} mb-4.5`} role="status">
+            <span className={ALERT_ICON}>
+              <Icon icon={AlertTriangle} size={20} />
+            </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_BODY}>{message}</p>
+            </div>
           </div>
+        ) : null}
+
+        {isExpiredOrGone ? (
+          <Link
+            to="/"
+            search={HOME_SEARCH}
+            className={GATE_SUBMIT}
+            data-primary=""
+          >
+            トップへ戻る
+          </Link>
         ) : null}
 
         {!isExpiredOrGone ? (
