@@ -1,9 +1,13 @@
 import { Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
+import { HOME_SEARCH } from "@/components/auth/links";
+import { Icon } from "@/components/common/Icon";
 import {
   NAV_ITEM,
   SIDEBAR_SECTION,
   SIDEBAR_SECTION_TITLE,
 } from "@/components/layout/styles";
+import { SIDEBAR_BACK } from "./styles";
 
 type NavItem = {
   to:
@@ -33,6 +37,10 @@ const ACTIVE_NAV_PROPS = {
 export function SettingsSidebarNav() {
   return (
     <nav aria-label="設定ナビゲーション" className={SIDEBAR_SECTION}>
+      <Link to="/" search={HOME_SEARCH} className={SIDEBAR_BACK}>
+        <Icon icon={ArrowLeft} />
+        すべてのノートに戻る
+      </Link>
       <div className={SIDEBAR_SECTION_TITLE}>設定</div>
       <ul className="list-none m-0 p-0">
         {NAV.map((item) => (

@@ -20,10 +20,12 @@ import {
   CURRENT_VALUE_STRONG,
   FIELD,
   FIELD_ERROR,
+  FIELD_HINT,
   FIELD_INPUT,
   FIELD_LABEL,
   FORM,
   SECTION,
+  SECTION_DESC,
   SECTION_DIVIDER,
   SECTION_TITLE,
   SUCCESS_MSG,
@@ -45,6 +47,7 @@ export function SecurityForm({ user }: { user: UserDTO }) {
 
   const cpwId = useId();
   const npwId = useId();
+  const npwHintId = useId();
   const revokeId = useId();
   const emailId = useId();
   const pwForEmailId = useId();
@@ -125,6 +128,10 @@ export function SecurityForm({ user }: { user: UserDTO }) {
   return (
     <section className={SECTION}>
       <h2 className={SECTION_TITLE}>パスワード変更</h2>
+      <p className={SECTION_DESC}>
+        現在のパスワードで本人確認を行います。「他の端末からはログアウトする」を
+        選ぶと、変更後にこの端末以外のセッションが無効になります。
+      </p>
       <form action={pwAction} className={FORM}>
         <div className={FIELD}>
           <label htmlFor={cpwId} className={FIELD_LABEL}>
@@ -159,8 +166,12 @@ export function SecurityForm({ user }: { user: UserDTO }) {
             maxLength={PASSWORD_MAX}
             required
             disabled={pwPending}
+            aria-describedby={npwHintId}
             className={FIELD_INPUT}
           />
+          <p id={npwHintId} className={FIELD_HINT}>
+            12文字以上。英字・数字・記号のうち2種以上を含めてください。
+          </p>
           {pwFieldErrors?.newPassword !== undefined ? (
             <p role="alert" className={FIELD_ERROR}>
               {pwFieldErrors.newPassword[0]}
@@ -202,6 +213,10 @@ export function SecurityForm({ user }: { user: UserDTO }) {
       <hr className={SECTION_DIVIDER} />
 
       <h2 className={SECTION_TITLE}>メールアドレス変更</h2>
+      <p className={SECTION_DESC}>
+        新しいアドレスに確認メールを送信します。リンクをクリックして完了する
+        まで、現在のアドレスは有効です。
+      </p>
       <p className={CURRENT_VALUE}>
         現在: <strong className={CURRENT_VALUE_STRONG}>{user.email}</strong>
       </p>

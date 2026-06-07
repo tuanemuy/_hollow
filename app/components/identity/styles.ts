@@ -15,6 +15,12 @@ import {
   pillBtnPrimary,
 } from "../common/styles";
 
+// ===== Settings sidebar back link ("すべてのノートに戻る") =====
+// Sits above the settings nav; mirrors the mock `.sidebar-back` using only
+// token-derived utilities (no literal px).
+export const SIDEBAR_BACK =
+  "flex items-center gap-2 px-3 py-1.5 mb-5 rounded-md text-sm text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+
 // ===== Layout (settings errorComponent) =====
 export const SETTINGS_ERROR_BOX =
   "max-w-[720px] mx-auto px-6 py-12 flex flex-col gap-3";
@@ -52,6 +58,28 @@ export const PROMPT_TEXTAREA = `${fieldControl} ${fieldTextarea} min-h-[140px] m
 export const FIELD_ERROR = formError;
 
 export const SUCCESS_MSG = "text-success text-[13px] mt-2";
+
+// Inline help / hint line beneath a field (mock `.field-help`). Mirrors
+// `auth/styles.ts` `FIELD_HINT` (token-derived `text-xs`, no literal px).
+export const FIELD_HINT = "text-xs text-ink-tertiary mt-2";
+
+// Character counter beneath a textarea (mock `.char-counter`).
+export const CHAR_COUNTER = "text-xs text-ink-tertiary text-right mt-1";
+
+// Input group framing an input with a static prefix (mock username `.prefix`).
+export const INPUT_GROUP =
+  "flex items-stretch bg-surface rounded-md border border-transparent overflow-hidden focus-within:bg-bg focus-within:border-accent transition-colors motion-reduce:transition-none";
+
+export const INPUT_GROUP_PREFIX =
+  "flex items-center px-3 text-sm text-ink-tertiary bg-surface-hover whitespace-nowrap select-none";
+
+// Input rendered inside `INPUT_GROUP` — transparent so the group frame shows.
+export const INPUT_GROUP_INPUT =
+  "flex-1 min-w-0 h-10 bg-transparent border-0 px-3 py-2.5 text-sm text-ink outline-none";
+
+// Live preview of the resulting public URL beneath the username input.
+export const URL_PREVIEW =
+  "text-xs text-ink-secondary mt-2 [overflow-wrap:anywhere]";
 
 // Inline label + checkbox row (e.g. "他の端末からはログアウトする").
 export const CHECKBOX_ROW =
