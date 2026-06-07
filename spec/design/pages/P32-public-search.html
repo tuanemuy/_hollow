@@ -181,18 +181,33 @@
   }
   .pill-btn:hover { background: var(--color-surface-hover); }
 
-  /* ===== Rate limit banner ===== */
-  .rate-banner {
-    background: var(--color-accent-surface);
-    color: var(--color-accent-ink);
-    font-size: 13px;
-    padding: 10px var(--container-padding);
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .rate-banner svg { flex-shrink: 0; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* レート制限アラートは本文カラム内に置き、検索ヒーローの直前に余白を確保する */
+  .rate-alert { margin-top: var(--space-6); }
 
   /* ===== Wrap ===== */
   .main-wrap {
@@ -410,24 +425,36 @@
     display: flex;
     flex-direction: column;
   }
-  /* 個人公開ページ(P30)のノート行と同じリズム（padding・トークンスケール）に揃える。 */
+  /* 個人公開ページ(P30)のノート行と同じ行アナトミーに揃える:
+     grid 1fr auto で本文を左・日付を右寄せ列に分離し、著者はメタ行へ畳む。
+     縦積み + 著者ヘッダー + 折り返すメタ行のゴチャつきを解消する。 */
   .result-card {
-    padding: 20px 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-6);
+    align-items: center;
+    padding: var(--space-5) var(--space-3);
     border-top: 1px solid var(--color-hairline);
     transition: var(--transition-bg);
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
   }
   .result-card:first-child { border-top: none; }
   .result-card:hover { background: var(--color-surface); }
+  .result-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .result-date {
+    font-size: var(--text-sm);
+    color: var(--color-ink-tertiary);
+    white-space: nowrap;
+  }
   .result-author {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: var(--text-xs);
-    color: var(--color-ink-tertiary);
+    gap: var(--space-1);
   }
   .result-author .author-avatar-mini {
     width: 18px; height: 18px;
@@ -474,11 +501,6 @@
   }
   .result-meta .tag { color: var(--color-accent); }
   .result-meta .dot { color: var(--color-hairline-strong); }
-
-  /* Wider reading column on desktop */
-  @media (min-width: 1024px) {
-    .results-panel { max-width: 820px; margin: 0 auto; }
-  }
 
   /* ===== Footer ===== */
   .footer {
@@ -792,6 +814,8 @@
     .hero-search .kbd { display: none; }
     .filter-btn { height: 44px; }
     .sort-btn { height: 44px; }
+    .result-card { padding: var(--space-4) var(--space-2); gap: var(--space-3); }
+    .result-date { font-size: var(--text-xs); }
   }
 </style>
 </head>
@@ -808,12 +832,16 @@
   </div>
 </header>
 
-<div class="rate-banner">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-  <span>レート制限: 5 分間に 30 リクエストまで。残り 24 回。</span>
-</div>
-
 <div class="main-wrap">
+
+  <div class="alert alert-info rate-alert" role="status">
+    <span class="alert-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+    </span>
+    <div class="alert-content">
+      <p class="alert-body">レート制限: 5 分間に 30 リクエストまで。残り 24 回。</p>
+    </div>
+  </div>
 
   <section class="hero">
     <h1 class="hero-title">公開ノートを検索</h1>
@@ -873,101 +901,94 @@
       <div class="result-list">
 
         <a href="/tuanemuy/outbox-pattern" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">TY</span>
-            <strong>@tuanemuy</strong>
+          <div class="result-main">
+            <div class="result-title"><mark>Outbox</mark> <mark>パターン</mark>を Cloudflare Queues で実装する</div>
+            <div class="result-snippet">D1 上にイベントを書き込み、リレーワーカーが Queues に詰める。少なくとも一回 (at-least-once) 配信で、コンシューマは冪等性を確保する必要がある。<mark>Outbox</mark> <mark>pattern</mark> の Cloudflare 流の実装を整理した。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">TY</span><strong>@tuanemuy</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#cloudflare #ddd #architecture</span>
+            </div>
           </div>
-          <div class="result-title"><mark>Outbox</mark> <mark>パターン</mark>を Cloudflare Queues で実装する</div>
-          <div class="result-snippet">D1 上にイベントを書き込み、リレーワーカーが Queues に詰める。少なくとも一回 (at-least-once) 配信で、コンシューマは冪等性を確保する必要がある。<mark>Outbox</mark> <mark>pattern</mark> の Cloudflare 流の実装を整理した。</div>
-          <div class="result-meta">
-            <span class="tag">#cloudflare #ddd #architecture</span>
-            <span class="dot">·</span>
-            <span>2026年5月3日 公開</span>
-          </div>
+          <div class="result-date">2026年5月3日</div>
         </a>
 
         <a href="/kwakita/event-sourcing-basics" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">KW</span>
-            <strong>@kwakita</strong>
+          <div class="result-main">
+            <div class="result-title">Event Sourcing と <mark>Outbox</mark> <mark>Pattern</mark> の比較ノート</div>
+            <div class="result-snippet">どちらも「永続化された真実の系列」を扱う点で似ているが、目的が違う。Event Sourcing は集約の状態復元、<mark>Outbox</mark> は配信保証のためのバッファである。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">KW</span><strong>@kwakita</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#ddd #event-sourcing #architecture</span>
+            </div>
           </div>
-          <div class="result-title">Event Sourcing と <mark>Outbox</mark> <mark>Pattern</mark> の比較ノート</div>
-          <div class="result-snippet">どちらも「永続化された真実の系列」を扱う点で似ているが、目的が違う。Event Sourcing は集約の状態復元、<mark>Outbox</mark> は配信保証のためのバッファである。</div>
-          <div class="result-meta">
-            <span class="tag">#ddd #event-sourcing #architecture</span>
-            <span class="dot">·</span>
-            <span>2026年4月22日 公開</span>
-          </div>
+          <div class="result-date">2026年4月22日</div>
         </a>
 
         <a href="/nmiura/dual-write-problem" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">NM</span>
-            <strong>@nmiura</strong>
+          <div class="result-main">
+            <div class="result-title">「Dual write 問題」と <mark>Outbox</mark> の関係を整理する</div>
+            <div class="result-snippet">DB とメッセージブローカーを同時に更新したい場合、原子性は保証されない。これを解決する代表的手法のひとつが <mark>Outbox</mark> <mark>pattern</mark> である。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">NM</span><strong>@nmiura</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#architecture #distributed</span>
+            </div>
           </div>
-          <div class="result-title">「Dual write 問題」と <mark>Outbox</mark> の関係を整理する</div>
-          <div class="result-snippet">DB とメッセージブローカーを同時に更新したい場合、原子性は保証されない。これを解決する代表的手法のひとつが <mark>Outbox</mark> <mark>pattern</mark> である。</div>
-          <div class="result-meta">
-            <span class="tag">#architecture #distributed</span>
-            <span class="dot">·</span>
-            <span>2026年4月18日 公開</span>
-          </div>
+          <div class="result-date">2026年4月18日</div>
         </a>
 
         <a href="/sasaki_dev/transactional-outbox-postgres" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">SS</span>
-            <strong>@sasaki_dev</strong>
+          <div class="result-main">
+            <div class="result-title">Postgres + LISTEN/NOTIFY で軽量な <mark>outbox</mark> を作る</div>
+            <div class="result-snippet">小規模システムでは Kafka を持ち込まずとも、Postgres の LISTEN/NOTIFY と <mark>outbox</mark> テーブルだけで at-least-once 配信を実現できる。実装の落とし穴を順に。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">SS</span><strong>@sasaki_dev</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#postgres #ddd</span>
+            </div>
           </div>
-          <div class="result-title">Postgres + LISTEN/NOTIFY で軽量な <mark>outbox</mark> を作る</div>
-          <div class="result-snippet">小規模システムでは Kafka を持ち込まずとも、Postgres の LISTEN/NOTIFY と <mark>outbox</mark> テーブルだけで at-least-once 配信を実現できる。実装の落とし穴を順に。</div>
-          <div class="result-meta">
-            <span class="tag">#postgres #ddd</span>
-            <span class="dot">·</span>
-            <span>2026年4月10日 公開</span>
-          </div>
+          <div class="result-date">2026年4月10日</div>
         </a>
 
         <a href="/tuanemuy/cloudflare-d1-perf" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">TY</span>
-            <strong>@tuanemuy</strong>
+          <div class="result-main">
+            <div class="result-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
+            <div class="result-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。<mark>Outbox</mark> リレーのインターバル設計にも参考になる数値。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">TY</span><strong>@tuanemuy</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#cloudflare #performance</span>
+            </div>
           </div>
-          <div class="result-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
-          <div class="result-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。<mark>Outbox</mark> リレーのインターバル設計にも参考になる数値。</div>
-          <div class="result-meta">
-            <span class="tag">#cloudflare #performance</span>
-            <span class="dot">·</span>
-            <span>2026年5月8日 公開</span>
-          </div>
+          <div class="result-date">2026年5月8日</div>
         </a>
 
         <a href="/yoshinaga/microservice-pitfalls" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">YN</span>
-            <strong>@yoshinaga</strong>
+          <div class="result-main">
+            <div class="result-title">マイクロサービス導入で踏んだ罠と <mark>outbox</mark> の必要性</div>
+            <div class="result-snippet">最初は dual write でなんとかなっていたが、トラフィックが増えるにつれて欠損イベントが目立ってきた。最終的に <mark>outbox</mark> <mark>pattern</mark> に落ち着いた経緯を共有する。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">YN</span><strong>@yoshinaga</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#microservices #architecture</span>
+            </div>
           </div>
-          <div class="result-title">マイクロサービス導入で踏んだ罠と <mark>outbox</mark> の必要性</div>
-          <div class="result-snippet">最初は dual write でなんとかなっていたが、トラフィックが増えるにつれて欠損イベントが目立ってきた。最終的に <mark>outbox</mark> <mark>pattern</mark> に落ち着いた経緯を共有する。</div>
-          <div class="result-meta">
-            <span class="tag">#microservices #architecture</span>
-            <span class="dot">·</span>
-            <span>2026年3月28日 公開</span>
-          </div>
+          <div class="result-date">2026年3月28日</div>
         </a>
 
         <a href="/kwakita/dlq-design" class="result-card">
-          <div class="result-author">
-            <span class="author-avatar-mini">KW</span>
-            <strong>@kwakita</strong>
+          <div class="result-main">
+            <div class="result-title">DLQ をどう設計するか — <mark>outbox</mark> 連携で気をつけたこと</div>
+            <div class="result-snippet"><mark>Outbox</mark> リレーで配信失敗した行は最終的に DLQ に逃がす設計が現実的。再生 UI を用意しないと運用が地獄になる、という痛い学び。</div>
+            <div class="result-meta">
+              <span class="result-author"><span class="author-avatar-mini">KW</span><strong>@kwakita</strong></span>
+              <span class="dot">·</span>
+              <span class="tag">#queues #ops</span>
+            </div>
           </div>
-          <div class="result-title">DLQ をどう設計するか — <mark>outbox</mark> 連携で気をつけたこと</div>
-          <div class="result-snippet"><mark>Outbox</mark> リレーで配信失敗した行は最終的に DLQ に逃がす設計が現実的。再生 UI を用意しないと運用が地獄になる、という痛い学び。</div>
-          <div class="result-meta">
-            <span class="tag">#queues #ops</span>
-            <span class="dot">·</span>
-            <span>2026年3月15日 公開</span>
-          </div>
+          <div class="result-date">2026年3月15日</div>
         </a>
 
       </div>

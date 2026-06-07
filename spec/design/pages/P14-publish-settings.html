@@ -718,25 +718,32 @@
   .safety-check {
     margin-top: var(--space-6);
   }
-  .safety-item {
+
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    margin-bottom: 8px;
-    font-size: var(--text-sm);
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .safety-item.warn {
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-  }
-  .safety-item.ok {
-    background: var(--color-success-surface);
-    color: var(--color-success);
-  }
-  .safety-item svg { flex-shrink: 0; margin-top: 1px; }
-  .safety-item .body { flex: 1; }
-  .safety-item .body strong { font-weight: var(--weight-medium); }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .safety-check .alert { margin-bottom: 0; }
 
   @media (max-width: 640px) {
     .modal-header, .modal-body, .modal-footer { padding-left: 20px; padding-right: 20px; }
@@ -885,11 +892,13 @@
 
         <!-- Safety check -->
         <div class="safety-check">
-          <div class="safety-item warn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <div class="body">
-              <strong>未保存の変更があります。</strong>
-              公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。
+          <div class="alert alert-warning" role="status">
+            <span class="alert-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            <div class="alert-content">
+              <p class="alert-title">未保存の変更があります</p>
+              <p class="alert-body">公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。</p>
             </div>
           </div>
         </div>

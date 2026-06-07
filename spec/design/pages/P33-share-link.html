@@ -292,20 +292,30 @@
     text-align: center;
   }
 
-  /* ===== Lockout banner ===== */
-  .lockout {
-    background: var(--color-warning-surface);
-    border: 1px solid var(--color-warning);
-    color: var(--color-warning);
-    border-radius: var(--radius-md);
-    padding: 10px 14px;
-    font-size: 13px;
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .lockout svg { flex-shrink: 0; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
 
   /* ===== Expired card (variant) ===== */
   .expired-icon {
@@ -400,9 +410,9 @@
     <p class="gate-sub">共有元から教えられたパスワードを入力してください。</p>
 
     <!-- Optional: lockout warning when too many failures -->
-    <div class="lockout" style="display:none;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-      <span>回数制限のため、<strong>あと 5 分</strong>後に再試行できます。</span>
+    <div class="alert alert-warning" role="status" style="display:none;">
+      <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span>
+      <div class="alert-content"><p class="alert-body">回数制限のため、<strong>あと 5 分</strong>後に再試行できます。</p></div>
     </div>
 
     <form class="gate-form" onsubmit="event.preventDefault();">

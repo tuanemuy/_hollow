@@ -326,40 +326,47 @@
     padding: var(--space-6) var(--space-5) var(--space-20);
   }
 
-  /* Edit lock banner — mobile-first: stack vertically */
-  .lock-banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
-    padding: 10px var(--space-4);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
+    padding: var(--space-4);
     border-radius: var(--radius-lg);
-    font-size: 13px;
-    margin-bottom: var(--space-5);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .lock-banner svg { flex-shrink: 0; }
-  .lock-banner strong { font-weight: var(--weight-semibold); }
-  .lock-banner .spacer { display: none; }
-  .lock-banner button {
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .alert button {
+    margin-left: auto;
+    align-self: center;
+    flex-shrink: 0;
     font-size: 12.5px;
     font-weight: var(--weight-medium);
-    color: var(--color-warning);
+    color: var(--alert-accent);
     padding: 4px 10px;
     border-radius: var(--radius-pill);
-    background: rgba(168,88,11,0.10);
+    background: color-mix(in oklab, var(--alert-accent) 10%, transparent);
     transition: var(--transition-bg);
     white-space: nowrap;
-    align-self: flex-start;
   }
-  .lock-banner button:hover { background: rgba(168,88,11,0.18); }
-  @media (min-width: 640px) {
-    .lock-banner {
-      flex-direction: row;
-      align-items: center;
-    }
-    .lock-banner .spacer { display: block; flex: 1; }
+  .alert button:hover { background: color-mix(in oklab, var(--alert-accent) 18%, transparent); }
+  @media (max-width: 639px) {
+    .alert { flex-wrap: wrap; }
+    .alert button { margin-left: 0; align-self: flex-start; }
   }
 
   /* Top row: mode toggle + status */
@@ -870,14 +877,15 @@
   <main>
     <div class="editor-wrap">
 
-      <!-- Edit lock banner -->
-      <div class="lock-banner" role="status">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <div>
-          <strong>編集ロック中：</strong>
-          別のセッション（Safari · macOS）で編集が始まっています。保存すると競合する可能性があります。
+      <!-- Edit lock alert -->
+      <div class="alert alert-warning" role="status">
+        <span class="alert-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <div class="alert-content">
+          <p class="alert-title">編集ロック中</p>
+          <p class="alert-body">別のセッション（Safari · macOS）で編集が始まっています。保存すると競合する可能性があります。</p>
         </div>
-        <div class="spacer"></div>
         <button>確認して続行</button>
       </div>
 

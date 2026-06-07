@@ -270,6 +270,9 @@
     max-width: 16em;
     word-break: keep-all;
     text-wrap: balance;
+    /* 中央揃え見出しで行末に来る読点をぶら下げ、見出しが左へズレて見えるのを防ぐ。
+       （Safari/Chrome 対応。Firefox は未実装のためベンダー実装待ち） */
+    hanging-punctuation: allow-end;
   }
   .hero-subtitle {
     font-size: clamp(16px, 1.4vw + 12px, 20px);
@@ -277,6 +280,10 @@
     line-height: var(--leading-relaxed);
     max-width: 40ch;
     margin: 0 auto var(--space-8);
+    /* 語の途中で折れないよう読点・文末・空白でのみ改行し、行幅を均す。 */
+    word-break: keep-all;
+    text-wrap: balance;
+    hanging-punctuation: allow-end;
   }
   .hero-actions {
     display: flex;
@@ -453,6 +460,10 @@
     max-width: 22ch;
     margin-left: auto;
     margin-right: auto;
+    /* 読点で折り（中途半端な句中改行を防ぐ）、行末読点はぶら下げて中央ズレを防ぐ。 */
+    word-break: keep-all;
+    text-wrap: balance;
+    hanging-punctuation: allow-end;
   }
   .section-lead {
     font-size: var(--text-md);
@@ -619,10 +630,10 @@
   <section class="hero container">
     <span class="hero-eyebrow">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>
-      個人のための、静かなノートサーバー
+      あなただけの、小さな書庫
     </span>
     <h1 class="hero-title">散らかった頭の中に、静かな置き場所を</h1>
-    <p class="hero-subtitle">書きかけのメモも、取り込んだ Markdown も。Hollow は、書いたものを整理して、必要なときにそっと取り出せる、あなただけの書庫です。</p>
+    <p class="hero-subtitle">書きかけのメモも、取り込んだ Markdown も。Hollow が静かに整理して、必要なときにそっと取り出せます。</p>
     <div class="hero-actions">
       <a href="#" class="btn-primary">無料でアカウント作成</a>
       <a href="#" class="btn-secondary">ログイン</a>

@@ -454,53 +454,36 @@
   .menu-item.destructive:hover { background: var(--color-error-surface); }
   .menu-sep { height: 1px; background: var(--color-hairline); margin: var(--space-1) 0; }
 
-  /* Broken warning row */
-  .broken-banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: var(--color-warning-surface);
-    border-radius: var(--radius-md);
-    margin-top: var(--space-3);
-    margin-bottom: 2px;
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .broken-banner svg {
-    color: var(--color-warning);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-  .broken-body { flex: 1; min-width: 0; }
-  .broken-title {
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-warning);
-    margin-bottom: 2px;
-  }
-  .broken-detail {
-    font-size: var(--text-sm);
-    color: var(--color-warning);
-    opacity: 0.92;
-    line-height: var(--leading-snug);
-  }
-  .broken-detail code {
-    font-family: var(--font-mono);
-    background: rgba(255,255,255,0.6);
-    padding: 1px 6px;
-    border-radius: var(--radius-xs);
-    font-size: 0.95em;
-  }
-  .fix-btn {
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-warning);
-    background: rgba(255,255,255,0.6);
-    transition: var(--transition-default);
-    flex-shrink: 0;
-  }
-  .fix-btn:hover { background: rgba(255,255,255,0.95); }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .alert-body code { font-family: var(--font-mono); background: var(--color-surface); padding: 1px 6px; border-radius: var(--radius-xs); font-size: 0.95em; }
+  .alert .fix-btn { margin-left: auto; align-self: center; flex-shrink: 0; padding: 6px 12px; border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-warning); background: var(--color-surface); transition: var(--transition-default); }
+  .alert .fix-btn:hover { background: var(--color-surface-hover); }
+  @media (max-width: 640px) { .alert { flex-wrap: wrap; } .alert .fix-btn { margin-left: 0; align-self: flex-start; } }
+  /* view-row 内にネストされる alert は行レイアウトを崩さないよう上下余白を抑える */
+  .view-main .alert { margin-top: var(--space-3); margin-bottom: 2px; }
 
   /* Empty state (認証側 EMPTY_STATE: 破線枠 + 24px アイキャッチ。index.md §7.1) */
   .empty-state {
@@ -571,7 +554,7 @@
       grid-column: 1 / -1;
       flex-wrap: wrap;
     }
-    .broken-banner { flex-wrap: wrap; }
+    .alert { flex-wrap: wrap; }
   }
   @media (min-width: 1024px) {
     .layout { grid-template-columns: var(--sidebar-width) 1fr; }
@@ -738,11 +721,11 @@
               <span class="chip">#research</span>
               <span class="chip">更新: 過去 30 日</span>
             </div>
-            <div class="broken-banner">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <div class="broken-body">
-                <div class="broken-title">壊れた条件があります</div>
-                <div class="broken-detail">削除済みディレクトリ <code>Research / Papers</code> を参照しています。このビューを開いても結果は空になります。</div>
+            <div class="alert alert-warning" role="status">
+              <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <div class="alert-content">
+                <p class="alert-title">壊れた条件があります</p>
+                <p class="alert-body">削除済みディレクトリ <code>Research / Papers</code> を参照しています。このビューを開いても結果は空になります。</p>
               </div>
               <button class="fix-btn">修復</button>
             </div>
@@ -803,11 +786,11 @@
               </span>
               <span class="chip">更新: 1年以上前</span>
             </div>
-            <div class="broken-banner">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <div class="broken-body">
-                <div class="broken-title">壊れた条件があります</div>
-                <div class="broken-detail">削除済みタグ <code>#archived</code> を参照しています。ブラックリストに登録されているため、現在この条件にマッチするノートはありません。</div>
+            <div class="alert alert-warning" role="status">
+              <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <div class="alert-content">
+                <p class="alert-title">壊れた条件があります</p>
+                <p class="alert-body">削除済みタグ <code>#archived</code> を参照しています。ブラックリストに登録されているため、現在この条件にマッチするノートはありません。</p>
               </div>
               <button class="fix-btn">修復</button>
             </div>

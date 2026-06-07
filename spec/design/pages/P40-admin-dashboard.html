@@ -362,11 +362,13 @@
     font-size: var(--text-sm);
   }
   .banner.warning {
-    background: var(--color-warning-surface);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--color-warning) 30%, transparent);
     color: var(--color-warning);
   }
   .banner.error {
-    background: var(--color-error-surface);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--color-error) 30%, transparent);
     color: var(--color-error);
   }
   .banner-body { flex: 1; color: var(--color-ink); }
@@ -392,7 +394,7 @@
     gap: var(--space-3);
     background: var(--color-bg);
   }
-  .status-banner.degraded { background: var(--color-warning-surface); border-color: transparent; }
+  .status-banner.degraded { background: var(--color-bg); border-color: color-mix(in oklab, var(--color-warning) 40%, transparent); }
   .status-dot {
     width: 10px; height: 10px;
     border-radius: var(--radius-full);

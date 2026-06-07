@@ -5,42 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hollow — 設定: アカウント削除</title>
 <style id="extra-css">
-  .warning-block {
-    background: var(--color-error-surface);
-    color: var(--color-error);
-    border-radius: var(--radius-lg);
-    padding: 20px 22px;
-    margin-bottom: 28px;
-  }
-  .warning-block h3 {
-    font-size: 14px;
-    font-weight: var(--weight-semibold);
-    margin-bottom: 10px;
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .warning-block ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.7;
-  }
-  .warning-block ul li {
-    display: flex;
-    gap: 10px;
     align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .warning-block ul li::before {
-    content: '';
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: var(--color-error);
-    margin-top: 9px;
-    flex-shrink: 0;
-  }
-  .warning-block strong { font-weight: var(--weight-semibold); }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .alert-content ul { margin: 4px 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+  .alert-content li { font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-snug); }
+  .alert-content li strong { color: var(--color-ink); font-weight: var(--weight-medium); }
 
   .confirm-steps {
     display: flex;
@@ -139,16 +130,6 @@
   .danger-note {
     font-size: 12px;
     color: var(--color-ink-tertiary);
-  }
-  .warn-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    background: var(--color-error-surface);
-    color: var(--color-error);
-    flex-shrink: 0;
   }
 </style>
 <style>
@@ -754,21 +735,21 @@
                （ユーザー名一致のみ）の簡素フロー。本多段確認の実装追従は別Issue（B 参照）。 -->
           <p class="section-desc">この操作は<strong style="color: var(--color-ink); font-weight: var(--weight-medium);">取り消せません</strong>。削除を完了する前に、失われる内容と以下のステップをご確認ください。</p>
 
-          <div class="warning-block">
-            <h3>
-              <span class="warn-icon">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              </span>
-              削除すると次のものが失われます
-            </h3>
-            <ul>
-              <li><strong>127 件</strong>のノート（本文・タグ・ディレクトリ構造を含む）</li>
-              <li>アップロード済みメディア <strong>1.4 GB</strong>（画像・PDF・音声など）</li>
-              <li>公開中のノート <strong>34 件</strong> — 公開 URL は <strong>410 Gone</strong> を返すようになります</li>
-              <li>発行済みの限定公開リンク <strong>8 本</strong> はすべて失効します</li>
-              <li>保存ビュー・カスタムプロンプト・進行中のエクスポートジョブ</li>
-              <li>削除後のデータ復元は<strong>できません</strong></li>
-            </ul>
+          <div class="alert alert-error" role="alert">
+            <span class="alert-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            <div class="alert-content">
+              <p class="alert-title">削除すると次のものが失われます</p>
+              <ul>
+                <li><strong>127 件</strong>のノート（本文・タグ・ディレクトリ構造を含む）</li>
+                <li>アップロード済みメディア <strong>1.4 GB</strong>（画像・PDF・音声など）</li>
+                <li>公開中のノート <strong>34 件</strong> — 公開 URL は <strong>410 Gone</strong> を返すようになります</li>
+                <li>発行済みの限定公開リンク <strong>8 本</strong> はすべて失効します</li>
+                <li>保存ビュー・カスタムプロンプト・進行中のエクスポートジョブ</li>
+                <li>削除後のデータ復元は<strong>できません</strong></li>
+              </ul>
+            </div>
           </div>
 
           <div class="confirm-steps">

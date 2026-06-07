@@ -455,21 +455,30 @@
     margin-bottom: var(--space-4);
   }
   .modal-card p strong { font-weight: var(--weight-medium); color: var(--color-ink); }
-  /* 完全削除の確認ダイアログ — 取り消せない操作だと一目で伝わるよう、
-     対象を再掲し本文で復元不可を明言する（破壊操作の安全性）。 */
-  .modal-target {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px var(--space-3);
-    background: var(--color-error-surface);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-4);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-error);
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .modal-target svg { flex-shrink: 0; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
   .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -761,9 +770,14 @@
         <div class="modal-demo-label">state バリアント — 完全削除の確認ダイアログ</div>
         <div class="modal-card" role="alertdialog" aria-labelledby="modal-title" aria-describedby="modal-desc">
           <h3 id="modal-title">ノートを完全に削除</h3>
-          <div class="modal-target">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-            古いプロジェクトのキックオフメモ
+          <div class="alert alert-error" role="alert" style="margin-bottom: var(--space-4);">
+            <span class="alert-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </span>
+            <div class="alert-content">
+              <p class="alert-title">削除対象</p>
+              <p class="alert-body">古いプロジェクトのキックオフメモ</p>
+            </div>
           </div>
           <p id="modal-desc">このノートを完全に削除しますか？<strong>この操作は取り消せません。</strong></p>
           <div class="modal-actions">
