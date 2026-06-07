@@ -54,6 +54,21 @@ describe("UltrahtmlNoteBodyRenderer", () => {
       expect(out).not.toContain('<a class="wikilink"');
     });
 
+    it("falls back to ref.displayText when [[id]] has no inline display segment", () => {
+      const ref = InternalLinkRef.create({
+        kind: "id",
+        target: NOTE_ID,
+        resolvedNoteId: noteId(NOTE_ID),
+        displayText: "保存された表示名",
+      });
+      const out = render(`<p>[[${NOTE_ID}]]</p>`, [ref]);
+      expect(out).toContain(
+        `<a class="wikilink" href="/notes/${NOTE_ID}">保存された表示名</a>`,
+      );
+      // The raw UUID must not leak into the visible label.
+      expect(out).not.toContain(`>${NOTE_ID}</a>`);
+    });
+
     it("renders a title-keyed ref whose resolvedNoteId is null as unresolved", () => {
       const ref = InternalLinkRef.create({
         kind: "title",
