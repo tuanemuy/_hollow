@@ -38,15 +38,45 @@ export const RADIO_CARD =
 export const RADIO_CARD_TITLE =
   "flex items-center gap-2 text-md font-medium text-ink";
 
+/** Radio-card description line beneath the title (mock `.radio-desc`). */
+export const RADIO_DESC = "text-sm text-ink-secondary leading-snug";
+
+/** Per-visibility description copy shown under each radio-card title (mock). */
+export const VISIBILITY_DESC: Readonly<
+  Record<"private" | "unlisted" | "public", string>
+> = {
+  private: "本人のみが閲覧できます。共有リンクは発行されません。",
+  unlisted:
+    "共有リンクを知っている人だけが閲覧できます。任意でパスワードを設定できます。検索対象にはなりません。",
+  public:
+    "同一インスタンス内で誰でも閲覧でき、検索対象になります。ユーザー名のネームスペース URL で公開されます。",
+};
+
 /** Section sub-heading (限定公開リンク). */
 export const PUBLISH_SECTION_TITLE = "text-md font-medium text-ink";
 
 /**
- * Link-row card for an issued share link. Truncation of the long URL is handled
- * by `LINK_URL` (`truncate`) inside a `min-w-0` flex row, not on this card.
+ * Link card for an issued share link (mock `.link-card`). Border + elevated
+ * surface; holds a head row (status chip + last-access), the URL row, and the
+ * row actions. Truncation of the long URL is handled by `LINK_URL`
+ * (`truncate`) inside the `min-w-0` URL row, not on this card.
  */
 export const LINK_ROW =
-  "flex flex-col gap-2 p-3.5 rounded-md border border-hairline";
+  "flex flex-col gap-3 p-4 rounded-lg border border-hairline bg-surface-elevated";
+
+/** Link-card head row: status chip + last-access pushed to the end (mock `.link-card-head`). */
+export const LINK_CARD_HEAD = "flex items-center gap-2 flex-wrap";
+
+/** Last-access label, pushed right inside the head row (mock `.last-access`). */
+export const LINK_LAST_ACCESS = "ml-auto text-xs text-ink-tertiary";
+
+/** URL row: bg + border wrapping the mono URL and the copy button (mock `.link-row`). */
+export const LINK_URL_ROW =
+  "flex items-center gap-2 bg-bg border border-hairline rounded-md py-2 pl-3 pr-2 min-w-0";
+
+/** Small square ghost icon button inside the URL row (mock `.icon-mini`). */
+export const LINK_COPY_BTN =
+  "shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-sm bg-transparent text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink max-sm:min-w-[44px] max-sm:min-h-[44px]";
 
 /**
  * Monospace, ellipsis-truncated URL inside a link row.

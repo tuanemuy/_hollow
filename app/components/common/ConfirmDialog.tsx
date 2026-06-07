@@ -1,12 +1,23 @@
 "use client";
 
-import { AlertTriangle, type LucideIcon } from "lucide-react";
+import { AlertTriangle, type LucideIcon, Trash2 } from "lucide-react";
 import { useId } from "react";
 import { displayError } from "@/core/presentation/errorDisplay";
 import type { SerializedError } from "@/core/presentation/errorResponse";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
-import { dialogActions, formError, pillBtn, pillBtnDanger } from "./styles";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ERROR,
+  ALERT_ICON,
+  ALERT_TITLE,
+  dialogActions,
+  formError,
+  pillBtn,
+  pillBtnDanger,
+} from "./styles";
 
 export type ConfirmDialogProps = Readonly<{
   open: boolean;
@@ -20,6 +31,16 @@ export type ConfirmDialogProps = Readonly<{
    * stable while only the label morphs (e.g. "リセット中...").
    */
   confirmIcon?: LucideIcon;
+  /**
+   * Optional name of the object the destructive action targets (a note
+   * title, a `#tag`, …). When set, an error-toned `.alert` block is rendered
+   * above the description showing 「削除対象」 + this name, the heading's
+   * warning icon is suppressed (the alert already carries an icon), and the
+   * subject id is woven into `aria-describedby` so a screen reader announces
+   * what is being deleted. Leaving it unset preserves the original look and
+   * behavior verbatim (backward compatible). See `.issue/542/adr.md` ADR-002.
+   */
+  subject?: string;
   isPending?: boolean;
   /**
    * Server error to surface inside the dialog. When set, the dialog must
@@ -57,6 +78,7 @@ export function ConfirmDialog({
   description,
   confirmLabel = "OK",
   confirmIcon,
+  subject,
   isPending = false,
   error,
   onConfirm,
@@ -64,6 +86,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const titleId = useId();
   const descId = useId();
+  const subjectId = useId();
   const errorId = useId();
 
   // `role="alert"` already announces assertively, so the woven
@@ -72,6 +95,7 @@ export function ConfirmDialog({
   // only" case (no description) valid and never emits an empty string.
   const describedBy =
     [
+      subject !== undefined ? subjectId : null,
       description !== undefined ? descId : null,
       error !== undefined ? errorId : null,
     ]
@@ -101,11 +125,26 @@ export function ConfirmDialog({
     >
       <form onSubmit={submit}>
         <div className="flex items-center gap-2 mb-4">
-          <Icon icon={AlertTriangle} size={20} className="text-warning" />
+          {subject === undefined ? (
+            <Icon icon={AlertTriangle} size={20} className="text-warning" />
+          ) : null}
           <h2 id={titleId} className="text-lg font-medium">
             {title}
           </h2>
         </div>
+        {subject !== undefined ? (
+          <div className={`${ALERT} ${ALERT_ERROR} mb-4`}>
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={Trash2} size={20} />
+            </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>削除対象</p>
+              <p id={subjectId} className={ALERT_BODY}>
+                {subject}
+              </p>
+            </div>
+          </div>
+        ) : null}
         {description !== undefined ? (
           <div id={descId} className="text-sm text-ink-secondary">
             {description}

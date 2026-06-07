@@ -140,6 +140,7 @@ describe("PublishSettings pending / closable aggregation (Issue #477)", () => {
           onClose={() => {}}
           noteId="note-1"
           appUrl="https://example.test"
+          publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
           initial={baseInitial}
         />,
       );
@@ -187,6 +188,7 @@ describe("PublishSettings pending / closable aggregation (Issue #477)", () => {
         onClose={() => {}}
         noteId="note-1"
         appUrl="https://example.test"
+        publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
         initial={baseInitial}
       />
     );

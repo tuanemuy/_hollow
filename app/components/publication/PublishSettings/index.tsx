@@ -2,15 +2,18 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Check, Copy } from "lucide-react";
 import {
   useActionState,
   useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import { Dialog } from "@/components/common/Dialog";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   chip,
@@ -37,15 +40,21 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import {
+  LINK_CARD_HEAD,
+  LINK_COPY_BTN,
+  LINK_LAST_ACCESS,
   LINK_ROW,
   LINK_URL,
+  LINK_URL_ROW,
   PUBLISH_SECTION_TITLE,
   RADIO_CARD,
   RADIO_CARD_TITLE,
+  RADIO_DESC,
   STATUS_DOT,
   URL_PREVIEW,
   URL_PREVIEW_LABEL,
   URL_PREVIEW_URL,
+  VISIBILITY_DESC,
 } from "../styles";
 import {
   changeVisibilityFn,
@@ -56,11 +65,30 @@ import {
 
 type Visibility = "private" | "unlisted" | "public";
 
+/**
+ * Format a share link's last-access `Instant` (ISO string) into a localized
+ * month/day + time label (mock `最終アクセス: 5 月 14 日 09:42`). Kept local —
+ * `listSelectors.formatDate` is date-only and lives in the note domain, so
+ * importing it here would add a cross-domain dependency for a different format.
+ */
+function formatLastAccess(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ja-JP", {
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 type Props = {
   open: boolean;
   onClose: () => void;
   noteId: string;
   appUrl: string;
+  /** Canonical public URL (`/u/<username>/<slug>`), shown when public is selected. */
+  publicNoteUrl: string;
   initial: Readonly<{
     visibility: Visibility;
     publishedAt: string | null;
@@ -79,6 +107,7 @@ export function PublishSettings({
   onClose,
   noteId,
   appUrl,
+  publicNoteUrl,
   initial: data,
 }: Props) {
   const router = useRouter();
@@ -86,6 +115,9 @@ export function PublishSettings({
   const issueLink = useServerFn(issueShareLinkFn);
 
   const [visibility, setVisibility] = useState<Visibility>(data.visibility);
+  // Pre-submit radio selection — drives the "公開時の URL" preview immediately on
+  // click (the committed `visibility` only updates after the update succeeds).
+  const [selected, setSelected] = useState<Visibility>(data.visibility);
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
   const [visibilityError, setVisibilityError] =
     useState<SerializedError | null>(null);
@@ -108,6 +140,7 @@ export function PublishSettings({
     if (open) return;
     setIssuedToken(null);
     setVisibility(data.visibility);
+    setSelected(data.visibility);
     setVisibilityError(null);
     setIssueError(null);
   }, [open, data.visibility]);
@@ -123,6 +156,7 @@ export function PublishSettings({
     try {
       await changeVisibility({ data: { noteId, nextVisibility: next } });
       setVisibility(next);
+      setSelected(next);
       setVisibilityError(null);
       await routerInvalidate(router);
     } catch (e) {
@@ -180,24 +214,36 @@ export function PublishSettings({
                   name="nextVisibility"
                   value={v}
                   defaultChecked={v === visibility}
+                  onChange={() => setSelected(v)}
                   disabled={visibilityPending}
                 />
-                <span className={RADIO_CARD_TITLE}>
-                  <span
-                    className={STATUS_DOT}
-                    data-visibility={v}
-                    aria-hidden="true"
-                  />
-                  {v === "private"
-                    ? "非公開"
-                    : v === "unlisted"
-                      ? "限定公開（リンクを知っている人のみ）"
-                      : "公開"}
+                <span className="flex-1 min-w-0">
+                  <span className={RADIO_CARD_TITLE}>
+                    <span
+                      className={STATUS_DOT}
+                      data-visibility={v}
+                      aria-hidden="true"
+                    />
+                    {v === "private"
+                      ? "非公開"
+                      : v === "unlisted"
+                        ? "限定公開（リンクを知っている人のみ）"
+                        : "公開"}
+                  </span>
+                  <span className={`block mt-0.5 ${RADIO_DESC}`}>
+                    {VISIBILITY_DESC[v]}
+                  </span>
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
+        {selected === "public" ? (
+          <div className={`${URL_PREVIEW} mt-6`}>
+            <p className={URL_PREVIEW_LABEL}>公開時の URL</p>
+            <code className={URL_PREVIEW_URL}>{publicNoteUrl}</code>
+          </div>
+        ) : null}
         <button
           type="submit"
           disabled={visibilityPending}
@@ -314,6 +360,32 @@ function ShareLinkRow({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
   const [passwordDraft, setPasswordDraft] = useState("");
+  const [copied, setCopied] = useState(false);
+  const copyStatusId = useId();
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending copy-reset timer on unmount so it cannot fire a
+  // `setCopied` after the row is gone (e.g. revoke removes the active row).
+  useEffect(() => {
+    return () => {
+      if (copyResetTimer.current !== null) {
+        clearTimeout(copyResetTimer.current);
+      }
+    };
+  }, []);
+
+  const onCopy = () => {
+    void navigator.clipboard?.writeText(link.url).then(
+      () => {
+        setCopied(true);
+        if (copyResetTimer.current !== null) {
+          clearTimeout(copyResetTimer.current);
+        }
+        copyResetTimer.current = setTimeout(() => setCopied(false), 1500);
+      },
+      () => {},
+    );
+  };
 
   // Mirror the row's `useTransition` pending up to the dialog so it stays
   // non-closable while a row mutation is in flight. Only the `true` phase
@@ -358,8 +430,7 @@ function ShareLinkRow({
 
   return (
     <li className={LINK_ROW}>
-      <div className="flex items-center gap-2 min-w-0">
-        <code className={LINK_URL}>{link.url}</code>
+      <div className={LINK_CARD_HEAD}>
         <span
           className={`${chip} shrink-0 ${
             link.status === "active" ? CHIP_SUCCESS : CHIP_PRIVATE
@@ -370,6 +441,32 @@ function ShareLinkRow({
         {link.hasPassword ? (
           <span className={`${chip} shrink-0`}>パスワード設定中</span>
         ) : null}
+        {link.lastAccessedAt !== null ? (
+          <span className={LINK_LAST_ACCESS}>
+            最終アクセス: {formatLastAccess(link.lastAccessedAt)}
+          </span>
+        ) : null}
+      </div>
+      <div className={LINK_URL_ROW}>
+        <code className={LINK_URL}>{link.url}</code>
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label="リンクをコピー"
+          title="コピー"
+          className={LINK_COPY_BTN}
+          aria-describedby={copyStatusId}
+        >
+          <Icon icon={copied ? Check : Copy} />
+        </button>
+        <span
+          id={copyStatusId}
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+        >
+          {copied ? "コピーしました" : ""}
+        </span>
       </div>
       {link.status === "active" ? (
         <div className="flex flex-wrap items-center gap-2">

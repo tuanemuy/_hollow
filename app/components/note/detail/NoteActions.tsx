@@ -237,6 +237,7 @@ export function NoteActions({
         onClose={() => setOpen(null)}
         noteId={noteId}
         appUrl={appUrl}
+        publicNoteUrl={publicNoteUrl}
         initial={publishState}
       />
       <ConfirmDialog

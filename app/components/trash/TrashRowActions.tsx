@@ -18,9 +18,10 @@ import { FORM_ERROR, ROW_ACTIONS } from "../layout/styles";
 
 type Props = {
   noteId: string;
+  noteTitle: string;
 };
 
-export function TrashRowActions({ noteId }: Props) {
+export function TrashRowActions({ noteId, noteTitle }: Props) {
   const router = useRouter();
   const restore = useServerFn(restoreNoteFn);
   const purge = useServerFn(purgeNoteFn);
@@ -76,7 +77,7 @@ export function TrashRowActions({ noteId }: Props) {
         disabled={isPending}
       >
         <Icon icon={Trash2} />
-        完全削除
+        完全に削除
       </button>
       {error !== null && !confirmPurgeOpen ? (
         <span className={FORM_ERROR} role="alert">
@@ -86,8 +87,16 @@ export function TrashRowActions({ noteId }: Props) {
       <ConfirmDialog
         open={confirmPurgeOpen}
         title="ノートを完全に削除"
-        description="このノートを完全に削除しますか？この操作は取り消せません。"
-        confirmLabel="完全削除"
+        subject={noteTitle}
+        description={
+          <>
+            このノートを完全に削除しますか？
+            <strong className="font-medium text-ink">
+              この操作は取り消せません。
+            </strong>
+          </>
+        }
+        confirmLabel="完全に削除"
         confirmIcon={Trash2}
         isPending={isPending}
         error={confirmPurgeOpen ? (error ?? undefined) : undefined}
