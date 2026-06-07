@@ -27,9 +27,17 @@ export type ResolveShareLinkOutput = Readonly<{
  * Side-effects:
  * - Successful resolution records the access timestamp and resets the
  *   failure counter.
- * - Failure increments the failure counter (and arms the lockout
- *   threshold). The mutated link is persisted regardless so the
- *   counter / lockout state survives.
+ * - A failed password attempt increments the failure counter (and arms
+ *   the lockout threshold once it is reached). Because the D1 UoW only
+ *   flushes its batch when the callback returns normally, the failed
+ *   attempt is signalled by *returning* a `password_invalid` outcome —
+ *   not by throwing — so the counter / lockout `save()` is committed.
+ *   The `BusinessRuleError("share_link_password_invalid")` is then
+ *   thrown outside the UoW, after the write has been flushed.
+ * - `note-not-found` / `owner-not-found` are thrown *inside* the UoW
+ *   (after the access record / reset `save()` was enqueued) so that
+ *   throw discards the batch: a link pointing at a missing note should
+ *   not leave an access record behind.
  *
  * `viewerIpHash` is accepted for parity with the spec but is not
  * currently persisted — there is no field on the aggregate for it. It
@@ -50,7 +58,11 @@ export async function resolveShareLink({
   // future abuse-prevention sink.
   void input.viewerIpHash;
 
-  const { note, ownerUsername } = await container.unitOfWorkProvider.run(
+  type RunOutcome =
+    | Readonly<{ outcome: "ok"; noteId: NoteId; ownerUsername: string }>
+    | Readonly<{ outcome: "password_invalid"; shareLinkId: string }>;
+
+  const result = await container.unitOfWorkProvider.run<RunOutcome>(
     async ({ shareLinkRepository, noteRepository, userRepository }) => {
       const lookup = await shareLinkRepository.findByTokenHash(tokenHash);
       if (lookup === null) {
@@ -82,7 +94,7 @@ export async function resolveShareLink({
         );
       }
 
-      const result = await PublicationService.verifyShareLinkAccess(
+      const verify = await PublicationService.verifyShareLinkAccess(
         versioned.entity,
         input.password,
         container.passwordHasher,
@@ -90,15 +102,15 @@ export async function resolveShareLink({
       );
 
       await shareLinkRepository.save(
-        result.updatedLink,
+        verify.updatedLink,
         versioned.expectedVersion,
       );
 
-      if (!result.ok) {
-        throw new BusinessRuleError(
-          "share_link_password_invalid",
-          `Share link ${lookup.id} password verification failed`,
-        );
+      // Returning (not throwing) lets the UoW flush the counter /
+      // lockout write; the caller throws `share_link_password_invalid`
+      // after the batch has committed.
+      if (!verify.ok) {
+        return { outcome: "password_invalid", shareLinkId: lookup.id };
       }
 
       const noteFound = await noteRepository.findById(versioned.entity.noteId);
@@ -120,11 +132,19 @@ export async function resolveShareLink({
       }
 
       return {
-        note: noteFound.entity,
+        outcome: "ok",
+        noteId: noteFound.entity.id,
         ownerUsername: ownerFound.entity.username as string,
       };
     },
   );
 
-  return { noteId: note.id, ownerUsername };
+  if (result.outcome === "password_invalid") {
+    throw new BusinessRuleError(
+      "share_link_password_invalid",
+      `Share link ${result.shareLinkId} password verification failed`,
+    );
+  }
+
+  return { noteId: result.noteId, ownerUsername: result.ownerUsername };
 }
