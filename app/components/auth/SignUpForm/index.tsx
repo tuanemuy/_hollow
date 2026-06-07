@@ -2,8 +2,18 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle } from "lucide-react";
 import { useActionState, useId } from "react";
-import { textLink } from "@/components/common/styles";
+import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ERROR,
+  ALERT_ICON,
+  ALERT_TITLE,
+  textLink,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -29,7 +39,6 @@ import {
   FIELD_LABEL,
   FIELD_OPTIONAL,
   FORM,
-  FORM_ERROR,
   INPUT,
 } from "../styles";
 import { signUpFn } from "./action";
@@ -276,11 +285,18 @@ export function SignUpForm() {
         ) : null}
 
         {summary !== null ? (
-          <div className={FORM_ERROR} role="alert" id={summaryId}>
-            <span>
-              <strong className="font-semibold">登録に失敗しました。</strong>{" "}
-              {summary}
+          <div
+            className={`${ALERT} ${ALERT_ERROR}`}
+            role="alert"
+            id={summaryId}
+          >
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={AlertCircle} size={20} />
             </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>登録に失敗しました。</p>
+              <p className={ALERT_BODY}>{summary}</p>
+            </div>
           </div>
         ) : null}
 

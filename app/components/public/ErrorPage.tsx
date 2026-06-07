@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import { BackLink, ReloadButton } from "./ErrorNavActions";
 import { PublicLayout } from "./PublicLayout";
 import {
   ERR_ACTIONS,
@@ -15,6 +16,23 @@ import {
   SEARCH_ICON,
   USER_SEARCH_INPUT,
 } from "./styles";
+
+const HomeLink = ({ primary = false }: { primary?: boolean }) => (
+  <Link
+    to="/"
+    search={HOME_SEARCH}
+    className={PILL_BTN}
+    data-primary={primary ? "" : undefined}
+  >
+    ホームへ戻る
+  </Link>
+);
+
+const SearchLink = () => (
+  <Link to="/search" search={{ q: "", limit: 20 }} className={PILL_BTN}>
+    検索ページを開く
+  </Link>
+);
 
 export type ErrorPageKind = "notFound" | "forbidden" | "gone" | "system";
 
@@ -88,22 +106,30 @@ export function ErrorPage({ kind, message }: Props) {
           ) : null}
 
           <div className={ERR_ACTIONS}>
-            <Link
-              to="/"
-              search={HOME_SEARCH}
-              className={PILL_BTN}
-              data-primary=""
-            >
-              ホームへ戻る
-            </Link>
-            <Link
-              to="/search"
-              search={{ q: "", limit: 20 }}
-              className={PILL_BTN}
-            >
-              検索ページを開く
-            </Link>
+            {kind === "notFound" ? (
+              <>
+                <HomeLink primary />
+                <SearchLink />
+              </>
+            ) : null}
+            {kind === "forbidden" ? (
+              <>
+                <Link to="/login" className={PILL_BTN} data-primary="">
+                  ログイン
+                </Link>
+                <HomeLink />
+              </>
+            ) : null}
+            {kind === "gone" ? <HomeLink primary /> : null}
+            {kind === "system" ? (
+              <>
+                <ReloadButton />
+                <HomeLink />
+              </>
+            ) : null}
           </div>
+
+          <BackLink />
 
           <div className={ERR_META}>{copy.meta}</div>
         </div>

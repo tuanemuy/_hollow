@@ -158,4 +158,8 @@ export const ERR_TITLE =
 export const ERR_DESC =
   "text-md text-ink-secondary leading-relaxed mx-auto mb-8 max-w-[440px]";
 export const ERR_ACTIONS = "flex gap-2.5 justify-center flex-wrap mb-6";
+// Mock `.back-link` (258-268) normalized to tokens / Tailwind standard scale:
+// gap-1=4px, px-2.5 py-1.5=10/6px, text-sm=13px, rounded-md — no literal px.
+export const BACK_LINK =
+  "inline-flex items-center gap-1 text-sm text-ink-tertiary px-2.5 py-1.5 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";
 export const ERR_META = "text-xs text-ink-tertiary font-mono mt-3";
