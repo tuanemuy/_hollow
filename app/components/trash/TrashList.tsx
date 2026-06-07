@@ -51,6 +51,7 @@ export async function TrashList({ user, page, limit }: Props) {
 
       <div
         role="note"
+        aria-label="保存期間の案内"
         className="flex items-start gap-2 px-4 py-3 rounded-md bg-surface mb-6 text-sm text-ink-secondary leading-snug"
       >
         <Icon

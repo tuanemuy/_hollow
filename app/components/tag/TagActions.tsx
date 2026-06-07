@@ -18,6 +18,8 @@ import { FORM_ERROR, ROW_ACTIONS } from "../layout/styles";
 import { MergeTagDialog } from "./MergeTagDialog";
 import {
   TAG_EDITING_BLOCK,
+  TAG_EDITING_FIELD,
+  TAG_EDITING_GRID,
   TAG_EDITING_HEADING,
   TAG_RENAME_INPUT,
   TAG_ROW_ACTIONS,
@@ -84,40 +86,44 @@ export function TagActions({
         data-editing=""
         className={`[grid-column:1/-1] ${TAG_EDITING_BLOCK}`}
       >
-        <p className={TAG_EDITING_HEADING}>
-          #{name} をリネーム（{noteCount} 件のノートに反映）
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            aria-label="タグ名"
-            // biome-ignore lint/a11y/noAutofocus: inline edit field
-            autoFocus
-            className={TAG_RENAME_INPUT}
-          />
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnPrimary} ${pillBtnSm}`}
-            data-primary=""
-            data-sm=""
-            onClick={runRename}
-          >
-            <Icon icon={Check} />
-            保存
-          </button>
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnSm}`}
-            data-sm=""
-            onClick={() => {
-              setIsEditing(false);
-              setDraft(name);
-            }}
-          >
-            キャンセル
-          </button>
+        <div className={TAG_EDITING_GRID}>
+          <div className={TAG_EDITING_FIELD}>
+            <p className={TAG_EDITING_HEADING}>
+              #{name} をリネーム（{noteCount} 件のノートに反映）
+            </p>
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label="タグ名"
+              // biome-ignore lint/a11y/noAutofocus: inline edit field
+              autoFocus
+              className={TAG_RENAME_INPUT}
+            />
+          </div>
+          <span className="inline-flex items-center gap-2">
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnPrimary} ${pillBtnSm}`}
+              data-primary=""
+              data-sm=""
+              onClick={runRename}
+            >
+              <Icon icon={Check} />
+              保存
+            </button>
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
+              onClick={() => {
+                setIsEditing(false);
+                setDraft(name);
+              }}
+            >
+              キャンセル
+            </button>
+          </span>
         </div>
         {actionError !== null && !confirmDeleteOpen ? (
           <span className={FORM_ERROR} role="alert" aria-live="polite">

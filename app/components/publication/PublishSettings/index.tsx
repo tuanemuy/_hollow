@@ -2,12 +2,13 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import {
   useActionState,
   useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -360,12 +361,27 @@ function ShareLinkRow({
   const [error, setError] = useState<SerializedError | null>(null);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [copied, setCopied] = useState(false);
+  const copyStatusId = useId();
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending copy-reset timer on unmount so it cannot fire a
+  // `setCopied` after the row is gone (e.g. revoke removes the active row).
+  useEffect(() => {
+    return () => {
+      if (copyResetTimer.current !== null) {
+        clearTimeout(copyResetTimer.current);
+      }
+    };
+  }, []);
 
   const onCopy = () => {
     void navigator.clipboard?.writeText(link.url).then(
       () => {
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
+        if (copyResetTimer.current !== null) {
+          clearTimeout(copyResetTimer.current);
+        }
+        copyResetTimer.current = setTimeout(() => setCopied(false), 1500);
       },
       () => {},
     );
@@ -436,12 +452,21 @@ function ShareLinkRow({
         <button
           type="button"
           onClick={onCopy}
-          aria-label={copied ? "コピーしました" : "リンクをコピー"}
-          title={copied ? "コピーしました" : "コピー"}
+          aria-label="リンクをコピー"
+          title="コピー"
           className={LINK_COPY_BTN}
+          aria-describedby={copyStatusId}
         >
-          <Icon icon={Copy} />
+          <Icon icon={copied ? Check : Copy} />
         </button>
+        <span
+          id={copyStatusId}
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+        >
+          {copied ? "コピーしました" : ""}
+        </span>
       </div>
       {link.status === "active" ? (
         <div className="flex flex-wrap items-center gap-2">

@@ -77,3 +77,24 @@ Accepted
 ### Consequences
 - 良い点: `useOptimistic` との干渉を回避し、状態の所在を `TagActions` に閉じたまま保てる。CLAUDE.md の data-* 規約とも矛盾しない（`data-editing` + `group-has-[…]` variant で表現、条件付きクラス文字列を使わない）。モックの行全幅 accent-surface も忠実に再現。
 - トレードオフ: 行の列差し替えが `<li>` 側の `group-has-[…]` ルールと `TagActions` 側の `data-editing` の二箇所の暗黙的協調に依存する（JSDoc/コメントで明示済み）。
+
+---
+
+## ADR-005: P18 タグ行の小型ボタンはピル型（pillBtnSm）を維持しモックの rounded-sm に追従しない
+
+### Status
+Accepted
+
+### Context
+モック `P18-tags.html` の行アクション小型ボタン `.btn-xs` は `border-radius: var(--radius-sm)`（6px、角丸矩形）で base `.btn` の `rounded-pill` を明示的に上書きしている。一方、実装で再利用する共通プリミティブ `pillBtnSm`（`app/components/common/styles.ts`）は高さ/パディング/文字サイズのみを縮小し、radius は base の `rounded-pill`（980px、ピル型）を保つ。よって厳密にモック追従するとタグ行だけ rounded-sm 矩形になる。
+
+### Decision
+タグ行の小型ボタンはピル型（`pillBtnSm`）を維持し、モックの rounded-sm には追従しない。
+
+- `pillBtnSm` は admin テーブル等、出荷済みアプリ全体で「ピル型の小型ボタン」として一貫使用されている。本画面だけ rounded-sm に変えると、アプリ全体の小型ボタン体系と不整合になる。
+- `pillBtnSm` 自体に `data-[sm]:rounded-sm` を足すと全使用箇所に波及し本Issueのスコープを超える。タグ行専用に rounded-sm を後付けしても Tailwind の `rounded-pill`/`rounded-sm` はクラス記述順で勝敗が決まらず信頼できない。
+- issue-implement のデザイン方針（既存の出荷済み見た目に馴染ませる）と plan.md ステップ5（`pillBtnSm` 指定）にも沿う。
+
+### Consequences
+- 良い点: アプリ全体の小型ボタン体系（ピル型）との一貫性を維持。新規プリミティブを増やさない。
+- トレードオフ: 当該モックの literal な角丸形状（rounded-sm）とは差異が残る。色挙動（`pillBtnGhostDanger` ≒ `.btn-destructive`）・寸法（高さ・パディング）はモックと一致しているため、差異は角丸形状のみに限定される。

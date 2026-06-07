@@ -17,10 +17,12 @@ export const progressBarIndeterminate =
 /**
  * Tag list row — the per-tag `<li>`. Mirrors `layout/styles.ts` DATA_ROW but
  * adds `group` so the row's `hover` / `focus-within` can reveal the otherwise
- * hidden action column (mock `.list-row` + `.list-row-actions-hover`).
+ * hidden action column (mock `.list-row` + `.list-row-actions-hover`). The
+ * `hover:bg-surface` matches mock `.list-row:hover`; the editing block overlays
+ * its own `accent-surface` via `[grid-column:1/-1]`, so the two never conflict.
  */
 export const TAG_ROW =
-  "group grid grid-cols-[1fr_auto] gap-4 px-3 py-4 border-t border-hairline items-center last-of-type:border-b";
+  "group grid grid-cols-[1fr_auto] gap-4 px-3 py-4 border-t border-hairline items-center last-of-type:border-b transition-colors motion-reduce:transition-none hover:bg-surface";
 
 /**
  * Hover/focus-revealed inline action column (mock `.list-row-actions-hover`).
@@ -46,6 +48,16 @@ export const TAG_COUNT = "text-sm text-ink-tertiary max-lg:hidden";
  */
 export const TAG_EDITING_BLOCK =
   "-mx-3 -my-4 px-3 py-4 bg-accent-surface flex flex-col gap-1.5";
+
+/**
+ * 2-column layout inside the editing block (mock `.tag-editing-block .list-row`
+ * `grid-template-columns: 1fr auto`): left column stacks heading + input, the
+ * right column holds save/cancel aligned to the input's baseline (`items-end`).
+ */
+export const TAG_EDITING_GRID = "grid grid-cols-[1fr_auto] gap-4 items-end";
+
+/** Left column of the editing grid — heading stacked above the rename input. */
+export const TAG_EDITING_FIELD = "flex flex-col gap-1.5 min-w-0";
 
 /** Context heading above the rename input (mock `.tag-editing-block .tag-count`). */
 export const TAG_EDITING_HEADING = "text-sm text-ink-tertiary";
