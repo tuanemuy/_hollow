@@ -21,7 +21,7 @@ export const deleteTagSchema = z.object({
 });
 
 /**
- * Issue #569: tag-list search / sort transport schema, modelled on
+ * Tag-list search / sort transport schema, modelled on
  * `@/core/presentation/pagination` — a single field-level SSOT feeds both
  * the strict RPC schema (`inputValidator`) and the URL search schema
  * (`validateSearch`), so the constraints cannot drift between the route

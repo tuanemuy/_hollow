@@ -40,7 +40,7 @@ export const TAG_ROW_KEBAB_WRAP = "hidden max-lg:inline-flex";
 export const TAG_COUNT = "text-sm text-ink-tertiary max-lg:hidden";
 
 /**
- * Tag last-used line (Issue #569, mock `.tag-lastused`) — same visual as
+ * Tag last-used line (mock `.tag-lastused`) — same visual as
  * `TAG_COUNT` (`text-sm` / `ink-tertiary` / tabular-nums) with a 2px top
  * gap, and folded away below `lg` exactly like the count.
  */
@@ -48,7 +48,7 @@ export const TAG_LASTUSED =
   "text-sm text-ink-tertiary [font-variant-numeric:tabular-nums] mt-0.5 max-lg:hidden";
 
 /**
- * Tag toolbar (Issue #569, mock `.tag-toolbar`) — page-scoped search on the
+ * Tag toolbar (mock `.tag-toolbar`) — page-scoped search on the
  * left, sort controls on the right. Wraps and stacks vertically below `sm`.
  */
 export const TAG_TOOLBAR =

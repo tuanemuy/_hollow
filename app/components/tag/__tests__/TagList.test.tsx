@@ -386,30 +386,24 @@ describe("TagList — optimistic delete", () => {
   });
 });
 
-describe("TagList — lastUsedAt display (T-W-003)", () => {
+describe("TagList — lastUsedAt display", () => {
   it("displays 'unused' for tags with lastUsedAt: null", async () => {
     await renderList([makeTag("t1", "alpha", 5), makeTag("t2", "beta", 3)]);
 
     const content = document.body.textContent ?? "";
-    // Both tags should show "未使用" (unused)
     const unusedMatches = (content.match(/未使用/g) ?? []).length;
     expect(unusedMatches).toBe(2);
     expect(content).toContain("未使用");
   });
 
   it("displays 'lastUsedAt YYYY/MM/DD' for tags with ISO date string", async () => {
-    // Use 2026-06-01T12:00:00.000Z (UTC noon so the date doesn't shift across
-    // timezones) → should render as "2026/06/01" via toLocaleDateString.
-    // We assert loosely for year/month/day parts to be timezone-resilient.
+    // UTC noon so the rendered date doesn't shift across timezones; assert the
+    // label and Y/M/D parts loosely to stay timezone-resilient.
     const lastUsedIso = "2026-06-01T12:00:00.000Z";
     await renderList([makeTagWithLastUsed("t1", "research", 10, lastUsedIso)]);
 
     const content = document.body.textContent ?? "";
-    // The formatLastUsed function outputs "最終使用 YYYY/MM/DD"
-    // We check for the label and the year/month/day parts separately to avoid
-    // timezone-related failures.
     expect(content).toContain("最終使用");
-    // The date should include 2026, 06, and 01
     expect(content).toMatch(/2026/);
     expect(content).toMatch(/06/);
     expect(content).toMatch(/01/);
@@ -424,17 +418,14 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
       makeTagWithLastUsed("t3", "gamma", 7, iso2),
     ]);
 
-    // Query the ul element specifically to avoid the toolbar
+    // Scope to the list `ul` so the toolbar's buttons don't leak into the text.
     const ul = container.querySelector("ul");
     expect(ul).not.toBeNull();
     const rows = Array.from(ul?.querySelectorAll("li") ?? []);
     expect(rows.length).toBe(3);
-    // Row 0 (alpha): has lastUsedAt → should show date
     expect(rows[0]?.textContent).toContain("2026");
     expect(rows[0]?.textContent).toContain("05");
-    // Row 1 (beta): has null → should show "未使用"
     expect(rows[1]?.textContent).toContain("未使用");
-    // Row 2 (gamma): has lastUsedAt → should show date
     expect(rows[2]?.textContent).toContain("2026");
     expect(rows[2]?.textContent).toContain("06");
   });
@@ -443,12 +434,11 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
     const invalidIso = "invalid-date-string";
     await renderList([makeTagWithLastUsed("t1", "test", 1, invalidIso)]);
 
-    // Query the ul element specifically to avoid the toolbar
     const ul = container.querySelector("ul");
     expect(ul).not.toBeNull();
     const tagContent = ul?.textContent ?? "";
+    // Unparseable dates fall back to "未使用", never a Y/M/D string.
     expect(tagContent).toContain("未使用");
-    // The tag row should NOT show a date (formatLastUsed returns "未使用" for invalid dates)
     expect(tagContent).not.toMatch(/\d{4}\/\d{2}\/\d{2}/);
   });
 
@@ -467,7 +457,6 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
     expect(content).toContain("最終使用");
     expect(content).toContain("2026");
 
-    // Rename the tag
     await act(async () => {
       buttonByText("リネーム").click();
     });
@@ -488,12 +477,11 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
     });
     await flush();
 
-    // lastUsedAt should still be displayed after optimistic rename
     const contentAfterRename = document.body.textContent ?? "";
     expect(contentAfterRename).toContain("最終使用");
     expect(contentAfterRename).toContain("2026");
 
-    // Resolve the rename to ensure cleanup
+    // Settle the pending rename so the test tears down cleanly.
     await act(async () => {
       rejectRename?.(
         new AppServerError({
@@ -521,14 +509,12 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
       makeTagWithLastUsed("t2", "beta", 4, iso2),
     ]);
 
-    // Both tags have dates before delete
     let ul = container.querySelector("ul");
     let rows = Array.from(ul?.querySelectorAll("li") ?? []);
     expect(rows.length).toBe(2);
     expect(rows[0]?.textContent).toContain("2026");
     expect(rows[1]?.textContent).toContain("2026");
 
-    // Delete alpha
     const deleteBtn = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>("button"),
     ).find((b) => (b.textContent ?? "").trim().includes("削除"));
@@ -543,13 +529,12 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
     });
     await flush();
 
-    // alpha removed → only beta remains
     ul = container.querySelector("ul");
     rows = Array.from(ul?.querySelectorAll("li") ?? []);
     expect(rows.length).toBe(1);
     expect(rows[0]?.textContent).toContain("2026");
 
-    // Revert the delete (fail the server call)
+    // Fail the server call so the optimistic delete reverts.
     await act(async () => {
       rejectDelete?.(
         new AppServerError({
@@ -561,7 +546,6 @@ describe("TagList — lastUsedAt display (T-W-003)", () => {
     });
     await flush();
 
-    // Both tags back, both still have lastUsedAt displayed
     ul = container.querySelector("ul");
     rows = Array.from(ul?.querySelectorAll("li") ?? []);
     expect(rows.length).toBe(2);

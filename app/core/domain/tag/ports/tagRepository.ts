@@ -24,7 +24,7 @@ export type TagListOpts = Readonly<{
  * stored on the `Tag` aggregate, so it is carried alongside the entity
  * only on the listing path that displays it.
  *
- * `lastUsedAt` is the same family of read-time aggregate (Issue #569): the
+ * `lastUsedAt` is the same family of read-time aggregate: the
  * `MAX(notes.updatedAt)` over the owner's active notes linked to the tag.
  * It is **not** a field of the `Tag` aggregate. `null` when the tag has no
  * active note links (an unused tag).

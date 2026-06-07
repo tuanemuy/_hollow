@@ -33,7 +33,7 @@ type Props = {
 };
 
 /**
- * Local last-used formatter (Issue #569). There is no shared date helper —
+ * Local last-used formatter. There is no shared date helper —
  * `trash/TrashList` and `note/NoteMetaPanel` each carry their own — so this
  * matches `TrashList`'s `ja-JP` short-date format (no time component).
  */
@@ -117,7 +117,7 @@ export function TagList({ tags, query, sort, order }: Props) {
 
   const all = optimisticTags.map((tag) => ({ id: tag.id, name: tag.name }));
   // A search term applied with no matches is a normal flow, distinct from a
-  // never-created tag catalogue — branch the empty state on it (Issue #569).
+  // never-created tag catalogue — branch the empty state on it.
   const isSearchMiss = query !== undefined && optimisticTags.length === 0;
 
   return (

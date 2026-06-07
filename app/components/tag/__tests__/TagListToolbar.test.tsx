@@ -82,7 +82,6 @@ function getOrderToggleButton(): HTMLButtonElement {
   const btns = Array.from(
     ctx.container.querySelectorAll<HTMLButtonElement>("button"),
   );
-  // The order toggle button has aria-pressed attribute
   const toggle = btns.find((b) => b.hasAttribute("aria-pressed"));
   if (!toggle) throw new Error("order toggle button not found");
   return toggle;
@@ -125,21 +124,18 @@ describe("TagListToolbar — search input", () => {
     const call = routerNavigate.mock.calls[0]?.[0];
     expect(call?.to).toBe("/tags");
 
-    // The search function should set q to the trimmed value
     if (typeof call?.search === "function") {
       const result = call.search({});
       expect(result.q).toBe("test query");
     }
   });
 
-  it("removes q from URL when submitting empty search (T-W-001)", async () => {
-    // Key test case for T-W-001: empty submit must drop `q` from URL
+  it("removes q from URL when submitting empty search", async () => {
     await renderToolbar("old-search");
 
     const form = getSearchForm();
     const input = getSearchInput();
 
-    // Clear the input
     await act(async () => {
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype,
@@ -158,13 +154,11 @@ describe("TagListToolbar — search input", () => {
     const call = routerNavigate.mock.calls[0]?.[0];
     expect(call?.to).toBe("/tags");
 
-    // The search function should remove q entirely when empty
+    // Empty submit must drop `q` entirely while preserving other params.
     if (typeof call?.search === "function") {
       const prev = { q: "old-search", sort: "name" };
       const result = call.search(prev);
-      // q should not be in the result when empty submit
       expect(result).not.toHaveProperty("q");
-      // Other params should be preserved
       expect(result.sort).toBe("name");
     }
   });
@@ -193,7 +187,6 @@ describe("TagListToolbar — search input", () => {
     const call = routerNavigate.mock.calls[0]?.[0];
 
     if (typeof call?.search === "function") {
-      // Simulate prev state with sort and order
       const prev = { sort: "noteCount", order: "desc" };
       const result = call.search(prev);
       expect(result.q).toBe("new-tag");
@@ -297,7 +290,6 @@ describe("TagListToolbar — sort controls", () => {
       await Promise.resolve();
     });
 
-    // Button should now be disabled (pending)
     expect(noteCountBtn?.disabled).toBe(true);
 
     await act(async () => {

@@ -38,7 +38,7 @@ type TagManagerQuery = Readonly<{
 }>;
 
 /**
- * Issue #569: dedicated loader for the `TagManager` RSC that forwards the
+ * Dedicated loader for the `TagManager` RSC that forwards the
  * search / sort parameters into `listTags`. Deliberately **not** wrapped in
  * `cache()` (unlike `loadTagsForOwner`): it is called once per RSC render
  * and feeding the search args through `cache` would only pollute the

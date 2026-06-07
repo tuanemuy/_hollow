@@ -149,7 +149,7 @@ export class D1TagRepository implements TagRepository {
       // Aliased so `orderBy` can reuse it instead of re-emitting the COUNT.
       const noteCountExpr = sql<number>`COUNT(${notes.id})`.as("noteCount");
 
-      // Issue #569: last-used = MAX(updatedAt) over the owner's active notes
+      // last-used = MAX(updatedAt) over the owner's active notes
       // linked to the tag (same JOIN as the count). NULL for unused tags.
       const lastUsedAtExpr = sql<string | null>`MAX(${notes.updatedAt})`.as(
         "lastUsedAt",

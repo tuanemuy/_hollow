@@ -5,7 +5,7 @@ export type TagDTO = Readonly<{
   ownerId: string;
   name: string;
   noteCount: number;
-  /** Read-time `MAX(active notes.updatedAt)` (Issue #569). ISO string, or null when unused. */
+  /** Read-time `MAX(active notes.updatedAt)`. ISO string, or null when unused. */
   lastUsedAt: string | null;
 }>;
 
