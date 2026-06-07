@@ -77,7 +77,7 @@ export function PublicLayout({
 
       <footer className={PUBLIC_FOOTER}>
         <div className={PUBLIC_FOOTER_INNER}>
-          <div>
+          <div className="text-ink">
             <BrandLockup />
           </div>
           <div className={PUBLIC_FOOTER_LINKS}>

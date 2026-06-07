@@ -1,19 +1,7 @@
-type BrandMarkProps = {
-  size?: number;
-  className?: string;
-  label?: string;
-};
-
 /**
  * Vesica brand mark — the two overlapping circles whose lens-shaped negative
- * space reads as "hollow".
- *
- * Mirrors the aria / sizing contract of `common/Icon`:
- * - `size` is forwarded to both `width` and `height`; the stroke renders in
- *   `currentColor` so the mark follows the surrounding `text-*` token.
- * - When `label` is a non-empty string the SVG is exposed as `role="img"`
- *   with `aria-label={label}`. When omitted or empty it is marked
- *   `aria-hidden="true"` and treated as decorative.
+ * space reads as "hollow". Shared as a fragment so the mark geometry has a
+ * single definition reused by both `BrandMark` and `BrandLockup`.
  *
  * Source asset: `spec/design/icons/hollow-mark.svg`.
  */
@@ -24,6 +12,22 @@ const MARK_CHILDREN = (
   </>
 );
 
+type BrandMarkProps = {
+  size?: number;
+  className?: string;
+  label?: string;
+};
+
+/**
+ * Vesica brand mark on its own (mark-only lockup).
+ *
+ * Mirrors the aria / sizing contract of `common/Icon`:
+ * - `size` is forwarded to both `width` and `height`; the stroke renders in
+ *   `currentColor` so the mark follows the surrounding `text-*` token.
+ * - When `label` is a non-empty string the SVG is exposed as `role="img"`
+ *   with `aria-label={label}`. When omitted or empty it is marked
+ *   `aria-hidden="true"` and treated as decorative.
+ */
 export function BrandMark({ size = 24, className, label }: BrandMarkProps) {
   const marked = label !== undefined && label !== "";
   const shared = {
@@ -51,29 +55,21 @@ export function BrandMark({ size = 24, className, label }: BrandMarkProps) {
   );
 }
 
-type BrandLockupProps = {
-  height?: number;
-  className?: string;
-  label?: string;
-};
-
 /**
- * Horizontal brand lockup — Vesica mark + the outlined lowercase "hollow"
- * wordmark (Avenir Next, converted to paths so it renders without bundling
- * the font; see `.issue/582/adr.md` ADR-001).
+ * Wordmark glyphs ("hollow") as outlined paths — Avenir Next converted to
+ * vectors so it renders without bundling the font; see `.issue/582/adr.md`
+ * ADR-001. Regenerate from the source asset rather than hand-editing the `d`.
  *
- * Sized by `height`; the width is derived from the fixed viewBox aspect ratio
- * (≈5.6:1), so it is set to `auto`. The mark stroke and wordmark fill both use
- * `currentColor` for light/dark theme inheritance.
- *
- * Aria contract matches `common/Icon`: a non-empty `label` (default
- * `"hollow"`) exposes the SVG as `role="img"` with `aria-label`; an explicit
- * empty string marks it decorative (`aria-hidden`).
- *
- * Source asset: `spec/design/icons/hollow-lockup.svg`. The wordmark `d`
- * attribute is the verbatim outline export — regenerate from the asset rather
- * than hand-editing.
+ * Source asset: `spec/design/icons/hollow-lockup.svg`.
  */
+const WORDMARK_PATH = (
+  <path
+    transform="translate(150.77,0.00) scale(0.11)"
+    fill="currentColor"
+    d="M70.00 365.00Q89.00 324.00 133.00 300.00Q177.00 276.00 227.00 276.00Q316.00 276.00 360.50 329.00Q405.00 382.00 405.00 469.00L405.00 756.00L337.00 756.00L337.00 497.00Q337.00 460.00 331.00 430.00Q325.00 400.00 310.50 378.50Q296.00 357.00 271.50 345.00Q247.00 333.00 210.00 333.00Q183.00 333.00 157.50 344.00Q132.00 355.00 112.00 377.50Q92.00 400.00 80.00 434.50Q68.00 469.00 68.00 516.00L68.00 756.00L0.00 756.00L0.00 0.00L68.00 0.00L68.00 365.00ZM1046.00 522.00Q1046.00 575.00 1027.50 620.00Q1009.00 665.00 976.00 698.00Q943.00 731.00 897.00 749.50Q851.00 768.00 796.00 768.00Q742.00 768.00 696.00 749.50Q650.00 731.00 617.00 698.00Q584.00 665.00 565.50 620.00Q547.00 575.00 547.00 522.00Q547.00 469.00 565.50 424.00Q584.00 379.00 617.00 346.00Q650.00 313.00 696.00 294.50Q742.00 276.00 796.00 276.00Q851.00 276.00 897.00 294.50Q943.00 313.00 976.00 346.00Q1009.00 379.00 1027.50 424.00Q1046.00 469.00 1046.00 522.00ZM974.00 522.00Q974.00 483.00 961.50 448.50Q949.00 414.00 926.00 388.50Q903.00 363.00 870.00 348.00Q837.00 333.00 796.00 333.00Q755.00 333.00 722.50 348.00Q690.00 363.00 667.00 388.50Q644.00 414.00 631.50 448.50Q619.00 483.00 619.00 522.00Q619.00 561.00 631.50 595.50Q644.00 630.00 667.00 655.50Q690.00 681.00 722.50 695.50Q755.00 710.00 796.00 710.00Q837.00 710.00 870.00 695.50Q903.00 681.00 926.00 655.50Q949.00 630.00 961.50 595.50Q974.00 561.00 974.00 522.00ZM1262.00 756.00L1194.00 756.00L1194.00 0.00L1262.00 0.00ZM1514.00 756.00L1446.00 756.00L1446.00 0.00L1514.00 0.00ZM2161.00 522.00Q2161.00 575.00 2142.50 620.00Q2124.00 665.00 2091.00 698.00Q2058.00 731.00 2012.00 749.50Q1966.00 768.00 1911.00 768.00Q1857.00 768.00 1811.00 749.50Q1765.00 731.00 1732.00 698.00Q1699.00 665.00 1680.50 620.00Q1662.00 575.00 1662.00 522.00Q1662.00 469.00 1680.50 424.00Q1699.00 379.00 1732.00 346.00Q1765.00 313.00 1811.00 294.50Q1857.00 276.00 1911.00 276.00Q1966.00 276.00 2012.00 294.50Q2058.00 313.00 2091.00 346.00Q2124.00 379.00 2142.50 424.00Q2161.00 469.00 2161.00 522.00ZM2089.00 522.00Q2089.00 483.00 2076.50 448.50Q2064.00 414.00 2041.00 388.50Q2018.00 363.00 1985.00 348.00Q1952.00 333.00 1911.00 333.00Q1870.00 333.00 1837.50 348.00Q1805.00 363.00 1782.00 388.50Q1759.00 414.00 1746.50 448.50Q1734.00 483.00 1734.00 522.00Q1734.00 561.00 1746.50 595.50Q1759.00 630.00 1782.00 655.50Q1805.00 681.00 1837.50 695.50Q1870.00 710.00 1911.00 710.00Q1952.00 710.00 1985.00 695.50Q2018.00 681.00 2041.00 655.50Q2064.00 630.00 2076.50 595.50Q2089.00 561.00 2089.00 522.00ZM2316.00 288.00L2429.00 668.00L2431.00 668.00L2557.00 288.00L2623.00 288.00L2751.00 668.00L2753.00 668.00L2865.00 288.00L2937.00 288.00L2789.00 756.00L2715.00 756.00L2590.00 377.00L2588.00 377.00L2465.00 756.00L2391.00 756.00L2243.00 288.00Z"
+  />
+);
+
 const LOCKUP_CHILDREN = (
   <>
     <g
@@ -83,30 +79,44 @@ const LOCKUP_CHILDREN = (
       strokeWidth={1.5}
       strokeLinecap="round"
     >
-      <circle cx="9" cy="12" r="6.5" />
-      <circle cx="15" cy="12" r="6.5" />
+      {MARK_CHILDREN}
     </g>
-    <path
-      transform="translate(150.77,0.00) scale(0.11)"
-      fill="currentColor"
-      d="M70.00 365.00Q89.00 324.00 133.00 300.00Q177.00 276.00 227.00 276.00Q316.00 276.00 360.50 329.00Q405.00 382.00 405.00 469.00L405.00 756.00L337.00 756.00L337.00 497.00Q337.00 460.00 331.00 430.00Q325.00 400.00 310.50 378.50Q296.00 357.00 271.50 345.00Q247.00 333.00 210.00 333.00Q183.00 333.00 157.50 344.00Q132.00 355.00 112.00 377.50Q92.00 400.00 80.00 434.50Q68.00 469.00 68.00 516.00L68.00 756.00L0.00 756.00L0.00 0.00L68.00 0.00L68.00 365.00ZM1046.00 522.00Q1046.00 575.00 1027.50 620.00Q1009.00 665.00 976.00 698.00Q943.00 731.00 897.00 749.50Q851.00 768.00 796.00 768.00Q742.00 768.00 696.00 749.50Q650.00 731.00 617.00 698.00Q584.00 665.00 565.50 620.00Q547.00 575.00 547.00 522.00Q547.00 469.00 565.50 424.00Q584.00 379.00 617.00 346.00Q650.00 313.00 696.00 294.50Q742.00 276.00 796.00 276.00Q851.00 276.00 897.00 294.50Q943.00 313.00 976.00 346.00Q1009.00 379.00 1027.50 424.00Q1046.00 469.00 1046.00 522.00ZM974.00 522.00Q974.00 483.00 961.50 448.50Q949.00 414.00 926.00 388.50Q903.00 363.00 870.00 348.00Q837.00 333.00 796.00 333.00Q755.00 333.00 722.50 348.00Q690.00 363.00 667.00 388.50Q644.00 414.00 631.50 448.50Q619.00 483.00 619.00 522.00Q619.00 561.00 631.50 595.50Q644.00 630.00 667.00 655.50Q690.00 681.00 722.50 695.50Q755.00 710.00 796.00 710.00Q837.00 710.00 870.00 695.50Q903.00 681.00 926.00 655.50Q949.00 630.00 961.50 595.50Q974.00 561.00 974.00 522.00ZM1262.00 756.00L1194.00 756.00L1194.00 0.00L1262.00 0.00ZM1514.00 756.00L1446.00 756.00L1446.00 0.00L1514.00 0.00ZM2161.00 522.00Q2161.00 575.00 2142.50 620.00Q2124.00 665.00 2091.00 698.00Q2058.00 731.00 2012.00 749.50Q1966.00 768.00 1911.00 768.00Q1857.00 768.00 1811.00 749.50Q1765.00 731.00 1732.00 698.00Q1699.00 665.00 1680.50 620.00Q1662.00 575.00 1662.00 522.00Q1662.00 469.00 1680.50 424.00Q1699.00 379.00 1732.00 346.00Q1765.00 313.00 1811.00 294.50Q1857.00 276.00 1911.00 276.00Q1966.00 276.00 2012.00 294.50Q2058.00 313.00 2091.00 346.00Q2124.00 379.00 2142.50 424.00Q2161.00 469.00 2161.00 522.00ZM2089.00 522.00Q2089.00 483.00 2076.50 448.50Q2064.00 414.00 2041.00 388.50Q2018.00 363.00 1985.00 348.00Q1952.00 333.00 1911.00 333.00Q1870.00 333.00 1837.50 348.00Q1805.00 363.00 1782.00 388.50Q1759.00 414.00 1746.50 448.50Q1734.00 483.00 1734.00 522.00Q1734.00 561.00 1746.50 595.50Q1759.00 630.00 1782.00 655.50Q1805.00 681.00 1837.50 695.50Q1870.00 710.00 1911.00 710.00Q1952.00 710.00 1985.00 695.50Q2018.00 681.00 2041.00 655.50Q2064.00 630.00 2076.50 595.50Q2089.00 561.00 2089.00 522.00ZM2316.00 288.00L2429.00 668.00L2431.00 668.00L2557.00 288.00L2623.00 288.00L2751.00 668.00L2753.00 668.00L2865.00 288.00L2937.00 288.00L2789.00 756.00L2715.00 756.00L2590.00 377.00L2588.00 377.00L2465.00 756.00L2391.00 756.00L2243.00 288.00Z"
-    />
+    {WORDMARK_PATH}
   </>
 );
 
+type BrandLockupProps = {
+  height?: number;
+  className?: string;
+  label?: string;
+};
+
+/**
+ * Horizontal brand lockup — Vesica mark + the outlined lowercase "hollow"
+ * wordmark. Reuses `MARK_CHILDREN` for the mark geometry; the wordmark is the
+ * verbatim outline export (see `.issue/582/adr.md` ADR-001).
+ *
+ * Sized by `height`; the width is derived from the fixed viewBox aspect ratio
+ * (≈5.6:1), so no `width` attribute is set. The mark stroke and wordmark fill
+ * both use `currentColor` for light/dark theme inheritance.
+ *
+ * Aria contract matches `common/Icon`: a non-empty `label` (default
+ * `"hollow"`) exposes the SVG as `role="img"` with `aria-label`; an explicit
+ * empty string marks it decorative (`aria-hidden`).
+ */
 export function BrandLockup({
   height = 20,
   className,
   label = "hollow",
 }: BrandLockupProps) {
+  const marked = label !== undefined && label !== "";
   const shared = {
     xmlns: "http://www.w3.org/2000/svg",
-    width: "auto",
     height,
     viewBox: "0 0 473.84 84.48",
     className,
   } as const;
-  if (label !== "") {
+  if (marked) {
     return (
       <svg {...shared} role="img" aria-label={label}>
         {LOCKUP_CHILDREN}

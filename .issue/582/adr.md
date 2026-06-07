@@ -17,7 +17,9 @@ Accepted
 - テーマ（light/dark）で色追従させたい（既存テキストロゴは `text-ink` = `currentColor` 相当）。
 
 ### Decision
-**案A を採用**。`spec/design/icons/hollow-lockup.svg` を `BrandLockup` コンポーネントとしてインライン SVG 化し、mark の stroke / wordmark の fill をともに `currentColor` にする。マーク単体は `BrandMark` として切り出し、`BrandLockup` から再利用する。
+**案A を採用**。`spec/design/icons/hollow-lockup.svg` を `BrandLockup` コンポーネントとしてインライン SVG 化し、mark の stroke / wordmark の fill をともに `currentColor` にする。
+
+マークの図形（Vesica の二円）は共有フラグメント `MARK_CHILDREN` として1箇所に定義し、`BrandMark`（マーク単体 API）と `BrandLockup` の `<g>` 内の双方で再利用する（図形定義の重複を排除）。`BrandMark` は Issue 要件「マーク単体／マーク+Wordmark のロックアップ」のうち前者を満たす単体利用 API として提供する。
 
 - 案B は不採用: Avenir Next を同梱しないため、ブラウザ環境ごとに wordmark の字形が変わり、OG と同じ「非再現的フォールバック」問題を in-app に持ち込む。
 - 案C は不採用: `<img>` は `currentColor` を継承できず light/dark テーマ追従ができない（mask 化すれば可能だが複雑）。
