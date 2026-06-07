@@ -58,10 +58,6 @@ export async function resolveShareLink({
   // future abuse-prevention sink.
   void input.viewerIpHash;
 
-  // Discriminated outcome returned from the UoW callback. The
-  // `password_invalid` case is returned (not thrown) so the failure
-  // counter `save()` is flushed before the error surfaces outside the
-  // UoW; the `BusinessRuleError` is thrown afterwards.
   type RunOutcome =
     | Readonly<{ outcome: "ok"; noteId: NoteId; ownerUsername: string }>
     | Readonly<{ outcome: "password_invalid"; shareLinkId: string }>;
