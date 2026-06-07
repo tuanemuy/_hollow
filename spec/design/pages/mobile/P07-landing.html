@@ -246,8 +246,10 @@
   }
 
   /* ===== Hero ===== */
+  /* padding-block のみ指定し、横パディングは .container（var(--space-4)）を生かす。
+     shorthand で横を 0 にすると単カラムのモバイルでは本文が画面端へ張り付く。 */
   .hero {
-    padding: var(--space-12) 0 var(--space-10);
+    padding-block: var(--space-12) var(--space-10);
     text-align: center;
   }
   .hero-eyebrow {
@@ -446,8 +448,9 @@
   }
 
   /* ===== Section common ===== */
+  /* hero と同様、横パディングは .container を生かすため padding-block のみ指定。 */
   .section {
-    padding: var(--space-16) 0;
+    padding-block: var(--space-16);
   }
   .section-heading {
     text-align: center;
