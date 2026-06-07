@@ -59,6 +59,7 @@ const SITE_ASSET_LINKS = [
   { rel: "icon", href: "/favicon.ico", sizes: "any" },
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
   { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+  { rel: "mask-icon", href: "/mask-icon.svg", color: "#1d1d1f" },
   { rel: "manifest", href: "/site.webmanifest" },
 ];
 
