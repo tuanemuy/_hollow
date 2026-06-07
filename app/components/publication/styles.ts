@@ -100,3 +100,23 @@ export const URL_PREVIEW_LABEL =
 
 /** Preview-box URL uses `text-ink` per the mock's `.url-preview .url` (see `LINK_URL`). */
 export const URL_PREVIEW_URL = "font-mono text-sm text-ink break-all";
+
+/** QR block wrapping the QR code and its caption (mock `.qr-block`). */
+export const QR_BLOCK =
+  "flex items-center gap-4 p-3 bg-bg border border-hairline rounded-md";
+
+/**
+ * QR code container (mock `.qr-code`). The 96×96 (`w-24 h-24`) padded card.
+ * The white background is fixed (`bg-white`, not the theme-variable
+ * `--color-bg`) because QR scanners need a stable light field regardless of
+ * theme; mirrors the mock's literal `#fff`.
+ *
+ * `qrcode.toString` emits a `<svg>` with no width/height attributes, so its
+ * rendered size is browser-default-dependent. The `[&>svg]:*` rules pin the
+ * generated SVG to fill the padded container explicitly.
+ */
+export const QR_CODE =
+  "w-24 h-24 shrink-0 rounded-sm bg-white p-1.5 [&>svg]:w-full [&>svg]:h-full [&>svg]:block";
+
+/** QR caption beside the code (mock `.qr-caption`). */
+export const QR_CAPTION = "text-xs text-ink-tertiary leading-snug";
