@@ -7,6 +7,92 @@
  * `spec/design/pages/P20-views.html` for the source design.
  */
 
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_BODY_CODE,
+  ALERT_CONTENT,
+  ALERT_TITLE,
+  ALERT_WARNING,
+} from "@/components/common/styles";
+import {
+  dateRangePresetLabels,
+  formatDateRangeChipLabel,
+  matchDateRangePreset,
+} from "@/components/note/list/listSelectors";
+import { visibilityLabel } from "@/components/note/list/styles";
+import type { SavedViewDTO } from "@/core/application/dto/view";
+
+/**
+ * Japanese label for a saved view's sort, e.g. `更新降順` (P20 `.view-chips`'s
+ * `ソート: …` chip). No shared helper exists for `{by, direction}`, so this
+ * small lookup table is local to P20. `title` has no dedicated mock chip but
+ * is part of the DTO union, so it is covered for completeness.
+ */
+const SORT_BY_LABEL: Record<SavedViewDTO["sort"]["by"], string> = {
+  updatedAt: "更新",
+  createdAt: "作成",
+  title: "タイトル",
+};
+
+const SORT_DIRECTION_LABEL: Record<SavedViewDTO["sort"]["direction"], string> =
+  {
+    desc: "降順",
+    asc: "昇順",
+  };
+
+export function sortChipLabel(sort: SavedViewDTO["sort"]): string {
+  return `ソート: ${SORT_BY_LABEL[sort.by]}${SORT_DIRECTION_LABEL[sort.direction]}`;
+}
+
+/**
+ * `公開状態: …` chip label for a saved view's visibility filter. Reuses the
+ * note-list `visibilityLabel` SSOT. When multiple values are selected they are
+ * joined with `・`; an empty filter yields `null` (no chip).
+ */
+export function visibilityChipLabel(
+  filter: SavedViewDTO["query"]["visibilityFilter"],
+): string | null {
+  if (filter.length === 0) return null;
+  return `公開状態: ${filter.map((v) => visibilityLabel(v)).join("・")}`;
+}
+
+/**
+ * `更新: …` chip label for a saved view's date range. The DTO stores ISO
+ * datetimes; the FilterBar preset helpers operate on `YYYY-MM-DD`, so the
+ * bounds are sliced to date-only first. A preset match (e.g. `過去30日`) wins;
+ * otherwise it falls back to the compact `M/D–M/D` form. `baseDate` is injected
+ * so the preset arithmetic stays deterministic. Returns `null` when neither
+ * bound is set (no chip).
+ */
+export function dateRangeChipLabel(
+  range: SavedViewDTO["query"]["dateRange"],
+  baseDate: Date,
+): string | null {
+  if (range === null) return null;
+  const from = range.from === null ? undefined : range.from.slice(0, 10);
+  const to = range.to === null ? undefined : range.to.slice(0, 10);
+  const preset = matchDateRangePreset(from, to, baseDate);
+  if (preset !== null) return `更新: ${dateRangePresetLabels[preset]}`;
+  const compact = formatDateRangeChipLabel(from, to);
+  return compact === null ? null : `更新: ${compact}`;
+}
+
+/**
+ * `ディレクトリ: …` chip label. Resolves `directoryId` to a human path via the
+ * supplied resolver (the flat directory list keyed by id); falls back to the
+ * generic `ディレクトリ` when the id cannot be resolved. Returns `null` when no
+ * directory is pinned (no chip).
+ */
+export function directoryChipLabel(
+  directoryId: string | null,
+  resolveName: (id: string) => string | undefined,
+): string | null {
+  if (directoryId === null) return null;
+  const name = resolveName(directoryId);
+  return name !== undefined ? `ディレクトリ: ${name}` : "ディレクトリ";
+}
+
 /** List container — top hairline; each row carries its own bottom border. */
 export const viewList = "border-t border-hairline";
 
@@ -46,47 +132,65 @@ export const viewChips = "flex items-center gap-1.5 flex-wrap";
 export const chipBroken = "bg-warning-surface text-warning";
 
 /**
- * Row action cluster. Spans the full width and wraps below `lg`, mirroring
- * P20's `.row-actions { grid-column: 1 / -1; flex-wrap: wrap }`.
+ * Row action cluster. P20 `.row-actions` = 適用(主) + ⋯ overflow menu(副).
+ * Spans the full width and wraps below `lg`, mirroring P20's
+ * `.row-actions { grid-column: 1 / -1; flex-wrap: wrap }`. `<Menu>` provides
+ * the popover positioning context internally (`relative`), so this row only
+ * lays out the apply pill + the trigger button side by side.
  */
 export const rowActions =
-  "inline-flex items-center gap-1 max-lg:col-span-full max-lg:flex-wrap";
+  "inline-flex items-center gap-2 max-lg:col-span-full max-lg:flex-wrap";
 
-/** Text action button / link base. */
+/**
+ * "適用" pill (P20 `.apply-btn`). Surface pill that warms to accent-surface on
+ * hover, mirroring the primary row action. Height is implicit (`py-1.5` +
+ * `text-sm` ≈ the mock's 30px) so no literal px is introduced; used for the
+ * `<Link>` apply action.
+ */
+export const applyBtn =
+  "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:bg-accent-surface max-sm:min-h-[44px]";
+
+/**
+ * "⋯" overflow trigger (P20 `.row-menu-btn`). Circular icon button that fills
+ * with surface on hover. `w-8 h-8` (32px) is the nearest token to the mock's
+ * 30px; the `max-sm:min-w/h-[44px]` floor matches the codebase touch-target
+ * convention. Pairs with the shared `<Menu>` primitive's panel.
+ */
+export const menuBtn =
+  "inline-flex items-center justify-center w-8 h-8 rounded-pill text-ink-secondary transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover hover:not-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px]";
+
+/** Text action button / link base (inline rename editor save/cancel). */
 export const textAction =
   "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
-/** Append for the "適用" action (accent coloring). */
-export const textActionApply =
-  "text-accent hover:not-disabled:not-aria-disabled:bg-accent-surface hover:not-disabled:not-aria-disabled:text-accent-ink";
+/**
+ * Broken-conditions banner — 案D `.alert.alert-warning` (white surface +
+ * semantic hairline border + `--shadow-xs`, shared `common/styles` ALERT
+ * primitive, #539/#547). The mock nests this inside a view row, so the row
+ * spacing (`mt-3 mb-0.5`, mock `.view-main .alert`) and the mobile wrap come
+ * from here while the box chrome comes from `ALERT`/`ALERT_WARNING`.
+ */
+export const brokenBanner = `${ALERT} ${ALERT_WARNING} mt-3 mb-0.5 max-sm:flex-wrap`;
 
-/** Append for destructive actions (error coloring on hover). */
-export const textActionDanger =
-  "hover:not-disabled:not-aria-disabled:bg-error-surface hover:not-disabled:not-aria-disabled:text-error";
+/** Banner body wrapper (alert title + detail column). */
+export const brokenBody = ALERT_CONTENT;
 
-/** Broken-conditions warning banner (warning surface). */
-export const brokenBanner =
-  "flex items-start gap-3 px-4 py-3 bg-warning-surface rounded-md mt-3 mb-0.5 max-lg:flex-wrap";
+/** Banner title (warning-accented). */
+export const brokenTitle = ALERT_TITLE;
 
-/** Banner body wrapper. */
-export const brokenBody = "flex-1 min-w-0";
-
-/** Banner title. */
-export const brokenTitle = "text-sm font-medium text-warning mb-0.5";
-
-/** Banner detail text. */
-export const brokenDetail = "text-sm text-warning/90 leading-snug";
+/** Banner detail list (ink-secondary body text). */
+export const brokenDetail = ALERT_BODY;
 
 /** Inline `<code>` for a deleted reference's name inside the banner. */
-export const brokenCode =
-  "font-mono text-[0.95em] bg-white/60 px-1.5 py-px rounded-xs";
+export const brokenCode = `${ALERT_BODY_CODE} bg-surface px-1.5 py-px rounded-xs`;
 
 /**
- * Banner "修復" action (P20 `.fix-btn`). Warning-toned, translucent-white
- * surface that brightens on hover; does not shrink when the banner wraps.
+ * Banner "修復" action (P20 `.fix-btn`). Warning-toned surface pill pushed to
+ * the trailing edge (`ml-auto self-center`), dropping to the start when the
+ * alert wraps on mobile. Does not shrink.
  */
 export const fixBtn =
-  "shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-white/60 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/95 disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "shrink-0 ml-auto self-center px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-surface transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed max-sm:ml-0 max-sm:self-start max-sm:min-h-[44px]";
 
 /** Inline editing name input. */
 export const renameInput =

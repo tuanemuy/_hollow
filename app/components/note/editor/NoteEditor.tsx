@@ -50,6 +50,7 @@ import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
+import { editorActions, editorTopbar, titleInput } from "./styles";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
 import { WysiwygEditor } from "./WysiwygEditor";
@@ -275,17 +276,42 @@ export function NoteEditor(props: NoteEditorProps) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-      <header className="flex items-baseline justify-between gap-3 flex-wrap">
-        <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink m-0">
-          {props.mode === "new" ? "新規ノート" : "ノートを編集"}
-        </h1>
-        <AutosaveIndicator status={state.autosave} />
-      </header>
-
       <EditLockBanner lock={state.editLock} />
 
-      <div className={field}>
-        <label htmlFor="note-editor-title" className={fieldLabel}>
+      <div className={editorTopbar}>
+        <h1 className="sr-only">
+          {props.mode === "new" ? "新規ノート" : "ノートを編集"}
+        </h1>
+        <EditorModeSwitch
+          surface={surface}
+          mode={state.mode}
+          onChange={onModeChange}
+        />
+        <span>
+          <AutosaveIndicator status={state.autosave} />
+        </span>
+        <div className={editorActions}>
+          <button
+            type="submit"
+            data-primary
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            disabled={saveDisabled}
+          >
+            {isPending ? "保存中..." : props.mode === "new" ? "作成" : "保存"}
+          </button>
+          <button
+            type="button"
+            className={pillBtn}
+            disabled={isPending}
+            onClick={() => router.history.back()}
+          >
+            キャンセル
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="note-editor-title" className="sr-only">
           タイトル
         </label>
         <input
@@ -299,7 +325,7 @@ export function NoteEditor(props: NoteEditorProps) {
           maxLength={200}
           disabled={isPending}
           required
-          className={fieldControl}
+          className={titleInput}
         />
       </div>
 
@@ -332,12 +358,6 @@ export function NoteEditor(props: NoteEditorProps) {
         }
         disabled={isPending}
         allowExistingActions
-      />
-
-      <EditorModeSwitch
-        surface={surface}
-        mode={state.mode}
-        onChange={onModeChange}
       />
 
       {state.mode === "html" ? (
@@ -419,25 +439,6 @@ export function NoteEditor(props: NoteEditorProps) {
           {displayError(submitError)}
         </p>
       ) : null}
-
-      <div className="inline-flex gap-2 mt-4">
-        <button
-          type="submit"
-          data-primary
-          className={`${pillBtn} ${pillBtnPrimary}`}
-          disabled={saveDisabled}
-        >
-          {isPending ? "保存中..." : props.mode === "new" ? "作成" : "保存"}
-        </button>
-        <button
-          type="button"
-          className={pillBtn}
-          disabled={isPending}
-          onClick={() => router.history.back()}
-        >
-          キャンセル
-        </button>
-      </div>
     </form>
   );
 }

@@ -37,6 +37,7 @@ const baseProps = {
   noteId: "note-self",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
+  directorySegments: [] as readonly { id: string; name: string }[],
   tagNames: [] as readonly string[],
   publishedAt: null,
   status: "active" as const,
@@ -113,6 +114,92 @@ describe("NoteMetaPanel backlink count", () => {
     expect(section.textContent).toContain("Backlink 1");
     expect(section.textContent).toContain("Backlink 2");
     expect(section.textContent).toContain("Backlink 3");
+  });
+});
+
+describe("NoteMetaPanel 場所 row (Issue #540)", () => {
+  it("joins directory segment names with ' / '", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          directorySegments={[
+            { id: "d1", name: "Research" },
+            { id: "d2", name: "論文メモ" },
+          ]}
+          backlinks={[]}
+          backlinkCount={0}
+        />,
+      );
+    });
+    expect(container.textContent).toContain("場所");
+    expect(container.textContent).toContain("Research / 論文メモ");
+  });
+
+  it("falls back to すべてのノート for a root-level note", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel {...baseProps} backlinks={[]} backlinkCount={0} />,
+      );
+    });
+    expect(container.textContent).toContain("場所");
+    expect(container.textContent).toContain("すべてのノート");
+  });
+
+  it("renders the プロパティ section before バックリンク (mock order)", () => {
+    act(() => {
+      root.render(
+        <NoteMetaPanel {...baseProps} backlinks={[]} backlinkCount={0} />,
+      );
+    });
+    const sections = Array.from(
+      container.querySelectorAll<HTMLElement>("section[aria-label]"),
+    ).map((s) => s.getAttribute("aria-label"));
+    expect(sections).toEqual(["ノートのプロパティ", "バックリンク"]);
+  });
+});
+
+describe("NoteMetaPanel visibility (Issue #540 ADR-002)", () => {
+  it("公開状態（visibility）はメタブロックに表示しない（ADR-002 / 二重化回避）", () => {
+    // publishedAt を渡して「公開日」行を出させた上で、公開"状態"
+    // （visibility のラベル/ピル）が無いことを検証する。
+    // 公開日（publishedAt）と公開状態（visibility）は別概念。
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          publishedAt="2026-01-03T00:00:00.000Z"
+          backlinks={[]}
+          backlinkCount={0}
+        />,
+      );
+    });
+
+    const propertiesSection = container.querySelector<HTMLElement>(
+      'section[aria-label="ノートのプロパティ"]',
+    );
+    if (propertiesSection === null) {
+      throw new Error("properties section not found");
+    }
+
+    // 「公開日」(publishedAt) 行の存在は確認しつつ、状態ラベル
+    // （公開/限定公開/非公開/公開状態）が dt に無いことを見る。
+    const keyLabels = Array.from(
+      propertiesSection.querySelectorAll<HTMLElement>("dt"),
+    ).map((dt) => dt.textContent);
+    expect(keyLabels).toContain("公開日");
+    expect(keyLabels).not.toContain("公開");
+    expect(keyLabels).not.toContain("限定公開");
+    expect(keyLabels).not.toContain("非公開");
+    expect(keyLabels).not.toContain("公開状態");
+
+    const valueText = Array.from(
+      propertiesSection.querySelectorAll<HTMLElement>("dd"),
+    )
+      .map((dd) => dd.textContent ?? "")
+      .join("\n");
+    expect(valueText).not.toContain("限定公開");
+    expect(valueText).not.toContain("非公開");
   });
 });
 

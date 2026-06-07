@@ -122,6 +122,7 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
         noteId={note.id}
         createdAt={note.createdAt}
         updatedAt={note.updatedAt}
+        directorySegments={directorySegments}
         tagNames={tagNames}
         publishedAt={publishState.publishedAt}
         status={note.status}

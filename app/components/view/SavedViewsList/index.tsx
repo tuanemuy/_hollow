@@ -5,18 +5,23 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Calendar,
+  Check,
+  Folder,
   Globe,
+  Hash,
   LayoutGrid,
   List,
   type LucideIcon,
+  MoreVertical,
   Star,
   Trash2,
 } from "lucide-react";
 import { useId, useOptimistic, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
+import { Menu, MenuItem } from "@/components/common/Menu";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { chip } from "@/components/common/styles";
+import { ALERT_ICON, chip } from "@/components/common/styles";
 import type { FlatDirectory } from "@/components/note/directoryTree";
 import { ViewFormDialog } from "@/components/view/ViewFormDialog";
 import type { SavedViewDTO } from "@/core/application/dto/view";
@@ -35,22 +40,25 @@ import {
   updateSavedViewFn,
 } from "./action";
 import {
+  applyBtn,
   brokenBanner,
   brokenBody,
   brokenCode,
   brokenDetail,
   brokenTitle,
   chipBroken,
+  dateRangeChipLabel,
   defaultMark,
+  directoryChipLabel,
   emptyState,
   fixBtn,
+  menuBtn,
   publicMark,
   renameInput,
   rowActions,
   rowError,
+  sortChipLabel,
   textAction,
-  textActionApply,
-  textActionDanger,
   viewChips,
   viewHead,
   viewIconWrap,
@@ -58,6 +66,7 @@ import {
   viewMain,
   viewName,
   viewRow,
+  visibilityChipLabel,
 } from "./styles";
 
 type TagOption = Readonly<{ id: string; name: string }>;
@@ -93,7 +102,7 @@ type RemoveAction = Readonly<{ type: "remove"; id: string }>;
 type AddAction = Readonly<{ type: "add"; view: SavedViewDTO }>;
 type ViewsAction = RemoveAction | AddAction;
 
-function reduceViews(
+export function reduceViews(
   cur: readonly SavedViewDTO[],
   action: ViewsAction,
 ): readonly SavedViewDTO[] {
@@ -170,6 +179,15 @@ export function SavedViewsList({ views, directories, tags }: Props) {
     return <p className={emptyState}>保存ビューはまだありません。</p>;
   }
   const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+  // Directory chips show the human path (`Research / Papers`) rather than the
+  // bare name so nested directories disambiguate; `FlatDirectory.path` is a
+  // leading-slash `/a/b` form, so trim the slash and re-space the separators.
+  const directoryNameById = new Map(
+    directories.map((dir) => [
+      dir.id,
+      dir.path.replace(/^\//, "").split("/").join(" / "),
+    ]),
+  );
   return (
     <ul className={viewList}>
       {optimisticViews.map((view) => {
@@ -181,6 +199,7 @@ export function SavedViewsList({ views, directories, tags }: Props) {
             directories={directories}
             tags={tags}
             tagNameById={tagNameById}
+            directoryNameById={directoryNameById}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
             actionError={actionErrorId === id ? actionError : null}
@@ -196,6 +215,7 @@ function SavedViewRow({
   directories,
   tags,
   tagNameById,
+  directoryNameById,
   onDelete,
   onDuplicate,
   actionError,
@@ -204,6 +224,7 @@ function SavedViewRow({
   directories: readonly FlatDirectory[];
   tags: readonly TagOption[];
   tagNameById: ReadonlyMap<string, string>;
+  directoryNameById: ReadonlyMap<string, string>;
   onDelete: (viewId: string) => void;
   onDuplicate: (viewId: string) => void;
   actionError: SerializedError | null;
@@ -220,6 +241,7 @@ function SavedViewRow({
   const [draft, setDraft] = useState(view.name);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Row-owned optimistic fields. Each mirrors the server-confirmed prop and
   // snaps back to it on loader re-fetch / failure.
@@ -312,6 +334,16 @@ function SavedViewRow({
     .map((id) => tagNameById.get(id))
     .filter((name): name is string => name !== undefined);
 
+  // Condition chips mirroring P20's `.view-chips`: display mode (always) +
+  // visibility / date range / sort / tags / directory when set. Date-range
+  // preset resolution needs a base date; `new Date()` is read once per render
+  // (the label is a display-only "今年 / 過去30日" hint, not a stored value).
+  const visibilityChip = visibilityChipLabel(view.query.visibilityFilter);
+  const dateChip = dateRangeChipLabel(view.query.dateRange, new Date());
+  const directoryChip = directoryChipLabel(view.query.directoryId, (id) =>
+    directoryNameById.get(id),
+  );
+
   const rowBusy = isPending;
 
   return (
@@ -380,6 +412,28 @@ function SavedViewRow({
                 <Icon icon={DISPLAY_MODE_ICON[view.displayMode]} />
                 {DISPLAY_MODE_LABEL[view.displayMode]}
               </span>
+              {visibilityChip !== null ? (
+                <span className={chip}>{visibilityChip}</span>
+              ) : null}
+              {dateChip !== null ? (
+                <span className={chip}>{dateChip}</span>
+              ) : null}
+              <span className={chip}>{sortChipLabel(view.sort)}</span>
+              {view.query.tagIds.map((tagId) => {
+                const name = tagNameById.get(tagId);
+                return (
+                  <span key={tagId} className={chip}>
+                    <Icon icon={Hash} />
+                    {name ?? tagId}
+                  </span>
+                );
+              })}
+              {directoryChip !== null ? (
+                <span className={chip}>
+                  <Icon icon={Folder} />
+                  {directoryChip}
+                </span>
+              ) : null}
               {isBroken ? (
                 <span className={`${chip} ${chipBroken}`}>
                   <Icon icon={AlertTriangle} />
@@ -388,10 +442,12 @@ function SavedViewRow({
               ) : null}
             </div>
             {isBroken ? (
-              <div className={brokenBanner}>
-                <Icon icon={AlertTriangle} />
+              <div className={brokenBanner} role="status">
+                <span className={ALERT_ICON} aria-hidden="true">
+                  <Icon icon={AlertTriangle} size={20} />
+                </span>
                 <div className={brokenBody}>
-                  <div className={brokenTitle}>壊れた条件があります</div>
+                  <p className={brokenTitle}>壊れた条件があります</p>
                   <ul className={brokenDetail}>
                     {view.brokenConditions.map((condition) => {
                       const label = BROKEN_KIND_LABEL[condition.kind];
@@ -442,63 +498,55 @@ function SavedViewRow({
           <Link
             to="/"
             search={{ viewId }}
-            className={`${textAction} ${textActionApply}`}
+            className={applyBtn}
             aria-label={`${view.name} を適用`}
           >
+            <Icon icon={Check} />
             適用
           </Link>
-          <button
-            type="button"
-            className={textAction}
-            onClick={() => setEditDialogOpen(true)}
-            disabled={rowBusy}
-            aria-label={`${view.name} を編集`}
+          <Menu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            ariaLabel={`${view.name} のその他の操作`}
+            panelClassName="absolute right-0 mt-1 z-40 min-w-[184px]"
+            trigger={(triggerProps) => (
+              <button
+                {...triggerProps}
+                type="button"
+                className={menuBtn}
+                aria-label={`${view.name} のその他の操作`}
+              >
+                <Icon icon={MoreVertical} />
+              </button>
+            )}
           >
-            編集
-          </button>
-          <button
-            type="button"
-            className={textAction}
-            onClick={() => setIsEditing(true)}
-            disabled={rowBusy}
-            aria-label={`${view.name} の名前を変更`}
-          >
-            名前変更
-          </button>
-          <button
-            type="button"
-            className={textAction}
-            onClick={() => onDuplicate(viewId)}
-            disabled={rowBusy}
-            aria-label={`${view.name} を複製`}
-          >
-            複製
-          </button>
-          <button
-            type="button"
-            className={textAction}
-            onClick={onToggleDefault}
-            disabled={rowBusy}
-            aria-label={
-              optimisticIsDefault
-                ? `${view.name} の既定を解除`
-                : `${view.name} を既定にする`
-            }
-          >
-            {optimisticIsDefault ? "既定を解除" : "既定にする"}
-          </button>
-          <button
-            type="button"
-            className={`${textAction} ${textActionDanger}`}
-            onClick={() => {
-              setError(null);
-              setConfirmDeleteOpen(true);
-            }}
-            disabled={rowBusy}
-            aria-label={`${view.name} を削除`}
-          >
-            削除
-          </button>
+            <MenuItem
+              onSelect={() => setEditDialogOpen(true)}
+              disabled={rowBusy}
+            >
+              編集
+            </MenuItem>
+            <MenuItem onSelect={() => setIsEditing(true)} disabled={rowBusy}>
+              名前変更
+            </MenuItem>
+            <MenuItem onSelect={() => onDuplicate(viewId)} disabled={rowBusy}>
+              複製
+            </MenuItem>
+            <MenuItem onSelect={onToggleDefault} disabled={rowBusy}>
+              {optimisticIsDefault ? "既定を解除" : "既定にする"}
+            </MenuItem>
+            <MenuItem
+              danger
+              separatorBefore
+              onSelect={() => {
+                setError(null);
+                setConfirmDeleteOpen(true);
+              }}
+              disabled={rowBusy}
+            >
+              削除
+            </MenuItem>
+          </Menu>
         </div>
       )}
       <ConfirmDialog
