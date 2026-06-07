@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ErrorPageKind } from "../ErrorPage";
 
 /**
- * Issue #546: P34 variant-specific actions + the all-variants「一つ前に戻る」
- * back link. 404=home+search, 403=login+home, 410=home, 500=reload+home; the
- * search box stays notFound/gone-only (regression).
+ * P34 variant-specific actions + the all-variants「一つ前に戻る」back link.
+ * 404=home+search, 403=login+home, 410=home, 500=reload+home; the search box
+ * stays notFound/gone-only (regression).
  */
 
 (
@@ -78,7 +78,7 @@ function backLink(): HTMLButtonElement | undefined {
   return buttons().find((b) => b.textContent?.includes("一つ前に戻る"));
 }
 
-describe("ErrorPage back link (Issue #546)", () => {
+describe("ErrorPage back link", () => {
   it.each<ErrorPageKind>([
     "notFound",
     "forbidden",
@@ -95,7 +95,7 @@ describe("ErrorPage back link (Issue #546)", () => {
   });
 });
 
-describe("ErrorPage variant actions (Issue #546)", () => {
+describe("ErrorPage variant actions", () => {
   it("404: primary home + secondary search + search box", () => {
     render("notFound");
     const home = links().find((a) => a.textContent?.includes("ホームへ戻る"));

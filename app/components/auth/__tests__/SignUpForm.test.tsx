@@ -10,9 +10,9 @@ import {
 } from "@/components/_test-utils/serverFnMock";
 
 /**
- * Issue #546: the SignUp form-error summary follows the `.alert alert-error`
- * 案D structure (white surface + error hairline + leading icon + title/body),
- * replacing the old filled `FORM_ERROR` box. `role="alert"` is retained.
+ * The SignUp form-error summary follows the `.alert alert-error` 案D structure
+ * (white surface + error hairline + leading icon + title/body). `role="alert"`
+ * is retained.
  */
 
 (
@@ -70,7 +70,7 @@ function submit() {
   });
 }
 
-describe("SignUpForm submit failure summary (Issue #546)", () => {
+describe("SignUpForm submit failure summary", () => {
   it("renders the failure summary as a `.alert alert-error` 案D block, not a filled box", async () => {
     signUp.mockRejectedValue({
       kind: "system",

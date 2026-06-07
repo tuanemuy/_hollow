@@ -10,10 +10,9 @@ import {
 } from "@/components/_test-utils/serverFnMock";
 
 /**
- * Issue #546: the Login form-error summary follows the `.alert alert-error`
- * 案D structure. The unverified `role=status` alert and validation field
- * errors are regression-guarded — they must NOT collapse into the error
- * summary path.
+ * The Login form-error summary follows the `.alert alert-error` 案D structure.
+ * The unverified `role=status` alert and validation field errors are
+ * regression-guarded — they must NOT collapse into the error summary path.
  */
 
 (
@@ -75,7 +74,7 @@ function submit() {
   });
 }
 
-describe("LoginForm submit failure summary (Issue #546)", () => {
+describe("LoginForm submit failure summary", () => {
   it("renders the failure summary as a `.alert alert-error` 案D block", async () => {
     login.mockRejectedValue({
       kind: "unauthorized",

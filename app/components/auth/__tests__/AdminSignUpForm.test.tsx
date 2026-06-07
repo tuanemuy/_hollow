@@ -10,9 +10,9 @@ import {
 } from "@/components/_test-utils/serverFnMock";
 
 /**
- * Issue #546: the admin-setup form-error summaries follow the `.alert
- * alert-error` 案D structure — both the Setup Token error branch (invalid /
- * disabled titles) and the general registration-failure summary.
+ * The admin-setup form-error summaries follow the `.alert alert-error` 案D
+ * structure — both the Setup Token error branch (invalid / disabled titles)
+ * and the general registration-failure summary.
  */
 
 (
@@ -86,7 +86,7 @@ async function submitWith(error: unknown) {
   });
 }
 
-describe("AdminSignUpForm Setup Token error (Issue #546)", () => {
+describe("AdminSignUpForm Setup Token error", () => {
   it("shows an invalid-token 案D alert for invalid_setup_token", async () => {
     await submitWith({
       kind: "unauthorized",
@@ -118,7 +118,7 @@ describe("AdminSignUpForm Setup Token error (Issue #546)", () => {
   });
 });
 
-describe("AdminSignUpForm general failure summary (Issue #546)", () => {
+describe("AdminSignUpForm general failure summary", () => {
   it("shows a `.alert alert-error` 案D block for non-token failures", async () => {
     await submitWith({ kind: "system", code: null, message: "boom" });
     const alert = alertWithTitle("登録に失敗しました。");
