@@ -246,13 +246,13 @@ function copyStatus(): HTMLElement | undefined {
 }
 
 /**
- * Issue #570 (#562 review-002 N-005): locks the copy-success live-region
- * update. `ShareLinkRow.onCopy` calls `navigator.clipboard?.writeText(url)` with
- * optional chaining; happy-dom has no `navigator.clipboard`, so the `?.` would
- * short-circuit and the success path never runs. We inject a fake clipboard via
- * a `configurable` defineProperty and restore the original descriptor in
- * `afterEach` (deleting it when there was none), keeping the fake scoped to this
- * describe so the other suites stay clipboard-free.
+ * Locks the copy-success live-region update. `ShareLinkRow.onCopy` calls
+ * `navigator.clipboard?.writeText(url)` with optional chaining; happy-dom has no
+ * `navigator.clipboard`, so the `?.` would short-circuit and the success path
+ * never runs. We inject a fake clipboard via a `configurable` defineProperty and
+ * restore the original descriptor in `afterEach` (deleting it when there was
+ * none), keeping the fake scoped to this describe so the other suites stay
+ * clipboard-free.
  */
 describe("ShareLinkRow copy success live region (N-005)", () => {
   // Hand-controlled writeText promise (mirrors the #477 pattern above) so the
