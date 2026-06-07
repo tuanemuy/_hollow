@@ -92,6 +92,15 @@ describe("LoginForm submit failure summary (Issue #546)", () => {
     const alert = container.querySelector('[role="alert"]') as HTMLElement;
     expect(alert).not.toBeNull();
     expect(alert.textContent).toContain("ログインできませんでした。");
+    // Body carries the `displayError(unauthorized)` output, not the raw mock
+    // message — the unauthorized kind is collapsed to a fixed phrase.
+    expect(alert.textContent).toContain("認証が必要です");
+    expect(alert.textContent).not.toContain(
+      "メールアドレスまたはパスワードが正しくありません。",
+    );
+    // 案D structure asserted positively: white surface + hairline border.
+    expect(alert.className).toContain("bg-bg");
+    expect(alert.className).toContain("border");
     expect(alert.className).toContain("var(--color-error)");
     expect(alert.className).not.toContain("bg-error-surface");
     expect(alert.querySelector('svg[aria-hidden="true"]')).not.toBeNull();

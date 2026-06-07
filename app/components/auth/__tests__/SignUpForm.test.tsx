@@ -88,6 +88,12 @@ describe("SignUpForm submit failure summary (Issue #546)", () => {
     expect(alert).not.toBeNull();
     // Title 案D copy.
     expect(alert.textContent).toContain("登録に失敗しました。");
+    // Body carries the `displayError(system)` output, not the raw mock message.
+    expect(alert.textContent).toContain("システムエラーが発生しました");
+    expect(alert.textContent).not.toContain("boom");
+    // 案D structure asserted positively: white surface + hairline border.
+    expect(alert.className).toContain("bg-bg");
+    expect(alert.className).toContain("border");
     // Error semantic modifier + white-surface base, never the old filled box.
     expect(alert.className).toContain("--alert-accent");
     expect(alert.className).toContain("var(--color-error)");

@@ -95,6 +95,9 @@ describe("AdminSignUpForm Setup Token error (Issue #546)", () => {
     });
     const alert = alertWithTitle("Setup Token が正しくありません。");
     expect(alert).toBeDefined();
+    // 案D structure asserted positively: white surface + hairline border.
+    expect(alert?.className).toContain("bg-bg");
+    expect(alert?.className).toContain("border");
     expect(alert?.className).toContain("var(--color-error)");
     expect(alert?.className).not.toContain("bg-error-surface");
     expect(alert?.querySelector("svg")).not.toBeNull();
@@ -120,6 +123,12 @@ describe("AdminSignUpForm general failure summary (Issue #546)", () => {
     await submitWith({ kind: "system", code: null, message: "boom" });
     const alert = alertWithTitle("登録に失敗しました。");
     expect(alert).toBeDefined();
+    // Body carries the `displayError(system)` output, not the raw mock message.
+    expect(alert?.textContent).toContain("システムエラーが発生しました");
+    expect(alert?.textContent).not.toContain("boom");
+    // 案D structure asserted positively: white surface + hairline border.
+    expect(alert?.className).toContain("bg-bg");
+    expect(alert?.className).toContain("border");
     expect(alert?.className).not.toContain("bg-error-surface");
     expect(alert?.querySelectorAll("p").length).toBe(2);
   });

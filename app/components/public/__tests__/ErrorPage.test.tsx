@@ -136,4 +136,31 @@ describe("ErrorPage variant actions (Issue #546)", () => {
     expect(home?.getAttribute("data-primary")).toBeNull();
     expect(container.querySelector("search")).toBeNull();
   });
+
+  // Symmetric to the back-link check: the reload button must actually fire
+  // location.reload() so a broken onClick wiring is caught (not just presence).
+  it("500: clicking 再読み込み fires location.reload() once", () => {
+    const reloadSpy = vi.fn();
+    const original = globalThis.location.reload;
+    Object.defineProperty(globalThis.location, "reload", {
+      configurable: true,
+      value: reloadSpy,
+    });
+    try {
+      render("system");
+      const reload = buttons().find((b) =>
+        b.textContent?.includes("再読み込み"),
+      );
+      expect(reload).toBeDefined();
+      act(() => {
+        reload?.click();
+      });
+      expect(reloadSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(globalThis.location, "reload", {
+        configurable: true,
+        value: original,
+      });
+    }
+  });
 });
