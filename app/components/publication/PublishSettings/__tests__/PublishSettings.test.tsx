@@ -255,11 +255,22 @@ function copyStatus(): HTMLElement | undefined {
  * describe so the other suites stay clipboard-free.
  */
 describe("ShareLinkRow copy success live region (N-005)", () => {
-  const writeTextMock = vi.fn().mockResolvedValue(undefined);
+  // Hand-controlled writeText promise (mirrors the #477 pattern above) so the
+  // success path stays pending until we explicitly resolve it. This fixes the
+  // causality: an immediately-resolved fake could not catch a regression where
+  // production stopped awaiting `writeText` before `setCopied(true)`.
+  let resolveWrite: () => void = () => {};
+  const writeTextMock = vi.fn(
+    () =>
+      new Promise<void>((res) => {
+        resolveWrite = () => res();
+      }),
+  );
   let originalClipboard: PropertyDescriptor | undefined;
 
   beforeEach(() => {
     writeTextMock.mockClear();
+    resolveWrite = () => {};
     originalClipboard = Object.getOwnPropertyDescriptor(
       globalThis.navigator,
       "clipboard",
@@ -304,15 +315,27 @@ describe("ShareLinkRow copy success live region (N-005)", () => {
     const copy = copyButton();
     expect(copy).toBeDefined();
 
+    // Click kicks off writeText, but the promise is still pending: the live
+    // region must stay empty until the copy actually resolves.
     await act(async () => {
       copy?.click();
-      // Flush the writeText promise resolution and the subsequent setState.
-      await Promise.resolve();
       await Promise.resolve();
     });
 
     expect(writeTextMock).toHaveBeenCalledTimes(1);
     expect(writeTextMock).toHaveBeenCalledWith(activeLink.url);
-    expect(copyStatus()?.textContent).toBe("コピーしました");
+    // Pending: no success announced yet — this is the causal guard.
+    expect(copyStatus()?.textContent).toBe("");
+
+    // Resolve writeText; the `.then` success branch runs and updates the region.
+    await act(async () => {
+      resolveWrite();
+    });
+
+    // Wait on the condition rather than a fixed microtask count, so the test is
+    // not coupled to production's `.then` chain depth.
+    await vi.waitFor(() => {
+      expect(copyStatus()?.textContent).toBe("コピーしました");
+    });
   });
 });

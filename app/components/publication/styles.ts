@@ -110,8 +110,13 @@ export const QR_BLOCK =
  * The white background is fixed (`bg-white`, not the theme-variable
  * `--color-bg`) because QR scanners need a stable light field regardless of
  * theme; mirrors the mock's literal `#fff`.
+ *
+ * `qrcode.toString` emits a `<svg>` with no width/height attributes, so its
+ * rendered size is browser-default-dependent. The `[&>svg]:*` rules pin the
+ * generated SVG to fill the padded container explicitly.
  */
-export const QR_CODE = "w-24 h-24 shrink-0 rounded-sm bg-white p-1.5";
+export const QR_CODE =
+  "w-24 h-24 shrink-0 rounded-sm bg-white p-1.5 [&>svg]:w-full [&>svg]:h-full [&>svg]:block";
 
 /** QR caption beside the code (mock `.qr-caption`). */
 export const QR_CAPTION = "text-xs text-ink-tertiary leading-snug";

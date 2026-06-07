@@ -28,6 +28,15 @@ CLAUDE.md / `.issue/70/adr.md` ADR-002 が要 ADR とする `dangerouslySetInner
 ### 補足: QR コンテナの `role="img"`
 SVG を `dangerouslySetInnerHTML` で流し込む `<div>` には `aria-label="QR コード"` を付すが、無 role の `<div>` では `aria-label` が ARIA 的に無効（Biome `lint/a11y/useAriaPropsSupportedByRole` がエラー）。QR は画像であり中の SVG パスは AT に読み上げ不要なので `role="img"` を付与してラベルを有効化する（plan の「`aria-label="QR コード"` を当てた `<div>`」を a11y 規約に整合させた実装上の補足）。
 
+### 補足: `qrcode` は静的 import ではなく `useEffect` 内の動的 import で読む（レビュー round-1 SEC-W-001/W-002 対応）
+当初は `import QRCode from "qrcode"` の静的 import としたが、`NoteActions`（toolbar・常時ロード）→ `PublishSettings` → `QRCodeBlock` → `qrcode` が全て静的 import で繋がり、`pnpm build` の出力で `qrcode`（+ pngjs/yargs 由来の PNG レンダラ）が **SSR サーバーバンドルの NoteDetail チャンクに eager に混入**することを確認した（実バンドル検証で判明）。これは ADR-001 が約束した「Workers 非依存・モーダルチャンクに留める」と乖離する。
+
+対応として `QRCodeBlock` の `useEffect` 内で `const { default: QRCode } = await import("qrcode")` の**動的 import** に変更した。`toString` は client の `useEffect` でしか呼ばれないため、動的 import 化により:
+- SSR サーバーバンドルでは `qrcode` が `import("./lib-*.js")` の動的チャンク参照になり、useEffect が走らない SSR では一切ロードされない（eager 実行パスから外れた。クリーンビルドで NoteDetail server チャンクから qrcode 本体が消え、キャプションのみ残ることを確認）。
+- client では `qrcode` 一式（重い CLI 推移依存 yargs 系含む）が独立した遅延チャンクに分離され、有効リンクの QR を実際に描画するときだけロードされる（SEC-W-002 の「重い推移依存」も実害が初期ロードに乗らない形に緩和）。
+
+これにより ADR-001 の「モーダルチャンクに留める／Workers 非依存」がソース上の保証（動的 import 境界）として成立する。SEC-W-002 のより軽量な代替（CLI 依存を持たない `qrcode-generator` 等）は次点だが、動的 import で初期ロード影響を排除できたため現状の `qrcode` を維持する。
+
 ---
 
 ## ADR-002: B（未保存警告）は本Issueでは実装せず別Issue化する
