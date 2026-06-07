@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — 設定: カスタムプロンプト (Mobile)</title>
+<style id="extra-css">
+  .prompt-card { padding: 24px 0; border-top: 1px solid var(--color-hairline); }
+  .prompt-card:first-of-type { border-top: 1px solid var(--color-hairline); }
+  .prompt-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .prompt-card-name {
+    font-size: 15px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-ink);
+  }
+  .prompt-card-name .badge {
+    font-size: 10px;
+    font-weight: var(--weight-medium);
+    color: var(--color-accent-ink);
+    background: var(--color-accent-surface);
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .prompt-card-desc {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    margin-bottom: 14px;
+  }
+  .reset-link {
+    font-size: 12px;
+    color: var(--color-accent);
+    cursor: pointer;
+    transition: var(--transition-color);
+  }
+  .reset-link:hover { color: var(--color-accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+
+  details.default-prompt {
+    margin-bottom: 14px;
+    border-top: 1px solid var(--color-hairline);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  details.default-prompt summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 0;
+    min-height: 44px;
+    font-size: 12px;
+    color: var(--color-ink-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  details.default-prompt summary::-webkit-details-marker { display: none; }
+  details.default-prompt summary::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-right: 1.5px solid var(--color-ink-tertiary);
+    border-bottom: 1.5px solid var(--color-ink-tertiary);
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+    margin-right: 2px;
+  }
+  details.default-prompt[open] summary::before { transform: rotate(45deg); }
+  details.default-prompt .default-body {
+    padding: 4px 0 14px;
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+    color: var(--color-ink-secondary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* 実装 PROMPT_TEXTAREA = fieldControl + fieldTextarea + min-h-[140px] max-h-[300px]:
+     surface 背景・透明ボーダー・mono フォント、focus で白背景＋アクセントボーダー。
+     390px では本文編集を主作業にするため min-height を広げる。 */
+  .prompt-textarea {
+    width: 100%;
+    border: 1px solid transparent;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+    line-height: 1.6;
+    min-height: 180px;
+    max-height: 360px;
+    resize: vertical;
+    outline: none;
+    overflow-y: auto;
+    transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+  }
+  .prompt-textarea:focus { border-color: var(--color-accent); background: var(--color-bg); }
+  .prompt-textarea::placeholder { color: var(--color-ink-tertiary); font-family: var(--font-sans); }
+
+  .preview-panel {
+    margin-top: 14px;
+    border-top: 1px solid var(--color-hairline);
+    padding-top: 14px;
+  }
+  .preview-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .preview-panel-title {
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  /* 390px は単カラム固定。desktop の 768px 3カラム化（入力→出力）は採らない。 */
+  .preview-pair {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .preview-block {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .preview-block-label {
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .preview-block-body {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono);
+    color: var(--color-ink);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .preview-arrow {
+    color: var(--color-ink-tertiary);
+    text-align: center;
+    font-size: 11px;
+  }
+
+  /* 各カード末尾の保存系ボタン行: 390px では縦積みフルワイド。 */
+  .prompt-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .prompt-card-actions .pill-btn { width: 100%; justify-content: center; }
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input, textarea { font-family: inherit; }
+
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* a11y 上の h1 は視覚非表示で担保（設定は page-title を持たずセクションカード h2 積み重ね §2.4）。 */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: #fff; }
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 20px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .search { width: 100%; position: relative; }
+  .search input {
+    width: 100%; height: 40px;
+    border: none; background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: 14px; color: var(--color-ink);
+    outline: none;
+    transition: background var(--duration-base) var(--ease-standard);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 40px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px; font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn:active { background: var(--color-hairline); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.danger { background: var(--color-error); color: #fff; }
+  .pill-btn.danger:hover { background: #b03535; }
+  .pill-btn.danger:disabled { background: var(--color-surface); color: var(--color-ink-tertiary); cursor: not-allowed; }
+  .icon-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff; font-size: 12px; font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* 検索はモバイルヘッダーでは省スペース化（icon-only トグル相当の縮約）。 */
+  .header .search { display: none; }
+
+  /* ===== Layout (single column, 390px base) ===== */
+  .layout {
+    display: block;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ===== Sidebar → 設定ナビ drawer (drawer only) ===== */
+  .sidebar {
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    width: 280px;
+    max-width: 86vw;
+    background: var(--color-bg);
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    padding: var(--space-5) var(--space-4) var(--space-8);
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 12px; margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    min-height: 44px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-standard);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary); }
+
+  .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.2); z-index: 90; opacity: 0; transition: opacity 0.2s ease; }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  /* 「すべてのノートに戻る」: 設定シェルから抜ける明示的な導線。 */
+  .sidebar-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    min-height: 44px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+  }
+  .sidebar-back:hover { background: var(--color-surface); color: var(--color-ink); }
+  .sidebar-back svg { flex-shrink: 0; }
+
+  /* ===== Settings main: 単一カラム =====
+     (§2.4) 設定は page-title(h1) を持たずセクションカード(h2) 積み重ね。 */
+  .main {
+    padding: 24px 16px 80px;
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .settings-content {
+    width: 100%;
+  }
+
+  .settings-section + .settings-section {
+    margin-top: var(--space-10);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-hairline);
+  }
+
+  .section-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-6);
+  }
+
+  /* Form field */
+  .field { margin-bottom: var(--space-6); }
+  .field-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    margin-bottom: 6px;
+  }
+  .field-help {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    margin-top: 6px;
+    line-height: var(--leading-normal);
+  }
+  .field-help.warning { color: var(--color-warning); }
+  .field-help.error { color: var(--color-error); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="設定メニューを開く" aria-controls="sidebar" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノート、タグ、本文を検索" aria-label="検索">
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" aria-label="ノートを検索">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar" aria-label="設定">
+    <a class="sidebar-back" href="#">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      すべてのノートに戻る
+    </a>
+    <nav class="sidebar-section" aria-label="設定ナビゲーション">
+      <div class="sidebar-section-title">設定</div>
+      <a class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        プロフィール
+      </a>
+      <a class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        セキュリティ
+      </a>
+      <a class="nav-item active" aria-current="page">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        プロンプト
+      </a>
+      <a class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        アカウント削除
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+      <h1 class="sr-only">設定: カスタムプロンプト</h1>
+
+      <div class="settings-content">
+
+        <section class="settings-section">
+          <h2 class="section-title">カスタムプロンプト</h2>
+          <p class="section-desc">各用途について、あなたの分析の意図を補足できます。空欄のままなら システム既定の動作が適用されます。</p>
+
+          <!-- 実装(`PromptsForm`)は用途ごとに 5 カード（取り込み構造化/タイトル生成/
+               ディレクトリ提案/メタデータ抽出/OCR 補正）を縦に並べ、各カードが独立した
+               保存・デフォルトに戻すボタンを持つ。プレビューパネル（入出力サンプル・
+               「サンプルで実行」）と末尾のグローバル action-row は未実装（B 参照）。 -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <div class="prompt-card-name">取り込み構造化 <span class="badge">カスタム適用中</span></div>
+            </div>
+            <div class="prompt-card-desc">個別オーバーライドが有効</div>
+
+            <details class="default-prompt">
+              <summary>デフォルトプロンプト</summary>
+              <div class="default-body">あなたは個人ノート整理アシスタントです。与えられた本文を Markdown として読みやすく整形してください。
+- 重複した空行は 1 行にまとめる
+- 箇条書きと見出しを推測して付与
+- 元の文意は変えない
+- 余計な要約は付け加えない
+
+INPUT:
+{{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: input</small>
+            </details>
+
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）">あなたは静かな書斎の整理係です。下記の本文を、以下の方針で Markdown に整形してください。
+
+- 短い独立した思考断片はそのまま箇条書きに
+- まとまった段落は H2 を立てる
+- 引用と思しき行は blockquote にする
+- 装飾語は足さない、語調も変えない
+
+本文:
+{{input}}</textarea>
+
+            <div class="prompt-card-actions">
+              <button class="pill-btn primary">保存</button>
+              <button class="pill-btn">デフォルトに戻す</button>
+            </div>
+          </div>
+
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <div class="prompt-card-name">タイトル生成</div>
+            </div>
+            <div class="prompt-card-desc">インスタンスデフォルトを使用中</div>
+
+            <details class="default-prompt">
+              <summary>デフォルトプロンプト</summary>
+              <div class="default-body">本文から、24 文字以内・体言止め・記号なしのタイトルを 1 つ生成してください。
+本文: {{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: input</small>
+            </details>
+
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）"></textarea>
+
+            <!-- inheriting（オーバーライド未設定）のため「デフォルトに戻す」は非表示。 -->
+            <div class="prompt-card-actions">
+              <button class="pill-btn primary">保存</button>
+            </div>
+          </div>
+
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <div class="prompt-card-name">ディレクトリ提案 <span class="badge">カスタム適用中</span></div>
+            </div>
+            <div class="prompt-card-desc">個別オーバーライドが有効</div>
+
+            <details class="default-prompt">
+              <summary>デフォルトプロンプト</summary>
+              <div class="default-body">タイトルと本文から、最も適した配置先を以下から 1 つ選んでください。
+- 既存ディレクトリ: {{existing_directories}}
+- 該当なしの場合は新規ディレクトリ名を提案
+
+タイトル: {{title}}
+本文: {{input}}</div>
+              <small style="display: block; font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: 8px;">想定変数: existing_directories, title, input</small>
+            </details>
+
+            <label class="field-label" style="margin-top: var(--space-4);">あなたの分析の指示（任意）</label>
+            <textarea class="prompt-textarea" placeholder="あなたの分析の意図を記入（空欄ならシステム既定の動作）">下記ノートの配置先を提案してください。判断は以下を優先します。
+
+1. 既存ディレクトリの命名と一貫すること
+2. 「日記」「Research」「プロジェクト」「雑記」の 4 トップレベルを優先
+3. 該当が薄い場合だけ新規を提案する
+
+タイトル: {{title}}
+本文: {{input}}
+既存: {{existing_directories}}</textarea>
+
+            <div class="prompt-card-actions">
+              <button class="pill-btn primary">保存</button>
+              <button class="pill-btn">デフォルトに戻す</button>
+            </div>
+          </div>
+
+          <!-- 実装には用途「メタデータ抽出」「OCR 補正」のカードも存在する（計 5 用途）。
+               モックは代表 3 用途のみ描画。残り 2 用途は B 参照。
+               グローバルの「変更を保存／キャンセル／未保存」action-row は実装に無い
+               （各カードが独立保存するため）。 -->
+        </section>
+
+      </div>
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  function openDrawer() {
+    sidebar.classList.add('open');
+    backdrop.classList.add('open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeDrawer() {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+  if (menuBtn) {
+    menuBtn.addEventListener('click', openDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+  }
+</script>
+
+</body>
+</html>

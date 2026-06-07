@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — エクスポート (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    border-bottom: 1px solid var(--color-hairline);
+    padding: 12px var(--space-4);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    height: var(--header-height);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-2); }
+  .menu-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+    flex-shrink: 0;
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 19px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .search {
+    width: 100%;
+    position: relative;
+    min-width: 0;
+  }
+  .search input {
+    width: 100%;
+    height: 38px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 14px 0 36px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:hover { background: var(--color-surface-hover); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .pill-btn {
+    height: 44px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn:active { background: var(--color-surface-hover); transform: scale(0.985); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.ghost { background: transparent; }
+  .pill-btn.ghost:hover { background: var(--color-surface); }
+
+  /* ===== Layout ===== 390px 単カラム固定 */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .layout > .main { min-width: 0; }
+
+  /* ===== Sidebar (drawer 常時) ===== */
+  .sidebar {
+    position: fixed;
+    top: 0; bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 86vw;
+    background: var(--color-bg);
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    padding: var(--space-5) var(--space-4) var(--space-8);
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: 11px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 var(--space-3);
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    min-height: 44px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary); }
+
+  /* ===== Sidebar drawer backdrop ===== */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  /* ===== Main (page-type, per #510) ===== 1カラム化 */
+  .main {
+    padding: var(--space-6) var(--space-4) calc(var(--space-20) + 64px);
+    max-width: 100%;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .page-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-6);
+    line-height: var(--leading-snug);
+  }
+
+  .section { margin-bottom: var(--space-6); }
+  .section-label {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  /* Radio list — 1カラム縦積み */
+  .radio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .radio-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    min-height: 44px;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-default);
+    font-size: var(--text-sm);
+  }
+  .radio-row:hover {
+    border-color: var(--color-hairline-strong);
+    background: var(--color-surface-elevated);
+  }
+  .radio-row.selected {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .radio-dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-hairline-strong);
+    background: #fff;
+    flex-shrink: 0;
+    transition: var(--transition-default);
+  }
+  .radio-row.selected .radio-dot {
+    border-color: var(--color-accent);
+    border-width: 5px;
+  }
+  .radio-row .label { flex: 1; min-width: 0; }
+  .radio-row .label .ttl {
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+  }
+  .radio-row .label .sub {
+    color: var(--color-ink-secondary);
+    font-size: var(--text-xs);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+  }
+  .radio-row .count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    flex-shrink: 0;
+  }
+  .radio-row.selected .count { color: var(--color-accent-ink); }
+
+  /* Segmented — フルワイド */
+  .segmented {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    display: inline-flex;
+    width: 100%;
+  }
+  .segmented button {
+    flex: 1;
+    padding: 10px 12px;
+    min-height: 44px;
+    border-radius: 7px;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    background: transparent;
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+
+  /* Checkbox (form options) */
+  .check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .check-row input[type="checkbox"] {
+    width: 18px; height: 18px;
+    margin: 2px 0 0;
+    accent-color: var(--color-accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .check-row .desc { font-size: var(--text-sm); min-width: 0; }
+  .check-row .desc .ttl { color: var(--color-ink); display: block; }
+  .check-row .desc .sub { color: var(--color-ink-tertiary); font-size: var(--text-xs); margin-top: 2px; display: block; overflow-wrap: anywhere; }
+
+  .input-text {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--color-hairline);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-default);
+  }
+  .input-text:focus {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-focus);
+  }
+  .input-help {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  /* Alert */
+  .alert {
+    --alert-accent: var(--color-accent);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-top: var(--space-2);
+  }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); overflow-wrap: anywhere; }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+  /* 推定サイズ表示（CTAバー直前のインライン情報） */
+  .estimate-note {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-hairline);
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .estimate-note strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+
+  /* ===== 下部固定CTA（フルワイド primary）=====
+     書出フォームの主アクション。ページ末尾の sticky アクションバーを
+     mobile では下端固定のフルワイドCTAへ。safe-area を確保。
+     競合する bulk-bar は本画面に無いため z-index は 40 単独で十分。 */
+  .cta-bar {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    gap: var(--space-2);
+    padding: 10px var(--space-4);
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    border-top: 1px solid var(--color-hairline);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .cta-bar { background: var(--color-bg); }
+  }
+  .cta-bar .pill-btn { height: 48px; }
+  .cta-bar .pill-btn.primary { flex: 1; }
+  .cta-bar .pill-btn.ghost { flex: 0 0 auto; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="検索" aria-label="ノートを検索">
+  </div>
+  <div class="header-right">
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <h1 class="page-title">エクスポート</h1>
+    <p class="page-subtitle">
+      選択したノートを HTML / Markdown / PDF で書き出します。1 件は即時ダウンロード、複数件はバックグラウンドジョブとして実行され、完了後に
+      <code style="font-family: var(--font-mono);">エクスポートジョブ一覧</code> からダウンロードできます。
+    </p>
+
+    <form>
+
+      <!-- Target -->
+      <div class="section">
+        <span class="section-label">対象</span>
+        <div class="radio-list" id="targetGroup">
+          <label class="radio-row" data-value="one">
+            <span class="radio-dot"></span>
+            <span class="label">
+              <span class="ttl">このノート 1 件</span>
+              <span class="sub">静かなインターフェースについての覚書</span>
+            </span>
+            <span class="count">1</span>
+          </label>
+          <label class="radio-row selected" data-value="selected">
+            <span class="radio-dot"></span>
+            <span class="label">
+              <span class="ttl">選択中のノート</span>
+              <span class="sub">一覧で選択した複数件をエクスポート</span>
+            </span>
+            <span class="count">12 件</span>
+          </label>
+          <label class="radio-row" data-value="view">
+            <span class="radio-dot"></span>
+            <span class="label">
+              <span class="ttl">現在のビュー全件</span>
+              <span class="sub">フィルター適用後の検索結果すべて</span>
+            </span>
+            <span class="count">312 件</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Format -->
+      <div class="section">
+        <span class="section-label">形式</span>
+        <div class="segmented" id="formatSeg">
+          <button type="button" class="active" data-value="html">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            HTML
+          </button>
+          <button type="button" data-value="md">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Markdown
+          </button>
+          <button type="button" data-value="pdf">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Paper size (PDF 選択時のみ) -->
+      <div class="section">
+        <span class="section-label">用紙サイズ（PDF）</span>
+        <div class="segmented" id="paperSeg">
+          <button type="button" class="active" data-value="A4">A4</button>
+          <button type="button" data-value="Letter">Letter</button>
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div class="section">
+        <span class="section-label">オプション</span>
+
+        <label class="check-row">
+          <input type="checkbox" checked>
+          <span class="desc">
+            <span class="ttl">FrontMatter を含める</span>
+            <span class="sub">date / title / description などのメタデータを冒頭に出力</span>
+          </span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" checked>
+          <span class="desc">
+            <span class="ttl">メディアを埋め込む</span>
+            <span class="sub">画像 / 添付ファイルをアーカイブに含める（容量増加）</span>
+          </span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox">
+          <span class="desc">
+            <span class="ttl">ディレクトリ構造を保持</span>
+            <span class="sub">ノートのフォルダ階層を ZIP 内のフォルダとして再現</span>
+          </span>
+        </label>
+
+        <div style="margin-top: 14px;">
+          <span class="section-label">ファイル名規則</span>
+          <input type="text" class="input-text" value="{date}-{slug}.{ext}" aria-label="ファイル名規則">
+          <div class="input-help">使用可能: <code style="font-family: var(--font-mono);">{title}</code> · <code style="font-family: var(--font-mono);">{slug}</code> · <code style="font-family: var(--font-mono);">{date}</code> · <code style="font-family: var(--font-mono);">{id}</code> · <code style="font-family: var(--font-mono);">{ext}</code></div>
+        </div>
+      </div>
+
+      <!-- Mode -->
+      <div class="section" style="margin-bottom: 0;">
+        <span class="section-label">実行モード</span>
+        <div class="radio-list">
+          <label class="radio-row" data-value="immediate">
+            <span class="radio-dot"></span>
+            <span class="label">
+              <span class="ttl">即時ダウンロード</span>
+              <span class="sub">画面を開いたままダウンロードを開始（最大 50 件まで）</span>
+            </span>
+          </label>
+          <label class="radio-row selected" data-value="async">
+            <span class="radio-dot"></span>
+            <span class="label">
+              <span class="ttl">非同期ジョブ</span>
+              <span class="sub">バックグラウンドで生成し、完了後にダウンロードリンクを通知</span>
+            </span>
+          </label>
+        </div>
+        <div class="alert alert-info" role="note">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">非同期ジョブを推奨します</p>
+            <p class="alert-body">選択中の 12 件は即時 DL 可能ですが、メディア埋め込みで容量が増えるため非同期ジョブを推奨します。完了通知はメールと <code>エクスポートジョブ一覧</code> に送られます。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="estimate-note">
+        推定サイズ: <strong>約 28 MB</strong>
+      </div>
+
+    </form>
+  </main>
+</div>
+
+<!-- 下部固定CTA: フルワイド primary -->
+<div class="cta-bar">
+  <button type="button" class="pill-btn ghost" aria-label="キャンセル">キャンセル</button>
+  <button type="button" class="pill-btn primary">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    エクスポートを実行
+  </button>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+
+  document.querySelectorAll('.radio-list').forEach(group => {
+    const rows = group.querySelectorAll('.radio-row');
+    rows.forEach(r => r.addEventListener('click', () => {
+      rows.forEach(x => x.classList.remove('selected'));
+      r.classList.add('selected');
+    }));
+  });
+
+  document.querySelectorAll('.segmented').forEach(seg => {
+    const btns = seg.querySelectorAll('button');
+    btns.forEach(b => b.addEventListener('click', () => {
+      btns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    }));
+  });
+</script>
+</body>
+</html>

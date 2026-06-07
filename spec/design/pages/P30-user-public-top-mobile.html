@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tuanemuy — Hollow (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* ===== Header (public, mobile) ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 10px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .header-right { display: flex; align-items: center; gap: 6px; }
+  /* 公開ヘッダー: サインアップ/ログイン導線を省スペース化。
+     モバイルではログインのみを残し、検索とサインアップ文字リンクは
+     プロフィール下の検索 / フッター導線へ集約する。 */
+  .pill-btn {
+    height: 36px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 14px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .icon-btn {
+    width: 44px; height: 44px;
+    min-width: 44px; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+
+  /* ===== Layout (single column, 390px base) ===== */
+  .main-wrap {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+  }
+
+  /* ===== Profile hero ===== */
+  .profile-hero {
+    padding: 32px 0 28px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .profile-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .profile-avatar {
+    width: 64px; height: 64px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 22px;
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0;
+    flex-shrink: 0;
+  }
+  .profile-id { min-width: 0; }
+  .profile-name {
+    font-size: 26px;
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: 4px;
+  }
+  .profile-username {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+  }
+  .profile-bio {
+    font-size: var(--text-base);
+    color: var(--color-ink);
+    line-height: var(--leading-relaxed);
+    max-width: var(--content-max);
+  }
+  .profile-stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    flex-wrap: wrap;
+  }
+  .profile-stats strong {
+    color: var(--color-ink);
+    font-weight: var(--weight-semibold);
+    margin-right: 4px;
+  }
+  .profile-stats .dot { color: var(--color-hairline-strong); }
+
+  /* ===== User search + filters ===== */
+  .user-tools {
+    padding: 22px 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .user-search {
+    position: relative;
+    max-width: 100%;
+  }
+  .user-search input {
+    width: 100%;
+    height: 44px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 40px;
+    font-size: var(--text-sm);
+    font-family: inherit;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .user-search input:focus { background: var(--color-surface-hover); }
+  .user-search input::placeholder { color: var(--color-ink-tertiary); }
+  .user-search .search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+
+  /* チップ列は横スクロール許可（§3 base） */
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    margin: 0 calc(-1 * var(--container-padding));
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .chip {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: 13px;
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition-bg);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .chip:hover { background: var(--color-surface-hover); }
+  .chip.active { background: var(--color-ink); color: #fff; }
+  .chip .remove { font-size: 14px; color: var(--color-ink-tertiary); margin-left: 2px; }
+  .chip.active .remove { color: rgba(255,255,255,0.7); }
+
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 4px 0;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .segmented {
+    background: var(--color-surface);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+  }
+  .segmented button {
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    background: transparent;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
+  }
+  .sort-btn {
+    min-height: 36px;
+    font-size: 13px;
+    color: var(--color-ink-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+  }
+  .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
+
+  /* ===== Note list ===== */
+  .note-list { margin-top: 8px; padding-bottom: 48px; }
+  /* モバイルは縦積み: タイトル・抜粋・メタ・日付を上下に積む */
+  .note-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 4px;
+    border-top: 1px solid var(--color-hairline);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .note-row:hover { background: var(--color-surface); }
+  .note-main { min-width: 0; }
+  .note-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .note-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .note-snippet {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin-bottom: 2px;
+  }
+  .note-meta {
+    font-size: var(--text-sm);
+    color: var(--color-ink-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .note-tags { color: var(--color-accent); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .note-meta .dot { color: var(--color-hairline-strong); }
+  .note-date {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    white-space: nowrap;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    border-top: 1px solid var(--color-hairline);
+    padding: 24px 0 calc(32px + env(safe-area-inset-bottom));
+    margin-top: 16px;
+  }
+  .footer-inner {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+  }
+  .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .footer-links a { transition: color 0.15s; }
+  .footer-links a:hover { color: var(--color-ink); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <a href="/" class="logo">Hollow</a>
+  </div>
+
+  <div class="header-right">
+    <a href="/login" class="pill-btn">ログイン</a>
+  </div>
+</header>
+
+<div class="main-wrap">
+
+  <section class="profile-hero">
+    <div class="profile-head">
+      <div class="profile-avatar">TY</div>
+      <div class="profile-id">
+        <h1 class="profile-name">遠山ゆう</h1>
+        <div class="profile-username">@tuanemuy</div>
+      </div>
+    </div>
+    <p class="profile-bio">フリーランスのソフトウェアエンジニア。Cloudflare / TypeScript / DDD まわりが好き。最近は個人ノートとパーソナルナレッジマネジメントの設計を考えています。読書記録と技術メモを少しずつ公開しています。</p>
+    <div class="profile-stats">
+      <span><strong>42</strong>公開ノート</span>
+      <span class="dot">·</span>
+      <span>2024年4月から</span>
+    </div>
+  </section>
+
+  <section class="user-tools">
+    <div class="user-search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="このユーザーの公開ノートを検索">
+    </div>
+
+    <div class="filter-row">
+      <button class="chip active">すべて</button>
+      <button class="chip">#cloudflare</button>
+      <button class="chip">#design</button>
+      <button class="chip">#読書</button>
+      <button class="chip">#essay</button>
+      <button class="chip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        タグを追加
+      </button>
+      <button class="chip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        期間
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="segmented">
+        <button class="active" aria-label="リスト表示">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          リスト
+        </button>
+        <button aria-label="タイル表示">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          タイル
+        </button>
+        <button aria-label="カレンダー表示">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          カレンダー
+        </button>
+      </div>
+
+      <button class="sort-btn">
+        公開日順
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="note-list">
+
+    <a href="/tuanemuy/quiet-interface" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">静かなインターフェースについての覚書</div>        </div>
+        <div class="note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。最近Appleのデザインを観察しながら考えたことを残しておく。</div>
+        <div class="note-meta">
+          <span class="note-tags">#design #essay #apple</span>
+          <span class="dot">·</span>
+          <span>2026年5月10日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/cloudflare-d1-perf" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>        </div>
+        <div class="note-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。東京リージョンからは…</div>
+        <div class="note-meta">
+          <span class="note-tags">#cloudflare #performance</span>
+          <span class="dot">·</span>
+          <span>2026年5月8日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/outbox-pattern" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">Outbox パターンを Cloudflare Queues で実装する</div>        </div>
+        <div class="note-snippet">D1 上にイベントを書き込み、リレーワーカーが Queues に詰める。少なくとも一回 (at-least-once) 配信で、コンシューマは冪等性を…</div>
+        <div class="note-meta">
+          <span class="note-tags">#cloudflare #ddd #architecture</span>
+          <span class="dot">·</span>
+          <span>2026年5月3日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/tanstack-start" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">TanStack Start に乗り換えた理由</div>        </div>
+        <div class="note-snippet">Next.js から TanStack Start へ移行した。React Server Components のメンタルモデルがすっきりした、というのが第一印象。</div>
+        <div class="note-meta">
+          <span class="note-tags">#react #tanstack</span>
+          <span class="dot">·</span>
+          <span>2026年4月28日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/a-pattern-language" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">A Pattern Language を読みながら</div>        </div>
+        <div class="note-snippet">パタン・ランゲージの考え方は、ソフトウェア設計だけでなく、生活そのものに応用できる。アレグザンダーの…</div>
+        <div class="note-meta">
+          <span class="note-tags">#建築 #読書 #design</span>
+          <span class="dot">·</span>
+          <span>2026年4月20日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/morning-walk" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">朝の散歩で考えたこと</div>        </div>
+        <div class="note-snippet">外を歩いている時にしか出てこない種類の思考がある。デスクの前ではどうしても辿り着けない場所。</div>
+        <div class="note-meta">
+          <span class="note-tags">#essay #日記</span>
+          <span class="dot">·</span>
+          <span>2026年4月14日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/kyoto-trip" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">京都 三泊四日の旅程メモ</div>        </div>
+        <div class="note-snippet">朝の哲学の道。誰もいない時間に歩くと別の景色に見える。一日目は南禅寺周辺、二日目は宇治へ。</div>
+        <div class="note-meta">
+          <span class="note-tags">#travel #日記</span>
+          <span class="dot">·</span>
+          <span>2026年4月5日 公開</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/tuanemuy/norwegian-wood" class="note-row">
+      <div class="note-main">
+        <div class="note-title-row">
+          <div class="note-title">『ノルウェイの森』再読メモ</div>        </div>
+        <div class="note-snippet">15年ぶりに開いたら、印象がまるで違っていた。当時メモした感想と並べて読むと面白い。</div>
+        <div class="note-meta">
+          <span class="note-tags">#読書 #日記</span>
+          <span class="dot">·</span>
+          <span>2026年3月30日 公開</span>
+        </div>
+      </div>
+    </a>
+
+  </section>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>Hollow · hollow.example.com</div>
+    <div class="footer-links">
+      <a href="/signup">サインアップ</a>
+      <a href="/terms">利用規約</a>
+      <a href="/privacy">プライバシー</a>
+      <a href="/about">このインスタンスについて</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
