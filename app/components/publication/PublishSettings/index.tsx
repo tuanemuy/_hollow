@@ -62,6 +62,7 @@ import {
   revokeShareLinkFn,
   setShareLinkPasswordFn,
 } from "./action";
+import { QRCodeBlock } from "./QRCodeBlock";
 
 type Visibility = "private" | "unlisted" | "public";
 
@@ -468,6 +469,11 @@ function ShareLinkRow({
           {copied ? "コピーしました" : ""}
         </span>
       </div>
+      {link.status === "active" ? (
+        <div className="mt-3">
+          <QRCodeBlock url={link.url} />
+        </div>
+      ) : null}
       {link.status === "active" ? (
         <div className="flex flex-wrap items-center gap-2">
           <input

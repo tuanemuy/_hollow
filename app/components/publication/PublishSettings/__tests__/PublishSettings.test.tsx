@@ -228,3 +228,91 @@ describe("PublishSettings pending / closable aggregation (Issue #477)", () => {
     expect(bodyCloseButton()?.disabled).toBe(false);
   });
 });
+
+function copyButton(): HTMLButtonElement | undefined {
+  return (
+    (document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="リンクをコピー"]',
+    ) as HTMLButtonElement | null) ?? undefined
+  );
+}
+
+function copyStatus(): HTMLElement | undefined {
+  return (
+    (document.body.querySelector<HTMLElement>(
+      '[role="status"]',
+    ) as HTMLElement | null) ?? undefined
+  );
+}
+
+/**
+ * Issue #570 (#562 review-002 N-005): locks the copy-success live-region
+ * update. `ShareLinkRow.onCopy` calls `navigator.clipboard?.writeText(url)` with
+ * optional chaining; happy-dom has no `navigator.clipboard`, so the `?.` would
+ * short-circuit and the success path never runs. We inject a fake clipboard via
+ * a `configurable` defineProperty and restore the original descriptor in
+ * `afterEach` (deleting it when there was none), keeping the fake scoped to this
+ * describe so the other suites stay clipboard-free.
+ */
+describe("ShareLinkRow copy success live region (N-005)", () => {
+  const writeTextMock = vi.fn().mockResolvedValue(undefined);
+  let originalClipboard: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    writeTextMock.mockClear();
+    originalClipboard = Object.getOwnPropertyDescriptor(
+      globalThis.navigator,
+      "clipboard",
+    );
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      configurable: true,
+      writable: true,
+      value: { writeText: writeTextMock },
+    });
+  });
+
+  afterEach(() => {
+    if (originalClipboard === undefined) {
+      // biome-ignore lint/performance/noDelete: restore the absent-descriptor state happy-dom started with.
+      delete (globalThis.navigator as { clipboard?: unknown }).clipboard;
+    } else {
+      Object.defineProperty(
+        globalThis.navigator,
+        "clipboard",
+        originalClipboard,
+      );
+    }
+  });
+
+  it("updates the live region to コピーしました and calls writeText with the link url", async () => {
+    act(() => {
+      root.render(
+        <PublishSettings
+          open={true}
+          onClose={() => {}}
+          noteId="note-1"
+          appUrl="https://example.test"
+          publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
+          initial={baseInitial}
+        />,
+      );
+    });
+
+    // Idle: the live region is empty before any copy.
+    expect(copyStatus()?.textContent).toBe("");
+
+    const copy = copyButton();
+    expect(copy).toBeDefined();
+
+    await act(async () => {
+      copy?.click();
+      // Flush the writeText promise resolution and the subsequent setState.
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(writeTextMock).toHaveBeenCalledTimes(1);
+    expect(writeTextMock).toHaveBeenCalledWith(activeLink.url);
+    expect(copyStatus()?.textContent).toBe("コピーしました");
+  });
+});
