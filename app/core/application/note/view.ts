@@ -54,13 +54,17 @@ export function toNoteListItem(
  */
 export function toBacklink(
   note: Note,
-  context: Readonly<{ snippet: string | null }>,
+  context: Readonly<{
+    snippet: string | null;
+    directorySegments: readonly { id: string; name: string }[];
+  }>,
 ): BacklinkDTO {
   return {
     noteId: note.id,
     title: note.title,
     slug: note.slug,
     snippet: context.snippet,
+    directorySegments: context.directorySegments,
   };
 }
 

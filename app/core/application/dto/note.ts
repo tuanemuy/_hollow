@@ -53,6 +53,13 @@ export type BacklinkDTO = Readonly<{
   title: string;
   slug: string;
   snippet: string | null;
+  /**
+   * Root→leaf directory path of the referrer note, as `{ id, name }`
+   * pairs (same structure the main-note breadcrumb uses). Empty for
+   * root-level referrers. Presentation joins / uppercases for the
+   * backlink card's meta line; the DTO keeps the raw names.
+   */
+  directorySegments: readonly { id: string; name: string }[];
 }>;
 
 /**

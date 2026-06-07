@@ -30,6 +30,7 @@ function backlink(n: number): BacklinkDTO {
     title: `Backlink ${n}`,
     slug: `backlink-${n}`,
     snippet: null,
+    directorySegments: [],
   };
 }
 

@@ -131,6 +131,81 @@ export const DirectoryService = {
   },
 
   /**
+   * Build the structured root→leaf segments for many directories in a
+   * single tree read, the batch counterpart to {@link computeSegments}.
+   *
+   * `computeSegments` issues one `findAncestors` per directory, so calling
+   * it once per referrer (`getBacklinks` is unbounded) is an `O(n)` query
+   * fan-out. This loads `findTree(ownerId)` once, builds an id→node map in
+   * memory, and walks each `dirId`'s parent chain locally — `O(1)` queries
+   * regardless of `dirIds` length (the `collectSubtreeIds` "tree once +
+   * memory walk" pattern).
+   *
+   * The result maps every requested `dirId` to its segments (each `isChild`
+   * ancestor plus the directory itself, root-first). A root directory, an
+   * id absent from the owner's tree, or a chain that hits a missing parent
+   * all yield an empty array — the same "structurally empty" fallback the
+   * single-shot variant gives for a root-level node. The `visited` guard is
+   * belt-and-braces against a malformed adjacency cycle.
+   */
+  async computeSegmentsForMany(
+    ownerId: UserId,
+    dirIds: readonly DirectoryId[],
+    repo: DirectoryRepository,
+  ): Promise<
+    ReadonlyMap<
+      DirectoryId,
+      readonly { id: DirectoryId; name: DirectoryName }[]
+    >
+  > {
+    const result = new Map<
+      DirectoryId,
+      readonly { id: DirectoryId; name: DirectoryName }[]
+    >();
+    if (dirIds.length === 0) {
+      return result;
+    }
+    const all = await repo.findTree(ownerId);
+    const byId = new Map<string, Directory>();
+    for (const dir of all) {
+      byId.set(dir.id, dir);
+    }
+    for (const dirId of dirIds) {
+      if (result.has(dirId)) {
+        continue;
+      }
+      const start = byId.get(dirId);
+      if (start === undefined || Directory.isRoot(start)) {
+        result.set(dirId, []);
+        continue;
+      }
+      // Walk parent-ward collecting `isChild` nodes, then reverse to
+      // root-first. A missing parent (cross-owner / drifted id) or a cycle
+      // aborts to an empty path rather than a partial one.
+      const chain: { id: DirectoryId; name: DirectoryName }[] = [];
+      const visited = new Set<string>();
+      let cursor: Directory | undefined = start;
+      let broken = false;
+      while (cursor !== undefined && Directory.isChild(cursor)) {
+        if (visited.has(cursor.id)) {
+          broken = true;
+          break;
+        }
+        visited.add(cursor.id);
+        chain.push({ id: cursor.id, name: cursor.name });
+        const parent: Directory | undefined = byId.get(cursor.parentId);
+        if (parent === undefined) {
+          broken = true;
+          break;
+        }
+        cursor = Directory.isRoot(parent) ? undefined : parent;
+      }
+      result.set(dirId, broken ? [] : chain.reverse());
+    }
+    return result;
+  },
+
+  /**
    * Idempotently ensure the per-owner root exists. Returns the existing
    * root or mints a fresh one via `idGen` and persists it. Called from
    * SignUp / AdminSignUp flows and from CreateDirectory when `parentId`

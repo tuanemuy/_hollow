@@ -28,7 +28,15 @@ export type TagMergePlan = Readonly<{
  */
 export type TagIdMinter = () => string;
 
-const HASHTAG_PATTERN = /#([^\s#<>"'`]+)/g;
+/**
+ * Canonical `#tag` token pattern. Exported so the display-time renderer
+ * (`UltrahtmlNoteBodyRenderer`) marks up exactly the same tokens this
+ * service extracts — a single source prevents the extract and the display
+ * passes from drifting (ADR-005, Issue #549). The `/g` flag carries
+ * `lastIndex` state, so consumers must use `matchAll` (fresh iterator per
+ * call) or clone the regex rather than share the instance.
+ */
+export const HASHTAG_PATTERN = /#([^\s#<>"'`]+)/g;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

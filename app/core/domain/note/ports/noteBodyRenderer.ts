@@ -1,0 +1,31 @@
+import type { ContentHtml, InternalLinkRef } from "../valueObject";
+
+/**
+ * Display-only rendering port for note bodies.
+ *
+ * The stored `ContentHtml` keeps `[[wikilink]]` / `#hashtag` tokens
+ * verbatim — that is a deliberate invariant the save / export pipeline
+ * depends on (`NoteService.assembleFromInputs`, `extractMetadataFromHtml`,
+ * the export renderers). For the *reading* surface (P11 note detail) we
+ * want those tokens marked up as pills, without ever touching the
+ * persisted body. This port owns that one-way, read-path transformation.
+ *
+ * `renderForDisplay` takes the stored body plus the aggregate's resolved
+ * `InternalLinkRef[]` (the domain value objects, not the DTO projection)
+ * and returns a display HTML string with:
+ *
+ * - `[[target|display]]` → an `<a class="wikilink">` linking to the
+ *   resolved note when the matching ref carries a `resolvedNoteId`, or a
+ *   non-linking `<span class="wikilink" data-unresolved>` otherwise.
+ * - `#tag` → a non-linking `<span class="hashtag">#tag</span>`.
+ *
+ * Refs are matched to body tokens by the same `(kind, target)` key the
+ * extraction pass uses (title trimmed, id判定 = UUIDv7); the refs are
+ * therefore effectively a `resolvedNoteId` lookup table. The
+ * implementation must never mark up tokens inside `<pre>` / `<code>`
+ * subtrees, inside an existing `<a>`, or inside attribute values, and
+ * must escape every target / display string it emits.
+ */
+export interface NoteBodyRenderer {
+  renderForDisplay(html: ContentHtml, refs: readonly InternalLinkRef[]): string;
+}

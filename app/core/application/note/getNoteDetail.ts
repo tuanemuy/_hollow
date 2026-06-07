@@ -1,4 +1,5 @@
 import { DirectoryService } from "@/core/domain/directory/service";
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSourceFileDTO } from "../dto/note";
 import {
@@ -18,6 +19,13 @@ export type GetNoteDetailInput = Readonly<{
 
 export type GetNoteDetailOutput = Readonly<{
   note: NoteDTO & { sourceFile: NoteSourceFileDTO | null };
+  /**
+   * Display-rendered note body: the stored `contentHtml` with
+   * `[[wikilink]]` / `#hashtag` tokens marked up as pills (read path
+   * only). The DTO's `contentHtml` keeps the verbatim tokens for
+   * editing / export.
+   */
+  renderedContentHtml: string;
   backlinks: readonly BacklinkDTO[];
   backlinkCount: number;
   directoryPath: string;
@@ -102,11 +110,34 @@ export async function getNoteDetail({
           name: seg.name as string,
         }))
       : [];
+    // Resolve every referrer's directory path in a single tree read
+    // (`O(1)` queries) so the backlink cards can show their location
+    // line. Referrers share the note owner, so one tree covers them all.
+    const referrerSegmentsByDir = await DirectoryService.computeSegmentsForMany(
+      found.entity.ownerId,
+      referrers.map((r) => r.directoryId as DirectoryId),
+      ctx.directoryRepository,
+    );
+    const segmentsForReferrer = (
+      dirId: DirectoryId,
+    ): readonly { id: string; name: string }[] =>
+      (referrerSegmentsByDir.get(dirId) ?? []).map((seg) => ({
+        id: seg.id as string,
+        name: seg.name as string,
+      }));
+
     return {
       note: { ...toNoteView(found.entity), sourceFile },
+      renderedContentHtml: container.noteBodyRenderer.renderForDisplay(
+        found.entity.contentHtml,
+        found.entity.internalLinkRefs,
+      ),
       backlinks: referrers.map((referrer) =>
         toBacklink(referrer, {
           snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
+          directorySegments: segmentsForReferrer(
+            referrer.directoryId as DirectoryId,
+          ),
         }),
       ),
       backlinkCount,

@@ -18,6 +18,7 @@ import type { TempFileStorage } from "@/core/domain/ingestion/ports/tempFileStor
 import type { ObjectStorage } from "@/core/domain/media/ports/objectStorage";
 import type { HtmlSanitizer } from "@/core/domain/note/ports/htmlSanitizer";
 import type { MarkdownConverter } from "@/core/domain/note/ports/markdownConverter";
+import type { NoteBodyRenderer } from "@/core/domain/note/ports/noteBodyRenderer";
 import type { PasswordHasher } from "@/core/domain/publication/ports/passwordHasher";
 import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepository";
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
@@ -99,6 +100,14 @@ export type RequestContainer = SharedDeps &
     unitOfWorkProvider: UnitOfWorkProvider;
     htmlSanitizer: HtmlSanitizer;
     markdownConverter: MarkdownConverter;
+    /**
+     * Display-only note-body renderer. `GetNoteDetail` runs the stored
+     * `ContentHtml` through this on the read path to mark up
+     * `[[wikilink]]` / `#hashtag` tokens as pills; the persisted body and
+     * the export pipeline keep the verbatim tokens untouched. Stateless
+     * and request-safe like the other note-content ports.
+     */
+    noteBodyRenderer: NoteBodyRenderer;
     /**
      * Stateless hash / verify pair used by share-link password
      * verification (`IssueShareLink`, `SetShareLinkPassword`,

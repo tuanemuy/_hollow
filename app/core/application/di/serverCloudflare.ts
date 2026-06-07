@@ -24,6 +24,7 @@ import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItMarkdownConverter } from "@/core/adapters/markdown/markdownConverter";
+import { UltrahtmlNoteBodyRenderer } from "@/core/adapters/renderer/noteBodyRenderer";
 import { UltrahtmlHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import {
@@ -585,6 +586,7 @@ export function createRequestContainer(
     ),
     htmlSanitizer: new UltrahtmlHtmlSanitizer(),
     markdownConverter: new MarkdownItMarkdownConverter(),
+    noteBodyRenderer: new UltrahtmlNoteBodyRenderer(),
     passwordHasher: new ScryptPasswordHasher(),
     objectStorage:
       objectStorageBucket && r2PresignConfig

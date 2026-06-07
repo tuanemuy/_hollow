@@ -233,6 +233,55 @@
     text-underline-offset: 3px;
   }
 
+  /*
+   * Internal-link (wikilink) pill and hashtag (Issue #549). These markups
+   * are injected at read time by `NoteBodyRenderer` into the
+   * `dangerouslySetInnerHTML` body, so they cannot carry utility classes —
+   * the documented exception (ADR-002). `.wikilink` is an `<a>` (resolved)
+   * or `<span data-unresolved>` (broken); the generic `.note-detail-content
+   * a` rule above applies accent + underline to the resolved case, so the
+   * pill styling overrides `text-decoration` to none (mock parity).
+   */
+  .note-detail-content .wikilink {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    padding: 1px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 0.94em;
+    line-height: 1.4;
+    transition: var(--transition-bg);
+    position: relative;
+    text-decoration: none;
+  }
+
+  .note-detail-content .wikilink::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    margin-right: 2px;
+    align-self: center;
+  }
+
+  .note-detail-content a.wikilink:hover {
+    background: var(--color-surface-hover);
+    text-decoration: none;
+  }
+
+  .note-detail-content .hashtag {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .note-detail-content a.hashtag:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .note-detail-content code {
     font-family: var(--font-mono);
     background: var(--color-surface);

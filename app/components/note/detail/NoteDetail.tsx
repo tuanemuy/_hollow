@@ -75,7 +75,13 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
     throw e;
   }
 
-  const { note, backlinks, backlinkCount, directorySegments } = detail;
+  const {
+    note,
+    renderedContentHtml,
+    backlinks,
+    backlinkCount,
+    directorySegments,
+  } = detail;
 
   const tagNames = note.tagIds
     .map((id) => tags.byId.get(id))
@@ -113,8 +119,8 @@ export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
 
       <div
         className="note-detail-content"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
-        dangerouslySetInnerHTML={{ __html: note.contentHtml }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: body sanitized at write time; wikilink/hashtag markup added by NoteBodyRenderer (XSS-escaped)
+        dangerouslySetInnerHTML={{ __html: renderedContentHtml }}
       />
       <CodeHighlight />
 

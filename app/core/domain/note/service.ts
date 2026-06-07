@@ -55,7 +55,15 @@ const fallbackSlugBase = (base: string): string => {
  * from the canonical form (ADR-009).
  */
 export const MEDIA_ID_FROM_URL = /\/media\/([0-9a-z-]+)/i;
-const INTERNAL_LINK_PATTERN = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
+/**
+ * Canonical `[[target|display]]` wikilink token pattern. Exported so the
+ * display-time renderer (`UltrahtmlNoteBodyRenderer`) marks up exactly the
+ * same tokens this service extracts — a single source prevents the extract
+ * and the display passes from drifting (ADR-005, Issue #549). The `/g`
+ * flag carries `lastIndex` state, so consumers must use `matchAll` (fresh
+ * iterator per call) or clone the regex rather than share the instance.
+ */
+export const INTERNAL_LINK_PATTERN = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
 const UUID_V7_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
