@@ -1,6 +1,6 @@
 # モバイルモック生成ルール（Issue #536 共通）
 
-各 `spec/design/pages/{name}-mobile.html` を新規生成するときの**絶対遵守ルール**。`plan.md` と併せて読むこと。`spec/design/index.md`（§2.1/2.4/2.5/3/7/8/9）と `spec/design/tokens.md` が SSOT。
+各 `spec/design/pages/mobile/{name}.html` を新規生成するときの**絶対遵守ルール**。`plan.md` と併せて読むこと。`spec/design/index.md`（§2.1/2.4/2.5/3/7/8/9）と `spec/design/tokens.md` が SSOT。
 
 ## 0. ゴール
 
@@ -8,7 +8,7 @@
 
 ## 1. ファイル / viewport
 
-- 出力先: `spec/design/pages/{name}-mobile.html`（desktop ファイルには絶対に触れない）。
+- 出力先: `spec/design/pages/mobile/{name}.html`（desktop ファイルには絶対に触れない）。
 - `<meta name="viewport" content="width=device-width, initial-scale=1">`。
 - 基準幅 **390px**、検証域 **320〜430px** で横スクロール非発生。
 - `<title>` は desktop のものに「(Mobile)」を付す程度。

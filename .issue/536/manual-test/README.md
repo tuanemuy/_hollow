@@ -2,7 +2,7 @@
 
 **実施日:** 2026-06-08
 **ツール:** agent-browser 0.27.1（Chromium, `file://` 直接オープン）
-**対象:** `spec/design/pages/*-mobile.html`（全49本）
+**対象:** `spec/design/pages/mobile/*.html`（全49本）
 
 ## 1. overflow 検証（受け入れ基準 AC2 / AC5）
 
@@ -33,7 +33,7 @@
 
 ## 3. ファイル存在（AC1）
 
-49画面すべてに `-mobile.html` が存在（PR #518 追加分 P13a / P18-merge-tag-dialog / P20-view-form-dialog / P47 を含む）。`common-toast` はスコープ外。
+49画面すべてに `mobile/*.html` が存在（PR #518 追加分 P13a / P18-merge-tag-dialog / P20-view-form-dialog / P47 を含む）。`common-toast` はスコープ外。
 
 ## 4. トークン準拠（AC4）
 

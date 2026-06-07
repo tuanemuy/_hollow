@@ -1,15 +1,15 @@
 # ADR — Issue #536: 全画面のモバイル向けモックを作成する
 
-## ADR-001: mock化の手段は別途 `{name}-mobile.html` を新規作成する
+## ADR-001: mock化の手段は別途 `mobile/{name}.html` を新規作成する
 
 ### Status
 Accepted（ユーザー承認済み 2026-06-08）
 
 ### Context
-Issue 本文が「既存ファイルにモバイル breakpoint を作り込むか、`*-mobile.html` を別途用意するか」を着手時の決定事項として残していた。49画面という規模、受け入れ基準（390px目視で overflow=0）、既存 desktop モックの巨大さ（最大48k）を踏まえ選択する必要があった。
+Issue 本文が「既存ファイルにモバイル breakpoint を作り込むか、`mobile/*.html` を別途用意するか」を着手時の決定事項として残していた。49画面という規模、受け入れ基準（390px目視で overflow=0）、既存 desktop モックの巨大さ（最大48k）を踏まえ選択する必要があった。
 
 ### Decision
-**別途 `{name}-mobile.html` を新規作成**する。各画面を独立に 390px 実体として生成し、既存 desktop モックには一切触れない。
+**別途 `mobile/{name}.html` を新規作成**する。各画面を独立に 390px 実体として生成し、既存 desktop モックには一切触れない。
 
 ### Consequences
 - 良い点: サブエージェントが1枚ずつ独立生成でき desktop 挙動を壊すリスクがない / レビューが「390pxで開いて overflow=0」とシンプルで受け入れ基準に直結 / 並列で大規模を回せる。
@@ -43,7 +43,7 @@ Accepted
 desktop 側でダイアログは単独ファイル（state-grid showcase 含む）として存在。mobile を親画面に内包するか独立ファイルにするか。
 
 ### Decision
-**独立した `{name}-mobile.html` を作る**。showcase/state-grid 系（move/note-picker/save-view/confirm/filterbar）は mobile でも複数ステートを縦1カラムで並べたまま、各ダイアログをボトムシート表現にする。
+**独立した `mobile/{name}.html` を作る**。showcase/state-grid 系（move/note-picker/save-view/confirm/filterbar）は mobile でも複数ステートを縦1カラムで並べたまま、各ダイアログをボトムシート表現にする。
 
 ### Consequences
 - 良い点: desktop と 1:1 対応が明快で「全49本存在」を機械照合できる / state 比較カタログの意図を保持。

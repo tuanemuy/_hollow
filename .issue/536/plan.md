@@ -14,7 +14,7 @@
 
 ### 含まれるもの
 
-- `spec/design/pages/{画面名}-mobile.html` を 49本 新規作成（390px 基準、320〜430px で overflow=0）。
+- `spec/design/pages/mobile/{画面名}.html` を 49本 新規作成（390px 基準、320〜430px で overflow=0）。
 - 必要に応じて `spec/design/index.md` の §3 レスポンシブ戦略にモバイルモックの併置方針を 1〜2文 SSOT 化。
 - agent-browser によるモバイル幅（390px + 境界 320/430px）の overflow 検証。
 
@@ -27,7 +27,7 @@
 
 ## 方針（確定済み）
 
-mock化の手段は「**別途 `{画面名}-mobile.html` を新規作成**」方式でユーザー承認済み。既存 desktop ファイルには触れず、各ページに対応するモバイル専用ファイルを 390px 実体として作る。詳細トレードオフは `adr.md` 参照。
+mock化の手段は「**別途 `mobile/{画面名}.html` を新規作成**」方式でユーザー承認済み。既存 desktop ファイルには触れず、各ページに対応するモバイル専用ファイルを 390px 実体として作る。詳細トレードオフは `adr.md` 参照。
 
 ## 既存モックのモバイル現状
 
@@ -51,7 +51,7 @@ mock化の手段は「**別途 `{画面名}-mobile.html` を新規作成**」方
 
 ### 1. 共通生成ルールの確立
 
-- **命名**: 各 desktop `{name}.html` に対し `{name}-mobile.html` を新規作成（49本）。desktop には触れない。
+- **命名**: 各 desktop `{name}.html` に対し `mobile/{name}.html` を新規作成（49本）。desktop には触れない。
 - **viewport**: `<meta name="viewport" content="width=device-width, initial-scale=1">`（desktop と同一）。基準幅390px、検証域320〜430px。
 - **トークン継承**: 対応 desktop ファイルの `<style>` 冒頭（`* { box-sizing }` + `:root { ... }` + `html,body` リセット + `:focus-visible`）を逐語コピー。ローカル短縮名禁止、正式名のみ（`§9`）。新トークン追加なし。
 - **構造**: 共通要素（ヘッダー/drawer/開閉スクリプト）は画面ごとに同マークアップを貼る（`§9`、コンポーネント化しない）。drawer/シート開閉 JS は desktop の `menuBtn`/`backdrop` パターン流用。
@@ -71,7 +71,7 @@ mock化の手段は「**別途 `{画面名}-mobile.html` を新規作成**」方
 
 ### 3. index.md への方針追記（小）
 
-`§3 レスポンシブ戦略` に「モバイル専用モックは `{name}-mobile.html` として併置し 390px 基準で設計する」旨を 1〜2文 SSOT 化。受け入れ基準「必要なモバイル方針は `index.md` に SSOT 化」に対応。`tokens.md` は新トークン不要のため変更しない。
+`§3 レスポンシブ戦略` に「モバイル専用モックは `mobile/{name}.html` として併置し 390px 基準で設計する」旨を 1〜2文 SSOT 化。受け入れ基準「必要なモバイル方針は `index.md` に SSOT 化」に対応。`tokens.md` は新トークン不要のため変更しない。
 
 ### 4. バッチごとの overflow 検証
 
