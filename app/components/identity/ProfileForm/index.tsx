@@ -117,7 +117,6 @@ export function ProfileForm({
   const bioCounterId = useId();
   const usernameId = useId();
   const usernameHintId = useId();
-  const avatarInputId = useId();
 
   const [bioCount, setBioCount] = useState(user.bio?.length ?? 0);
   const [newUsername, setNewUsername] = useState("");
@@ -314,9 +313,9 @@ export function ProfileForm({
             <div className={AVATAR_ACTIONS}>
               <input
                 ref={avatarInputRef}
-                id={avatarInputId}
                 type="file"
                 accept={AVATAR_ACCEPT}
+                aria-label="アバター画像を選択"
                 onChange={onAvatarPick}
                 disabled={profilePending || avatarUpload.kind === "uploading"}
                 className="sr-only"
@@ -349,6 +348,11 @@ export function ProfileForm({
           <p className={FIELD_HINT}>
             推奨: 正方形 512×512px 以上、PNG または JPEG、5MB まで。
           </p>
+          {avatarUpload.kind === "uploading" ? (
+            <p aria-live="polite" className={FIELD_HINT}>
+              アバターをアップロード中…
+            </p>
+          ) : null}
           {avatarUpload.kind === "error" ? (
             <p role="alert" className={FIELD_ERROR}>
               {avatarUpload.message}
