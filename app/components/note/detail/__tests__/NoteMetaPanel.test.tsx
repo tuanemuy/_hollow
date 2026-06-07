@@ -156,7 +156,6 @@ describe("NoteMetaPanel backlink meta row (directorySegments)", () => {
     const meta = li.querySelector<HTMLElement>("span.uppercase");
     if (meta === null) throw new Error("backlink meta row not found");
     expect(meta.textContent).toBe("Research / 書籍要約");
-    // The title is still rendered alongside the meta row.
     expect(li.textContent).toContain("Backlink 1");
   });
 

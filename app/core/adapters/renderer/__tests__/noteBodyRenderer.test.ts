@@ -201,10 +201,7 @@ describe("UltrahtmlNoteBodyRenderer", () => {
       // stays outside the hashtag span. This demonstrates the termination the
       // previous `#tag`-only assertion merely claimed in a comment.
       const out = render("<p>#a<b</p>");
-      // Only `#a` is captured; the span closes immediately after it and the
-      // `<b` fragment stays outside.
       expect(out).toContain('<span class="hashtag">#a</span><b');
-      // `#a<b` was never captured as a single hashtag token.
       expect(out).not.toContain('class="hashtag">#a<b');
     });
 
