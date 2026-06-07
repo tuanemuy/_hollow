@@ -97,7 +97,8 @@ export const BACKLINKS = "mt-16 pt-6 border-t border-hairline";
 // ===== P32 search =====
 export const SEARCH_HERO = "py-12 pb-6 text-left";
 export const SEARCH_HERO_H1 =
-  "text-2xl font-normal tracking-tightest text-ink mb-4";
+  "text-2xl font-normal tracking-tightest text-ink mb-1.5";
+export const SEARCH_HERO_SUB = "text-sm text-ink-secondary mb-6";
 export const SEARCH_FORM = "relative max-w-[640px]";
 export const SEARCH_FORM_INPUT =
   "w-full h-12 border border-hairline bg-bg rounded-pill pl-12 pr-14 text-[15px] text-ink outline-none transition-colors motion-reduce:transition-none focus:border-hairline-strong focus:shadow-focus";
@@ -118,7 +119,7 @@ export const SEARCH_HIT_AUTHOR =
 export const SEARCH_HIT_TITLE =
   "text-md font-medium text-ink tracking-tight mb-1";
 export const SEARCH_HIT_SNIPPET =
-  "text-sm text-ink-secondary leading-normal mb-1.5";
+  "text-sm text-ink-secondary leading-relaxed overflow-hidden mb-1.5 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
 export const SEARCH_HIT_META =
   "text-xs text-ink-tertiary flex gap-2.5 flex-wrap";
 export const SEARCH_EMPTY = "py-20 px-3 text-center text-ink-secondary";
@@ -143,8 +144,6 @@ export const GATE_ERROR = "text-sm text-error -mt-1 flex items-center gap-1.5";
 // Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
 // consumer button, else the accent variant never applies and it renders surface.
 export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;
-export const LOCKOUT =
-  "bg-warning-surface border border-warning text-warning rounded-md px-3.5 py-2.5 text-sm flex items-center gap-2 mb-4.5";
 export const SHARE_NOTE_BANNER =
   "flex items-center gap-2 px-3.5 py-2.5 bg-warning-surface text-warning rounded-md text-sm mb-6";
 

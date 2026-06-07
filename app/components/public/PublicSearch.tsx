@@ -16,6 +16,7 @@ import {
   SEARCH_FORM_INPUT,
   SEARCH_HERO,
   SEARCH_HERO_H1,
+  SEARCH_HERO_SUB,
   SEARCH_HIT_AUTHOR,
   SEARCH_HIT_LIST,
   SEARCH_HIT_META,
@@ -75,6 +76,9 @@ export async function PublicSearch({
       <main className={PUBLIC_MAIN}>
         <section className={SEARCH_HERO}>
           <h1 className={SEARCH_HERO_H1}>公開ノートを検索</h1>
+          <p className={SEARCH_HERO_SUB}>
+            このインスタンス全体の公開ノートから横断検索できます
+          </p>
           <search className={SEARCH_FORM}>
             <form method="get" action="/search">
               <Icon icon={Search} size={20} className={SEARCH_FORM_ICON} />
@@ -130,9 +134,9 @@ export async function PublicSearch({
           {!hasKeyword ? (
             <div className={SEARCH_EMPTY}>
               <h2 className="text-lg font-semibold mb-2 text-ink">
-                キーワードを入力してください
+                まだ検索していません
               </h2>
-              <p>同じインスタンスの公開ノートを横断検索できます。</p>
+              <p>上の検索バーにキーワードを入力してください。</p>
             </div>
           ) : hits.length === 0 ? (
             <div className={SEARCH_EMPTY}>
