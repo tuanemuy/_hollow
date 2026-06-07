@@ -73,7 +73,7 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
       <p className={SECTION_DESC}>
         アカウントを削除すると、ノート、メディア、公開リンク、進行中の
         エクスポートジョブを含むすべてのデータが失われます。この操作は
-        取り消せません。
+        <strong className="font-medium text-ink">取り消せません</strong>。
       </p>
       <div className={ACTION_ROW}>
         <button
