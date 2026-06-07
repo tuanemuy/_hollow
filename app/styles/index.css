@@ -272,6 +272,18 @@
     text-decoration: none;
   }
 
+  /* Unresolved (broken) wikilink: a non-linking `<span data-unresolved>`.
+     Keep it quiet but distinct from the resolved pill — muted ink and a
+     muted dot signal "not navigable" without a loud error treatment. */
+  .note-detail-content .wikilink[data-unresolved] {
+    color: var(--color-ink-tertiary);
+    cursor: default;
+  }
+
+  .note-detail-content .wikilink[data-unresolved]::before {
+    background: var(--color-ink-tertiary);
+  }
+
   .note-detail-content .hashtag {
     color: var(--color-accent);
     text-decoration: none;

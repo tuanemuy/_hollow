@@ -64,7 +64,11 @@ export const MEDIA_ID_FROM_URL = /\/media\/([0-9a-z-]+)/i;
  * iterator per call) or clone the regex rather than share the instance.
  */
 export const INTERNAL_LINK_PATTERN = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
-const UUID_V7_PATTERN =
+// Exported so the display-time renderer derives the `(kind, target)` ref key
+// identically to `extractMetadataFromHtml` — a single source keeps the
+// extract and the display passes from disagreeing on what counts as an
+// id-kind link (ADR-005, Issue #549). No `/g` flag, so it is stateless.
+export const UUID_V7_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**

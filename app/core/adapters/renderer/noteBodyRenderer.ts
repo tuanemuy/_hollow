@@ -8,15 +8,15 @@ import {
 } from "ultrahtml";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { NoteBodyRenderer } from "@/core/domain/note/ports/noteBodyRenderer";
-import { INTERNAL_LINK_PATTERN } from "@/core/domain/note/service";
+import {
+  INTERNAL_LINK_PATTERN,
+  UUID_V7_PATTERN,
+} from "@/core/domain/note/service";
 import type {
   ContentHtml,
   InternalLinkRef,
 } from "@/core/domain/note/valueObject";
 import { HASHTAG_PATTERN } from "@/core/domain/tag/service";
-
-const UUID_V7_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Mirror `extractMetadataFromHtml`: a `[[target]]` whose trimmed target
 // looks like a UUIDv7 is an id-keyed reference, everything else is a
@@ -81,8 +81,15 @@ const collectReplacements = (
     const kind = UUID_V7_PATTERN.test(target) ? "id" : "title";
     const ref = refsByKey.get(refKey(kind, target));
     const resolvedNoteId = ref?.resolvedNoteId ?? null;
+    // Prefer the inline display segment, then the stored ref display text,
+    // and only fall back to the raw target (a bare UUID for id-kind links).
+    const refDisplay = ref?.displayText?.trim();
     const label =
-      display !== undefined && display.length > 0 ? display : target;
+      display !== undefined && display.length > 0
+        ? display
+        : refDisplay !== undefined && refDisplay.length > 0
+          ? refDisplay
+          : target;
     replacements.push({
       start: m.index,
       end: m.index + m[0].length,

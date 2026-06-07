@@ -25,6 +25,11 @@ import type { ContentHtml, InternalLinkRef } from "../valueObject";
  * implementation must never mark up tokens inside `<pre>` / `<code>`
  * subtrees, inside an existing `<a>`, or inside attribute values, and
  * must escape every target / display string it emits.
+ *
+ * Trust boundary: `html` is assumed to be an already-sanitized stored body
+ * (the output of `htmlSanitizer.sanitize` via `assembleFromInputs`). This
+ * port adds escaped markup on top of safe HTML — it is NOT a sanitizer.
+ * Do not feed unsanitized or differently-sanitized HTML through it.
  */
 export interface NoteBodyRenderer {
   renderForDisplay(html: ContentHtml, refs: readonly InternalLinkRef[]): string;

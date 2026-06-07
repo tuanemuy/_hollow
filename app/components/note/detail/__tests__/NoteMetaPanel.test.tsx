@@ -118,6 +118,69 @@ describe("NoteMetaPanel backlink count", () => {
   });
 });
 
+describe("NoteMetaPanel backlink meta row (directorySegments)", () => {
+  function backlinkWithSegments(
+    n: number,
+    segments: readonly { id: string; name: string }[],
+  ): BacklinkDTO {
+    return {
+      noteId: `note-${n}`,
+      title: `Backlink ${n}`,
+      slug: `backlink-${n}`,
+      snippet: null,
+      directorySegments: segments,
+    };
+  }
+
+  it("renders the directory path meta row joined with ' / '", () => {
+    const backlinks = [
+      backlinkWithSegments(1, [
+        { id: "d1", name: "Research" },
+        { id: "d2", name: "書籍要約" },
+      ]),
+    ];
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          backlinks={backlinks}
+          backlinkCount={1}
+        />,
+      );
+    });
+    const section = backlinkSection();
+    const li = section.querySelector<HTMLElement>("ul > li");
+    if (li === null) throw new Error("backlink item not found");
+    // The meta row precedes the title inside the card; the uppercase tracked
+    // 11px style distinguishes it from the (here-absent) snippet span.
+    const meta = li.querySelector<HTMLElement>("span.uppercase");
+    if (meta === null) throw new Error("backlink meta row not found");
+    expect(meta.textContent).toBe("Research / 書籍要約");
+    // The title is still rendered alongside the meta row.
+    expect(li.textContent).toContain("Backlink 1");
+  });
+
+  it("omits the meta row when directorySegments is empty", () => {
+    const backlinks = [backlinkWithSegments(2, [])];
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          backlinks={backlinks}
+          backlinkCount={1}
+        />,
+      );
+    });
+    const section = backlinkSection();
+    const li = section.querySelector<HTMLElement>("ul > li");
+    if (li === null) throw new Error("backlink item not found");
+    // No leading directory-path meta row; only the title (and optional
+    // snippet) are present.
+    expect(li.querySelector("span.uppercase")).toBeNull();
+    expect(li.textContent).toContain("Backlink 2");
+  });
+});
+
 describe("NoteMetaPanel 場所 row (Issue #540)", () => {
   it("joins directory segment names with ' / '", () => {
     act(() => {

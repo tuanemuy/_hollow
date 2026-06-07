@@ -96,6 +96,30 @@ describe("UltrahtmlNoteBodyRenderer", () => {
     });
   });
 
+  describe("wikilink / hashtag overlap (Test N-001)", () => {
+    it("drops a #tag that falls inside a [[...]] span (wikilink wins)", () => {
+      // `[[a #b c]]` parses as a single title-keyed wikilink whose target is
+      // `a #b c`. The `#b` lies inside the claimed wikilink range, so
+      // `collectReplacements` discards the hashtag rather than nesting markup.
+      const out = render("<p>[[a #b c]]</p>");
+      // The whole token becomes one wikilink span; `#b` is part of its label,
+      // not a separate hashtag element.
+      expect(out).toContain(
+        '<span class="wikilink" data-unresolved>a #b c</span>',
+      );
+      expect(out).not.toContain('class="hashtag"');
+    });
+
+    it("still marks up a #tag that sits outside the [[...]] span", () => {
+      // The trailing `#after` is past the wikilink's end, so it survives.
+      const out = render("<p>[[a #b]] #after</p>");
+      expect(out).toContain(
+        '<span class="wikilink" data-unresolved>a #b</span>',
+      );
+      expect(out).toContain('<span class="hashtag">#after</span>');
+    });
+  });
+
   describe("scope restrictions", () => {
     it("does not transform tokens inside <pre>/<code>", () => {
       const out = render(
@@ -154,9 +178,22 @@ describe("UltrahtmlNoteBodyRenderer", () => {
       expect(out).toContain('<span class="hashtag">#real</span>');
     });
 
-    it("escapes a hashtag token containing angle-bracket entities", () => {
-      // `<`/`>`/`"` terminate a hashtag token, so only safe chars remain;
-      // assert the emitted span never carries a raw bracket.
+    it("terminates a hashtag token at a literal '<' (HASHTAG_PATTERN excludes <>\"'`)", () => {
+      // HASHTAG_PATTERN is /#([^\s#<>"'`]+)/g, so `<`/`>`/`"`/`'`/`` ` `` end
+      // the token. A bare `<` not forming a tag survives ultrahtml parsing as
+      // text (see the bracketed-display XSS case above), so `#a<b` reaches the
+      // tokenizer as the text `#a<b` and matches only `#a`. The trailing `<b`
+      // stays outside the hashtag span. This demonstrates the termination the
+      // previous `#tag`-only assertion merely claimed in a comment.
+      const out = render("<p>#a<b</p>");
+      // Only `#a` is captured; the span closes immediately after it and the
+      // `<b` fragment stays outside.
+      expect(out).toContain('<span class="hashtag">#a</span><b');
+      // `#a<b` was never captured as a single hashtag token.
+      expect(out).not.toContain('class="hashtag">#a<b');
+    });
+
+    it("emits a plain #tag verbatim inside its span", () => {
       const out = render("<p>#tag</p>");
       expect(out).toBe('<p><span class="hashtag">#tag</span></p>');
     });
