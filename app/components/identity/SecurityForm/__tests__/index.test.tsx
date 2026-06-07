@@ -42,6 +42,8 @@ const USER: UserDTO = {
   role: "member",
   status: "active",
   createdAt: "2026-01-01T00:00:00.000Z",
+  lastSavedAt: "2026-01-01T00:00:00.000Z",
+  lastUsernameChangedAt: null,
 };
 
 let container: HTMLDivElement;

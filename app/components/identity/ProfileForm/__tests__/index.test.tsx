@@ -13,9 +13,17 @@ import type { UserDTO } from "@/core/application/dto/identity";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { updateProfile, changeUsername, invalidate } = vi.hoisted(() => ({
+const {
+  updateProfile,
+  changeUsername,
+  presignMediaUpload,
+  finalizeMediaUpload,
+  invalidate,
+} = vi.hoisted(() => ({
   updateProfile: vi.fn(),
   changeUsername: vi.fn(),
+  presignMediaUpload: vi.fn(),
+  finalizeMediaUpload: vi.fn(),
   invalidate: vi.fn(),
 }));
 
@@ -23,15 +31,26 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate }),
 }));
 
+// Import the (stubbed) server-fn refs the SUT passes to `useServerFn`, then
+// route each to its paired mock by referential equality. `createServerFn` is
+// stubbed below so each top-level builder yields a distinct Proxy ref.
+const { presignMediaUploadFn, finalizeMediaUploadFn } = await import(
+  "@/components/media/actions"
+);
+const { updateProfileFn, changeUsernameFn } = await import("../action");
+
 vi.mock("@tanstack/react-start", () => ({
-  useServerFn: useServerFnRouter([], updateProfile),
+  useServerFn: (fn: unknown) =>
+    useServerFnRouter([
+      [updateProfileFn, updateProfile],
+      [changeUsernameFn, changeUsername],
+      [presignMediaUploadFn, presignMediaUpload],
+      [finalizeMediaUploadFn, finalizeMediaUpload],
+    ])(fn),
   createMiddleware: () => serverFnChainStub(),
   createServerFn: () => serverFnChainStub(),
 }));
 
-// `useServerFn` is dispatched twice (updateProfile / changeUsername); the
-// identity-router stub above returns the same fallback for both, which is fine
-// because the tests below do not submit either form.
 const { ProfileForm } = await import("../index");
 
 const USER: UserDTO = {
@@ -44,6 +63,10 @@ const USER: UserDTO = {
   role: "member",
   status: "active",
   createdAt: "2026-01-01T00:00:00.000Z",
+  // Distinct from createdAt so the timestamp test can prove `lastSavedAt`
+  // (not some other instant) is what gets rendered.
+  lastSavedAt: "2026-03-15T08:30:00.000Z",
+  lastUsernameChangedAt: null,
 };
 
 let container: HTMLDivElement;
@@ -55,6 +78,8 @@ beforeEach(() => {
   root = createRoot(container);
   updateProfile.mockReset();
   changeUsername.mockReset();
+  presignMediaUpload.mockReset();
+  finalizeMediaUpload.mockReset();
   invalidate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -85,6 +110,40 @@ function getUsernameInput(): HTMLInputElement {
   );
   if (el === null) throw new Error("username input missing");
   return el;
+}
+
+function getDisplayNameInput(): HTMLInputElement {
+  const el = container.querySelector<HTMLInputElement>(
+    'input[name="displayName"]',
+  );
+  if (el === null) throw new Error("displayName input missing");
+  return el;
+}
+
+function getAvatarFileInput(): HTMLInputElement {
+  const el = container.querySelector<HTMLInputElement>('input[type="file"]');
+  if (el === null) throw new Error("avatar file input missing");
+  return el;
+}
+
+function getResetButton(): HTMLButtonElement {
+  const el = Array.from(
+    container.querySelectorAll<HTMLButtonElement>("button"),
+  ).find((b) => b.textContent === "リセット");
+  if (el === undefined) throw new Error("reset button missing");
+  return el;
+}
+
+// Drive a `change` on a file input by stubbing its `files` list (happy-dom
+// doesn't let us assign `input.files` directly via the value setter).
+function pickFile(el: HTMLInputElement, file: File) {
+  Object.defineProperty(el, "files", {
+    configurable: true,
+    value: [file],
+  });
+  act(() => {
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 }
 
 function setNativeValue(el: HTMLTextAreaElement | HTMLInputElement, v: string) {
@@ -164,5 +223,96 @@ describe("ProfileForm username rate-limit help", () => {
     expect(help?.textContent).toContain(
       "ユーザー名は30日に1回まで変更できます。",
     );
+  });
+});
+
+describe("ProfileForm reset", () => {
+  it("restores displayName / bio defaults and the bio counter on reset (W-T-001/W-F-001)", () => {
+    render("https://app.example.com");
+    const displayName = getDisplayNameInput();
+    const bio = getBioTextarea();
+
+    // Initial state: defaults from USER.
+    expect(displayName.value).toBe("Alice");
+    expect(bio.value).toBe("hello");
+    expect(container.textContent).toContain("5 / 500");
+
+    // Edit both fields; the counter tracks the bio length.
+    setNativeValue(displayName, "Edited Name");
+    setNativeValue(bio, "a much longer bio");
+    expect(displayName.value).toBe("Edited Name");
+    expect(bio.value).toBe("a much longer bio");
+    expect(container.textContent).toContain("17 / 500");
+
+    // Reset → back to the initial defaults and counter.
+    act(() => {
+      getResetButton().click();
+    });
+    expect(displayName.value).toBe("Alice");
+    expect(bio.value).toBe("hello");
+    expect(container.textContent).toContain("5 / 500");
+  });
+});
+
+describe("ProfileForm avatar client validation", () => {
+  it("rejects an unsupported MIME without presigning (W-T-003)", () => {
+    render("https://app.example.com");
+    const gif = new File([new Uint8Array(8)], "a.gif", { type: "image/gif" });
+    pickFile(getAvatarFileInput(), gif);
+
+    expect(container.textContent).toContain(
+      "PNG または JPEG を選択してください。",
+    );
+    expect(presignMediaUpload).not.toHaveBeenCalled();
+    expect(finalizeMediaUpload).not.toHaveBeenCalled();
+  });
+
+  it("rejects a file larger than 5MB without presigning (W-T-003)", () => {
+    render("https://app.example.com");
+    const tooBig = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.png", {
+      type: "image/png",
+    });
+    pickFile(getAvatarFileInput(), tooBig);
+
+    expect(container.textContent).toContain("ファイルサイズは5MBまでです。");
+    expect(presignMediaUpload).not.toHaveBeenCalled();
+    expect(finalizeMediaUpload).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProfileForm timestamp / cooldown hints (W-T-002)", () => {
+  it("renders the last-saved timestamp from lastSavedAt after mount", () => {
+    render("https://app.example.com");
+    // Build the expected value the same way the component does, so the
+    // assertion is locale-independent yet proves `lastSavedAt` is the source
+    // (createdAt holds a different instant).
+    const expected = new Date(USER.lastSavedAt).toLocaleString("ja-JP", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    expect(container.textContent).toContain(`最終保存: ${expected}`);
+  });
+
+  it("renders the next-change hint while the cooldown is active", () => {
+    // A change "just now" keeps the 30-day cooldown active, so the hint
+    // (gated behind `mounted`) must render after the effect flushes.
+    const justChanged = new Date(Date.now()).toISOString();
+    render("https://app.example.com", {
+      ...USER,
+      lastUsernameChangedAt: justChanged,
+    });
+    expect(container.textContent).toContain("次に変更できるのは");
+    expect(container.textContent).toContain("以降です。");
+  });
+
+  it("omits the next-change hint when lastUsernameChangedAt is null", () => {
+    render("https://app.example.com", {
+      ...USER,
+      lastUsernameChangedAt: null,
+    });
+    expect(container.textContent).not.toContain("次に変更できるのは");
   });
 });
