@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — FilterBar Popover（期間 / 公開状態）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* State */
+    --opacity-disabled: 0.55;
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  ul { list-style: none; }
+
+  button {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    [role="button"],
+    [role="menuitemradio"] {
+      min-height: 44px;
+    }
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Page frame (説明用キャンバス。実画面の一部ではない) ===== */
+  .demo {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: var(--space-12) var(--container-padding) var(--space-20);
+  }
+  .demo-h {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    margin-bottom: var(--space-2);
+  }
+  .demo-lead {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-8);
+    max-width: 60ch;
+    line-height: var(--leading-snug);
+  }
+  .demo-section { margin-top: var(--space-12); }
+  .demo-label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+  }
+  .demo-note {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-top: var(--space-3);
+    line-height: var(--leading-snug);
+  }
+
+  /* ===== FilterBar (#497) ===== */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-2);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .filter-tags { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  /* filterChip (h-7=28px, text-sm, data-active で ink/white 反転) */
+  .filter-chip {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .filter-chip:hover { background: var(--color-surface-hover); }
+  .filter-chip.active {
+    background: var(--color-ink);
+    color: #fff;
+  }
+  .filter-chip .chip-count { font-size: 11px; color: var(--color-ink-tertiary); margin-left: 6px; }
+  .filter-chip.active .chip-count { color: rgba(255,255,255,0.85); }
+  /* filterChipGhost (破線枠、未設定トリガ) */
+  .filter-chip-ghost {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    border: 1px dashed var(--color-hairline-strong);
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .filter-chip-ghost:hover { background: var(--color-surface); }
+  .chip-caret { font-size: 10px; opacity: 0.6; margin-left: 2px; }
+  /* filterChipRemove: active chip 内の × ボタン */
+  .chip-remove {
+    margin-left: 4px;
+    width: 16px; height: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-full);
+    color: rgba(255,255,255,0.85);
+  }
+  .chip-remove:hover { color: #fff; background: rgba(255,255,255,0.18); }
+  /* applied chip 内のトリガ部 (caret 付き) は透明ボタンとして埋め込む */
+  .chip-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: inherit;
+  }
+  .filter-clear {
+    margin-left: auto;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition-bg);
+  }
+  .filter-clear:hover { background: var(--color-surface-hover); }
+
+  /* ===== Popover anchor =====
+     チップ列の直下にポップする浮き要素。非モーダルなので全画面の backdrop は
+     置かない（index.md §1「浮く要素のみ控えめなシャドウ」）。
+     ここでは「開いた状態」を見せるため、トリガとパネルを同一 anchor に重ねて
+     配置する。 */
+  .popover-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-12) var(--space-10);
+    margin-top: var(--space-5);
+  }
+  .pop-anchor {
+    position: relative;
+    display: inline-flex;
+    /* パネルを下に開いた状態で見せるため、トリガ高さ + gap + パネル分の
+       余白を確保しておく（デモ専用。実装ではパネルは absolute で重なる） */
+  }
+  /* FILTER_POPOVER_PANEL 相当:
+     rounded-lg / border-hairline / bg-bg / shadow-md / p-3 / w-280px /
+     max-w calc(100vw - 2rem) */
+  .popover-panel {
+    position: absolute;
+    left: 0;
+    top: calc(100% + var(--space-2));
+    z-index: 40;
+    width: 280px;
+    max-width: calc(100vw - 2rem);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-3);
+  }
+
+  /* --- 期間 Popover (role="dialog") --- */
+  .pop-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  .pop-section-label {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-2);
+  }
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .preset-btn {
+    font-size: var(--text-xs);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    color: var(--color-ink);
+    padding: 6px 4px;
+    transition: var(--transition-bg);
+  }
+  .preset-btn:hover { background: var(--color-surface); }
+  .preset-btn.active {
+    background: var(--color-ink);
+    color: #fff;
+    border-color: var(--color-ink);
+  }
+  .date-range { display: flex; align-items: center; gap: var(--space-2); }
+  .date-input {
+    height: 28px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-hairline);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    flex: 1;
+    min-width: 0;
+  }
+  .pop-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .link-clear {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    text-decoration: underline;
+    background: none;
+  }
+  .link-clear:hover { color: var(--color-ink); }
+  .link-close {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    background: none;
+  }
+  .link-close:hover { color: var(--color-ink); }
+
+  /* --- 公開状態 Popover (role="menu") --- */
+  .menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border-radius: var(--radius-md);
+    padding: var(--space-2) 10px;
+    text-align: left;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .menu-item:hover { background: var(--color-surface); }
+  /* roving focus が着地した現在地（プログラム的フォーカス）。
+     選択済み行の data-active は surface + medium で示す。 */
+  .menu-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .swatch {
+    width: 10px; height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+  .swatch.all,
+  .swatch.private { background: var(--color-ink-tertiary); }
+  .swatch.unlisted { background: var(--color-warning); }
+  .swatch.public { background: var(--color-success); }
+  .menu-check { margin-left: auto; color: var(--color-success); }
+
+  @media (max-width: 639px) {
+    .popover-row { flex-direction: column; gap: var(--space-12); }
+    .popover-panel { width: 280px; max-width: calc(100vw - 2rem); }
+  }
+</style>
+</head>
+<body>
+
+<main class="demo">
+  <h1 class="demo-h">FilterBar — 非モーダル Popover</h1>
+  <p class="demo-lead">
+    FilterBar の 2 つの Popover を「開いた状態」で並べたモック。①期間（<code>role="dialog"</code>）と
+    ②公開状態（<code>role="menu"</code>）はどちらも<strong>非モーダル</strong>。チップ直下にポップする
+    浮き要素として、全画面を暗転させる backdrop は使わず、<code>--shadow-md</code> の控えめな影だけで
+    浮遊を表現する（index.md §1）。あわせて適用済みチップ（▾＋×）と未適用ゴーストチップの見本も示す。
+  </p>
+
+  <!-- ===== FilterBar チップ列 ===== -->
+  <section class="demo-section">
+    <div class="demo-label">FilterBar（チップ列）</div>
+    <div class="filter-bar" aria-label="フィルタ">
+      <div class="filter-tags">
+        <button class="filter-chip active" aria-pressed="true">#research<span class="chip-count">23</span></button>
+        <button class="filter-chip" aria-pressed="false">#日記<span class="chip-count">14</span></button>
+        <button class="filter-chip" aria-pressed="false">#essay<span class="chip-count">9</span></button>
+      </div>
+      <button class="filter-chip-ghost" aria-haspopup="dialog" aria-expanded="false">期間<span class="chip-caret" aria-hidden="true">▾</span></button>
+      <button class="filter-chip-ghost" aria-haspopup="menu" aria-expanded="false">公開状態<span class="chip-caret" aria-hidden="true">▾</span></button>
+      <button class="filter-chip-ghost" aria-haspopup="dialog" aria-expanded="false">内部リンク参照<span class="chip-caret" aria-hidden="true">▾</span></button>
+      <button class="filter-clear">すべてクリア</button>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <div class="demo-label">開いた状態の Popover</div>
+    <div class="popover-row">
+
+      <!-- ① 期間 Popover: role="dialog" -->
+      <div class="pop-anchor" style="min-height: 260px;">
+        <span class="filter-chip active">
+          <button class="chip-trigger" type="button" aria-haspopup="dialog" aria-expanded="true" aria-controls="popDate">
+            期間: 6/1–6/30
+            <span class="chip-caret" aria-hidden="true">▾</span>
+          </button>
+          <button class="chip-remove" type="button" aria-label="期間フィルタを解除">×</button>
+        </span>
+
+        <div id="popDate" class="popover-panel" role="dialog" aria-label="期間フィルタ">
+          <div class="pop-stack">
+            <div role="group" aria-label="プリセット">
+              <div class="pop-section-label">プリセット</div>
+              <div class="preset-grid">
+                <button class="preset-btn" type="button" aria-pressed="false">今日</button>
+                <button class="preset-btn" type="button" aria-pressed="false">今週</button>
+                <button class="preset-btn active" type="button" aria-pressed="true">今月</button>
+                <button class="preset-btn" type="button" aria-pressed="false">過去30日</button>
+                <button class="preset-btn" type="button" aria-pressed="false">過去90日</button>
+                <button class="preset-btn" type="button" aria-pressed="false">今年</button>
+              </div>
+            </div>
+            <div>
+              <div class="pop-section-label">範囲指定</div>
+              <div class="date-range">
+                <input id="popFrom" class="date-input" type="date" value="2026-06-01" aria-label="開始日">
+                <span aria-hidden="true">–</span>
+                <input id="popTo" class="date-input" type="date" value="2026-06-30" aria-label="終了日">
+              </div>
+            </div>
+            <div class="pop-footer">
+              <button class="link-clear" type="button">クリア</button>
+              <button class="link-close" type="button">閉じる</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 公開状態 Popover: role="menu" + menuitemradio -->
+      <div class="pop-anchor" style="min-height: 260px;">
+        <span class="filter-chip active">
+          <button class="chip-trigger" type="button" aria-haspopup="menu" aria-expanded="true" aria-controls="popVis">
+            公開状態: 公開
+            <span class="chip-caret" aria-hidden="true">▾</span>
+          </button>
+          <button class="chip-remove" type="button" aria-label="公開状態フィルタを解除">×</button>
+        </span>
+
+        <!-- roving focus: 現在選択中の「公開」に着地（.active）。
+             menuitemradio の aria-checked は現在値=公開のみ true。 -->
+        <div id="popVis" class="popover-panel" role="menu" aria-label="公開状態フィルタ">
+          <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
+            <span class="swatch all" aria-hidden="true"></span>
+            すべて
+          </button>
+          <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
+            <span class="swatch private" aria-hidden="true"></span>
+            非公開
+          </button>
+          <button class="menu-item" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
+            <span class="swatch unlisted" aria-hidden="true"></span>
+            限定公開
+          </button>
+          <button class="menu-item active" type="button" role="menuitemradio" aria-checked="true" tabindex="0">
+            <span class="swatch public" aria-hidden="true"></span>
+            公開
+            <span class="menu-check" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+    <p class="demo-note">
+      非モーダル: フォーカストラップなし。Esc / 外側クリックで閉じ、フォーカスはトリガに戻る。
+      menu モードは矢印キーで roving（現在地は tabindex="0"、ほかは "-1"）。
+    </p>
+  </section>
+
+  <section class="demo-section">
+    <div class="demo-label">チップ状態の見本</div>
+    <div class="filter-bar" aria-label="チップ見本" style="border-bottom: none;">
+      <span class="filter-chip active">
+        <button class="chip-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
+          期間: 6/1–6/30
+          <span class="chip-caret" aria-hidden="true">▾</span>
+        </button>
+        <button class="chip-remove" type="button" aria-label="期間フィルタを解除">×</button>
+      </span>
+      <span class="filter-chip active">
+        <button class="chip-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
+          公開状態: 公開
+          <span class="chip-caret" aria-hidden="true">▾</span>
+        </button>
+        <button class="chip-remove" type="button" aria-label="公開状態フィルタを解除">×</button>
+      </span>
+
+      <button class="filter-chip-ghost" type="button" aria-haspopup="dialog" aria-expanded="false">期間<span class="chip-caret" aria-hidden="true">▾</span></button>
+      <button class="filter-chip-ghost" type="button" aria-haspopup="menu" aria-expanded="false">公開状態<span class="chip-caret" aria-hidden="true">▾</span></button>
+    </div>
+    <p class="demo-note">
+      適用済み（左 2 つ）は ink/white 反転チップ。caret ▾ がトリガ、× が解除。
+      未適用（右 2 つ）は破線枠のゴーストチップで caret ▾ のみ。
+    </p>
+  </section>
+
+</main>
+
+</body>
+</html>

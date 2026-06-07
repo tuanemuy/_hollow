@@ -277,24 +277,29 @@
     font-weight: var(--weight-regular);
   }
 
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文 */
   .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-4);
     border-radius: var(--radius-lg);
-    background: var(--color-warning-surface);
-    color: var(--color-ink);
-    font-size: var(--text-sm);
-    line-height: var(--leading-normal);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
     text-align: left;
     margin-bottom: var(--space-8);
   }
-  .alert-icon {
-    color: var(--color-warning);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
 
   .btn-primary {
     display: inline-flex;
@@ -347,12 +352,13 @@
       </div>
     </div>
 
-    <div class="alert" role="status">
+    <div class="alert alert-warning" role="status">
       <span class="alert-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </span>
-      <div>
-        旧アドレスではログインできなくなりました。今後は新しいアドレスをご利用ください。
+      <div class="alert-content">
+        <p class="alert-title">旧アドレスは使用できなくなりました</p>
+        <p class="alert-body">今後は新しいアドレスでログインしてください。古いアドレス宛の通知も届かなくなります。</p>
       </div>
     </div>
 

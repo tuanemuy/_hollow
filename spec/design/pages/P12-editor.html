@@ -326,40 +326,47 @@
     padding: var(--space-6) var(--space-5) var(--space-20);
   }
 
-  /* Edit lock banner — mobile-first: stack vertically */
-  .lock-banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
-    padding: 10px var(--space-4);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
+    padding: var(--space-4);
     border-radius: var(--radius-lg);
-    font-size: 13px;
-    margin-bottom: var(--space-5);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .lock-banner svg { flex-shrink: 0; }
-  .lock-banner strong { font-weight: var(--weight-semibold); }
-  .lock-banner .spacer { display: none; }
-  .lock-banner button {
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .alert button {
+    margin-left: auto;
+    align-self: center;
+    flex-shrink: 0;
     font-size: 12.5px;
     font-weight: var(--weight-medium);
-    color: var(--color-warning);
+    color: var(--alert-accent);
     padding: 4px 10px;
     border-radius: var(--radius-pill);
-    background: rgba(168,88,11,0.10);
+    background: color-mix(in oklab, var(--alert-accent) 10%, transparent);
     transition: var(--transition-bg);
     white-space: nowrap;
-    align-self: flex-start;
   }
-  .lock-banner button:hover { background: rgba(168,88,11,0.18); }
-  @media (min-width: 640px) {
-    .lock-banner {
-      flex-direction: row;
-      align-items: center;
-    }
-    .lock-banner .spacer { display: block; flex: 1; }
+  .alert button:hover { background: color-mix(in oklab, var(--alert-accent) 18%, transparent); }
+  @media (max-width: 639px) {
+    .alert { flex-wrap: wrap; }
+    .alert button { margin-left: 0; align-self: flex-start; }
   }
 
   /* Top row: mode toggle + status */
@@ -392,14 +399,6 @@
     align-items: center;
     gap: 6px;
     font-size: var(--text-sm);
-    color: var(--color-ink-tertiary);
-  }
-  .save-status .saved-dot {
-  .save-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
     color: var(--color-ink-tertiary);
   }
   .save-status .saved-dot {
@@ -596,93 +595,10 @@
   .tb-heading:hover { background: var(--color-surface); }
   .tb-heading svg { color: var(--color-ink-tertiary); }
 
-  /* Meta panel (collapsible) */
-  .meta-panel {
-    border: 1px solid var(--color-hairline);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--space-5);
-    background: var(--color-surface-elevated);
-    overflow: hidden;
-  }
-  .meta-panel-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: 10px var(--space-4);
-    cursor: pointer;
-    user-select: none;
-    transition: var(--transition-bg);
-  }
-  .meta-panel-header:hover { background: var(--color-surface); }
-  .meta-panel-header .chev {
-    width: 14px; height: 14px;
-    color: var(--color-ink-tertiary);
-    transition: transform var(--duration-base) var(--ease-standard);
-  }
-  .meta-panel.open .chev { transform: rotate(90deg); }
-  .meta-panel-title {
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
-  }
-  .meta-panel-count {
-    font-size: 12px;
-    color: var(--color-ink-tertiary);
-    margin-left: var(--space-2);
-  }
-  .meta-panel-body {
-    padding: var(--space-3) var(--space-4) var(--space-4);
-    border-top: 1px solid var(--color-hairline);
-    display: none;
-  }
-  .meta-panel.open .meta-panel-body { display: block; }
-  .fm-row {
-    display: grid;
-    grid-template-columns: 160px 1fr auto;
-    gap: var(--space-2);
-    padding: 6px 0;
-    align-items: center;
-  }
-  .fm-row + .fm-row { border-top: 1px solid var(--color-hairline); }
-  .fm-input {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    color: var(--color-ink);
-    padding: 4px 6px;
-    border-radius: var(--radius-xs);
-    transition: var(--transition-bg);
-  }
-  .fm-input:focus { background: var(--color-bg); }
-  .fm-key { color: var(--color-ink-secondary); }
-  .fm-remove {
-    width: 22px; height: 22px;
-    border-radius: var(--radius-sm);
-    color: var(--color-ink-tertiary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition-bg);
-  }
-  .fm-remove:hover { background: var(--color-surface); color: var(--color-error); }
-  .fm-add {
-    margin-top: var(--space-2);
-    font-size: 12.5px;
-    color: var(--color-accent);
-    font-weight: var(--weight-medium);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .fm-add:hover { text-decoration: underline; }
-
-  /* Internal-link suggestion popover */
+  /* Internal-link suggestion popover (WYSIWYG editing aid: `[[` completion).
+     FrontMatter は別タブ排他のため、WYSIWYG ビューには FrontMatter パネルを置かない。 */
   .link-suggest {
     margin-top: var(--space-4);
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--color-hairline);
   }
   .link-suggest-label {
     font-size: 12px;
@@ -849,7 +765,6 @@
     .editor-wrap { padding: var(--space-5) var(--space-4) var(--space-20); }
     .title-input { font-size: 28px; }
     .editor-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
-    .fm-row { grid-template-columns: 1fr; }
     .dir-dropdown { left: 0; right: 0; width: auto; }
   }
 </style>
@@ -962,14 +877,15 @@
   <main>
     <div class="editor-wrap">
 
-      <!-- Edit lock banner -->
-      <div class="lock-banner" role="status">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <div>
-          <strong>編集ロック中：</strong>
-          別のセッション（Safari · macOS）で編集が始まっています。保存すると競合する可能性があります。
+      <!-- Edit lock alert -->
+      <div class="alert alert-warning" role="status">
+        <span class="alert-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <div class="alert-content">
+          <p class="alert-title">編集ロック中</p>
+          <p class="alert-body">別のセッション（Safari · macOS）で編集が始まっています。保存すると競合する可能性があります。</p>
         </div>
-        <div class="spacer"></div>
         <button>確認して続行</button>
       </div>
 
@@ -1078,74 +994,6 @@
         </button>
       </div>
 
-      <!-- Meta panel (collapsible, open) -->
-      <div class="meta-panel open">
-        <div class="meta-panel-header" role="button" aria-expanded="true" tabindex="0">
-          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          <span class="meta-panel-title">プロパティ (FrontMatter)</span>
-          <span class="meta-panel-count">4 件</span>
-        </div>
-        <div class="meta-panel-body">
-          <div class="fm-row">
-            <input class="fm-input fm-key" value="author" aria-label="キー">
-            <input class="fm-input" value="Yuki Kameda" aria-label="値">
-            <button class="fm-remove" aria-label="削除">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="fm-row">
-            <input class="fm-input fm-key" value="status" aria-label="キー">
-            <input class="fm-input" value="draft" aria-label="値">
-            <button class="fm-remove" aria-label="削除">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="fm-row">
-            <input class="fm-input fm-key" value="reviewer" aria-label="キー">
-            <input class="fm-input" value="@team-product" aria-label="値">
-            <button class="fm-remove" aria-label="削除">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="fm-row">
-            <input class="fm-input fm-key" value="deadline" aria-label="キー">
-            <input class="fm-input" value="2026-05-31" aria-label="値">
-            <button class="fm-remove" aria-label="削除">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <button class="fm-add">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            キーを追加
-          </button>
-
-          <!-- Internal-link suggestion popover -->
-          <div class="link-suggest">
-            <div class="link-suggest-label">内部リンク補完</div>
-            <div class="link-suggest-input-wrap">
-              <input class="link-suggest-input" type="text" value="[[静かなインタ" placeholder="[[ で内部リンクを挿入…" aria-label="内部リンク補完">
-              <div class="link-suggest-popover" role="listbox">
-                <div class="link-suggest-item active" role="option" aria-selected="true">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  静かなインターフェースについての覚書
-                  <span class="meta">Research / 論文メモ</span>
-                </div>
-                <div class="link-suggest-item" role="option">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  静けさを設計する
-                  <span class="meta">雑記</span>
-                </div>
-                <div class="link-suggest-item" role="option">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  静的サイト生成の選択肢
-                  <span class="meta">Research</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- WYSIWYG content area -->
       <div class="editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="ノート本文">
         <h2>背景</h2>
@@ -1166,6 +1014,32 @@
 
         <h3>確認ポイント</h3>
         <p>計画書の公開先は <code>Projects / Q2 計画</code> に固定する予定。レビュー後に <strong>限定公開リンク</strong> を発行して関係者に共有する<span class="caret" aria-hidden="true"></span></p>
+      </div>
+
+      <!-- Internal-link suggestion (`[[` completion) — WYSIWYG editing aid。
+           本来は本文中で `[[` 入力時にインラインで現れるポップオーバー。静的見本として下に示す。 -->
+      <div class="link-suggest">
+        <div class="link-suggest-label">内部リンク補完（[[ で挿入）</div>
+        <div class="link-suggest-input-wrap">
+          <input class="link-suggest-input" type="text" value="[[静かなインタ" placeholder="[[ で内部リンクを挿入…" aria-label="内部リンク補完">
+          <div class="link-suggest-popover" role="listbox">
+            <div class="link-suggest-item active" role="option" aria-selected="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              静かなインターフェースについての覚書
+              <span class="meta">Research / 論文メモ</span>
+            </div>
+            <div class="link-suggest-item" role="option">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              静けさを設計する
+              <span class="meta">雑記</span>
+            </div>
+            <div class="link-suggest-item" role="option">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              静的サイト生成の選択肢
+              <span class="meta">Research</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom save row -->

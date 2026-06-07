@@ -176,7 +176,7 @@
   .admin-nav a:hover { background: var(--color-surface); color: var(--color-ink); }
   .admin-nav a.active { color: var(--color-ink); font-weight: var(--weight-medium); background: var(--color-surface); }
 
-  .main { max-width: 880px; margin: 0 auto; padding: var(--space-10) var(--container-padding) var(--space-20); }
+  .main { max-width: var(--container-max); margin: 0 auto; padding: var(--space-10) var(--container-padding) var(--space-20); }
   .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); line-height: var(--leading-tight); margin-bottom: var(--space-2); }
   .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: var(--space-10); }
 
@@ -254,16 +254,32 @@
     padding: 4px 10px; border-radius: var(--radius-pill); background: var(--color-surface);
   }
 
-  /* Test result */
-  .test-result {
-    margin-top: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    display: flex; gap: var(--space-2); align-items: center;
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
   }
-  .test-result.success { background: var(--color-success-surface); color: var(--color-success); }
-  .test-result.error { background: var(--color-error-surface); color: var(--color-error); }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  /* 接続テストボタン直下のインライン結果表示用の余白調整 */
+  .field .alert { margin-top: var(--space-3); margin-bottom: 0; }
 
   /* Cost table */
   .cost-table {
@@ -300,8 +316,14 @@
     <div class="logo">Hollow</div>
     <span class="admin-pill">管理者モード</span>
   </div>
-  <div></div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" placeholder="ユーザー・ジョブ・設定を検索" aria-label="管理対象を検索">
+  </div>
   <div class="header-right">
+    <button class="icon-btn" aria-label="通知" title="通知">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </button>
     <div class="avatar" aria-hidden="true">AD</div>
   </div>
 </header>
@@ -314,6 +336,7 @@
     <a href="P43-admin-tokens.html">デザイントークン</a>
     <a href="P44-admin-registration.html">登録制御</a>
     <a href="P45-admin-users.html">ユーザー</a>
+    <a href="P47-admin-metrics.html">利用状況</a>
     <a href="P46-admin-jobs.html">ジョブ監視</a>
   </div>
 </nav>
@@ -359,8 +382,16 @@
         <button class="btn">接続テスト</button>
       </div>
       <p class="field-hint">未入力で保存すると現在のキーが維持されます。</p>
-      <!-- 接続テスト結果は banner で表示（success / error） -->
-      <div class="test-result success" role="status">接続成功 · 応答 682ms</div>
+      <!-- 接続テスト結果は alert で表示（success / error） -->
+      <div class="alert alert-success" role="status">
+        <span class="alert-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 12.5l2.5 2.5 4.5-5"></path></svg>
+        </span>
+        <div class="alert-content">
+          <p class="alert-title">接続成功</p>
+          <p class="alert-body">応答 682ms</p>
+        </div>
+      </div>
     </div>
   </section>
 

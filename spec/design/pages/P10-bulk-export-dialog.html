@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — 一括エクスポート（ダイアログ・2ステート）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+    --transition-default: all var(--duration-base) var(--ease-standard);
+
+    /* State */
+    --opacity-disabled: 0.55;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: #efeff3;
+    color: var(--color-ink);
+    padding: var(--space-10) var(--space-5);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select, textarea { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+  h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-tightest);
+  }
+  .lead {
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-8);
+    max-width: 720px;
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+  }
+  .dialog-title { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+
+  /* ===== Showcase grid (P13a 方式: 縦並び) ===== */
+  .grid {
+    display: grid;
+    gap: var(--space-8);
+    grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* ===== Dialog panel (mirrors common/styles.ts `dialog`) ===== */
+  .dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    width: min(480px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .state-caption {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-bottom: var(--space-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .dialog-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-4);
+  }
+
+  /* ===== Fields ===== */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    border: 0;
+  }
+  .field-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    padding: 0;
+  }
+  .field-control {
+    width: 100%;
+    height: 40px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: 10px 12px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-color);
+  }
+  .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
+  .radio-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+  .radio-row input { accent-color: var(--color-accent); }
+  .checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-normal);
+    cursor: pointer;
+    margin-bottom: var(--space-2);
+  }
+  .checkbox-row input {
+    width: 16px; height: 16px;
+    margin-top: 2px;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  /* PDF 用紙 select の small uppercase ラベル（実装の span 相当）。 */
+  .field-sublabel {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .form-error {
+    color: var(--color-error);
+    font-size: var(--text-sm);
+    margin-top: var(--space-2);
+  }
+
+  /* ===== Actions ===== */
+  .dialog-actions {
+    display: inline-flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    white-space: nowrap;
+    transition: var(--transition-bg);
+  }
+  .pill:hover { background: var(--color-surface-hover); }
+  .pill.primary { background: var(--color-accent); color: #fff; }
+  .pill.primary:hover { background: var(--color-accent-hover); }
+  .pill:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+  @media (max-width: 640px) {
+    .dialog { padding: var(--space-5); }
+    .pill { min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>P10 — 一括エクスポートダイアログの 2 ステート</h1>
+<p class="lead">
+  選択中ノートを一括エクスポートする。形式（HTML / Markdown / PDF）と FrontMatter・メディアの
+  含有オプションを選び、「実行」でジョブ画面へ遷移する。PDF を選んだときだけ「用紙」セレクトが出現する点が
+  2 ステートの差分。
+</p>
+
+<div class="grid">
+
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="beTitle1">
+    <div class="state-caption">State 1 — HTML/MD（用紙 select 非表示）</div>
+    <h2 class="dialog-title" id="beTitle1">12 件のノートをエクスポート</h2>
+
+    <fieldset class="field">
+      <legend class="field-label">形式</legend>
+      <label class="radio-row">
+        <input type="radio" name="be-format-1" value="html" checked>
+        <span>HTML</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="be-format-1" value="markdown">
+        <span>Markdown</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="be-format-1" value="pdf">
+        <span>PDF</span>
+      </label>
+    </fieldset>
+
+    <label class="checkbox-row">
+      <input type="checkbox" checked>
+      FrontMatter を含める
+    </label>
+    <label class="checkbox-row">
+      <input type="checkbox">
+      メディアを埋め込む
+    </label>
+
+    <!-- PDF 未選択のため用紙 select は描画されない -->
+
+    <div class="dialog-actions">
+      <button type="button" class="pill">キャンセル</button>
+      <button type="submit" class="pill primary">実行</button>
+    </div>
+  </div>
+
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="beTitle2">
+    <div class="state-caption">State 2 — PDF（用紙 select 出現）</div>
+    <h2 class="dialog-title" id="beTitle2">12 件のノートをエクスポート</h2>
+
+    <fieldset class="field">
+      <legend class="field-label">形式</legend>
+      <label class="radio-row">
+        <input type="radio" name="be-format-2" value="html">
+        <span>HTML</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="be-format-2" value="markdown">
+        <span>Markdown</span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="be-format-2" value="pdf" checked>
+        <span>PDF</span>
+      </label>
+    </fieldset>
+
+    <label class="checkbox-row">
+      <input type="checkbox" checked>
+      FrontMatter を含める
+    </label>
+    <label class="checkbox-row">
+      <input type="checkbox" checked>
+      メディアを埋め込む
+    </label>
+
+    <!-- PDF 選択時のみ出現 -->
+    <div class="field">
+      <label class="field-sublabel" for="be-paper">用紙</label>
+      <select id="be-paper" class="field-control">
+        <option value="A4" selected>A4</option>
+        <option value="Letter">Letter</option>
+      </select>
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="pill" disabled>キャンセル</button>
+      <button type="submit" class="pill primary" disabled>実行中...</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

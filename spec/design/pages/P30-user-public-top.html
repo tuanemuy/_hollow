@@ -261,14 +261,21 @@
     padding: 0 var(--container-padding);
   }
 
-  /* ===== Profile hero ===== */
+  /* ===== Profile hero =====
+     アバターと「名前 + ユーザー名」を上段で縦中央に揃えた 1 グループにし、
+     自己紹介・統計はその下に全幅で積む。背の高いテキスト列の中央にアバターが
+     浮いて見えるアンバランスを解消する。 */
   .profile-hero {
     padding: 56px 0 36px;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 28px;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
     border-bottom: 1px solid var(--color-hairline);
+  }
+  .profile-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
   }
   .profile-avatar {
     width: 96px; height: 96px;
@@ -283,26 +290,24 @@
     letter-spacing: 0;
     flex-shrink: 0;
   }
-  .profile-info { min-width: 0; }
+  .profile-id { min-width: 0; }
   .profile-name {
     font-size: var(--text-3xl);
     font-weight: var(--weight-regular);
     letter-spacing: var(--tracking-tightest);
     line-height: var(--leading-tight);
     color: var(--color-ink);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .profile-username {
     font-size: var(--text-md);
     color: var(--color-ink-secondary);
-    margin-bottom: 12px;
   }
   .profile-bio {
     font-size: var(--text-base);
     color: var(--color-ink);
     line-height: var(--leading-relaxed);
     max-width: var(--content-max);
-    margin-bottom: 14px;
   }
   .profile-stats {
     display: flex;
@@ -492,10 +497,10 @@
     .header-search { display: none; }
     .text-link.signup { display: none; }
     .profile-hero {
-      grid-template-columns: auto 1fr;
-      gap: 16px;
+      gap: var(--space-3);
       padding: 32px 0 28px;
     }
+    .profile-head { gap: var(--space-4); }
     .profile-avatar { width: 64px; height: 64px; font-size: 22px; }
     .profile-name { font-size: 26px; }
     .note-row { padding: 16px 8px; gap: 12px; }
@@ -527,16 +532,18 @@
 <div class="main-wrap">
 
   <section class="profile-hero">
-    <div class="profile-avatar">TY</div>
-    <div class="profile-info">
-      <h1 class="profile-name">遠山ゆう</h1>
-      <div class="profile-username">@tuanemuy</div>
-      <p class="profile-bio">フリーランスのソフトウェアエンジニア。Cloudflare / TypeScript / DDD まわりが好き。最近は個人ノートとパーソナルナレッジマネジメントの設計を考えています。読書記録と技術メモを少しずつ公開しています。</p>
-      <div class="profile-stats">
-        <span><strong>42</strong>公開ノート</span>
-        <span class="dot">·</span>
-        <span>2024年4月から</span>
+    <div class="profile-head">
+      <div class="profile-avatar">TY</div>
+      <div class="profile-id">
+        <h1 class="profile-name">遠山ゆう</h1>
+        <div class="profile-username">@tuanemuy</div>
       </div>
+    </div>
+    <p class="profile-bio">フリーランスのソフトウェアエンジニア。Cloudflare / TypeScript / DDD まわりが好き。最近は個人ノートとパーソナルナレッジマネジメントの設計を考えています。読書記録と技術メモを少しずつ公開しています。</p>
+    <div class="profile-stats">
+      <span><strong>42</strong>公開ノート</span>
+      <span class="dot">·</span>
+      <span>2024年4月から</span>
     </div>
   </section>
 

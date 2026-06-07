@@ -441,7 +441,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
     gap: var(--space-3);
     flex-wrap: wrap;
   }
@@ -486,14 +486,17 @@
   /* ===== FilterBar (#497) =====
      枠線で囲った 1 行のフィルタ帯。タグチップ（件数バッジ付き）+ 期間/公開状態/
      内部リンク参照のゴーストチップ + すべてクリア。 */
+  /* ツールバー直下に重ねず、線ではなく余白で区切る（設計原則 §2.2）。
+     横パディングは 0 にして先頭チップの左端を見出し・ツールバーと揃える。
+     border-bottom を持たせると note-list 先頭行の border-top と二重線になり
+     「ごちゃごちゃ」見えるため、境界は下マージン（余白）で表現する。 */
   .filter-bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-2);
-    border-bottom: 1px solid var(--color-hairline);
-    margin-bottom: var(--space-3);
+    padding: 0;
+    margin-bottom: var(--space-5);
   }
   .filter-tags { display: inline-flex; gap: 6px; flex-wrap: wrap; }
   /* フィルタチップ = filterChip (h-7=28px, text-sm, data-active で ink/white 反転) */

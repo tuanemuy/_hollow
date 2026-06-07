@@ -306,69 +306,39 @@
   .btn-primary:hover { background: var(--color-accent-hover); }
   .btn-primary:active { background: var(--color-accent-pressed); }
 
-  /* Unverified callout */
-  .callout {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文 */
+  /*
+    未認証 callout (ADR-004): 警告色ではなく neutral を維持。案D 共通 .alert を
+    semantic modifier 無し（既定 = accent グレー）で使い、icon/見出しは accent。
+    実装 app/components/auth/styles.ts の CALLOUT は本モックへ追従要（実装は別Issue）。
+  */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-4);
     border-radius: var(--radius-lg);
-    background: var(--color-warning-surface);
-    color: var(--color-ink);
-    font-size: var(--text-sm);
-    line-height: var(--leading-normal);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
   }
-  .callout-icon {
-    color: var(--color-warning);
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-  .callout-body { flex: 1; min-width: 0; }
-  .callout-body strong {
-    font-weight: var(--weight-semibold);
-    display: block;
-    margin-bottom: var(--space-1);
-  }
-  .callout-action {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    margin-top: var(--space-2);
-    color: var(--color-accent);
-    font-weight: var(--weight-medium);
-  }
-  .callout-action:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-action { display: inline-flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--alert-accent); background: none; border: none; padding: 0; cursor: pointer; }
+  .alert-action:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-  /*
-    未認証 callout の正準配色 (ADR-004): neutral surface + accent アイコン。
-    実装 app/components/auth/styles.ts の CALLOUT / CALLOUT_ICON に合わせる
-    （bg-surface / text-ink-secondary / rounded-md / px-4 py-3 / icon=accent）。
-    本体ブロックも含め全 callout を neutral に統一した。warning 配色は
-    P06 の .alert（メール変更確定の注意喚起）が担うため、本ファイルからは外す。
-  */
-  .callout-neutral {
-    background: var(--color-surface);
-    color: var(--color-ink-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-  }
-  .callout-neutral .callout-icon { color: var(--color-accent); }
-  .callout-neutral .callout-body strong { color: var(--color-ink); }
-
-  /* Form-level error callout (copied from P01b-admin-setup .form-error) */
-  .form-error {
-    display: flex;
-    gap: var(--space-3);
-    background: var(--color-error-surface);
-    color: var(--color-error);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    font-size: var(--text-sm);
-    line-height: var(--leading-normal);
-    align-items: flex-start;
-  }
-  .form-error svg { flex-shrink: 0; margin-top: 2px; }
-  .form-error strong { font-weight: var(--weight-semibold); }
+  /* フォーム送信エラーのサマリーは共通 .alert（案D: 白地 + セマンティック枠 + アイコン色）で出す。
+     フォーム内に置くので margin は form の gap に委ね、自前の margin-bottom は打ち消す。 */
+  .form .alert { margin-bottom: 0; }
 
   /* Error-state variant blocks pack tightly (no full-viewport min-height) */
   .auth-shell.is-variant { min-height: 0; }
@@ -439,16 +409,16 @@
       <button type="submit" class="btn-primary">ログイン</button>
     </form>
 
-    <div class="callout callout-neutral" role="status" style="margin-top: var(--space-6);">
-      <span class="callout-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19.5 16v3"/><path d="M19.5 22.01v.01"/></svg>
+    <div class="alert" role="status" style="margin-top: var(--space-6);">
+      <span class="alert-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19.5 16v3"/><path d="M19.5 22.01v.01"/></svg>
       </span>
-      <div class="callout-body">
-        <strong>メールアドレスの確認が未完了です</strong>
-        受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
-        <button type="button" class="callout-action">
+      <div class="alert-content">
+        <p class="alert-title">メールアドレスの確認が未完了です</p>
+        <p class="alert-body">受信した確認メールのリンクをクリックすると、すべての機能を利用できます。</p>
+        <button type="button" class="alert-action">
           確認メールを再送
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
     </div>
@@ -463,13 +433,13 @@
   ===== エラー状態バリアント (Issue #198) =====
   上の本体ブロックは既に「メール未確認」callout を埋め込んでいる（warning 配色のリファレンス）。
   以下はエラーケースを設計成果物として整理したもの。文言の真実のソースは2系統:
-    - callout / form-error の <strong> プレフィックス（「ログインできませんでした。」/
+    - alert の見出し（alert-title）に当たる文言（「ログインできませんでした。」/
       「メールアドレスの確認が未完了です」）は
       app/components/auth/LoginForm/index.tsx のJSXハードコード由来
     - 後段の本文（unauthorized→「認証が必要です」、system→「システムエラーが発生しました」等）は
       app/core/presentation/errorDisplay.ts 由来
   両方を一字一句現実装どおり転記している。
-  ADR-004: 未認証 callout の正準配色は neutral surface + accent アイコン（.callout-neutral）。
+  ADR-004（案D化）: 未認証 alert は案D neutral 既定（白地 + accent グレー枠・見出し・アイコン、旧 .callout-neutral）。
 -->
 
 <!--
@@ -549,9 +519,12 @@
         <span>ログイン情報を保存する</span>
       </label>
 
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>ログインできませんでした。</strong> 認証が必要です</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">ログインできませんでした。</p>
+          <p class="alert-body">認証が必要です</p>
+        </div>
       </div>
 
       <button type="submit" class="btn-primary">ログイン</button>
@@ -565,13 +538,13 @@
 
 <!--
   (c) unauthorized — 未認証（メール確認未完了）+ 確認メール再送。
-  正準配色は neutral surface + accent アイコン（.callout-neutral / ADR-004）。
+  配色は案D neutral 既定（白地 + accent グレー枠・見出し・アイコン、旧 .callout-neutral / ADR-004 を案D化）。
   「次の行動案内」なので role="status"（polite）を維持。
   再送は実装に合わせ <button type="button">。送信後は成功テキストに置き換わる（ここでは送信前状態を提示）。
 -->
 <main class="auth-shell is-variant" style="padding-top: var(--space-6);">
   <div class="auth-card">
-    <span class="variant-label">エラー状態 (c) — unauthorized（メール未確認・案内 callout + 再送 / role=status・neutral+accent）</span>
+    <span class="variant-label">エラー状態 (c) — unauthorized（メール未確認・案内 alert + 再送 / role=status・案D neutral）</span>
     <h1 class="auth-title">ログイン</h1>
     <p class="auth-subtitle">おかえりなさい。続きから始めましょう。</p>
 
@@ -597,16 +570,16 @@
       <button type="submit" class="btn-primary">ログイン</button>
     </form>
 
-    <div class="callout callout-neutral" role="status" style="margin-top: var(--space-6);">
-      <span class="callout-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19.5 16v3"/><path d="M19.5 22.01v.01"/></svg>
+    <div class="alert" role="status" style="margin-top: var(--space-6);">
+      <span class="alert-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19.5 16v3"/><path d="M19.5 22.01v.01"/></svg>
       </span>
-      <div class="callout-body">
-        <strong>メールアドレスの確認が未完了です</strong>
-        受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
-        <button type="button" class="callout-action">
+      <div class="alert-content">
+        <p class="alert-title">メールアドレスの確認が未完了です</p>
+        <p class="alert-body">受信した確認メールのリンクをクリックすると、すべての機能を利用できます。</p>
+        <button type="button" class="alert-action">
           確認メールを再送
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
     </div>
@@ -643,9 +616,12 @@
         <span>ログイン情報を保存する</span>
       </label>
 
-      <div class="form-error" role="alert">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span><strong>ログインできませんでした。</strong> システムエラーが発生しました</span>
+      <div class="alert alert-error" role="alert">
+        <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+        <div class="alert-content">
+          <p class="alert-title">ログインできませんでした。</p>
+          <p class="alert-body">システムエラーが発生しました</p>
+        </div>
       </div>
 
       <button type="submit" class="btn-primary">ログイン</button>

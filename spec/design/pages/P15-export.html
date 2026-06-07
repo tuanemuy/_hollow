@@ -323,102 +323,47 @@
     }
   }
 
-  /* Faded background list */
+  /* ===== Main (page-type, per #510: エクスポートはページ型・実装に合わせる) ===== */
   .main {
     padding: var(--space-8) var(--space-6) var(--space-20);
-    max-width: 1100px;
+    max-width: 720px;
     margin: 0 auto;
     width: 100%;
-    filter: blur(2px);
-    opacity: 0.5;
-    pointer-events: none;
-    user-select: none;
   }
   @media (min-width: 1024px) { .main { padding: 56px 48px 100px; } }
-  .page-title-bg {
+  @media (min-width: 1280px) { .main { padding: 64px 64px 120px; } }
+  @media (max-width: 640px) { .main { padding: 24px 16px 80px; } }
+
+  .page-title {
     font-size: var(--text-3xl);
     font-weight: var(--weight-regular);
     letter-spacing: var(--tracking-tightest);
     line-height: var(--leading-tight);
-    margin-bottom: var(--space-6);
-  }
-  .bg-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 18px 8px;
-    border-top: 1px solid var(--color-hairline);
-    font-size: var(--text-sm);
-  }
-  .bg-row .ttl { font-weight: var(--weight-medium); color: var(--color-ink); }
-  .bg-row .meta { color: var(--color-ink-tertiary); font-size: var(--text-xs); }
-
-  /* ===== Modal ===== */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.32);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-5);
-  }
-  .modal {
-    background: var(--color-bg);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-    max-width: 560px;
-    width: 100%;
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
-  }
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 24px 16px;
-    border-bottom: 1px solid var(--color-hairline);
-    position: sticky;
-    top: 0;
-    background: var(--color-bg);
-    z-index: 1;
-  }
-  .modal-title {
-    font-size: var(--text-xl);
-    font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-tighter);
     color: var(--color-ink);
+    margin-bottom: 8px;
   }
-  .modal-close {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    background: var(--color-surface);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  .page-subtitle {
+    font-size: var(--text-md);
     color: var(--color-ink-secondary);
-    transition: var(--transition-bg);
+    margin-bottom: var(--space-8);
+    line-height: var(--leading-snug);
   }
-  .modal-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
 
-  .modal-body { padding: 20px 24px; }
-  .modal-footer {
+  /* ページ末尾の sticky アクションバー（モーダルフッターの代替） */
+  .form-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
-    padding: 16px 24px 20px;
+    margin-top: var(--space-8);
+    padding-top: var(--space-5);
     border-top: 1px solid var(--color-hairline);
-    background: var(--color-bg);
-    position: sticky;
-    bottom: 0;
+    flex-wrap: wrap;
   }
-  .modal-footer .right { display: flex; gap: 10px; }
+  .form-footer .right { display: flex; gap: 10px; flex-wrap: wrap; }
 
   .section {
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-8);
   }
   .section-label {
     display: block;
@@ -553,32 +498,39 @@
     margin-top: 4px;
   }
 
-  /* Banner */
-  .banner {
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文 */
+  .alert {
+    --alert-accent: var(--color-accent);
     display: flex;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    margin-top: 8px;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-top: var(--space-2);
   }
-  .banner.info {
-    background: var(--color-accent-surface);
-    color: var(--color-accent-ink);
-  }
-  .banner.warning {
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-  }
-  .banner svg { flex-shrink: 0; margin-top: 2px; }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body code { font-family: var(--font-mono); font-size: var(--text-xs); }
 
   @media (max-width: 640px) {
-    .modal-header, .modal-body, .modal-footer { padding-left: 20px; padding-right: 20px; }
     .header { padding: 12px 16px; }
     .logo { display: none; }
-    .modal-footer { flex-direction: column-reverse; align-items: stretch; }
-    .modal-footer .right { width: 100%; }
-    .modal-footer .right .pill-btn { flex: 1; justify-content: center; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
+    .form-footer { flex-direction: column-reverse; align-items: stretch; }
+    .form-footer .right { width: 100%; }
+    .form-footer .right .pill-btn { flex: 1; justify-content: center; }
   }
 </style>
 </head>
@@ -648,27 +600,13 @@
   </aside>
 
   <main class="main">
-    <h1 class="page-title-bg">All notes</h1>
-    <div class="bg-row"><div><div class="ttl">静かなインターフェースについての覚書</div><div class="meta">Research / 論文メモ · 公開中</div></div><div class="meta">今日 14:32</div></div>
-    <div class="bg-row"><div><div class="ttl">2026年5月の読書記録</div><div class="meta">日記 / 2026</div></div><div class="meta">今日 09:15</div></div>
-    <div class="bg-row"><div><div class="ttl">Cloudflare Workers + D1 のパフォーマンス計測</div><div class="meta">プロジェクト / Hollow · 公開中</div></div><div class="meta">昨日</div></div>
-    <div class="bg-row"><div><div class="ttl">Meeting notes — 5/14 プロダクトレビュー</div><div class="meta">プロジェクト / Hollow</div></div><div class="meta">5月14日</div></div>
-    <div class="bg-row"><div><div class="ttl">京都 三泊四日の旅程メモ</div><div class="meta">雑記</div></div><div class="meta">5月12日</div></div>
-  </main>
-</div>
+    <h1 class="page-title">エクスポート</h1>
+    <p class="page-subtitle">
+      選択したノートを HTML / Markdown / PDF で書き出します。1 件は即時ダウンロード、複数件はバックグラウンドジョブとして実行され、完了後に
+      <code style="font-family: var(--font-mono);">エクスポートジョブ一覧</code> からダウンロードできます。
+    </p>
 
-<!-- ===== Export modal ===== -->
-<div class="modal-backdrop">
-  <div class="modal" role="dialog" aria-labelledby="exportTitle">
-
-    <div class="modal-header">
-      <div class="modal-title" id="exportTitle">エクスポート</div>
-      <button class="modal-close" aria-label="閉じる">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-
-    <div class="modal-body">
+    <form>
 
       <!-- Target -->
       <div class="section">
@@ -717,6 +655,15 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
             PDF
           </button>
+        </div>
+      </div>
+
+      <!-- Paper size (PDF 選択時のみ。実装 ExportForm は format === "pdf" で用紙サイズを出す) -->
+      <div class="section">
+        <span class="section-label">用紙サイズ（PDF）</span>
+        <div class="segmented" id="paperSeg" style="max-width: 280px;">
+          <button class="active" data-value="A4">A4</button>
+          <button data-value="Letter">Letter</button>
         </div>
       </div>
 
@@ -774,27 +721,30 @@
             </span>
           </label>
         </div>
-        <div class="banner info">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <div>選択中の 12 件は即時 DL 可能ですが、メディア埋め込みで容量が増えるため非同期ジョブを推奨します。完了通知はメールと <code style="font-family: var(--font-mono); font-size: 12px;">エクスポートジョブ一覧</code> に送られます。</div>
+        <div class="alert alert-info" role="note">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">非同期ジョブを推奨します</p>
+            <p class="alert-body">選択中の 12 件は即時 DL 可能ですが、メディア埋め込みで容量が増えるため非同期ジョブを推奨します。完了通知はメールと <code>エクスポートジョブ一覧</code> に送られます。</p>
+          </div>
         </div>
       </div>
 
-    </div>
+      <div class="form-footer">
+        <div style="font-size: var(--text-xs); color: var(--color-ink-tertiary);">
+          推定サイズ: <strong style="color: var(--color-ink); font-weight: var(--weight-medium);">約 28 MB</strong>
+        </div>
+        <div class="right">
+          <button type="button" class="pill-btn ghost">キャンセル</button>
+          <button type="button" class="pill-btn primary">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            エクスポートを実行
+          </button>
+        </div>
+      </div>
 
-    <div class="modal-footer">
-      <div style="font-size: var(--text-xs); color: var(--color-ink-tertiary);">
-        推定サイズ: <strong style="color: var(--color-ink); font-weight: var(--weight-medium);">約 28 MB</strong>
-      </div>
-      <div class="right">
-        <button class="pill-btn ghost">キャンセル</button>
-        <button class="pill-btn primary">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          エクスポートを実行
-        </button>
-      </div>
-    </div>
-  </div>
+    </form>
+  </main>
 </div>
 
 <script>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — ビュー保存ダイアログ (P10)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* State */
+    --opacity-disabled: 0.55;
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select, textarea { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Showcase chrome (背景は backdrop のみ) ===== */
+  .showcase {
+    padding: var(--space-10) var(--space-5);
+    max-width: var(--container-max);
+    margin: 0 auto;
+  }
+  .showcase-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    margin-bottom: var(--space-2);
+  }
+  .showcase-lead {
+    color: var(--color-ink-secondary);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    max-width: 720px;
+    margin-bottom: var(--space-8);
+  }
+  .state-grid {
+    display: grid;
+    gap: var(--space-8);
+    grid-template-columns: 1fr;
+  }
+  .state-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .state-caption {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ===== Dialog backdrop (P13 踏襲) ===== */
+  .dialog-backdrop {
+    position: relative;
+    background: rgba(0,0,0,0.32);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8) var(--space-5);
+  }
+
+  .dialog {
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: min(480px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-6);
+  }
+
+  .dialog-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-bottom: var(--space-4);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  /* ===== Field ===== */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    border: 0;
+  }
+  .field-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+  }
+  .field-control {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    background: var(--color-surface);
+    padding: 10px 12px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-default);
+  }
+  .field-control::placeholder { color: var(--color-ink-tertiary); }
+  .field-control:focus { border-color: var(--color-accent); background: var(--color-bg); }
+  .radio-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+  .radio-row input { accent-color: var(--color-accent); margin-top: 3px; flex-shrink: 0; }
+  .radio-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .radio-title { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .radio-desc {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    line-height: var(--leading-snug);
+  }
+
+  /* ===== Error ===== */
+  .form-error {
+    font-size: var(--text-sm);
+    color: var(--color-error);
+    margin-top: var(--space-2);
+  }
+
+  /* ===== Actions ===== */
+  .dialog-actions {
+    display: inline-flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .pill {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: var(--transition-bg);
+  }
+  .pill:hover { background: var(--color-surface-hover); }
+  .pill.primary { background: var(--color-accent); color: #fff; }
+  .pill.primary:hover { background: var(--color-accent-hover); }
+  .pill[disabled] { opacity: var(--opacity-disabled); cursor: not-allowed; }
+  .pill[disabled]:hover { background: var(--color-accent); }
+  .pill.surface[disabled]:hover { background: var(--color-surface); }
+
+  @media (max-width: 640px) {
+    .dialog { padding: var(--space-5); }
+    .pill { min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+  <div class="showcase">
+    <h1 class="showcase-title">P10 — ビュー保存ダイアログ</h1>
+    <p class="showcase-lead">
+      SaveViewDialog。現在のフィルタをビューとして保存する。名前入力 + 公開範囲ラジオ（個人用 / インスタンス内で共有）。
+      通常 / 送信中 / エラーの 3 ステートを縦並びで提示する。
+    </p>
+
+    <div class="state-grid">
+
+      <div class="state-block">
+        <div class="state-caption">State 1 — 通常</div>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle1">
+            <form>
+              <h2 class="dialog-title" id="saveTitle1">現在のフィルタをビューとして保存</h2>
+
+              <div class="field">
+                <label class="field-label" for="saveName1">名前</label>
+                <input id="saveName1" class="field-control" type="text" maxlength="60" required placeholder="ビューの名前">
+              </div>
+
+              <fieldset class="field">
+                <legend class="field-label">公開範囲</legend>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-1" checked>
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-1">
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <div class="dialog-actions">
+                <button type="button" class="pill surface">キャンセル</button>
+                <button type="submit" class="pill primary" data-primary disabled>保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="state-block">
+        <div class="state-caption">State 2 — 送信中 (closable=false)</div>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle2">
+            <form>
+              <h2 class="dialog-title" id="saveTitle2">現在のフィルタをビューとして保存</h2>
+
+              <div class="field">
+                <label class="field-label" for="saveName2">名前</label>
+                <input id="saveName2" class="field-control" type="text" maxlength="60" required value="未読の論文メモ">
+              </div>
+
+              <fieldset class="field">
+                <legend class="field-label">公開範囲</legend>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-2">
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-2" checked>
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <div class="dialog-actions">
+                <button type="button" class="pill surface" disabled>キャンセル</button>
+                <button type="submit" class="pill primary" data-primary disabled>保存中...</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="state-block">
+        <div class="state-caption">State 3 — エラー</div>
+        <div class="dialog-backdrop">
+          <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="saveTitle3">
+            <form>
+              <h2 class="dialog-title" id="saveTitle3">現在のフィルタをビューとして保存</h2>
+
+              <div class="field">
+                <label class="field-label" for="saveName3">名前</label>
+                <input id="saveName3" class="field-control" type="text" maxlength="60" required value="お気に入り">
+              </div>
+
+              <fieldset class="field">
+                <legend class="field-label">公開範囲</legend>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-3" checked>
+                  <span class="radio-text">
+                    <span class="radio-title">個人用</span>
+                    <span class="radio-desc">自分のサイドバーにのみ表示されます。</span>
+                  </span>
+                </label>
+                <label class="radio-row">
+                  <input type="radio" name="view-kind-3">
+                  <span class="radio-text">
+                    <span class="radio-title">インスタンス内で共有</span>
+                    <span class="radio-desc">公開プロフィールに表示され、読者が絞り込んで読めます。</span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <p class="form-error" role="alert">同じ名前のビューがすでに存在します</p>
+
+              <div class="dialog-actions">
+                <button type="button" class="pill surface">キャンセル</button>
+                <button type="submit" class="pill primary" data-primary>保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

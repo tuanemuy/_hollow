@@ -137,6 +137,7 @@
     min-height: 100vh;
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input { font-family: inherit; }
 
 
   /* === global mobile fixes (review 001) === */
@@ -286,6 +287,42 @@
   }
   .btn-secondary:hover { background: var(--color-surface-hover); }
 
+  /*
+    expired（期限切れ）時の再送フォーム。expired バリアントは
+    メール入力欄 + 再送ボタンを持つ。
+    送信後は成功テキストへ置き換わる想定（ここでは送信前状態を提示）。
+  */
+  .resend-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 320px;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .resend-field { display: flex; flex-direction: column; gap: var(--space-2); }
+  .resend-label {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    font-weight: var(--weight-medium);
+  }
+  .input {
+    width: 100%;
+    height: 44px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 0 var(--space-4);
+    font-size: var(--text-md);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg), box-shadow var(--duration-fast) var(--ease-standard);
+  }
+  .input::placeholder { color: var(--color-ink-tertiary); }
+  .input:hover { background: var(--color-surface-hover); }
+  .input:focus-visible { background: var(--color-bg); box-shadow: var(--shadow-focus); }
+  .resend-form .btn-primary { width: 100%; min-width: 0; }
+
   /* Variant: hidden by default */
   .state-expired, .state-used { display: none; }
 
@@ -324,7 +361,13 @@
       </div>
       <h1 class="auth-title">リンクの期限が切れています</h1>
       <p class="auth-body">確認リンクは発行から24時間で無効になります。<br>メールアドレスを入力すると確認メールを再送します。</p>
-      <button type="button" class="btn-primary">確認メールを再送する</button>
+      <form class="resend-form" novalidate>
+        <div class="resend-field">
+          <label class="resend-label" for="resend-email">メールアドレス</label>
+          <input class="input" id="resend-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn-primary">確認メールを再送する</button>
+      </form>
       <a href="#" class="btn-secondary">ログインに戻る</a>
     </div>
 
