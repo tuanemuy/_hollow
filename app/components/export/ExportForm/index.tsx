@@ -2,8 +2,19 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Info } from "lucide-react";
 import { useId, useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_BODY_CODE,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_INFO,
+  ALERT_TITLE,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -13,6 +24,13 @@ import { enqueueExportFn, startExportFn } from "./action";
 
 type Format = "html" | "markdown" | "pdf";
 type Paper = "A4" | "Letter";
+
+/**
+ * Immediate-download count ceiling. Mirrors the mock's "即時ダウンロード …
+ * 最大 50 件まで" copy (`spec/design/pages/P15-export.html` L713). Above this
+ * count — or whenever media is embedded — the async-job banner is recommended.
+ */
+const IMMEDIATE_EXPORT_LIMIT = 50;
 
 type Props = {
   /** `null` ⇒ bulk export (no preset target); string ⇒ single-note export */
@@ -131,6 +149,22 @@ export function ExportForm({ noteId }: Props) {
       ? displayError(error)
       : "";
 
+  // Bulk-only async-job recommendation. Count is derived from the same
+  // split the submit handler uses. The banner is advisory only and never
+  // blocks submit (ADR-003): show it when the selection exceeds the
+  // immediate-download ceiling, or when media embedding inflates size.
+  const bulkCount =
+    noteId === null
+      ? bulkNoteIds
+          .split(/\s+|,/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0).length
+      : 0;
+  const showAsyncRecommendation =
+    noteId === null &&
+    bulkCount > 0 &&
+    (bulkCount > IMMEDIATE_EXPORT_LIMIT || embedMedia);
+
   return (
     <section>
       <h2>{noteId === null ? "エクスポート（一括）" : "エクスポート"}</h2>
@@ -202,6 +236,24 @@ export function ExportForm({ noteId }: Props) {
             rows={4}
             disabled={isPending}
           />
+          {showAsyncRecommendation ? (
+            <div className={`${ALERT} ${ALERT_INFO} mt-4`} role="note">
+              <span className={ALERT_ICON}>
+                <Icon icon={Info} size={20} />
+              </span>
+              <div className={ALERT_CONTENT}>
+                <p className={ALERT_TITLE}>非同期ジョブを推奨します</p>
+                <p className={ALERT_BODY}>
+                  選択中の {bulkCount} 件は即時 DL
+                  可能ですが、容量が増えるため非同期ジョブを推奨します。完了したら{" "}
+                  <code className={ALERT_BODY_CODE}>
+                    エクスポートジョブ一覧
+                  </code>{" "}
+                  から確認できます。
+                </p>
+              </div>
+            </div>
+          ) : null}
           <button type="button" onClick={onSubmitBulk} disabled={isPending}>
             {isPending ? "登録中..." : "一括エクスポートを開始"}
           </button>

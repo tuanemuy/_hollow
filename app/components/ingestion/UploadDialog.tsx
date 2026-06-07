@@ -35,6 +35,11 @@ import {
   uploadFileFn,
 } from "./actions";
 import { IngestionPreviewForm } from "./IngestionPreviewForm";
+import {
+  type FileValidationResult,
+  UploadValidationBanners,
+  validateUploadFiles,
+} from "./UploadForm";
 
 type View =
   | { kind: "select" }
@@ -176,6 +181,12 @@ export function UploadDialog({ open, onClose }: Props) {
   const [view, setView] = useState<View>({ kind: "select" });
   const [error, setError] = useState<SerializedError | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  // Client-side validation result for the most recent file selection, shown
+  // as `.alert-error` / `.alert-warning` banners in the `select` view. `null`
+  // means no selection has been validated yet.
+  const [validation, setValidation] = useState<FileValidationResult | null>(
+    null,
+  );
 
   const [tree, setTree] = useState<readonly FlatDirectory[]>([]);
   const [isTreeLoading, setIsTreeLoading] = useState(false);
@@ -226,6 +237,7 @@ export function UploadDialog({ open, onClose }: Props) {
       setView({ kind: "select" });
       setError(null);
       setIsDragOver(false);
+      setValidation(null);
       setStructurePrompt("");
       setMetadataPrompt("");
       setResolvedDefaults(null);
@@ -363,11 +375,11 @@ export function UploadDialog({ open, onClose }: Props) {
     (files: FileList | null) => {
       if (files === null || files.length === 0) return;
       setError(null);
-      const list: File[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files.item(i);
-        if (f !== null) list.push(f);
-      }
+      const result = validateUploadFiles(files);
+      setValidation(result);
+      // Only the files that passed the client guard proceed; if everything
+      // was rejected, stay in `select` and let the banners explain why.
+      const list: File[] = [...result.accepted];
       if (list.length === 0) return;
 
       // Snapshot the override inputs at submit time so the same prompt
@@ -525,6 +537,7 @@ export function UploadDialog({ open, onClose }: Props) {
           onDragLeave={() => setIsDragOver(false)}
           onFiles={submitFiles}
           error={error}
+          validation={validation}
           structurePrompt={structurePrompt}
           metadataPrompt={metadataPrompt}
           onStructurePromptChange={setStructurePrompt}
@@ -593,6 +606,7 @@ function SelectView({
   onDragLeave,
   onFiles,
   error,
+  validation,
   structurePrompt,
   metadataPrompt,
   onStructurePromptChange,
@@ -607,6 +621,7 @@ function SelectView({
   onDragLeave: () => void;
   onFiles: (files: FileList | null) => void;
   error: SerializedError | null;
+  validation: FileValidationResult | null;
   structurePrompt: string;
   metadataPrompt: string;
   onStructurePromptChange: (value: string) => void;
@@ -673,6 +688,7 @@ function SelectView({
           />
         </div>
       </details>
+      <UploadValidationBanners result={validation} />
       {error !== null ? (
         <p className={FORM_ERROR} role="alert">
           {displayError(error)}
