@@ -2,9 +2,19 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Info } from "lucide-react";
 import { useId, useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+  pillBtn,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -85,12 +95,15 @@ export function RegistrationForm({ initial }: Props) {
         />
       </section>
 
-      <div className="flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink bg-accent-surface">
-        <div className="flex-1 text-ink">
-          <strong className="block mb-[2px] font-semibold">
-            既存ユーザーには影響しません
-          </strong>
-          停止状態にしても、登録済みのユーザーは通常通りログイン・利用できます。サインアップ画面のみが「停止中」表示に切り替わります。
+      <div className={`${ALERT} mb-6`} role="note">
+        <span className={ALERT_ICON} aria-hidden="true">
+          <Icon icon={Info} size={20} />
+        </span>
+        <div className={ALERT_CONTENT}>
+          <p className={ALERT_TITLE}>既存ユーザーには影響しません</p>
+          <p className={ALERT_BODY}>
+            停止状態にしても、登録済みのユーザーは通常通りログイン・利用できます。サインアップ画面のみが「停止中」表示に切り替わります。
+          </p>
         </div>
       </div>
 

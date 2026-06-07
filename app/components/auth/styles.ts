@@ -60,18 +60,6 @@ export const BTN_PRIMARY_INLINE = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} m
 
 export const BTN_SECONDARY_TALL = `${pillBtn} ${pillBtnTall} min-w-[200px]`;
 
-export const CALLOUT =
-  "flex gap-3 px-4 py-3 rounded-md bg-surface text-ink-secondary text-sm leading-normal items-start mb-6";
-
-export const CALLOUT_ICON = "text-accent shrink-0 mt-0.5 inline-flex";
-
-export const CALLOUT_BODY = "flex flex-col gap-2";
-
-export const CALLOUT_ACTION = `inline-flex items-center gap-1 ${textLink} font-medium text-sm self-start disabled:opacity-disabled`;
-
-export const NOTICE =
-  "mt-6 p-4 rounded-lg bg-surface text-sm text-ink-secondary leading-relaxed";
-
 export const ADMIN_EYEBROW =
   "inline-block text-xs text-accent font-medium uppercase tracking-[0.06em] mb-3";
 

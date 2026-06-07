@@ -2,7 +2,16 @@
 
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Info } from "lucide-react";
 import { useActionState, useId } from "react";
+import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -21,7 +30,6 @@ import {
   FORM,
   FORM_ERROR,
   INPUT,
-  NOTICE,
 } from "../styles";
 import { requestPasswordResetFn } from "./action";
 
@@ -123,8 +131,16 @@ export function PasswordResetRequestForm() {
         </button>
       </form>
 
-      <div className={NOTICE}>
-        メールが届かない場合は、迷惑メールフォルダもご確認ください。それでも届かない場合は、別のアドレスで登録されている可能性があります。
+      <div className={`${ALERT} mt-6`} role="note">
+        <span className={ALERT_ICON} aria-hidden="true">
+          <Icon icon={Info} size={20} />
+        </span>
+        <div className={ALERT_CONTENT}>
+          <p className={ALERT_TITLE}>メールが届かないときは</p>
+          <p className={ALERT_BODY}>
+            迷惑メールフォルダもご確認ください。それでも届かない場合は、別のアドレスで登録されている可能性があります。
+          </p>
+        </div>
       </div>
 
       <div className={AUTH_FOOTER}>
