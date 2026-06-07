@@ -155,16 +155,15 @@ export const navItem =
 
 /**
  * Text-link decoration — accent color + hover-only underline (with offset).
- * The shared primitive behind the auth footer/field/callout links
- * (`auth/styles.ts` `AUTH_FOOTER_LINK` / `FIELD_LINK` / `CALLOUT_ACTION`) and
- * the inline terms/privacy links in `SignUpForm` / `AdminSignUpForm`.
+ * The shared primitive behind the auth footer/field links
+ * (`auth/styles.ts` `AUTH_FOOTER_LINK` / `FIELD_LINK`) and the inline
+ * terms/privacy links in `SignUpForm` / `AdminSignUpForm`.
  *
  * Only the decoration is shared; each consumer composes its own size/layout
- * add-ons: `AUTH_FOOTER_LINK` is `textLink` verbatim, `FIELD_LINK` is
- * `` `text-sm ${textLink}` ``, and `CALLOUT_ACTION` is
- * `` `inline-flex … ${textLink} font-medium …` ``. Keeping size out is
- * deliberate — `AUTH_FOOTER_LINK` inherits its size whereas `FIELD_LINK` sets
- * `text-sm` explicitly, so decoration-only is the correct SSOT boundary.
+ * add-ons: `AUTH_FOOTER_LINK` is `textLink` verbatim and `FIELD_LINK` is
+ * `` `text-sm ${textLink}` ``. Keeping size out is deliberate —
+ * `AUTH_FOOTER_LINK` inherits its size whereas `FIELD_LINK` sets `text-sm`
+ * explicitly, so decoration-only is the correct SSOT boundary.
  *
  * The pill-style `PUBLIC_TEXT_LINK` (`public/styles.ts`) is intentionally a
  * separate primitive: it is a surface-hover pill, not an accent-underline link.
@@ -262,6 +261,74 @@ export const menuItem =
 
 /** Separator (`<hr>`) between menu item groups inside `menuPanel`. */
 export const menuSeparator = "my-1 h-0 border-0 border-t border-hairline";
+
+/**
+ * Inline alert ("案D") — the single page-embedded notification box that
+ * unifies the former `.callout` / `.notice` / `.banner` patterns. White
+ * surface + a semantic hairline border + `--shadow-xs`, with the border,
+ * icon and title all driven by one `--alert-accent` variable (see
+ * `spec/design/index.md`「フィードバック・エラー表示原則」). Compose from the
+ * parts below: `ALERT` (+ optional semantic modifier) on the box, `ALERT_ICON`
+ * on the leading icon span, `ALERT_CONTENT` wrapping `ALERT_TITLE` + `ALERT_BODY`.
+ *
+ * `margin` is intentionally excluded from `ALERT` — callers vary between
+ * form-gap layouts (0) and standalone placement (`mt-6` / `mb-8`), so the
+ * spacing is supplied at the call site.
+ *
+ * The border carries both width (`border`) and color (the arbitrary
+ * `border-[color-mix(...)]`): the arbitrary utility only emits `border-color`,
+ * so the plain `border` is required for the 1px width.
+ */
+export const ALERT =
+  "flex items-start gap-3 p-4 rounded-lg bg-bg shadow-xs text-left border border-[color-mix(in_oklab,var(--alert-accent)_30%,transparent)] [--alert-accent:var(--color-accent)]";
+
+/** Info semantic modifier (無彩色 grey — `--color-info` aliases `--color-accent`). */
+export const ALERT_INFO = "[--alert-accent:var(--color-info)]";
+
+/** Success semantic modifier. */
+export const ALERT_SUCCESS = "[--alert-accent:var(--color-success)]";
+
+/** Warning semantic modifier. */
+export const ALERT_WARNING = "[--alert-accent:var(--color-warning)]";
+
+/** Error semantic modifier. */
+export const ALERT_ERROR = "[--alert-accent:var(--color-error)]";
+
+/** Leading icon span — colored by `--alert-accent`, decorative (`aria-hidden`). */
+export const ALERT_ICON = "text-[var(--alert-accent)] shrink-0 mt-px";
+
+/** Title + body column. */
+export const ALERT_CONTENT = "flex flex-col items-start gap-0.5 min-w-0";
+
+/** Alert title — accent-colored, semibold. */
+export const ALERT_TITLE =
+  "m-0 text-sm font-semibold tracking-[-0.01em] text-[var(--alert-accent)]";
+
+/**
+ * Mono title variant for monitoring-key headings (P47 admin-metrics): the mock's
+ * local `.alert-title` override uses `--font-mono` + `--text-xs` and drops the
+ * sans tracking, so this is not just `${ALERT_TITLE} font-mono`.
+ */
+export const ALERT_TITLE_MONO =
+  "m-0 text-xs font-mono font-semibold text-[var(--alert-accent)]";
+
+/**
+ * Alert body — secondary ink. `<strong>` inside is promoted to primary ink +
+ * medium weight, and inline `<a>` is always underlined accent (mock
+ * `.alert-body a`), to match the mock.
+ */
+export const ALERT_BODY =
+  "m-0 text-sm text-ink-secondary leading-relaxed [&_strong]:text-ink [&_strong]:font-medium [&_a]:text-accent [&_a]:underline [&_a]:[text-underline-offset:3px]";
+
+/** Inline `<code>` inside an alert body (P15 / P47 mono local variant). */
+export const ALERT_BODY_CODE = "font-mono text-xs";
+
+/**
+ * Alert action — an inline button/link beneath the body, accent-colored with a
+ * hover underline. Disabled state dims via `opacity-disabled`.
+ */
+export const ALERT_ACTION =
+  "inline-flex items-center gap-1 mt-2 text-sm font-medium text-[var(--alert-accent)] hover:underline hover:[text-underline-offset:3px] disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Radio/checkbox row. */
 export const radioRow =

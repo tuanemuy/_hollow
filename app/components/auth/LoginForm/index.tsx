@@ -5,6 +5,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, ChevronRight, MailWarning } from "lucide-react";
 import { useActionState, useId, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_ACTION,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -18,10 +26,6 @@ import {
   AUTH_SUBTITLE,
   AUTH_TITLE,
   BTN_PRIMARY,
-  CALLOUT,
-  CALLOUT_ACTION,
-  CALLOUT_BODY,
-  CALLOUT_ICON,
   CHECKBOX_INPUT,
   CHECKBOX_ROW,
   FIELD,
@@ -199,25 +203,23 @@ export function LoginForm() {
       </form>
 
       {isUnverified ? (
-        <div className={`${CALLOUT} mt-6`} role="status">
-          <span className={CALLOUT_ICON} aria-hidden="true">
+        <div className={`${ALERT} mt-6`} role="status">
+          <span className={ALERT_ICON} aria-hidden="true">
             <Icon icon={MailWarning} size={20} />
           </span>
-          <div className={CALLOUT_BODY}>
-            <strong className="text-ink font-semibold">
-              メールアドレスの確認が未完了です
-            </strong>
-            <span>
+          <div className={ALERT_CONTENT}>
+            <p className={ALERT_TITLE}>メールアドレスの確認が未完了です</p>
+            <p className={ALERT_BODY}>
               受信した確認メールのリンクをクリックすると、すべての機能を利用できます。
-            </span>
+            </p>
             {resendState === "sent" ? (
-              <span className="text-success">
+              <p className={`${ALERT_BODY} text-success`}>
                 確認メールを送信しました。受信箱をご確認ください。
-              </span>
+              </p>
             ) : (
               <button
                 type="button"
-                className={CALLOUT_ACTION}
+                className={ALERT_ACTION}
                 onClick={onResend}
                 disabled={resendState === "pending"}
               >
