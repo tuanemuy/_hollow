@@ -248,7 +248,7 @@ GitHub の "構造" は維持し、"質感" を Apple 系に翻訳する、と�
   - **セマンティック**: `--alert-accent` 1 変数で切替。`.alert-info` / `.alert-success` / `.alert-warning` / `.alert-error`、modifier 無し = neutral 既定（`--color-accent` グレー）。**info は無彩色グレー**（`--color-info = var(--color-accent)`）を維持し、彩度の高い青は足さない。
   - **アクセシビリティ**: 用途に応じ `role="alert"`（エラー・即時）/ `role="status"`（進行・案内）/ `role="note"`（補足）を付ける。
   - **追従**: 実装の `app/components/auth/styles.ts` の `CALLOUT`（P03/P01b の旧称）は本パターンへ追従要（実装は別 Issue）。admin の監視キー見出し（P47）は識別子を mono で出すローカル変種を許容する。
-  - 参照モック: `spec/design/pages/P06`・`P03`・`P01b`・`P04`・`P44`・`P15`・`P13`・`P47`・`common-confirm-dialog`。
+  - 参照モック: `spec/design/pages/P06`・`P03`・`P01`・`P01b`・`P04`・`P12`・`P13`・`P14`・`P15`・`P17`・`P20`・`P24`・`P32`・`P33`・`P41`・`P44`・`P47`・`common-confirm-dialog`。
 
 ---
 
