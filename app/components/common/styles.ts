@@ -277,8 +277,7 @@ export const menuSeparator = "my-1 h-0 border-0 border-t border-hairline";
  *
  * The border carries both width (`border`) and color (the arbitrary
  * `border-[color-mix(...)]`): the arbitrary utility only emits `border-color`,
- * so the plain `border` is required for the 1px width. See `.issue/539/adr.md`
- * (ADR-001/002).
+ * so the plain `border` is required for the 1px width.
  */
 export const ALERT =
   "flex items-start gap-3 p-4 rounded-lg bg-bg shadow-xs text-left border border-[color-mix(in_oklab,var(--alert-accent)_30%,transparent)] [--alert-accent:var(--color-accent)]";

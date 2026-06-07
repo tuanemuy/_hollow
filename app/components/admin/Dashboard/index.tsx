@@ -37,7 +37,7 @@ function formatBytes(value: number | null): string {
 }
 
 // 案D semantic modifiers are info/success/warning/error only; `critical`
-// maps to `error` (no dedicated `critical` modifier). See .issue/539/plan.md.
+// maps to `error` (no dedicated `critical` modifier).
 const ALERT_TONE: Record<AlertDTO["severity"], string> = {
   critical: ALERT_ERROR,
   warning: ALERT_WARNING,
