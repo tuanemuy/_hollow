@@ -159,6 +159,52 @@ describe("NoteMetaPanel 場所 row (Issue #540)", () => {
   });
 });
 
+describe("NoteMetaPanel visibility (Issue #540 ADR-002)", () => {
+  it("公開状態（visibility）はメタブロックに表示しない（ADR-002 / 二重化回避）", () => {
+    // publishedAt を渡して「公開日」行を出させた上で、公開"状態"
+    // （visibility のラベル/ピル）が無いことを検証する。
+    // 公開日（publishedAt）と公開状態（visibility）は別概念。
+    act(() => {
+      root.render(
+        <NoteMetaPanel
+          {...baseProps}
+          publishedAt="2026-01-03T00:00:00.000Z"
+          backlinks={[]}
+          backlinkCount={0}
+        />,
+      );
+    });
+
+    const propertiesSection = container.querySelector<HTMLElement>(
+      'section[aria-label="ノートのプロパティ"]',
+    );
+    if (propertiesSection === null) {
+      throw new Error("properties section not found");
+    }
+
+    // プロパティ行のキー（dt）に visibility のラベルが含まれないこと。
+    // 「公開日」は publishedAt のメタ行なので除外し、純粋な状態ラベル
+    // 「公開」「限定公開」「非公開」が dt として存在しないことを見る。
+    const keyLabels = Array.from(
+      propertiesSection.querySelectorAll<HTMLElement>("dt"),
+    ).map((dt) => dt.textContent);
+    expect(keyLabels).toContain("公開日");
+    expect(keyLabels).not.toContain("公開");
+    expect(keyLabels).not.toContain("限定公開");
+    expect(keyLabels).not.toContain("非公開");
+    expect(keyLabels).not.toContain("公開状態");
+
+    // 値（dd）側にも visibility ラベルが描かれないこと。
+    const valueText = Array.from(
+      propertiesSection.querySelectorAll<HTMLElement>("dd"),
+    )
+      .map((dd) => dd.textContent ?? "")
+      .join("\n");
+    expect(valueText).not.toContain("限定公開");
+    expect(valueText).not.toContain("非公開");
+  });
+});
+
 describe("NoteMetaPanel source file (Issue #452)", () => {
   it("renders nothing for the 元ファイル row when sourceFile is null", () => {
     act(() => {

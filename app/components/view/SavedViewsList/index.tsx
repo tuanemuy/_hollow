@@ -102,7 +102,7 @@ type RemoveAction = Readonly<{ type: "remove"; id: string }>;
 type AddAction = Readonly<{ type: "add"; view: SavedViewDTO }>;
 type ViewsAction = RemoveAction | AddAction;
 
-function reduceViews(
+export function reduceViews(
   cur: readonly SavedViewDTO[],
   action: ViewsAction,
 ): readonly SavedViewDTO[] {

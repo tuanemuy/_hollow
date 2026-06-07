@@ -15,6 +15,14 @@ export const titleInput =
 
 /**
  * P12 editor topbar: mode tabs + autosave status + primary actions in one
- * wrapping row. Autosave / actions are pushed right via `ml-auto`.
+ * wrapping row. Mirrors the mock `.editor-topbar` order
+ * (`mode-tabs → save-status → editor-actions`).
  */
 export const editorTopbar = "flex items-center gap-3 flex-wrap";
+
+/**
+ * P12 editor actions group (save / cancel). `ml-auto` pushes only this group
+ * to the right edge — matching the mock's `.editor-actions { margin-left: auto }`
+ * — so save-status stays left, just after the mode tabs.
+ */
+export const editorActions = "ml-auto inline-flex items-center gap-2";

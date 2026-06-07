@@ -539,31 +539,40 @@ describe("SavedViewsList — optimistic default toggle", () => {
 });
 
 describe("reduceViews — deduplication logic (B-002)", () => {
-  // B-002: Direct verification of the reducer's deduplication guard.
-  // reduceViews is internal to the component but its behavior is tested through
-  // the component tests ("deduplicates by id when adding" and
-  // "does not double-add when the new id already exists in the baseline").
-  // This describe block documents the expected behavior of the reducer.
+  // `index` imports the real `@tanstack/react-start`, so it must be pulled in
+  // after the module mocks are installed — hence the dynamic import here rather
+  // than a top-level static one.
+  let reduceViews: typeof import("../index")["reduceViews"];
+  beforeEach(async () => {
+    ({ reduceViews } = await import("../index"));
+  });
 
   it("removes a row by id when type='remove'", () => {
-    // When reduceViews is called with { type: "remove", id: "v1" },
-    // the row with id="v1" is filtered out.
-    // Tested implicitly by: "removes the row immediately on confirm" (delete test)
-    expect(true).toBe(true);
+    const cur = [
+      makeView({ id: "v1", name: "Alpha" }),
+      makeView({ id: "v2", name: "Beta" }),
+    ];
+    const next = reduceViews(cur, { type: "remove", id: "v1" });
+    expect(next.map((v) => v.id)).toEqual(["v2"]);
   });
 
-  it("adds a row when type='add' and id is not already present", () => {
-    // When reduceViews is called with { type: "add", view: gamma } where
-    // gamma.id is not in the current list, gamma is appended.
-    // Tested implicitly by: "adds the duplicated row immediately on resolve"
-    expect(true).toBe(true);
+  it("appends a row when type='add' and id is not already present", () => {
+    const cur = [makeView({ id: "v1", name: "Alpha" })];
+    const gamma = makeView({ id: "v3", name: "Gamma" });
+    const next = reduceViews(cur, { type: "add", view: gamma });
+    expect(next.map((v) => v.id)).toEqual(["v1", "v3"]);
   });
 
-  it("does not add a row when type='add' and id already exists (guards against double-key)", () => {
-    // When reduceViews is called with { type: "add", view: beta_dup } where
-    // beta_dup.id matches an existing row's id, the list is returned unchanged.
-    // This guards against double-keying when the baseline already has the new row.
-    // Tested directly by: "deduplicates by id when adding (B-002 — reduceViews guard)"
-    expect(true).toBe(true);
+  it("returns the list unchanged when type='add' and id already exists (guards against double-key)", () => {
+    const cur = [
+      makeView({ id: "v1", name: "Alpha" }),
+      makeView({ id: "v2", name: "Beta" }),
+    ];
+    const next = reduceViews(cur, {
+      type: "add",
+      view: makeView({ id: "v2", name: "Beta dup" }),
+    });
+    expect(next).toBe(cur);
+    expect(next.map((v) => v.id)).toEqual(["v1", "v2"]);
   });
 });

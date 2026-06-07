@@ -50,7 +50,7 @@ import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
-import { editorTopbar, titleInput } from "./styles";
+import { editorActions, editorTopbar, titleInput } from "./styles";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
 import { WysiwygEditor } from "./WysiwygEditor";
@@ -287,10 +287,10 @@ export function NoteEditor(props: NoteEditorProps) {
           mode={state.mode}
           onChange={onModeChange}
         />
-        <span className="ml-auto">
+        <span>
           <AutosaveIndicator status={state.autosave} />
         </span>
-        <div className="inline-flex items-center gap-2">
+        <div className={editorActions}>
           <button
             type="submit"
             data-primary

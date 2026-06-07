@@ -140,7 +140,7 @@ export const rowActions =
  * `<Link>` apply action.
  */
 export const applyBtn =
-  "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:not-aria-disabled:bg-accent-surface aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:bg-accent-surface max-sm:min-h-[44px]";
 
 /**
  * "⋯" overflow trigger (P20 `.row-menu-btn`). Circular icon button that fills
