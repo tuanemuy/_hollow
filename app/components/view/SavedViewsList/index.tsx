@@ -444,7 +444,7 @@ function SavedViewRow({
             {isBroken ? (
               <div className={brokenBanner} role="status">
                 <span className={ALERT_ICON} aria-hidden="true">
-                  <Icon icon={AlertTriangle} />
+                  <Icon icon={AlertTriangle} size={20} />
                 </span>
                 <div className={brokenBody}>
                   <p className={brokenTitle}>壊れた条件があります</p>
