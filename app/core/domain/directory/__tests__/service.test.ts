@@ -863,3 +863,99 @@ describe("DirectoryService.deleteSubtree", () => {
     expect(result.trashedNoteIds).toEqual([n1, n2]);
   });
 });
+
+describe("DirectoryService.computeSegmentsForMany", () => {
+  const asStr = (id: DirectoryId): string => id as unknown as string;
+
+  it("returns root→leaf {id,name} segments for each requested directory in one tree read", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const root = seedRoot(repo, OWNER_A);
+    const research = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000d1",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("Research"),
+      },
+      T0,
+    );
+    repo.add(research);
+    const summaries = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000d2",
+        ownerId: OWNER_A,
+        parent: research,
+        name: DirectoryName.create("書籍要約"),
+      },
+      T0,
+    );
+    repo.add(summaries);
+    const project = DirectoryFns.create(
+      {
+        id: "f0000000-0000-7000-8000-0000000000d3",
+        ownerId: OWNER_A,
+        parent: root,
+        name: DirectoryName.create("プロジェクト"),
+      },
+      T0,
+    );
+    repo.add(project);
+
+    const map = await DirectoryService.computeSegmentsForMany(
+      OWNER_A,
+      [summaries.id, project.id],
+      repo,
+    );
+    expect(
+      map
+        .get(summaries.id)
+        ?.map((s) => ({ id: asStr(s.id), name: s.name as unknown as string })),
+    ).toEqual([
+      { id: asStr(research.id), name: "Research" },
+      { id: asStr(summaries.id), name: "書籍要約" },
+    ]);
+    expect(
+      map
+        .get(project.id)
+        ?.map((s) => ({ id: asStr(s.id), name: s.name as unknown as string })),
+    ).toEqual([{ id: asStr(project.id), name: "プロジェクト" }]);
+  });
+
+  it("returns an empty array for a root-level directory id", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    const root = seedRoot(repo, OWNER_A);
+
+    const map = await DirectoryService.computeSegmentsForMany(
+      OWNER_A,
+      [root.id],
+      repo,
+    );
+    expect(map.get(root.id)).toEqual([]);
+  });
+
+  it("returns an empty array for a directory id absent from the owner's tree", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    seedRoot(repo, OWNER_A);
+    const missing =
+      "f0000000-0000-7000-8000-0000000000df" as unknown as DirectoryId;
+
+    const map = await DirectoryService.computeSegmentsForMany(
+      OWNER_A,
+      [missing],
+      repo,
+    );
+    expect(map.get(missing)).toEqual([]);
+  });
+
+  it("returns an empty map when no directory ids are requested", async () => {
+    const repo = new InMemoryDirectoryRepository();
+    seedRoot(repo, OWNER_A);
+
+    const map = await DirectoryService.computeSegmentsForMany(
+      OWNER_A,
+      [],
+      repo,
+    );
+    expect(map.size).toBe(0);
+  });
+});

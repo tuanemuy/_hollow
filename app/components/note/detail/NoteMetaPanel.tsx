@@ -170,6 +170,11 @@ export function NoteMetaPanel({
                   params={{ noteId: bl.noteId }}
                   className="block px-4 py-3 rounded-lg border border-hairline text-sm font-medium text-ink transition-colors hover:bg-surface [overflow-wrap:anywhere]"
                 >
+                  {bl.directorySegments.length > 0 ? (
+                    <span className="block mb-1 text-[11px] font-normal uppercase tracking-[0.06em] text-ink-tertiary">
+                      {bl.directorySegments.map((s) => s.name).join(" / ")}
+                    </span>
+                  ) : null}
                   {bl.title}
                   {bl.snippet !== null && bl.snippet.length > 0 ? (
                     <span className="block mt-1 text-sm font-normal text-ink-tertiary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">

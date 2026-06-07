@@ -25,6 +25,7 @@ import { TemplateHtmlRenderer } from "@/core/adapters/export/htmlRenderer";
 import { HtmlToMarkdownRenderer } from "@/core/adapters/export/markdownRenderer";
 import { StubPdfRenderer } from "@/core/adapters/export/pdfRenderer";
 import { MarkdownItMarkdownConverter } from "@/core/adapters/markdown/markdownConverter";
+import { UltrahtmlNoteBodyRenderer } from "@/core/adapters/renderer/noteBodyRenderer";
 import { UltrahtmlHtmlSanitizer } from "@/core/adapters/sanitizer/htmlSanitizer";
 import { ScryptPasswordHasher } from "@/core/adapters/security/passwordHasher";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
@@ -127,6 +128,7 @@ export function createTestContainer(): TestContainer {
     ),
     htmlSanitizer: new UltrahtmlHtmlSanitizer(),
     markdownConverter: new MarkdownItMarkdownConverter(),
+    noteBodyRenderer: new UltrahtmlNoteBodyRenderer(),
     passwordHasher: new ScryptPasswordHasher(),
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
     secretBoxPrevious: null,

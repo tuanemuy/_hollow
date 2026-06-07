@@ -1,3 +1,5 @@
+import { DirectoryService } from "@/core/domain/directory/service";
+import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ForbiddenError, NotFoundError } from "../errors";
@@ -33,10 +35,20 @@ export async function getBacklinks({
       );
     }
     const referrers = await ctx.noteRepository.findReferrers(found.entity.id);
+    // Unbounded referrer list: resolve all directory paths from one tree
+    // read (`O(1)` queries) rather than one `findAncestors` per referrer.
+    const referrerSegmentsByDir = await DirectoryService.computeSegmentsForMany(
+      found.entity.ownerId,
+      referrers.map((r) => r.directoryId as DirectoryId),
+      ctx.directoryRepository,
+    );
     return {
       backlinks: referrers.map((referrer) =>
         toBacklink(referrer, {
           snippet: buildBacklinkSnippet(container.htmlSanitizer, referrer),
+          directorySegments: (
+            referrerSegmentsByDir.get(referrer.directoryId as DirectoryId) ?? []
+          ).map((seg) => ({ id: seg.id as string, name: seg.name as string })),
         }),
       ),
     };

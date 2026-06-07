@@ -143,6 +143,7 @@ async function seedInternalLink(
   container: TestContainer,
   fromNoteId: NoteId,
   resolvedNoteId: NoteId,
+  opts: { displayText?: string | null } = {},
 ): Promise<void> {
   const id = nextId(0x0d);
   await container.db.insert(schema.noteInternalLinks).values({
@@ -150,7 +151,7 @@ async function seedInternalLink(
     fromNoteId,
     refKind: "id",
     refTarget: resolvedNoteId,
-    displayText: null,
+    displayText: opts.displayText ?? null,
     resolvedNoteId,
   });
 }
@@ -315,6 +316,112 @@ describe("getNoteDetail (integration)", () => {
     ]);
   });
 
+  it("returns the referrer's directorySegments on each BacklinkDTO", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, root);
+    // Referrer lives in root/parent/child; its backlink card shows that path.
+    const parent = await seedChildDirectory(
+      container,
+      owner,
+      { id: root, depth: 0 },
+      "Research",
+    );
+    const child = await seedChildDirectory(
+      container,
+      owner,
+      parent,
+      "書籍要約",
+    );
+    const referrer = await seedNote(container, owner, child.id);
+    await seedInternalLink(container, referrer, noteId);
+    // A second referrer at root level has empty segments.
+    const rootReferrer = await seedNote(container, owner, root);
+    await seedInternalLink(container, rootReferrer, noteId);
+
+    const { backlinks } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    const nested = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(nested?.directorySegments).toEqual([
+      { id: parent.id as string, name: "Research" },
+      { id: child.id as string, name: "書籍要約" },
+    ]);
+    const atRoot = backlinks.find((b) => (b.noteId as string) === rootReferrer);
+    expect(atRoot?.directorySegments).toEqual([]);
+  });
+
+  it("renders [[wikilink]] / #hashtag markup in renderedContentHtml while leaving contentHtml verbatim", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir, {
+      contentHtml: "<p>[[未解決]] #design</p>",
+    });
+
+    const { note, renderedContentHtml } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(note.contentHtml).toBe("<p>[[未解決]] #design</p>");
+    expect(renderedContentHtml).toContain(
+      '<span class="wikilink" data-unresolved>未解決</span>',
+    );
+    expect(renderedContentHtml).toContain(
+      '<span class="hashtag">#design</span>',
+    );
+  });
+
+  // Test W-001: end-to-end coverage for a *resolved* wikilink. A's body holds
+  // `[[<B's id>]]` and a seeded internal link (resolved_note_id = B) supplies
+  // the resolvedNoteId. This verifies the wiring entity.internalLinkRefs →
+  // renderer (resolvedNoteId reaches the renderer through DI), which the
+  // unresolved-span case above cannot exercise.
+  it("renders a resolved [[id]] wikilink as a linking <a> in renderedContentHtml", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir);
+    const noteId = await seedNote(container, owner, dir, {
+      contentHtml: `<p>関連: [[${target}]] を参照</p>`,
+    });
+    await seedInternalLink(container, noteId, target);
+
+    const { note, renderedContentHtml } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(note.contentHtml).toBe(`<p>関連: [[${target}]] を参照</p>`);
+    expect(renderedContentHtml).toContain(
+      `<a class="wikilink" href="/notes/${target}">`,
+    );
+  });
+
+  // Test W-001 (variant): a resolved id-keyed wikilink with an inline display
+  // segment `[[<id>|表示名]]` renders the display label, not the raw UUID.
+  it("renders a resolved [[id|display]] wikilink with the display label", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, dir);
+    const noteId = await seedNote(container, owner, dir, {
+      contentHtml: `<p>[[${target}|表示名]]</p>`,
+    });
+    await seedInternalLink(container, noteId, target, {
+      displayText: "表示名",
+    });
+
+    const { renderedContentHtml } = await getNoteDetail({
+      container,
+      input: { actorUserId: owner, noteId },
+    });
+    expect(renderedContentHtml).toContain(
+      `<a class="wikilink" href="/notes/${target}">表示名</a>`,
+    );
+  });
+
   it("returns an empty directorySegments array for a root-level note", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
@@ -476,5 +583,31 @@ describe("getBacklinks (integration)", () => {
     });
     const bl = backlinks.find((b) => (b.noteId as string) === referrer);
     expect(bl?.snippet).toBe("referrer body excerpt");
+  });
+
+  it("projects the referrer's directorySegments root→leaf", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const root = await seedDirectory(container, owner);
+    const target = await seedNote(container, owner, root);
+    const parent = await seedChildDirectory(
+      container,
+      owner,
+      { id: root, depth: 0 },
+      "日記",
+    );
+    const child = await seedChildDirectory(container, owner, parent, "2026");
+    const referrer = await seedNote(container, owner, child.id);
+    await seedInternalLink(container, referrer, target);
+
+    const { backlinks } = await getBacklinks({
+      container,
+      input: { actorUserId: owner, noteId: target },
+    });
+    const bl = backlinks.find((b) => (b.noteId as string) === referrer);
+    expect(bl?.directorySegments).toEqual([
+      { id: parent.id as string, name: "日記" },
+      { id: child.id as string, name: "2026" },
+    ]);
   });
 });
