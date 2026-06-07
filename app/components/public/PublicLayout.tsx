@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { BrandLockup } from "@/components/common/BrandLogo";
 import { Icon } from "@/components/common/Icon";
 import {
   PILL_BTN,
@@ -14,7 +15,6 @@ import {
   PUBLIC_HEADER_RIGHT,
   PUBLIC_HEADER_SEARCH,
   PUBLIC_HEADER_SEARCH_INPUT,
-  PUBLIC_LOGO,
   PUBLIC_TEXT_LINK_SIGNUP,
   SEARCH_ICON,
 } from "./styles";
@@ -34,8 +34,8 @@ export function PublicLayout({
     <div className="flex flex-col min-h-screen">
       <header className={PUBLIC_HEADER}>
         <div className={PUBLIC_HEADER_LEFT}>
-          <Link to="/" search={HOME_SEARCH} className={PUBLIC_LOGO}>
-            Hollow
+          <Link to="/" search={HOME_SEARCH} className="text-ink">
+            <BrandLockup />
           </Link>
         </div>
 
@@ -77,7 +77,9 @@ export function PublicLayout({
 
       <footer className={PUBLIC_FOOTER}>
         <div className={PUBLIC_FOOTER_INNER}>
-          <div>Hollow</div>
+          <div>
+            <BrandLockup />
+          </div>
           <div className={PUBLIC_FOOTER_LINKS}>
             <Link to="/terms" className={PUBLIC_FOOTER_LINK}>
               利用規約

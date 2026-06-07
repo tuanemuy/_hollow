@@ -7,7 +7,6 @@ export const APP_HEADER =
 
 export const APP_HEADER_LEFT = "flex items-center gap-3";
 export const APP_HEADER_RIGHT = "flex items-center gap-2";
-export const APP_LOGO = "text-[21px] font-light tracking-tightest text-ink";
 
 export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 

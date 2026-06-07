@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Plus, Search, Upload } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { BrandLockup } from "@/components/common/BrandLogo";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
@@ -10,7 +11,6 @@ import {
   APP_HEADER,
   APP_HEADER_LEFT,
   APP_HEADER_RIGHT,
-  APP_LOGO,
   SEARCH_BOX_ICON,
   SEARCH_BOX_INPUT,
   SEARCH_BOX_WRAPPER,
@@ -26,12 +26,8 @@ export function Header({ user }: Props) {
     <header className={APP_HEADER}>
       <div className={APP_HEADER_LEFT}>
         <MenuButton />
-        <Link
-          to="/"
-          search={HOME_SEARCH}
-          className={`${APP_LOGO} max-sm:hidden`}
-        >
-          Hollow
+        <Link to="/" search={HOME_SEARCH} className="text-ink max-sm:hidden">
+          <BrandLockup />
         </Link>
       </div>
       <div className={SEARCH_BOX_WRAPPER}>

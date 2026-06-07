@@ -7,8 +7,6 @@ export const PUBLIC_HEADER =
 
 export const PUBLIC_HEADER_LEFT = "flex items-center gap-3";
 
-export const PUBLIC_LOGO = "text-[21px] font-light tracking-tightest text-ink";
-
 export const PUBLIC_HEADER_SEARCH =
   "max-w-[380px] w-full mx-auto relative max-sm:hidden";
 
