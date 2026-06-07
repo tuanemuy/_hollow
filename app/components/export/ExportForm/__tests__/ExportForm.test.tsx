@@ -89,6 +89,16 @@ function bannerText(): string {
   return note?.textContent ?? "";
 }
 
+function findBulkSubmitButton(): HTMLButtonElement {
+  const buttons = document.body.querySelectorAll("button");
+  for (const button of buttons) {
+    if (button.textContent?.includes("一括エクスポートを開始")) {
+      return button as HTMLButtonElement;
+    }
+  }
+  throw new Error("bulk submit button not rendered");
+}
+
 describe("ExportForm async-job recommendation banner", () => {
   // (c-1): bulk with count > 50 shows the banner.
   it("shows the banner for bulk with more than 50 notes", () => {
@@ -147,5 +157,25 @@ describe("ExportForm async-job recommendation banner", () => {
       root.render(<ExportForm noteId={null} />);
     });
     expect(document.body.querySelector('[role="note"]')).toBeNull();
+  });
+
+  // ADR-003 invariant: the banner is advisory only and never blocks submit.
+  it("submits the bulk export even while the recommendation banner is shown", async () => {
+    enqueueExportMock.mockResolvedValue({ job: { id: "job-1" } });
+    act(() => {
+      root.render(<ExportForm noteId={null} />);
+    });
+    const ids = Array.from({ length: 51 }, (_, i) => `n${i}`).join("\n");
+    act(() => {
+      setTextarea(ids);
+    });
+    // Banner is on (bulk, count > 50), confirming the advisory state precondition.
+    expect(bannerText()).toContain("非同期ジョブを推奨します");
+
+    await act(async () => {
+      findBulkSubmitButton().click();
+    });
+
+    expect(enqueueExportMock).toHaveBeenCalledTimes(1);
   });
 });

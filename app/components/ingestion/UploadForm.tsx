@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, XCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { useId, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -111,19 +111,19 @@ export function UploadValidationBanners({
       {unsupported.length > 0 ? (
         <div className={`${ALERT} ${ALERT_ERROR} mt-4`} role="alert">
           <span className={ALERT_ICON}>
-            <Icon icon={XCircle} size={20} />
+            <Icon icon={AlertCircle} size={20} />
           </span>
           <div className={ALERT_CONTENT}>
             <p className={ALERT_TITLE}>対応外の形式が含まれています</p>
             <p className={ALERT_BODY}>
+              次のファイルはアップロードできません:{" "}
               {unsupported.map((name, i) => (
                 <span key={name}>
                   {i > 0 ? ", " : null}
                   <code className={ALERT_BODY_CODE}>{name}</code>
                 </span>
-              ))}{" "}
-              はアップロードできません。対応形式 ({SUPPORTED_FORMATS_LABEL})
-              のみ取り込めます。
+              ))}
+              。対応形式 ({SUPPORTED_FORMATS_LABEL}) のみ取り込めます。
             </p>
           </div>
         </div>
@@ -136,6 +136,7 @@ export function UploadValidationBanners({
           <div className={ALERT_CONTENT}>
             <p className={ALERT_TITLE}>サイズ超過のファイル</p>
             <p className={ALERT_BODY}>
+              次のファイルは上限 50 MB を超えています:{" "}
               {oversized.map(({ name, sizeLabel }, i) => (
                 <span key={name}>
                   {i > 0 ? ", " : null}
@@ -143,9 +144,8 @@ export function UploadValidationBanners({
                     {name} ({sizeLabel})
                   </code>
                 </span>
-              ))}{" "}
-              は上限 50 MB
-              を超えています。分割するか、個別にアップロードしてください。
+              ))}
+              。分割するか、個別にアップロードしてください。
             </p>
           </div>
         </div>

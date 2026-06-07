@@ -149,7 +149,8 @@ describe("UploadForm client validation", () => {
     expect(uploadMock).not.toHaveBeenCalled();
   });
 
-  // Mixed batch: only accepted files reach the server fn.
+  // Mixed batch (unsupported + oversized + accepted): only the accepted file
+  // reaches the server fn, and both rejected files are surfaced in banners.
   it("uploads only the accepted files when some are rejected", async () => {
     uploadMock.mockResolvedValue({ jobId: "j1" });
     act(() => {
@@ -157,12 +158,40 @@ describe("UploadForm client validation", () => {
     });
     act(() => {
       dispatchFile(findFileInput(), [
-        makeFile("photo.png", "image/png", 1 * MB),
         makeFile("archive.zip", "application/zip", 1 * MB),
+        makeFile("big.png", "image/png", 60 * MB),
+        makeFile("photo.png", "image/png", 1 * MB),
       ]);
     });
     await flush();
     expect(uploadMock).toHaveBeenCalledTimes(1);
+    const sentFormData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect((sentFormData.get("file") as File).name).toBe("photo.png");
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("archive.zip");
+    expect(text).toContain("big.png");
+  });
+
+  // TEST-W-002: oversized-with-accepted batch shows the warning banner AND
+  // still uploads only the in-limit file.
+  it("shows the size-over banner and uploads only the in-limit file", async () => {
+    uploadMock.mockResolvedValue({ jobId: "j1" });
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("ok.md", "text/markdown", 1 * MB),
+        makeFile("big.md", "text/markdown", 60 * MB),
+      ]);
+    });
+    await flush();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("サイズ超過のファイル");
+    expect(text).toContain("big.md");
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    const sentFormData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
+    expect((sentFormData.get("file") as File).name).toBe("ok.md");
   });
 
   // Issue #221: a server-side error (for inputs that pass the client guard)
