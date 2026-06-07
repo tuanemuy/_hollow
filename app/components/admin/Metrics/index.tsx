@@ -84,10 +84,9 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
       value: `${formatNumber(limits.maxNoteRevisionsPerNote)} 件`,
     },
   ];
-  // Narrow widths (max-md, mock @media max-width:767px) stack each row into a
-  // card. Per ADR-004 the "項目"/"値" labels are real DOM <span>s shown only at
-  // narrow widths (not the mock's `td::before { content: attr(data-label) }`),
-  // so screen readers still receive the column labels when <thead> is hidden.
+  // Narrow widths stack each row into a card. The "項目"/"値" labels are real
+  // DOM <span>s (not the mock's `td::before { content: attr(data-label) }`) so
+  // screen readers still receive the column labels when <thead> is hidden.
   const stackLabel =
     "hidden max-md:inline-block max-md:w-[132px] text-ink-tertiary text-xs";
   return (
