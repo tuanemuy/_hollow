@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Trash2 } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn } from "@/components/common/styles";
@@ -47,10 +47,24 @@ export async function TrashList({ user, page, limit }: Props) {
   return (
     <>
       <h1 className={PAGE_TITLE}>ゴミ箱</h1>
-      <p className={PAGE_SUBTITLE}>
-        {count}{" "}
-        件のノートがゴミ箱にあります。保存期間を過ぎたものは自動的に完全削除されます。
-      </p>
+      <p className={PAGE_SUBTITLE}>{count} 件のノートがゴミ箱にあります。</p>
+
+      <div
+        role="note"
+        className="flex items-start gap-2 px-4 py-3 rounded-md bg-surface mb-6 text-sm text-ink-secondary leading-snug"
+      >
+        <Icon
+          icon={Clock}
+          size={16}
+          className="shrink-0 mt-px text-ink-tertiary"
+        />
+        <span>
+          <strong className="font-medium text-ink">
+            保存期間を過ぎたノートは自動的に完全削除されます。
+          </strong>{" "}
+          残しておきたいノートは「復元」で元のディレクトリに戻せます。
+        </span>
+      </div>
 
       {notes.length === 0 ? (
         <div className={EMPTY_STATE}>
@@ -88,7 +102,7 @@ export async function TrashList({ user, page, limit }: Props) {
                   <span>削除日 {formatDate(note.updatedAt)}</span>
                 </div>
               </div>
-              <TrashRowActions noteId={note.id} />
+              <TrashRowActions noteId={note.id} noteTitle={note.title} />
             </li>
           ))}
         </ul>

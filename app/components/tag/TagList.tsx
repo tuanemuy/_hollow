@@ -8,14 +8,10 @@ import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { SerializedError } from "@/core/presentation/errorResponse";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
-import {
-  DATA_ROW,
-  EMPTY_STATE,
-  EMPTY_STATE_ICON,
-  PAGE_SUBTITLE,
-} from "../layout/styles";
+import { EMPTY_STATE, EMPTY_STATE_ICON, PAGE_SUBTITLE } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
 import { CreateTagForm } from "./CreateTagForm";
+import { TAG_COUNT, TAG_ROW } from "./styles";
 import { TagActions } from "./TagActions";
 
 type Tag = Readonly<{ id: string; name: string; noteCount: number }>;
@@ -113,12 +109,10 @@ export function TagList({ tags }: Props) {
           {optimisticTags.map((tag) => {
             const candidates = all.filter((t) => t.id !== tag.id);
             return (
-              <li key={tag.id} className={DATA_ROW}>
-                <div>
+              <li key={tag.id} className={TAG_ROW}>
+                <div className="group-has-[[data-editing]]:hidden">
                   <div className="font-medium">#{tag.name}</div>
-                  <div className="text-sm text-ink-tertiary">
-                    {tag.noteCount} 件のノート
-                  </div>
+                  <div className={TAG_COUNT}>{tag.noteCount} 件のノート</div>
                 </div>
                 <TagActions
                   tagId={tag.id}
