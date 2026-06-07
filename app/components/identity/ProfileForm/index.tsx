@@ -52,6 +52,7 @@ export function ProfileForm({
 
   const displayNameId = useId();
   const bioId = useId();
+  const bioCounterId = useId();
   const usernameId = useId();
   const usernameHintId = useId();
 
@@ -95,6 +96,7 @@ export function ProfileForm({
     try {
       await changeUsername({ data: { newUsername } });
       await routerInvalidate(router);
+      setNewUsername("");
       return { error: null, ok: true };
     } catch (e) {
       return { error: extractSerializedError(e), ok: false };
@@ -160,9 +162,10 @@ export function ProfileForm({
             defaultValue={user.bio ?? ""}
             onChange={(e) => setBioCount(e.target.value.length)}
             disabled={profilePending}
+            aria-describedby={bioCounterId}
             className={FIELD_TEXTAREA}
           />
-          <p className={CHAR_COUNTER} aria-live="polite">
+          <p id={bioCounterId} className={CHAR_COUNTER}>
             {bioCount} / {BIO_MAX}
           </p>
           {profileFieldErrors?.bio !== undefined ? (

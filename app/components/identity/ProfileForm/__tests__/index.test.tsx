@@ -65,9 +65,9 @@ afterEach(() => {
   container.remove();
 });
 
-function render(appUrl: string) {
+function render(appUrl: string, user: UserDTO = USER) {
   act(() => {
-    root.render(<ProfileForm user={USER} appUrl={appUrl} />);
+    root.render(<ProfileForm user={user} appUrl={appUrl} />);
   });
 }
 
@@ -113,6 +113,11 @@ describe("ProfileForm bio character counter", () => {
     setNativeValue(getBioTextarea(), "abc");
     expect(container.textContent).toContain("3 / 500");
   });
+
+  it("shows 0 / 500 when bio is null (the `?? 0` fallback)", () => {
+    render("https://app.example.com", { ...USER, bio: null });
+    expect(container.textContent).toContain("0 / 500");
+  });
 });
 
 describe("ProfileForm username URL preview", () => {
@@ -146,5 +151,18 @@ describe("ProfileForm username rate-limit help", () => {
       "ユーザー名は30日に1回まで変更できます。",
     );
     expect(container.textContent).not.toContain("90日");
+  });
+
+  it("wires the rate-limit help to the new-username input via aria-describedby", () => {
+    render("https://app.example.com");
+    const input = getUsernameInput();
+    const describedBy = input.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    const help = describedBy
+      ? container.querySelector(`#${CSS.escape(describedBy)}`)
+      : null;
+    expect(help?.textContent).toContain(
+      "ユーザー名は30日に1回まで変更できます。",
+    );
   });
 });

@@ -113,6 +113,17 @@ function submit() {
   });
 }
 
+describe("AccountDeleteForm section description", () => {
+  it("emphasizes 「取り消せません」 in a <strong> (not plain text)", () => {
+    render();
+    const strongs = Array.from(container.querySelectorAll("strong"));
+    const emphasized = strongs.some((el) =>
+      (el.textContent ?? "").includes("取り消せません"),
+    );
+    expect(emphasized).toBe(true);
+  });
+});
+
 describe("AccountDeleteForm validation error (Issue #421 — regression guard)", () => {
   it("keeps the dialog open and shows the mismatch error next to the input, without calling the server", () => {
     render();
