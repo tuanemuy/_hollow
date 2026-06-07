@@ -1,7 +1,39 @@
+import {
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  type LucideIcon,
+} from "lucide-react";
+import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ERROR,
+  ALERT_ICON,
+  ALERT_INFO,
+  ALERT_TITLE,
+  ALERT_WARNING,
+} from "@/components/common/styles";
 import type { InstanceSettingsDTO } from "@/core/application/dto/adminSettings";
+import type { AlertDTO } from "@/core/application/dto/common";
 import { requireAdminUser } from "@/lib/server/currentUser";
 import { loadUsageMetrics } from "../Dashboard/action";
 import { loadInstanceSettings } from "../LLMSettingsForm/action";
+
+// 案D semantic modifiers are info/success/warning/error only; `critical`
+// maps to `error` (no dedicated `critical` modifier). See .issue/539/plan.md.
+const ALERT_TONE: Record<AlertDTO["severity"], string> = {
+  critical: ALERT_ERROR,
+  warning: ALERT_WARNING,
+  info: ALERT_INFO,
+};
+
+const ALERT_TONE_ICON: Record<AlertDTO["severity"], LucideIcon> = {
+  critical: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
+};
 
 function formatNumber(value: number | null): string {
   if (value === null) return "—";
@@ -156,19 +188,15 @@ export async function MetricsPage() {
           {metrics.alerts.map((alert) => (
             <div
               key={alert.code}
-              className={`flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink ${
-                alert.severity === "critical"
-                  ? "bg-error-surface"
-                  : alert.severity === "warning"
-                    ? "bg-warning-surface"
-                    : "bg-accent-surface"
-              }`}
+              className={`${ALERT} ${ALERT_TONE[alert.severity]} mb-3`}
+              role="alert"
             >
-              <div className="flex-1 text-ink">
-                <strong className="block mb-[2px] font-semibold">
-                  {alert.code}
-                </strong>
-                {alert.message}
+              <span className={ALERT_ICON} aria-hidden="true">
+                <Icon icon={ALERT_TONE_ICON[alert.severity]} size={20} />
+              </span>
+              <div className={ALERT_CONTENT}>
+                <p className={`${ALERT_TITLE} font-mono`}>{alert.code}</p>
+                <p className={ALERT_BODY}>{alert.message}</p>
               </div>
             </div>
           ))}

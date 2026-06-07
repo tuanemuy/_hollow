@@ -1,3 +1,20 @@
+import {
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  type LucideIcon,
+} from "lucide-react";
+import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ERROR,
+  ALERT_ICON,
+  ALERT_INFO,
+  ALERT_TITLE,
+  ALERT_WARNING,
+} from "@/components/common/styles";
 import type { AlertDTO } from "@/core/application/dto/common";
 import { requireAdminUser } from "@/lib/server/currentUser";
 import { loadUsageMetrics } from "./action";
@@ -19,26 +36,18 @@ function formatBytes(value: number | null): string {
   return `${scaled.toFixed(scaled >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-type BannerTone = "error" | "warning" | "info";
+// 案D semantic modifiers are info/success/warning/error only; `critical`
+// maps to `error` (no dedicated `critical` modifier). See .issue/539/plan.md.
+const ALERT_TONE: Record<AlertDTO["severity"], string> = {
+  critical: ALERT_ERROR,
+  warning: ALERT_WARNING,
+  info: ALERT_INFO,
+};
 
-function bannerToneFor(severity: AlertDTO["severity"]): BannerTone {
-  switch (severity) {
-    case "critical":
-      return "error";
-    case "warning":
-      return "warning";
-    case "info":
-      return "info";
-  }
-}
-
-const BANNER_BASE =
-  "flex items-start gap-3 mb-6 px-5 py-4 rounded-lg text-sm text-ink";
-
-const BANNER_TONE: Record<BannerTone, string> = {
-  error: "bg-error-surface",
-  warning: "bg-warning-surface",
-  info: "bg-accent-surface",
+const ALERT_TONE_ICON: Record<AlertDTO["severity"], LucideIcon> = {
+  critical: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
 };
 
 export async function AdminDashboard() {
@@ -65,14 +74,15 @@ export async function AdminDashboard() {
           {metrics.alerts.map((alert) => (
             <div
               key={alert.code}
-              className={`${BANNER_BASE} ${BANNER_TONE[bannerToneFor(alert.severity)]}`}
+              className={`${ALERT} ${ALERT_TONE[alert.severity]} mb-3`}
               role="alert"
             >
-              <div className="flex-1 text-ink">
-                <strong className="block mb-[2px] font-semibold">
-                  {alert.code}
-                </strong>
-                {alert.message}
+              <span className={ALERT_ICON} aria-hidden="true">
+                <Icon icon={ALERT_TONE_ICON[alert.severity]} size={20} />
+              </span>
+              <div className={ALERT_CONTENT}>
+                <p className={`${ALERT_TITLE} font-mono`}>{alert.code}</p>
+                <p className={ALERT_BODY}>{alert.message}</p>
               </div>
             </div>
           ))}

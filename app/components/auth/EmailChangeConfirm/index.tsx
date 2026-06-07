@@ -5,6 +5,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/common/Icon";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+  ALERT_WARNING,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -88,15 +96,15 @@ export function EmailChangeConfirm({ token }: { token: string }) {
           新しいメールアドレスでの本人確認が完了しました。今後のログインや通知は新しいアドレスに切り替わります。
         </p>
 
-        <div
-          className="flex items-start gap-3 p-4 rounded-lg bg-warning-surface text-ink text-sm leading-normal text-left mb-8"
-          role="status"
-        >
-          <span className="text-warning shrink-0 mt-0.5" aria-hidden="true">
+        <div className={`${ALERT} ${ALERT_WARNING} mb-8`} role="status">
+          <span className={ALERT_ICON} aria-hidden="true">
             <Icon icon={AlertCircle} size={20} />
           </span>
-          <div>
-            旧アドレスではログインできなくなりました。今後は新しいアドレスをご利用ください。
+          <div className={ALERT_CONTENT}>
+            <p className={ALERT_TITLE}>旧アドレスは使用できなくなりました</p>
+            <p className={ALERT_BODY}>
+              今後は新しいアドレスでログインしてください。古いアドレス宛の通知も届かなくなります。
+            </p>
           </div>
         </div>
 

@@ -5,7 +5,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Eye, EyeOff, Info } from "lucide-react";
 import { useActionState, useId, useState } from "react";
 import { Icon } from "@/components/common/Icon";
-import { textLink } from "@/components/common/styles";
+import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+  textLink,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -25,7 +32,6 @@ import {
   AUTH_SUBTITLE,
   AUTH_TITLE,
   BTN_PRIMARY,
-  CALLOUT,
   CHECKBOX_INPUT,
   CHECKBOX_ROW,
   FIELD,
@@ -161,25 +167,20 @@ export function AdminSignUpForm() {
         は環境変数 <code>ADMIN_SETUP_TOKEN</code> に設定された値です。
       </p>
 
-      <div className={CALLOUT}>
-        <Icon
-          icon={Info}
-          size={20}
-          className="shrink-0 text-ink-tertiary mt-0.5"
-        />
-        <span>
-          <strong className="text-ink font-semibold">
-            このページは特権操作です。
-          </strong>{" "}
-          Setup Token を知る運用者のみ作成できます。通常のサインアップは{" "}
-          <Link
-            to="/signup"
-            className="text-accent underline [text-underline-offset:3px]"
-          >
-            こちら
-          </Link>{" "}
-          から。新規登録が停止中でもこのフォームは機能します。
+      <div className={`${ALERT} mb-6`} role="note">
+        <span className={ALERT_ICON} aria-hidden="true">
+          <Icon icon={Info} size={20} />
         </span>
+        <div className={ALERT_CONTENT}>
+          <p className={ALERT_TITLE}>このページは特権操作です</p>
+          <p className={ALERT_BODY}>
+            Setup Token を知る運用者のみ作成できます。通常のサインアップは{" "}
+            <Link to="/signup" className={textLink}>
+              こちら
+            </Link>{" "}
+            から。新規登録が停止中でもこのフォームは機能します。
+          </p>
+        </div>
       </div>
 
       <form className={FORM} action={formAction} noValidate>
