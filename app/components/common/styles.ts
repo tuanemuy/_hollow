@@ -306,11 +306,20 @@ export const ALERT_TITLE =
   "m-0 text-sm font-semibold tracking-[-0.01em] text-[var(--alert-accent)]";
 
 /**
+ * Mono title variant for monitoring-key headings (P47 admin-metrics): the mock's
+ * local `.alert-title` override uses `--font-mono` + `--text-xs` and drops the
+ * sans tracking, so this is not just `${ALERT_TITLE} font-mono`.
+ */
+export const ALERT_TITLE_MONO =
+  "m-0 text-xs font-mono font-semibold text-[var(--alert-accent)]";
+
+/**
  * Alert body — secondary ink. `<strong>` inside is promoted to primary ink +
- * medium weight to match the mock.
+ * medium weight, and inline `<a>` is always underlined accent (mock
+ * `.alert-body a`), to match the mock.
  */
 export const ALERT_BODY =
-  "m-0 text-sm text-ink-secondary leading-relaxed [&_strong]:text-ink [&_strong]:font-medium";
+  "m-0 text-sm text-ink-secondary leading-relaxed [&_strong]:text-ink [&_strong]:font-medium [&_a]:text-accent [&_a]:underline [&_a]:[text-underline-offset:3px]";
 
 /** Inline `<code>` inside an alert body (P15 / P47 mono local variant). */
 export const ALERT_BODY_CODE = "font-mono text-xs";

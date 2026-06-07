@@ -175,9 +175,7 @@ export function AdminSignUpForm() {
           <p className={ALERT_TITLE}>このページは特権操作です</p>
           <p className={ALERT_BODY}>
             Setup Token を知る運用者のみ作成できます。通常のサインアップは{" "}
-            <Link to="/signup" className={textLink}>
-              こちら
-            </Link>{" "}
+            <Link to="/signup">こちら</Link>{" "}
             から。新規登録が停止中でもこのフォームは機能します。
           </p>
         </div>

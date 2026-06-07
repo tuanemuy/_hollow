@@ -12,7 +12,7 @@ import {
   ALERT_ERROR,
   ALERT_ICON,
   ALERT_INFO,
-  ALERT_TITLE,
+  ALERT_TITLE_MONO,
   ALERT_WARNING,
 } from "@/components/common/styles";
 import type { InstanceSettingsDTO } from "@/core/application/dto/adminSettings";
@@ -195,7 +195,7 @@ export async function MetricsPage() {
                 <Icon icon={ALERT_TONE_ICON[alert.severity]} size={20} />
               </span>
               <div className={ALERT_CONTENT}>
-                <p className={`${ALERT_TITLE} font-mono`}>{alert.code}</p>
+                <p className={ALERT_TITLE_MONO}>{alert.code}</p>
                 <p className={ALERT_BODY}>{alert.message}</p>
               </div>
             </div>
