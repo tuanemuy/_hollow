@@ -15,14 +15,26 @@
 - `public/favicon.ico` — 16/32/48 マルチ解像度
 - `public/apple-touch-icon.png` — 180・白地・不透明・余白付き
 - `public/mask-icon.svg` — Safari ピン留めタブ用（`#1d1d1f`）
-- `public/og-image.png` / `og-image.svg` — 白基調・Vesica + `hollow`(Avenir Next) + tagline
+- `public/og-image.png` / `og-image.svg` — 白基調・Vesica + `hollow`(Avenir Next・**アウトライン化**) + tagline
 - `app/routes/__root.tsx` — `mask-icon` link を追加（他の icon link は既存）
 
-ラスタは `spec/design/icons/hollow-mark-ink.svg` を元に ImageMagick で生成。`public/` を正とする。
+Vesica マークのラスタは `spec/design/icons/hollow-mark-ink.svg` を元に ImageMagick で生成。`public/` を正とする。
 
-### 補足（Wordmark / フォント）
+### Wordmark / フォント（決定：Avenir Next をアウトライン化）
 
-og-image の `hollow` は **Avenir Next をラスタライズ時に焼き込み**（PNG）。Avenir Next は Apple のプロプライエタリフォントのため、配布ベクター（`hollow-lockup.svg`）へのアウトライン埋め込みは行わず、`<text>` 参照（非 Apple 環境はフォールバック）とした。フォント非依存のベクターロックアップが必要になれば、Web フォント採用 or オープンフォント選定が前提。
+Wordmark は **Avenir Next / Regular（lowercase）を採用**。Apple プロプライエタリフォントだが、**グリフをベクターパスへアウトライン化**して埋め込むことでフォント依存を排除した（フォントファイルは配布しない）。
+
+- `public/og-image.svg` — Vesica マーク（line）＋ `hollow`／tagline を **`<path>` でアウトライン化**。`<text>` 参照は廃止。
+- `public/og-image.png` — 上記 SVG を librsvg でラスタライズ。**fontconfig は Avenir Next を解決できないが、パス化済みのため結果は不変＝再現可能**（旧版の Bold フォールバック問題を解消）。
+- `spec/design/icons/hollow-lockup.svg` — マーク＋ wordmark の横組みロックアップ（アウトライン・`currentColor`）。
+
+アウトライン生成は CoreText（Swift, `CTFontCreatePathForGlyph`）でグリフパスを抽出 → `/tmp/glyph2svg.swift` + `/tmp/build_og.py` で SVG を組成。再生成手順はこの 2 スクリプトを参照（Avenir Next 実体は macOS システムフォント `/System/Library/Fonts/Avenir Next.ttc`）。
+
+> ライセンス: ロゴ用途のアウトライン化は多くの Foundry EULA で許容されるが、Apple 同梱フォントの条項は要確認。厳密に避けたい場合は案B（オープンフォント）へ切替可能。
+
+### 不採用（案B：オープン幾何学サンセリフへの置換・記録として保持）
+
+Avenir Next を**埋め込み可能なオープンフォント**へ置換する案も比較検討した（最終的に Avenir Next アウトライン採用で不採用）。候補比較プレビュー: [`wordmark-open-fonts.html`](./wordmark-open-fonts.html)（Jost / Urbanist / Outfit / Poppins / Montserrat / Manrope / DM Sans / Lexend / Sora を実測で字幅を Avenir に揃えて比較。最上段に本物 Avenir Next 参照）。将来ライセンス都合で切替が必要になった際の出発点として保持する。
 
 ---
 
