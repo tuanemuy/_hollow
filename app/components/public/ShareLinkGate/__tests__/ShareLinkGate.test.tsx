@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SerializedError } from "@/core/presentation/errorResponse";
 
 /**
- * Issue #544: locks the P33 follow-up behaviours on the pure gate view.
+ * Locks the P33 share-gate behaviours on the pure gate view.
  * - expired/gone (`share_link_revoked` / `notFound`) renders the「トップへ戻る」
  *   CTA pointing home, and drops the password form.
  * - lockout (`share_link_locked`) renders the「案D」alert as `role="status"`

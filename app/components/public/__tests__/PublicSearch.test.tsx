@@ -2,9 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * Issue #544: locks the P32 hero-sub description「このインスタンス全体の公開
- * ノートから横断検索できます」rendered directly under the hero h1 (mock SSOT),
- * and that the un-searched empty state no longer duplicates that copy.
+ * Locks the P32 hero-sub description「このインスタンス全体の公開ノートから横断
+ * 検索できます」rendered directly under the hero h1 (mock SSOT), and that the
+ * un-searched empty state no longer duplicates that copy.
  */
 
 vi.mock("@/core/presentation/serverAction", () => ({
