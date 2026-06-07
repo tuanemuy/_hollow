@@ -181,33 +181,57 @@
   }
   .pill-btn:hover { background: var(--color-surface-hover); }
 
-  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
-  .alert {
+  /* Toast — レート制限などの一時通知は「引っかかった時だけ」トーストで出す。
+     常設のインラインアラートにはしない。構造は common-toast.html 準拠。 */
+  .toast-region {
+    position: fixed;
+    top: var(--space-3);
+    right: var(--space-3);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 100%;
+    max-width: 380px;
+    pointer-events: none;
+  }
+  .toast-region > * { pointer-events: auto; }
+  .toast {
     --alert-accent: var(--color-accent);
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
-    padding: var(--space-4);
+    width: 100%;
+    min-width: 0;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
     border-radius: var(--radius-lg);
-    background: var(--color-bg);
-    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
-    box-shadow: var(--shadow-xs);
-    text-align: left;
-    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-3);
   }
-  .alert-info { --alert-accent: var(--color-info); }
-  .alert-success { --alert-accent: var(--color-success); }
-  .alert-warning { --alert-accent: var(--color-warning); }
-  .alert-error { --alert-accent: var(--color-error); }
-  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
-  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
-  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
-  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
-  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
-  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
-
-  /* レート制限アラートは本文カラム内に置き、検索ヒーローの直前に余白を確保する */
-  .rate-alert { margin-top: var(--space-6); }
+  .toast-warning { --alert-accent: var(--color-warning); }
+  .toast-icon { flex-shrink: 0; display: inline-flex; align-items: center; color: var(--alert-accent); height: calc(var(--text-sm) * var(--leading-snug)); }
+  .toast-icon svg { width: 18px; height: 18px; }
+  .toast-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .toast-msg { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); line-height: var(--leading-snug); overflow-wrap: anywhere; }
+  .toast-sub { font-size: var(--text-xs); color: var(--color-ink-secondary); line-height: var(--leading-snug); }
+  .toast-close {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--color-ink-tertiary);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-bg);
+  }
+  .toast-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+  .toast[hidden] { display: none; }
+  @media (max-width: 640px) {
+    .toast-region { left: var(--space-3); right: var(--space-3); top: auto; bottom: var(--space-3); max-width: none; }
+    .toast-close { min-width: 44px; min-height: 44px; }
+  }
 
   /* ===== Wrap ===== */
   .main-wrap {
@@ -834,15 +858,6 @@
 
 <div class="main-wrap">
 
-  <div class="alert alert-info rate-alert" role="status">
-    <span class="alert-icon" aria-hidden="true">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-    </span>
-    <div class="alert-content">
-      <p class="alert-body">レート制限: 5 分間に 30 リクエストまで。残り 24 回。</p>
-    </div>
-  </div>
-
   <section class="hero">
     <h1 class="hero-title">公開ノートを検索</h1>
     <p class="hero-sub">このインスタンス全体の公開ノートから横断検索できます</p>
@@ -1100,6 +1115,23 @@
   </div>
 </aside>
 
+<!-- レート制限はインラインに常設せず、上限に達したときだけトーストで通知する。
+     既定では表示されない。ここでは「引っかかった時」の状態見本として表示。 -->
+<div class="toast-region">
+  <div class="toast toast-warning" role="alert" aria-live="assertive">
+    <span class="toast-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+    </span>
+    <div class="toast-body">
+      <p class="toast-msg">リクエストが多すぎます</p>
+      <p class="toast-sub">5 分間の上限（30 リクエスト）に達しました。しばらくしてから再度お試しください。</p>
+    </div>
+    <button class="toast-close" type="button" aria-label="閉じる" title="閉じる">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
 <footer class="footer">
   <div class="footer-inner">
     <div>Hollow · hollow.example.com</div>
@@ -1116,6 +1148,11 @@
   const drawer = document.getElementById('drawer');
   const drawerClose = document.getElementById('drawerClose');
   const backdrop = document.getElementById('drawerBackdrop');
+
+  // トーストの閉じる（実装ではタイムアウト自動消滅 + 手動 dismiss）
+  document.querySelectorAll('.toast-close').forEach(btn => {
+    btn.addEventListener('click', () => btn.closest('.toast')?.remove());
+  });
 
   function openDrawer() {
     drawer.classList.add('open');
