@@ -2,7 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useActionState, useId } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
@@ -132,7 +132,7 @@ export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
         {isLocked ? (
           <div className={`${ALERT} ${ALERT_WARNING} mb-4.5`} role="status">
             <span className={ALERT_ICON}>
-              <Icon icon={AlertTriangle} size={20} />
+              <Icon icon={Clock} size={20} />
             </span>
             <div className={ALERT_CONTENT}>
               <p className={ALERT_BODY}>{message}</p>
@@ -165,8 +165,10 @@ export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
               autoComplete="current-password"
               maxLength={128}
               disabled={isPending || isLocked}
-              aria-invalid={state.error !== null}
-              aria-describedby={message !== null ? errorId : undefined}
+              aria-invalid={state.error !== null && !isLocked}
+              aria-describedby={
+                message !== null && !isLocked ? errorId : undefined
+              }
             />
             {message !== null && !isLocked ? (
               <p

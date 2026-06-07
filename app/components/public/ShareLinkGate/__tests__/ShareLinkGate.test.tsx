@@ -79,12 +79,33 @@ describe("ShareLinkGateView lockout (案D alert)", () => {
     expect(html).toContain(
       "試行回数の上限に達しました。しばらく時間をおいて再度お試しください。",
     );
-    // 案D is a white-surface bordered box (bg-bg), not a filled banner.
-    expect(html).not.toContain('bg-warning-surface" role="status"');
-    expect(html).toContain("bg-bg");
+    // 案D = the shared ALERT box: white surface + hairline border + shadow-xs,
+    // tinted by the warning accent. Assert the exact shared ALERT class string
+    // (uniquely the alert box) plus the warning accent — the old filled LOCKOUT
+    // banner (`bg-warning-surface ... rounded-md`) carried none of these, so a
+    // regression to it would drop these classes and fail here. (A bare
+    // `bg-warning-surface` check can't witness this: GATE_ICON's lock circle
+    // legitimately uses that fill.)
+    expect(html).toContain(
+      "rounded-lg bg-bg shadow-xs text-left border border-[color-mix(in_oklab,var(--alert-accent)_30%,transparent)]",
+    );
+    expect(html).toContain("[--alert-accent:var(--color-warning)]");
     // Lockout keeps the gate available (no expired CTA, form still present).
     expect(html).not.toContain("トップへ戻る");
     expect(html).toContain("<form");
+  });
+});
+
+describe("ShareLinkGateView STATE1 (password gate, no error)", () => {
+  it("renders the bare password gate with no CTA or alert", () => {
+    const html = render(null);
+
+    expect(html).toContain("このノートはパスワードで保護されています");
+    expect(html).toContain("<form");
+    // Neither the expired CTA nor the lockout alert appear in the clean state.
+    expect(html).not.toContain("トップへ戻る");
+    expect(html).not.toContain('role="status"');
+    expect(html).not.toContain('role="alert"');
   });
 });
 

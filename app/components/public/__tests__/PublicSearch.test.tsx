@@ -40,4 +40,24 @@ describe("PublicSearch hero", () => {
     );
     expect(html).toContain("まだ検索していません");
   });
+
+  it("does not resurrect the old empty-state copy on a no-hit search", async () => {
+    // keyword present + zero hits (serverData mock always returns []), so the
+    // SEARCH_EMPTY no-results branch renders. The hero-sub stays; the old
+    // duplicated empty-state copy must not reappear there either.
+    const element = await PublicSearch({
+      keyword: "存在しない語",
+      username: null,
+      cursor: null,
+      limit: 20,
+    });
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain(
+      "このインスタンス全体の公開ノートから横断検索できます",
+    );
+    expect(html).not.toContain(
+      "同じインスタンスの公開ノートを横断検索できます。",
+    );
+  });
 });

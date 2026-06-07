@@ -261,3 +261,35 @@ React 19 のクライアント form action は submit 時に `action="javascript
   （server fn / router）の薄い配線で、ブラウザ確認（manual-test）観点に委ねるのが妥当。
 </content>
 </invoke>
+
+---
+
+## ADR-009: ロックアウト案D は「見出しなし（icon + body のみ）」かつ時計アイコンでモックに忠実に追従する（PRレビューで確定）
+
+### Status
+Accepted（PR #561 review-001 で確定）
+
+### Context
+PR レビューで2つの相反する指摘が出た:
+- スタイリング視点: index.md の `.alert` 案D 構造は「アイコン + 見出し（`.alert-title`）+ 本文」であり、
+  コードベースの他の全 `.alert` 消費者（LoginForm 等）は `ALERT_TITLE` + `ALERT_BODY` のペアを使う。ロックアウト
+  だけ見出しなしは案D 規定構造・既存パターンから逸脱しているのでは。
+- フロントエンド視点: P33 モックのロックアウト `.alert` は実際には `.alert-title` を持たず、icon + `.alert-body`
+  のみ（`P33-share-link.html` 412-415行）。実装の構成（title 省略）はモックと一致している。
+
+加えてアイコンについて、モックのロックアウトは時計アイコン（`<circle cx=12 cy=12 r=9>` + `<polyline 12 7 12 12
+15 14>`）を使うが、初期実装は `AlertTriangle` を当てていた。
+
+### Decision
+本Issueはモック追従（モックが SSOT）であり、モックのロックアウトが意図的に「見出しなし（icon + body のみ）」で
+あるため、**実装も見出しを足さずモックに忠実に従う**（`ALERT_TITLE` は使わない）。他消費者との構造一貫性より
+モック忠実性を優先する。アイコンはモック準拠で `AlertTriangle` → `Clock`（lucide-react）に変更する。時計は
+「あと N 分で再試行できる」という時間制限の含意を補強し、`role="status"`（polite な時間案内）という ADR-006 の
+意図とも整合する。
+
+### Consequences
+- 良い点: モック（SSOT）に忠実。`role="status"` + 時計アイコン + 簡潔な body で「時間をおけば再試行可」の案内が
+  一貫する。
+- トレードオフ: ロックアウト `.alert` だけ他消費者（title + body）と構造が異なる。ただしこれはモックが定めた
+  意図的な差であり、index.md 案D の「アイコン + 枠 + 本文（title は任意）」の範囲内。リテラル色・px は
+  共通定数経由で増やさない。
