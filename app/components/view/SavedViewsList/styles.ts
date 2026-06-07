@@ -8,6 +8,14 @@
  */
 
 import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_BODY_CODE,
+  ALERT_CONTENT,
+  ALERT_TITLE,
+  ALERT_WARNING,
+} from "@/components/common/styles";
+import {
   dateRangePresetLabels,
   formatDateRangeChipLabel,
   matchDateRangePreset,
@@ -155,29 +163,34 @@ export const menuBtn =
 export const textAction =
   "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
 
-/** Broken-conditions warning banner (warning surface). */
-export const brokenBanner =
-  "flex items-start gap-3 px-4 py-3 bg-warning-surface rounded-md mt-3 mb-0.5 max-lg:flex-wrap";
+/**
+ * Broken-conditions banner — 案D `.alert.alert-warning` (white surface +
+ * semantic hairline border + `--shadow-xs`, shared `common/styles` ALERT
+ * primitive, #539/#547). The mock nests this inside a view row, so the row
+ * spacing (`mt-3 mb-0.5`, mock `.view-main .alert`) and the mobile wrap come
+ * from here while the box chrome comes from `ALERT`/`ALERT_WARNING`.
+ */
+export const brokenBanner = `${ALERT} ${ALERT_WARNING} mt-3 mb-0.5 max-sm:flex-wrap`;
 
-/** Banner body wrapper. */
-export const brokenBody = "flex-1 min-w-0";
+/** Banner body wrapper (alert title + detail column). */
+export const brokenBody = ALERT_CONTENT;
 
-/** Banner title. */
-export const brokenTitle = "text-sm font-medium text-warning mb-0.5";
+/** Banner title (warning-accented). */
+export const brokenTitle = ALERT_TITLE;
 
-/** Banner detail text. */
-export const brokenDetail = "text-sm text-warning/90 leading-snug";
+/** Banner detail list (ink-secondary body text). */
+export const brokenDetail = ALERT_BODY;
 
 /** Inline `<code>` for a deleted reference's name inside the banner. */
-export const brokenCode =
-  "font-mono text-[0.95em] bg-white/60 px-1.5 py-px rounded-xs";
+export const brokenCode = `${ALERT_BODY_CODE} bg-surface px-1.5 py-px rounded-xs`;
 
 /**
- * Banner "修復" action (P20 `.fix-btn`). Warning-toned, translucent-white
- * surface that brightens on hover; does not shrink when the banner wraps.
+ * Banner "修復" action (P20 `.fix-btn`). Warning-toned surface pill pushed to
+ * the trailing edge (`ml-auto self-center`), dropping to the start when the
+ * alert wraps on mobile. Does not shrink.
  */
 export const fixBtn =
-  "shrink-0 px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-white/60 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/95 disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
+  "shrink-0 ml-auto self-center px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-surface transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed max-sm:ml-0 max-sm:self-start max-sm:min-h-[44px]";
 
 /** Inline editing name input. */
 export const renameInput =

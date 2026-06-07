@@ -76,11 +76,14 @@ Proposed
 本 Issue では「CSS/JSX の見た目追従に閉じられる範囲」のみ実施し、パイプライン変更・横断基盤刷新が必要な部分は別 Issue に切り出す:
 - C-3: レンダリングパイプライン変更が確認された場合は本 Issue で行わず別 Issue 化（CSS だけ先行追加して死にコード化しない）。
 - E-2: overflow メニュー化は `common/Menu` で安価に実現できるなら実施可、コスト過大なら現状維持（意図的差分として記録）。
-- E-3: `.alert` 案D 化は §9 の「別 Issue」記述に従い、本 Issue では原則見送り（横断テーマとして別 Issue）。
+- E-3: `.alert` 案D 化は §9 の「別 Issue」記述に従い、本 Issue 着手時点では原則見送り（横断テーマとして別 Issue）。
+
+### Decision 追補（#547 マージ後の方針変更 — E-3 を本 Issue で実施）
+当初 E-3（broken バナー `.alert` 案D 化）は「`.alert` 基盤がまだ無い」ことを理由に #539 へ委ねたが、**#539 の実装 PR #547 が main にマージされ `common/styles.ts` に `ALERT` / `ALERT_WARNING` / `ALERT_ICON` / `ALERT_CONTENT` / `ALERT_TITLE` / `ALERT_BODY` / `ALERT_BODY_CODE` の共有 primitive が揃った**。一方 #547 は auth / admin のアラートのみを移行し、**P20 broken バナーは含んでいない**（#539 は CLOSED）。基盤が揃い、死にコード化の懸念が解消されたため、P20 broken バナーの案D 化を**本 Issue（#548）で実施**する（main を取り込み、`SavedViewsList/styles.ts` の `brokenBanner` 系を `ALERT` primitive 合成へ移行。`fixBtn` は mock `.fix-btn` の warning-toned surface ピルへ、配色を filled バナー時代の `bg-white/60` から `bg-surface` / `hover:bg-surface-hover` へ更新）。これで P20 の `.alert` 採用（index.md §9）が実装に追従し、宙に浮いていた残課題を解消する。
 
 ### Consequences
-- 良い点: ドメイン変更・横断刷新の混入によるスコープ肥大とレビュー困難化を防ぐ。
-- トレードオフ: P11 本文の内部リンク見た目・P20 の broken バナー見た目が一部モック未達のまま。フォローアップ Issue へ引き継ぐ。
+- 良い点: ドメイン変更・横断刷新の混入によるスコープ肥大を避けつつ、基盤が揃った時点で P20 broken バナーの案D 化まで完了でき、#539 CLOSED で行き場を失った残課題を回収できる。
+- トレードオフ: P11 本文の内部リンク見た目（C-3）はレンダリングパイプライン変更が必要なため引き続き別 Issue（#549）。
 
 ---
 

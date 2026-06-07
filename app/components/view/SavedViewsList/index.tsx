@@ -21,7 +21,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { Menu, MenuItem } from "@/components/common/Menu";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { chip } from "@/components/common/styles";
+import { ALERT_ICON, chip } from "@/components/common/styles";
 import type { FlatDirectory } from "@/components/note/directoryTree";
 import { ViewFormDialog } from "@/components/view/ViewFormDialog";
 import type { SavedViewDTO } from "@/core/application/dto/view";
@@ -442,10 +442,12 @@ function SavedViewRow({
               ) : null}
             </div>
             {isBroken ? (
-              <div className={brokenBanner}>
-                <Icon icon={AlertTriangle} />
+              <div className={brokenBanner} role="status">
+                <span className={ALERT_ICON} aria-hidden="true">
+                  <Icon icon={AlertTriangle} />
+                </span>
                 <div className={brokenBody}>
-                  <div className={brokenTitle}>壊れた条件があります</div>
+                  <p className={brokenTitle}>壊れた条件があります</p>
                   <ul className={brokenDetail}>
                     {view.brokenConditions.map((condition) => {
                       const label = BROKEN_KIND_LABEL[condition.kind];
