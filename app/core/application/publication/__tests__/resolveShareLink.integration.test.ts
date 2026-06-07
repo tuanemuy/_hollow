@@ -201,6 +201,18 @@ describe("resolveShareLink (integration)", () => {
         if (!isBusinessRuleError(error)) throw error;
         expect(error.code).toBe("share_link_password_invalid");
       }
+
+      // The lockout must arm on exactly the 5th attempt: after the 4th the
+      // counter is 4 and lockedUntil is still null. This pins the off-by-one
+      // in recordFailedAttempt (arming neither too early nor too late).
+      if (i === 4) {
+        const afterFourth = await container.unitOfWorkProvider.run(
+          async ({ shareLinkRepository }) =>
+            shareLinkRepository.findById(link.id),
+        );
+        expect(afterFourth?.entity.failedAttempts).toBe(4);
+        expect(afterFourth?.entity.lockedUntil).toBeNull();
+      }
     }
 
     const afterFifth = await container.unitOfWorkProvider.run(
@@ -251,7 +263,7 @@ describe("resolveShareLink (integration)", () => {
       async ({ shareLinkRepository }) => shareLinkRepository.findById(link.id),
     );
     expect(beforeSuccess?.entity.failedAttempts).toBe(2);
-    const versionBefore = beforeSuccess?.entity.version;
+    const versionBefore = Number(beforeSuccess?.entity.version ?? 0);
 
     const output = await resolveShareLink({
       container,
@@ -270,8 +282,10 @@ describe("resolveShareLink (integration)", () => {
     expect(afterSuccess?.entity.failedAttempts).toBe(0);
     expect(afterSuccess?.entity.lockedUntil).toBeNull();
     expect(afterSuccess?.entity.lastAccessedAt).not.toBeNull();
-    // reset + recordAccess advance the version, guarding OCC progression.
-    expect(afterSuccess?.entity.version).not.toBe(versionBefore);
+    // resetFailedAttempts + recordAccess each advance the version (2 saves'
+    // worth of Version.next), so a single-write regression on the success
+    // path would be caught here.
+    expect(Number(afterSuccess?.entity.version)).toBe(versionBefore + 2);
   });
 
   it("throws share_link_revoked for a revoked link without mutating it", async () => {
