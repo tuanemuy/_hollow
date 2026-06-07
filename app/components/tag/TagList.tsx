@@ -11,14 +11,42 @@ import { extractSerializedError } from "@/core/presentation/errorResponse";
 import { EMPTY_STATE, EMPTY_STATE_ICON, PAGE_SUBTITLE } from "../layout/styles";
 import { deleteTagFn, renameTagFn } from "./actions";
 import { CreateTagForm } from "./CreateTagForm";
-import { TAG_COUNT, TAG_ROW } from "./styles";
+import { TAG_COUNT, TAG_LASTUSED, TAG_ROW } from "./styles";
 import { TagActions } from "./TagActions";
+import { TagListToolbar } from "./TagListToolbar";
 
-type Tag = Readonly<{ id: string; name: string; noteCount: number }>;
+export type TagListSort = "name" | "noteCount" | "createdAt" | "lastUsedAt";
+export type TagListOrder = "asc" | "desc";
+
+type Tag = Readonly<{
+  id: string;
+  name: string;
+  noteCount: number;
+  lastUsedAt: string | null;
+}>;
 
 type Props = {
   tags: readonly Tag[];
+  query: string | undefined;
+  sort: TagListSort;
+  order: TagListOrder;
 };
+
+/**
+ * Local last-used formatter (Issue #569). There is no shared date helper —
+ * `trash/TrashList` and `note/NoteMetaPanel` each carry their own — so this
+ * matches `TrashList`'s `ja-JP` short-date format (no time component).
+ */
+function formatLastUsed(iso: string | null): string {
+  if (iso === null) return "未使用";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "未使用";
+  return `最終使用 ${d.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })}`;
+}
 
 type RemoveAction = Readonly<{ type: "remove"; id: string }>;
 type RenameAction = Readonly<{ type: "rename"; id: string; name: string }>;
@@ -32,15 +60,16 @@ export function reduceTags(
     case "remove":
       return cur.filter((tag) => tag.id !== action.id);
     case "rename":
-      // Only the name changes; keep `noteCount` so candidates / merge source
-      // counts stay accurate while the rename is in flight.
+      // Only the name changes; the spread keeps `noteCount` / `lastUsedAt`
+      // so candidates / merge counts and the last-used column stay accurate
+      // while the rename is in flight.
       return cur.map((tag) =>
         tag.id === action.id ? { ...tag, name: action.name } : tag,
       );
   }
 }
 
-export function TagList({ tags }: Props) {
+export function TagList({ tags, query, sort, order }: Props) {
   const router = useRouter();
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
@@ -87,6 +116,9 @@ export function TagList({ tags }: Props) {
   };
 
   const all = optimisticTags.map((tag) => ({ id: tag.id, name: tag.name }));
+  // A search term applied with no matches is a normal flow, distinct from a
+  // never-created tag catalogue — branch the empty state on it (Issue #569).
+  const isSearchMiss = query !== undefined && optimisticTags.length === 0;
 
   return (
     <>
@@ -94,15 +126,31 @@ export function TagList({ tags }: Props) {
 
       <CreateTagForm />
 
+      <TagListToolbar query={query} sort={sort} order={order} />
+
       {optimisticTags.length === 0 ? (
         <div className={EMPTY_STATE}>
           <Icon icon={Hash} size={24} className={EMPTY_STATE_ICON} />
-          <h2 className="text-xl font-medium text-ink mb-2">
-            タグがまだありません
-          </h2>
-          <p className="text-sm mb-4">
-            本文中で `#tagname` と書くか、上のフォームから追加できます。
-          </p>
+          {isSearchMiss ? (
+            <>
+              <h2 className="text-xl font-medium text-ink mb-2">
+                一致するタグが見つかりません
+              </h2>
+              <p className="text-sm mb-4">
+                「{query}
+                」に一致するタグはありません。検索語を変えてみてください。
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-medium text-ink mb-2">
+                タグがまだありません
+              </h2>
+              <p className="text-sm mb-4">
+                本文中で `#tagname` と書くか、上のフォームから追加できます。
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <ul className="list-none m-0 p-0 mt-6">
@@ -113,6 +161,9 @@ export function TagList({ tags }: Props) {
                 <div className="group-has-[[data-editing]]:hidden">
                   <div className="font-medium">#{tag.name}</div>
                   <div className={TAG_COUNT}>{tag.noteCount} 件のノート</div>
+                  <div className={TAG_LASTUSED}>
+                    {formatLastUsed(tag.lastUsedAt)}
+                  </div>
                 </div>
                 <TagActions
                   tagId={tag.id}

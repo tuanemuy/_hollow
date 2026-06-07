@@ -149,12 +149,20 @@ export class D1TagRepository implements TagRepository {
       // Aliased so `orderBy` can reuse it instead of re-emitting the COUNT.
       const noteCountExpr = sql<number>`COUNT(${notes.id})`.as("noteCount");
 
+      // Issue #569: last-used = MAX(updatedAt) over the owner's active notes
+      // linked to the tag (same JOIN as the count). NULL for unused tags.
+      const lastUsedAtExpr = sql<string | null>`MAX(${notes.updatedAt})`.as(
+        "lastUsedAt",
+      );
+
       const sortExpr =
         sortKey === "noteCount"
           ? noteCountExpr
           : sortKey === "createdAt"
             ? tags.createdAt
-            : tags.nameNormalized;
+            : sortKey === "lastUsedAt"
+              ? lastUsedAtExpr
+              : tags.nameNormalized;
 
       const trimmedQuery = opts.query?.trim() ?? "";
       const whereExpr =
@@ -172,6 +180,7 @@ export class D1TagRepository implements TagRepository {
           name: tags.name,
           nameNormalized: tags.nameNormalized,
           noteCount: noteCountExpr,
+          lastUsedAt: lastUsedAtExpr,
           version: tags.version,
           createdAt: tags.createdAt,
           updatedAt: tags.updatedAt,
@@ -197,10 +206,13 @@ export class D1TagRepository implements TagRepository {
         .offset(opts.offset);
       // D1 may return the COUNT aggregate as a string rather than a
       // number (see `ingestionJobRepository.sumByteSizeByOwnerSince`), so
-      // coerce before exposing it as the read-time count.
+      // coerce before exposing it as the read-time count. `MAX(updatedAt)`
+      // comes back as the stored ISO8601 text (or NULL for unused tags),
+      // revived with `new Date()` like `toTag`'s `createdAt`.
       return rows.map((row) => ({
         tag: this.toTag(row),
         noteCount: Number(row.noteCount),
+        lastUsedAt: row.lastUsedAt === null ? null : new Date(row.lastUsedAt),
       }));
     });
   }

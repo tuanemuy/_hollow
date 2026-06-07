@@ -11,7 +11,7 @@ export type ListTagsInput = {
   limit?: number;
   cursor?: string | null;
   query?: string;
-  sort?: "name" | "noteCount" | "createdAt";
+  sort?: "name" | "noteCount" | "createdAt" | "lastUsedAt";
   order?: "asc" | "desc";
 };
 
@@ -55,7 +55,9 @@ export async function listTags({
   const nextCursor = hasMore ? encodeCursor(offset + limit) : null;
 
   return {
-    tags: page.map((entry) => toTagView(entry.tag, entry.noteCount)),
+    tags: page.map((entry) =>
+      toTagView(entry.tag, entry.noteCount, entry.lastUsedAt),
+    ),
     nextCursor,
   };
 }

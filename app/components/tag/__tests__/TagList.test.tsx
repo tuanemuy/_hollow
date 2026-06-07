@@ -48,7 +48,12 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-type Tag = { id: string; name: string; noteCount: number };
+type Tag = {
+  id: string;
+  name: string;
+  noteCount: number;
+  lastUsedAt: string | null;
+};
 
 let container: HTMLDivElement;
 let root: Root;
@@ -75,7 +80,9 @@ afterEach(() => {
 async function renderList(tags: readonly Tag[]) {
   const { TagList } = await import("../TagList");
   act(() => {
-    root.render(<TagList tags={tags} />);
+    root.render(
+      <TagList tags={tags} query={undefined} sort="name" order="asc" />,
+    );
   });
 }
 
@@ -96,7 +103,7 @@ async function flush() {
 }
 
 function makeTag(id: string, name: string, noteCount = 0): Tag {
-  return { id, name, noteCount };
+  return { id, name, noteCount, lastUsedAt: null };
 }
 
 describe("reduceTags", () => {
@@ -174,7 +181,9 @@ describe("TagList — optimistic rename", () => {
       }),
     );
 
-    await renderList([{ id: "t1", name: "alpha", noteCount: 3 }]);
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 3, lastUsedAt: null },
+    ]);
 
     expect(document.body.textContent).toContain("#alpha");
 
@@ -235,8 +244,8 @@ describe("TagList — optimistic delete", () => {
     );
 
     await renderList([
-      { id: "t1", name: "alpha", noteCount: 0 },
-      { id: "t2", name: "beta", noteCount: 0 },
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
     ]);
 
     expect(document.body.textContent).toContain("2 件のタグ");
@@ -280,9 +289,9 @@ describe("TagList — optimistic delete", () => {
     // the remaining two tags (beta, gamma) should only see each other as candidates.
     // This ensures the deleted tag is properly removed from all candidate lists.
     await renderList([
-      { id: "t1", name: "alpha", noteCount: 0 },
-      { id: "t2", name: "beta", noteCount: 0 },
-      { id: "t3", name: "gamma", noteCount: 0 },
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+      { id: "t3", name: "gamma", noteCount: 0, lastUsedAt: null },
     ]);
 
     const mergeButtons = () =>
@@ -329,7 +338,9 @@ describe("TagList — optimistic delete", () => {
       }),
     );
 
-    await renderList([{ id: "t1", name: "alpha", noteCount: 0 }]);
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
 
     const deleteBtn = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>("button"),

@@ -90,6 +90,7 @@ async function seedNote(
   ownerId: UserId,
   directoryId: string,
   status: "active" | "trashed" = "active",
+  updatedAt: string = TZ,
 ): Promise<string> {
   const id = nextId(0x05);
   await container.db.insert(schema.notes).values({
@@ -103,7 +104,7 @@ async function seedNote(
     status,
     trashedAt: status === "trashed" ? TZ : null,
     createdAt: TZ,
-    updatedAt: TZ,
+    updatedAt,
     editLockUserId: null,
     editLockAcquiredAt: null,
     editLockExpiresAt: null,
@@ -466,5 +467,137 @@ describe("D1TagRepository.findByOwner — read-time noteCount (Issue #365)", () 
     );
     expect(page.map((e) => e.tag.name)).toEqual(["tagQ"]);
     expect(page[0].noteCount).toBe(2);
+  });
+});
+
+describe("D1TagRepository.findByOwner — read-time lastUsedAt (Issue #569)", () => {
+  const D1 = "2026-05-01T00:00:00.000Z";
+  const D2 = "2026-05-10T00:00:00.000Z";
+  const D3 = "2026-05-20T00:00:00.000Z";
+
+  const lastUsedOf = async (
+    container: TestContainer,
+    owner: UserId,
+    name: string,
+  ): Promise<Date | null> => {
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.findByOwner(owner, { limit: 100, offset: 0 }),
+    );
+    const entry = rows.find((e) => e.tag.name === name);
+    if (entry === undefined) throw new Error(`tag not found: ${name}`);
+    return entry.lastUsedAt;
+  };
+
+  it("is MAX(updatedAt) across the tag's active notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTagRow(container, owner, "agg");
+    const n1 = await seedNote(container, owner, dir, "active", D1);
+    const n2 = await seedNote(container, owner, dir, "active", D3);
+    const n3 = await seedNote(container, owner, dir, "active", D2);
+    await linkNoteTag(container, n1, tag);
+    await linkNoteTag(container, n2, tag);
+    await linkNoteTag(container, n3, tag);
+
+    const lastUsed = await lastUsedOf(container, owner, "agg");
+    expect(lastUsed).not.toBeNull();
+    expect(lastUsed?.toISOString()).toBe(new Date(D3).toISOString());
+  });
+
+  it("is null for an unused tag", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    await seedTagRow(container, owner, "unused");
+
+    expect(await lastUsedOf(container, owner, "unused")).toBeNull();
+  });
+
+  it("ignores trashed notes when computing lastUsedAt", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTagRow(container, owner, "mixed");
+    // The (later) trashed note must not win MAX over the active one.
+    const active = await seedNote(container, owner, dir, "active", D1);
+    const trashed = await seedNote(container, owner, dir, "trashed", D3);
+    await linkNoteTag(container, active, tag);
+    await linkNoteTag(container, trashed, tag);
+
+    expect((await lastUsedOf(container, owner, "mixed"))?.toISOString()).toBe(
+      new Date(D1).toISOString(),
+    );
+  });
+
+  it("drops to null when the only linked note is physically deleted (cascade)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTagRow(container, owner, "purged");
+    const note = await seedNote(container, owner, dir, "active", D2);
+    await linkNoteTag(container, note, tag);
+    expect(await lastUsedOf(container, owner, "purged")).not.toBeNull();
+
+    await container.db.delete(schema.notes).where(eq(schema.notes.id, note));
+
+    expect(await lastUsedOf(container, owner, "purged")).toBeNull();
+  });
+
+  it("sorts by lastUsedAt desc/asc with NULLs and a stable tags.id tie-break", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // tagA(D3) newest, tagB(D1) oldest, tagN unused (NULL). tagB shares D1
+    // with tagC so the id tie-break is exercised among the equal pair.
+    const tagA = await seedTagRow(container, owner, "tagA");
+    const tagB = await seedTagRow(container, owner, "tagB");
+    const tagC = await seedTagRow(container, owner, "tagC");
+    const tagN = await seedTagRow(container, owner, "tagN");
+    const na = await seedNote(container, owner, dir, "active", D3);
+    const nb = await seedNote(container, owner, dir, "active", D1);
+    const nc = await seedNote(container, owner, dir, "active", D1);
+    await linkNoteTag(container, na, tagA);
+    await linkNoteTag(container, nb, tagB);
+    await linkNoteTag(container, nc, tagC);
+    void tagN; // intentionally unused → lastUsedAt NULL
+
+    const desc = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.findByOwner(owner, {
+          limit: 100,
+          offset: 0,
+          sort: "lastUsedAt",
+          order: "desc",
+        }),
+    );
+    // SQLite treats NULL as the smallest value, so on desc the unused tag
+    // sorts to the tail; the D1 pair ties and breaks by ascending id (tagB
+    // seeded before tagC).
+    expect(desc.map((e) => e.tag.name)).toEqual([
+      "tagA",
+      "tagB",
+      "tagC",
+      "tagN",
+    ]);
+    expect(desc[desc.length - 1].lastUsedAt).toBeNull();
+
+    const asc = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.findByOwner(owner, {
+          limit: 100,
+          offset: 0,
+          sort: "lastUsedAt",
+          order: "asc",
+        }),
+    );
+    // On asc the NULL sorts to the head, then D1 pair (id tie-break), then D3.
+    expect(asc.map((e) => e.tag.name)).toEqual([
+      "tagN",
+      "tagB",
+      "tagC",
+      "tagA",
+    ]);
+    expect(asc[0].lastUsedAt).toBeNull();
   });
 });
