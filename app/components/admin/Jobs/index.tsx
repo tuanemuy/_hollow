@@ -75,9 +75,10 @@ const TD_HEAD_CLASS =
   "px-4 py-3 text-left align-middle max-sm:block max-sm:pb-3 max-sm:mb-2 max-sm:border-b max-sm:border-hairline";
 const STACK_LABEL =
   "hidden max-sm:inline-block max-sm:w-[84px] text-ink-tertiary text-xs uppercase tracking-[0.04em]";
-// Action cell inner row: stacks full-width below `sm`, restoring the 44px tap
-// floor stripped by `pillBtnSm` via the parent-scoped child selector (ADR-004,
-// mirrors publication/styles.ts LINK_MINI_ROW).
+// Action cell inner row: stacks full-width below `sm`. The 44px tap floor is
+// restored with mobile-scoped `!important` because `pillBtnSm`'s
+// `data-[sm]:max-sm:min-h-0` strip (specificity (0,2,0)) outweighs a plain
+// `[&>button]` child selector ((0,1,1)). See `.issue/589/adr.md` ADR-007.
 const ACTION_ROW_CLASS =
   "max-sm:flex max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
 // Operation section row (rebuild / backfill / re-encrypt): same stacking + floor.
