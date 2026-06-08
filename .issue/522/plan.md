@@ -84,7 +84,7 @@
 
 - **対象ファイル:** `app/components/note/editor/InlineEditor.tsx:833`、`app/styles/index.css` の `.note-detail-content`
 - **変更内容:**
-  - フォーカス枠の二重化解消: `.note-detail-content` ホストも `contenteditable` で `:focus-visible` の内側リングが出るため、`focus-within:shadow-focus`（＋既存 `focus-within:border-accent`）をホストに付け（WysiwygEditor と同じ表現）、ホスト自身の `:focus-visible` リングは `focus-visible:shadow-none` ユーティリティで打ち消す。
+  - フォーカス枠の二重化解消: ホスト `<section>` 自身は contenteditable ではなく、フォーカスを得るのは allow-list された子ブロック（`<p>`/`<h2>`/`<li>` 等）。子ブロックがグローバル `:focus-visible` で内側リングを出すため、`focus-within:shadow-focus`（＋既存 `focus-within:border-accent`）をホストに付け（WysiwygEditor と同じ表現）、子孫の `:focus-visible` リングは `[&_:focus-visible]:shadow-none`（= `.note-detail-content :focus-visible`）で打ち消す。
   - 余白（**編集ホスト限定にスコープ**）: `.note-detail-content > * + *`（隣接 margin-top）は先頭要素には付かないが、`h2`/`h3` の個別 `margin-top`（index.css:213/223）と `p` の `margin-bottom`（index.css:198）が先頭/末尾に残る。`.note-detail-content` は **7 箇所**（`NoteDetail` / `NoteRevisionDetail` / `HtmlEditor` / `PublicNoteDetail` / `LegalDocument` / `InlineEditor` ほか）で共有されるため、無条件の先頭/末尾リセットは公開ページ・法務文書・リビジョン履歴の本文表示まで変えてしまい、本Issueの「含まれないもの（読み取り専用 NoteDetail の本文表示の変更）」と矛盾する（レビュー P-001）。
     - そこで **InlineEditor ホストにだけ静的マーカー属性 `data-editing` を付与**し（`data-editing=""`、ADR-003 の「静的に有効な属性」規約）、`@layer components` に `.note-detail-content[data-editing] > :first-child { margin-top: 0 }` / `.note-detail-content[data-editing] > :last-child { margin-bottom: 0 }` を追加する。これで余白リセットは編集中の本文だけに閉じ、読み取り系 6 箇所には一切波及しない。
     - specificity: `.note-detail-content[data-editing] > :first-child`（class+attr+pseudo = 0,0,3,0）は要素型ルール `.note-detail-content h2`（0,0,1,1）/ `p`（0,0,1,1）に勝つため、先頭 h2/h3 の `margin-top`・末尾 p の `margin-bottom` を確実に 0 にできる（レビュー P-002）。

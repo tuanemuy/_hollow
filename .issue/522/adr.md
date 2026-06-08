@@ -20,7 +20,7 @@ Proposed
 選択肢 2 を採用する。
 
 - コンテナ（`EditorContent` / `.note-detail-content` ホスト）に `focus-within:shadow-focus` を付与し、トークン化されたフォーカスリングを「枠線と同じ要素」の外周に一段だけ出す。`focus-within:border-accent` と組み合わせて枠線色も変える。
-- 内側 contenteditable には `[&_.ProseMirror]:focus-visible:shadow-none`（InlineEditor は `focus-visible:shadow-none`）でグローバルルール由来のリングを打ち消す。`outline-none` は維持。
+- 内側 contenteditable のリングを打ち消す。WysiwygEditor はフォーカス可能要素が `.ProseMirror` 本体なので `[&_.ProseMirror]:focus-visible:shadow-none`。InlineEditor はホスト `<section>` 自身は contenteditable ではなく、allow-list された子ブロック（`<p>`/`<h2>`/`<li>` 等）がフォーカスを得るため、子孫を対象とする `[&_:focus-visible]:shadow-none`（= `.note-detail-content :focus-visible`）で打ち消す。`outline-none` は維持。
 
 グローバルルール（選択肢 1）は変更しない。理由: `:focus-visible` は全画面のフォーカス可視化の SSOT であり、ここを触ると入力・ボタン・メニュー等のフォーカス表現に広く影響する。Issue #522 のスコープ（エディター本文のディテール）を超える。
 
