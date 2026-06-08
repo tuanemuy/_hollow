@@ -1,5 +1,7 @@
 import type { ContentHtml, InternalLinkRef } from "../valueObject";
 
+export type NoteBodySurface = "auth" | "public";
+
 /**
  * Display-only rendering port for note bodies.
  *
@@ -48,6 +50,6 @@ export interface NoteBodyRenderer {
   renderForDisplay(
     html: ContentHtml,
     refs: readonly InternalLinkRef[],
-    options?: { surface: "auth" | "public" },
+    options?: { surface: NoteBodySurface },
   ): string;
 }

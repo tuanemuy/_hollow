@@ -7,7 +7,10 @@ import {
   TEXT_NODE,
 } from "ultrahtml";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
-import type { NoteBodyRenderer } from "@/core/domain/note/ports/noteBodyRenderer";
+import type {
+  NoteBodyRenderer,
+  NoteBodySurface,
+} from "@/core/domain/note/ports/noteBodyRenderer";
 import {
   INTERNAL_LINK_PATTERN,
   UUID_V7_PATTERN,
@@ -45,12 +48,10 @@ const textNode = (value: string): Node =>
 const rawHtmlNode = (html: string): Node =>
   ({ type: TEXT_NODE, value: html }) as unknown as Node;
 
-type Surface = "auth" | "public";
-
 const wikilinkMarkup = (
   label: string,
   resolvedNoteId: string | null,
-  surface: Surface,
+  surface: NoteBodySurface,
 ): string => {
   const text = escapeTextValue(label);
   if (resolvedNoteId === null) {
@@ -64,7 +65,7 @@ const wikilinkMarkup = (
   return `<a class="wikilink" href="${base}${escapeAttrValue(resolvedNoteId)}">${text}</a>`;
 };
 
-const hashtagMarkup = (tag: string, surface: Surface): string => {
+const hashtagMarkup = (tag: string, surface: NoteBodySurface): string => {
   const text = escapeTextValue(tag);
   if (surface === "public") {
     // No public tag-filter route exists; keep the pill non-linking rather
@@ -89,7 +90,7 @@ type Replacement = Readonly<{ start: number; end: number; html: string }>;
 const collectReplacements = (
   value: string,
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
-  surface: Surface,
+  surface: NoteBodySurface,
 ): readonly Replacement[] => {
   const replacements: Replacement[] = [];
 
@@ -141,7 +142,7 @@ const collectReplacements = (
 const transformTextNode = (
   value: string,
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
-  surface: Surface,
+  surface: NoteBodySurface,
 ): Node[] => {
   const replacements = collectReplacements(value, refsByKey, surface);
   if (replacements.length === 0) {
@@ -172,7 +173,7 @@ const transformChildren = (
   nodes: readonly Node[],
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
   suppressed: boolean,
-  surface: Surface,
+  surface: NoteBodySurface,
 ): Node[] => {
   const out: Node[] = [];
   for (const node of nodes) {
@@ -216,9 +217,9 @@ class UltrahtmlNoteBodyRenderer implements NoteBodyRenderer {
   renderForDisplay(
     html: ContentHtml,
     refs: readonly InternalLinkRef[],
-    options?: { surface: "auth" | "public" },
+    options?: { surface: NoteBodySurface },
   ): string {
-    const surface: Surface = options?.surface ?? "auth";
+    const surface: NoteBodySurface = options?.surface ?? "auth";
     try {
       const refsByKey = new Map<string, InternalLinkRef>();
       for (const ref of refs) {

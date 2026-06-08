@@ -151,6 +151,65 @@ describe("getNoteRevision (integration)", () => {
     expect(result.renderedContentHtml).toContain(">#design</a>");
   });
 
+  it("resolves revision-body wikilinks via the current note refs and degrades unmatched ones", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    // A resolved wikilink target: a second note the body links to by id.
+    const target = await seedNote(container, owner, dir);
+    const noteId = await seedNote(container, owner, dir);
+
+    // R1 (the past version): carries the resolvable `[[<targetId>]]` (id-kind)
+    // plus a `[[古い参照]]` (title-kind) that no note resolves to. This is the
+    // version we will fetch.
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        title: "linked",
+        contentHtml: `<p>see [[${target}]] and [[古い参照]]</p>`,
+        requireLock: false,
+      },
+    });
+    const revisionId = await firstRevisionId(container, noteId);
+
+    // A later save advances the CURRENT note body so `[[古い参照]]` no longer
+    // appears in it — the current note's refs now hold only the resolved
+    // `[[<targetId>]]`. ADR-003: revisions store no refs, so the past version
+    // is rendered against THESE current-note refs. The matched token must
+    // resolve; the dropped `[[古い参照]]` must degrade (never link elsewhere).
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        title: "linked",
+        contentHtml: `<p>still see [[${target}]]</p>`,
+        requireLock: false,
+      },
+    });
+
+    const result = await getNoteRevision({
+      container,
+      input: { actorUserId: owner, noteId, revisionId },
+    });
+
+    // The revision DTO keeps the past version's verbatim tokens.
+    expect(result.revision.contentHtml).toContain(`[[${target}]]`);
+    expect(result.revision.contentHtml).toContain("[[古い参照]]");
+
+    // Matched token resolves to the auth route via the current note's ref.
+    expect(result.renderedContentHtml).toContain(
+      `<a class="wikilink" href="/notes/${target}">`,
+    );
+    // Unmatched token degrades to an unresolved span (no stray link).
+    expect(result.renderedContentHtml).toContain(
+      '<span class="wikilink" data-unresolved>古い参照</span>',
+    );
+    expect(result.renderedContentHtml).not.toContain('href="/notes/古い参照"');
+  });
+
   it("forbids accessing another user's revision via the note id check", async () => {
     const container = getContainer();
     const owner = await seedUser(container);
