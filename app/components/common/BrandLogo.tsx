@@ -110,11 +110,13 @@ export function BrandLockup({
   label = "hollow",
 }: BrandLockupProps) {
   const marked = label !== undefined && label !== "";
-  // The viewBox uses a negative origin with margins on every side: the mark's
-  // half stroke width (≈4.37 user units after the 5.83 scale) renders OUTSIDE
-  // the wordmark-derived 0 0 473.84 84.48 box, so a tight box clips the mark's
-  // left/top/bottom edges. -5 -1 480 86 absorbs the overflow plus a little
-  // breathing room while keeping the wordmark's right edge (473.84) inside.
+  // The viewBox uses a negative origin with margins on every side. In the tight
+  // 0 0 473.84 84.48 box (left edge from the mark's *unstroked* outline; top,
+  // bottom and right from the wordmark) the mark's half stroke width (≈4.37 user
+  // units after the 5.83 scale) renders OUTSIDE the box, so its left/top/bottom
+  // edges get clipped. -5 -1 480 86 absorbs that overflow plus a little breathing
+  // room. The right edge stays tight: the wordmark ends at 473.84, barely inside
+  // 475, so re-check this margin if the wordmark ever grows.
   const shared = {
     xmlns: "http://www.w3.org/2000/svg",
     height,
