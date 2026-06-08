@@ -5,6 +5,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { BrandLockup } from "@/components/common/BrandLogo";
 import { pillBtn } from "@/components/common/styles";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { buildHead } from "@/core/presentation/head";
@@ -26,8 +27,7 @@ const ADMIN_HEADER_CLASS =
 
 const ADMIN_HEADER_LEFT_CLASS = "flex items-center gap-3";
 
-const ADMIN_LOGO_CLASS =
-  "text-[21px] font-light tracking-tightest text-ink max-sm:hidden";
+const ADMIN_LOGO_CLASS = "text-ink max-sm:hidden";
 
 const ADMIN_PILL_CLASS =
   "inline-flex items-center gap-1.5 px-[10px] py-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium before:content-[''] before:w-[6px] before:h-[6px] before:rounded-full before:bg-accent";
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/admin")({
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
           <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
-            Hollow
+            <BrandLockup />
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>
         </div>
@@ -74,7 +74,7 @@ export const Route = createFileRoute("/admin")({
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
           <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
-            Hollow
+            <BrandLockup />
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>
         </div>
@@ -120,7 +120,7 @@ function AdminLayout() {
       <header className={ADMIN_HEADER_CLASS}>
         <div className={ADMIN_HEADER_LEFT_CLASS}>
           <Link to="/" search={HOME_SEARCH} className={ADMIN_LOGO_CLASS}>
-            Hollow
+            <BrandLockup />
           </Link>
           <span className={ADMIN_PILL_CLASS}>管理者モード</span>
         </div>

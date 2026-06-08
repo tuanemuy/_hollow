@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { BrandLockup } from "@/components/common/BrandLogo";
 import { HOME_SEARCH } from "../links";
 
 type AuthHeaderProps = {
@@ -10,12 +11,8 @@ type AuthHeaderProps = {
 export function AuthHeader({ rightSlot }: AuthHeaderProps) {
   return (
     <header className="sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)]">
-      <Link
-        to="/"
-        search={HOME_SEARCH}
-        className="text-[21px] font-light tracking-tightest text-ink"
-      >
-        Hollow
+      <Link to="/" search={HOME_SEARCH} className="text-ink">
+        <BrandLockup />
       </Link>
       {rightSlot ?? (
         <Link

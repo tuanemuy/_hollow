@@ -11,6 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { BrandLockup } from "@/components/common/BrandLogo";
 import { Icon } from "@/components/common/Icon";
 import {
   pillBtn,
@@ -20,7 +21,6 @@ import {
 
 const HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
-const LOGO = "text-[21px] font-light tracking-tightest text-ink";
 const HEADER_NAV = "flex items-center gap-2";
 const HEADER_LINK =
   "text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";
@@ -103,8 +103,8 @@ export function LandingPage() {
   return (
     <>
       <header className={HEADER}>
-        <Link to="/" search={HOME_SEARCH} className={LOGO}>
-          Hollow
+        <Link to="/" search={HOME_SEARCH} className="text-ink">
+          <BrandLockup />
         </Link>
         <nav className={HEADER_NAV} aria-label="Primary">
           <a href="#features" className={HEADER_LINK}>
@@ -337,7 +337,9 @@ export function LandingPage() {
         <div className={CONTAINER}>
           <div className={FOOTER_GRID}>
             <div>
-              <span className={`${LOGO} block mb-3`}>Hollow</span>
+              <span className="block mb-3 text-ink">
+                <BrandLockup />
+              </span>
               <p className={FOOTER_TAGLINE}>
                 散らかった頭の中に、静かな置き場所を。
               </p>

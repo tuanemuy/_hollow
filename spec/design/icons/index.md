@@ -20,6 +20,11 @@
 
 Vesica マークのラスタは `spec/design/icons/hollow-mark-ink.svg` を元に ImageMagick で生成。`public/` を正とする。
 
+### アプリ内の可視ロゴ（#582）
+
+- `app/components/common/BrandLogo.tsx` — `BrandMark`（Vesica マーク単体）/ `BrandLockup`（マーク＋アウトライン wordmark のロックアップ）。`hollow-mark.svg` / `hollow-lockup.svg` をインライン SVG 化し、`currentColor` で light/dark テーマ追従。aria は `common/Icon` と同じコントラクト。
+- 各ページのテキストロゴ「Hollow」を `BrandLockup` へ差し替え済み（アプリ／公開／ランディングの各ヘッダー・フッター、認証ヘッダー）。
+
 ### Wordmark / フォント（決定：Avenir Next をアウトライン化）
 
 Wordmark は **Avenir Next / Regular（lowercase）を採用**。Apple プロプライエタリフォントだが、**グリフをベクターパスへアウトライン化**して埋め込むことでフォント依存を排除した（フォントファイルは配布しない）。
