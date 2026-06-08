@@ -124,11 +124,18 @@ export function ConfirmDialog({
       closable={!isPending}
     >
       <form onSubmit={submit}>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-start gap-2 mb-4">
           {subject === undefined ? (
-            <Icon icon={AlertTriangle} size={20} className="text-warning" />
+            <Icon
+              icon={AlertTriangle}
+              size={20}
+              className="text-warning shrink-0"
+            />
           ) : null}
-          <h2 id={titleId} className="text-lg font-medium">
+          <h2
+            id={titleId}
+            className="text-lg font-medium min-w-0 [overflow-wrap:anywhere]"
+          >
             {title}
           </h2>
         </div>

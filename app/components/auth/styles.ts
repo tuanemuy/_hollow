@@ -56,9 +56,13 @@ export const FORM_ERROR =
 
 export const BTN_PRIMARY = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full`;
 
-export const BTN_PRIMARY_INLINE = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px]`;
+// Status-screen CTAs (P02 verify / P06 email-change-confirm): mock shows
+// `min-width:200px` content-width on desktop but `width:100%` full-width on
+// mobile (max-sm). `max-sm:w-full` overrides the inline `min-w-[200px]` below
+// the `sm` breakpoint; `sm:` and up keep the centered content-width pill.
+export const BTN_PRIMARY_INLINE = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px] max-sm:w-full`;
 
-export const BTN_SECONDARY_TALL = `${pillBtn} ${pillBtnTall} min-w-[200px]`;
+export const BTN_SECONDARY_TALL = `${pillBtn} ${pillBtnTall} min-w-[200px] max-sm:w-full`;
 
 export const ADMIN_EYEBROW =
   "inline-block text-xs text-accent font-medium uppercase tracking-[0.06em] mb-3";

@@ -44,7 +44,7 @@ const JOB_CARD =
 const JOB_CARD_HEAD =
   "flex justify-between gap-3 mb-2 items-baseline flex-wrap";
 const JOB_CARD_NAME = "text-[15px] font-medium text-ink break-words";
-const JOB_CARD_META = "text-xs text-ink-tertiary";
+const JOB_CARD_META = "text-xs text-ink-tertiary break-words";
 const JOB_CARD_ACTIONS = "inline-flex gap-2 mt-3 flex-wrap";
 
 const statusLabel: Record<IngestionJobWire["status"], string> = {
@@ -165,7 +165,7 @@ export function IngestionJobRow({ job }: Props) {
   return (
     <div className={JOB_CARD} data-discarded={optimisticDiscarded || undefined}>
       <div className={JOB_CARD_HEAD}>
-        <div>
+        <div className="min-w-0">
           <div className={JOB_CARD_NAME}>{job.originalFileName}</div>
           <div className={JOB_CARD_META}>
             {job.mimeType} · {(job.byteSize / 1024).toFixed(1)} KB

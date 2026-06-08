@@ -56,7 +56,7 @@ export function TrashRowActions({ noteId, noteTitle }: Props) {
   };
 
   return (
-    <div className={ROW_ACTIONS}>
+    <div className={`${ROW_ACTIONS} max-sm:flex-wrap`}>
       <button
         type="button"
         className={pillBtn}

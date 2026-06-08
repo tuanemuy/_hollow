@@ -73,6 +73,22 @@ export const SIDEBAR_BACKDROP =
 export const BOTTOM_ACTION_BAR =
   "lg:hidden fixed inset-x-0 bottom-0 z-40 flex gap-2 px-4 py-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] border-t border-hairline bg-[var(--header-bg)] supports-[backdrop-filter]:bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
 
+// CTA content for the bottom action bar (mock `P10-home.html` `.cta-bar .pill-btn`
+// / `.cta-upload`), consumed by `note/list/BottomCtaBar`. The frame above lays the
+// children out in a `flex gap-2` row.
+//
+// Primary (新規作成): mock `flex: 1; justify-content: center; height: 48px`.
+// `flex-1` claims the remaining width; `h-12` = 48px is the token-scale step that
+// matches the mock; `justify-center` centers the icon+label.
+export const CTA_BAR_PRIMARY = "flex-1 justify-center h-12";
+
+// Upload (icon-only): mock `flex: 0 0 auto; width: 52px; padding: 0`. The mock's
+// literal 52px has no token-scale step; we map it to the 48px square (`h-12 w-12`,
+// the same token as the primary's height), which clears the 44px touch floor and
+// stays on-scale. `shrink-0` mirrors `flex: 0 0 auto`; `px-0 justify-center`
+// centers the lone icon by dropping the base pill's text padding.
+export const CTA_BAR_UPLOAD = "shrink-0 h-12 w-12 px-0 justify-center";
+
 // Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
 // `lg`.
 export const MENU_BTN =

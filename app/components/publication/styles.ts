@@ -56,6 +56,28 @@ export const VISIBILITY_DESC: Readonly<
 export const PUBLISH_SECTION_TITLE = "text-md font-medium text-ink";
 
 /**
+ * Mobile-only modifier for each section's primary action button (mock
+ * `.apply-btn` / `.issue-link-btn`): below `sm` the action stretches to a
+ * full-width, centered 1カラム CTA. At `sm`+ the button keeps its intrinsic
+ * `pillBtn` width. Append after `pillBtn ${pillBtnPrimary}` at the call site.
+ */
+export const PUBLISH_ACTION_FULL = "max-sm:w-full max-sm:justify-center";
+
+/**
+ * Per-share-link operation cluster (mock `.link-mini-row`): below `sm` the
+ * password input + set/clear/revoke buttons stack vertically, full-width
+ * (`flex-col items-stretch`), so nothing overflows a 390px sheet. At `sm`+ it
+ * keeps the desktop inline `flex-wrap` row.
+ *
+ * The `[&>button]:max-sm:*` rules restore the mock's `.small-btn` 44px tap
+ * floor + centered label on mobile, overriding `pillBtnSm`'s
+ * `data-[sm]:max-sm:min-h-0` (which strips the floor for the desktop-dense
+ * inline row). Scoped here so the three buttons need no per-button modifier.
+ */
+export const LINK_MINI_ROW =
+  "flex flex-wrap items-center gap-2 max-sm:flex-col max-sm:flex-nowrap max-sm:items-stretch [&>button]:max-sm:min-h-[44px] [&>button]:max-sm:justify-center";
+
+/**
  * Link card for an issued share link (mock `.link-card`). Border + elevated
  * surface; holds a head row (status chip + last-access), the URL row, and the
  * row actions. Truncation of the long URL is handled by `LINK_URL`

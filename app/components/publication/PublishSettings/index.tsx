@@ -43,9 +43,11 @@ import {
   LINK_CARD_HEAD,
   LINK_COPY_BTN,
   LINK_LAST_ACCESS,
+  LINK_MINI_ROW,
   LINK_ROW,
   LINK_URL,
   LINK_URL_ROW,
+  PUBLISH_ACTION_FULL,
   PUBLISH_SECTION_TITLE,
   RADIO_CARD,
   RADIO_CARD_TITLE,
@@ -250,7 +252,7 @@ export function PublishSettings({
           disabled={visibilityPending}
           aria-busy={visibilityPending}
           data-primary=""
-          className={`${pillBtn} ${pillBtnPrimary} mt-4`}
+          className={`${pillBtn} ${pillBtnPrimary} mt-4 ${PUBLISH_ACTION_FULL}`}
         >
           {visibilityPending ? "適用中..." : "公開状態を更新"}
         </button>
@@ -285,7 +287,7 @@ export function PublishSettings({
               disabled={issuePending}
               aria-busy={issuePending}
               data-primary=""
-              className={`${pillBtn} ${pillBtnPrimary}`}
+              className={`${pillBtn} ${pillBtnPrimary} ${PUBLISH_ACTION_FULL}`}
             >
               {issuePending ? "発行中..." : "リンクを発行"}
             </button>
@@ -471,7 +473,7 @@ function ShareLinkRow({
       </div>
       {link.status === "active" ? <QRCodeBlock url={link.url} /> : null}
       {link.status === "active" ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={LINK_MINI_ROW}>
           <input
             type="password"
             value={passwordDraft}
@@ -479,7 +481,7 @@ function ShareLinkRow({
             placeholder="新しいパスワード"
             maxLength={128}
             disabled={isPending}
-            className={`${fieldControl} flex-1 min-w-[160px]`}
+            className={`${fieldControl} flex-1 min-w-[160px] max-sm:min-w-0 max-sm:flex-none max-sm:w-full`}
           />
           <button
             type="button"

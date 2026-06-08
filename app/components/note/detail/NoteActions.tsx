@@ -29,6 +29,7 @@ import {
 } from "@/core/presentation/errorResponse";
 import { deleteNoteFn, duplicateNoteFn } from "../actions";
 import { MoveNoteDialog } from "../list/MoveNoteDialog";
+import { scrollbarHidden } from "../list/styles";
 import type { FlatDirectory } from "../loaders";
 import { NoteActionsMenu } from "./NoteActionsMenu";
 import { UrlCopyButton } from "./UrlCopyButton";
@@ -73,7 +74,23 @@ function visibilityLabel(v: Visibility): string {
 const VISIBILITY_DOT =
   "inline-block w-[6px] h-[6px] rounded-full data-[visibility=public]:bg-status-public data-[visibility=unlisted]:bg-status-link data-[visibility=private]:bg-status-private";
 
-const MENU = "inline-flex flex-wrap gap-2 my-4 mb-6 items-center";
+// Desktop: a single wrapping pill cloud. Mobile (`max-sm:`): the toolbar splits
+// into (a) a horizontal-scroll rail holding the scrollable icon pills and (b)
+// the overflow "⋯" menu pinned at the end, kept OUTSIDE the rail.
+//
+// `MENU` is the outer row. On mobile it is `flex flex-nowrap` and `min-w-0` so
+// it fits the content column; on desktop it is the original `inline-flex
+// flex-wrap` cloud. The scrollable pills live in `MENU_RAIL` (mock
+// `.action-toolbar`: `overflow-x-auto`, scrollbar hidden, children no-shrink),
+// which isolates the page from horizontal overflow. The "⋯" menu is excluded
+// from the rail because its inline dropdown would otherwise be clipped by the
+// rail's overflow box (`overflow-x:auto` forces `overflow-y:auto`).
+const MENU =
+  "inline-flex flex-wrap gap-2 my-4 mb-6 items-center max-sm:flex max-sm:flex-nowrap max-sm:min-w-0";
+
+// Mobile-only horizontal scroll rail wrapping the leading pills. On desktop it
+// dissolves into the wrapping cloud (`contents`) so the pills wrap as before.
+const MENU_RAIL = `flex flex-wrap gap-2 items-center contents max-sm:flex max-sm:flex-1 max-sm:min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 // Circular icon-only buttons for the frequently-used actions kept visible in
 // the toolbar (#459). The labeled 公開設定 pill is intentionally the lone
@@ -167,53 +184,59 @@ export function NoteActions({
   return (
     <>
       <div className={MENU} role="toolbar" aria-label="ノート操作">
-        <Link
-          to="/notes/$noteId/edit"
-          params={{ noteId }}
-          data-icon=""
-          data-primary
-          aria-label="編集"
-          title="編集"
-          className={ICON_BTN_PRIMARY}
-        >
-          <Icon icon={Pencil} size={20} />
-        </Link>
-        <button
-          type="button"
-          className={pillBtn}
-          onClick={() => setOpen("publish")}
-        >
-          <span
-            className={VISIBILITY_DOT}
-            data-visibility={visibility}
-            aria-hidden="true"
-          />
-          <Icon icon={Globe} />
-          <span className="sr-only">公開状態: </span>
-          {visibilityLabel(visibility)}
-        </button>
-        <button
-          type="button"
-          className={ICON_BTN}
-          data-icon=""
-          aria-label="移動"
-          title="移動"
-          onClick={() => setOpen("move")}
-          disabled={isPending}
-        >
-          <Icon icon={FolderInput} size={20} />
-        </button>
-        <UrlCopyButton url={copyUrl} />
-        <Link
-          to="/notes/$noteId/export"
-          params={{ noteId }}
-          data-icon=""
-          aria-label="エクスポート"
-          title="エクスポート"
-          className={ICON_BTN}
-        >
-          <Icon icon={Download} size={20} />
-        </Link>
+        {/* Scroll rail: leading pills scroll horizontally on mobile; on desktop
+            `display:contents` lets them flow into the wrapping cloud above. */}
+        <div className={MENU_RAIL}>
+          <Link
+            to="/notes/$noteId/edit"
+            params={{ noteId }}
+            data-icon=""
+            data-primary
+            aria-label="編集"
+            title="編集"
+            className={ICON_BTN_PRIMARY}
+          >
+            <Icon icon={Pencil} size={20} />
+          </Link>
+          <button
+            type="button"
+            className={pillBtn}
+            onClick={() => setOpen("publish")}
+          >
+            <span
+              className={VISIBILITY_DOT}
+              data-visibility={visibility}
+              aria-hidden="true"
+            />
+            <Icon icon={Globe} />
+            <span className="sr-only">公開状態: </span>
+            {visibilityLabel(visibility)}
+          </button>
+          <button
+            type="button"
+            className={ICON_BTN}
+            data-icon=""
+            aria-label="移動"
+            title="移動"
+            onClick={() => setOpen("move")}
+            disabled={isPending}
+          >
+            <Icon icon={FolderInput} size={20} />
+          </button>
+          <UrlCopyButton url={copyUrl} />
+          <Link
+            to="/notes/$noteId/export"
+            params={{ noteId }}
+            data-icon=""
+            aria-label="エクスポート"
+            title="エクスポート"
+            className={ICON_BTN}
+          >
+            <Icon icon={Download} size={20} />
+          </Link>
+        </div>
+        {/* Kept outside the rail so the inline dropdown is not clipped by the
+            rail's `overflow-x:auto` box. */}
         <NoteActionsMenu
           onDuplicate={onDuplicate}
           onHistory={onHistory}

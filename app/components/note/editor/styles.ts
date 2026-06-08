@@ -5,6 +5,8 @@
  * is identical to inline `className` strings (see CLAUDE.md styling rules).
  */
 
+import { scrollbarHidden } from "@/components/note/list/styles";
+
 /**
  * P12 document-style title input: borderless, large, transparent. Focus
  * visualisation is intentionally left to the global `:focus-visible`
@@ -17,8 +19,44 @@ export const titleInput =
  * P12 editor topbar: mode tabs + autosave status + primary actions in one
  * wrapping row. Mirrors the mock `.editor-topbar` order
  * (`mode-tabs → save-status → editor-actions`).
+ *
+ * Below `sm` the mock stacks the row vertically (`.editor-topbar`
+ * `flex-direction: column`) so the (horizontally-scrolling) mode tabs, the
+ * autosave status and the save/cancel actions never compete for the narrow
+ * width. At `sm` and up the original wrapping single row is kept.
  */
-export const editorTopbar = "flex items-center gap-3 flex-wrap";
+export const editorTopbar =
+  "flex items-center gap-3 flex-wrap max-sm:flex-col max-sm:items-stretch";
+
+/**
+ * P12 editor mode-switch tab rail (mock `.mode-tabs`). Below `sm` the pill
+ * tabs become a single horizontally-scrolling row (`flex-nowrap` +
+ * `overflow-x-auto`, scrollbar hidden) so 3 tabs never wrap or push the page
+ * wider than the viewport (overflow=0). `min-w-0` lets the rail shrink inside
+ * the topbar column so the scroll is isolated; `[&>*]:shrink-0` keeps each
+ * pill at its intrinsic width. At `sm` and up it keeps the original wrapping
+ * inline cluster.
+ */
+export const editorModeTabs = `inline-flex flex-wrap gap-1 min-w-0 max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+
+/**
+ * P12 WYSIWYG format toolbar (mock `.toolbar`). Below `sm` the format buttons
+ * become a single horizontally-scrolling rail (`flex-nowrap` +
+ * `overflow-x-auto`, scrollbar hidden) so the icon buttons never wrap or push
+ * page width — the overflow is isolated inside the rail. `min-w-0` lets the
+ * rail shrink inside the form column; `[&>*]:shrink-0` keeps each button at
+ * its 36px square. At `sm` and up it keeps the original wrapping cluster.
+ */
+export const editorToolbar = `flex flex-wrap gap-1 rounded-md border border-hairline bg-surface-elevated p-2 min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+
+/**
+ * P12 FrontMatter key/value row (mock structured `.meta-field` rows). At `sm`
+ * and up the key input, value input and delete button sit on one wrapping
+ * line; below `sm` they stack into a single column (`flex-col`) so the
+ * 1-column mobile layout matches the mock and the inputs get full width.
+ */
+export const frontMatterRow =
+  "flex flex-wrap items-start gap-2 mb-3 max-sm:flex-col max-sm:items-stretch";
 
 /**
  * P12 editor actions group (save / cancel). `ml-auto` pushes only this group

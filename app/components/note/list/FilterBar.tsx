@@ -3,7 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
-import { pillBtn } from "@/components/common/styles";
+import { pillBtn, popoverSheetPanel } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { NoteListSearch } from "../schema";
 import { homeSearchUpdater } from "./homeSearch";
@@ -18,6 +18,7 @@ import {
 } from "./listSelectors";
 import { NotePickerDialog } from "./NotePickerDialog";
 import {
+  filterBar,
   filterChip,
   filterChipCaret,
   filterChipGhost,
@@ -295,10 +296,7 @@ export function FilterBar({
   const hiddenTagCount = tags.length - visibleTags.length;
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-3 mb-5 max-sm:gap-2"
-      aria-busy={isPending}
-    >
+    <div className={filterBar} aria-busy={isPending}>
       {tags.length > 0 ? (
         <div className="inline-flex gap-1.5 flex-wrap">
           {visibleTags.map((tag) => {
@@ -437,16 +435,18 @@ type DatePopoverProps = Readonly<{
   onClear: () => void;
 }>;
 
-// `left-0` anchors the panel to the trigger's left edge; the `<Popover>`
-// `clampToViewport` then nudges it horizontally into the viewport (`shiftX`).
-// Anchoring alone breaks because FilterBar triggers sit anywhere in a wrapping
-// row — a fixed `left-0`/`right-0` overflows one side or the other depending
-// on the trigger's position (#476). The fixed `w-[280px]` (rather than
+// Rebased onto the shared `popoverSheetPanel` (#588 ADR-003): below `sm` it
+// becomes a full-width bottom-anchored sheet (`max-sm:left-0 max-sm:right-0
+// max-sm:w-auto`, supplied by the shared constant), so the panel never overflows
+// the narrow viewport and the `clampToViewport` shiftX is unnecessary (and is
+// switched off via `clampNarrow` below).
+//
+// At `sm` and up the original floating-card behaviour is preserved: `left-0`
+// anchors the panel to the trigger's left edge and `<Popover>`'s `clampToViewport`
+// nudges it into the viewport (#476). The fixed `sm:w-[280px]` (rather than
 // `w-max`) keeps the native `<input type="date">` children from ballooning the
-// panel to their huge intrinsic `max-content` width; `max-w` still caps it on
-// narrow viewports (#476).
-const FILTER_POPOVER_PANEL =
-  "absolute left-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-3 w-[280px] max-w-[calc(100vw-2rem)]";
+// panel to their huge intrinsic `max-content` width; `sm:max-w` still caps it.
+const FILTER_POPOVER_PANEL = `absolute left-0 top-full mt-2 z-40 ${popoverSheetPanel} sm:w-[280px] sm:max-w-[calc(100vw-2rem)]`;
 
 const SR_ONLY =
   "absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]";
