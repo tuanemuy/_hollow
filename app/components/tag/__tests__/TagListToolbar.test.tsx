@@ -264,8 +264,8 @@ describe("TagListToolbar — sort controls", () => {
     }
   });
 
-  it("disables sort buttons while navigation is pending", async () => {
-    // Mock navigate to not resolve immediately
+  it("keeps sort buttons enabled and marks the toolbar busy while navigation is pending", async () => {
+    // Mock navigate to not resolve immediately so the transition stays pending.
     let resolveNav: (() => void) | undefined;
     routerNavigate.mockImplementation(
       () =>
@@ -285,12 +285,20 @@ describe("TagListToolbar — sort controls", () => {
     await act(async () => {
       noteCountBtn?.click();
     });
-    // Don't flush yet — let the pending state settle
+    // Don't flush yet — let the pending state settle.
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(noteCountBtn?.disabled).toBe(true);
+    // FilterBar pattern: controls stay enabled so rapid toggles are not
+    // dropped; the toolbar exposes the in-flight state via aria-busy instead.
+    expect(noteCountBtn?.disabled).toBe(false);
+    const toolbar = ctx.container.querySelector('[aria-busy="true"]');
+    expect(toolbar).not.toBeNull();
+    // The optimistic selection is reflected immediately, before the loader
+    // round-trip commits.
+    expect(noteCountBtn?.getAttribute("data-active")).toBe("true");
+    expect(noteCountBtn?.getAttribute("aria-selected")).toBe("true");
 
     await act(async () => {
       resolveNav?.();
@@ -359,7 +367,7 @@ describe("TagListToolbar — order toggle", () => {
     }
   });
 
-  it("disables order toggle while navigation is pending", async () => {
+  it("keeps the order toggle enabled and marks the toolbar busy while navigation is pending", async () => {
     let resolveNav: (() => void) | undefined;
     routerNavigate.mockImplementation(
       () =>
@@ -368,7 +376,7 @@ describe("TagListToolbar — order toggle", () => {
         }),
     );
 
-    await renderToolbar();
+    await renderToolbar(undefined, "name", "asc");
     const toggleBtn = getOrderToggleButton();
 
     expect(toggleBtn.disabled).toBe(false);
@@ -380,7 +388,12 @@ describe("TagListToolbar — order toggle", () => {
       await Promise.resolve();
     });
 
-    expect(toggleBtn.disabled).toBe(true);
+    // Stays enabled (FilterBar pattern); toolbar is aria-busy and the optimistic
+    // order flip is reflected immediately (aria-pressed → true for desc).
+    expect(toggleBtn.disabled).toBe(false);
+    const toolbar = ctx.container.querySelector('[aria-busy="true"]');
+    expect(toolbar).not.toBeNull();
+    expect(toggleBtn.getAttribute("aria-pressed")).toBe("true");
 
     await act(async () => {
       resolveNav?.();

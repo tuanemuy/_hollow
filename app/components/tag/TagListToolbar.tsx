@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import type { TagListSearch } from "./schema";
 import { TAG_LIST_SORTS } from "./schema";
@@ -32,14 +32,46 @@ const SORT_LABELS: Record<TagListSort, string> = {
   lastUsedAt: "最終使用",
 };
 
+type SortState = Readonly<{ sort: TagListSort; order: TagListOrder }>;
+
+type SortAction =
+  | Readonly<{ type: "setSort"; sort: TagListSort }>
+  | Readonly<{ type: "setOrder"; order: TagListOrder }>;
+
+function reduceSort(cur: SortState, action: SortAction): SortState {
+  switch (action.type) {
+    case "setSort":
+      return { ...cur, sort: action.sort };
+    case "setOrder":
+      return { ...cur, order: action.order };
+    default: {
+      const _exhaustive: never = action;
+      return _exhaustive;
+    }
+  }
+}
+
 export function TagListToolbar({ query, sort, order }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  // Server-confirmed baseline. `useOptimistic` mirrors the sort axis / order
+  // selection synchronously while the loader round-trip is in flight, then
+  // snaps back once fresh props arrive — matching `note/list/FilterBar.tsx`
+  // (ADR-004). Search (`q`) is intentionally NOT optimistic: it stays an
+  // uncontrolled input keyed on the applied `query` to protect IME input and
+  // because there is no applied-query chip to reflect (P-002).
+  const baseline: SortState = { sort, order };
+  const [optimistic, applyOptimistic] = useOptimistic(baseline, reduceSort);
+
   // `validateSearch` re-defaults `sort`/`order` at the route loader, so we
-  // only ever write the parts that change and let the URL stay minimal.
-  const navigate = (next: Partial<TagListSearch>): void => {
+  // only ever write the parts that change and let the URL stay minimal. The
+  // patch + navigation run in one transition so the selection renders
+  // immediately and the loader fetch shows as pending; controls stay enabled
+  // throughout so rapid toggles are not dropped (FilterBar `run` pattern).
+  const run = (action: SortAction, next: Partial<TagListSearch>): void => {
     startTransition(async () => {
+      applyOptimistic(action);
       try {
         await router.navigate({
           to: "/tags",
@@ -49,7 +81,7 @@ export function TagListToolbar({ query, sort, order }: Props) {
           },
         });
       } catch {
-        // Navigation cancelled/superseded — `isPending` settles either way.
+        // Reverting to baseline is the correct fallback for a sort toggle.
       }
     });
   };
@@ -74,10 +106,10 @@ export function TagListToolbar({ query, sort, order }: Props) {
     });
   };
 
-  const nextOrder: TagListOrder = order === "asc" ? "desc" : "asc";
+  const nextOrder: TagListOrder = optimistic.order === "asc" ? "desc" : "asc";
 
   return (
-    <div className={TAG_TOOLBAR}>
+    <div className={TAG_TOOLBAR} aria-busy={isPending}>
       <search className={TAG_SEARCH}>
         <form className="relative" onSubmit={onSubmitSearch}>
           <Icon icon={Search} className={TAG_SEARCH_ICON} />
@@ -92,7 +124,6 @@ export function TagListToolbar({ query, sort, order }: Props) {
             key={query ?? ""}
             placeholder="タグを検索"
             aria-label="タグを検索"
-            disabled={isPending}
             className={TAG_SEARCH_INPUT}
           />
         </form>
@@ -106,11 +137,10 @@ export function TagListToolbar({ query, sort, order }: Props) {
               key={s}
               type="button"
               role="tab"
-              aria-selected={s === sort}
-              data-active={s === sort || undefined}
-              disabled={isPending}
+              aria-selected={s === optimistic.sort}
+              data-active={s === optimistic.sort || undefined}
               className={SEGMENTED_ITEM}
-              onClick={() => navigate({ sort: s })}
+              onClick={() => run({ type: "setSort", sort: s }, { sort: s })}
             >
               {SORT_LABELS[s]}
             </button>
@@ -119,13 +149,14 @@ export function TagListToolbar({ query, sort, order }: Props) {
         <button
           type="button"
           aria-label="昇順 / 降順を切り替え"
-          aria-pressed={order === "desc"}
-          title={order === "asc" ? "昇順" : "降順"}
-          disabled={isPending}
+          aria-pressed={optimistic.order === "desc"}
+          title={optimistic.order === "asc" ? "昇順" : "降順"}
           className={TAG_SORT_DIR}
-          onClick={() => navigate({ order: nextOrder })}
+          onClick={() =>
+            run({ type: "setOrder", order: nextOrder }, { order: nextOrder })
+          }
         >
-          <Icon icon={order === "asc" ? ArrowUp : ArrowDown} />
+          <Icon icon={optimistic.order === "asc" ? ArrowUp : ArrowDown} />
         </button>
       </div>
     </div>
