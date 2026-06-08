@@ -275,7 +275,10 @@ export function NoteEditor(props: NoteEditorProps) {
   };
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+    <form
+      className="flex flex-col gap-4 max-sm:pb-[env(safe-area-inset-bottom)]"
+      onSubmit={onSubmit}
+    >
       <EditLockBanner lock={state.editLock} />
 
       <div className={editorTopbar}>

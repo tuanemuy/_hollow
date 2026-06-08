@@ -29,8 +29,11 @@ export const PUBLIC_MAIN =
 
 export const PUBLIC_FOOTER = "border-t border-hairline pt-7 pb-10 mt-4";
 
+// Mock footer-inner is a row with `justify-between` + `flex-wrap` at sm+ and
+// stacks (`flex-direction:column`) on the 390px mobile mock. The `max-sm:flex-col`
+// makes `justify-between` inert below sm so the brand/links read top-to-bottom.
 export const PUBLIC_FOOTER_INNER =
-  "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] flex justify-between gap-4 flex-wrap text-sm text-ink-tertiary";
+  "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] flex justify-between gap-4 flex-wrap text-sm text-ink-tertiary max-sm:flex-col";
 
 export const PUBLIC_FOOTER_LINKS = "flex gap-4.5 flex-wrap";
 
@@ -42,8 +45,12 @@ export const SEARCH_ICON =
 
 // ===== Note row / list (P30) =====
 export const NOTE_LIST = "mt-2 pb-16";
+// Desktop: 2-col grid (main | short right-rail date). Mobile mock (P30) stacks
+// the row (`flex-direction:column`) and folds the date into the meta line, so
+// below sm we collapse to one column and hide the redundant right-rail
+// `NOTE_DATE` (the meta row already carries the full「更新」date).
 export const NOTE_ROW =
-  "grid grid-cols-[1fr_auto] gap-6 px-3 py-5 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none items-center text-inherit hover:bg-surface";
+  "grid grid-cols-[1fr_auto] gap-6 px-3 py-5 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none items-center text-inherit hover:bg-surface max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:items-start max-sm:px-1";
 export const NOTE_MAIN = "min-w-0";
 export const NOTE_TITLE_ROW = "flex items-center gap-2 mb-1";
 export const NOTE_TITLE =
@@ -53,7 +60,10 @@ export const NOTE_SNIPPET =
 export const NOTE_META =
   "text-sm text-ink-tertiary flex items-center gap-2.5 flex-wrap";
 export const NOTE_TAGS = "text-accent text-sm";
-export const NOTE_DATE = "text-sm text-ink-tertiary whitespace-nowrap";
+// Right-rail date for the sm+ 2-col row; hidden on mobile where the stacked
+// layout folds the date into the meta line (mock P30).
+export const NOTE_DATE =
+  "text-sm text-ink-tertiary whitespace-nowrap max-sm:hidden";
 export const EMPTY_LIST = "px-3 py-20 text-center text-ink-secondary text-md";
 
 // ===== P30 profile =====
@@ -155,8 +165,14 @@ export const ERR_TITLE =
   "text-2xl font-semibold tracking-tighter text-ink mb-3 leading-snug max-sm:text-[22px]";
 export const ERR_DESC =
   "text-md text-ink-secondary leading-relaxed mx-auto mb-8 max-w-[440px]";
-export const ERR_ACTIONS = "flex gap-2.5 justify-center flex-wrap mb-6";
+// Desktop: centered horizontal wrap. Mobile mock (P34): `flex-direction:column;
+// align-items:stretch` with every CTA `width:100%`. The `max-sm:[&>*]:w-full`
+// stretches the child `pill-btn`s/buttons full-width without mutating the shared
+// `PILL_BTN` constant (also used by pagination) — scoped to this actions row.
+export const ERR_ACTIONS =
+  "flex gap-2.5 justify-center flex-wrap mb-6 max-sm:flex-col max-sm:items-stretch max-sm:[&>*]:w-full";
 // Mock `.back-link` normalized to tokens / Tailwind standard scale (no literal px).
+// Mobile mock centers the label and applies the 44px tap floor (`min-h-[44px]`).
 export const BACK_LINK =
-  "inline-flex items-center gap-1 text-sm text-ink-tertiary px-2.5 py-1.5 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";
+  "inline-flex items-center gap-1 text-sm text-ink-tertiary px-2.5 py-1.5 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface max-sm:justify-center max-sm:min-h-[44px]";
 export const ERR_META = "text-xs text-ink-tertiary font-mono mt-3";

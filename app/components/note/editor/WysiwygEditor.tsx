@@ -35,6 +35,7 @@ import type { InternalLinkSuggestion } from "@/core/application/note/searchInter
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";
+import { editorToolbar } from "./styles";
 import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
@@ -536,11 +537,7 @@ export function WysiwygEditor({
           )}
         </div>
       ) : null}
-      <div
-        className="flex flex-wrap gap-1 rounded-md border border-hairline bg-surface-elevated p-2"
-        role="toolbar"
-        aria-label="書式"
-      >
+      <div className={editorToolbar} role="toolbar" aria-label="書式">
         {buttons.map((btn) => {
           const active = btn.isActive();
           return (

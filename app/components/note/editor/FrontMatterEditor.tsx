@@ -10,6 +10,7 @@ import {
   pillBtn,
 } from "@/components/common/styles";
 import type { FrontMatterError, FrontMatterMode } from "./editorState";
+import { frontMatterRow } from "./styles";
 
 /**
  * Map a structured `FrontMatterError` to a localized message. The
@@ -152,11 +153,8 @@ function KeyRow({
   };
 
   return (
-    <div
-      className="flex flex-wrap items-start gap-2 mb-3"
-      data-value-kind={shape.kind}
-    >
-      <div className="flex-1 min-w-[160px]">
+    <div className={frontMatterRow} data-value-kind={shape.kind}>
+      <div className="flex-1 min-w-[160px] max-sm:w-full max-sm:min-w-0">
         <label htmlFor={keyInputId} className={`${fieldLabel} sr-only`}>
           キー
         </label>
@@ -183,7 +181,7 @@ function KeyRow({
           aria-label="FrontMatter キー"
         />
       </div>
-      <div className="flex-[2] min-w-[200px]">
+      <div className="flex-[2] min-w-[200px] max-sm:w-full max-sm:min-w-0">
         <label htmlFor={valueInputId} className={`${fieldLabel} sr-only`}>
           値
         </label>
@@ -221,7 +219,7 @@ function KeyRow({
       </div>
       <button
         type="button"
-        className={pillBtn}
+        className={`${pillBtn} max-sm:self-start`}
         onClick={() => onSetField(fmKey, undefined)}
         disabled={disabled}
         aria-label={`${fmKey} を削除`}

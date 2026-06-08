@@ -1,6 +1,7 @@
 // Shared utility class strings and visibility-chip helpers for the
 // home / note-list views (ListView, TileView, FilterBar).
 
+import { scrollbarHidden } from "@/components/common/styles";
 import type { OwnedNoteFilterItem } from "../loaders";
 
 type Visibility = OwnedNoteFilterItem["visibility"];
@@ -68,3 +69,13 @@ export const filterChipCaret = "ml-0.5 text-[10px] opacity-60";
 /** Uppercase label used for the section headings inside the 期間 popover. */
 export const filterLabel =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
+
+/**
+ * FilterBar container. Below `sm` the wrapping chip cloud becomes a single
+ * horizontally-scrolling row (mock `.filter-bar`: `flex-wrap: nowrap` +
+ * `overflow-x: auto`, scrollbar hidden), so the chips never push the page wider
+ * than the viewport (overflow=0). At `sm` and up it keeps the original wrapping
+ * flex layout. The `min-w-0` lets the row shrink inside the grid main column so
+ * the internal scroll is isolated rather than widening the parent.
+ */
+export const filterBar = `flex flex-wrap items-center gap-3 mb-5 min-w-0 max-sm:flex-nowrap max-sm:gap-2 max-sm:overflow-x-auto max-sm:pb-0.5 ${scrollbarHidden}`;

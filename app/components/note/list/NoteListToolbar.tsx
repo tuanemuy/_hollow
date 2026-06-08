@@ -115,16 +115,22 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             <Icon icon={Bookmark} />
             <span className={CTA_LABEL}>ビューとして保存</span>
           </button>
+          {/* 新規作成 / アップロード move to the下部固定CTAバー (`BottomCtaBar`)
+              below `lg` (#588 ADR-001), so the toolbar copies are hidden there to
+              avoid a duplicate CTA; 選択 / ビューとして保存 stay (list-specific). */}
           <Link
             to="/notes/new"
             data-primary
             aria-label="新規作成"
             title="新規作成"
-            className={`${pillBtn} ${pillBtnPrimary}`}
+            className={`${pillBtn} ${pillBtnPrimary} max-lg:hidden`}
           >
             <Icon icon={Plus} />
           </Link>
-          <UploadButton className={pillBtn} aria-label="アップロード">
+          <UploadButton
+            className={`${pillBtn} max-lg:hidden`}
+            aria-label="アップロード"
+          >
             <Icon icon={Upload} />
           </UploadButton>
         </div>

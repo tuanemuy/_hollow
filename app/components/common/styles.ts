@@ -178,6 +178,18 @@ export const navItem =
 export const textLink =
   "text-accent hover:underline hover:[text-underline-offset:3px]";
 
+/**
+ * Hide the native scrollbar on a horizontally-scrolling row while keeping it
+ * scrollable (mock `P10-home.html` `.filter-bar` / `.bulk-actions`:
+ * `scrollbar-width: none` + `::-webkit-scrollbar { display: none }`). These are
+ * arbitrary Tailwind utilities (no handwritten CSS), shared across the FilterBar
+ * narrow横スクロール row, the BulkActionBar mobile actions row, the NoteActions
+ * mobile rail and the editor mode-tabs / toolbar rows. Domain-agnostic primitive,
+ * so it lives here alongside the other shared shells (#588 W-003).
+ */
+export const scrollbarHidden =
+  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
 
@@ -243,11 +255,32 @@ export const dialogGrabber =
 export const dialogCloseButton =
   "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-pill text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
-/** Modal dialog title. */
-export const dialogTitle = "text-lg font-medium mb-4";
+/**
+ * Modal dialog title.
+ *
+ * `[overflow-wrap:anywhere]` + `min-w-0` mirror the mock's `.dialog-title`
+ * rule so a long unbreakable subject woven into the title (e.g. a directory
+ * name with no break opportunities in 「{name}」を移動) wraps instead of
+ * forcing horizontal scroll in the narrow bottom sheet (#588 Step 2,
+ * overflow=0 requirement).
+ */
+export const dialogTitle =
+  "text-lg font-medium mb-4 min-w-0 [overflow-wrap:anywhere]";
 
-/** Modal dialog actions row. */
-export const dialogActions = "inline-flex gap-2 mt-4 justify-end w-full";
+/**
+ * Modal dialog actions row.
+ *
+ * `sm` and up: the desktop right-aligned inline row (`inline-flex justify-end`).
+ * Below `sm`: the mock's bottom-sheet treatment stacks the buttons full-width
+ * (`flex-col-reverse` so the DOM-first Cancel sits *below* the DOM-second
+ * primary/danger action — every dialog in #588's P10 group emits the buttons
+ * in `[cancel, primary]` order, and the mocks render the primary on top). Each
+ * button is stretched to full width and its label re-centered (the base
+ * `pillBtn` only sets `items-center`, not `justify-center`). The 44px tap floor
+ * comes from `pillBtn`'s own `max-sm:min-h-[44px]`. See `.issue/588` Step 2.
+ */
+export const dialogActions =
+  "inline-flex gap-2 mt-4 justify-end w-full max-sm:flex-col-reverse max-sm:[&>button]:w-full max-sm:[&>button]:justify-center";
 
 /**
  * Popover panel shell for the WAI-ARIA `role="menu"` dropdowns

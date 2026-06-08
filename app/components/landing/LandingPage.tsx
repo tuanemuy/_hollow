@@ -27,17 +27,25 @@ const HEADER_LINK =
 
 const CONTAINER =
   "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
-const HERO = `pt-16 pb-12 text-center md:pt-20 md:pb-16 ${CONTAINER}`;
+// Mock hero padding-block: mobile 48px/40px (space-12/10), desktop base
+// 64px/48px (space-16/12), md+ 80px/64px (space-20/16). The `max-sm:`
+// overrides only tighten the mobile branch; desktop is unchanged.
+const HERO = `max-sm:pt-12 max-sm:pb-10 pt-16 pb-12 text-center md:pt-20 md:pb-16 ${CONTAINER}`;
 const HERO_EYEBROW =
   "inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium mb-6 tracking-normal";
 const HERO_TITLE =
   "text-[clamp(36px,6vw,64px)] font-normal tracking-tightest leading-tight text-ink mx-auto mb-6 text-balance";
 const HERO_SUBTITLE =
   "text-[clamp(16px,1.4vw+12px,20px)] text-ink-secondary leading-relaxed max-w-[34rem] mx-auto mb-8 text-pretty";
+// Mock (P07-landing): hero CTAs stack full-width below `sm` (`flex-col`,
+// `align-items:stretch`, button `width:100%`) and become a centered
+// content-width row at `sm`+ (`flex-row`, `align-items:center`, button
+// `min-width:200px`). `max-sm:items-stretch` + `max-sm:w-full` express the
+// mobile branch; `sm:` keeps the desktop content-width pills.
 const HERO_ACTIONS =
-  "flex flex-col gap-3 items-center justify-center sm:flex-row";
-const HERO_BTN_PRIMARY = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px]`;
-const HERO_BTN_SECONDARY = `${pillBtn} ${pillBtnTall} min-w-[200px]`;
+  "flex flex-col gap-3 max-sm:items-stretch items-center justify-center sm:flex-row";
+const HERO_BTN_PRIMARY = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} min-w-[200px] max-sm:w-full`;
+const HERO_BTN_SECONDARY = `${pillBtn} ${pillBtnTall} min-w-[200px] max-sm:w-full`;
 
 const HERO_PREVIEW =
   "mt-12 mx-auto max-w-[980px] rounded-xl bg-surface-elevated shadow-md overflow-hidden text-left";
@@ -53,10 +61,18 @@ const PREVIEW_SIDE_ITEM =
 const PREVIEW_MAIN = "py-6 px-5 flex flex-col gap-4";
 const PREVIEW_NOTE =
   "grid grid-cols-[1fr_auto] gap-4 px-3 py-4 border-t border-hairline items-center first-of-type:border-t-0";
+// `min-w-0` lets the `1fr` grid track shrink below its content's min-content
+// width so the nowrap-ellipsis title/snippet truncate instead of pushing the
+// preview card past the viewport on narrow screens (mock `.preview-note >
+// div:first-child { min-width:0 }`).
+const PREVIEW_NOTE_BODY = "min-w-0";
 const PREVIEW_NOTE_TITLE = "text-md font-medium text-ink mb-1";
 const PREVIEW_NOTE_SNIPPET =
   "text-sm text-ink-secondary leading-normal overflow-hidden text-ellipsis whitespace-nowrap mb-2";
-const PREVIEW_NOTE_META = "text-xs text-ink-tertiary flex gap-2 items-center";
+// `flex-wrap` matches the mock so the meta chips wrap instead of overflowing
+// horizontally on narrow widths.
+const PREVIEW_NOTE_META =
+  "text-xs text-ink-tertiary flex flex-wrap gap-2 items-center";
 const PREVIEW_NOTE_DATE = "text-xs text-ink-tertiary whitespace-nowrap";
 const PUB_DOT =
   "inline-block w-1.5 h-1.5 rounded-full bg-status-public mr-1 align-[1px]";
@@ -107,7 +123,7 @@ export function LandingPage() {
           <BrandLockup />
         </Link>
         <nav className={HEADER_NAV} aria-label="Primary">
-          <a href="#features" className={HEADER_LINK}>
+          <a href="#features" className={`${HEADER_LINK} max-sm:hidden`}>
             機能
           </a>
           <Link to="/login" className={HEADER_LINK}>
@@ -205,7 +221,7 @@ export function LandingPage() {
 
               <div className={PREVIEW_MAIN}>
                 <div className={PREVIEW_NOTE}>
-                  <div>
+                  <div className={PREVIEW_NOTE_BODY}>
                     <div className={PREVIEW_NOTE_TITLE}>
                       静かなインターフェースについての覚書
                     </div>
@@ -226,7 +242,7 @@ export function LandingPage() {
                   <div className={PREVIEW_NOTE_DATE}>今日 14:32</div>
                 </div>
                 <div className={PREVIEW_NOTE}>
-                  <div>
+                  <div className={PREVIEW_NOTE_BODY}>
                     <div className={PREVIEW_NOTE_TITLE}>
                       2026年5月の読書記録
                     </div>
@@ -242,7 +258,7 @@ export function LandingPage() {
                   <div className={PREVIEW_NOTE_DATE}>今日 09:15</div>
                 </div>
                 <div className={PREVIEW_NOTE}>
-                  <div>
+                  <div className={PREVIEW_NOTE_BODY}>
                     <div className={PREVIEW_NOTE_TITLE}>
                       Cloudflare Workers + D1 のパフォーマンス計測
                     </div>

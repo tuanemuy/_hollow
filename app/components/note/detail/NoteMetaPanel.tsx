@@ -50,7 +50,8 @@ const SECTION_HEADING =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em] mb-3";
 const META_ROW = "grid grid-cols-[100px_1fr] items-start gap-3 py-1";
 const META_KEY = "text-sm text-ink-tertiary";
-const META_VAL = "m-0 flex flex-wrap gap-2 items-center text-sm text-ink";
+const META_VAL =
+  "m-0 flex flex-wrap gap-2 items-center text-sm text-ink min-w-0 [overflow-wrap:anywhere]";
 const CHIP =
   "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-xs text-ink";
 

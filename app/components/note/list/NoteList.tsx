@@ -4,6 +4,7 @@ import type { UserDTO } from "@/core/application/dto/identity";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { FlatDirectory, OwnedNotesResult } from "../loaders";
 import type { NoteListSearch } from "../schema";
+import { BottomCtaBar } from "./BottomCtaBar";
 import { BulkActionBar } from "./BulkActionBar";
 import { FilterBar } from "./FilterBar";
 import { NoteListToolbar } from "./NoteListToolbar";
@@ -120,6 +121,7 @@ export function NoteList({
       )}
 
       <BulkActionBar tree={tree} />
+      <BottomCtaBar />
     </SelectionProvider>
   );
 }

@@ -50,18 +50,23 @@ export function Header({ user }: Props) {
         </form>
       </div>
       <div className={APP_HEADER_RIGHT}>
+        {/* Retired to the下部固定CTAバー (`BottomCtaBar`) below `lg` per #588
+            ADR-001; only the desktop header keeps these CTAs inline. */}
         <Link
           to="/notes/new"
-          className={`${pillBtn} ${pillBtnPrimary}`}
+          className={`${pillBtn} ${pillBtnPrimary} max-lg:hidden`}
           data-primary=""
           aria-label="新規作成"
         >
           <Icon icon={Plus} />
-          <span className="max-sm:hidden">新規作成</span>
+          <span>新規作成</span>
         </Link>
-        <UploadButton className={pillBtn} aria-label="アップロード">
+        <UploadButton
+          className={`${pillBtn} max-lg:hidden`}
+          aria-label="アップロード"
+        >
           <Icon icon={Upload} />
-          <span className="max-sm:hidden">アップロード</span>
+          <span>アップロード</span>
         </UploadButton>
         <UserMenu user={user} />
       </div>

@@ -26,6 +26,16 @@ import {
 export const VIEWPORT_MARGIN = 8;
 
 /**
+ * `sm` breakpoint (px). Below this width the `popoverSheetPanel` consumers
+ * (FilterBar, #588 ADR-003) render the panel as a full-width `max-sm:` sheet,
+ * for which the horizontal `clampToViewport` shiftX is meaningless and actively
+ * interferes — so the clamp is skipped under this width. This mirrors the
+ * `--breakpoint-sm` / `--bp-sm` value (640px) that CLAUDE.md keeps duplicated on
+ * purpose; keep it in sync if that token ever changes.
+ */
+export const POPOVER_SHEET_BREAKPOINT = 640;
+
+/**
  * Pure horizontal-clamp computation extracted for unit testing — happy-dom
  * has no layout, so `getBoundingClientRect()` returns all-zero and the clamp
  * cannot be exercised through the DOM. Given the panel's natural (unshifted)
@@ -115,6 +125,10 @@ export function usePopover({
       setShiftX(0);
       return;
     }
+    // Below `sm` the sheet consumers render a full-width `max-sm:` panel, so the
+    // horizontal shift is both unnecessary and harmful (#588 ADR-003): skip it
+    // and leave shiftX at its reset 0.
+    if (window.innerWidth < POPOVER_SHEET_BREAKPOINT) return;
     const el = panelRef.current;
     if (el === null) return;
     const rect = el.getBoundingClientRect();

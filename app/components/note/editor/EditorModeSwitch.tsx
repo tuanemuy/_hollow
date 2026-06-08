@@ -1,5 +1,6 @@
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import type { EditorMode, EditorSurface } from "./editorState";
+import { editorModeTabs } from "./styles";
 
 /**
  * Pure tab control for the editor mode. The set of visible tabs is
@@ -47,11 +48,7 @@ export function EditorModeSwitch({
 }: EditorModeSwitchProps) {
   const tabs = surface === "new" ? TABS_NEW : TABS_EDIT;
   return (
-    <div
-      className="inline-flex flex-wrap gap-1"
-      role="tablist"
-      aria-label="編集モード"
-    >
+    <div className={editorModeTabs} role="tablist" aria-label="編集モード">
       {tabs.map((tab) => {
         const isActive = mode === tab.mode;
         return (
