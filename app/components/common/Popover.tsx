@@ -14,6 +14,11 @@ import {
  * control over the panel body — currently the FilterBar's 期間 (dialog) and
  * 公開状態 (menu) chips. The declarative actions-menu sugar lives in `<Menu>`.
  *
+ * Below `sm` the panel is intended to become a full-width bottom-anchored
+ * sheet (see `popoverSheetPanel` in `common/styles.ts`); when full-width the
+ * `clampToViewport` horizontal shift is unnecessary. The actual per-consumer
+ * switch is wired in #588.
+ *
  * Non-modal by design: no focus trap. The trigger is rendered by the caller
  * via the `trigger` render prop (it receives the `ref`, the
  * `aria-haspopup`/`aria-expanded`/`aria-controls` attributes, and an `onClick`

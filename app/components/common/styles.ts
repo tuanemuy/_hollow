@@ -186,7 +186,7 @@ export const fieldLabel = "text-sm font-medium text-ink-secondary";
 
 /** Field input/textarea/select base. */
 export const fieldControl =
-  "w-full h-10 rounded-md border border-transparent bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
+  "w-full h-10 max-sm:min-h-[44px] rounded-md border border-transparent bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
 
 /** Field textarea modifier. */
 export const fieldTextarea = "font-mono text-mono min-h-[320px] resize-y";
@@ -198,9 +198,16 @@ export const formError = "text-error text-sm mt-2";
 export const chip =
   "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-xs text-ink";
 
-/** Modal dialog backdrop. */
+/**
+ * Modal dialog backdrop.
+ *
+ * Below `sm` the backdrop bottom-aligns its panel (`items-end p-0`) so the
+ * dialog reads as a bottom sheet; at `sm` and up it returns to the centered
+ * modal (`sm:items-center sm:p-4`). The split is a static viewport-driven
+ * variant, not runtime state (#587 ADR-001).
+ */
 export const dialogBackdrop =
-  "fixed inset-0 z-[100] bg-black/35 flex items-center justify-center p-4";
+  "fixed inset-0 z-[100] bg-black/35 flex justify-center items-end p-0 sm:items-center sm:p-4";
 
 /**
  * Modal dialog body.
@@ -212,7 +219,19 @@ export const dialogBackdrop =
  * in current consumers (SR_ONLY clipped text is unaffected).
  */
 export const dialog =
-  "relative flex flex-col bg-bg rounded-lg p-6 max-w-[480px] w-full max-h-[90vh] overflow-y-auto shadow-lg";
+  "relative flex flex-col bg-bg rounded-t-lg sm:rounded-lg p-6 max-sm:pb-[calc(var(--space-5)+env(safe-area-inset-bottom))] max-w-[480px] w-full max-sm:max-h-[calc(100%-var(--space-8))] sm:max-h-[90vh] overflow-y-auto shadow-lg";
+
+/**
+ * Decorative grabber handle for the bottom-sheet dialog (mock `.dialog::before`,
+ * 36×4px / `--radius-full` / `--color-hairline-strong` / `margin:0 auto var(--space-4)`).
+ *
+ * Shown only below `sm` (`hidden max-sm:block`). Rendered as a non-focusable,
+ * `aria-hidden` `<span>` at the very top of the panel (before the close button)
+ * so it never enters the focus trap's `FOCUSABLE_SELECTOR`/`INITIAL_FOCUS_SELECTOR`
+ * and `focusables[0]` stays the close button (#587 ADR-002).
+ */
+export const dialogGrabber =
+  "hidden max-sm:block mx-auto mb-4 h-1 w-9 rounded-full bg-hairline-strong";
 
 /**
  * Opt-in close ("×") button rendered at the top-right of the dialog panel
@@ -240,6 +259,22 @@ export const dialogActions = "inline-flex gap-2 mt-4 justify-end w-full";
  */
 export const menuPanel =
   "rounded-md border border-hairline bg-bg shadow-sm py-1";
+
+/**
+ * Popover panel chrome for the narrow full-width sheet treatment.
+ *
+ * Base is the floating card (`rounded-lg border / bg-bg / shadow-md / p-4`);
+ * below `sm` it stretches edge-to-edge (`max-sm:left-0 max-sm:right-0
+ * max-sm:w-auto`) so the popover reads as a full-width bottom-anchored sheet.
+ * Stays non-modal (no backdrop) — `usePopover` keeps its dismiss-on-outside
+ * behaviour unchanged. When a consumer goes full-width the `clampToViewport`
+ * horizontal shift is unnecessary.
+ *
+ * This is the common base for the narrow-sheet treatment; the domain-owned
+ * `FILTER_POPOVER_PANEL` (FilterBar) replacement onto this constant is #588.
+ */
+export const popoverSheetPanel =
+  "rounded-lg border border-hairline bg-bg shadow-md p-4 max-sm:left-0 max-sm:right-0 max-sm:w-auto";
 
 /**
  * A single `role="menuitem"` row inside `menuPanel`.
