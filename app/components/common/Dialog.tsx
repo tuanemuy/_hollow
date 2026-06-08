@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { dialog, dialogBackdrop, dialogCloseButton } from "./styles";
+import {
+  dialog,
+  dialogBackdrop,
+  dialogCloseButton,
+  dialogGrabber,
+} from "./styles";
 
 export type DialogProps = Readonly<{
   open: boolean;
@@ -381,6 +386,7 @@ function DialogInner({
           e.stopPropagation();
         }}
       >
+        <span aria-hidden="true" className={dialogGrabber} />
         {showCloseButton && (
           <button
             type="button"

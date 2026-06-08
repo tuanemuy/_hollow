@@ -45,12 +45,33 @@ export const APP_LAYOUT_WITH_SIDEBAR = `${APP_LAYOUT} lg:grid-cols-[var(--sideba
 // `max-lg:` / `lg:` variants so the `--breakpoint-*` duplication does not
 // need touching (see CLAUDE.md styling notes).
 export const APP_SIDEBAR =
-  "px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
+  "px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:max-w-[86vw] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
 
 // Scrim behind the mobile drawer; clicking it closes the drawer. Shown only
 // below `lg` and only while open, regardless of generated-CSS source order.
 export const SIDEBAR_BACKDROP =
   "fixed inset-0 z-[90] bg-black/20 hidden data-[open]:max-lg:block";
+
+// Bottom-fixed CTA bar chrome (mock `P10-home.html` `.cta-bar`): the reusable
+// frame for the mobile下部固定CTA. Below `lg` it is a `fixed` full-width bar
+// with safe-area bottom padding, a hairline top border, and `--header-bg` +
+// backdrop blur; `lg:hidden` removes it once the desktop header CTA is visible.
+//
+// The blur uses the SSOT token `var(--header-blur)` (per #587 ADR-006), NOT the
+// literal `saturate(180%) blur(20px)` baked into `APP_HEADER` — that literal is
+// pre-existing debt we intentionally do not propagate. The always-on base keeps
+// `bg-[var(--header-bg)]` and only adds the blur under `supports-[backdrop-filter]`
+// (CLAUDE.md backdrop-filter pattern / ADR-005); the mock's `@supports not`
+// fallback to `--color-bg` is approximated by this translucent base.
+//
+// z-index is 40 (mock `.cta-bar`). It sits below the bulk-bar (45); the bulk-bar's
+// fixed-positioning and z=45 bump are #588 (CTA and bulk-bar are mutually exclusive,
+// so z-40 parity is harmless until then).
+//
+// Padding mirrors the mock's `padding: 10px var(--space-4)`: `py-2.5` = 10px,
+// `px-4` = `var(--space-4)` = 16px; the bottom is overridden by the safe-area calc.
+export const BOTTOM_ACTION_BAR =
+  "lg:hidden fixed inset-x-0 bottom-0 z-40 flex gap-2 px-4 py-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] border-t border-hairline bg-[var(--header-bg)] supports-[backdrop-filter]:bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
 
 // Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
 // `lg`.
