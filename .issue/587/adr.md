@@ -120,3 +120,20 @@ Accepted
 ### Consequences
 - 良い点: モバイルのタッチ操作性が全フォームで向上。§3 準拠。
 - トレードオフ: 全モバイルフォームの input 高が変わる視覚回帰（意図的）。admin は据え置きで密度優先を維持。
+
+---
+
+## ADR-008: Dialog backdrop と drawer の z-[100] 同値は意図的（排他表示前提）
+
+### Status
+Accepted
+
+### Context
+PR #596 レビュー（review-001 W-003）で、`dialogBackdrop`（`z-[100]`）と `APP_SIDEBAR` drawer（`max-lg:z-[100]`）が同値である点の積層意図が不明確と指摘された。
+
+### Decision
+両者の `z-[100]` 同値は意図的に維持する。Dialog（モーダル）と サイドバー drawer は同一画面で**排他表示**される前提（モック準拠。drawer を開いている間にモーダルを開く動線は無い）。本Issueはスコープを最小に保つため、既存の drawer `z-[100]` を変更しない。両者を同時表示する要件が将来生じた場合の積層調整は別Issueで扱う。
+
+### Consequences
+- 良い点: スコープ最小（既存 z 値を触らない）。排他表示前提で実害なし（PR #596 のブラウザ検証で Dialog 表示時に drawer が背後に隠れることを確認済み）。
+- トレードオフ: Dialog と drawer の同時表示要件が出た場合は z スケールの再設計が必要（別Issue）。

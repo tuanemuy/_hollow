@@ -67,6 +67,9 @@ export const SIDEBAR_BACKDROP =
 // z-index is 40 (mock `.cta-bar`). It sits below the bulk-bar (45); the bulk-bar's
 // fixed-positioning and z=45 bump are #588 (CTA and bulk-bar are mutually exclusive,
 // so z-40 parity is harmless until then).
+//
+// Padding mirrors the mock's `padding: 10px var(--space-4)`: `py-2.5` = 10px,
+// `px-4` = `var(--space-4)` = 16px; the bottom is overridden by the safe-area calc.
 export const BOTTOM_ACTION_BAR =
   "lg:hidden fixed inset-x-0 bottom-0 z-40 flex gap-2 px-4 py-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] border-t border-hairline bg-[var(--header-bg)] supports-[backdrop-filter]:bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
 
