@@ -84,6 +84,45 @@ export const USER_SEARCH = "relative max-w-[560px]";
 export const USER_SEARCH_INPUT =
   "w-full h-10 border-0 bg-surface rounded-pill pl-10 pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:bg-surface-hover";
 
+// ===== P30 filter chips / display segmented / sort (#568) =====
+// Mock `.filter-row` / `.chip` (P30:354-375). Chips toggle URL `tags`;
+// the active variant inverts to the ink fill, and selected chips carry an
+// inline remove (×) affordance (mobile mock `mobile/P30:363-364`).
+export const FILTER_ROW = "flex items-center gap-2 flex-wrap";
+export const CHIP =
+  "h-[30px] px-[13px] rounded-pill bg-surface text-[13px] text-ink inline-flex items-center gap-[5px] transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
+export const CHIP_REMOVE =
+  "text-sm text-ink-tertiary ml-[2px] leading-none [.group[data-active]_&]:text-white/70";
+
+// Mock `.toolbar` / `.segmented` / `.sort-btn` (P30:377-416).
+export const TOOLBAR = "flex justify-between items-center my-2 gap-3 flex-wrap";
+export const SEGMENTED = "bg-surface rounded-[9px] p-[2px] inline-flex";
+export const SEGMENTED_BTN =
+  "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
+export const SORT_BTN =
+  "text-[13px] text-ink-secondary inline-flex items-center gap-1 px-2 py-[6px] rounded-md transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+
+// Tile view (mock `.note-list` tile variant — same card system as P31 related).
+export const TILE_GRID =
+  "mt-2 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4";
+export const TILE_CARD =
+  "rounded-lg border border-hairline overflow-hidden bg-bg transition-colors motion-reduce:transition-none hover:bg-surface text-inherit block";
+export const TILE_BODY = "px-4 py-3";
+export const TILE_TITLE =
+  "mb-1.5 text-md font-medium text-ink overflow-hidden text-ellipsis [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
+export const TILE_SNIPPET =
+  "mb-1.5 text-sm text-ink-secondary overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
+export const TILE_META =
+  "flex items-center gap-2.5 flex-wrap text-sm text-ink-tertiary";
+
+// Calendar view (mock `.cal-` day grouping; mirrors auth-side CalendarView).
+export const CAL_WRAP = "mt-3 flex flex-col gap-5";
+export const CAL_DAY_TITLE =
+  "mb-2 pb-2 border-b border-hairline text-sm font-medium text-ink-secondary";
+export const CAL_DAY_LIST = "flex flex-col gap-1";
+export const CAL_ITEM =
+  "block text-sm text-ink px-2 py-1.5 rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface hover:text-accent text-inherit";
+
 // ===== P31 detail =====
 export const NOTE_DETAIL_WRAP =
   "max-w-[920px] mx-auto px-[var(--container-padding)] pt-8 pb-16";
@@ -100,7 +139,30 @@ export const AUTHOR_MINI =
   "inline-flex items-center gap-2.5 py-1.5 pr-3 pl-1.5 rounded-pill bg-surface mb-4.5";
 export const AUTHOR_AVATAR =
   "w-7 h-7 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-[11px] font-medium inline-flex items-center justify-center";
-export const BACKLINKS = "mt-16 pt-6 border-t border-hairline";
+
+// Mock `.bottom-meta` (P31:680-687): tag row + 公開/更新 dates re-stated at the
+// end of the article body, above the backlink / related sections.
+export const NOTE_BOTTOM_META =
+  "max-w-[var(--content-max)] mt-12 pt-5 border-t border-hairline flex flex-col gap-1.5 text-sm text-ink-tertiary";
+export const NOTE_BOTTOM_META_TAGS = "flex gap-1 flex-wrap";
+
+// Backlink / related sections (mock `.section-block` etc., P31:446-505).
+export const SECTION_BLOCK = "max-w-[var(--content-max)] mt-12";
+export const SECTION_TITLE =
+  "text-xs font-medium text-ink-tertiary uppercase tracking-wider mb-3.5";
+export const BACKLINK_LIST = "flex flex-col gap-0.5";
+export const BACKLINK_ITEM =
+  "py-3 px-3.5 rounded-md flex items-center gap-2.5 transition-colors motion-reduce:transition-none text-inherit hover:bg-surface";
+export const BACKLINK_ICON = "text-ink-tertiary shrink-0";
+export const BACKLINK_TEXT = "text-sm text-ink";
+export const RELATED_GRID =
+  "grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 mt-1";
+export const RELATED_CARD =
+  "p-4 px-4.5 border border-hairline rounded-lg bg-bg transition-colors motion-reduce:transition-none flex flex-col gap-1.5 text-inherit hover:bg-surface-elevated hover:border-hairline-strong";
+export const RELATED_TITLE =
+  "text-sm font-medium text-ink tracking-tight leading-snug";
+export const RELATED_META = "text-xs text-ink-tertiary";
+export const RELATED_TAGS = "text-accent mr-1.5";
 
 // ===== P32 search =====
 export const SEARCH_HERO = "py-12 pb-6 text-left";
@@ -132,6 +194,99 @@ export const SEARCH_HIT_META =
   "text-xs text-ink-tertiary flex gap-2.5 flex-wrap";
 export const SEARCH_EMPTY = "py-20 px-3 text-center text-ink-secondary";
 export const PAGINATION = "mt-6 flex justify-between gap-3 flex-wrap";
+
+// ===== P32 filter bar / active chips / drawer (#568) =====
+// Mock `.filter-bar` / `.results-count` (P32:311-340).
+export const FILTER_BAR =
+  "flex items-center justify-between gap-3 flex-wrap py-2 pb-1 mb-2";
+export const FILTER_BAR_LEFT =
+  "flex items-center gap-2.5 flex-wrap flex-1 min-w-0";
+export const FILTER_BAR_RIGHT = "flex items-center gap-2";
+export const RESULTS_COUNT = "text-sm text-ink-secondary";
+// Mock `.filter-btn` (P32:341-370). `has-active` swaps to the accent
+// surface; rendered via `data-active`. The mobile mock raises it to the
+// 44px tap floor.
+export const FILTER_BTN =
+  "h-9 px-3.5 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 relative transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-accent-surface data-[active]:text-accent-ink max-sm:h-11";
+export const FILTER_BTN_BADGE =
+  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-pill bg-accent text-white text-[11px] font-semibold ml-0.5";
+// Mock `.sort-btn` (P32:371-382). Relevance-order label is fixed (no toggle).
+export const SORT_LABEL =
+  "h-9 px-3 rounded-pill text-[13px] text-ink-secondary inline-flex items-center gap-1 max-sm:h-11";
+
+// Mock `.active-chips` (P32:384-440). Row hides itself when empty via the
+// caller (no `:empty` selector in Tailwind — the caller omits the row).
+export const ACTIVE_CHIPS =
+  "flex flex-wrap gap-1.5 pb-3 border-b border-hairline mb-1";
+export const ACTIVE_CHIP =
+  "inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium transition-colors motion-reduce:transition-none hover:bg-accent-surface-hover";
+export const ACTIVE_CHIP_AVATAR = `${AUTHOR_AVATAR} w-4 h-4 text-[8px]`;
+export const ACTIVE_CHIP_REMOVE =
+  "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06]";
+export const ACTIVE_CHIPS_CLEAR =
+  "text-xs text-ink-tertiary px-2 h-7 inline-flex items-center rounded-pill transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+
+// Mock `.drawer-backdrop` / `.drawer` (P32:549-633). Right-anchored slide-in
+// at every viewport. Open state is driven by `data-open` so the transition
+// runs; `pointer-events` flips with it.
+export const DRAWER_BACKDROP =
+  "fixed inset-0 bg-black/[0.32] opacity-0 pointer-events-none z-[90] transition-opacity duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:opacity-100 data-[open]:pointer-events-auto";
+export const DRAWER =
+  "fixed top-0 right-0 bottom-0 w-[min(420px,100vw)] bg-bg shadow-lg z-[100] flex flex-col translate-x-full transition-transform duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:translate-x-0";
+export const DRAWER_HEADER =
+  "flex items-center justify-between px-5 py-4 border-b border-hairline shrink-0";
+export const DRAWER_TITLE = "text-base font-semibold tracking-tight text-ink";
+export const DRAWER_CLOSE =
+  "w-9 h-9 inline-flex items-center justify-center rounded-md text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+export const DRAWER_BODY = "flex-1 overflow-y-auto pt-2 pb-4";
+export const DRAWER_FOOTER =
+  "flex items-center justify-between gap-3 px-5 py-3.5 border-t border-hairline shrink-0 bg-bg";
+export const DRAWER_RESET =
+  "text-[13px] text-ink-secondary px-1 py-2 transition-colors motion-reduce:transition-none hover:text-ink";
+export const DRAWER_APPLY =
+  "h-10 px-5 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover";
+
+// Mock `.facet-section` / `.facet-header` (P32:635-656).
+export const FACET_SECTION =
+  "px-5 pt-4 pb-2 border-b border-hairline last:border-b-0";
+export const FACET_HEADER = "flex items-center justify-between mb-2.5";
+export const FACET_TITLE = "text-[13px] font-semibold tracking-tight text-ink";
+export const FACET_SELECTED_COUNT = "text-[11px] text-ink-tertiary";
+export const FACET_HINT = "mt-1.5 text-[11px] text-ink-tertiary";
+
+// Mock `.token-input` / `.token` / `.token-field` (P32:658-732).
+export const TOKEN_INPUT =
+  "relative min-h-10 border border-hairline bg-bg rounded-md px-2 py-[5px] flex flex-wrap items-center gap-1 cursor-text transition-colors motion-reduce:transition-none focus-within:border-hairline-strong focus-within:shadow-focus";
+export const TOKEN =
+  "inline-flex items-center gap-1 h-[26px] pl-2 pr-1 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium max-w-full";
+export const TOKEN_LABEL =
+  "overflow-hidden text-ellipsis whitespace-nowrap inline-flex items-center gap-1.5";
+export const TOKEN_AVATAR = `${AUTHOR_AVATAR} w-4 h-4 text-[8px] shrink-0`;
+export const TOKEN_REMOVE =
+  "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 shrink-0 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06]";
+export const TOKEN_FIELD =
+  "flex-1 min-w-[100px] h-[26px] border-0 bg-transparent text-[13px] text-ink outline-none px-1 placeholder:text-ink-tertiary";
+
+// Mock `.suggestions` / `.suggestion-item` (P32:734-790).
+export const SUGGESTIONS =
+  "mt-1.5 border border-hairline rounded-md bg-bg shadow-sm max-h-[220px] overflow-y-auto";
+export const SUGGESTION_ITEM =
+  "flex items-center gap-2.5 px-3 py-2 text-[13px] text-ink cursor-pointer border-b border-hairline last:border-b-0 transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-surface text-left w-full";
+export const SUGGESTION_LABEL =
+  "flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap inline-flex items-center gap-2";
+export const SUGGESTION_AVATAR = `${AUTHOR_AVATAR} w-5 h-5 text-[9px] shrink-0`;
+export const SUGGESTION_EMPTY =
+  "px-3 py-3.5 text-xs text-ink-tertiary text-center";
+
+// Mock `.facet-list` / `.facet-item` radio (P32:797-828).
+export const FACET_LIST = "flex flex-col -mx-2";
+export const FACET_ITEM =
+  "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] text-ink cursor-pointer transition-colors motion-reduce:transition-none hover:bg-surface";
+export const FACET_RADIO =
+  "w-[15px] h-[15px] m-0 shrink-0 cursor-pointer accent-accent";
+export const FACET_LABEL =
+  "flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap";
+export const FACET_COUNT = "text-xs text-ink-tertiary tabular-nums shrink-0";
 
 // ===== P33 share-link gate =====
 export const SHARE_PAGE =

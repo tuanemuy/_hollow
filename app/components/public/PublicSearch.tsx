@@ -4,11 +4,17 @@ import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
+import { SearchFilterDrawer } from "./SearchFilterDrawer";
+import { periodToDateRange, type SearchPeriod } from "./searchPeriod";
 import {
   AUTHOR_AVATAR,
+  FILTER_BAR,
+  FILTER_BAR_LEFT,
+  FILTER_BAR_RIGHT,
   PAGINATION,
   PILL_BTN,
   PUBLIC_MAIN,
+  RESULTS_COUNT,
   SEARCH_EMPTY,
   SEARCH_FORM,
   SEARCH_FORM_BUTTON,
@@ -23,12 +29,14 @@ import {
   SEARCH_HIT_ROW,
   SEARCH_HIT_SNIPPET,
   SEARCH_HIT_TITLE,
-  SEARCH_SUMMARY,
+  SORT_LABEL,
 } from "./styles";
 
 type SearchArgs = {
   keyword: string;
   username: string | null;
+  tags: readonly string[] | null;
+  period: SearchPeriod | null;
   cursor: string | null;
   limit: number;
 };
@@ -45,8 +53,8 @@ const runSearch = cache(
         input: {
           viewerUserId: null,
           keyword: args.keyword,
-          tagNames: [],
-          dateRange: null,
+          tagNames: args.tags ?? [],
+          dateRange: periodToDateRange(args.period, new Date()),
           username: args.username,
           cursor: args.cursor,
           limit: args.limit,
@@ -56,20 +64,55 @@ const runSearch = cache(
   ),
 );
 
+const runFacets = cache(
+  serverData(
+    () => import("@/core/application/search/countPublicSearchFacets"),
+    async (
+      { container },
+      { countPublicSearchFacets },
+      args: {
+        keyword: string;
+        tags: readonly string[] | null;
+        username: string | null;
+      },
+    ) => {
+      return countPublicSearchFacets({
+        container,
+        input: {
+          keyword: args.keyword,
+          tagNames: args.tags ?? [],
+          username: args.username,
+        },
+      });
+    },
+  ),
+);
+
 export async function PublicSearch({
   keyword,
   username,
+  tags,
+  period,
   cursor,
   limit,
 }: SearchArgs) {
-  const { hits, nextCursor } = await runSearch({
-    keyword,
-    username,
-    cursor,
-    limit,
-  });
-
   const hasKeyword = keyword.trim().length > 0;
+
+  const [{ hits, nextCursor }, { facets }] = await Promise.all([
+    runSearch({ keyword, username, tags, period, cursor, limit }),
+    hasKeyword
+      ? runFacets({ keyword, tags, username })
+      : Promise.resolve({ facets: [] as const }),
+  ]);
+
+  // Results count prefers the facet total for the active period (exact,
+  // independent of the current page); falls back to the page hit count when
+  // facets are unavailable. The facet aggregation does not factor in the
+  // selected `tags`/`period` exactly the same way as the listing's tag AND,
+  // so the page hit count is the lower-bound fallback.
+  const facetTotal = facets.find((f) => f.period === (period ?? "all"))?.count;
+  const resultsCount = facetTotal ?? hits.length;
+  const countIsLowerBound = facetTotal === undefined && nextCursor !== null;
 
   return (
     <PublicLayout searchKeyword={keyword} hideHeaderSearch>
@@ -111,22 +154,22 @@ export async function PublicSearch({
         </section>
 
         {hasKeyword ? (
-          <div className={SEARCH_SUMMARY}>
-            <span>
-              <strong className="text-ink font-semibold">「{keyword}」</strong>
-              の検索結果
-            </span>
-            {username !== null ? (
-              <>
-                <span>·</span>
-                <span>ユーザー: @{username}</span>
-              </>
-            ) : null}
-            <span>·</span>
-            <span>
-              {hits.length}
-              {nextCursor !== null ? "+" : ""} 件
-            </span>
+          <div className={FILTER_BAR}>
+            <div className={FILTER_BAR_LEFT}>
+              <div className={RESULTS_COUNT}>
+                <strong className="text-ink font-semibold">
+                  {resultsCount}
+                  {countIsLowerBound ? "+" : ""} 件
+                </strong>
+                のノート
+              </div>
+            </div>
+            <div className={FILTER_BAR_RIGHT}>
+              <SearchFilterDrawer facets={facets} />
+              {/* Sort axis is fixed to relevance order (no toggle) — the
+                  public search ranks by score; see plan S-002. */}
+              <span className={SORT_LABEL}>関連度順</span>
+            </div>
           </div>
         ) : null}
 
@@ -184,6 +227,10 @@ export async function PublicSearch({
               search={{
                 q: keyword,
                 ...(username !== null ? { username } : {}),
+                ...(tags !== null && tags.length > 0
+                  ? { tags: [...tags] }
+                  : {}),
+                ...(period !== null ? { period } : {}),
                 cursor: nextCursor,
                 limit,
               }}

@@ -73,6 +73,7 @@ function makeContainer(
       delete: vi.fn(async () => {}),
       query: vi.fn(async () => ({ hits: [], nextCursor: null })),
       bulkRebuildFromSnapshots: vi.fn(async () => {}),
+      countByDateRanges: vi.fn(async () => []),
     },
     indexJobRepository: over.indexJobRepository ?? makeIndexJobRepository(),
     clock: over.clock ?? fixedClock(T0),

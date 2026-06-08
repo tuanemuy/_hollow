@@ -1,6 +1,11 @@
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { SearchDocument } from "../entity";
-import type { SearchCursor, SearchHit, SearchQuery } from "../valueObject";
+import type {
+  DateRange,
+  SearchCursor,
+  SearchHit,
+  SearchQuery,
+} from "../valueObject";
 
 /**
  * Result page returned by `SearchIndex.query`.
@@ -34,6 +39,23 @@ export interface SearchIndex {
   bulkRebuildFromSnapshots(
     documents: AsyncIterable<SearchDocument>,
   ): Promise<void>;
+
+  /**
+   * Counts the hits the same `q` would match, once per supplied date
+   * window, without paginating. `q.dateRange` is ignored — each entry in
+   * `ranges` supplies its own window, and a `null` entry means "no date
+   * constraint" (count over the whole matching set). All of `q`'s other
+   * filters (keyword, visibility, owner, tags) apply to every count.
+   *
+   * Returns a `number[]` positionally aligned with `ranges`. Used by the
+   * public search facet panel (P32) to label each period radio with its
+   * result count; the same MATCH / LIKE routing as `query` is reused so
+   * the counts match what the result list would show.
+   */
+  countByDateRanges(
+    q: SearchQuery,
+    ranges: readonly (DateRange | null)[],
+  ): Promise<readonly number[]>;
 }
 
 /**

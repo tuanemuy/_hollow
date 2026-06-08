@@ -9,16 +9,11 @@ import {
 } from "@/core/presentation/pagination";
 import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
+import { type PublicNoteItem, PublicNoteViews } from "./PublicNoteViews";
+import { PublicTopControls } from "./PublicTopControls";
 import {
   EMPTY_LIST,
-  NOTE_DATE,
   NOTE_LIST,
-  NOTE_META,
-  NOTE_ROW,
-  NOTE_SNIPPET,
-  NOTE_TAGS,
-  NOTE_TITLE,
-  NOTE_TITLE_ROW,
   PAGINATION,
   PILL_BTN,
   PROFILE_AVATAR,
@@ -57,7 +52,13 @@ const loadNotes = cache(
     async (
       { container },
       { listUserPublicNotes },
-      args: { username: string; page: number; limit: number },
+      args: {
+        username: string;
+        page: number;
+        limit: number;
+        tagNames?: readonly string[];
+        sort?: "updatedAt" | "createdAt" | "title";
+      },
     ) => {
       try {
         return await listUserPublicNotes({
@@ -76,17 +77,45 @@ type Props = {
   username: string;
   page: number;
   limit: number;
+  tags?: readonly string[] | undefined;
+  sort?: "updatedAt" | "createdAt" | "title" | undefined;
 };
 
-export async function UserPublicTop({ username, page, limit }: Props) {
+export async function UserPublicTop({
+  username,
+  page,
+  limit,
+  tags,
+  sort,
+}: Props) {
   const [{ user, publicNoteCount }, { notes, total }] = await Promise.all([
     loadProfile(username),
-    loadNotes({ username, page, limit }),
+    loadNotes({
+      username,
+      page,
+      limit,
+      ...(tags !== undefined && tags.length > 0 ? { tagNames: tags } : {}),
+      ...(sort !== undefined ? { sort } : {}),
+    }),
   ]);
 
   const initials = avatarInitials(user.displayName || user.username);
   const joinedAt = new Date(user.createdAt);
   const joinedLabel = formatYearMonth(joinedAt);
+
+  // Chip candidates: tags present in the current listing (deduped, capped
+  // to keep the filter row compact). Selected-but-absent tags are merged
+  // back in client-side so their remove affordance survives a narrowed page.
+  const tagOptions = [...new Set(notes.flatMap((n) => n.tagNames))].slice(0, 8);
+
+  const items: PublicNoteItem[] = notes.map((note) => ({
+    id: note.id,
+    slug: note.slug,
+    title: note.title,
+    excerpt: note.excerpt,
+    tagNames: note.tagNames,
+    updatedAt: note.updatedAt,
+  }));
 
   return (
     <PublicLayout>
@@ -134,42 +163,17 @@ export async function UserPublicTop({ username, page, limit }: Props) {
               <input type="hidden" name="username" value={user.username} />
             </form>
           </search>
+
+          <PublicTopControls tagOptions={tagOptions} />
         </section>
 
         <section className={NOTE_LIST} aria-label="公開ノート一覧">
-          {notes.length === 0 ? (
+          {items.length === 0 ? (
             <div className={EMPTY_LIST}>
               公開されているノートはまだありません。
             </div>
           ) : (
-            notes.map((note) => (
-              <Link
-                key={note.id}
-                to="/u/$username/$noteSlug"
-                params={{ username: user.username, noteSlug: note.slug }}
-                className={NOTE_ROW}
-              >
-                <div className="min-w-0">
-                  <div className={NOTE_TITLE_ROW}>
-                    <div className={NOTE_TITLE}>{note.title}</div>
-                  </div>
-                  {note.excerpt.length > 0 ? (
-                    <div className={NOTE_SNIPPET}>{note.excerpt}</div>
-                  ) : null}
-                  <div className={NOTE_META}>
-                    {note.tagNames.length > 0 ? (
-                      <span className={NOTE_TAGS}>
-                        {note.tagNames.map((t) => `#${t}`).join(" ")}
-                      </span>
-                    ) : null}
-                    <span>{formatDate(new Date(note.updatedAt))}</span>
-                  </div>
-                </div>
-                <div className={NOTE_DATE}>
-                  {formatShort(new Date(note.updatedAt))}
-                </div>
-              </Link>
-            ))
+            <PublicNoteViews username={user.username} notes={items} />
           )}
         </section>
 
@@ -238,12 +242,4 @@ function Pagination({
 
 function formatYearMonth(date: Date): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月`;
-}
-
-function formatDate(date: Date): string {
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 更新`;
-}
-
-function formatShort(date: Date): string {
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
 }

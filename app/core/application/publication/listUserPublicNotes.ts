@@ -1,15 +1,32 @@
 import { Username } from "@/core/domain/identity/valueObject";
-import type { NoteId as NoteIdVO } from "@/core/domain/note/valueObject";
+import type { NoteOwnerListOpts } from "@/core/domain/note/ports/noteRepository";
 import type { TagId as TagIdVO } from "@/core/domain/tag/valueObject";
+import { TagName } from "@/core/domain/tag/valueObject";
 import type { NoteListItemDTO } from "../dto/note";
 import { NotFoundError } from "../errors";
 import { toNoteListItem } from "../note/view";
 import type { ServiceArgs } from "../types";
 
+export type ListUserPublicNotesSort = "updatedAt" | "createdAt" | "title";
+
 export type ListUserPublicNotesInput = Readonly<{
   username: string;
   page: number;
   limit: number;
+  /**
+   * AND-filter: only notes carrying *every* supplied tag name show up.
+   * Names that the owner has never used resolve to no tag id, which makes
+   * the whole filter match nothing (the owner cannot have a note tagged
+   * with a tag that does not exist).
+   */
+  tagNames?: readonly string[];
+  /**
+   * Sort axis. Note that the "公開日順" UI label is backed by `updatedAt`
+   * here — `listWithCount` sorts on note columns only and has no access to
+   * the publication-side `publishedAt`. See `.issue/568/progress.md`.
+   */
+  sort?: ListUserPublicNotesSort;
+  order?: "asc" | "desc";
 }>;
 
 export type ListUserPublicNotesOutput = Readonly<{
@@ -20,10 +37,13 @@ export type ListUserPublicNotesOutput = Readonly<{
 /**
  * Lists a single user's public notes for the public profile page. The
  * publication state acts as the gate: only notes whose
- * `PublicationState.visibility === 'public'` show up. The note rows are
- * sliced into a page locally because `PublicationStateRepository`
- * exposes simple bounded listing — pagination is offset/limit-style to
- * match the rest of the listing surface.
+ * `PublicationState.visibility === 'public'` show up.
+ *
+ * Backed by `noteRepository.listWithCount({ visibility: ['public'], … })`
+ * (PR #170 / Issue #30): the page `items` and the filtered `total` come
+ * from a single filter resolution so `items.length <= total` holds
+ * structurally and the rendered count cannot disagree with the visible
+ * slice. Tag / sort filters are applied on the same pass.
  */
 export async function listUserPublicNotes({
   container,
@@ -31,12 +51,7 @@ export async function listUserPublicNotes({
 }: ServiceArgs<ListUserPublicNotesInput>): Promise<ListUserPublicNotesOutput> {
   const username = Username.create(input.username);
   return container.unitOfWorkProvider.run(
-    async ({
-      userRepository,
-      publicationStateRepository,
-      noteRepository,
-      tagRepository,
-    }) => {
+    async ({ userRepository, noteRepository, tagRepository }) => {
       const user = await userRepository.findByUsername(username);
       if (user === null) {
         throw new NotFoundError("user", `User not found: ${input.username}`);
@@ -47,22 +62,37 @@ export async function listUserPublicNotes({
           `User not available: ${input.username}`,
         );
       }
-      const publicNoteIds = await publicationStateRepository.findPublicByOwner(
-        user.id,
-        { limit: 1000 },
-      );
-      const offset = Math.max(0, (input.page - 1) * input.limit);
-      const sliced = publicNoteIds.slice(offset, offset + input.limit);
 
-      const notes = await Promise.all(
-        sliced.map((id) => noteRepository.findById(id as NoteIdVO)),
-      );
-      const liveNotes = notes
-        .map((v) => v?.entity ?? null)
-        .filter(
-          (note): note is NonNullable<typeof note> =>
-            note !== null && note.status === "active",
+      // Resolve requested tag names to ids. A name the owner has never used
+      // has no row, so the AND-filter can never match — short-circuit to an
+      // empty page rather than dropping the unmatched name silently.
+      let tagIds: readonly TagIdVO[] | undefined;
+      if (input.tagNames !== undefined && input.tagNames.length > 0) {
+        const resolved = await Promise.all(
+          input.tagNames.map((raw) =>
+            tagRepository.findByOwnerAndName(user.id, TagName.create(raw)),
+          ),
         );
+        if (resolved.some((tag) => tag === null)) {
+          return { notes: [], total: 0 };
+        }
+        tagIds = resolved.map((tag) => (tag as NonNullable<typeof tag>).id);
+      }
+
+      const offset = Math.max(0, (input.page - 1) * input.limit);
+      const opts: NoteOwnerListOpts = {
+        visibility: ["public"],
+        status: "active",
+        ...(tagIds !== undefined ? { tagIds } : {}),
+        sort: input.sort ?? "updatedAt",
+        order: input.order ?? "desc",
+        limit: input.limit,
+        offset,
+      };
+      const { items: liveNotes, count } = await noteRepository.listWithCount(
+        user.id,
+        opts,
+      );
 
       const allTagIds = new Set<string>();
       for (const note of liveNotes) {
@@ -90,7 +120,7 @@ export async function listUserPublicNotes({
         });
       });
 
-      return { notes: items, total: publicNoteIds.length };
+      return { notes: items, total: count };
     },
   );
 }

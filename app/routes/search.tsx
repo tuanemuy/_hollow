@@ -8,9 +8,19 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
+// P32 (#568) drawer filters. `tags` AND-filters the public search by tag
+// name; `period` narrows by a rolling date window (radio facet). Both are
+// confirmed values carried in the URL (the combobox *suggestions* are
+// fetched per-keystroke via a server fn and never persisted to the URL).
+// `.catch(...)` keeps hand-typed junk from erroring the route; omission
+// keeps the URL clean.
+const SEARCH_PERIODS = ["7d", "30d", "1y", "all"] as const;
+
 const searchSchema = z.object({
   q: z.string().max(200).catch(""),
   username: z.string().min(1).max(64).optional(),
+  tags: z.array(z.string().min(1).max(64)).optional().catch(undefined),
+  period: z.enum(SEARCH_PERIODS).optional().catch(undefined),
   cursor: z.string().max(1024).optional(),
   limit: z.coerce.number().int().min(1).max(50).catch(20),
 });
@@ -18,6 +28,8 @@ const searchSchema = z.object({
 const renderInputSchema = z.object({
   q: z.string().max(200),
   username: z.string().min(1).max(64).optional(),
+  tags: z.array(z.string().min(1).max(64)).optional(),
+  period: z.enum(SEARCH_PERIODS).optional(),
   cursor: z.string().max(1024).optional(),
   limit: z.number().int().min(1).max(50),
 });
@@ -31,6 +43,8 @@ const renderPublicSearch = createServerFn({ method: "GET" })
       <PublicSearch
         keyword={data.q}
         username={data.username ?? null}
+        tags={data.tags ?? null}
+        period={data.period ?? null}
         cursor={data.cursor ?? null}
         limit={data.limit}
       />,
@@ -46,6 +60,8 @@ export const Route = createFileRoute("/search")({
       data: {
         q: deps.q,
         ...(deps.username !== undefined ? { username: deps.username } : {}),
+        ...(deps.tags !== undefined ? { tags: deps.tags } : {}),
+        ...(deps.period !== undefined ? { period: deps.period } : {}),
         ...(deps.cursor !== undefined ? { cursor: deps.cursor } : {}),
         limit: deps.limit,
       },

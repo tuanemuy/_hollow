@@ -7,8 +7,11 @@ import { describe, expect, it, vi } from "vitest";
  * un-searched empty state no longer duplicates that copy.
  */
 
+// `serverData` is called once per module (search + facets); return a union
+// payload both consumers can read (`hits`/`nextCursor` for search, `facets`
+// for the facet count).
 vi.mock("@/core/presentation/serverAction", () => ({
-  serverData: () => async () => ({ hits: [], nextCursor: null }),
+  serverData: () => async () => ({ hits: [], nextCursor: null, facets: [] }),
 }));
 
 vi.mock("../PublicLayout", () => ({
@@ -18,6 +21,12 @@ vi.mock("../PublicLayout", () => ({
   avatarInitials: (value: string) => value.slice(0, 1).toUpperCase(),
 }));
 
+// The drawer is a client island that binds `getRouteApi("/search")`; stub it
+// so the server-rendered hero/empty-state assertions stay isolated.
+vi.mock("../SearchFilterDrawer", () => ({
+  SearchFilterDrawer: () => null,
+}));
+
 const { PublicSearch } = await import("../PublicSearch");
 
 describe("PublicSearch hero", () => {
@@ -25,6 +34,8 @@ describe("PublicSearch hero", () => {
     const element = await PublicSearch({
       keyword: "",
       username: null,
+      tags: null,
+      period: null,
       cursor: null,
       limit: 20,
     });
@@ -48,6 +59,8 @@ describe("PublicSearch hero", () => {
     const element = await PublicSearch({
       keyword: "存在しない語",
       username: null,
+      tags: null,
+      period: null,
       cursor: null,
       limit: 20,
     });

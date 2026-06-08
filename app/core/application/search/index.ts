@@ -5,6 +5,14 @@ export {
   consumeIndexJob,
 } from "./consumeIndexJob";
 export {
+  type CountPublicSearchFacetsInput,
+  type CountPublicSearchFacetsOutput,
+  countPublicSearchFacets,
+  SEARCH_PERIODS,
+  type SearchPeriod,
+  type SearchPeriodFacetDTO,
+} from "./countPublicSearchFacets";
+export {
   type HandleNoteSavedEventInput,
   handleNoteSavedEvent,
 } from "./handleNoteSavedEvent";
@@ -31,6 +39,18 @@ export {
   type SearchUserPublicNotesOutput,
   searchUserPublicNotes,
 } from "./searchUserPublicNotes";
+export {
+  type PublicTagSuggestionDTO,
+  type SuggestPublicTagsInput,
+  type SuggestPublicTagsOutput,
+  suggestPublicTags,
+} from "./suggestPublicTags";
+export {
+  type PublicUserSuggestionDTO,
+  type SuggestPublicUsersInput,
+  type SuggestPublicUsersOutput,
+  suggestPublicUsers,
+} from "./suggestPublicUsers";
 export {
   type SearchHitDTO,
   toSearchHitView,

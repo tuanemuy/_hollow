@@ -121,6 +121,22 @@ async function linkNoteTag(
   await container.db.insert(schema.noteTags).values({ noteId, tagId });
 }
 
+async function seedPublication(
+  container: TestContainer,
+  noteId: string,
+  ownerId: UserId,
+  visibility: "private" | "unlisted" | "public",
+): Promise<void> {
+  await container.db.insert(schema.publicationStates).values({
+    noteId,
+    ownerId,
+    visibility,
+    publishedAt: visibility === "public" ? TZ : null,
+    updatedAt: TZ,
+    version: 0,
+  });
+}
+
 describe("D1TagRepository.searchByNamePrefix (integration)", () => {
   it("returns matching tags, case-insensitively, ordered by name", async () => {
     const container = createTestContainer();
@@ -599,5 +615,125 @@ describe("D1TagRepository.findByOwner — read-time lastUsedAt (Issue #569)", ()
       "tagA",
     ]);
     expect(asc[0].lastUsedAt).toBeNull();
+  });
+});
+
+describe("D1TagRepository.searchPublicByNamePrefix (integration, #568)", () => {
+  // Links a freshly-seeded note (with the given visibility + status) to a
+  // tag so the public-prefix query has a (tag → public/active note) edge.
+  async function linkTagToNote(
+    container: TestContainer,
+    owner: UserId,
+    dir: string,
+    tagId: string,
+    opts: {
+      visibility: "private" | "unlisted" | "public";
+      status?: "active" | "trashed";
+    },
+  ): Promise<void> {
+    const note = await seedNote(container, owner, dir, opts.status ?? "active");
+    await linkNoteTag(container, note, tagId);
+    await seedPublication(container, note, owner, opts.visibility);
+  }
+
+  it("returns distinct tags linked to a public active note, prefix + case-insensitive, ordered by name", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const cloudflare = await seedTagRow(container, owner, "cloudflare");
+    const cloud = await seedTagRow(container, owner, "Cloud");
+    await seedTagRow(container, owner, "ddd"); // does not match prefix
+
+    // `cloudflare` linked to two public notes — must appear once (distinct).
+    await linkTagToNote(container, owner, dir, cloudflare, {
+      visibility: "public",
+    });
+    await linkTagToNote(container, owner, dir, cloudflare, {
+      visibility: "public",
+    });
+    await linkTagToNote(container, owner, dir, cloud, { visibility: "public" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.searchPublicByNamePrefix("cl", 10),
+    );
+    expect(rows).toEqual(["Cloud", "cloudflare"]);
+  });
+
+  it("spans owners (cross-instance suggestion)", async () => {
+    const container = createTestContainer();
+    const a = await seedUser(container);
+    const b = await seedUser(container);
+    const dirA = await seedDirectory(container, a);
+    const dirB = await seedDirectory(container, b);
+    const tagA = await seedTagRow(container, a, "shared-a");
+    const tagB = await seedTagRow(container, b, "shared-b");
+    await linkTagToNote(container, a, dirA, tagA, { visibility: "public" });
+    await linkTagToNote(container, b, dirB, tagB, { visibility: "public" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.searchPublicByNamePrefix("shared", 10),
+    );
+    expect(rows).toEqual(["shared-a", "shared-b"]);
+  });
+
+  it("excludes tags linked only to private / unlisted / trashed notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const privateTag = await seedTagRow(container, owner, "priv-only");
+    const unlistedTag = await seedTagRow(container, owner, "unl-only");
+    const trashedTag = await seedTagRow(container, owner, "trash-only");
+    const orphanTag = await seedTagRow(container, owner, "orphan-only");
+
+    await linkTagToNote(container, owner, dir, privateTag, {
+      visibility: "private",
+    });
+    await linkTagToNote(container, owner, dir, unlistedTag, {
+      visibility: "unlisted",
+    });
+    await linkTagToNote(container, owner, dir, trashedTag, {
+      visibility: "public",
+      status: "trashed",
+    });
+    void orphanTag; // never linked to any note
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository
+          .searchPublicByNamePrefix("", 10)
+          .then(() => tagRepository.searchPublicByNamePrefix("o", 10)),
+    );
+    // None of the seeded tags are reachable through a public active note.
+    expect(rows).toEqual([]);
+  });
+
+  it("escapes LIKE wildcards and clamps non-positive limit / empty prefix", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const pct = await seedTagRow(container, owner, "50%-tag");
+    const noise = await seedTagRow(container, owner, "50abc-tag");
+    await linkTagToNote(container, owner, dir, pct, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, noise, { visibility: "public" });
+
+    const literal = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.searchPublicByNamePrefix("50%", 10),
+    );
+    expect(literal).toEqual(["50%-tag"]);
+
+    const zeroLimit = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.searchPublicByNamePrefix("50", 0),
+    );
+    expect(zeroLimit).toEqual([]);
+
+    const empty = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.searchPublicByNamePrefix("  ", 10),
+    );
+    expect(empty).toEqual([]);
   });
 });

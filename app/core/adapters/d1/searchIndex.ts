@@ -11,6 +11,7 @@ import {
   type SearchQueryResult,
 } from "@/core/domain/search/ports/searchIndex";
 import {
+  type DateRange,
   SearchCursor,
   type SearchQuery,
   SearchScore,
@@ -218,12 +219,7 @@ export class D1SearchIndex implements SearchIndex {
     // matches literally. The `%keyword%` match on `tag_names_json` is plain
     // substring (free-text), distinct from the MATCH path's quoted tag
     // *filter* (`%"<tag>"%`).
-    const needle = `%${escapeLikePattern(keyword.trim())}%`;
-    const likeClause = sql`(
-      sd.title LIKE ${needle} ESCAPE '\\'
-      OR sd.body_plain LIKE ${needle} ESCAPE '\\'
-      OR sd.tag_names_json LIKE ${needle} ESCAPE '\\'
-    )`;
+    const likeClause = buildLikeKeywordClause(keyword);
     const whereClause = sql.join([likeClause, ...sharedFilters], sql` AND `);
 
     return this.db.all<SearchRow>(sql`
@@ -242,6 +238,80 @@ export class D1SearchIndex implements SearchIndex {
       ORDER BY sd.note_id ASC
       LIMIT ${peekLimit} OFFSET ${offset}
     `);
+  }
+
+  async countByDateRanges(
+    q: SearchQuery,
+    ranges: readonly (DateRange | null)[],
+  ): Promise<readonly number[]> {
+    return mapDbError("Failed to count search facets", async () => {
+      // `q.dateRange` is intentionally ignored here — each `ranges` entry
+      // supplies its own window. The non-date filters (owner / visibility /
+      // tags) are shared across every count.
+      const baseFilters = buildNonDateFilters(q);
+      const tokens = extractTrigramTokens(q.keyword);
+      const useMatch = tokens.length > 0;
+      const matchExpr = useMatch ? buildMatchExpression(tokens) : null;
+      const keywordClause = useMatch ? null : buildLikeKeywordClause(q.keyword);
+
+      // Counts run sequentially rather than as one CASE-pivot query: the
+      // FTS MATCH path joins the contentless virtual table, so a single
+      // pivoted aggregate over all windows would need a more delicate
+      // sub-query shape than 4 bounded COUNTs. The facet panel is capped at
+      // a handful of windows (`SearchLimit` is unrelated), so the round
+      // trips are cheap and the SQL stays readable.
+      const counts: number[] = [];
+      for (const range of ranges) {
+        const dateClause = range === null ? null : buildDateRangeClause(range);
+        const extraFilters = dateClause === null ? [] : [dateClause];
+        const count =
+          matchExpr !== null
+            ? await this.countMatch(matchExpr, [
+                ...baseFilters,
+                ...extraFilters,
+              ])
+            : await this.countLike(keywordClause as ReturnType<typeof sql>, [
+                ...baseFilters,
+                ...extraFilters,
+              ]);
+        counts.push(count);
+      }
+      return counts;
+    });
+  }
+
+  private async countMatch(
+    matchExpr: string,
+    filters: readonly ReturnType<typeof sql>[],
+  ): Promise<number> {
+    const whereClause = sql.join(
+      [
+        sql`sd.rowid = fts.rowid`,
+        sql`fts.search_documents_fts MATCH ${matchExpr}`,
+        ...filters,
+      ],
+      sql` AND `,
+    );
+    const rows = await this.db.all<{ count: number }>(sql`
+      SELECT COUNT(*) AS "count"
+      FROM search_documents_fts AS fts
+      JOIN search_documents AS sd
+      WHERE ${whereClause}
+    `);
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  private async countLike(
+    keywordClause: ReturnType<typeof sql>,
+    filters: readonly ReturnType<typeof sql>[],
+  ): Promise<number> {
+    const whereClause = sql.join([keywordClause, ...filters], sql` AND `);
+    const rows = await this.db.all<{ count: number }>(sql`
+      SELECT COUNT(*) AS "count"
+      FROM search_documents AS sd
+      WHERE ${whereClause}
+    `);
+    return Number(rows[0]?.count ?? 0);
   }
 
   async bulkRebuildFromSnapshots(
@@ -383,6 +453,17 @@ function buildMatchExpression(tokens: readonly string[]): string {
 // references `sd.` columns only, so it is independent of the FTS virtual
 // table and reusable across both query routes.
 function buildSharedFilters(q: SearchQuery): ReturnType<typeof sql>[] {
+  const filterClauses = buildNonDateFilters(q);
+  if (q.dateRange !== null) {
+    filterClauses.push(buildDateRangeClause(q.dateRange));
+  }
+  return filterClauses;
+}
+
+// The shared-filter clauses minus the `dateRange` window. Split out so
+// `countByDateRanges` can reuse owner / visibility / tag / directory
+// filters while substituting its own per-facet date window.
+function buildNonDateFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   const filterClauses: ReturnType<typeof sql>[] = [];
 
   if (q.ownerIdFilter !== null) {
@@ -394,13 +475,6 @@ function buildSharedFilters(q: SearchQuery): ReturnType<typeof sql>[] {
         q.visibilityFilter.map((v) => sql`${v}`),
         sql`, `,
       )})`,
-    );
-  }
-  if (q.dateRange !== null) {
-    const fromIso = q.dateRange.from.toISOString();
-    const toIso = q.dateRange.to.toISOString();
-    filterClauses.push(
-      sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`,
     );
   }
   if (q.directoryPathPrefix !== null) {
@@ -426,6 +500,27 @@ function buildSharedFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   }
 
   return filterClauses;
+}
+
+// `sd.date_for_calendar` window clause shared by the query and facet-count
+// paths. The stored column is an ISO8601 string, so lexical comparison is
+// chronological.
+function buildDateRangeClause(range: DateRange): ReturnType<typeof sql> {
+  const fromIso = range.from.toISOString();
+  const toIso = range.to.toISOString();
+  return sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`;
+}
+
+// The LIKE-fallback free-text clause, factored out of `runLikeQuery` so the
+// facet COUNT path can reuse the exact same substring match over the three
+// indexed columns.
+function buildLikeKeywordClause(keyword: string): ReturnType<typeof sql> {
+  const needle = `%${escapeLikePattern(keyword.trim())}%`;
+  return sql`(
+    sd.title LIKE ${needle} ESCAPE '\\'
+    OR sd.body_plain LIKE ${needle} ESCAPE '\\'
+    OR sd.tag_names_json LIKE ${needle} ESCAPE '\\'
+  )`;
 }
 
 function encodeCursor(offset: number): SearchCursor {

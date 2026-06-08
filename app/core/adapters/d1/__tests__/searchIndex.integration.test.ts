@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
@@ -677,5 +678,117 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(result.hits[0]?.noteId).toBe(rebuilt.noteId);
     // Explicit negative: the pre-rebuild doc must be gone from the index.
     expect(result.hits.find((h) => h.noteId === stale.noteId)).toBeUndefined();
+  });
+});
+
+describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
+  // Stamps a doc at a specific `dateForCalendar` so date-window facets can
+  // be exercised. `makeDoc` hard-codes `updatedAt: NOW`, so this seeds the
+  // host row directly with a chosen calendar date.
+  async function upsertAt(
+    container: TestContainer,
+    params: {
+      ownerId: UserId;
+      directoryId: string;
+      title: string;
+      body: string;
+      visibility?: "private" | "unlisted" | "public";
+      dateForCalendar: Date;
+    },
+  ) {
+    const doc = await makeDoc(container, {
+      ownerId: params.ownerId,
+      directoryId: params.directoryId,
+      title: params.title,
+      body: params.body,
+      visibility: params.visibility ?? "public",
+    });
+    await container.searchIndex.upsert(doc);
+    await container.db
+      .update(schema.searchDocuments)
+      .set({ dateForCalendar: params.dateForCalendar.toISOString() })
+      .where(eq(schema.searchDocuments.noteId, doc.noteId));
+  }
+
+  it("counts hits per date window, ignoring the query's own dateRange", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const ref = new Date("2026-06-01T00:00:00.000Z");
+    const day = (n: number) => new Date(ref.getTime() - n * 86_400_000);
+
+    // 4 public docs across the timeline: 3 days ago, 20 days ago, 200 days
+    // ago, 400 days ago. Keyword "outbox" matches all four.
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "A",
+      body: "outbox topic",
+      dateForCalendar: day(3),
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "B",
+      body: "outbox topic",
+      dateForCalendar: day(20),
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "C",
+      body: "outbox topic",
+      dateForCalendar: day(200),
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "D",
+      body: "outbox topic",
+      dateForCalendar: day(400),
+    });
+
+    const window = (days: number) => ({ from: day(days), to: ref });
+    const ranges = [window(7), window(30), window(365), null];
+
+    const counts = await container.searchIndex.countByDateRanges(
+      makeQuery({ keyword: "outbox", visibilityFilter: ["public"] }),
+      ranges,
+    );
+    // past 7d → 1 (day 3); 30d → 2 (day 3, 20); 1y → 3 (day 3, 20, 200);
+    // all → 4.
+    expect(counts).toEqual([1, 2, 3, 4]);
+  });
+
+  it("honours visibility filter in the counts (LIKE path)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+    const ref = new Date("2026-06-01T00:00:00.000Z");
+
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Pub",
+      body: "AI overview",
+      visibility: "public",
+      dateForCalendar: ref,
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Priv",
+      body: "AI overview",
+      visibility: "private",
+      dateForCalendar: ref,
+    });
+
+    // "AI" is a short token → LIKE path. Public-only filter must count 1.
+    const counts = await container.searchIndex.countByDateRanges(
+      makeQuery({ keyword: "AI", visibilityFilter: ["public"] }),
+      [null],
+    );
+    expect(counts).toEqual([1]);
   });
 });
