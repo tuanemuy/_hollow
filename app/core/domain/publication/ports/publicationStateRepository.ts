@@ -10,6 +10,29 @@ export type PublicationListOpts = Readonly<{
 }>;
 
 /**
+ * Options for the public-by-owner listing sorted on `published_at`.
+ *
+ * `order` picks the publish-time direction; ties break on `note_id` so the
+ * order is total and deterministic. `limit` / `offset` page the result.
+ * `noteIds`, when supplied, constrains the listing to that candidate set
+ * (`note_id IN (...)`) — the application layer resolves tag AND-filters to
+ * ids and passes them here so the publish-time order and the filtered count
+ * come from a single pass.
+ */
+export type PublicNoteSortedOpts = Readonly<{
+  order: "asc" | "desc";
+  limit: number;
+  offset: number;
+  noteIds?: readonly NoteId[];
+}>;
+
+/** Result of {@link PublicationStateRepository.listPublicNoteIdsByOwnerSorted}. */
+export type PublicNoteSortedResult = Readonly<{
+  noteIds: readonly NoteId[];
+  total: number;
+}>;
+
+/**
  * Persistence port for the `PublicationState` aggregate.
  *
  * The aggregate id is `NoteId`, so OCC reads enter via `findByNoteId`.
@@ -36,6 +59,25 @@ export interface PublicationStateRepository
     ownerId: UserId,
     opts: PublicationListOpts,
   ): Promise<readonly NoteId[]>;
+
+  /**
+   * Owner-scoped public-note ids ordered by `published_at` (the publication
+   * aggregate's value), with the matching `total`. Notes whose
+   * `published_at` is NULL are excluded — symmetric with
+   * {@link findPublicByOwner} and with the entity invariant that a `public`
+   * note always carries a non-NULL `published_at`.
+   *
+   * Both the page and the `total` are computed over the same `active`-note
+   * population (the adapter joins `notes` on `status = 'active'`), so the
+   * trash → outbox-relay lag cannot inflate `total` past what the page can
+   * render: `items.length <= total` holds and the window is independent of
+   * the count (#30). The optional `noteIds` candidate set (pre-resolved tag
+   * AND-filter) is applied to both in the same pass.
+   */
+  listPublicNoteIdsByOwnerSorted(
+    ownerId: UserId,
+    opts: PublicNoteSortedOpts,
+  ): Promise<PublicNoteSortedResult>;
 
   /**
    * Global enumeration of public notes (timeline / search reindex use

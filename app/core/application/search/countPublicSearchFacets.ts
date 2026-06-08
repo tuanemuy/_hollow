@@ -43,6 +43,10 @@ const PERIOD_LOOKBACK_DAYS: Readonly<Record<SearchPeriod, number | null>> = {
  * An empty keyword short-circuits to all-zero counts so the drawer can
  * render before the user has typed.
  *
+ * Each rolling window is evaluated against the publication aggregate's
+ * `published_at` (公開日), not the note's `date_for_calendar`; the adapter
+ * joins `publication_states` for the windowed counts (ADR-003).
+ *
  * The date windows are computed from `container.clock` so the usecase stays
  * deterministic under test.
  */

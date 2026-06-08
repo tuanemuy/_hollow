@@ -142,6 +142,11 @@ export class D1SearchIndex implements SearchIndex {
       const peekLimit = limit + 1;
 
       const sharedFilters = buildSharedFilters(q);
+      // The public date facet/filter is evaluated against the publication
+      // aggregate's `published_at`, not `sd.date_for_calendar`. When a date
+      // window is present the query joins `publication_states` so the
+      // `ps.published_at` clause in `sharedFilters` resolves (ADR-003 案A).
+      const joinPublication = q.dateRange !== null;
       const tokens = extractTrigramTokens(q.keyword);
       const rows =
         tokens.length > 0
@@ -150,12 +155,14 @@ export class D1SearchIndex implements SearchIndex {
               sharedFilters,
               peekLimit,
               offset,
+              joinPublication,
             )
           : await this.runLikeQuery(
               q.keyword,
               sharedFilters,
               peekLimit,
               offset,
+              joinPublication,
             );
 
       const hasMore = rows.length > limit;
@@ -173,6 +180,7 @@ export class D1SearchIndex implements SearchIndex {
     sharedFilters: readonly ReturnType<typeof sql>[],
     peekLimit: number,
     offset: number,
+    joinPublication: boolean,
   ): Promise<SearchRow[]> {
     // FTS contentless table joins back to the host via the implicit
     // `rowid` column (configured `content_rowid='rowid'` in the migration's
@@ -200,6 +208,7 @@ export class D1SearchIndex implements SearchIndex {
       FROM search_documents_fts AS fts
       JOIN search_documents AS sd
       JOIN users AS u ON u.id = sd.owner_id
+      ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
       ORDER BY bm25(fts.search_documents_fts) ASC, sd.note_id ASC
       LIMIT ${peekLimit} OFFSET ${offset}
@@ -211,6 +220,7 @@ export class D1SearchIndex implements SearchIndex {
     sharedFilters: readonly ReturnType<typeof sql>[],
     peekLimit: number,
     offset: number,
+    joinPublication: boolean,
   ): Promise<SearchRow[]> {
     // Fallback for keywords whose every token is shorter than the trigram
     // minimum (3 codepoints). Searches the host table directly with a
@@ -234,6 +244,7 @@ export class D1SearchIndex implements SearchIndex {
         0               AS "score"
       FROM search_documents AS sd
       JOIN users AS u ON u.id = sd.owner_id
+      ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
       ORDER BY sd.note_id ASC
       LIMIT ${peekLimit} OFFSET ${offset}
@@ -264,16 +275,21 @@ export class D1SearchIndex implements SearchIndex {
       for (const range of ranges) {
         const dateClause = range === null ? null : buildDateRangeClause(range);
         const extraFilters = dateClause === null ? [] : [dateClause];
+        // A non-null window evaluates against `ps.published_at`, so the count
+        // joins `publication_states` exactly when the query path does.
+        const joinPublication = dateClause !== null;
         const count =
           matchExpr !== null
-            ? await this.countMatch(matchExpr, [
-                ...baseFilters,
-                ...extraFilters,
-              ])
-            : await this.countLike(keywordClause as ReturnType<typeof sql>, [
-                ...baseFilters,
-                ...extraFilters,
-              ]);
+            ? await this.countMatch(
+                matchExpr,
+                [...baseFilters, ...extraFilters],
+                joinPublication,
+              )
+            : await this.countLike(
+                keywordClause as ReturnType<typeof sql>,
+                [...baseFilters, ...extraFilters],
+                joinPublication,
+              );
         counts.push(count);
       }
       return counts;
@@ -283,6 +299,7 @@ export class D1SearchIndex implements SearchIndex {
   private async countMatch(
     matchExpr: string,
     filters: readonly ReturnType<typeof sql>[],
+    joinPublication: boolean,
   ): Promise<number> {
     const whereClause = sql.join(
       [
@@ -296,6 +313,7 @@ export class D1SearchIndex implements SearchIndex {
       SELECT COUNT(*) AS "count"
       FROM search_documents_fts AS fts
       JOIN search_documents AS sd
+      ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
     `);
     return Number(rows[0]?.count ?? 0);
@@ -304,11 +322,13 @@ export class D1SearchIndex implements SearchIndex {
   private async countLike(
     keywordClause: ReturnType<typeof sql>,
     filters: readonly ReturnType<typeof sql>[],
+    joinPublication: boolean,
   ): Promise<number> {
     const whereClause = sql.join([keywordClause, ...filters], sql` AND `);
     const rows = await this.db.all<{ count: number }>(sql`
       SELECT COUNT(*) AS "count"
       FROM search_documents AS sd
+      ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
     `);
     return Number(rows[0]?.count ?? 0);
@@ -502,13 +522,27 @@ function buildNonDateFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   return filterClauses;
 }
 
-// `sd.date_for_calendar` window clause shared by the query and facet-count
-// paths. The stored column is an ISO8601 string, so lexical comparison is
-// chronological.
+// Public-surface date window, evaluated against the publication aggregate's
+// `published_at` (joined as `ps`) rather than `sd.date_for_calendar`, so the
+// period facet/filter means "公開日" (ADR-003 案A). The stored column is an
+// ISO8601 string, so lexical comparison is chronological. Callers that add
+// this clause must also include {@link publicationJoin} in the FROM so `ps`
+// resolves; this is paired in both the query and facet-count paths.
 function buildDateRangeClause(range: DateRange): ReturnType<typeof sql> {
   const fromIso = range.from.toISOString();
   const toIso = range.to.toISOString();
-  return sql`sd.date_for_calendar >= ${fromIso} AND sd.date_for_calendar <= ${toIso}`;
+  return sql`ps.published_at >= ${fromIso} AND ps.published_at <= ${toIso}`;
+}
+
+// FROM-clause fragment that joins `publication_states AS ps` on the note id
+// so a `ps.published_at` date window resolves. Emitted only when a date
+// window is present (the `visibility = 'public'` gate already lives on the
+// `sd` side, so this join exists purely to expose `published_at`). Returns
+// empty SQL otherwise so the non-date path stays a plain `sd` scan.
+function publicationJoin(joinPublication: boolean): ReturnType<typeof sql> {
+  return joinPublication
+    ? sql`JOIN publication_states AS ps ON ps.note_id = sd.note_id`
+    : sql``;
 }
 
 // The LIKE-fallback free-text clause, factored out of `runLikeQuery` so the

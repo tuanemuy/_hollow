@@ -1,4 +1,15 @@
-import { and, asc, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  sql,
+} from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -21,9 +32,29 @@ import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
 import { notes, publicationStates, users } from "../schema";
 import { selectInChunks } from "./_chunks";
-import { escapeLikePattern, mapDbError } from "./helpers";
+import { mapDbError } from "./helpers";
 
 type UserRow = typeof users.$inferSelect;
+
+/**
+ * Exclusive upper bound of a prefix range for an index-served scan
+ * (`col >= prefix AND col < upper`). Increments the last code point that
+ * can be incremented, dropping trailing U+10FFFF chars. Returns `null`
+ * when no bound exists (the prefix is all-maximal), meaning the range is
+ * open-ended above. SQLite compares `text` by UTF-8 bytes, and a
+ * code-point increment maps to a byte-order increment, so the bound is
+ * correct for the lowercase usernames stored here.
+ */
+function prefixUpperBound(prefix: string): string | null {
+  const chars = Array.from(prefix);
+  for (let i = chars.length - 1; i >= 0; i--) {
+    const code = chars[i].codePointAt(0) as number;
+    if (code < 0x10ffff) {
+      return chars.slice(0, i).join("") + String.fromCodePoint(code + 1);
+    }
+  }
+  return null;
+}
 
 /**
  * D1 implementation of `UserRepository` over the better-auth `users`
@@ -209,18 +240,22 @@ export class D1UserRepository implements UserRepository {
       "Failed to search public users by username prefix",
       async () => {
         if (limit <= 0) return [];
-        const trimmed = prefix.trim();
-        if (trimmed.length === 0) return [];
-        const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+        const lower = prefix.trim().toLowerCase();
+        if (lower.length === 0) return [];
+        // Half-open prefix range `[lower, upper)` on the `username` column.
+        // `username` is stored lowercase (the `Username` value object rejects
+        // any non-lowercase input), so a range scan on the existing
+        // `uniq_users_username` index serves the case-folded prefix search
+        // directly — no separate normalised column is needed, and unlike
+        // `LOWER(username) LIKE 'x%'` / `username LIKE 'x%'` (both fall back
+        // to a full table SCAN here) the range bound is index-served.
+        const upper = prefixUpperBound(lower);
         // Live authors = not deleted (deleted_at IS NULL) and not suspended
         // (banned = 0); `pending` users (email_verified = 0) are
         // intentionally still allowed since the domain treats them as
         // available authors. The public-note EXISTS is the enumeration
-        // guard. `LOWER(username)` makes the prefix match case-insensitive
-        // without a dedicated normalized column.
-        //
-        // The EXISTS joins `notes (status='active')` so an author whose
-        // only public `publication_states` rows point at trashed notes is
+        // guard: it joins `notes (status='active')` so an author whose only
+        // public `publication_states` rows point at trashed notes is
         // excluded — symmetric with `tagRepository.searchPublicByNamePrefix`
         // and with the `getPublicNote` / `listRelatedPublicNotes` active
         // re-check. Trashing a note leaves its `publication_states` row
@@ -234,7 +269,8 @@ export class D1UserRepository implements UserRepository {
             and(
               isNull(users.deletedAt),
               eq(users.banned, 0),
-              sql`LOWER(${users.username}) LIKE ${pattern} ESCAPE '\\'`,
+              gte(users.username, lower),
+              upper === null ? undefined : lt(users.username, upper),
               sql`EXISTS (SELECT 1 FROM ${publicationStates} JOIN ${notes} ON ${notes.id} = ${publicationStates.noteId} WHERE ${publicationStates.ownerId} = ${users.id} AND ${publicationStates.visibility} = 'public' AND ${notes.status} = 'active')`,
             ),
           )

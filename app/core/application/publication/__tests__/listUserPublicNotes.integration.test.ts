@@ -90,13 +90,13 @@ async function seedPublic(
   noteId: NoteId,
   ownerId: UserId,
   visibility: "public" | "private" | "unlisted" = "public",
+  publishedAt = "2024-02-01T00:00:00.000Z",
 ): Promise<void> {
   await container.db.insert(schema.publicationStates).values({
     noteId,
     ownerId,
     visibility,
-    publishedAt:
-      visibility === "public" ? iso("2024-02-01T00:00:00.000Z") : null,
+    publishedAt: visibility === "public" ? iso(publishedAt) : null,
     updatedAt: iso("2024-02-01T00:00:00.000Z"),
     version: 0,
   });
@@ -134,7 +134,7 @@ async function tagNote(
 describe("listUserPublicNotes (integration)", () => {
   const getContainer = setupTestContainer();
 
-  it("returns only public, active notes ordered by updatedAt desc with an accurate total", async () => {
+  it("returns only public, active notes ordered by publishedAt desc (default) with an accurate total", async () => {
     const container = getContainer();
     const owner = await seedUser(container, "owner-a");
     const dir = await seedDirectory(container, owner);
@@ -147,8 +147,22 @@ describe("listUserPublicNotes (integration)", () => {
       title: "newer",
       updatedAt: "2026-03-01T00:00:00.000Z",
     });
-    await seedPublic(container, older, owner);
-    await seedPublic(container, newer, owner);
+    // Distinct published_at so the default (publishedAt desc) order is
+    // unambiguous: newer published after older.
+    await seedPublic(
+      container,
+      older,
+      owner,
+      "public",
+      "2024-01-01T00:00:00.000Z",
+    );
+    await seedPublic(
+      container,
+      newer,
+      owner,
+      "public",
+      "2024-03-01T00:00:00.000Z",
+    );
 
     // A private and a trashed note must be excluded.
     const priv = await seedNote(container, owner, dir, {
@@ -168,6 +182,8 @@ describe("listUserPublicNotes (integration)", () => {
       input: { username: "owner-a", page: 1, limit: 20 },
     });
 
+    // Default sort is publishedAt desc; the trashed note (still carrying a
+    // public publication_states row pre-relay) must NOT inflate the total.
     expect(result.total).toBe(2);
     expect(result.notes.map((n) => n.title)).toEqual(["newer", "older"]);
     expect(result.notes.every((n) => n.visibility === "public")).toBe(true);
@@ -305,5 +321,134 @@ describe("listUserPublicNotes (integration)", () => {
       "banana",
       "cherry",
     ]);
+  });
+
+  it("orders by publishedAt and preserves that order through hydration", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container, "owner-pub");
+    const dir = await seedDirectory(container, owner);
+
+    // published_at order intentionally differs from both insertion order
+    // and updatedAt order so a hydration that lost the port's ordering
+    // (e.g. findByIds returning a different order) would fail this.
+    const a = await seedNote(container, owner, dir, {
+      title: "a",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+    const b = await seedNote(container, owner, dir, {
+      title: "b",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const c = await seedNote(container, owner, dir, {
+      title: "c",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    });
+    await seedPublic(container, a, owner, "public", "2024-02-01T00:00:00.000Z");
+    await seedPublic(container, b, owner, "public", "2024-03-01T00:00:00.000Z");
+    await seedPublic(container, c, owner, "public", "2024-01-01T00:00:00.000Z");
+
+    const desc = await listUserPublicNotes({
+      container,
+      input: { username: "owner-pub", page: 1, limit: 20, sort: "publishedAt" },
+    });
+    // b (Mar) > a (Feb) > c (Jan)
+    expect(desc.notes.map((n) => n.title)).toEqual(["b", "a", "c"]);
+    expect(desc.total).toBe(3);
+
+    const asc = await listUserPublicNotes({
+      container,
+      input: {
+        username: "owner-pub",
+        page: 1,
+        limit: 20,
+        sort: "publishedAt",
+        order: "asc",
+      },
+    });
+    expect(asc.notes.map((n) => n.title)).toEqual(["c", "a", "b"]);
+  });
+
+  it("composes the tag AND-filter with publishedAt order and an independent total", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container, "owner-pub-tag");
+    const dir = await seedDirectory(container, owner);
+    const design = await seedTag(container, owner, "design");
+
+    const first = await seedNote(container, owner, dir, {
+      title: "first",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const second = await seedNote(container, owner, dir, {
+      title: "second",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const third = await seedNote(container, owner, dir, {
+      title: "third",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await seedPublic(
+      container,
+      first,
+      owner,
+      "public",
+      "2024-01-01T00:00:00.000Z",
+    );
+    await seedPublic(
+      container,
+      second,
+      owner,
+      "public",
+      "2024-02-01T00:00:00.000Z",
+    );
+    await seedPublic(
+      container,
+      third,
+      owner,
+      "public",
+      "2024-03-01T00:00:00.000Z",
+    );
+    await tagNote(container, first, design);
+    await tagNote(container, second, design);
+    await tagNote(container, third, design);
+
+    // A note WITHOUT the tag must not appear and must not count.
+    const untagged = await seedNote(container, owner, dir, {
+      title: "untagged",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    await seedPublic(
+      container,
+      untagged,
+      owner,
+      "public",
+      "2024-04-01T00:00:00.000Z",
+    );
+
+    const page1 = await listUserPublicNotes({
+      container,
+      input: {
+        username: "owner-pub-tag",
+        page: 1,
+        limit: 2,
+        sort: "publishedAt",
+        tagNames: ["design"],
+      },
+    });
+    expect(page1.total).toBe(3);
+    // publishedAt desc within the tagged set: third (Mar) > second (Feb).
+    expect(page1.notes.map((n) => n.title)).toEqual(["third", "second"]);
+
+    const page2 = await listUserPublicNotes({
+      container,
+      input: {
+        username: "owner-pub-tag",
+        page: 2,
+        limit: 2,
+        sort: "publishedAt",
+        tagNames: ["design"],
+      },
+    });
+    expect(page2.total).toBe(3);
+    expect(page2.notes.map((n) => n.title)).toEqual(["first"]);
   });
 });

@@ -1,4 +1,13 @@
-import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  sql,
+} from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -16,10 +25,12 @@ import { PublicationState } from "@/core/domain/publication/entity";
 import type {
   PublicationListOpts,
   PublicationStateRepository,
+  PublicNoteSortedOpts,
+  PublicNoteSortedResult,
 } from "@/core/domain/publication/ports/publicationStateRepository";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { publicationStates } from "../schema";
+import { notes, publicationStates } from "../schema";
 import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
@@ -180,6 +191,67 @@ export class D1PublicationStateRepository
         .limit(opts.limit);
       return rows.map((r) => NoteId.create(r.noteId));
     });
+  }
+
+  listPublicNoteIdsByOwnerSorted(
+    ownerId: UserId,
+    opts: PublicNoteSortedOpts,
+  ): Promise<PublicNoteSortedResult> {
+    return mapDbError(
+      "Failed to list public publication_states sorted by published_at",
+      async () => {
+        // An empty candidate set (tag AND-filter resolved to nothing the
+        // owner has) can never match — short-circuit without touching DB.
+        if (opts.noteIds !== undefined && opts.noteIds.length === 0) {
+          return { noteIds: [], total: 0 };
+        }
+        // Count and page run over the same `active`-note population: the
+        // trash → relay lag can leave a public publication_states row for a
+        // note already `trashed`, and counting publication rows alone would
+        // inflate `total` past what the active-only page can render (P-002).
+        const conditions = [
+          eq(publicationStates.ownerId, ownerId),
+          eq(publicationStates.visibility, "public"),
+          isNotNull(publicationStates.publishedAt),
+          eq(notes.status, "active"),
+        ];
+        if (opts.noteIds !== undefined) {
+          conditions.push(inArray(publicationStates.noteId, [...opts.noteIds]));
+        }
+        const whereClause = and(...conditions);
+
+        const orderBy =
+          opts.order === "asc"
+            ? [
+                asc(publicationStates.publishedAt),
+                asc(publicationStates.noteId),
+              ]
+            : [
+                desc(publicationStates.publishedAt),
+                asc(publicationStates.noteId),
+              ];
+
+        const rows = await this.db
+          .select({ noteId: publicationStates.noteId })
+          .from(publicationStates)
+          .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+          .where(whereClause)
+          .orderBy(...orderBy)
+          .limit(opts.limit)
+          .offset(opts.offset);
+
+        const countRows = await this.db
+          .select({ value: count() })
+          .from(publicationStates)
+          .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+          .where(whereClause);
+
+        return {
+          noteIds: rows.map((r) => NoteId.create(r.noteId)),
+          total: Number(countRows[0]?.value ?? 0),
+        };
+      },
+    );
   }
 
   findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]> {

@@ -393,8 +393,9 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(mineOnly.hits).toHaveLength(2);
     expect(mineOnly.hits.every((h) => h.ownerId === ownerId)).toBe(true);
 
-    // dateRange filter: the docs are stamped at NOW; a range that ends
-    // before NOW must exclude everything.
+    // dateRange filter is evaluated against publication_states.published_at
+    // (Issue #605); none of these docs has a publication_states row, so any
+    // date window excludes everything.
     const before = new Date("2025-01-01T00:00:00.000Z");
     const beforeRange = await container.searchIndex.query(
       makeQuery({
@@ -681,10 +682,12 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
   });
 });
 
-describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
-  // Stamps a doc at a specific `dateForCalendar` so date-window facets can
-  // be exercised. `makeDoc` hard-codes `updatedAt: NOW`, so this seeds the
-  // host row directly with a chosen calendar date.
+describe("D1SearchIndex.countByDateRanges (P32 facets, #568 / #605)", () => {
+  // Stamps a doc at a specific `dateForCalendar` AND seeds a
+  // publication_states row with a chosen `publishedAt`. The public date
+  // facet windows on `published_at` (#605), so the two are seeded
+  // independently here; tests stamp them apart to prove the window follows
+  // `published_at`. `makeDoc` hard-codes `updatedAt: NOW`.
   async function upsertAt(
     container: TestContainer,
     params: {
@@ -694,23 +697,42 @@ describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
       body: string;
       visibility?: "private" | "unlisted" | "public";
       dateForCalendar: Date;
+      publishedAt?: Date | null;
     },
   ) {
+    const visibility = params.visibility ?? "public";
     const doc = await makeDoc(container, {
       ownerId: params.ownerId,
       directoryId: params.directoryId,
       title: params.title,
       body: params.body,
-      visibility: params.visibility ?? "public",
+      visibility,
     });
     await container.searchIndex.upsert(doc);
     await container.db
       .update(schema.searchDocuments)
       .set({ dateForCalendar: params.dateForCalendar.toISOString() })
       .where(eq(schema.searchDocuments.noteId, doc.noteId));
+    // `published_at` defaults to `dateForCalendar` unless the test wants the
+    // two to differ.
+    const publishedAt =
+      params.publishedAt === undefined
+        ? params.dateForCalendar
+        : params.publishedAt;
+    await container.db.insert(schema.publicationStates).values({
+      noteId: doc.noteId,
+      ownerId: params.ownerId,
+      visibility,
+      publishedAt:
+        visibility === "public" && publishedAt !== null
+          ? publishedAt.toISOString()
+          : null,
+      updatedAt: TZ,
+      version: 0,
+    });
   }
 
-  it("counts hits per date window, ignoring the query's own dateRange", async () => {
+  it("counts hits per date window on published_at, ignoring the query's own dateRange", async () => {
     const container = createTestContainer();
     const ownerId = await seedUser(container);
     const directoryId = await seedDirectory(container, ownerId);
@@ -719,7 +741,8 @@ describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
     const day = (n: number) => new Date(ref.getTime() - n * 86_400_000);
 
     // 4 public docs across the timeline: 3 days ago, 20 days ago, 200 days
-    // ago, 400 days ago. Keyword "outbox" matches all four.
+    // ago, 400 days ago (published_at == dateForCalendar here). Keyword
+    // "outbox" matches all four.
     await upsertAt(container, {
       ownerId,
       directoryId,
@@ -761,6 +784,122 @@ describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
     expect(counts).toEqual([1, 2, 3, 4]);
   });
 
+  it("windows on published_at even when date_for_calendar differs (MATCH path)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const ref = new Date("2026-06-01T00:00:00.000Z");
+    const day = (n: number) => new Date(ref.getTime() - n * 86_400_000);
+
+    // date_for_calendar is recent (within 7d) but published_at is old
+    // (>1y): the doc must fall OUT of the 7d/30d/1y windows because the
+    // facet follows published_at, not date_for_calendar.
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Backdated",
+      body: "outbox topic",
+      dateForCalendar: day(1),
+      publishedAt: day(400),
+    });
+    // A control doc whose published_at is recent.
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Recent",
+      body: "outbox topic",
+      dateForCalendar: day(400),
+      publishedAt: day(2),
+    });
+
+    const window = (days: number) => ({ from: day(days), to: ref });
+    const counts = await container.searchIndex.countByDateRanges(
+      makeQuery({ keyword: "outbox", visibilityFilter: ["public"] }),
+      [window(7), window(30), window(365), null],
+    );
+    // 7d → 1 (Recent only); 30d → 1; 1y → 1 (Backdated published 400d ago is
+    // excluded); all → 2.
+    expect(counts).toEqual([1, 1, 1, 2]);
+  });
+
+  it("windows on published_at via the LIKE fallback path too", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const ref = new Date("2026-06-01T00:00:00.000Z");
+    const day = (n: number) => new Date(ref.getTime() - n * 86_400_000);
+
+    // "AI" is a short token → LIKE path. date_for_calendar recent,
+    // published_at old → excluded from the recent window.
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Backdated",
+      body: "AI overview",
+      dateForCalendar: day(1),
+      publishedAt: day(400),
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Recent",
+      body: "AI overview",
+      dateForCalendar: day(400),
+      publishedAt: day(2),
+    });
+
+    const window = (days: number) => ({ from: day(days), to: ref });
+    const counts = await container.searchIndex.countByDateRanges(
+      makeQuery({ keyword: "AI", visibilityFilter: ["public"] }),
+      [window(7), null],
+    );
+    expect(counts).toEqual([1, 2]);
+  });
+
+  it("agrees between countByDateRanges and query under a published_at window", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const ref = new Date("2026-06-01T00:00:00.000Z");
+    const day = (n: number) => new Date(ref.getTime() - n * 86_400_000);
+
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Recent",
+      body: "outbox topic",
+      dateForCalendar: day(400),
+      publishedAt: day(2),
+    });
+    await upsertAt(container, {
+      ownerId,
+      directoryId,
+      title: "Backdated",
+      body: "outbox topic",
+      dateForCalendar: day(1),
+      publishedAt: day(400),
+    });
+
+    const window = { from: day(7), to: ref };
+    const counts = await container.searchIndex.countByDateRanges(
+      makeQuery({ keyword: "outbox", visibilityFilter: ["public"] }),
+      [window],
+    );
+    const queryResult = await container.searchIndex.query(
+      makeQuery({
+        keyword: "outbox",
+        visibilityFilter: ["public"],
+        dateRange: window,
+      }),
+    );
+    expect(counts[0]).toBe(1);
+    expect(queryResult.hits).toHaveLength(1);
+    expect(queryResult.hits[0]?.title).toBe("Recent");
+  });
+
   it("honours visibility filter in the counts (LIKE path)", async () => {
     const container = createTestContainer();
     const ownerId = await seedUser(container);
@@ -785,6 +924,7 @@ describe("D1SearchIndex.countByDateRanges (P32 facets, #568)", () => {
     });
 
     // "AI" is a short token → LIKE path. Public-only filter must count 1.
+    // The null window keeps the non-join count path active.
     const counts = await container.searchIndex.countByDateRanges(
       makeQuery({ keyword: "AI", visibilityFilter: ["public"] }),
       [null],

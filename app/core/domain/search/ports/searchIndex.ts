@@ -47,10 +47,15 @@ export interface SearchIndex {
    * constraint" (count over the whole matching set). All of `q`'s other
    * filters (keyword, visibility, owner, tags) apply to every count.
    *
+   * On the public surface the date window is evaluated against the
+   * publication aggregate's `published_at` (公開日), not the note's
+   * `date_for_calendar`; the adapter joins `publication_states` for the
+   * windowed counts. The same MATCH / LIKE routing as `query` is reused so
+   * the counts match what the result list would show.
+   *
    * Returns a `number[]` positionally aligned with `ranges`. Used by the
    * public search facet panel (P32) to label each period radio with its
-   * result count; the same MATCH / LIKE routing as `query` is reused so
-   * the counts match what the result list would show.
+   * result count.
    */
   countByDateRanges(
     q: SearchQuery,

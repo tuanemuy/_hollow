@@ -319,6 +319,9 @@ export type SearchQuery = Readonly<{
   visibilityFilter: readonly Visibility[];
   tagNames: readonly string[];
   directoryPathPrefix: SearchDirectoryPath | null;
+  // On the public surface the adapter evaluates this window against the
+  // publication aggregate's `published_at` (公開日), not the note's
+  // `date_for_calendar` (ADR-003 / Issue #605).
   dateRange: DateRange | null;
   limit: SearchLimit;
   cursor: SearchCursor | null;

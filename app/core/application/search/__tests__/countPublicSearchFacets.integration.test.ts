@@ -63,12 +63,18 @@ async function seedDirectory(
   return id;
 }
 
-// Seeds a note + a public search_documents row stamped at `dateForCalendar`.
+// Seeds a note + a public search_documents row + a public
+// publication_states row. The period facet windows on `published_at`
+// (#605), so the publication row carries the timeline date; the
+// `search_documents.date_for_calendar` is stamped to the same value here so
+// these baseline tests stay focused on the windowing rather than the
+// published_at ≠ date_for_calendar discrimination (covered in the adapter
+// integration test).
 async function seedDoc(
   container: TestContainer,
   ownerId: UserId,
   directoryId: string,
-  dateForCalendar: Date,
+  publishedAt: Date,
 ): Promise<void> {
   const noteId = nextId(0x03);
   await container.db.insert(schema.notes).values({
@@ -98,15 +104,23 @@ async function seedDoc(
       tagNames: [],
       directoryPath: "",
       frontMatterDate: null,
-      updatedAt: dateForCalendar,
+      updatedAt: publishedAt,
     },
-    dateForCalendar,
+    publishedAt,
   );
   await container.searchIndex.upsert(doc);
   await container.db
     .update(schema.searchDocuments)
-    .set({ dateForCalendar: dateForCalendar.toISOString() })
+    .set({ dateForCalendar: publishedAt.toISOString() })
     .where(eq(schema.searchDocuments.noteId, noteId));
+  await container.db.insert(schema.publicationStates).values({
+    noteId,
+    ownerId,
+    visibility: "public",
+    publishedAt: publishedAt.toISOString(),
+    updatedAt: TZ,
+    version: 0,
+  });
 }
 
 describe("countPublicSearchFacets (integration)", () => {
