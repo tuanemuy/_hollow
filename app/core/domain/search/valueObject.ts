@@ -228,7 +228,7 @@ export const SearchCursor = {
  * - `'published_at'` — the publication aggregate's `published_at` (公開日).
  *   Used by the public surfaces (search / facets) where "期間" means the
  *   公開日 and only `public` notes are in scope. The adapter joins
- *   `publication_states` for this basis (ADR-003 / ADR-006, Issue #605).
+ *   `publication_states` for this basis.
  */
 export type DateBasis = "published_at" | "date_for_calendar";
 
@@ -338,7 +338,7 @@ export type SearchQuery = Readonly<{
   // Which timestamp `dateRange` is evaluated against. The own-notes
   // (all-visibility) surface uses `date_for_calendar`; the public surfaces
   // (search / facets) use `published_at`. Defaults to `date_for_calendar`
-  // so the basis is opt-in per surface (ADR-006 / Issue #605).
+  // so the basis is opt-in per surface.
   dateBasis: DateBasis;
   limit: SearchLimit;
   cursor: SearchCursor | null;

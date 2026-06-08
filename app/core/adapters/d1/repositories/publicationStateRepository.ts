@@ -226,7 +226,7 @@ export class D1PublicationStateRepository
   // `active`-note population — the trash → relay lag can leave a public
   // publication_states row for a note already `trashed`, and counting
   // publication rows alone would inflate `total` past what the active-only
-  // page can render (P-002).
+  // page can render.
   private async listSortedAll(
     ownerId: UserId,
     opts: PublicNoteSortedOpts,
@@ -271,9 +271,9 @@ export class D1PublicationStateRepository
   // rows, then merge, sort, count, and page in memory. Candidates are
   // active-note ids supplied by the caller (`noteRepository.findByOwner({
   // status: 'active', tagIds })`), so no trashed row can sneak in and the
-  // `notes` status JOIN is unnecessary here (see #605 ADR-006). The count and
-  // the page derive from the same merged population, so `items.length <= total`
-  // holds and the window stays independent of the total (#30).
+  // `notes` status JOIN is unnecessary here. The count and the page derive
+  // from the same merged population, so `items.length <= total` holds and the
+  // window stays independent of the total.
   private async listSortedWithinCandidates(
     ownerId: UserId,
     opts: PublicNoteSortedOpts,

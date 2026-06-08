@@ -71,7 +71,7 @@ export interface PublicationStateRepository
    * population (the adapter joins `notes` on `status = 'active'`), so the
    * trash → outbox-relay lag cannot inflate `total` past what the page can
    * render: `items.length <= total` holds and the window is independent of
-   * the count (#30). The optional `noteIds` candidate set (pre-resolved tag
+   * the count. The optional `noteIds` candidate set (pre-resolved tag
    * AND-filter) is applied to both in the same pass.
    */
   listPublicNoteIdsByOwnerSorted(
