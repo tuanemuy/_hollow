@@ -474,7 +474,6 @@ describe("TagList — optimistic merge", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    // Submit the merge.
     const submitBtn = Array.from(
       document.body.querySelectorAll<HTMLButtonElement>(
         'button[type="submit"]',
@@ -606,8 +605,8 @@ describe("TagList — optimistic create", () => {
     expect(document.body.textContent).toContain("#new-tag");
     expect(document.body.textContent).toContain("2 件のタグ");
 
-    // The input is cleared immediately after submit (TEST-W-002): this both
-    // readies it for the next name and is the actual double-submit guard.
+    // The input is cleared immediately after submit: this both readies it for
+    // the next name and is the actual double-submit guard.
     expect(createInput.value).toBe("");
 
     await act(async () => {
