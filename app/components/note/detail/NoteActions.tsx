@@ -16,6 +16,7 @@ import {
   pillBtn,
   pillBtnIcon,
   pillBtnPrimary,
+  scrollbarHidden,
 } from "@/components/common/styles";
 import { PublishSettings } from "@/components/publication/PublishSettings";
 import type {
@@ -29,7 +30,6 @@ import {
 } from "@/core/presentation/errorResponse";
 import { deleteNoteFn, duplicateNoteFn } from "../actions";
 import { MoveNoteDialog } from "../list/MoveNoteDialog";
-import { scrollbarHidden } from "../list/styles";
 import type { FlatDirectory } from "../loaders";
 import { NoteActionsMenu } from "./NoteActionsMenu";
 import { UrlCopyButton } from "./UrlCopyButton";
@@ -90,7 +90,7 @@ const MENU =
 
 // Mobile-only horizontal scroll rail wrapping the leading pills. On desktop it
 // dissolves into the wrapping cloud (`contents`) so the pills wrap as before.
-const MENU_RAIL = `flex flex-wrap gap-2 items-center contents max-sm:flex max-sm:flex-1 max-sm:min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+const MENU_RAIL = `contents flex-wrap gap-2 items-center max-sm:flex max-sm:flex-1 max-sm:min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 // Circular icon-only buttons for the frequently-used actions kept visible in
 // the toolbar (#459). The labeled 公開設定 pill is intentionally the lone

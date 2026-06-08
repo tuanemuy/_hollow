@@ -5,7 +5,7 @@
  * is identical to inline `className` strings (see CLAUDE.md styling rules).
  */
 
-import { scrollbarHidden } from "@/components/note/list/styles";
+import { scrollbarHidden } from "@/components/common/styles";
 
 /**
  * P12 document-style title input: borderless, large, transparent. Focus

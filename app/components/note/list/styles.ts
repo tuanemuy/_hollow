@@ -1,6 +1,7 @@
 // Shared utility class strings and visibility-chip helpers for the
 // home / note-list views (ListView, TileView, FilterBar).
 
+import { scrollbarHidden } from "@/components/common/styles";
 import type { OwnedNoteFilterItem } from "../loaders";
 
 type Visibility = OwnedNoteFilterItem["visibility"];
@@ -68,16 +69,6 @@ export const filterChipCaret = "ml-0.5 text-[10px] opacity-60";
 /** Uppercase label used for the section headings inside the 期間 popover. */
 export const filterLabel =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
-
-/**
- * Hide the native scrollbar on a horizontally-scrolling row while keeping it
- * scrollable (mock `P10-home.html` `.filter-bar` / `.bulk-actions`:
- * `scrollbar-width: none` + `::-webkit-scrollbar { display: none }`). These are
- * arbitrary Tailwind utilities (no handwritten CSS), shared by the FilterBar's
- * narrow横スクロール row and the BulkActionBar's mobile actions row.
- */
-export const scrollbarHidden =
-  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /**
  * FilterBar container. Below `sm` the wrapping chip cloud becomes a single

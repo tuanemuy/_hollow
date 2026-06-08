@@ -298,7 +298,7 @@ export function FilterBar({
   return (
     <div className={filterBar} aria-busy={isPending}>
       {tags.length > 0 ? (
-        <div className="inline-flex gap-1.5 flex-wrap">
+        <div className="inline-flex gap-1.5 flex-wrap max-sm:flex-nowrap max-sm:shrink-0">
           {visibleTags.map((tag) => {
             const active = selected.has(tag.name);
             return (
@@ -446,7 +446,11 @@ type DatePopoverProps = Readonly<{
 // nudges it into the viewport (#476). The fixed `sm:w-[280px]` (rather than
 // `w-max`) keeps the native `<input type="date">` children from ballooning the
 // panel to their huge intrinsic `max-content` width; `sm:max-w` still caps it.
-const FILTER_POPOVER_PANEL = `absolute left-0 top-full mt-2 z-40 ${popoverSheetPanel} sm:w-[280px] sm:max-w-[calc(100vw-2rem)]`;
+//
+// `sm:p-3` restores the original 12px desktop padding (#588 ADR-003): the shared
+// `popoverSheetPanel` carries `p-4` (16px, mock-aligned for the mobile sheet),
+// so without this override the desktop popover would silently regress 12px→16px.
+const FILTER_POPOVER_PANEL = `absolute left-0 top-full mt-2 z-40 ${popoverSheetPanel} sm:p-3 sm:w-[280px] sm:max-w-[calc(100vw-2rem)]`;
 
 const SR_ONLY =
   "absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0 [clip:rect(0,0,0,0)]";

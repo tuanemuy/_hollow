@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { formError } from "@/components/common/styles";
+import { formError, scrollbarHidden } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -19,7 +19,6 @@ import { BulkExportDialog } from "./BulkExportDialog";
 import { BulkVisibilityDialog } from "./BulkVisibilityDialog";
 import { MoveNoteDialog } from "./MoveNoteDialog";
 import { useSelection } from "./SelectionContext";
-import { scrollbarHidden } from "./styles";
 
 type Props = {
   tree: readonly FlatDirectory[];
@@ -40,7 +39,7 @@ type OpenDialog = "move" | "visibility" | "export" | null;
 // (`max-sm:not-data-[selected]:hidden`) so the下部固定CTAバー keeps the bottom
 // floor, per the mock's排他 rule. The `sm:` desktop pill renders in both states.
 const BULK_BAR =
-  "z-40 flex items-center bg-ink text-white shadow-md sm:sticky sm:bottom-4 sm:mx-auto sm:mt-6 sm:max-w-[720px] sm:gap-4 sm:rounded-pill sm:pl-5 sm:pr-2 sm:py-2 max-sm:not-data-[selected]:hidden max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-45 max-sm:gap-2 max-sm:rounded-t-lg max-sm:px-4 max-sm:py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]";
+  "z-40 flex items-center bg-ink text-white shadow-md sm:sticky sm:bottom-4 sm:mx-auto sm:mt-6 sm:max-w-[720px] sm:gap-4 sm:rounded-pill sm:pl-5 sm:pr-2 sm:py-2 max-sm:not-data-[selected]:hidden max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[45] max-sm:gap-2 max-sm:rounded-t-lg max-sm:px-4 max-sm:py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]";
 
 const BULK_COUNT = "text-sm font-medium shrink-0 whitespace-nowrap";
 

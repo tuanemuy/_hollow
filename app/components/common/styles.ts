@@ -178,6 +178,18 @@ export const navItem =
 export const textLink =
   "text-accent hover:underline hover:[text-underline-offset:3px]";
 
+/**
+ * Hide the native scrollbar on a horizontally-scrolling row while keeping it
+ * scrollable (mock `P10-home.html` `.filter-bar` / `.bulk-actions`:
+ * `scrollbar-width: none` + `::-webkit-scrollbar { display: none }`). These are
+ * arbitrary Tailwind utilities (no handwritten CSS), shared across the FilterBar
+ * narrow横スクロール row, the BulkActionBar mobile actions row, the NoteActions
+ * mobile rail and the editor mode-tabs / toolbar rows. Domain-agnostic primitive,
+ * so it lives here alongside the other shared shells (#588 W-003).
+ */
+export const scrollbarHidden =
+  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
 
