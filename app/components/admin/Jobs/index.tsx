@@ -54,16 +54,40 @@ const SECTION_CLASS = "mb-10";
 const SECTION_HEADER_CLASS = "flex items-baseline justify-between gap-3 mb-4";
 const SECTION_TITLE_CLASS = "text-xl font-semibold tracking-tight m-0";
 const SECTION_DESC_CLASS = "text-sm text-ink-secondary m-0 mb-4";
-const TABLE_WRAP_CLASS = "border border-hairline rounded-lg overflow-hidden";
-const TABLE_SCROLL_CLASS = "overflow-x-auto";
-const TABLE_CLASS = "w-full min-w-[920px] border-collapse text-sm";
+// Below `sm` each high-density table reflows into one card per row (same
+// approach as P45 UsersTable / P47 Metrics): the <table>/<tr>/<td> become
+// block, <thead> is hidden, and each auxiliary cell carries a real <span>
+// column label (#589 ADR-001/ADR-002). Desktop is untouched (`max-sm:` only).
+const TABLE_WRAP_CLASS =
+  "border border-hairline rounded-lg overflow-hidden max-sm:border-none max-sm:rounded-none";
+const TABLE_SCROLL_CLASS = "overflow-x-auto max-sm:overflow-x-visible";
+const TABLE_CLASS =
+  "w-full min-w-[920px] max-sm:min-w-0 border-collapse text-sm max-sm:block";
 const TH_CLASS =
   "font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3";
 const TH_RIGHT_CLASS = `${TH_CLASS.replace("text-left", "text-right")}`;
-const TD_CLASS = "px-4 py-3 text-left align-middle";
-const TD_RIGHT_CLASS = "px-4 py-3 text-right align-middle";
+const TD_CLASS =
+  "px-4 py-3 text-left align-middle max-sm:flex max-sm:gap-3 max-sm:items-start max-sm:py-1";
+const TD_RIGHT_CLASS =
+  "px-4 py-3 text-right align-middle max-sm:block max-sm:pt-3 max-sm:mt-2 max-sm:border-t max-sm:border-hairline";
+// Job-heading cell (job ID + file): no label, bottom-bordered card header.
+const TD_HEAD_CLASS =
+  "px-4 py-3 text-left align-middle max-sm:block max-sm:pb-3 max-sm:mb-2 max-sm:border-b max-sm:border-hairline";
+const STACK_LABEL =
+  "hidden max-sm:inline-block max-sm:w-[84px] text-ink-tertiary text-xs uppercase tracking-[0.04em]";
+// Action cell inner row: stacks full-width below `sm`. The 44px tap floor is
+// restored with mobile-scoped `!important` because `pillBtnSm`'s
+// `data-[sm]:max-sm:min-h-0` strip (specificity (0,2,0)) outweighs a plain
+// `[&>button]` child selector ((0,1,1)). See `.issue/589/adr.md` ADR-007.
+const ACTION_ROW_CLASS =
+  "max-sm:flex max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
+// Operation section row (rebuild / backfill / re-encrypt): same stacking + floor.
+const OP_ROW_CLASS =
+  "flex items-center gap-3 max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
 const ROW_CLASS =
-  "border-t border-hairline first:border-t-0 hover:bg-surface-elevated";
+  "border-t border-hairline first:border-t-0 hover:bg-surface-elevated max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-4 max-sm:bg-bg";
+const EMPTY_CELL_CLASS =
+  "text-center text-ink-tertiary px-4 py-6 max-sm:block max-sm:text-center";
 
 // Stable sort (ES2019+) preserves the loader-side ORDER BY updated_at DESC for rows within the same bucket.
 const STATUS_ORDER: Record<IngestionStatus | ExportStatus, number> = {
@@ -194,27 +218,36 @@ function IngestionRow({
 
   return (
     <tr className={ROW_CLASS}>
-      <td className={TD_CLASS}>
+      <td className={TD_HEAD_CLASS}>
         <div className="text-sm font-medium" title={job.id}>
           {shortenId(job.id)}
         </div>
         <div className="text-xs text-ink-tertiary">{job.originalFileName}</div>
       </td>
       <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>状態</span>
         <span
           className={`${TAG_BASE} ${TAG_TONE[ingestionStatusTag(job.status)]}`}
         >
           {ingestionStatusLabel(job.status)}
         </span>
       </td>
-      <td className={TD_CLASS}>{job.kind}</td>
-      <td className={TD_CLASS} title={job.ownerId}>
-        {shortenId(job.ownerId)}
-      </td>
-      <td className={TD_CLASS}>{formatDateTime(job.updatedAt)}</td>
       <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>種別</span>
+        {job.kind}
+      </td>
+      <td className={TD_CLASS} title={job.ownerId}>
+        <span className={STACK_LABEL}>所有者</span>
+        <span className="max-sm:break-words">{shortenId(job.ownerId)}</span>
+      </td>
+      <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>更新</span>
+        {formatDateTime(job.updatedAt)}
+      </td>
+      <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>エラー</span>
         {job.errorCode !== null ? (
-          <div>
+          <div className="max-sm:break-words">
             <div className="font-mono">{job.errorCode}</div>
             {job.errorReason !== null ? (
               <div className="text-xs text-ink-tertiary">{job.errorReason}</div>
@@ -225,26 +258,28 @@ function IngestionRow({
         )}
       </td>
       <td className={TD_RIGHT_CLASS}>
-        {job.status === "failed" ? (
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnSm}`}
-            data-sm=""
-            onClick={runRetry}
-            disabled={isPending}
-          >
-            <Icon icon={RefreshCw} />
-            {isPending ? "再実行中…" : "再実行"}
-          </button>
-        ) : null}
-        {summary !== "" ? (
-          <p
-            className={`${FIELD_ERROR_CLASS} text-right`}
-            style={{ marginTop: 6 }}
-          >
-            {summary}
-          </p>
-        ) : null}
+        <div className={ACTION_ROW_CLASS}>
+          {job.status === "failed" ? (
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
+              onClick={runRetry}
+              disabled={isPending}
+            >
+              <Icon icon={RefreshCw} />
+              {isPending ? "再実行中…" : "再実行"}
+            </button>
+          ) : null}
+          {summary !== "" ? (
+            <p
+              className={`${FIELD_ERROR_CLASS} text-right max-sm:text-left`}
+              style={{ marginTop: 6 }}
+            >
+              {summary}
+            </p>
+          ) : null}
+        </div>
       </td>
     </tr>
   );
@@ -277,7 +312,7 @@ function ExportRow({
 
   return (
     <tr className={ROW_CLASS}>
-      <td className={TD_CLASS}>
+      <td className={TD_HEAD_CLASS}>
         <div className="text-sm font-medium" title={job.id}>
           {shortenId(job.id)}
         </div>
@@ -286,6 +321,7 @@ function ExportRow({
         </div>
       </td>
       <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>状態</span>
         <span
           className={`${TAG_BASE} ${TAG_TONE[exportStatusTag(job.status)]}`}
         >
@@ -293,42 +329,52 @@ function ExportRow({
         </span>
       </td>
       <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>進捗</span>
         {job.progress.total > 0
           ? `${job.progress.processed}/${job.progress.total}`
           : "—"}
       </td>
       <td className={TD_CLASS} title={job.ownerId}>
-        {shortenId(job.ownerId)}
+        <span className={STACK_LABEL}>所有者</span>
+        <span className="max-sm:break-words">{shortenId(job.ownerId)}</span>
       </td>
-      <td className={TD_CLASS}>{formatDateTime(job.createdAt)}</td>
       <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>作成</span>
+        {formatDateTime(job.createdAt)}
+      </td>
+      <td className={TD_CLASS}>
+        <span className={STACK_LABEL}>エラー</span>
         {job.errorReason !== null ? (
-          <div className="text-xs text-ink-tertiary">{job.errorReason}</div>
+          <div className="text-xs text-ink-tertiary max-sm:break-words">
+            {job.errorReason}
+          </div>
         ) : (
           <span className="text-ink-tertiary">—</span>
         )}
       </td>
       <td className={TD_RIGHT_CLASS}>
-        {job.status === "failed" ? (
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnSm}`}
-            data-sm=""
-            onClick={runRetry}
-            disabled={isPending}
-          >
-            <Icon icon={RefreshCw} />
-            {isPending ? "再実行中…" : "再実行"}
-          </button>
-        ) : null}
-        {summary !== "" ? (
-          <p
-            className={`${FIELD_ERROR_CLASS} text-right`}
-            style={{ marginTop: 6 }}
-          >
-            {summary}
-          </p>
-        ) : null}
+        <div className={ACTION_ROW_CLASS}>
+          {job.status === "failed" ? (
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnSm}`}
+              data-sm=""
+              onClick={runRetry}
+              disabled={isPending}
+            >
+              <Icon icon={RefreshCw} />
+              {isPending ? "再実行中…" : "再実行"}
+            </button>
+          ) : null}
+          {summary !== "" ? (
+            <p
+              className={`${FIELD_ERROR_CLASS} text-right max-sm:text-left`}
+              style={{ marginTop: 6 }}
+            >
+              {summary}
+            </p>
+          ) : null}
+        </div>
       </td>
     </tr>
   );
@@ -367,17 +413,20 @@ function CleanupSection() {
       <div className={TABLE_WRAP_CLASS}>
         <div className={TABLE_SCROLL_CLASS}>
           <table className={TABLE_CLASS}>
-            <thead>
+            <thead className="max-sm:hidden">
               <tr>
                 <th className={TH_CLASS}>項目</th>
                 <th className={TH_CLASS}>説明</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-sm:block">
               {items.map((item) => (
                 <tr key={item.title} className={ROW_CLASS}>
-                  <td className={TD_CLASS}>{item.title}</td>
-                  <td className={TD_CLASS}>{item.description}</td>
+                  <td className={TD_HEAD_CLASS}>{item.title}</td>
+                  <td className={TD_CLASS}>
+                    <span className={STACK_LABEL}>説明</span>
+                    {item.description}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -423,7 +472,7 @@ function SearchIndexSection() {
         table
         が古い・破損した場合の整合性回復経路です。実行中は再構築ボタンを無効化します。
       </p>
-      <div className="flex items-center gap-3">
+      <div className={OP_ROW_CLASS}>
         <button
           type="button"
           className={`${pillBtn} ${pillBtnSm}`}
@@ -491,7 +540,7 @@ function InternalLinkBackfillSection() {
         横断で再解決します。#127
         修正前から滞留している行の運用修復経路です。冪等なので再実行できます。実行中はボタンを無効化します。
       </p>
-      <div className="flex items-center gap-3">
+      <div className={OP_ROW_CLASS}>
         <button
           type="button"
           className={`${pillBtn} ${pillBtnSm}`}
@@ -575,7 +624,7 @@ function SecretRotationSection() {
         `SECRET_BOX_MASTER_KEY_PREVIOUS`
         に設定した状態で実行してください。完了後は旧キーを削除します。冪等のため複数回実行しても安全です。
       </p>
-      <div className="flex items-center gap-3">
+      <div className={OP_ROW_CLASS}>
         <button
           type="button"
           className={`${pillBtn} ${pillBtnSm}`}
@@ -643,7 +692,7 @@ export function JobsBoard({
         <div className={TABLE_WRAP_CLASS}>
           <div className={TABLE_SCROLL_CLASS}>
             <table className={TABLE_CLASS}>
-              <thead>
+              <thead className="max-sm:hidden">
                 <tr>
                   <th className={TH_CLASS}>ジョブ</th>
                   <th className={TH_CLASS}>状態</th>
@@ -654,13 +703,10 @@ export function JobsBoard({
                   <th className={TH_RIGHT_CLASS}>アクション</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="max-sm:block">
                 {sortedIngestion.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center text-ink-tertiary px-4 py-6"
-                    >
+                  <tr className="max-sm:block">
+                    <td colSpan={7} className={EMPTY_CELL_CLASS}>
                       取り込みジョブはまだありません。
                     </td>
                   </tr>
@@ -690,7 +736,7 @@ export function JobsBoard({
         <div className={TABLE_WRAP_CLASS}>
           <div className={TABLE_SCROLL_CLASS}>
             <table className={TABLE_CLASS}>
-              <thead>
+              <thead className="max-sm:hidden">
                 <tr>
                   <th className={TH_CLASS}>ジョブ</th>
                   <th className={TH_CLASS}>状態</th>
@@ -701,13 +747,10 @@ export function JobsBoard({
                   <th className={TH_RIGHT_CLASS}>アクション</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="max-sm:block">
                 {sortedExport.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center text-ink-tertiary px-4 py-6"
-                    >
+                  <tr className="max-sm:block">
+                    <td colSpan={7} className={EMPTY_CELL_CLASS}>
                       エクスポートジョブはまだありません。
                     </td>
                   </tr>

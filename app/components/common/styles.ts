@@ -101,6 +101,15 @@ export const pillBtnTall = "h-12 px-8 text-md justify-center";
  * deterministically. See `.issue/416/adr.md` ADR-005 (shrink-direction
  * constraint) and `.issue/442/adr.md` ADR-003.
  *
+ * Caveat — restoring the 44px tap floor in a mobile card: `data-[sm]:max-sm:min-h-0`
+ * is `.class[data-sm]` = specificity (0,2,0). A parent child-combinator override
+ * `[&>button]:max-sm:min-h-[44px]` is only (0,1,1) and loses, so the floor stays
+ * stripped. When a `data-sm` button is stacked full-width in a card and needs its
+ * 44px floor back, use mobile-scoped `!important` on the parent:
+ * `[&>button]:max-sm:min-h-[44px]!` (and `max-sm:min-h-[44px]!` for inputs). See
+ * `.issue/589/adr.md` ADR-007. (`publication/styles.ts` `LINK_MINI_ROW` predates
+ * this and still has the latent bug.)
+ *
  * `gap` is intentionally not overridden (the base `gap-1.5` is harmless for
  * text-only small buttons; mirrors `pillBtnTall`, #416 ADR-001).
  *
