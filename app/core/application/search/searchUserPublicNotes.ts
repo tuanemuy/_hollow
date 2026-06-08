@@ -42,6 +42,10 @@ export async function searchUserPublicNotes({
           ? "*"
           : input.keyword,
       tagNames: input.tagNames ?? [],
+      // No date window today (dateRange null → no publication join), but the
+      // surface is public: `searchPublicNotes` fixes `dateBasis:
+      // 'published_at'`, which is the correct 公開日 basis if a window is
+      // ever added here (ADR-006).
       dateRange: null,
       username: input.targetUsername,
       cursor: input.cursor ?? null,

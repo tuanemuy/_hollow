@@ -105,3 +105,53 @@ Accepted（実装で確定）
 
 ### Consequences
 - 既存の searchIndex/facet integration テスト（publication_states 行を seed していなかったもの）は、date 窓ありの検索が published_at 基準になったため publication_states 行の seed が必要になった。該当テストを更新済み。
+
+---
+
+## ADR-006: タグ候補経路は host-var 上限を超えないよう chunk＋in-memory で合成する（W-001 対応）
+
+### Status
+Accepted（レビュー review-001 W-001 の修正で確定）
+
+### Context
+ADR-002 で導入した `listPublicNoteIdsByOwnerSorted` の optional `noteIds`（タグ AND 事前解決済み候補、上限 `TAG_CANDIDATE_CAP = 1000`）を、adapter が**チャンク無しの単一 `inArray(note_id, [...])`** で発行していた。だが D1 は prepared-statement の host 変数を約100に制限し（`_chunks.ts`、`SAFE_CHUNK_SIZE = 90`）、本リポジトリの他の `IN (...)` はすべて `selectInChunks` でチャンク分割するのが確立した不変条件。候補が90件超のタグ付き公開ノートを持つ owner では host-var 上限超過でクエリが実行時失敗していた（ADR-002「現規模では実害小」は host-var 上限を見落としていた）。
+
+代替案として `TAG_CANDIDATE_CAP` を90に下げる案は、90件超のタグ付き公開ノートを持つ owner で結果が**サイレントに切り捨て**られ正しくないため不採用。
+
+### Decision
+`noteIds` 候補が指定されたケースを `listSortedWithinCandidates` に分離し、候補 id を `SAFE_CHUNK_SIZE` でチャンク分割（`selectInChunks`）して各チャンクの `(note_id, published_at)` を取得 → 全チャンク結果を結合 → in-memory で `published_at`（ISO テキスト＝辞書順＝時系列順）desc/asc・note_id tie-break ソート → `total = マッチ件数`・`offset/limit` でページスライスして返す。`noteIds` 候補が**無い**ケース（タグ未指定）は `listSortedAll` として現状の index-served 直接 SQL（`idx_pubs_owner_visibility_published_at`）を維持（host-var 問題なし）。
+
+候補経路では `notes` の status JOIN を**省略**する。候補は呼び出し側で `noteRepository.findByOwner({ status:'active', tagIds })` 由来＝active note 限定であり、trashed 混入が原理的に起きないため。no-candidate 経路（`listSortedAll`）は全公開行が母集合になり relay-lag の trashed 公開行が混入しうるので、従来どおり `notes.status = 'active'` JOIN を維持する（#605 P-002 不変条件）。
+
+### Consequences
+- 良い点: host-var 上限を超えない。集約境界は維持（adapter は publication_states のみ扱い、note_tags 等は JOIN しない＝タグ解決は application 層のまま）。取得・count が同一 merged 母集合なので `items.length <= total`・窓と total 独立（#30）を保つ。
+- トレードオフ: 候補経路はソート・ページングが in-memory（index 非利用）。候補上限が `TAG_CANDIDATE_CAP = 1000` に bound されるため最悪でも12チャンク・1000行のメモリソートに収まり、現実的なオーナー単位の公開ノート数では十分軽量。
+- テスト: 候補数 120（>90）で host-var エラーなく正しい total・ページ・published_at 順が返ることを `publicationStateRepository.integration.test.ts` に追加。
+
+---
+
+## ADR-007: date 窓の評価基準は `SearchQuery.dateBasis` で surface 別に明示する（B-001 対応）
+
+### Status
+Accepted（レビュー review-001 B-001 の修正で確定。ADR-005 項3 を是正）
+
+### Context
+ADR-003 / ADR-005 項3 で `D1SearchIndex` の date 窓を `dateRange !== null` のときだけ `publication_states` に INNER JOIN し `ps.published_at` で評価するよう変更した。しかしこの分岐は **surface を判別しておらず**、`dateRange` の有無だけで JOIN を足していた。`searchOwnNotes`（自分のノート＝`['private','unlisted','public']` 全可視性＋dateRange）も同じ adapter の `SearchIndex.query` を通るため、公開面に閉じるはずの変更が private 面へ漏れていた:
+
+1. **脱落リグレッション。** public publication を持たない private/unlisted ノートは `publication_states` 行が無いため、INNER JOIN により date 絞り込み時に全件脱落する（main は全ノートに存在する `sd.date_for_calendar` で絞っていたので脱落しなかった）。
+2. **意味のサイレント切替。** private 面の「期間」の意味が `date_for_calendar`（カレンダー日付）から `published_at`（公開日）へ無断で変わる。private/unlisted は公開日を持たない／持っても意味が異なる。
+
+`searchOwnNotes.test.ts` は fake `SearchIndex` の unit テストで、D1 の JOIN を捕捉できず未検出だった。
+
+### Decision
+date 窓の評価基準をドメイン値オブジェクト `SearchQuery` に明示する。`dateBasis: 'published_at' | 'date_for_calendar'` を追加し、デフォルトは後方互換のため `'date_for_calendar'`（既存 private/own の意味を維持）とする。surface ごとに usecase が明示的に渡す:
+
+- 公開面（`searchPublicNotes` / `countPublicSearchFacets` / `searchUserPublicNotes` 経由）→ `'published_at'`。
+- 自分のノート面（`searchOwnNotes`）→ `'date_for_calendar'`（従来どおり全可視性に効く）。
+
+adapter は JOIN の条件を `q.dateRange !== null && q.dateBasis === 'published_at'` に変更し、`buildDateRangeClause(range, basis)` を basis で分岐（`published_at` → `ps.published_at`、`date_for_calendar` → `sd.date_for_calendar`）。query / countByDateRanges × MATCH / LIKE の 4 経路すべてで一貫適用する。`countByDateRanges`（公開 facet 用）は呼び出し側 `countPublicSearchFacets` が `dateBasis:'published_at'` を渡すため、per-facet 窓は published_at 基準で評価される。
+
+### Consequences
+- 良い点: surface ↔ date 基準の SSOT を `SearchQuery` 1 箇所に集約（W-002 で指摘された「`dateRange !== null` だけの暗黙結合」の再発防止）。集約境界は維持（`date_for_calendar` は note 集約の search projection、`published_at` は publication 集約。JOIN は read-only SQL に限定）。private/unlisted ノートが date 絞り込みで脱落しなくなる。
+- トレードオフ: `SearchQuery` に1フィールド増える。デフォルトを `'date_for_calendar'` にしたことで「公開面は明示必須」という規約が生まれる（公開面 usecase 3 箇所で明示済み）。
+- テスト: publication 行を持たない private/unlisted ノートが `date_for_calendar` 窓で脱落しないことを `searchIndex.integration.test.ts` に MATCH / LIKE 両経路で追加。公開面 facet/検索テストは `dateBasis:'published_at'` を明示して引き続き published_at 基準を検証。

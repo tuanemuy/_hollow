@@ -79,8 +79,11 @@ export async function countPublicSearchFacets({
     tagNames: input.tagNames ?? [],
     directoryPathPrefix: null,
     // `dateRange` is supplied per-facet via `ranges`; the query's own value
-    // is unused by `countFacets`.
+    // is unused by `countFacets`. `dateBasis: 'published_at'` makes the
+    // per-facet windows evaluate against the publication aggregate's 公開日
+    // (ADR-006), which is the SSOT carried into the adapter facet count.
     dateRange: null,
+    dateBasis: "published_at",
     limit: 1,
     cursor: null,
   });

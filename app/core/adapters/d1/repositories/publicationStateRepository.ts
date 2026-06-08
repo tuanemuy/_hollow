@@ -34,6 +34,13 @@ import { notes, publicationStates } from "../schema";
 import { selectInChunks } from "./_chunks";
 import { mapDbError } from "./helpers";
 
+/**
+ * Row shape used by the chunked candidate path of the sorted listing.
+ * `publishedAt` is typed non-null because the query filters
+ * `isNotNull(published_at)`, but the column itself is nullable.
+ */
+type SortedRow = Readonly<{ noteId: string; publishedAt: string }>;
+
 type PublicationStateRow = typeof publicationStates.$inferSelect;
 
 /**
@@ -205,53 +212,113 @@ export class D1PublicationStateRepository
         if (opts.noteIds !== undefined && opts.noteIds.length === 0) {
           return { noteIds: [], total: 0 };
         }
-        // Count and page run over the same `active`-note population: the
-        // trash → relay lag can leave a public publication_states row for a
-        // note already `trashed`, and counting publication rows alone would
-        // inflate `total` past what the active-only page can render (P-002).
-        const conditions = [
-          eq(publicationStates.ownerId, ownerId),
-          eq(publicationStates.visibility, "public"),
-          isNotNull(publicationStates.publishedAt),
-          eq(notes.status, "active"),
-        ];
         if (opts.noteIds !== undefined) {
-          conditions.push(inArray(publicationStates.noteId, [...opts.noteIds]));
+          return this.listSortedWithinCandidates(ownerId, opts, opts.noteIds);
         }
-        const whereClause = and(...conditions);
-
-        const orderBy =
-          opts.order === "asc"
-            ? [
-                asc(publicationStates.publishedAt),
-                asc(publicationStates.noteId),
-              ]
-            : [
-                desc(publicationStates.publishedAt),
-                asc(publicationStates.noteId),
-              ];
-
-        const rows = await this.db
-          .select({ noteId: publicationStates.noteId })
-          .from(publicationStates)
-          .innerJoin(notes, eq(notes.id, publicationStates.noteId))
-          .where(whereClause)
-          .orderBy(...orderBy)
-          .limit(opts.limit)
-          .offset(opts.offset);
-
-        const countRows = await this.db
-          .select({ value: count() })
-          .from(publicationStates)
-          .innerJoin(notes, eq(notes.id, publicationStates.noteId))
-          .where(whereClause);
-
-        return {
-          noteIds: rows.map((r) => NoteId.create(r.noteId)),
-          total: Number(countRows[0]?.value ?? 0),
-        };
+        return this.listSortedAll(ownerId, opts);
       },
     );
+  }
+
+  // No-candidate path (tag未指定): the listing is fully index-served by
+  // `idx_pubs_owner_visibility_published_at` and never overflows the D1
+  // host-variable cap (only owner is bound). Count and page run over the same
+  // `active`-note population — the trash → relay lag can leave a public
+  // publication_states row for a note already `trashed`, and counting
+  // publication rows alone would inflate `total` past what the active-only
+  // page can render (P-002).
+  private async listSortedAll(
+    ownerId: UserId,
+    opts: PublicNoteSortedOpts,
+  ): Promise<PublicNoteSortedResult> {
+    const whereClause = and(
+      eq(publicationStates.ownerId, ownerId),
+      eq(publicationStates.visibility, "public"),
+      isNotNull(publicationStates.publishedAt),
+      eq(notes.status, "active"),
+    );
+
+    const orderBy =
+      opts.order === "asc"
+        ? [asc(publicationStates.publishedAt), asc(publicationStates.noteId)]
+        : [desc(publicationStates.publishedAt), asc(publicationStates.noteId)];
+
+    const rows = await this.db
+      .select({ noteId: publicationStates.noteId })
+      .from(publicationStates)
+      .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+      .where(whereClause)
+      .orderBy(...orderBy)
+      .limit(opts.limit)
+      .offset(opts.offset);
+
+    const countRows = await this.db
+      .select({ value: count() })
+      .from(publicationStates)
+      .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+      .where(whereClause);
+
+    return {
+      noteIds: rows.map((r) => NoteId.create(r.noteId)),
+      total: Number(countRows[0]?.value ?? 0),
+    };
+  }
+
+  // Candidate path (tag AND-filter pre-resolved to ids): the candidate set can
+  // reach `TAG_CANDIDATE_CAP` (1000) ids, far above the D1 host-variable cap,
+  // so a single `note_id IN (...)` would overflow it. Split the candidates by
+  // `SAFE_CHUNK_SIZE` and resolve each chunk's matching (note_id, published_at)
+  // rows, then merge, sort, count, and page in memory. Candidates are
+  // active-note ids supplied by the caller (`noteRepository.findByOwner({
+  // status: 'active', tagIds })`), so no trashed row can sneak in and the
+  // `notes` status JOIN is unnecessary here (see #605 ADR-006). The count and
+  // the page derive from the same merged population, so `items.length <= total`
+  // holds and the window stays independent of the total (#30).
+  private async listSortedWithinCandidates(
+    ownerId: UserId,
+    opts: PublicNoteSortedOpts,
+    candidates: readonly NoteId[],
+  ): Promise<PublicNoteSortedResult> {
+    const rows = await selectInChunks<SortedRow>(candidates, async (chunk) => {
+      const chunkRows = await this.db
+        .select({
+          noteId: publicationStates.noteId,
+          publishedAt: publicationStates.publishedAt,
+        })
+        .from(publicationStates)
+        .where(
+          and(
+            eq(publicationStates.ownerId, ownerId),
+            eq(publicationStates.visibility, "public"),
+            isNotNull(publicationStates.publishedAt),
+            inArray(publicationStates.noteId, [...chunk]),
+          ),
+        );
+      // `isNotNull` guarantees a non-null published_at; narrow the nullable
+      // column type to `SortedRow`.
+      return chunkRows.map((r) => ({
+        noteId: r.noteId,
+        publishedAt: r.publishedAt as string,
+      }));
+    });
+
+    // `published_at` is stored as an ISO-8601 text column, so a lexicographic
+    // string compare matches chronological order. Candidate ids are unique, so
+    // chunks never overlap and no dedup is needed. Tie-break on note_id keeps
+    // the order total and deterministic (mirrors the SQL ORDER BY above).
+    const sign = opts.order === "asc" ? 1 : -1;
+    const sorted = [...rows].sort((l, r) => {
+      if (l.publishedAt !== r.publishedAt) {
+        return l.publishedAt < r.publishedAt ? -sign : sign;
+      }
+      return l.noteId < r.noteId ? -1 : l.noteId > r.noteId ? 1 : 0;
+    });
+
+    const page = sorted.slice(opts.offset, opts.offset + opts.limit);
+    return {
+      noteIds: page.map((r) => NoteId.create(r.noteId)),
+      total: sorted.length,
+    };
   }
 
   findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]> {

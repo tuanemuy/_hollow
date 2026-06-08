@@ -53,6 +53,9 @@ export async function searchPublicNotes({
     tagNames: input.tagNames ?? [],
     directoryPathPrefix: null,
     dateRange: input.dateRange ?? null,
+    // Public surface: the period window means 公開日, so it is evaluated
+    // against the publication aggregate's `published_at` (ADR-006).
+    dateBasis: "published_at",
     limit: input.limit,
     cursor: input.cursor ?? null,
   });

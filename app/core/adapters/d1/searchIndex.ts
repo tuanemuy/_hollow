@@ -11,6 +11,7 @@ import {
   type SearchQueryResult,
 } from "@/core/domain/search/ports/searchIndex";
 import {
+  type DateBasis,
   type DateRange,
   SearchCursor,
   type SearchQuery,
@@ -142,11 +143,15 @@ export class D1SearchIndex implements SearchIndex {
       const peekLimit = limit + 1;
 
       const sharedFilters = buildSharedFilters(q);
-      // The public date facet/filter is evaluated against the publication
-      // aggregate's `published_at`, not `sd.date_for_calendar`. When a date
-      // window is present the query joins `publication_states` so the
-      // `ps.published_at` clause in `sharedFilters` resolves (ADR-003 案A).
-      const joinPublication = q.dateRange !== null;
+      // A date window on the public surface (`dateBasis === 'published_at'`)
+      // is evaluated against the publication aggregate's `published_at`, so
+      // the query joins `publication_states` to expose `ps.published_at`
+      // (ADR-003 / ADR-006). The own-notes surface uses
+      // `dateBasis === 'date_for_calendar'`, which lives on `sd` and needs no
+      // join — joining would drop private / unlisted notes that lack a public
+      // publication row.
+      const joinPublication =
+        q.dateRange !== null && q.dateBasis === "published_at";
       const tokens = extractTrigramTokens(q.keyword);
       const rows =
         tokens.length > 0
@@ -273,11 +278,14 @@ export class D1SearchIndex implements SearchIndex {
       // trips are cheap and the SQL stays readable.
       const counts: number[] = [];
       for (const range of ranges) {
-        const dateClause = range === null ? null : buildDateRangeClause(range);
+        const dateClause =
+          range === null ? null : buildDateRangeClause(range, q.dateBasis);
         const extraFilters = dateClause === null ? [] : [dateClause];
-        // A non-null window evaluates against `ps.published_at`, so the count
-        // joins `publication_states` exactly when the query path does.
-        const joinPublication = dateClause !== null;
+        // A `published_at`-based window joins `publication_states` to expose
+        // `ps.published_at`; a `date_for_calendar`-based window stays on `sd`
+        // and needs no join. Mirrors the `query` path gate (ADR-006).
+        const joinPublication =
+          dateClause !== null && q.dateBasis === "published_at";
         const count =
           matchExpr !== null
             ? await this.countMatch(
@@ -475,7 +483,7 @@ function buildMatchExpression(tokens: readonly string[]): string {
 function buildSharedFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   const filterClauses = buildNonDateFilters(q);
   if (q.dateRange !== null) {
-    filterClauses.push(buildDateRangeClause(q.dateRange));
+    filterClauses.push(buildDateRangeClause(q.dateRange, q.dateBasis));
   }
   return filterClauses;
 }
@@ -522,23 +530,35 @@ function buildNonDateFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   return filterClauses;
 }
 
-// Public-surface date window, evaluated against the publication aggregate's
-// `published_at` (joined as `ps`) rather than `sd.date_for_calendar`, so the
-// period facet/filter means "公開日" (ADR-003 案A). The stored column is an
-// ISO8601 string, so lexical comparison is chronological. Callers that add
-// this clause must also include {@link publicationJoin} in the FROM so `ps`
-// resolves; this is paired in both the query and facet-count paths.
-function buildDateRangeClause(range: DateRange): ReturnType<typeof sql> {
+// Date window clause, evaluated against the column selected by `basis`
+// (ADR-006):
+//   - `'published_at'`  → the publication aggregate's `ps.published_at`
+//     (公開日). The public surfaces use this; callers must pair it with
+//     {@link publicationJoin} so `ps` resolves.
+//   - `'date_for_calendar'` → the note projection's `sd.date_for_calendar`,
+//     present on every indexed note regardless of visibility. The own-notes
+//     (all-visibility) surface uses this so private / unlisted notes are not
+//     dropped by a publication join.
+// Both stored columns are ISO8601 strings, so lexical comparison is
+// chronological.
+function buildDateRangeClause(
+  range: DateRange,
+  basis: DateBasis,
+): ReturnType<typeof sql> {
   const fromIso = range.from.toISOString();
   const toIso = range.to.toISOString();
-  return sql`ps.published_at >= ${fromIso} AND ps.published_at <= ${toIso}`;
+  const column =
+    basis === "published_at" ? sql`ps.published_at` : sql`sd.date_for_calendar`;
+  return sql`${column} >= ${fromIso} AND ${column} <= ${toIso}`;
 }
 
 // FROM-clause fragment that joins `publication_states AS ps` on the note id
-// so a `ps.published_at` date window resolves. Emitted only when a date
-// window is present (the `visibility = 'public'` gate already lives on the
-// `sd` side, so this join exists purely to expose `published_at`). Returns
-// empty SQL otherwise so the non-date path stays a plain `sd` scan.
+// so a `ps.published_at` date window resolves. Emitted only when a
+// `published_at`-based date window is present (the `visibility = 'public'`
+// gate already lives on the `sd` side, so this join exists purely to expose
+// `published_at`). The own-notes `date_for_calendar` window stays on `sd` and
+// passes `false` here. Returns empty SQL otherwise so the non-join path stays
+// a plain `sd` scan.
 function publicationJoin(joinPublication: boolean): ReturnType<typeof sql> {
   return joinPublication
     ? sql`JOIN publication_states AS ps ON ps.note_id = sd.note_id`

@@ -8,8 +8,10 @@ import { createTestContainer, type TestContainer } from "./helpers";
  * Integration tests for
  * `D1PublicationStateRepository.listPublicNoteIdsByOwnerSorted` (Issue #605).
  * Covers published_at ascending/descending order, NULL exclusion, the
- * note_id tie-break, total accuracy under a trashed-note relay-lag row, and
- * the candidate-set (tag AND) composition with an independent total.
+ * note_id tie-break, total accuracy under a trashed-note relay-lag row, the
+ * candidate-set (tag AND) composition with an independent total, and a
+ * candidate set larger than the D1 host-variable cap (chunked path, #605
+ * W-001).
  */
 
 const TZ = new Date("2026-03-01T00:00:00.000Z").toISOString();
@@ -298,6 +300,74 @@ describe("D1PublicationStateRepository.listPublicNoteIdsByOwnerSorted (integrati
     );
     expect(result.total).toBe(2);
     expect(result.noteIds).toEqual([b]);
+  });
+
+  it("handles a candidate set larger than the D1 host-variable cap (chunked, #605 W-001)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-bigcand");
+    const dir = await seedDirectory(container, owner);
+
+    // 120 candidates > SAFE_CHUNK_SIZE (90): a single `note_id IN (...)` would
+    // overflow the host-variable cap, so the adapter must chunk + merge.
+    // Each note gets a distinct published_at so the full order is checkable.
+    const candidates: NoteId[] = [];
+    const expectedAscOrder: NoteId[] = [];
+    const CANDIDATE_COUNT = 120;
+    for (let i = 0; i < CANDIDATE_COUNT; i++) {
+      // 2024-01-01 + i days → strictly increasing, NULL-free published_at.
+      const day = new Date(Date.UTC(2024, 0, 1) + i * 86_400_000);
+      const id = await seedNote(container, owner, dir, {
+        visibility: "public",
+        publishedAt: day.toISOString(),
+      });
+      candidates.push(id);
+      expectedAscOrder.push(id);
+    }
+    // A public note the owner has but which is NOT a candidate: must neither
+    // count nor appear, proving the intersection holds across chunks.
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2030-01-01T00:00:00.000Z",
+    });
+
+    const expectedDescOrder = [...expectedAscOrder].reverse();
+
+    const desc = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.listPublicNoteIdsByOwnerSorted(owner, {
+          order: "desc",
+          limit: 10,
+          offset: 0,
+          noteIds: candidates,
+        }),
+    );
+    expect(desc.total).toBe(CANDIDATE_COUNT);
+    expect(desc.noteIds).toEqual(expectedDescOrder.slice(0, 10));
+
+    // A later page still slices the same merged population by published_at.
+    const descPage3 = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.listPublicNoteIdsByOwnerSorted(owner, {
+          order: "desc",
+          limit: 10,
+          offset: 20,
+          noteIds: candidates,
+        }),
+    );
+    expect(descPage3.total).toBe(CANDIDATE_COUNT);
+    expect(descPage3.noteIds).toEqual(expectedDescOrder.slice(20, 30));
+
+    const asc = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.listPublicNoteIdsByOwnerSorted(owner, {
+          order: "asc",
+          limit: 10,
+          offset: 0,
+          noteIds: candidates,
+        }),
+    );
+    expect(asc.total).toBe(CANDIDATE_COUNT);
+    expect(asc.noteIds).toEqual(expectedAscOrder.slice(0, 10));
   });
 
   it("short-circuits an empty candidate set to an empty result", async () => {
