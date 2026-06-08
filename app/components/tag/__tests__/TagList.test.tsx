@@ -606,6 +606,56 @@ describe("TagList — optimistic create", () => {
     expect(document.body.textContent).toContain("#new-tag");
     expect(document.body.textContent).toContain("2 件のタグ");
 
+    // The input is cleared immediately after submit (TEST-W-002): this both
+    // readies it for the next name and is the actual double-submit guard.
+    expect(createInput.value).toBe("");
+
+    await act(async () => {
+      resolveCreate?.();
+    });
+    await flush();
+  });
+
+  it("does not double-submit on rapid repeat submits", async () => {
+    // Keep the create unresolved so the form stays "mid-flight" across both
+    // submits; the guard must not depend on the server settling.
+    let resolveCreate: (() => void) | undefined;
+    createMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveCreate = res;
+      }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    const createInput = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name="name"]'),
+    )[0];
+    if (!createInput) throw new Error("create input not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(createInput, "new-tag");
+      createInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const createForm = createInput.closest("form");
+    // Submit twice back-to-back. The first submit clears the input, so the
+    // second sees an empty value and is dropped by the early return.
+    await act(async () => {
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+    });
+    await flush();
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0]?.[0]?.data?.name).toBe("new-tag");
+
+    // Settle the pending create so the optimistic transition tears down cleanly.
     await act(async () => {
       resolveCreate?.();
     });

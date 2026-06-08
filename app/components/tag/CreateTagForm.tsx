@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import type { SerializedError } from "@/core/presentation/errorResponse";
@@ -22,23 +22,18 @@ type Props = {
 export function CreateTagForm({ onCreate, error }: Props) {
   const nameId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  // Guards against double-submit (rapid Enter / click) while an optimistic add
-  // is mid-flight — replaces the `useActionState` `isPending` guard (S-002).
-  const [submitting, setSubmitting] = useState(false);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (submitting) return;
     const name = inputRef.current?.value.trim() ?? "";
     // Empty input is a no-op (preserves the old `useActionState` early return).
     if (name.length === 0) return;
-    setSubmitting(true);
-    // Clear immediately so the optimistic row owns the feedback and the input
-    // is ready for the next name; React 19 batches this with the parent's
-    // transition start.
+    // Clear the input *before* handing off to `onCreate`. This both readies the
+    // field for the next name and is what actually guards against double-submit:
+    // a rapid second Enter/click sees an empty input and is dropped by the
+    // `name.length === 0` early return above (S-002).
     if (inputRef.current) inputRef.current.value = "";
     onCreate(name);
-    setSubmitting(false);
   };
 
   return (
