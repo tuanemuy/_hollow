@@ -41,6 +41,18 @@ const FILTER_INPUT_CLASS =
 
 const CELL_BASE = "px-4 py-3 text-left align-middle";
 
+// Below `sm` the high-density table reflows into one card per row (same
+// approach as P47 Metrics' LimitsCard): the <table>/<tr>/<td> become block,
+// <thead> is hidden, and each auxiliary cell gains a real <span> column label
+// (#589 ADR-001/ADR-002). Desktop is untouched (every modifier is `max-sm:`).
+const TABLE_CLASS =
+  "w-full min-w-[880px] max-sm:min-w-0 border-collapse text-sm max-sm:block";
+const ROW_CLASS =
+  "border-t border-hairline first:border-t-0 hover:bg-surface-elevated max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-4 max-sm:bg-bg";
+const CELL_STACK = `${CELL_BASE} max-sm:flex max-sm:gap-3 max-sm:items-start max-sm:py-1`;
+const STACK_LABEL =
+  "hidden max-sm:inline-block max-sm:w-[84px] text-ink-tertiary text-xs uppercase tracking-[0.04em]";
+
 function avatarInitials(user: UserDTO): string {
   const source = user.displayName.trim() || user.username;
   const tokens = source.split(/\s+/).filter((t) => t.length > 0);
@@ -121,8 +133,10 @@ function UserRow({
   const summary = error !== null ? displayError(error) : "";
 
   return (
-    <tr className="border-t border-hairline first:border-t-0 hover:bg-surface-elevated">
-      <td className={CELL_BASE}>
+    <tr className={ROW_CLASS}>
+      <td
+        className={`${CELL_BASE} max-sm:block max-sm:pb-3 max-sm:mb-2 max-sm:border-b max-sm:border-hairline`}
+      >
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-full text-white text-[11px] font-medium bg-[linear-gradient(135deg,#c9d3df_0%,#8e99a8_100%)]">
             {avatarInitials(user)}
@@ -141,21 +155,26 @@ function UserRow({
           </div>
         </div>
       </td>
-      <td className={CELL_BASE}>{formatDate(user.createdAt)}</td>
-      <td className={CELL_BASE}>
+      <td className={CELL_STACK}>
+        <span className={STACK_LABEL}>登録日</span>
+        {formatDate(user.createdAt)}
+      </td>
+      <td className={CELL_STACK}>
+        <span className={STACK_LABEL}>ロール</span>
         <span
           className={`${TAG_BASE} ${user.role === "admin" ? TAG_TONE.info : TAG_TONE.neutral}`}
         >
           {user.role === "admin" ? "管理者" : "メンバー"}
         </span>
       </td>
-      <td className={CELL_BASE}>
+      <td className={CELL_STACK}>
+        <span className={STACK_LABEL}>状態</span>
         <span className={`${TAG_BASE} ${TAG_TONE[statusTone(user.status)]}`}>
           {statusLabel(user.status)}
         </span>
       </td>
-      <td className="px-4 py-3 text-right align-middle">
-        <div className="flex gap-2 justify-end flex-wrap">
+      <td className="px-4 py-3 text-right align-middle max-sm:block max-sm:pt-3 max-sm:mt-2 max-sm:border-t max-sm:border-hairline">
+        <div className="flex gap-2 justify-end flex-wrap max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center">
           {user.status === "active" && !isSelf ? (
             <button
               type="button"
@@ -277,10 +296,10 @@ export function UsersTable({
         </select>
       </div>
 
-      <div className="border border-hairline rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] border-collapse text-sm">
-            <thead>
+      <div className="border border-hairline rounded-lg overflow-hidden max-sm:border-none max-sm:rounded-none">
+        <div className="overflow-x-auto max-sm:overflow-x-visible">
+          <table className={TABLE_CLASS}>
+            <thead className="max-sm:hidden">
               <tr>
                 <th className="font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3">
                   ユーザー
@@ -299,12 +318,12 @@ export function UsersTable({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-sm:block">
               {filtered.length === 0 ? (
-                <tr>
+                <tr className="max-sm:block">
                   <td
                     colSpan={5}
-                    className="text-center text-ink-tertiary px-4 py-6"
+                    className="text-center text-ink-tertiary px-4 py-6 max-sm:block max-sm:text-center"
                   >
                     該当するユーザーが見つかりません。
                   </td>

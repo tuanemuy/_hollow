@@ -220,13 +220,13 @@ export function DesignTokensForm({
                 <div
                   // biome-ignore lint/suspicious/noArrayIndexKey: token rows are reorderable only by add/remove, position is stable within a render
                   key={index}
-                  className="grid grid-cols-[220px_1fr] gap-3 py-2 items-start border-b border-hairline last:border-b-0"
+                  className="grid grid-cols-[220px_1fr] max-sm:grid-cols-1 gap-3 py-2 items-start border-b border-hairline last:border-b-0"
                 >
                   <div className="flex flex-col gap-1 pt-1">
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        className={`${INPUT_CLASS} font-mono text-xs text-ink-secondary h-8`}
+                        className={`${INPUT_CLASS} font-mono text-xs text-ink-secondary h-8 max-sm:min-h-[44px]!`}
                         value={entry.key}
                         placeholder="--color-accent"
                         onChange={(event) =>
@@ -245,7 +245,7 @@ export function DesignTokensForm({
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex items-center gap-2 pt-1 max-sm:flex-wrap [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full">
                     {isColorValue(entry.value) ? (
                       <span
                         className="w-6 h-6 shrink-0 rounded-sm border border-hairline"
@@ -255,7 +255,7 @@ export function DesignTokensForm({
                     ) : null}
                     <input
                       type="text"
-                      className={`${INPUT_CLASS} flex-1 font-mono text-xs h-8 px-[10px] py-[6px]`}
+                      className={`${INPUT_CLASS} flex-1 font-mono text-xs h-8 max-sm:min-h-[44px]! px-[10px] py-[6px]`}
                       value={entry.value}
                       onChange={(event) =>
                         onRowChange(index, { value: event.target.value })
