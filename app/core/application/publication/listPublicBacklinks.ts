@@ -8,6 +8,12 @@ export type ListPublicBacklinksInput = Readonly<{
   noteId: string;
 }>;
 
+// Hydration cap for `findReferrers`. The public panel shows a short list,
+// so we over-fetch slightly past the mock display count to absorb the
+// post-hydration active/public filtering and still avoid materialising an
+// unbounded referrer set on every anonymous request.
+const PUBLIC_BACKLINKS_HYDRATION_LIMIT = 20;
+
 export type ListPublicBacklinksOutput = Readonly<{
   backlinks: readonly BacklinkDTO[];
 }>;
@@ -54,7 +60,15 @@ export async function listPublicBacklinks({
         throw new NotFoundError("note", `Note is not public: ${input.noteId}`);
       }
 
-      const referrers = await noteRepository.findReferrers(noteId);
+      // Bound the hydration: `findReferrers` materialises each referrer
+      // with `contentHtml` + children, so an unbounded fetch lets a popular
+      // public note (or a self-referencing author) amplify every anonymous
+      // request into a heavy read. The public backlinks panel only renders a
+      // short list, so cap at the mock display count + headroom (W-SEC-001).
+      const referrers = await noteRepository.findReferrers(noteId, {
+        limit: PUBLIC_BACKLINKS_HYDRATION_LIMIT,
+        offset: 0,
+      });
       const activeReferrers = referrers.filter((r) => r.status === "active");
       if (activeReferrers.length === 0) {
         return { backlinks: [] };

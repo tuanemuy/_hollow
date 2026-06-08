@@ -19,7 +19,7 @@ const SEARCH_PERIODS = ["7d", "30d", "1y", "all"] as const;
 const searchSchema = z.object({
   q: z.string().max(200).catch(""),
   username: z.string().min(1).max(64).optional(),
-  tags: z.array(z.string().min(1).max(64)).optional().catch(undefined),
+  tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
   period: z.enum(SEARCH_PERIODS).optional().catch(undefined),
   cursor: z.string().max(1024).optional(),
   limit: z.coerce.number().int().min(1).max(50).catch(20),
@@ -28,7 +28,7 @@ const searchSchema = z.object({
 const renderInputSchema = z.object({
   q: z.string().max(200),
   username: z.string().min(1).max(64).optional(),
-  tags: z.array(z.string().min(1).max(64)).optional(),
+  tags: z.array(z.string().min(1).max(64)).max(8).optional(),
   period: z.enum(SEARCH_PERIODS).optional(),
   cursor: z.string().max(1024).optional(),
   limit: z.number().int().min(1).max(50),

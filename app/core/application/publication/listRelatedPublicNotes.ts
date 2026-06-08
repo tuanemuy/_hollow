@@ -74,6 +74,13 @@ export async function listRelatedPublicNotes({
           }
           return user.id;
         }
+        // `byOwnerId` trusts the caller to pass an already-live owner id
+        // (ADR-007): unlike the `byUsername` path it performs no
+        // deleted/suspended re-check, so the visibility gate is only as
+        // strong as the live-owner guarantee at the call site (e.g.
+        // `getPublicNote`, which resolves and validates the owner before
+        // delegating here). Passing a non-live owner's id would leak that
+        // author's public notes.
         return input.ownerId as UserId;
       })();
 

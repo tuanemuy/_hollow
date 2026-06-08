@@ -71,6 +71,7 @@ async function seedPublicNote(
   ownerId: UserId,
   directoryId: string,
   visibility: "private" | "unlisted" | "public",
+  status: "active" | "trashed" = "active",
 ): Promise<void> {
   const noteId = nextId(0x03);
   await container.db.insert(schema.notes).values({
@@ -81,8 +82,8 @@ async function seedPublicNote(
     title: "seeded",
     contentHtml: "<p>body</p>",
     frontMatterJson: "{}",
-    status: "active",
-    trashedAt: null,
+    status,
+    trashedAt: status === "trashed" ? TZ : null,
     createdAt: TZ,
     updatedAt: TZ,
     editLockUserId: null,
@@ -159,6 +160,69 @@ describe("D1UserRepository.searchPublicByUsernamePrefix (integration, #568)", ()
         userRepository.searchPublicByUsernamePrefix("gone", 10),
     );
     expect(rows.map((u) => u.username)).toEqual(["gone-live"]);
+  });
+
+  it("excludes authors whose only public publication_state points at a trashed note (B-001)", async () => {
+    const container = createTestContainer();
+    // `trash-only` keeps a `visibility='public'` row but the note is
+    // trashed — the EXISTS active JOIN must drop it. `trash-live` also has
+    // a separate live public note so it stays visible (proves the JOIN
+    // gates on the note status, not on the author).
+    const trashOnly = await seedUser(container, "trash-only");
+    const trashLive = await seedUser(container, "trash-live");
+
+    const dirT = await seedDirectory(container, trashOnly);
+    await seedPublicNote(container, trashOnly, dirT, "public", "trashed");
+
+    const dirL = await seedDirectory(container, trashLive);
+    await seedPublicNote(container, trashLive, dirL, "public", "trashed");
+    await seedPublicNote(container, trashLive, dirL, "public", "active");
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) =>
+        userRepository.searchPublicByUsernamePrefix("trash", 10),
+    );
+    expect(rows.map((u) => u.username)).toEqual(["trash-live"]);
+  });
+
+  it("treats LIKE wildcards in the prefix query literally (escapes % and _)", async () => {
+    const container = createTestContainer();
+    // Usernames are constrained to [a-z0-9-] by the domain, so the stored
+    // value never holds a `%` / `_`; the escape matters for the
+    // *user-supplied prefix query*. If `%` / `_` were passed unescaped they
+    // would match any/one character and pull these rows in. Escaped, a query
+    // containing them matches literally and finds nothing.
+    const a = await seedUser(container, "ab-1");
+    const b = await seedUser(container, "axb");
+
+    for (const owner of [a, b]) {
+      const dir = await seedDirectory(container, owner);
+      await seedPublicNote(container, owner, dir, "public");
+    }
+
+    // Unescaped, `a%` would match both `ab-1` and `axb`; escaped it is a
+    // literal `a%` prefix that no username can start with.
+    const percentRows = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) =>
+        userRepository.searchPublicByUsernamePrefix("a%", 10),
+    );
+    expect(percentRows).toEqual([]);
+
+    // Unescaped, `a_` would match `axb` (single-char wildcard); escaped it
+    // is a literal `a_` prefix that no username can start with.
+    const underscoreRows = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) =>
+        userRepository.searchPublicByUsernamePrefix("a_", 10),
+    );
+    expect(underscoreRows).toEqual([]);
+
+    // Sanity: the literal prefix `a` still matches both rows, proving the
+    // empty results above are the escaping, not a broken query.
+    const plainRows = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) =>
+        userRepository.searchPublicByUsernamePrefix("a", 10),
+    );
+    expect(plainRows.map((u) => u.username)).toEqual(["ab-1", "axb"]);
   });
 
   it("returns [] for empty prefix and non-positive limit", async () => {

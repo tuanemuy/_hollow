@@ -195,3 +195,54 @@ plan S-002 の方針を実装に落とすにあたり、combobox の「確定値
 ### Consequences
 - 良い点: 確定状態が URL 駆動で共有/履歴可能。候補は URL を汚さず軽量。レート制限はサジェスト serverFn 側に将来トースト化で被せられる（本 Issue 範囲外）。
 - トレードオフ: combobox のキーボード矢印移動は未実装（クリック/タップ選択）。client 挙動の完全検証は manual-test に委ねる。
+
+---
+
+## ADR-012 (frontend): 公開面 dense アイコンの寸法方針（PR #604 review-001 W-FE-001）
+
+### Status
+Accepted（review-001 修正時）
+
+### Context
+`SearchFilterDrawer.tsx` / `PublicTopControls.tsx` の dense な chip / token / segmented control / drawer header に、lucide アイコンを `Icon` ラッパ非経由で `size-[11px]`/`[13px]`/`[14px]`/`[18px]` のリテラル px + 任意 `strokeWidth`（1.7〜2.2）で直書きしていた。これは CLAUDE.md「新規リテラル px 禁止」と `Icon.tsx` の契約（size 16|20|24・stroke 1.5 固定）に抵触する。
+
+review-001 W-FE-001 は (a) `Icon` ラッパの最寄りサイズ（16）へ寄せて px を消す、(b) 真に sub-16px が要る箇所のみアイコン寸法トークンを追加して `var()` 参照、の 2 案を提示。
+
+### Decision
+(b) トークン追加を採る。対象はいずれも P32/P30 モックの高密度 UI（30px の chip、26px の token、segmented control 内の小グリフ）であり、(a) で 16px に拡大すると mock 忠実度が崩れる。加えてこれらのグリフは小サイズを補う重ね stroke（1.7〜2.2）をモックが指定しており、stroke 1.5 固定の `Icon` ラッパでは再現できない。よって `Icon` ラッパは流用せず、アイコン寸法トークンを `tokens.css` に新設し `size-[var(--icon-*)]` で参照する。
+
+- 追加トークン（`tokens.css` Radius 直後・`spec/design/tokens.md` ミラーは §5.5 として追記）:
+  - `--icon-2xs: 11px`（chip/token の × 解除、`ChevronDown`）
+  - `--icon-xs: 13px`（segmented control の表示形式アイコン）
+  - `--icon-sm: 14px`（フィルターボタンの `SlidersHorizontal`）
+  - `--icon-md: 18px`（ドロワーヘッダの閉じる ×）
+- `app/styles/index.css` の `@theme inline` に同名トークンをブリッジ（CLAUDE.md のトークン追加手順）。
+- `size-3`（12px）は Tailwind の spacing トークン由来ユーティリティでありリテラル px ではないため据え置き（review が列挙した `[11px]/[13px]/[14px]/[18px]` のみが対象）。
+- 手描き `<svg>`（lucide に無い形状・`PublicNoteDetail` の backlink 等）は `ShareLinkGate` パターンと同類で許容＝触らない。
+
+### Consequences
+- 良い点: 新規リテラル px をゼロにしつつ mock の dense 寸法を完全維持。`Icon` ラッパの size 制約（16|20|24）を緩めずに sub-16px をトークンで一元管理。
+- トレードオフ: `Icon` ラッパを通さないため stroke/サイズの型保証は効かない（既存の `ShareLinkGate` / 手描き svg と同レベルの逸脱）。dense グリフ専用トークンが 4 つ増える。
+
+---
+
+## ADR-012 (backend): 公開サジェスト/検索の可視性ゲートと多層クランプ（PR #604 review-001 B-001/B-002/W-SEC-001）
+
+### Status
+Accepted（review-001 修正時）
+
+### Context
+review-001 が backend/SQL/security に 3 件のゲート不備を指摘した。
+
+1. B-001: `userRepository.searchPublicByUsernamePrefix` の EXISTS が `publication_states.visibility='public'` のみで `notes.status='active'` を結合しておらず、タグ側 `searchPublicByNamePrefix`（active INNER JOIN）と非対称。ノートを trash しても `publication_states` 行は outbox リレー（at-least-once・順序なし）が消すまで残るため、「公開ノートが全 trashed＝実体 0 件」の著者が窓の間サジェストに漏れ、未認証クライアントに存在を推測させる（列挙の過渡的漏洩）。
+2. B-002: 未認証の `tags` 配列に長さ上限がなく、各 tag が `searchPublicNotes`(1) + `countPublicSearchFacets`(4 期間) の計 5 クエリに `LIKE '%"<tag>"%'` 句として乗るため、要素数無制限だと 4 倍超の DoS 増幅面になる（main には無く本 PR で初めて未認証面に露出）。
+3. W-SEC-001: `listPublicBacklinks` が `findReferrers(noteId)` を opts なしで呼び、公開判定で絞る前に全参照元を `contentHtml`+children でフルハイドレートしていた（人気公開ノート/自己参照増幅で重い materialization）。
+
+### Decision
+1. B-001: EXISTS を `publication_states JOIN notes ON notes.id = publication_states.note_id ... AND notes.status='active'` に変更し、タグ側と `getPublicNote`/`listRelatedPublicNotes` の active 再チェックに対称化。
+2. B-002: 多層防御。(a) transport 境界 `search.tsx`（`validateSearch` / strict-RPC `renderInputSchema`）と `u/$username/index.tsx` の `tags` zod に `.max(8)`（P30 chip 上限と整合）を付与。zod の `.max()` は配列長制限、要素長の `min(1).max(64)` はそのまま。(b) 値オブジェクト構築でも `SearchQuery.create` が `tagNames` を `slice(0, 8)` でクランプ（transport をバイパスする呼び出しでも fan-out を抑える）。`SearchQuery` のクランプは「上限超過を弾く」のではなく既存規約に倣い静かに切り詰める（DateRange 等の throw とは別系統。タグ過多はビジネス不変条件違反ではなく DoS 防御のため）。
+3. W-SEC-001: `findReferrers(noteId, { limit: 20, offset: 0 })` でハイドレート上限を設ける。20 はモック表示分 + ハイドレート後の active/public フィルタ余白。
+
+### Consequences
+- 良い点: 公開可視性ゲートが 3 経路（サジェスト/検索/バックリンク）で一貫。未認証面の増幅・列挙・重 materialization をいずれも閉塞。クランプは transport + 値オブジェクトの 2 層で、どちらか一方をすり抜けても防御が残る。
+- トレードオフ: `SearchQuery.create` のサイレント slice は、9 個目以降のタグ指定が黙って落ちる（エラーにしない）。これは検索フィルタの過多を「弾く」より「丸める」方が UX 上自然との判断。B-001 の active JOIN は `searchPublicByUsernamePrefix` に notes 結合を増やすが、suggest は limit 付きの軽量クエリで実害小（W-ADP-001 の `LOWER()` 非効率は別途後続 Issue 候補として据え置き）。

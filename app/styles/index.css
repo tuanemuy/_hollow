@@ -93,6 +93,12 @@
   --radius-pill: var(--radius-pill);
   --radius-full: var(--radius-full);
 
+  /* Icon sizes (dense sub-16px glyphs; referenced via size-[var(--icon-*)]) */
+  --icon-2xs: var(--icon-2xs);
+  --icon-xs: var(--icon-xs);
+  --icon-sm: var(--icon-sm);
+  --icon-md: var(--icon-md);
+
   /* Shadow */
   --shadow-xs: var(--shadow-xs);
   --shadow-sm: var(--shadow-sm);

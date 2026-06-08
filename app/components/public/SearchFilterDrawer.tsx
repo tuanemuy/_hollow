@@ -60,6 +60,9 @@ const route = getRouteApi("/search");
 
 const SUGGEST_DEBOUNCE_MS = 200;
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 function initials(value: string): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) return "?";
@@ -107,6 +110,8 @@ export function SearchFilterDrawer({ facets }: Props) {
   const [, startTransition] = useTransition();
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const previousActiveRef = useRef<HTMLElement | null>(null);
 
   const activeCount =
     (username !== null ? 1 : 0) + tags.length + (period !== null ? 1 : 0);
@@ -158,18 +163,52 @@ export function SearchFilterDrawer({ facets }: Props) {
 
   const close = useCallback(() => setOpen(false), []);
 
-  // Esc closes the drawer; focus lands on the close button when it opens.
+  // While open: focus lands on the close button, Esc closes, and Tab /
+  // Shift+Tab are trapped inside the panel so keyboard / SR users cannot
+  // escape behind the page (the panel declares `aria-modal="true"`). Focus
+  // returns to the previously-focused element on close.
   useEffect(() => {
     if (!open) return;
+    const active = document.activeElement;
+    previousActiveRef.current = active instanceof HTMLElement ? active : null;
     closeButtonRef.current?.focus();
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         close();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (panel === null) return;
+      const focusables =
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (first === undefined || last === undefined) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+      const el = document.activeElement;
+      const outside = !panel.contains(el) || el === panel;
+      if (e.shiftKey) {
+        if (el === first || outside) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (el === last || outside) {
+        e.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      const prev = previousActiveRef.current;
+      if (prev?.isConnected) prev.focus();
+    };
   }, [open, close]);
 
   const removeTag = (tag: string) =>
@@ -192,7 +231,7 @@ export function SearchFilterDrawer({ facets }: Props) {
         onClick={() => setOpen(true)}
       >
         <SlidersHorizontal
-          className="size-[14px]"
+          className="size-[var(--icon-sm)]"
           strokeWidth={1.8}
           aria-hidden="true"
         />
@@ -265,6 +304,7 @@ export function SearchFilterDrawer({ facets }: Props) {
         onClick={close}
       />
       <aside
+        ref={panelRef}
         className={DRAWER}
         data-open={open || undefined}
         role="dialog"
@@ -286,7 +326,11 @@ export function SearchFilterDrawer({ facets }: Props) {
             aria-label="閉じる"
             onClick={close}
           >
-            <X className="size-[18px]" strokeWidth={1.7} aria-hidden="true" />
+            <X
+              className="size-[var(--icon-md)]"
+              strokeWidth={1.7}
+              aria-hidden="true"
+            />
           </button>
         </div>
 
@@ -378,7 +422,11 @@ function UserFacet({
               className={TOKEN_REMOVE}
               onClick={onClear}
             >
-              <X className="size-[11px]" strokeWidth={2.2} aria-hidden="true" />
+              <X
+                className="size-[var(--icon-2xs)]"
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
             </button>
           </span>
         ) : null}
@@ -487,7 +535,11 @@ function TagFacet({
               className={TOKEN_REMOVE}
               onClick={() => onRemove(tag)}
             >
-              <X className="size-[11px]" strokeWidth={2.2} aria-hidden="true" />
+              <X
+                className="size-[var(--icon-2xs)]"
+                strokeWidth={2.2}
+                aria-hidden="true"
+              />
             </button>
           </span>
         ))}

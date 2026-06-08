@@ -23,6 +23,11 @@ const KEYWORD_MAX_LENGTH = 200;
 const SNIPPET_MAX_LENGTH = 1024;
 const SEARCH_LIMIT_MIN = 1;
 const SEARCH_LIMIT_MAX = 50;
+// Upper bound on the number of tag filters a single query may carry.
+// Matches the P30 filter-chip cap and the route-boundary `.max(8)`;
+// duplicated here as defence-in-depth so a query that bypasses the
+// transport schema still cannot amplify the per-tag `LIKE` fan-out.
+const TAG_NAMES_MAX_COUNT = 8;
 const LAST_ERROR_MAX_LENGTH = 4096;
 const SEARCH_CURSOR_MAX_LENGTH = 1024;
 
@@ -336,7 +341,10 @@ export const SearchQuery = {
       visibilityFilter: params.visibilityFilter.map((v) =>
         Visibility.create(v),
       ),
-      tagNames: [...params.tagNames],
+      // Defence-in-depth length clamp: the transport boundary already
+      // caps `tags` at `.max(8)`, but slicing here guards any call site
+      // that bypasses it from fanning out an unbounded per-tag `LIKE`.
+      tagNames: params.tagNames.slice(0, TAG_NAMES_MAX_COUNT),
       directoryPathPrefix:
         params.directoryPathPrefix === null
           ? null

@@ -29,7 +29,7 @@ const PUBLIC_SORTS = ["updatedAt", "createdAt", "title"] as const;
 const DISPLAY_MODES = ["list", "tile", "calendar"] as const;
 
 const publicTopSearchSchema = paginationSearchSchema.extend({
-  tags: z.array(z.string().min(1).max(64)).optional().catch(undefined),
+  tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
   sort: z.enum(PUBLIC_SORTS).optional().catch(undefined),
   display: z.enum(DISPLAY_MODES).optional().catch(undefined),
 });
@@ -41,7 +41,7 @@ const publicTopSearchSchema = paginationSearchSchema.extend({
 const renderInputSchema = z
   .object({
     username: z.string().min(1).max(64),
-    tags: z.array(z.string().min(1).max(64)).optional(),
+    tags: z.array(z.string().min(1).max(64)).max(8).optional(),
     sort: z.enum(PUBLIC_SORTS).optional(),
   })
   .extend(paginationSchema.shape);

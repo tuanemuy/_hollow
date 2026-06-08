@@ -19,7 +19,7 @@ import type {
 } from "@/core/domain/identity/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { publicationStates, users } from "../schema";
+import { notes, publicationStates, users } from "../schema";
 import { selectInChunks } from "./_chunks";
 import { escapeLikePattern, mapDbError } from "./helpers";
 
@@ -218,6 +218,15 @@ export class D1UserRepository implements UserRepository {
         // available authors. The public-note EXISTS is the enumeration
         // guard. `LOWER(username)` makes the prefix match case-insensitive
         // without a dedicated normalized column.
+        //
+        // The EXISTS joins `notes (status='active')` so an author whose
+        // only public `publication_states` rows point at trashed notes is
+        // excluded — symmetric with `tagRepository.searchPublicByNamePrefix`
+        // and with the `getPublicNote` / `listRelatedPublicNotes` active
+        // re-check. Trashing a note leaves its `publication_states` row
+        // until the outbox relay drops it (at-least-once, no ordering), so
+        // gating only on `visibility='public'` would leak "0 live public
+        // notes" authors into the suggest during that window (B-001).
         const rows = await this.db
           .select()
           .from(users)
@@ -226,7 +235,7 @@ export class D1UserRepository implements UserRepository {
               isNull(users.deletedAt),
               eq(users.banned, 0),
               sql`LOWER(${users.username}) LIKE ${pattern} ESCAPE '\\'`,
-              sql`EXISTS (SELECT 1 FROM ${publicationStates} WHERE ${publicationStates.ownerId} = ${users.id} AND ${publicationStates.visibility} = 'public')`,
+              sql`EXISTS (SELECT 1 FROM ${publicationStates} JOIN ${notes} ON ${notes.id} = ${publicationStates.noteId} WHERE ${publicationStates.ownerId} = ${users.id} AND ${publicationStates.visibility} = 'public' AND ${notes.status} = 'active')`,
             ),
           )
           .orderBy(asc(users.username))

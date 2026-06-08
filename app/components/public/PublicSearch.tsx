@@ -107,9 +107,10 @@ export async function PublicSearch({
 
   // Results count prefers the facet total for the active period (exact,
   // independent of the current page); falls back to the page hit count when
-  // facets are unavailable. The facet aggregation does not factor in the
-  // selected `tags`/`period` exactly the same way as the listing's tag AND,
-  // so the page hit count is the lower-bound fallback.
+  // facets are unavailable (no keyword). `countPublicSearchFacets` applies
+  // the same `tagNames` AND filter and visibility gate as the listing, so
+  // the facet total is the exact match count for the active period — the
+  // page hit count is only the lower-bound fallback when facets are absent.
   const facetTotal = facets.find((f) => f.period === (period ?? "all"))?.count;
   const resultsCount = facetTotal ?? hits.length;
   const countIsLowerBound = facetTotal === undefined && nextCursor !== null;
@@ -139,8 +140,18 @@ export async function PublicSearch({
                 placeholder="キーワードを入力"
                 className={SEARCH_FORM_INPUT}
               />
+              {/* Preserve the active filters across a native re-submit so
+                  retyping the keyword keeps the user / tag / period selection
+                  (symmetric with `username`). Pagination (`cursor`/`limit`)
+                  is intentionally reset on a fresh keyword. */}
               {username !== null ? (
                 <input type="hidden" name="username" value={username} />
+              ) : null}
+              {tags?.map((tag) => (
+                <input key={tag} type="hidden" name="tags" value={tag} />
+              ))}
+              {period !== null ? (
+                <input type="hidden" name="period" value={period} />
               ) : null}
               <button
                 type="submit"

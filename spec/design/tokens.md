@@ -197,6 +197,21 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 
 ---
 
+## 5.5 アイコン寸法（dense サブ 16px）
+
+アイコンの標準寸法は `Icon` ラッパ（`app/components/common/Icon.tsx`）が 16 / 20 / 24px を型レベルで強制する。これより小さい高密度 UI（chip・token・segmented control・ドロワーヘッダの小グリフ）のみ、以下のトークンを `size-[var(--icon-*)]` で参照する。`Icon` ラッパは stroke 1.5 固定のため、重ね stroke を要する dense グリフはラッパを介さずトークン参照で寸法だけを揃える。
+
+| プロパティ | 値 | 用途 |
+|-----------|----|----|
+| `--icon-2xs` | `11px` | chip / token の × 解除、`ChevronDown` |
+| `--icon-xs` | `13px` | segmented control の表示形式アイコン |
+| `--icon-sm` | `14px` | フィルターボタンの `SlidersHorizontal` |
+| `--icon-md` | `18px` | ドロワーヘッダの閉じる × |
+
+通常サイズ（16 / 20 / 24）は `Icon` ラッパの `size` prop を使い、これらのトークンは参照しない。
+
+---
+
 ## 6. シャドウ
 
 シャドウは最小限。ホバー / 浮上が必要な要素のみ。
@@ -504,6 +519,12 @@ Apple Calm の象徴的な要素。
   --radius-xl: 16px;
   --radius-pill: 980px;
   --radius-full: 9999px;
+
+  /* Icon (dense sub-16px line-art glyphs; the Icon wrapper covers 16/20/24) */
+  --icon-2xs: 11px;
+  --icon-xs: 13px;
+  --icon-sm: 14px;
+  --icon-md: 18px;
 
   /* Shadow */
   --shadow-none: none;

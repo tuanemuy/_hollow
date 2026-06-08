@@ -25,7 +25,10 @@ const nextId = (prefix: number): string => {
   return `0193e7fb-${block}-7000-8000-0000000000${tail}`;
 };
 
-async function seedUser(container: TestContainer): Promise<UserId> {
+async function seedUser(
+  container: TestContainer,
+  username?: string,
+): Promise<UserId> {
   const id = nextId(0x01);
   await container.db.insert(schema.users).values({
     id,
@@ -34,7 +37,7 @@ async function seedUser(container: TestContainer): Promise<UserId> {
     emailVerified: 1,
     createdAt: TZ,
     updatedAt: TZ,
-    username: `u-${id.slice(9, 13)}`,
+    username: username ?? `u-${id.slice(9, 13)}`,
     role: "member",
     banned: 0,
   });
@@ -142,5 +145,39 @@ describe("countPublicSearchFacets (integration)", () => {
     });
     expect(facets.map((f) => f.count)).toEqual([0, 0, 0, 0]);
     expect(facets.map((f) => f.period)).toEqual(["7d", "30d", "1y", "all"]);
+  });
+
+  it("resolves the `username` owner filter so only that author's hits are counted", async () => {
+    const container = getContainer();
+    const author = await seedUser(container, "facet-author");
+    const other = await seedUser(container);
+    const dirA = await seedDirectory(container, author);
+    const dirO = await seedDirectory(container, other);
+
+    const now = container.clock.now();
+    const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
+
+    await seedDoc(container, author, dirA, daysAgo(2));
+    // Another author's hit must not leak into the username-scoped count.
+    await seedDoc(container, other, dirO, daysAgo(2));
+
+    const { facets } = await countPublicSearchFacets({
+      container,
+      input: { keyword: "outbox", username: "facet-author" },
+    });
+    const byPeriod = Object.fromEntries(facets.map((f) => [f.period, f.count]));
+    expect(byPeriod.all).toBe(1);
+    expect(byPeriod["7d"]).toBe(1);
+  });
+
+  it("throws NotFoundError for a username that does not exist", async () => {
+    const container = getContainer();
+    const { NotFoundError } = await import("@/core/application/errors");
+    await expect(
+      countPublicSearchFacets({
+        container,
+        input: { keyword: "outbox", username: "no-such-user" },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

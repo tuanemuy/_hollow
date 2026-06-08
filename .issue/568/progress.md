@@ -73,3 +73,24 @@
 ### manual-test で判明した既知の先行バグ（本 Issue スコープ外）
 
 - **#599**: 非公開ノートを `/notes/public/$noteId` で開くと NotFound ページではなく汎用 500 が描画される（RSC 内 `notFound()` が route の `notFoundComponent` に届かない）。該当ルート `app/routes/notes/public/$noteId.tsx` と `PublicNoteDetail` の notFound 経路は本ブランチで未変更（main と同一）であり、本 Issue が混入させた回帰ではない。既存 Issue #599 で追跡済みのためここでは新規起票しない。
+
+## PR レビュー（review-001）対応 — 2026-06-09
+
+`.issue/568/review/review-001.md`。Blocker 2 + Warning 7 を修正、Warning 2 を以下に段階的着地として記録。
+
+### 修正済み（PR #604 に反映）
+
+- **B-001**: `searchPublicByUsernamePrefix` の EXISTS に `notes.status='active'` JOIN を追加しタグ側と対称化（trashed 公開ノートしか持たない著者の過渡的列挙を防止）+ 回帰テスト追加。
+- **B-002**: 未認証 `tags` 配列に `.max(8)` クランプ（`/search`・`/u/$username` の validateSearch/renderInputSchema）+ `SearchQuery.create` で `tagNames` を slice（多層防御 DoS 対策）。
+- **W-SEC-001**: 公開バックリンクの `findReferrers` に limit=20 を渡しハイドレート上限を設定。
+- **W-FE-001**: lucide リテラル px をアイコン寸法トークン（`--icon-2xs/xs/sm/md`）化（tokens.css + @theme inline + tokens.md ミラー）。ADR-012(frontend)。
+- **W-FE-002**: ドロワーに最小 focus trap（Tab/Shift+Tab ループ + フォーカス復帰）を実装。
+- **W-FE-003**: 検索フォーム再送信で `tags`/`period` も hidden で保持し `username` と対称化。
+- **W-TEST-002 / N-TEST-002**: user LIKE エスケープ検証・facet の username/NotFound 経路テストを追加。
+- **W-SEC-002**: facet が tag-AND を反映する旨を確認しコメント訂正（挙動不変）。
+- **ビルド修正**: `searchActions.ts` の top-level zod スキーマを `public/schema.ts` に切り出し。createServerFn モジュールに top-level zod schema を置くと `"use client"` グラフ取り込み時に server-fn:ssr バンドラが `Plugin driver is already dropped` で落ちるため（ingestion 等の既存 serverFn は z をインライン or schema.ts 経由で回避していた）。`pnpm build` 成功を確認。
+
+### 段階的着地（後続検討・本 Issue では深追いしない）
+
+- **[W-ADP-001] `LOWER(username) LIKE` のインデックス非効率**: `uniq_users_username` は素の `username` 列で、`LOWER()` 式はプレフィックススキャンに使えない。`tags.name_normalized` 相当の正規化列/式インデックスが user 側に無い。現規模では実害小。式インデックス or `username_normalized` 列導入は後続 Issue 候補。
+- **[W-ADP-002] 期間ファセットの相関語が `date_for_calendar`**: facet 窓は `sd.date_for_calendar` 基準で publication の `published_at`（公開日）ではない。ADR-008 の sort 暫定対応と同じく「公開日厳密でない」制約。SQL 自体（ISO8601 辞書順=時系列順）は正しい。厳密な公開日基準にするには publication 結合が要る。

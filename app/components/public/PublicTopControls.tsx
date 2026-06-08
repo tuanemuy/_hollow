@@ -170,7 +170,7 @@ export function PublicTopControls({
               #{tag}
               {active ? (
                 <span className={CHIP_REMOVE} aria-hidden="true">
-                  <X className="size-[11px]" strokeWidth={2.2} />
+                  <X className="size-[var(--icon-2xs)]" strokeWidth={2.2} />
                 </span>
               ) : null}
             </button>
@@ -196,7 +196,7 @@ export function PublicTopControls({
                   const IconComponent = icon;
                   return (
                     <IconComponent
-                      className="size-[13px]"
+                      className="size-[var(--icon-xs)]"
                       strokeWidth={1.8}
                       aria-hidden="true"
                     />
@@ -211,7 +211,7 @@ export function PublicTopControls({
         <button type="button" className={SORT_BTN} onClick={cycleSort}>
           {SORT_LABELS[sort]}
           <ChevronDown
-            className="size-[11px]"
+            className="size-[var(--icon-2xs)]"
             strokeWidth={2}
             aria-hidden="true"
           />
