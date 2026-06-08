@@ -9,6 +9,7 @@ import {
   ALERT,
   ALERT_BODY,
   ALERT_CONTENT,
+  ALERT_ERROR,
   ALERT_ICON,
   ALERT_TITLE,
   textLink,
@@ -40,7 +41,6 @@ import {
   FIELD_LABEL,
   FIELD_OPTIONAL,
   FORM,
-  FORM_ERROR,
   INPUT,
   INPUT_MONO,
   INPUT_WITH_ACTION,
@@ -339,25 +339,32 @@ export function AdminSignUpForm() {
         </div>
 
         {isSetupTokenError ? (
-          <div className={FORM_ERROR} role="alert">
-            <Icon icon={AlertCircle} size={20} className="shrink-0 mt-0.5" />
-            <span>
-              <strong className="font-semibold">
+          <div className={`${ALERT} ${ALERT_ERROR}`} role="alert">
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={AlertCircle} size={20} />
+            </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>
                 {state.error?.code === "setup_token_disabled"
                   ? "Setup Token が設定されていません。"
                   : "Setup Token が正しくありません。"}
-              </strong>{" "}
-              値を確認してもう一度入力してください。
-            </span>
+              </p>
+              <p className={ALERT_BODY}>
+                値を確認してもう一度入力してください。
+              </p>
+            </div>
           </div>
         ) : null}
 
         {summary !== null ? (
-          <div className={FORM_ERROR} role="alert">
-            <span>
-              <strong className="font-semibold">登録に失敗しました。</strong>{" "}
-              {summary}
+          <div className={`${ALERT} ${ALERT_ERROR}`} role="alert">
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={AlertCircle} size={20} />
             </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>登録に失敗しました。</p>
+              <p className={ALERT_BODY}>{summary}</p>
+            </div>
           </div>
         ) : null}
 

@@ -10,6 +10,7 @@ import {
   ALERT_ACTION,
   ALERT_BODY,
   ALERT_CONTENT,
+  ALERT_ERROR,
   ALERT_ICON,
   ALERT_TITLE,
 } from "@/components/common/styles";
@@ -34,7 +35,6 @@ import {
   FIELD_LABEL_ROW,
   FIELD_LINK,
   FORM,
-  FORM_ERROR,
   INPUT,
 } from "../styles";
 import { loginFn, resendVerificationFn } from "./action";
@@ -181,14 +181,14 @@ export function LoginForm() {
         </label>
 
         {summary !== null ? (
-          <div className={FORM_ERROR} role="alert">
-            <Icon icon={AlertCircle} size={20} className="shrink-0 mt-0.5" />
-            <span>
-              <strong className="font-semibold">
-                ログインできませんでした。
-              </strong>{" "}
-              {summary}
+          <div className={`${ALERT} ${ALERT_ERROR}`} role="alert">
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={AlertCircle} size={20} />
             </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>ログインできませんでした。</p>
+              <p className={ALERT_BODY}>{summary}</p>
+            </div>
           </div>
         ) : null}
 
