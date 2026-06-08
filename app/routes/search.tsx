@@ -8,7 +8,7 @@ import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddle
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
 
-// P32 (#568) drawer filters. `tags` AND-filters the public search by tag
+// P32 drawer filters. `tags` AND-filters the public search by tag
 // name; `period` narrows by a rolling date window (radio facet). Both are
 // confirmed values carried in the URL (the combobox *suggestions* are
 // fetched per-keystroke via a server fn and never persisted to the URL).

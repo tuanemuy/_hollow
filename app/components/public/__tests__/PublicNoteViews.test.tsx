@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * P30 (#568) public read-only note views. The display mode is read from
+ * P30 public read-only note views. The display mode is read from
  * the URL (`getRouteApi(...).useSearch`); each mode renders links to the
  * public note route `/u/$username/$noteSlug`.
  */

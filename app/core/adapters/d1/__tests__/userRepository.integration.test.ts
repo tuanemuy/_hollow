@@ -4,10 +4,10 @@ import * as schema from "../schema";
 import { createTestContainer, type TestContainer } from "./helpers";
 
 /**
- * Integration tests for `D1UserRepository.searchPublicByUsernamePrefix`
- * (Issue #568, P32 public search drawer). Verifies the SQL gates on
- * username prefix, live status (`deleted_at IS NULL AND banned = 0`) and
- * the "owns ≥ 1 public note" EXISTS enumeration guard.
+ * Integration tests for `D1UserRepository.searchPublicByUsernamePrefix`.
+ * Verifies the SQL gates on username prefix, live status
+ * (`deleted_at IS NULL AND banned = 0`) and the "owns ≥ 1 public note"
+ * EXISTS enumeration guard.
  */
 
 const TZ = new Date("2026-03-01T00:00:00.000Z").toISOString();

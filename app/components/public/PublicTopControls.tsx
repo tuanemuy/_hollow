@@ -77,9 +77,9 @@ const DISPLAY_OPTIONS: ReadonlyArray<{
   { mode: "calendar", label: "カレンダー", icon: Calendar },
 ];
 
-// "公開日順" is backed by `updatedAt` (see listUserPublicNotes /
-// progress.md). The toggle flips between updated-desc and title-asc so the
-// sort button is functional rather than decorative.
+// "公開日順" is backed by `updatedAt` (see listUserPublicNotes). The toggle
+// flips between updated-desc and title-asc so the sort button is functional
+// rather than decorative.
 const SORT_LABELS: Readonly<Record<SortAxis, string>> = {
   updatedAt: "公開日順",
   createdAt: "作成日順",
@@ -96,7 +96,7 @@ const selectSort = (s: { sort?: SortAxis | undefined }): SortAxis =>
 
 /**
  * Client island for the P30 filter chips, display segmented control and
- * sort toggle (#568). Tags / sort drive the URL (server re-fetch via
+ * sort toggle. Tags / sort drive the URL (server re-fetch via
  * `loaderDeps`); `display` is a client-only swap excluded from
  * `loaderDeps` (ADR-004). Bound to `getRouteApi("/u/$username/")` —
  * cannot reuse the auth-side `DisplayModeSwitch` (`/_app/` bound).

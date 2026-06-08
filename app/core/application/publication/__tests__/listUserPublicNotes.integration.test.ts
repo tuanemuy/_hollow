@@ -171,7 +171,7 @@ describe("listUserPublicNotes (integration)", () => {
     expect(result.total).toBe(2);
     expect(result.notes.map((n) => n.title)).toEqual(["newer", "older"]);
     expect(result.notes.every((n) => n.visibility === "public")).toBe(true);
-    // items.length <= total holds structurally (Issue #30 invariant).
+    // items.length <= total holds structurally.
     expect(result.notes.length).toBeLessThanOrEqual(result.total);
   });
 

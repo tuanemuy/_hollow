@@ -84,17 +84,15 @@ export const USER_SEARCH = "relative max-w-[560px]";
 export const USER_SEARCH_INPUT =
   "w-full h-10 border-0 bg-surface rounded-pill pl-10 pr-4 text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:bg-surface-hover";
 
-// ===== P30 filter chips / display segmented / sort (#568) =====
-// Mock `.filter-row` / `.chip` (P30:354-375). Chips toggle URL `tags`;
-// the active variant inverts to the ink fill, and selected chips carry an
-// inline remove (×) affordance (mobile mock `mobile/P30:363-364`).
+// ===== P30 filter chips / display segmented / sort =====
+// Chips toggle URL `tags`; the active variant inverts to the ink fill, and
+// selected chips carry an inline remove (×) affordance.
 export const FILTER_ROW = "flex items-center gap-2 flex-wrap";
 export const CHIP =
   "h-[30px] px-[13px] rounded-pill bg-surface text-[13px] text-ink inline-flex items-center gap-[5px] transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
 export const CHIP_REMOVE =
   "text-sm text-ink-tertiary ml-[2px] leading-none [.group[data-active]_&]:text-white/70";
 
-// Mock `.toolbar` / `.segmented` / `.sort-btn` (P30:377-416).
 export const TOOLBAR = "flex justify-between items-center my-2 gap-3 flex-wrap";
 export const SEGMENTED = "bg-surface rounded-[9px] p-[2px] inline-flex";
 export const SEGMENTED_BTN =
@@ -102,7 +100,7 @@ export const SEGMENTED_BTN =
 export const SORT_BTN =
   "text-[13px] text-ink-secondary inline-flex items-center gap-1 px-2 py-[6px] rounded-md transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
 
-// Tile view (mock `.note-list` tile variant — same card system as P31 related).
+// Tile view — same card system as P31 related.
 export const TILE_GRID =
   "mt-2 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4";
 export const TILE_CARD =
@@ -115,7 +113,7 @@ export const TILE_SNIPPET =
 export const TILE_META =
   "flex items-center gap-2.5 flex-wrap text-sm text-ink-tertiary";
 
-// Calendar view (mock `.cal-` day grouping; mirrors auth-side CalendarView).
+// Calendar view — day grouping mirrors the auth-side CalendarView.
 export const CAL_WRAP = "mt-3 flex flex-col gap-5";
 export const CAL_DAY_TITLE =
   "mb-2 pb-2 border-b border-hairline text-sm font-medium text-ink-secondary";
@@ -140,13 +138,12 @@ export const AUTHOR_MINI =
 export const AUTHOR_AVATAR =
   "w-7 h-7 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-[11px] font-medium inline-flex items-center justify-center";
 
-// Mock `.bottom-meta` (P31:680-687): tag row + 公開/更新 dates re-stated at the
-// end of the article body, above the backlink / related sections.
+// Tag row + 公開/更新 dates re-stated at the end of the article body, above
+// the backlink / related sections.
 export const NOTE_BOTTOM_META =
   "max-w-[var(--content-max)] mt-12 pt-5 border-t border-hairline flex flex-col gap-1.5 text-sm text-ink-tertiary";
 export const NOTE_BOTTOM_META_TAGS = "flex gap-1 flex-wrap";
 
-// Backlink / related sections (mock `.section-block` etc., P31:446-505).
 export const SECTION_BLOCK = "max-w-[var(--content-max)] mt-12";
 export const SECTION_TITLE =
   "text-xs font-medium text-ink-tertiary uppercase tracking-wider mb-3.5";
@@ -195,27 +192,25 @@ export const SEARCH_HIT_META =
 export const SEARCH_EMPTY = "py-20 px-3 text-center text-ink-secondary";
 export const PAGINATION = "mt-6 flex justify-between gap-3 flex-wrap";
 
-// ===== P32 filter bar / active chips / drawer (#568) =====
-// Mock `.filter-bar` / `.results-count` (P32:311-340).
+// ===== P32 filter bar / active chips / drawer =====
 export const FILTER_BAR =
   "flex items-center justify-between gap-3 flex-wrap py-2 pb-1 mb-2";
 export const FILTER_BAR_LEFT =
   "flex items-center gap-2.5 flex-wrap flex-1 min-w-0";
 export const FILTER_BAR_RIGHT = "flex items-center gap-2";
 export const RESULTS_COUNT = "text-sm text-ink-secondary";
-// Mock `.filter-btn` (P32:341-370). `has-active` swaps to the accent
-// surface; rendered via `data-active`. The mobile mock raises it to the
-// 44px tap floor.
+// `has-active` swaps to the accent surface, rendered via `data-active`. The
+// mobile mock raises it to the 44px tap floor.
 export const FILTER_BTN =
   "h-9 px-3.5 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 relative transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-accent-surface data-[active]:text-accent-ink max-sm:h-11";
 export const FILTER_BTN_BADGE =
   "inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-pill bg-accent text-white text-[11px] font-semibold ml-0.5";
-// Mock `.sort-btn` (P32:371-382). Relevance-order label is fixed (no toggle).
+// Relevance-order label is fixed (no toggle).
 export const SORT_LABEL =
   "h-9 px-3 rounded-pill text-[13px] text-ink-secondary inline-flex items-center gap-1 max-sm:h-11";
 
-// Mock `.active-chips` (P32:384-440). Row hides itself when empty via the
-// caller (no `:empty` selector in Tailwind — the caller omits the row).
+// Row hides itself when empty via the caller (no `:empty` selector in
+// Tailwind — the caller omits the row).
 export const ACTIVE_CHIPS =
   "flex flex-wrap gap-1.5 pb-3 border-b border-hairline mb-1";
 export const ACTIVE_CHIP =
@@ -226,9 +221,8 @@ export const ACTIVE_CHIP_REMOVE =
 export const ACTIVE_CHIPS_CLEAR =
   "text-xs text-ink-tertiary px-2 h-7 inline-flex items-center rounded-pill transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
 
-// Mock `.drawer-backdrop` / `.drawer` (P32:549-633). Right-anchored slide-in
-// at every viewport. Open state is driven by `data-open` so the transition
-// runs; `pointer-events` flips with it.
+// Right-anchored slide-in at every viewport. Open state is driven by
+// `data-open` so the transition runs; `pointer-events` flips with it.
 export const DRAWER_BACKDROP =
   "fixed inset-0 bg-black/[0.32] opacity-0 pointer-events-none z-[90] transition-opacity duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:opacity-100 data-[open]:pointer-events-auto";
 export const DRAWER =
@@ -246,7 +240,6 @@ export const DRAWER_RESET =
 export const DRAWER_APPLY =
   "h-10 px-5 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover";
 
-// Mock `.facet-section` / `.facet-header` (P32:635-656).
 export const FACET_SECTION =
   "px-5 pt-4 pb-2 border-b border-hairline last:border-b-0";
 export const FACET_HEADER = "flex items-center justify-between mb-2.5";
@@ -254,7 +247,6 @@ export const FACET_TITLE = "text-[13px] font-semibold tracking-tight text-ink";
 export const FACET_SELECTED_COUNT = "text-[11px] text-ink-tertiary";
 export const FACET_HINT = "mt-1.5 text-[11px] text-ink-tertiary";
 
-// Mock `.token-input` / `.token` / `.token-field` (P32:658-732).
 export const TOKEN_INPUT =
   "relative min-h-10 border border-hairline bg-bg rounded-md px-2 py-[5px] flex flex-wrap items-center gap-1 cursor-text transition-colors motion-reduce:transition-none focus-within:border-hairline-strong focus-within:shadow-focus";
 export const TOKEN =
@@ -267,7 +259,6 @@ export const TOKEN_REMOVE =
 export const TOKEN_FIELD =
   "flex-1 min-w-[100px] h-[26px] border-0 bg-transparent text-[13px] text-ink outline-none px-1 placeholder:text-ink-tertiary";
 
-// Mock `.suggestions` / `.suggestion-item` (P32:734-790).
 export const SUGGESTIONS =
   "mt-1.5 border border-hairline rounded-md bg-bg shadow-sm max-h-[220px] overflow-y-auto";
 export const SUGGESTION_ITEM =
@@ -278,7 +269,6 @@ export const SUGGESTION_AVATAR = `${AUTHOR_AVATAR} w-5 h-5 text-[9px] shrink-0`;
 export const SUGGESTION_EMPTY =
   "px-3 py-3.5 text-xs text-ink-tertiary text-center";
 
-// Mock `.facet-list` / `.facet-item` radio (P32:797-828).
 export const FACET_LIST = "flex flex-col -mx-2";
 export const FACET_ITEM =
   "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] text-ink cursor-pointer transition-colors motion-reduce:transition-none hover:bg-surface";

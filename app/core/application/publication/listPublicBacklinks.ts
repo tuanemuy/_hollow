@@ -64,7 +64,7 @@ export async function listPublicBacklinks({
       // with `contentHtml` + children, so an unbounded fetch lets a popular
       // public note (or a self-referencing author) amplify every anonymous
       // request into a heavy read. The public backlinks panel only renders a
-      // short list, so cap at the mock display count + headroom (W-SEC-001).
+      // short list, so cap at the mock display count + headroom.
       const referrers = await noteRepository.findReferrers(noteId, {
         limit: PUBLIC_BACKLINKS_HYDRATION_LIMIT,
         offset: 0,

@@ -23,7 +23,7 @@ export type ListUserPublicNotesInput = Readonly<{
   /**
    * Sort axis. Note that the "公開日順" UI label is backed by `updatedAt`
    * here — `listWithCount` sorts on note columns only and has no access to
-   * the publication-side `publishedAt`. See `.issue/568/progress.md`.
+   * the publication-side `publishedAt`.
    */
   sort?: ListUserPublicNotesSort;
   order?: "asc" | "desc";
@@ -39,11 +39,11 @@ export type ListUserPublicNotesOutput = Readonly<{
  * publication state acts as the gate: only notes whose
  * `PublicationState.visibility === 'public'` show up.
  *
- * Backed by `noteRepository.listWithCount({ visibility: ['public'], … })`
- * (PR #170 / Issue #30): the page `items` and the filtered `total` come
- * from a single filter resolution so `items.length <= total` holds
- * structurally and the rendered count cannot disagree with the visible
- * slice. Tag / sort filters are applied on the same pass.
+ * Backed by `noteRepository.listWithCount({ visibility: ['public'], … })`:
+ * the page `items` and the filtered `total` come from a single filter
+ * resolution so `items.length <= total` holds structurally and the rendered
+ * count cannot disagree with the visible slice. Tag / sort filters are
+ * applied on the same pass.
  */
 export async function listUserPublicNotes({
   container,

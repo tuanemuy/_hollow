@@ -1,4 +1,4 @@
-// P32 (#568) period facet helpers shared by the search server component
+// P32 period facet helpers shared by the search server component
 // (URL `period` → `{from,to}` date range for `searchPublicNotes`) and the
 // drawer/active-chip UI (labels). Kept framework-free so it is unit-testable
 // and importable from both server and client modules.

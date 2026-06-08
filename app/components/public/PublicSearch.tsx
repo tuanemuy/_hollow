@@ -105,12 +105,10 @@ export async function PublicSearch({
       : Promise.resolve({ facets: [] as const }),
   ]);
 
-  // Results count prefers the facet total for the active period (exact,
-  // independent of the current page); falls back to the page hit count when
-  // facets are unavailable (no keyword). `countPublicSearchFacets` applies
-  // the same `tagNames` AND filter and visibility gate as the listing, so
-  // the facet total is the exact match count for the active period — the
-  // page hit count is only the lower-bound fallback when facets are absent.
+  // Results count prefers the facet total for the active period: it applies
+  // the same `tagNames` AND filter and visibility gate as the listing, so it
+  // is the exact match count independent of the current page. The page hit
+  // count is only a lower-bound fallback when facets are absent (no keyword).
   const facetTotal = facets.find((f) => f.period === (period ?? "all"))?.count;
   const resultsCount = facetTotal ?? hits.length;
   const countIsLowerBound = facetTotal === undefined && nextCursor !== null;
@@ -178,7 +176,7 @@ export async function PublicSearch({
             <div className={FILTER_BAR_RIGHT}>
               <SearchFilterDrawer facets={facets} />
               {/* Sort axis is fixed to relevance order (no toggle) — the
-                  public search ranks by score; see plan S-002. */}
+                  public search ranks by score. */}
               <span className={SORT_LABEL}>関連度順</span>
             </div>
           </div>

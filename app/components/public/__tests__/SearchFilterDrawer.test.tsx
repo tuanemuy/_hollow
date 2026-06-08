@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * P32 (#568) search filter drawer. SSR markup assertions cover the filter
+ * P32 search filter drawer. SSR markup assertions cover the filter
  * button badge, the active-chip row (user / tag / period chips + remove
  * affordances) and the drawer facet scaffolding. Open/Esc/focus behaviour is
  * client-only and verified via manual test.

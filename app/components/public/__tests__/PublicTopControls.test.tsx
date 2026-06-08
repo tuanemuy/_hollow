@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * P30 (#568) filter chips / display segmented / sort wiring. The URL
+ * P30 filter chips / display segmented / sort wiring. The URL
  * updaters are pure functions (tested directly); the SSR markup assertions
  * cover the chip set, active state and remove (×) affordance.
  */

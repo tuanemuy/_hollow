@@ -18,13 +18,13 @@ import {
 } from "@/core/presentation/pagination";
 import { validateInput } from "@/core/presentation/validator";
 
-// P30 (#568) filter/sort/display search params. `tags` AND-filters the
+// P30 filter/sort/display search params. `tags` AND-filters the
 // public listing (server re-fetch — loader dep); `sort` picks the listing
 // axis (server re-fetch — loader dep); `display` is a client-only layout
 // swap (list/tile/calendar) and is intentionally **excluded** from
-// `loaderDeps` so toggling it never re-streams the RSC (ADR-004 /
-// Issue #219 `DisplayModeSwitch`手法). `.catch(...)` keeps hand-typed
-// junk from erroring the route; omission keeps the URL clean.
+// `loaderDeps` so toggling it never re-streams the RSC (ADR-004, the
+// `DisplayModeSwitch` technique). `.catch(...)` keeps hand-typed junk from
+// erroring the route; omission keeps the URL clean.
 const PUBLIC_SORTS = ["updatedAt", "createdAt", "title"] as const;
 const DISPLAY_MODES = ["list", "tile", "calendar"] as const;
 
@@ -34,10 +34,10 @@ const publicTopSearchSchema = paginationSearchSchema.extend({
   display: z.enum(DISPLAY_MODES).optional().catch(undefined),
 });
 
-// Issue #215: reuse `paginationSchema` (strict-RPC variant — required
-// `number`s for the server fn). `username` plus the P30 server-driven
-// filters (`tags` / `sort`) need a route-local schema. `display` is a
-// client-only concern and never reaches the server fn.
+// Reuse `paginationSchema` (strict-RPC variant — required `number`s for the
+// server fn). `username` plus the P30 server-driven filters (`tags` / `sort`)
+// need a route-local schema. `display` is a client-only concern and never
+// reaches the server fn.
 const renderInputSchema = z
   .object({
     username: z.string().min(1).max(64),

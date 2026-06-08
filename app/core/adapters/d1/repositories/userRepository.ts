@@ -226,7 +226,7 @@ export class D1UserRepository implements UserRepository {
         // re-check. Trashing a note leaves its `publication_states` row
         // until the outbox relay drops it (at-least-once, no ordering), so
         // gating only on `visibility='public'` would leak "0 live public
-        // notes" authors into the suggest during that window (B-001).
+        // notes" authors into the suggest during that window.
         const rows = await this.db
           .select()
           .from(users)
