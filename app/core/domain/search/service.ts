@@ -1,7 +1,7 @@
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { type NoteSnapshot, SearchDocument } from "./entity";
 import type { SearchIndex, SearchQueryResult } from "./ports/searchIndex";
-import type { SearchQuery } from "./valueObject";
+import type { DateRange, SearchQuery } from "./valueObject";
 
 /**
  * `SearchService` orchestrates the small set of operations that the
@@ -51,5 +51,19 @@ export const SearchService = {
     index: SearchIndex,
   ): Promise<SearchQueryResult> {
     return index.query(query);
+  },
+
+  /**
+   * Counts how many documents `query` matches within each supplied date
+   * window (a `null` entry meaning "no date constraint"). Thin delegate
+   * to the index port; `query.dateRange` is ignored in favour of the
+   * per-window `ranges` (see `SearchIndex.countByDateRanges`).
+   */
+  async countFacets(
+    query: SearchQuery,
+    ranges: readonly (DateRange | null)[],
+    index: SearchIndex,
+  ): Promise<readonly number[]> {
+    return index.countByDateRanges(query, ranges);
   },
 };

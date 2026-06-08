@@ -7,12 +7,25 @@ import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
   AUTHOR_AVATAR,
   AUTHOR_MINI,
+  BACKLINK_ICON,
+  BACKLINK_ITEM,
+  BACKLINK_LIST,
+  BACKLINK_TEXT,
   DOC_TITLE,
+  NOTE_BOTTOM_META,
+  NOTE_BOTTOM_META_TAGS,
   NOTE_DETAIL_BREADCRUMB,
   NOTE_DETAIL_WRAP,
   NOTE_META_INLINE,
   PUB_PILL,
   PUB_PILL_DOT,
+  RELATED_CARD,
+  RELATED_GRID,
+  RELATED_META,
+  RELATED_TAGS,
+  RELATED_TITLE,
+  SECTION_BLOCK,
+  SECTION_TITLE,
 } from "./styles";
 
 type LookupArgs =
@@ -33,9 +46,44 @@ const loadPublicNote = cache(
   ),
 );
 
+const loadPublicBacklinks = cache(
+  serverData(
+    () => import("@/core/application/publication/listPublicBacklinks"),
+    async ({ container }, { listPublicBacklinks }, noteId: string) =>
+      listPublicBacklinks({ container, input: { noteId } }),
+  ),
+);
+
+const RELATED_LIMIT = 4;
+
+const loadRelatedPublicNotes = cache(
+  serverData(
+    () => import("@/core/application/publication/listRelatedPublicNotes"),
+    async (
+      { container },
+      { listRelatedPublicNotes },
+      args: { ownerId: string; excludeNoteId: string },
+    ) =>
+      listRelatedPublicNotes({
+        container,
+        input: {
+          kind: "byOwnerId",
+          ownerId: args.ownerId,
+          excludeNoteId: args.excludeNoteId,
+          limit: RELATED_LIMIT,
+        },
+      }),
+  ),
+);
+
 export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
   const { note, renderedContentHtml, owner, tagNames, publishedAt } =
     await loadPublicNote(args);
+
+  const [{ backlinks }, { notes: relatedNotes }] = await Promise.all([
+    loadPublicBacklinks(note.id),
+    loadRelatedPublicNotes({ ownerId: owner.id, excludeNoteId: note.id }),
+  ]);
 
   return (
     <PublicLayout>
@@ -109,6 +157,83 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
           dangerouslySetInnerHTML={{ __html: renderedContentHtml }}
         />
         <CodeHighlight />
+
+        <div className={NOTE_BOTTOM_META}>
+          {tagNames.length > 0 ? (
+            <div className={NOTE_BOTTOM_META_TAGS}>
+              {tagNames.map((t) => (
+                <span key={t} className="text-accent">
+                  #{t}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div>
+            {publishedAt !== null
+              ? `${formatJaDate(publishedAt)} 公開 · `
+              : null}
+            {formatJaDate(new Date(note.updatedAt))} 更新
+          </div>
+        </div>
+
+        {backlinks.length > 0 ? (
+          <section className={SECTION_BLOCK}>
+            <div className={SECTION_TITLE}>バックリンク（公開ノート）</div>
+            <div className={BACKLINK_LIST}>
+              {backlinks.map((b) => (
+                <Link
+                  key={b.noteId}
+                  to="/notes/public/$noteId"
+                  params={{ noteId: b.noteId }}
+                  className={BACKLINK_ITEM}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={BACKLINK_ICON}
+                    aria-hidden="true"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                  <span className={BACKLINK_TEXT}>{b.title}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {relatedNotes.length > 0 ? (
+          <section className={SECTION_BLOCK}>
+            <div className={SECTION_TITLE}>同じ著者の他のノート</div>
+            <div className={RELATED_GRID}>
+              {relatedNotes.map((r) => (
+                <Link
+                  key={r.id}
+                  to="/notes/public/$noteId"
+                  params={{ noteId: r.id }}
+                  className={RELATED_CARD}
+                >
+                  <div className={RELATED_TITLE}>{r.title}</div>
+                  <div className={RELATED_META}>
+                    {r.tagNames.length > 0 ? (
+                      <span className={RELATED_TAGS}>#{r.tagNames[0]}</span>
+                    ) : null}
+                    {r.publishedAt !== null
+                      ? formatJaDate(new Date(r.publishedAt))
+                      : null}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </PublicLayout>
   );

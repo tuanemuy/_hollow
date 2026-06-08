@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -19,9 +19,9 @@ import type {
 } from "@/core/domain/identity/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { users } from "../schema";
+import { notes, publicationStates, users } from "../schema";
 import { selectInChunks } from "./_chunks";
-import { mapDbError } from "./helpers";
+import { escapeLikePattern, mapDbError } from "./helpers";
 
 type UserRow = typeof users.$inferSelect;
 
@@ -199,6 +199,50 @@ export class D1UserRepository implements UserRepository {
       );
       return rows.map((row) => this.toUser(row));
     });
+  }
+
+  searchPublicByUsernamePrefix(
+    prefix: string,
+    limit: number,
+  ): Promise<readonly User[]> {
+    return mapDbError(
+      "Failed to search public users by username prefix",
+      async () => {
+        if (limit <= 0) return [];
+        const trimmed = prefix.trim();
+        if (trimmed.length === 0) return [];
+        const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+        // Live authors = not deleted (deleted_at IS NULL) and not suspended
+        // (banned = 0); `pending` users (email_verified = 0) are
+        // intentionally still allowed since the domain treats them as
+        // available authors. The public-note EXISTS is the enumeration
+        // guard. `LOWER(username)` makes the prefix match case-insensitive
+        // without a dedicated normalized column.
+        //
+        // The EXISTS joins `notes (status='active')` so an author whose
+        // only public `publication_states` rows point at trashed notes is
+        // excluded — symmetric with `tagRepository.searchPublicByNamePrefix`
+        // and with the `getPublicNote` / `listRelatedPublicNotes` active
+        // re-check. Trashing a note leaves its `publication_states` row
+        // until the outbox relay drops it (at-least-once, no ordering), so
+        // gating only on `visibility='public'` would leak "0 live public
+        // notes" authors into the suggest during that window.
+        const rows = await this.db
+          .select()
+          .from(users)
+          .where(
+            and(
+              isNull(users.deletedAt),
+              eq(users.banned, 0),
+              sql`LOWER(${users.username}) LIKE ${pattern} ESCAPE '\\'`,
+              sql`EXISTS (SELECT 1 FROM ${publicationStates} JOIN ${notes} ON ${notes.id} = ${publicationStates.noteId} WHERE ${publicationStates.ownerId} = ${users.id} AND ${publicationStates.visibility} = 'public' AND ${notes.status} = 'active')`,
+            ),
+          )
+          .orderBy(asc(users.username))
+          .limit(limit);
+        return rows.map((row) => this.toUser(row));
+      },
+    );
   }
 
   listAll(opts: { limit: number; cursor?: UserId }): Promise<readonly User[]> {

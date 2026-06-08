@@ -71,4 +71,20 @@ export interface TagRepository extends TransactionalRepository<Tag> {
     prefix: string,
     limit: number,
   ): Promise<readonly Tag[]>;
+
+  /**
+   * Cross-owner tag suggestion for the public search surface. Returns
+   * distinct tag names (not `Tag` entities — owner is intentionally not
+   * exposed across users) whose `nameNormalized` matches `prefix` as a
+   * case-insensitive prefix AND that are linked to at least one publicly
+   * visible, active note (`note_tags` × `notes(active)` ×
+   * `publication_states(public)`). The "linked to a public note" gate is
+   * the enumeration guard — a private-only tag never surfaces. Ordered by
+   * name asc. Caller trims `prefix` and clamps `limit`; the adapter
+   * LIKE-escapes wildcards.
+   */
+  searchPublicByNamePrefix(
+    prefix: string,
+    limit: number,
+  ): Promise<readonly string[]>;
 }

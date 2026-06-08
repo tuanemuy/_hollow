@@ -11,6 +11,8 @@ export * from "./handleNotePurgedEvent";
 export * from "./handleNoteTrashedEvent";
 export * from "./handleUserDeletedEvent";
 export * from "./issueShareLink";
+export * from "./listPublicBacklinks";
+export * from "./listRelatedPublicNotes";
 export * from "./listShareLinks";
 export * from "./listSitemapEntries";
 export * from "./listUserPublicNotes";

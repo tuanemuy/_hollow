@@ -60,6 +60,7 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
       delete: vi.fn(async () => {}),
       query: vi.fn(async () => ({ hits: [], nextCursor: null })),
       bulkRebuildFromSnapshots: vi.fn(async () => {}),
+      countByDateRanges: vi.fn(async () => []),
     },
     indexJobRepository: overrides.indexJobRepository ?? {
       enqueue: vi.fn(async () => {}),

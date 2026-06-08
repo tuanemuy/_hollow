@@ -20,7 +20,7 @@ import type {
 import type { TagId, TagName } from "@/core/domain/tag/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { notes, noteTags, tags } from "../schema";
+import { notes, noteTags, publicationStates, tags } from "../schema";
 import { selectInChunks } from "./_chunks";
 import { escapeLikePattern, mapDbError } from "./helpers";
 
@@ -240,6 +240,45 @@ export class D1TagRepository implements TagRepository {
         .limit(limit);
       return rows.map((row) => this.toTag(row));
     });
+  }
+
+  searchPublicByNamePrefix(
+    prefix: string,
+    limit: number,
+  ): Promise<readonly string[]> {
+    return mapDbError(
+      "Failed to search public tags by name prefix",
+      async () => {
+        if (limit <= 0) return [];
+        const trimmed = prefix.trim();
+        if (trimmed.length === 0) return [];
+        const pattern = `${escapeLikePattern(trimmed.toLowerCase())}%`;
+        // DISTINCT tag names linked to at least one public + active note.
+        // The EXISTS-style INNER JOIN against `note_tags` × `notes` ×
+        // `publication_states` is the enumeration guard: private-only tags
+        // never appear. `tags.name` (display form) is returned; grouping is
+        // by the display name so two casings collapse to one suggestion.
+        const rows = await this.db
+          .selectDistinct({ name: tags.name })
+          .from(tags)
+          .innerJoin(noteTags, eq(noteTags.tagId, tags.id))
+          .innerJoin(
+            notes,
+            and(eq(notes.id, noteTags.noteId), eq(notes.status, "active")),
+          )
+          .innerJoin(
+            publicationStates,
+            and(
+              eq(publicationStates.noteId, notes.id),
+              eq(publicationStates.visibility, "public"),
+            ),
+          )
+          .where(sql`${tags.nameNormalized} LIKE ${pattern} ESCAPE '\\'`)
+          .orderBy(asc(tags.name))
+          .limit(limit);
+        return rows.map((row) => row.name);
+      },
+    );
   }
 
   findByIds(ids: readonly TagId[]): Promise<readonly Tag[]> {

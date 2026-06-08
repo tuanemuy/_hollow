@@ -18,13 +18,32 @@ import {
 } from "@/core/presentation/pagination";
 import { validateInput } from "@/core/presentation/validator";
 
-// Issue #215: reuse `paginationSearchSchema` (URL variant — `page` /
-// `limit` are input/output optional so omission keeps the URL clean)
-// and `paginationSchema` (strict-RPC variant — required `number`s for
-// the server fn) instead of redefining their pagination caps inline.
-// `username` is the only field that needs a route-local schema.
+// P30 filter/sort/display search params. `tags` AND-filters the
+// public listing (server re-fetch — loader dep); `sort` picks the listing
+// axis (server re-fetch — loader dep); `display` is a client-only layout
+// swap (list/tile/calendar) and is intentionally **excluded** from
+// `loaderDeps` so toggling it never re-streams the RSC (ADR-004, the
+// `DisplayModeSwitch` technique). `.catch(...)` keeps hand-typed junk from
+// erroring the route; omission keeps the URL clean.
+const PUBLIC_SORTS = ["updatedAt", "createdAt", "title"] as const;
+const DISPLAY_MODES = ["list", "tile", "calendar"] as const;
+
+const publicTopSearchSchema = paginationSearchSchema.extend({
+  tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
+  sort: z.enum(PUBLIC_SORTS).optional().catch(undefined),
+  display: z.enum(DISPLAY_MODES).optional().catch(undefined),
+});
+
+// Reuse `paginationSchema` (strict-RPC variant — required `number`s for the
+// server fn). `username` plus the P30 server-driven filters (`tags` / `sort`)
+// need a route-local schema. `display` is a client-only concern and never
+// reaches the server fn.
 const renderInputSchema = z
-  .object({ username: z.string().min(1).max(64) })
+  .object({
+    username: z.string().min(1).max(64),
+    tags: z.array(z.string().min(1).max(64)).max(8).optional(),
+    sort: z.enum(PUBLIC_SORTS).optional(),
+  })
   .extend(paginationSchema.shape);
 
 const renderUserPublicTop = createServerFn({ method: "GET" })
@@ -37,6 +56,8 @@ const renderUserPublicTop = createServerFn({ method: "GET" })
         username={data.username}
         page={data.page}
         limit={data.limit}
+        tags={data.tags}
+        sort={data.sort}
       />,
     );
   });
@@ -75,14 +96,23 @@ const loadProfileMeta = createServerFn({ method: "GET" })
 
 export const Route = createFileRoute("/u/$username/")({
   staleTime: 0,
-  validateSearch: (search) => paginationSearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
+  validateSearch: (search) => publicTopSearchSchema.parse(search),
+  // `display` is excluded so its client-only swap does not re-run the
+  // loader (ADR-004); `tags` / `sort` drive server re-fetch.
+  loaderDeps: ({ search }) => ({
+    page: search.page,
+    limit: search.limit,
+    tags: search.tags,
+    sort: search.sort,
+  }),
   loader: ({ params, deps }) =>
     renderUserPublicTop({
       data: {
         username: params.username,
         page: deps.page ?? PAGINATION_DEFAULT_PAGE,
         limit: deps.limit ?? PAGINATION_DEFAULT_LIMIT,
+        ...(deps.tags !== undefined ? { tags: deps.tags } : {}),
+        ...(deps.sort !== undefined ? { sort: deps.sort } : {}),
       },
     }),
   head: async ({ match, params }) => {

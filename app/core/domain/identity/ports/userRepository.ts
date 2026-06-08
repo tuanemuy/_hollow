@@ -42,4 +42,19 @@ export interface UserRepository extends TransactionalRepository<User> {
    * method to avoid synthesising OCC tokens that will never be consumed.
    */
   findByIds(ids: readonly UserId[]): Promise<readonly User[]>;
+
+  /**
+   * Cross-user username suggestion for the public search surface. Returns
+   * users whose `username` matches `prefix` as a case-insensitive prefix,
+   * restricted to live authors who own at least one publicly visible
+   * note: `status NOT IN ('deleted', 'suspended')` AND an `EXISTS`
+   * against `publication_states(visibility = 'public')`. The public-note
+   * gate is the enumeration guard — a user with no public notes never
+   * surfaces. Ordered by username asc. Caller trims `prefix` and clamps
+   * `limit`; the adapter LIKE-escapes wildcards.
+   */
+  searchPublicByUsernamePrefix(
+    prefix: string,
+    limit: number,
+  ): Promise<readonly User[]>;
 }
