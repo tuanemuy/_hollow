@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — メールアドレスを確認しました (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input { font-family: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header (mobile-condensed) ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--header-height);
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 0 var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .header-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    transition: var(--transition-color), var(--transition-bg);
+  }
+  .header-link:hover { color: var(--color-ink); background: var(--color-surface); }
+
+  /* ===== Auth card (390px single column) ===== */
+  .auth-shell {
+    min-height: calc(100vh - var(--header-height));
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--space-10) var(--space-4) var(--space-12);
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  /* Status icon (large) */
+  .status-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto var(--space-6);
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .status-icon.success {
+    background: var(--color-success-surface);
+    color: var(--color-success);
+  }
+  .status-icon.error {
+    background: var(--color-error-surface);
+    color: var(--color-error);
+  }
+
+  .auth-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: var(--space-2);
+  }
+  .auth-body {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-8);
+    overflow-wrap: anywhere;
+  }
+  .auth-body .email {
+    color: var(--color-ink);
+    font-weight: var(--weight-medium);
+  }
+
+  /* CTAs — full-width pill on mobile */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    height: 48px;
+    padding: 0 var(--space-6);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-primary:active { background: var(--color-accent-pressed); }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 48px;
+    height: 48px;
+    padding: 0 var(--space-6);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+    margin-top: var(--space-3);
+  }
+  .btn-secondary:hover { background: var(--color-surface-hover); }
+
+  /*
+    expired（期限切れ）時の再送フォーム。expired バリアントは
+    メール入力欄 + 再送ボタンを持つ。
+    送信後は成功テキストへ置き換わる想定（ここでは送信前状態を提示）。
+  */
+  .resend-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 100%;
+    margin: 0 auto;
+    text-align: left;
+  }
+  .resend-field { display: flex; flex-direction: column; gap: var(--space-2); }
+  .resend-label {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    font-weight: var(--weight-medium);
+  }
+  .input {
+    width: 100%;
+    height: 48px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 0 var(--space-4);
+    font-size: var(--text-md);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg), box-shadow var(--duration-fast) var(--ease-standard);
+  }
+  .input::placeholder { color: var(--color-ink-tertiary); }
+  .input:hover { background: var(--color-surface-hover); }
+  .input:focus-visible { background: var(--color-bg); box-shadow: var(--shadow-focus); }
+  .resend-form .btn-primary { width: 100%; }
+
+  /* Variant: hidden by default */
+  .state-expired, .state-used { display: none; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="#" class="logo">Hollow</a>
+  <a href="#" class="header-link">ログイン</a>
+</header>
+
+<main class="auth-shell">
+  <div class="auth-card">
+
+    <!-- Success state (default) -->
+    <div class="state-success">
+      <div class="status-icon success" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h1 class="auth-title">メールアドレスを確認しました</h1>
+      <p class="auth-body">これでアカウントを利用できます。ログイン状態でホームへ進めます。</p>
+      <a href="#" class="btn-primary">ホームへ進む</a>
+    </div>
+
+    <!-- Expired state (variant) -->
+    <div class="state-expired">
+      <div class="status-icon error" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+      </div>
+      <h1 class="auth-title">リンクの期限が切れています</h1>
+      <p class="auth-body">確認リンクは発行から24時間で無効になります。<br>メールアドレスを入力すると確認メールを再送します。</p>
+      <form class="resend-form" novalidate>
+        <div class="resend-field">
+          <label class="resend-label" for="resend-email">メールアドレス</label>
+          <input class="input" id="resend-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn-primary">確認メールを再送する</button>
+      </form>
+      <a href="#" class="btn-secondary">ログインに戻る</a>
+    </div>
+
+    <!-- Used state (variant) -->
+    <div class="state-used">
+      <div class="status-icon error" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <h1 class="auth-title">このリンクは使用済みです</h1>
+      <p class="auth-body">この確認リンクはすでに使用されています。<br>ログインして続きの操作を行ってください。</p>
+      <a href="#" class="btn-primary">ログインへ</a>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>

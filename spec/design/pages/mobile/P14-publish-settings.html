@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — 公開設定 (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Code colors */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  button,
+  .pill-btn,
+  .icon-btn,
+  a.pill-btn,
+  [role="button"] {
+    min-height: 44px;
+  }
+  .icon-btn {
+    min-width: 44px;
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 12px var(--space-4);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-2);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    display: none;
+  }
+  .search {
+    width: 100%;
+    position: relative;
+  }
+  .search input {
+    width: 100%;
+    height: 40px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon {
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 44px;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn .label { display: none; }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  .pill-btn.ghost { background: transparent; }
+  .pill-btn.ghost:hover { background: var(--color-surface); }
+  .pill-btn.danger { background: transparent; color: var(--color-error); }
+  .pill-btn.danger:hover { background: var(--color-error-surface); }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ===== Layout (single column, drawer sidebar) ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .sidebar {
+    padding: 12px var(--space-4) var(--space-8);
+    overflow-y: auto;
+    position: fixed;
+    top: 0; bottom: 0;
+    left: 0;
+    width: 280px;
+    background: #fff;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform var(--duration-slow) cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    padding-top: 20px;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    min-height: 44px;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+  }
+  .sidebar-backdrop.open { display: block; }
+
+  /* ===== Faded note-detail behind sheet ===== */
+  .main {
+    padding: var(--space-6) var(--space-4) var(--space-20);
+    max-width: var(--content-max);
+    margin: 0 auto;
+    width: 100%;
+    filter: blur(2px);
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .note-detail-h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-3);
+  }
+  .note-detail-meta {
+    color: var(--color-ink-secondary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-8);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pub-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--color-status-private);
+  }
+  .note-detail-body p {
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
+    color: var(--color-ink);
+    margin-bottom: var(--space-5);
+  }
+
+  /* ===== Bottom-sheet modal ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.32);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  /* mobile: bottom sheet — full width, rounded top, internal scroll */
+  .modal {
+    background: var(--color-bg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
+    width: 100%;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sheet-grabber {
+    width: 36px; height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-hairline-strong);
+    margin: 8px auto 0;
+    flex-shrink: 0;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px 12px;
+    border-bottom: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    flex-shrink: 0;
+  }
+  .modal-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+  }
+  .modal-close {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+    flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+
+  .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: stretch;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    flex-shrink: 0;
+  }
+  .modal-footer .pill-btn {
+    width: 100%;
+    flex: 1;
+  }
+
+  /* ===== Section ===== */
+  .pub-section { margin-bottom: var(--space-8); }
+  .pub-section:last-child { margin-bottom: 0; }
+  .pub-section-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    letter-spacing: var(--tracking-tight);
+    margin-bottom: var(--space-3);
+  }
+  .pub-section-note {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+  }
+  /* full-width primary action for each inline section (1カラム CTA) */
+  .apply-btn {
+    margin-top: var(--space-4);
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ===== Radio cards ===== */
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+  .radio-card {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: var(--transition-default);
+    min-height: 44px;
+  }
+  .radio-card:hover {
+    border-color: var(--color-hairline-strong);
+    background: var(--color-surface-elevated);
+  }
+  .radio-card.selected {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .radio-dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-hairline-strong);
+    background: #fff;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-default);
+  }
+  .radio-card.selected .radio-dot {
+    border-color: var(--color-accent);
+    border-width: 5px;
+  }
+  .radio-body { flex: 1; min-width: 0; }
+  .radio-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    margin-bottom: 2px;
+  }
+  .radio-title .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.private { background: var(--color-status-private); }
+  .status-dot.link    { background: var(--color-status-link); }
+  .status-dot.public  { background: var(--color-status-public); }
+  .radio-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+  }
+
+  /* ===== Link section details ===== */
+  .link-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .link-card {
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    background: var(--color-surface-elevated);
+  }
+  .link-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .link-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 10px;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+  }
+  .link-chip.active { background: var(--color-success-surface); color: var(--color-success); }
+  .link-chip.locked { background: var(--color-surface); color: var(--color-ink-secondary); }
+
+  .qr-block {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-3);
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+  }
+  .qr-code {
+    width: 96px; height: 96px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    padding: 6px;
+  }
+  .qr-caption {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    line-height: var(--leading-snug);
+  }
+
+  .field-label {
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    padding: 8px 8px 8px 12px;
+  }
+  .link-text {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-accent-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .icon-mini {
+    width: 44px; height: 44px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+    background: transparent;
+    flex-shrink: 0;
+  }
+  .icon-mini:hover { background: var(--color-surface); color: var(--color-ink); }
+
+  .input-text {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--color-hairline);
+    background: #fff;
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-default);
+  }
+  .input-text:focus {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-focus);
+  }
+  .input-help {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-top: 4px;
+  }
+
+  /* mobile: link operations stack vertically, full-width */
+  .link-mini-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .small-btn {
+    height: 44px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    border: 1px solid var(--color-hairline-strong);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: var(--transition-default);
+    width: 100%;
+  }
+  .small-btn:hover { background: var(--color-surface); }
+  .small-btn.danger { color: var(--color-error); border-color: var(--color-error-surface); }
+  .small-btn.danger:hover { background: var(--color-error-surface); }
+  .last-access {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-left: auto;
+  }
+  .issue-link-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ===== URL preview ===== */
+  .url-preview {
+    margin-top: var(--space-6);
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+  }
+  .url-preview .title {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: var(--weight-medium);
+    margin-bottom: 4px;
+  }
+  .url-preview .url {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    word-break: break-all;
+  }
+
+  /* ===== Safety check ===== */
+  .safety-check {
+    margin-top: var(--space-6);
+  }
+
+  /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（塗りつぶし背景は使わない） */
+  .alert {
+    --alert-accent: var(--color-accent);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    border: 1px solid color-mix(in oklab, var(--alert-accent) 30%, transparent);
+    box-shadow: var(--shadow-xs);
+    text-align: left;
+    margin-bottom: var(--space-6);
+  }
+  .alert-info { --alert-accent: var(--color-info); }
+  .alert-success { --alert-accent: var(--color-success); }
+  .alert-warning { --alert-accent: var(--color-warning); }
+  .alert-error { --alert-accent: var(--color-error); }
+  .alert-icon { color: var(--alert-accent); flex-shrink: 0; margin-top: 1px; }
+  .alert-content { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .alert-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); letter-spacing: -0.01em; color: var(--alert-accent); }
+  .alert-body { margin: 0; font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+  .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
+  .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+  .safety-check .alert { margin-bottom: 0; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノートを検索">
+  </div>
+  <div class="header-right">
+    <button class="pill-btn primary" aria-label="新規作成">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規作成</span>
+    </button>
+    <div class="avatar" aria-hidden="true">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="ライブラリナビゲーション">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+    </div>
+  </aside>
+
+  <!-- Faded note detail (background scene) -->
+  <main class="main">
+    <h1 class="note-detail-h1">静かなインターフェースについての覚書</h1>
+    <div class="note-detail-meta">
+      <span><span class="pub-dot"></span>非公開</span>
+      <span style="color: var(--color-hairline-strong);">·</span>
+      <span>Research / 論文メモ</span>
+      <span style="color: var(--color-hairline-strong);">·</span>
+      <span>更新 今日 14:32</span>
+    </div>
+    <div class="note-detail-body">
+      <p>余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。重要なのは、各要素が「主張する量」を意図的に抑えることだ。</p>
+      <p>ヘアラインで境界を作り、ボックスで囲わない。シャドウは最小限にする。アクセント色は一色だけにとどめ、ステータス表示にだけ補助色を許す。</p>
+    </div>
+  </main>
+</div>
+
+<!-- ===== Bottom-sheet 公開設定（実モーダル: aria-modal + Esc/トラップ想定） ===== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+    <div class="sheet-grabber" aria-hidden="true"></div>
+
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">公開設定</div>
+      <button class="modal-close" aria-label="閉じる">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Section 1: 公開ステータス + inline 適用 -->
+      <div class="pub-section">
+        <div class="pub-section-title">公開ステータス</div>
+        <div class="radio-group" id="radioGroup">
+
+          <label class="radio-card" data-value="private">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot private"></span>
+                非公開<span class="sr-only">（ステータス: 非公開）</span>
+              </div>
+              <div class="radio-desc">本人のみが閲覧できます。共有リンクは発行されません。</div>
+            </div>
+          </label>
+
+          <label class="radio-card selected" data-value="link">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot link"></span>
+                限定公開（リンクを知っている人のみ）<span class="sr-only">（ステータス: 限定公開）</span>
+              </div>
+              <div class="radio-desc">共有リンクを知っている人だけが閲覧できます。任意でパスワードを設定できます。検索対象にはなりません。</div>
+            </div>
+          </label>
+
+          <label class="radio-card" data-value="public">
+            <span class="radio-dot"></span>
+            <div class="radio-body">
+              <div class="radio-title">
+                <span class="status-dot public"></span>
+                公開<span class="sr-only">（ステータス: 公開）</span>
+              </div>
+              <div class="radio-desc">同一インスタンス内で誰でも閲覧でき、検索対象になります。ユーザー名のネームスペース URL で公開されます。</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- URL preview (公開時の参考) -->
+        <div class="url-preview">
+          <div class="title">公開時の URL</div>
+          <div class="url">https://hollow.example/yumenaut/quiet-interface-memo</div>
+        </div>
+
+        <!-- Safety check -->
+        <div class="safety-check">
+          <div class="alert alert-warning" role="status">
+            <span class="alert-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            <div class="alert-content">
+              <p class="alert-title">未保存の変更があります</p>
+              <p class="alert-body">公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- inline 適用（フルワイド CTA） -->
+        <button class="pill-btn primary apply-btn">公開状態を更新</button>
+      </div>
+
+      <!-- Section 2: 限定公開リンク操作 -->
+      <div class="pub-section">
+        <div class="pub-section-title">限定公開リンク</div>
+
+        <div class="link-detail">
+          <!-- 新規発行フォーム -->
+          <div>
+            <span class="field-label">パスワード（任意）</span>
+            <input type="password" class="input-text" placeholder="設定する場合は入力">
+            <div class="input-help">英数記号 8 文字以上を推奨。パスワード自体は保存されません。</div>
+          </div>
+          <button class="pill-btn primary issue-link-btn">リンクを発行</button>
+
+          <!-- 発行済みリンク 1 件 -->
+          <div class="link-card">
+            <div class="link-card-head">
+              <span class="link-chip active">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                有効<span class="sr-only">（このリンクは有効です）</span>
+              </span>
+              <span class="last-access">最終アクセス: 5 月 14 日 09:42</span>
+            </div>
+            <div class="link-row">
+              <span class="link-text">https://hollow.example/share/q9X4kZv-Tn2GfYpL8m</span>
+              <button class="icon-mini" title="コピー" aria-label="リンクをコピー">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+
+            <!-- QR コード表示 -->
+            <div class="qr-block" style="margin-top: var(--space-3);">
+              <svg class="qr-code" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="QR コード">
+                <rect width="29" height="29" fill="#fff"/>
+                <path fill="#1d1d1f" d="M0 0h7v7h-7zM8 0h1v1h-1zM10 0h2v1h-2zM13 0h1v2h-1zM15 0h2v1h-2zM18 0h1v1h-1zM22 0h7v7h-7zM1 1h5v5h-5zM9 1h1v2h-1zM11 1h1v1h-1zM16 1h1v3h-1zM19 1h2v1h-2zM23 1h5v5h-5zM2 2h3v3h-3zM12 2h1v2h-1zM14 2h1v1h-1zM18 2h1v2h-1zM24 2h3v3h-3zM10 3h1v1h-1zM20 3h1v2h-1zM11 4h2v1h-2zM14 4h1v2h-1zM9 5h1v1h-1zM12 5h1v3h-1zM17 5h1v1h-1zM8 6h1v2h-1zM10 6h1v1h-1zM15 6h1v2h-1zM19 6h1v1h-1zM0 8h1v1h-1zM2 8h1v3h-1zM4 8h2v1h-2zM7 8h2v1h-2zM10 8h1v1h-1zM13 8h2v1h-2zM18 8h1v1h-1zM21 8h1v2h-1zM25 8h1v1h-1zM27 8h2v1h-2zM1 9h1v2h-1zM6 9h1v2h-1zM11 9h1v2h-1zM16 9h2v1h-2zM23 9h1v3h-1zM26 9h1v2h-1zM0 10h1v3h-1zM4 10h2v2h-2zM8 10h2v1h-2zM14 10h1v3h-1zM19 10h1v2h-1zM24 10h1v1h-1zM28 10h1v3h-1zM9 11h1v1h-1zM12 11h1v2h-1zM17 11h1v2h-1zM22 11h1v1h-1zM25 11h1v3h-1zM3 12h1v2h-1zM7 12h2v1h-2zM10 12h1v1h-1zM16 12h1v1h-1zM20 12h2v1h-2zM27 12h1v2h-1zM1 13h2v1h-2zM5 13h1v3h-1zM9 13h1v2h-1zM13 13h1v1h-1zM18 13h1v3h-1zM23 13h2v1h-2zM6 14h2v1h-2zM11 14h2v1h-2zM15 14h2v2h-2zM21 14h1v2h-1zM26 14h2v1h-2zM0 15h1v2h-1zM3 15h1v1h-1zM8 15h1v1h-1zM12 15h1v3h-1zM19 15h1v1h-1zM24 15h1v2h-1zM28 15h1v2h-1zM2 16h2v1h-2zM7 16h1v3h-1zM10 16h2v1h-2zM14 16h1v2h-1zM17 16h1v1h-1zM22 16h2v1h-2zM26 16h1v1h-1zM1 17h1v3h-1zM4 17h2v1h-2zM9 17h1v1h-1zM16 17h1v2h-1zM20 17h2v1h-2zM25 17h1v2h-1zM8 18h1v1h-1zM11 18h2v1h-2zM14 18h1v1h-1zM19 18h1v3h-1zM23 18h2v1h-2zM27 18h2v1h-2zM0 19h7v7h-7zM10 19h1v2h-1zM13 19h2v1h-2zM17 19h2v1h-2zM22 19h1v2h-1zM26 19h1v2h-1zM1 20h5v5h-5zM8 20h1v3h-1zM12 20h1v2h-1zM15 20h2v1h-2zM20 20h1v3h-1zM24 20h2v1h-2zM2 21h3v3h-3zM14 21h1v3h-1zM17 21h2v1h-2zM23 21h1v2h-1zM27 21h1v3h-1zM10 22h2v1h-2zM16 22h1v3h-1zM18 22h1v1h-1zM21 22h2v1h-2zM25 22h2v1h-2zM9 23h1v2h-1zM12 23h2v1h-2zM19 23h2v1h-2zM24 23h1v3h-1zM11 24h1v2h-1zM13 24h1v1h-1zM17 24h1v2h-1zM20 24h3v1h-3zM26 24h2v1h-2zM8 25h1v1h-1zM10 25h1v3h-1zM15 25h1v1h-1zM18 25h2v1h-2zM23 25h1v1h-1zM28 25h1v1h-1zM12 26h2v1h-2zM16 26h1v2h-1zM21 26h3v1h-3zM25 26h1v2h-1zM9 27h1v1h-1zM14 27h2v1h-2zM18 27h1v1h-1zM20 27h1v2h-1zM27 27h1v1h-1zM8 28h1v1h-1zM11 28h2v1h-2zM17 28h1v1h-1zM22 28h2v1h-2z"/>
+              </svg>
+              <div class="qr-caption">スマホのカメラで読み取って共有できます。<br>リンクと同じアクセス範囲です。</div>
+            </div>
+
+            <!-- パスワード設定 / 失効（縦積み） -->
+            <div class="link-mini-row" style="margin-top: var(--space-3);">
+              <input type="password" class="input-text" placeholder="新しいパスワード">
+              <button class="small-btn">パスワードを設定</button>
+              <button class="small-btn danger">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                失効させる
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="pill-btn ghost">閉じる</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+
+  const cards = document.querySelectorAll('.radio-card');
+  cards.forEach(c => c.addEventListener('click', () => {
+    cards.forEach(x => x.classList.remove('selected'));
+    c.classList.add('selected');
+  }));
+</script>
+</body>
+</html>

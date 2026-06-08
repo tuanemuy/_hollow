@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — 一括公開設定変更（ダイアログ）(Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* State */
+    --opacity-disabled: 0.55;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select, textarea { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+  .dialog-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  /* ===== Mobile page intro ===== */
+  .page-intro {
+    background: #efeff3;
+    padding: var(--space-6) var(--space-4) var(--space-4);
+  }
+  .page-intro h1 {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-regular);
+    margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-tightest);
+  }
+  .page-intro .lead {
+    color: var(--color-ink-secondary);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+  }
+
+  /* ===== Showcase: 各ステートを縦1カラムで並べたカタログ ===== */
+  .states {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    background: #efeff3;
+    padding: 0 var(--space-4) var(--space-6);
+  }
+
+  /* ===== Bottom-sheet stage (実機ボトムシート見え) ===== */
+  .sheet-stage {
+    position: relative;
+    background: rgba(0,0,0,0.35);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .state-caption {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-4);
+    right: var(--space-4);
+    font-size: var(--text-xs);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    z-index: 1;
+  }
+
+  /* ===== Bottom sheet (mirrors common/styles.ts `dialog`、下端寄せ版) ===== */
+  .sheet {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    width: 100%;
+    max-height: calc(100% - var(--space-10));
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-5) var(--space-4)
+             calc(var(--space-4) + env(safe-area-inset-bottom));
+  }
+  .sheet-grabber {
+    width: 36px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-hairline-strong);
+    margin: 0 auto var(--space-4);
+    flex-shrink: 0;
+  }
+  .dialog-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-4);
+  }
+
+  /* ===== Fields ===== */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    border: 0;
+  }
+  .field-label {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-secondary);
+    padding: 0;
+  }
+  legend.field-label { margin-bottom: 0; }
+  .radio-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 44px;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+  .radio-row input { accent-color: var(--color-accent); width: 18px; height: 18px; }
+
+  /* ===== Progress ===== */
+  .progress-text {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+  }
+  .progress-bar {
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    overflow: hidden;
+    margin-top: var(--space-2);
+  }
+  .progress-bar > span {
+    display: block;
+    height: 100%;
+    width: 60%;
+    border-radius: inherit;
+    background: var(--color-accent);
+  }
+
+  .form-error {
+    color: var(--color-error);
+    font-size: var(--text-sm);
+    margin-top: var(--space-2);
+  }
+
+  /* ===== Actions: 下部フルワイド primary CTA（縦積み） ===== */
+  .dialog-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    width: 100%;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    width: 100%;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    white-space: nowrap;
+    transition: var(--transition-bg);
+  }
+  .pill:hover { background: var(--color-surface-hover); }
+  .pill.primary { background: var(--color-accent); color: #fff; }
+  .pill.primary:hover { background: var(--color-accent-hover); }
+  .pill:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+  .pill:disabled:hover { background: var(--color-surface); }
+  .pill.primary:disabled:hover { background: var(--color-accent); }
+</style>
+</head>
+<body>
+
+<div class="page-intro">
+  <h1>P10 — 一括公開設定変更ダイアログ</h1>
+  <p class="lead">
+    選択中ノートの公開状態を一括変更する。送信中は進捗、上限超過・部分失敗時は batchError を排他表示。
+    モバイルは下端から立ち上がるボトムシート表現。
+  </p>
+</div>
+
+<div class="states">
+
+  <!-- ===== 一括公開設定変更ダイアログ（送信中） ===== -->
+  <div class="sheet-stage">
+    <div class="state-caption">State 1 — 送信中（進捗表示）</div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bvTitle">
+      <span class="sheet-grabber" aria-hidden="true"></span>
+      <h2 class="dialog-title" id="bvTitle">3 件のノートの公開設定を変更</h2>
+
+      <fieldset class="field">
+        <legend class="field-label">新しい公開状態</legend>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility" value="private" checked>
+          <span>非公開</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility" value="unlisted">
+          <span>限定公開</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility" value="public">
+          <span>公開</span>
+        </label>
+      </fieldset>
+
+      <!-- 進捗表示は送信中のみ出現 -->
+      <p class="progress-text" aria-live="polite">3 件処理中…</p>
+      <div class="progress-bar" aria-hidden="true"><span></span></div>
+
+      <div class="dialog-actions">
+        <button type="submit" class="pill primary" disabled>適用中...</button>
+        <button type="button" class="pill" disabled>キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== batchError 見本（送信失敗時のメッセージ） =====
+       実装では progress / error / batchError は排他的に表示される。
+       - 100件超過時: 「一度に変更できるのは 100 件までです」
+       - 部分失敗時:   「N 件成功、M 件失敗」 -->
+  <div class="sheet-stage">
+    <div class="state-caption">State 2 — batchError（上限超過）</div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bvTitle2">
+      <span class="sheet-grabber" aria-hidden="true"></span>
+      <h2 class="dialog-title" id="bvTitle2">120 件のノートの公開設定を変更</h2>
+
+      <fieldset class="field">
+        <legend class="field-label">新しい公開状態</legend>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility-2" value="private">
+          <span>非公開</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility-2" value="unlisted">
+          <span>限定公開</span>
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="bv-visibility-2" value="public" checked>
+          <span>公開</span>
+        </label>
+      </fieldset>
+
+      <p class="form-error" role="alert">一度に変更できるのは 100 件までです</p>
+
+      <div class="dialog-actions">
+        <button type="submit" class="pill primary">適用</button>
+        <button type="button" class="pill">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

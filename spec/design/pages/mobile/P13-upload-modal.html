@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — アップロード（モーダル）(Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, select { font-family: inherit; }
+  button { cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 12px var(--space-4);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-hairline);
+    height: var(--header-height);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-2); }
+  .menu-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+    flex-shrink: 0;
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 19px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+  }
+  .search {
+    width: 100%;
+    position: relative;
+    min-width: 0;
+  }
+  .search input {
+    width: 100%;
+    height: 38px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 14px 0 36px;
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-ink-tertiary);
+    pointer-events: none;
+  }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ===== Layout ===== 390px 単カラム固定。サイドバーは drawer 化せず非表示
+     （このモックはモーダルにフォーカス。背景は P10 home の縮小ビュー）。 */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+  .sidebar { display: none; }
+
+  /* ===== Faded background (P10 home) ===== */
+  .main {
+    padding: var(--space-6) var(--space-4) var(--space-16);
+    width: 100%;
+    filter: blur(2px);
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+  }
+  .page-title {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: 10px;
+  }
+  .page-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: 20px;
+  }
+  .note-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-1);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .note-row:last-child { border-bottom: none; }
+  .note-main { flex: 1; min-width: 0; }
+  .note-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    margin-bottom: 4px;
+  }
+  .note-snippet {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    margin-bottom: 6px;
+  }
+  .note-meta {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .note-date {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    flex-shrink: 0;
+  }
+
+  /* ===== Modal backdrop（実モーダル: ボトムシート） ===== */
+  /* 実際に開閉する実モーダルなので aria-modal + Esc/フォーカストラップ想定を維持。 */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.32);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-backdrop[hidden] { display: none; }
+
+  /* ===== Bottom sheet（下端から立ち上がる） ===== */
+  .modal {
+    background: var(--color-bg);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    width: 100%;
+    max-height: calc(100vh - var(--space-10));
+    overflow-y: auto;
+    position: relative;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sheet-grabber {
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-hairline-strong);
+    margin: var(--space-3) auto 0;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 14px 20px 10px;
+  }
+  .modal-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    padding-right: var(--space-2);
+  }
+  .modal-close {
+    width: 44px; height: 44px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-secondary);
+    transition: var(--transition-bg);
+    flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--color-surface-hover); color: var(--color-ink); }
+
+  .modal-body {
+    padding: 4px 20px 8px;
+  }
+  .modal-desc {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-4);
+    line-height: var(--leading-snug);
+  }
+
+  /* ===== Dropzone ===== */
+  .dropzone {
+    display: block;
+    border: 2px dashed var(--color-hairline-strong);
+    border-radius: var(--radius-xl);
+    padding: 36px 16px;
+    text-align: center;
+    color: var(--color-ink-secondary);
+    background: var(--color-surface-elevated);
+    transition: var(--transition-default);
+    cursor: pointer;
+  }
+  .dropzone:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .dropzone-primary {
+    font-size: var(--text-base);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-snug);
+  }
+  .dropzone-primary strong {
+    color: var(--color-ink);
+    font-weight: var(--weight-medium);
+  }
+  .dropzone-secondary {
+    font-size: var(--text-sm);
+    color: var(--color-ink-tertiary);
+    margin-top: 8px;
+  }
+
+  /* ===== Footer: 下部フルワイド CTA ===== */
+  .modal-footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: 14px 20px calc(18px + env(safe-area-inset-bottom));
+  }
+  .pill-btn {
+    min-height: 44px;
+    width: 100%;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" aria-label="メニューを開く">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="検索" aria-label="検索">
+  </div>
+  <div class="header-right">
+    <div class="avatar" aria-label="ユーザーメニュー">YK</div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" aria-hidden="true"></aside>
+
+  <!-- Faded background (P10 home) -->
+  <main class="main" aria-hidden="true">
+    <h1 class="page-title">すべてのノート</h1>
+    <div class="page-subtitle">127 件 · 最終更新 たった今</div>
+
+    <div>
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">静かなインターフェースについての覚書</div>
+          <div class="note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。最近 Apple のデザインを観察しながら考えたことを残しておく。</div>
+          <div class="note-meta">
+            <span>#design #essay</span>
+            <span>·</span>
+            <span>Research / 論文メモ</span>
+          </div>
+        </div>
+        <div class="note-date">今日 14:32</div>
+      </div>
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">2026年5月の読書記録</div>
+          <div class="note-snippet">『ノルウェイの森』を再読。15年ぶりに開いたら、印象がまるで違っていた。当時メモした感想と並べて読むと面白い。</div>
+          <div class="note-meta">
+            <span>#読書 #日記</span>
+            <span>·</span>
+            <span>日記 / 2026</span>
+          </div>
+        </div>
+        <div class="note-date">今日 09:15</div>
+      </div>
+      <div class="note-row">
+        <div class="note-main">
+          <div class="note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
+          <div class="note-snippet">Hono 経由で D1 にクエリを投げる構成で、Cold start と P99 レイテンシを測ってみた結果。</div>
+          <div class="note-meta">
+            <span>#cloudflare #performance</span>
+            <span>·</span>
+            <span>プロジェクト / Hollow</span>
+          </div>
+        </div>
+        <div class="note-date">昨日</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===== Upload modal（実モーダル: ボトムシート） ===== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" id="modal">
+
+    <span class="sheet-grabber" aria-hidden="true"></span>
+
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">アップロード</div>
+      <button class="modal-close" id="modalClose" aria-label="閉じる">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <p class="modal-desc">
+        ファイルから新規ノートを作成します。HTML / Markdown / Office / PDF / 画像 / 音声に対応しています。
+      </p>
+
+      <!-- 実装 SelectView の dropzone はアイコンを持たずテキストのみ。 -->
+      <label class="dropzone">
+        <p class="dropzone-primary">
+          <strong>ファイルをドラッグ&ドロップ</strong> またはクリックして選択
+        </p>
+        <p class="dropzone-secondary">複数選択にも対応</p>
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <a href="#" class="pill-btn">取り込みキューを見る</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* 実モーダル: Esc で閉じる + フォーカストラップ。 */
+  const backdrop = document.getElementById('modalBackdrop');
+  const modal = document.getElementById('modal');
+  const closeBtn = document.getElementById('modalClose');
+
+  function closeModal() {
+    backdrop.hidden = true;
+  }
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (backdrop) {
+    backdrop.addEventListener('mousedown', (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (backdrop.hidden) return;
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key === 'Tab') {
+      const focusables = modal.querySelectorAll(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    }
+  });
+  if (closeBtn) closeBtn.focus();
+</script>
+
+</body>
+</html>

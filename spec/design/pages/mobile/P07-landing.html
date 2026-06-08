@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — 散らかった頭の中に、静かな置き場所を (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--header-height);
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    padding: 0 var(--space-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .header-link {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition-color), var(--transition-bg);
+  }
+  .header-link:hover { color: var(--color-ink); background: var(--color-surface); }
+  /* モバイルヘッダーは省スペース化のため「機能」リンクを省略（コンテンツ内に同等導線あり） */
+  .header-link.nav-features { display: none; }
+  .header-cta {
+    min-height: 44px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition-bg);
+  }
+  .header-cta:hover { background: var(--color-accent-hover); }
+
+  /* ===== Container ===== */
+  .container {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+  }
+
+  /* ===== Hero ===== */
+  /* padding-block のみ指定し、横パディングは .container（var(--space-4)）を生かす。
+     shorthand で横を 0 にすると単カラムのモバイルでは本文が画面端へ張り付く。 */
+  .hero {
+    padding-block: var(--space-12) var(--space-10);
+    text-align: center;
+  }
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent-surface);
+    color: var(--color-accent-ink);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-6);
+    letter-spacing: 0;
+  }
+  .hero-title {
+    font-size: clamp(32px, 9vw, 48px);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin: 0 auto var(--space-6);
+    /* CJK では読点で改行させ、句中での不自然な分割を避ける。
+       em ベースの幅で 1〜2 行に収め、極小幅では継承中の overflow-wrap: anywhere が保険になる。 */
+    max-width: 16em;
+    word-break: keep-all;
+    text-wrap: balance;
+    /* 中央揃え見出しで行末に来る読点をぶら下げ、見出しが左へズレて見えるのを防ぐ。
+       （Safari/Chrome 対応。Firefox は未実装のためベンダー実装待ち） */
+    hanging-punctuation: allow-end;
+  }
+  .hero-subtitle {
+    font-size: clamp(15px, 1.4vw + 12px, 18px);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    max-width: 40ch;
+    margin: 0 auto var(--space-8);
+    /* 語の途中で折れないよう読点・文末・空白でのみ改行し、行幅を均す。 */
+    word-break: keep-all;
+    text-wrap: balance;
+    hanging-punctuation: allow-end;
+  }
+  .hero-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: stretch;
+    justify-content: center;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 48px;
+    padding: 0 var(--space-8);
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+  .btn-primary:active { background: var(--color-accent-pressed); }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 48px;
+    padding: 0 var(--space-8);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .btn-secondary:hover { background: var(--color-surface-hover); }
+
+  /* Hero preview (mock note UI) */
+  .hero-preview {
+    margin: var(--space-10) auto 0;
+    max-width: 980px;
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    text-align: left;
+  }
+  .preview-bar {
+    height: 36px;
+    background: var(--color-surface);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-4);
+  }
+  .preview-bar .dot {
+    width: 10px; height: 10px;
+    border-radius: var(--radius-full);
+    background: var(--color-hairline-strong);
+  }
+  .preview-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 360px;
+  }
+  /* モバイルではサイドバーは非表示固定（上方BP復帰なし） */
+  .preview-side {
+    display: none;
+    padding: var(--space-6) var(--space-4);
+    border-right: 1px solid var(--color-hairline);
+    font-size: var(--text-sm);
+  }
+  .preview-side-title {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+    padding: 0 var(--space-3);
+  }
+  .preview-side-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .preview-side-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .preview-side-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .preview-side-item .count {
+    margin-left: auto;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .preview-main {
+    padding: var(--space-5) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .preview-note {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-1);
+    border-top: 1px solid var(--color-hairline);
+    align-items: center;
+  }
+  .preview-note > div:first-child { min-width: 0; }
+  .preview-note:first-of-type { border-top: none; }
+  .preview-note-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    margin-bottom: var(--space-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .preview-note-snippet {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: var(--space-2);
+  }
+  .preview-note-meta {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .preview-note-meta .tag { color: var(--color-accent); }
+  .preview-note-meta .sep { color: var(--color-hairline-strong); }
+  .preview-note-date {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    white-space: nowrap;
+  }
+  .pub-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-status-public);
+    margin-right: var(--space-1);
+    vertical-align: 1px;
+  }
+
+  /* ===== Section common ===== */
+  /* hero と同様、横パディングは .container を生かすため padding-block のみ指定。 */
+  .section {
+    padding-block: var(--space-16);
+  }
+  .section-heading {
+    text-align: center;
+    margin-bottom: var(--space-10);
+  }
+  .section-eyebrow {
+    font-size: var(--text-sm);
+    color: var(--color-accent);
+    font-weight: var(--weight-medium);
+    margin-bottom: var(--space-2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .section-title {
+    font-size: clamp(26px, 6.5vw, 36px);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: var(--leading-tight);
+    color: var(--color-ink);
+    margin-bottom: var(--space-4);
+    max-width: 22ch;
+    margin-left: auto;
+    margin-right: auto;
+    /* 読点で折り（中途半端な句中改行を防ぐ）、行末読点はぶら下げて中央ズレを防ぐ。 */
+    word-break: keep-all;
+    text-wrap: balance;
+    hanging-punctuation: allow-end;
+  }
+  .section-lead {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    max-width: 56ch;
+    margin: 0 auto;
+  }
+
+  /* ===== Features grid（モバイルは1カラム固定） ===== */
+  .features {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+  .feature-card {
+    padding: var(--space-8) var(--space-6);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface);
+    transition: var(--transition-bg);
+  }
+  .feature-card:hover { background: var(--color-surface-hover); }
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    color: var(--color-accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-5);
+  }
+  .feature-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-ink);
+    margin-bottom: var(--space-2);
+    line-height: var(--leading-snug);
+  }
+  .feature-body {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+  }
+
+  /* ===== Public search teaser ===== */
+  .teaser {
+    margin-top: var(--space-12);
+    padding: var(--space-8) var(--space-5);
+    border-radius: var(--radius-xl);
+    background: var(--color-accent-surface);
+    text-align: center;
+  }
+  .teaser-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tighter);
+    color: var(--color-ink);
+    margin-bottom: var(--space-2);
+  }
+  .teaser-body {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-5);
+    max-width: 44ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .teaser-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-pill);
+    background: var(--color-bg);
+    color: var(--color-accent);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    transition: var(--transition-bg);
+  }
+  .teaser-link:hover { background: var(--color-surface); }
+
+  /* ===== Footer（モバイルは1カラム縦積み固定） ===== */
+  .site-footer {
+    border-top: 1px solid var(--color-hairline);
+    padding: var(--space-12) 0 var(--space-10);
+    margin-top: var(--space-16);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+  .footer-brand .logo { display: block; margin-bottom: var(--space-3); }
+  .footer-tagline {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    line-height: var(--leading-relaxed);
+    max-width: 36ch;
+  }
+  .footer-col-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+  }
+  .footer-list { display: flex; flex-direction: column; gap: var(--space-2); }
+  .footer-list a {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    transition: var(--transition-color);
+  }
+  .footer-list a:hover { color: var(--color-ink); }
+  .footer-bottom {
+    margin-top: var(--space-10);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-hairline);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a href="#" class="logo">Hollow</a>
+  <nav class="header-nav" aria-label="Primary">
+    <a href="#features" class="header-link nav-features">機能</a>
+    <a href="#" class="header-link">ログイン</a>
+    <a href="#" class="header-cta">アカウント作成</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero container">
+    <span class="hero-eyebrow">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>
+      あなただけの、小さな書庫
+    </span>
+    <h1 class="hero-title">散らかった頭の中に、静かな置き場所を</h1>
+    <p class="hero-subtitle">書きかけのメモも、取り込んだ Markdown も。Hollow が静かに整理して、必要なときにそっと取り出せます。</p>
+    <div class="hero-actions">
+      <a href="#" class="btn-primary">無料でアカウント作成</a>
+      <a href="#" class="btn-secondary">ログイン</a>
+    </div>
+
+    <!-- Mock preview -->
+    <div class="hero-preview" aria-hidden="true">
+      <div class="preview-bar">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+      <div class="preview-body">
+        <aside class="preview-side">
+          <div class="preview-side-title">ライブラリ</div>
+          <div class="preview-side-item active">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+            すべてのノート
+            <span class="count">127</span>
+          </div>
+          <div class="preview-side-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+            最近更新
+          </div>
+          <div class="preview-side-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+            お気に入り
+          </div>
+          <div class="preview-side-title" style="margin-top: var(--space-6);">ディレクトリ</div>
+          <div class="preview-side-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            Research
+          </div>
+          <div class="preview-side-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+            日記
+          </div>
+        </aside>
+
+        <div class="preview-main">
+          <div class="preview-note">
+            <div>
+              <div class="preview-note-title">静かなインターフェースについての覚書</div>
+              <div class="preview-note-snippet">余白の使い方一つで、画面は驚くほど穏やかになる。</div>
+              <div class="preview-note-meta">
+                <span class="tag">#design</span>
+                <span class="sep">·</span>
+                <span>Research / 論文メモ</span>
+                <span class="sep">·</span>
+                <span><span class="pub-dot"></span>公開中</span>
+              </div>
+            </div>
+            <div class="preview-note-date">今日 14:32</div>
+          </div>
+          <div class="preview-note">
+            <div>
+              <div class="preview-note-title">2026年5月の読書記録</div>
+              <div class="preview-note-snippet">『ノルウェイの森』を再読。15年ぶりに開いたら、印象がまるで違っていた。</div>
+              <div class="preview-note-meta">
+                <span class="tag">#読書</span>
+                <span class="sep">·</span>
+                <span>日記 / 2026</span>
+              </div>
+            </div>
+            <div class="preview-note-date">今日 09:15</div>
+          </div>
+          <div class="preview-note">
+            <div>
+              <div class="preview-note-title">Cloudflare Workers + D1 のパフォーマンス計測</div>
+              <div class="preview-note-snippet">Hono経由でD1にクエリを投げる構成で、Cold start とP99レイテンシを測ってみた結果。</div>
+              <div class="preview-note-meta">
+                <span class="tag">#cloudflare</span>
+                <span class="sep">·</span>
+                <span>プロジェクト / Hollow</span>
+                <span class="sep">·</span>
+                <span><span class="pub-dot"></span>公開中</span>
+              </div>
+            </div>
+            <div class="preview-note-date">昨日</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Features ===== -->
+  <section class="section container" id="features">
+    <div class="section-heading">
+      <div class="section-eyebrow">Why Hollow</div>
+      <h2 class="section-title">書いたものを、ちゃんと残す</h2>
+      <p class="section-lead">アップロードから公開まで、ノートを長く使い続けるための機能を、ノイズなく揃えています。</p>
+    </div>
+
+    <div class="features">
+      <article class="feature-card">
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3 class="feature-title">アップロードして構造化</h3>
+        <p class="feature-body">Markdown・テキスト・既存のノートを取り込み、フロントマターを解釈してタグや日付を自動で整理します。</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        </div>
+        <h3 class="feature-title">メタデータ管理</h3>
+        <p class="feature-body">タグ・ディレクトリ・バックリンク。あとから辿るための道筋を、書きながら自然に作れます。</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/></svg>
+        </div>
+        <h3 class="feature-title">公開・限定共有</h3>
+        <p class="feature-body">プライベート / リンクのみ / 公開の3段階で、書き残したものを必要な範囲だけ世界へ届けられます。</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <h3 class="feature-title">いつでもエクスポート</h3>
+        <p class="feature-body">書いた内容はあなたのもの。Markdownのzipアーカイブとして、いつでも手元に取り戻せます。</p>
+      </article>
+    </div>
+
+    <!-- Public search teaser -->
+    <div class="teaser">
+      <h3 class="teaser-title">公開ノートを覗いてみる</h3>
+      <p class="teaser-body">アカウントを作る前に、このインスタンスで公開されているノートを横断検索できます。</p>
+      <a href="#" class="teaser-link">
+        公開検索を試す
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== Footer ===== -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="logo">Hollow</span>
+        <p class="footer-tagline">散らかった頭の中に、静かな置き場所を。</p>
+        <p class="footer-tagline" style="margin-top: var(--space-2);">個人のための、ひっそりとしたノートサーバーです。</p>
+      </div>
+      <div>
+        <div class="footer-col-title">プロダクト</div>
+        <ul class="footer-list">
+          <li><a href="#features">機能</a></li>
+          <li><a href="#">公開検索</a></li>
+          <li><a href="#">エクスポート</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">インスタンス</div>
+        <ul class="footer-list">
+          <li><a href="#">このインスタンスについて</a></li>
+          <li><a href="#">運営者情報</a></li>
+          <li><a href="#">お問い合わせ</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">法的事項</div>
+        <ul class="footer-list">
+          <li><a href="#">利用規約</a></li>
+          <li><a href="#">プライバシーポリシー</a></li>
+          <li><a href="#">特定商取引法</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Hollow. A quiet personal text archive.</span>
+      <span>v0.1.0 · Hosted on Cloudflare</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

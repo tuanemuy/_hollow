@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Admin — ジョブ監視 (Mobile)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: oklch(37.1% 0 0); --color-accent-hover: oklch(43.9% 0 0); --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0); --color-accent-ink: oklch(26.9% 0 0);
+    --color-bg: #ffffff; --color-surface: #f5f5f7; --color-surface-hover: #ececef; --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f; --color-ink-secondary: #6e6e73; --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12); --color-hairline-strong: rgba(60,60,67,0.18);
+    --color-success: #1f8f3a; --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b; --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e; --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+    --color-status-private: #86868b; --color-status-link: #a8580b; --color-status-public: #1f8f3a;
+    --code-keyword: #aa3e3e; --code-string: #2a8c4f; --code-comment: var(--color-ink-tertiary); --code-function: #5b3da1; --code-number: #1d6fd6;
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans); --font-body: var(--font-sans);
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px); --text-sm: clamp(12px, 0.8vw + 10px, 13px); --text-base: clamp(14px, 1vw + 11px, 16px); --text-md: clamp(15px, 1vw + 12px, 17px); --text-lg: clamp(17px, 1.2vw + 13px, 19px); --text-xl: clamp(20px, 1.4vw + 14px, 24px); --text-2xl: clamp(24px, 2vw + 16px, 30px); --text-3xl: clamp(22px, 4vw, 40px); --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+    --weight-light: 300; --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+    --leading-tight: 1.2; --leading-snug: 1.35; --leading-normal: 1.5; --leading-relaxed: 1.7;
+    --tracking-tightest: -0.022em; --tracking-tighter: -0.014em; --tracking-tight: -0.008em; --tracking-normal: -0.003em;
+    --space-0: 0; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px;
+    --container-max: 1280px; --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px; --meta-rail-width: 260px; --content-max: 760px; --header-height: 64px;
+    --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px; --radius-pill: 980px; --radius-full: 9999px;
+    --shadow-none: none; --shadow-xs: 0 1px 2px rgba(0,0,0,0.04); --shadow-sm: 0 2px 8px rgba(0,0,0,0.06); --shadow-md: 0 8px 24px rgba(0,0,0,0.08); --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); --ease-decel: cubic-bezier(0, 0, 0.2, 1); --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms; --duration-base: 180ms; --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+    --header-bg: rgba(255,255,255,0.85); --header-blur: saturate(180%) blur(20px);
+    --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px; --bp-xl: 1280px; --bp-2xl: 1536px;
+  }
+  html, body { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); font-size: var(--text-md); line-height: var(--leading-normal); letter-spacing: var(--tracking-normal); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input, textarea, select { font-family: inherit; color: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  /* ===== Header (省スペース化: logo 非表示・検索アイコン化) ===== */
+  .header { position: sticky; top: 0; z-index: 50; background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); height: var(--header-height); padding: 0 16px; display: flex; align-items: center; gap: var(--space-3); }
+  @supports not (backdrop-filter: blur(1px)) { .header { background: #ffffff; } }
+  .header-left { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+  .admin-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--color-accent-surface); color: var(--color-accent-ink); font-size: var(--text-xs); font-weight: var(--weight-medium); white-space: nowrap; }
+  .admin-pill::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--color-accent); }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+  .icon-btn { width: 44px; height: 44px; border-radius: var(--radius-full); background: var(--color-surface); display: inline-flex; align-items: center; justify-content: center; transition: var(--transition-bg); }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar { width: 32px; height: 32px; border-radius: var(--radius-full); background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%); color: #fff; font-size: 12px; font-weight: var(--weight-medium); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* ===== Admin nav strip (横スクロール維持) ===== */
+  .admin-nav { position: sticky; top: var(--header-height); z-index: 40; background: rgba(255,255,255,0.9); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); border-bottom: 1px solid var(--color-hairline); height: 44px; overflow-x: auto; scrollbar-width: none; }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .admin-nav-inner { padding: 0 var(--container-padding); height: 100%; display: flex; gap: var(--space-1); align-items: center; white-space: nowrap; }
+  .admin-nav a { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--color-ink-secondary); transition: var(--transition-bg), var(--transition-color); }
+  .admin-nav a:hover { background: var(--color-surface); color: var(--color-ink); }
+  .admin-nav a.active { color: var(--color-ink); font-weight: var(--weight-medium); background: var(--color-surface); }
+
+  .main { padding: var(--space-6) var(--container-padding) var(--space-20); }
+  .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); line-height: var(--leading-tight); margin-bottom: var(--space-2); }
+  .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: var(--space-6); }
+
+  .btn { min-height: 44px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: var(--transition-bg); }
+  .btn:hover { background: var(--color-surface-hover); }
+  .btn.primary { background: var(--color-accent); color: #fff; }
+  .btn.primary:hover { background: var(--color-accent-hover); }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: var(--color-surface); }
+  .btn.destructive { background: transparent; color: var(--color-ink-secondary); }
+  .btn.destructive:hover { background: var(--color-error-surface); color: var(--color-error); }
+  /* mobile: sm でも 44px 床（タッチ床尊重・desktop 密度は緩める） */
+  .btn.sm { min-height: 44px; padding: 0 14px; font-size: var(--text-xs); }
+  .btn.sm svg { width: 16px; height: 16px; }
+
+  /* Section */
+  .section { margin-bottom: var(--space-10); }
+  .section-header { margin-bottom: var(--space-2); }
+  .section-title { font-size: var(--text-xl); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); display: inline-flex; align-items: center; gap: var(--space-2); }
+  .section-title svg { flex-shrink: 0; }
+  .section-desc { font-size: var(--text-sm); color: var(--color-ink-secondary); margin-bottom: var(--space-4); }
+  .empty-cell { text-align: center; color: var(--color-ink-tertiary); padding: var(--space-6) var(--space-4); }
+
+  /* op-row: 縦積み（フォーム1カラム方針） */
+  .op-row { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+  .op-row .btn { width: 100%; }
+  .op-note { font-size: var(--text-xs); color: var(--color-ink-secondary); margin: 0; }
+
+  .mono { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--color-ink-secondary); overflow-wrap: anywhere; }
+
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-xs); color: var(--color-ink-secondary); font-weight: var(--weight-medium); white-space: nowrap; }
+  .tag.info { background: var(--color-accent-surface); color: var(--color-accent-ink); }
+  .tag.success { background: var(--color-success-surface); color: var(--color-success); }
+  .tag.failed { background: var(--color-error-surface); color: var(--color-error); }
+  .tag.warning { background: var(--color-warning-surface); color: var(--color-warning); }
+
+  .err-code { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+  .err-reason { font-size: var(--text-xs); color: var(--color-ink-tertiary); overflow-wrap: anywhere; }
+
+  /* ===== Job cards (テーブル→カード縦積み: §2.5 ジョブはカード基調を許容) ===== */
+  .job-list { display: flex; flex-direction: column; gap: var(--space-3); }
+  .job-card { border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); padding: var(--space-4); background: var(--color-bg); display: flex; flex-direction: column; gap: var(--space-3); }
+  .job-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+  .job-id { font-weight: var(--weight-medium); overflow-wrap: anywhere; min-width: 0; }
+  .job-file { font-size: var(--text-xs); color: var(--color-ink-tertiary); overflow-wrap: anywhere; }
+  .job-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3); font-size: var(--text-sm); }
+  .job-meta dt { color: var(--color-ink-tertiary); font-size: var(--text-xs); }
+  .job-meta dd { color: var(--color-ink); overflow-wrap: anywhere; min-width: 0; }
+  .job-err { background: var(--color-error-surface); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+  .job-err .err-code { color: var(--color-error); }
+  .job-actions { display: flex; }
+  .job-actions .btn { width: 100%; }
+
+  /* ===== Cleanup cards (項目/説明の2列を縦積みカード化) ===== */
+  .info-list { display: flex; flex-direction: column; gap: var(--space-3); }
+  .info-card { border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); padding: var(--space-4); background: var(--color-bg); }
+  .info-card-title { font-weight: var(--weight-medium); font-size: var(--text-sm); margin-bottom: var(--space-1); }
+  .info-card-body { font-size: var(--text-sm); color: var(--color-ink-secondary); line-height: var(--leading-relaxed); }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } .running .dot { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <span class="admin-pill">管理者モード</span>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" aria-label="管理対象を検索" title="検索">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="icon-btn" aria-label="通知" title="通知">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </button>
+    <div class="avatar" aria-hidden="true">AD</div>
+  </div>
+</header>
+
+<nav class="admin-nav" aria-label="管理ナビゲーション">
+  <div class="admin-nav-inner">
+    <a href="P40-admin-dashboard.html">ダッシュボード</a>
+    <a href="P41-admin-llm.html">LLM 設定</a>
+    <a href="P42-admin-prompts.html">プロンプト</a>
+    <a href="P43-admin-tokens.html">デザイントークン</a>
+    <a href="P44-admin-registration.html">登録制御</a>
+    <a href="P45-admin-users.html">ユーザー</a>
+    <a href="P47-admin-metrics.html">利用状況</a>
+    <a href="P46-admin-jobs.html" class="active">ジョブ監視</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1 class="page-title">ジョブ監視</h1>
+  <p class="page-subtitle">全ユーザーの取り込み・エクスポートジョブの状況と、定期クリーンアップの概要。</p>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>取り込みジョブ</h2>
+    </div>
+    <p class="section-desc">最新 24 件。失敗ジョブを上部にピン留めします。</p>
+    <div class="job-list">
+      <article class="job-card">
+        <div class="job-card-head">
+          <div>
+            <div class="job-id">a4f29c8e…29c4</div>
+            <div class="job-file">meeting-note.pdf</div>
+          </div>
+          <span class="tag failed"><span aria-hidden="true">●</span>状態: 失敗</span>
+        </div>
+        <dl class="job-meta">
+          <dt>種別</dt><dd>pdf</dd>
+          <dt>所有者</dt><dd class="mono">u-8f3a…c012</dd>
+          <dt>更新</dt><dd>2026/06/05 13:48</dd>
+        </dl>
+        <div class="job-err">
+          <div class="err-code">llm_rate_limited</div>
+          <div class="err-reason">Anthropic API rate limit を超過しました</div>
+        </div>
+        <div class="job-actions">
+          <button class="btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>再実行</button>
+        </div>
+      </article>
+      <article class="job-card">
+        <div class="job-card-head">
+          <div>
+            <div class="job-id">d92cc1…aa54</div>
+            <div class="job-file">scan-001.jpg</div>
+          </div>
+          <span class="tag info"><span aria-hidden="true">●</span>状態: 処理中</span>
+        </div>
+        <dl class="job-meta">
+          <dt>種別</dt><dd>image</dd>
+          <dt>所有者</dt><dd class="mono">u-6c10…72f9</dd>
+          <dt>更新</dt><dd>2026/06/05 14:28</dd>
+        </dl>
+      </article>
+      <article class="job-card">
+        <div class="job-card-head">
+          <div>
+            <div class="job-id">5c81fe…b2a0</div>
+            <div class="job-file">note.md</div>
+          </div>
+          <span class="tag success"><span aria-hidden="true">●</span>状態: 保存済</span>
+        </div>
+        <dl class="job-meta">
+          <dt>種別</dt><dd>markdown</dd>
+          <dt>所有者</dt><dd class="mono">u-1f8f…3a2b</dd>
+          <dt>更新</dt><dd>2026/06/05 10:30</dd>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>エクスポートジョブ</h2>
+    </div>
+    <p class="section-desc">最新 24 件。失敗ジョブを上部にピン留めします。</p>
+    <div class="job-list">
+      <article class="job-card">
+        <div class="job-card-head">
+          <div>
+            <div class="job-id">b7e018…9c4e</div>
+            <div class="job-file">markdown · all</div>
+          </div>
+          <span class="tag info"><span aria-hidden="true">●</span>状態: 処理中</span>
+        </div>
+        <dl class="job-meta">
+          <dt>進捗</dt><dd>128/420</dd>
+          <dt>所有者</dt><dd class="mono">u-8e99…a8c9</dd>
+          <dt>作成</dt><dd>2026/06/05 14:30</dd>
+        </dl>
+      </article>
+      <article class="job-card">
+        <div class="job-card-head">
+          <div>
+            <div class="job-id">11c0a9…7d3f</div>
+            <div class="job-file">html · selection</div>
+          </div>
+          <span class="tag success"><span aria-hidden="true">●</span>状態: 完了</span>
+        </div>
+        <dl class="job-meta">
+          <dt>進捗</dt><dd>54/54</dd>
+          <dt>所有者</dt><dd class="mono">u-7e94…c0d1</dd>
+          <dt>作成</dt><dd>2026/06/05 09:14</dd>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>検索インデックスの再構築</h2>
+    </div>
+    <p class="section-desc">Note を source of truth として search_documents を再投入します。host table が古い・破損した場合の整合性回復経路です。実行中は再構築ボタンを無効化します。</p>
+    <div class="op-row">
+      <button class="btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>再構築を実行</button>
+      <p class="op-note">1,240 件を 2026/06/05 14:10 に再投入しました</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>内部リンクのバックフィル</h2>
+    </div>
+    <p class="section-desc">未解決の内部リンク（resolved_note_id IS NULL）を全 owner 横断で再解決します。冪等なので再実行できます。実行中はボタンを無効化します。</p>
+    <div class="op-row">
+      <button class="btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>バックフィルを実行</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><line x1="10.85" y1="12.15" x2="19" y2="4"/><line x1="18" y1="5" x2="20" y2="7"/><line x1="15" y1="8" x2="17" y2="10"/></svg>マスターキーの再暗号化</h2>
+    </div>
+    <p class="section-desc">SECRET_BOX_MASTER_KEY をローテーションした後に実行します。DB 保存された LLM API キーを旧マスターキーで復号し、新マスターキーで再暗号化します。冪等のため複数回実行しても安全です。</p>
+    <div class="op-row">
+      <button class="btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><line x1="10.85" y1="12.15" x2="19" y2="4"/><line x1="18" y1="5" x2="20" y2="7"/><line x1="15" y1="8" x2="17" y2="10"/></svg>再暗号化を実行</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2 class="section-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2L12 3z"/></svg>クリーンアップ</h2>
+    </div>
+    <p class="section-desc">以下は cron 駆動で実行されます。実行履歴の永続化は未対応のため、ここでは概要のみ表示します。</p>
+    <div class="info-list">
+      <article class="info-card">
+        <div class="info-card-title">メディア孤児クリーンアップ</div>
+        <p class="info-card-body">参照されないメディアを定期パージします。実行は cron 駆動で、現状は実行履歴を保持しないため最終実行時刻・件数は表示しません。</p>
+      </article>
+      <article class="info-card">
+        <div class="info-card-title">ゴミ箱自動パージ</div>
+        <p class="info-card-body">保持期間を超えたゴミ箱内ノートを物理削除します。</p>
+      </article>
+      <article class="info-card">
+        <div class="info-card-title">期限切れエクスポート artifact 削除</div>
+        <p class="info-card-body">期限切れの artifact ファイルとメタデータをまとめてパージします。実行履歴の永続化と失敗アラートは別 Issue で対応予定です。</p>
+      </article>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>
