@@ -369,8 +369,11 @@ describe("getNoteDetail (integration)", () => {
     expect(renderedContentHtml).toContain(
       '<span class="wikilink" data-unresolved>未解決</span>',
     );
+    // auth surface (#556): #hashtag links to the home tag filter using the
+    // JSON-array `?tagNames=["design"]` form that TanStack's default parser
+    // accepts.
     expect(renderedContentHtml).toContain(
-      '<span class="hashtag">#design</span>',
+      '<a class="hashtag" href="/?tagNames=%5B%22design%22%5D">#design</a>',
     );
   });
 

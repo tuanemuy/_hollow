@@ -123,6 +123,34 @@ describe("getNoteRevision (integration)", () => {
     expect(result.note.id).toBe(noteId as unknown as string);
   });
 
+  it("marks up #hashtag tokens in the revision body for the auth surface", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const noteId = await seedNote(container, owner, dir);
+
+    await saveNote({
+      container,
+      input: {
+        actorUserId: owner,
+        noteId,
+        title: "tagged",
+        contentHtml: "<p>about #design</p>",
+        requireLock: false,
+      },
+    });
+    const revisionId = await firstRevisionId(container, noteId);
+
+    const result = await getNoteRevision({
+      container,
+      input: { actorUserId: owner, noteId, revisionId },
+    });
+    // The DTO keeps the verbatim token; only the rendered field is marked up.
+    expect(result.revision.contentHtml).toContain("#design");
+    expect(result.renderedContentHtml).toContain('<a class="hashtag"');
+    expect(result.renderedContentHtml).toContain(">#design</a>");
+  });
+
   it("forbids accessing another user's revision via the note id check", async () => {
     const container = getContainer();
     const owner = await seedUser(container);

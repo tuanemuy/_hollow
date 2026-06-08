@@ -1,3 +1,4 @@
+import { defaultParseSearch } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
 import {
   ContentHtml,
@@ -16,7 +17,17 @@ const noteId = (id: string): NoteId => NoteId.create(id);
 const render = (
   html: string,
   refs = [] as Parameters<typeof renderer.renderForDisplay>[1],
-) => renderer.renderForDisplay(ContentHtml.create(html), refs);
+  options?: Parameters<typeof renderer.renderForDisplay>[2],
+) => renderer.renderForDisplay(ContentHtml.create(html), refs, options);
+
+// Pull the `href` value out of an emitted `<a ... href="...">`.
+const hrefOf = (html: string): string => {
+  const m = html.match(/href="([^"]*)"/);
+  if (m === null || m[1] === undefined) {
+    throw new Error(`no href in: ${html}`);
+  }
+  return m[1];
+};
 
 describe("UltrahtmlNoteBodyRenderer", () => {
   describe("wikilink markup", () => {
@@ -103,11 +114,94 @@ describe("UltrahtmlNoteBodyRenderer", () => {
     });
   });
 
-  describe("hashtag markup", () => {
-    it('renders #tag as a non-linking <span class="hashtag">', () => {
+  describe("hashtag markup (auth surface, default)", () => {
+    it('renders #tag as a linking <a class="hashtag" href="/?tagNames=...">', () => {
       const out = render("<p>タグ: #design #essay</p>");
+      expect(out).toContain('<a class="hashtag" href="/?tagNames=');
+      expect(out).toContain(">#design</a>");
+      expect(out).toContain(">#essay</a>");
+    });
+
+    it("emits a tagNames href that round-trips to { tagNames: [tag] } via TanStack's default parser", () => {
+      // The whole point of P-001: a scalar `?tagNames=foo` would parse to the
+      // string "foo", be rejected by the array schema, and silently drop. The
+      // round-trip through `defaultParseSearch` proves the emitted form is the
+      // JSON-array form the home filter actually accepts.
+      const out = render("<p>#design</p>");
+      const href = hrefOf(out);
+      const query = href.slice(href.indexOf("?"));
+      expect(defaultParseSearch(query)).toEqual({ tagNames: ["design"] });
+    });
+
+    it("explicit surface:auth keeps hashtags linking", () => {
+      const out = render("<p>#essay</p>", [], { surface: "auth" });
+      const href = hrefOf(out);
+      const query = href.slice(href.indexOf("?"));
+      expect(defaultParseSearch(query)).toEqual({ tagNames: ["essay"] });
+    });
+
+    it("JSON-array-encodes and attribute-escapes an XSS-payload tag and still round-trips", () => {
+      // HASHTAG_PATTERN excludes <>"'` and whitespace, but a tag may still
+      // carry characters that need escaping inside JSON / the href attribute.
+      // `&` survives in the JSON array, so the href must keep the round-trip
+      // value intact while never breaking out of the attribute.
+      const tag = "a&b";
+      const out = render(`<p>#${tag}</p>`);
+      const href = hrefOf(out);
+      // No raw double-quote leaked into the attribute (would break out).
+      expect(href).not.toContain('"');
+      const query = href.slice(href.indexOf("?"));
+      expect(defaultParseSearch(query)).toEqual({ tagNames: [tag] });
+      // No live markup injected from the tag.
+      expect(out).not.toContain("<script");
+    });
+  });
+
+  describe("hashtag markup (public surface)", () => {
+    it('renders #tag as a non-linking <span class="hashtag">', () => {
+      const out = render("<p>タグ: #design #essay</p>", [], {
+        surface: "public",
+      });
       expect(out).toContain('<span class="hashtag">#design</span>');
       expect(out).toContain('<span class="hashtag">#essay</span>');
+      expect(out).not.toContain('<a class="hashtag"');
+    });
+  });
+
+  describe("wikilink surface routing", () => {
+    const ref = InternalLinkRef.create({
+      kind: "id",
+      target: NOTE_ID,
+      resolvedNoteId: noteId(NOTE_ID),
+      displayText: "表示",
+    });
+
+    it("public surface points a resolved wikilink at /notes/public/$id", () => {
+      const out = render(`<p>[[${NOTE_ID}|表示]]</p>`, [ref], {
+        surface: "public",
+      });
+      expect(out).toContain(
+        `<a class="wikilink" href="/notes/public/${NOTE_ID}">表示</a>`,
+      );
+      expect(out).not.toContain(`href="/notes/${NOTE_ID}"`);
+    });
+
+    it("auth surface (default) keeps a resolved wikilink at /notes/$id", () => {
+      const out = render(`<p>[[${NOTE_ID}|表示]]</p>`, [ref]);
+      expect(out).toContain(
+        `<a class="wikilink" href="/notes/${NOTE_ID}">表示</a>`,
+      );
+      expect(out).not.toContain("/notes/public/");
+    });
+
+    it("public surface leaves an unresolved wikilink as a non-linking span", () => {
+      const out = render("<p>[[未解決ノート]]</p>", [], {
+        surface: "public",
+      });
+      expect(out).toContain(
+        '<span class="wikilink" data-unresolved>未解決ノート</span>',
+      );
+      expect(out).not.toContain('<a class="wikilink"');
     });
   });
 
@@ -127,7 +221,9 @@ describe("UltrahtmlNoteBodyRenderer", () => {
 
     it("still marks up a #tag that sits outside the [[...]] span", () => {
       // The trailing `#after` is past the wikilink's end, so it survives.
-      const out = render("<p>[[a #b]] #after</p>");
+      // Asserted on the public surface so the pill stays a stable <span>;
+      // the overlap mechanic is surface-independent.
+      const out = render("<p>[[a #b]] #after</p>", [], { surface: "public" });
       expect(out).toContain(
         '<span class="wikilink" data-unresolved>a #b</span>',
       );
@@ -154,7 +250,9 @@ describe("UltrahtmlNoteBodyRenderer", () => {
     });
 
     it("does not touch tokens that appear inside attribute values", () => {
-      const out = render('<p title="#notatag">body #real</p>');
+      const out = render('<p title="#notatag">body #real</p>', [], {
+        surface: "public",
+      });
       // The title attribute keeps its literal value...
       expect(out).toContain('title="#notatag"');
       // ...while the body text token is marked up.
@@ -188,7 +286,9 @@ describe("UltrahtmlNoteBodyRenderer", () => {
     it("never re-emits a live <img> from bracketed body text", () => {
       // Already-escaped entities in sanitized input stay literal — the
       // renderer must not decode them back into live markup.
-      const out = render("<p>text &lt;img src=x&gt; #real</p>");
+      const out = render("<p>text &lt;img src=x&gt; #real</p>", [], {
+        surface: "public",
+      });
       expect(out).not.toContain("<img");
       expect(out).toContain('<span class="hashtag">#real</span>');
     });
@@ -200,13 +300,13 @@ describe("UltrahtmlNoteBodyRenderer", () => {
       // tokenizer as the text `#a<b` and matches only `#a`. The trailing `<b`
       // stays outside the hashtag span. This demonstrates the termination the
       // previous `#tag`-only assertion merely claimed in a comment.
-      const out = render("<p>#a<b</p>");
+      const out = render("<p>#a<b</p>", [], { surface: "public" });
       expect(out).toContain('<span class="hashtag">#a</span><b');
       expect(out).not.toContain('class="hashtag">#a<b');
     });
 
-    it("emits a plain #tag verbatim inside its span", () => {
-      const out = render("<p>#tag</p>");
+    it("emits a plain #tag verbatim inside its span (public surface)", () => {
+      const out = render("<p>#tag</p>", [], { surface: "public" });
       expect(out).toBe('<p><span class="hashtag">#tag</span></p>');
     });
   });

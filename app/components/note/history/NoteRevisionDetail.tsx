@@ -51,7 +51,7 @@ export async function NoteRevisionDetail({
     throw e;
   }
 
-  const { revision, note } = result;
+  const { revision, renderedContentHtml, note } = result;
 
   return (
     <article className="max-w-[760px] mx-auto">
@@ -77,7 +77,7 @@ export async function NoteRevisionDetail({
       <div
         className="note-detail-content"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at write time
-        dangerouslySetInnerHTML={{ __html: revision.contentHtml }}
+        dangerouslySetInnerHTML={{ __html: renderedContentHtml }}
       />
       <CodeHighlight />
     </article>
