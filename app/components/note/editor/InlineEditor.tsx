@@ -829,8 +829,9 @@ export function InlineEditor({
       <section
         ref={hostRef}
         aria-label="ノート本文"
+        data-editing=""
         data-disabled={disabled === true || undefined}
-        className="note-detail-content min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed focus-within:border-accent data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
+        className="note-detail-content min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed caret-accent transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none selection:bg-accent-surface focus-within:border-accent focus-within:shadow-focus [&_:focus-visible]:shadow-none data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
       />
     </div>
   );
