@@ -20,6 +20,13 @@ export type GetPublicNoteInput =
 
 export type GetPublicNoteOutput = Readonly<{
   note: NoteDTO;
+  /**
+   * Display-rendered note body: the stored `contentHtml` with
+   * `[[wikilink]]` / `#hashtag` tokens marked up for the public surface
+   * (wikilinks to `/notes/public/$id`, hashtags non-linking). The DTO's
+   * `contentHtml` keeps the verbatim tokens.
+   */
+  renderedContentHtml: string;
   owner: UserDTO;
   tagNames: readonly string[];
   publishedAt: Date | null;
@@ -133,6 +140,11 @@ export async function getPublicNote({
 
       return {
         note: toNoteView(note),
+        renderedContentHtml: container.noteBodyRenderer.renderForDisplay(
+          note.contentHtml,
+          note.internalLinkRefs,
+          { surface: "public" },
+        ),
         owner: toUserDTO(owner),
         tagNames,
         publishedAt,

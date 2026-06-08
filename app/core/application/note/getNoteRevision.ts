@@ -16,6 +16,13 @@ export type GetNoteRevisionInput = Readonly<{
 
 export type GetNoteRevisionOutput = Readonly<{
   revision: NoteRevisionDTO;
+  /**
+   * Display-rendered revision body: the revision's stored `contentHtml`
+   * with `[[wikilink]]` / `#hashtag` tokens marked up (auth surface).
+   * Refs come from the current note (ADR-003): revisions store no refs,
+   * so tokens with no current-note match degrade to unresolved spans.
+   */
+  renderedContentHtml: string;
   note: NoteDTO;
 }>;
 
@@ -67,6 +74,10 @@ export async function getNoteRevision({
 
     return {
       revision: toNoteRevisionDTO(revision),
+      renderedContentHtml: container.noteBodyRenderer.renderForDisplay(
+        revision.contentHtml,
+        found.entity.internalLinkRefs,
+      ),
       note: toNoteView(found.entity),
     };
   });

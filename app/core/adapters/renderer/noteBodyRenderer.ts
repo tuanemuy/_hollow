@@ -7,7 +7,10 @@ import {
   TEXT_NODE,
 } from "ultrahtml";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
-import type { NoteBodyRenderer } from "@/core/domain/note/ports/noteBodyRenderer";
+import type {
+  NoteBodyRenderer,
+  NoteBodySurface,
+} from "@/core/domain/note/ports/noteBodyRenderer";
 import {
   INTERNAL_LINK_PATTERN,
   UUID_V7_PATTERN,
@@ -48,16 +51,36 @@ const rawHtmlNode = (html: string): Node =>
 const wikilinkMarkup = (
   label: string,
   resolvedNoteId: string | null,
+  surface: NoteBodySurface,
 ): string => {
   const text = escapeTextValue(label);
   if (resolvedNoteId === null) {
     return `<span class="wikilink" data-unresolved>${text}</span>`;
   }
-  return `<a class="wikilink" href="/notes/${escapeAttrValue(resolvedNoteId)}">${text}</a>`;
+  // Public wikilinks resolve through `/notes/public/$id`, whose route gates
+  // on visibility=public (NotFound otherwise), so a private resolved target
+  // is never reachable / enumerable from the public surface. The auth route
+  // `/notes/$id` is never emitted on a public page.
+  const base = surface === "public" ? "/notes/public/" : "/notes/";
+  return `<a class="wikilink" href="${base}${escapeAttrValue(resolvedNoteId)}">${text}</a>`;
 };
 
-const hashtagMarkup = (tag: string): string =>
-  `<span class="hashtag">#${escapeTextValue(tag)}</span>`;
+const hashtagMarkup = (tag: string, surface: NoteBodySurface): string => {
+  const text = escapeTextValue(tag);
+  if (surface === "public") {
+    // No public tag-filter route exists; keep the pill non-linking rather
+    // than steering anonymous visitors into the auth-only home filter.
+    return `<span class="hashtag">#${text}</span>`;
+  }
+  // The home tag filter parses `?tagNames=` with TanStack's default search
+  // serializer (`app/router.tsx` sets no custom parser) against the
+  // `z.array(...)` `noteListSearchSchema.tagNames`. A scalar `?tagNames=foo`
+  // is read as the string `"foo"`, rejected by the array schema, and
+  // silently dropped (`.catch(undefined)`) — the link looks fine but filters
+  // nothing. Emit the default array form `?tagNames=["tag"]` instead.
+  const href = `/?tagNames=${encodeURIComponent(JSON.stringify([tag]))}`;
+  return `<a class="hashtag" href="${escapeAttrValue(href)}">#${text}</a>`;
+};
 
 type Replacement = Readonly<{ start: number; end: number; html: string }>;
 
@@ -67,6 +90,7 @@ type Replacement = Readonly<{ start: number; end: number; html: string }>;
 const collectReplacements = (
   value: string,
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
+  surface: NoteBodySurface,
 ): readonly Replacement[] => {
   const replacements: Replacement[] = [];
 
@@ -93,7 +117,7 @@ const collectReplacements = (
     replacements.push({
       start: m.index,
       end: m.index + m[0].length,
-      html: wikilinkMarkup(label, resolvedNoteId),
+      html: wikilinkMarkup(label, resolvedNoteId, surface),
     });
   }
 
@@ -105,7 +129,7 @@ const collectReplacements = (
     // Skip hashtags overlapping an already-claimed wikilink span.
     const overlaps = replacements.some((r) => start < r.end && end > r.start);
     if (overlaps) continue;
-    replacements.push({ start, end, html: hashtagMarkup(tag) });
+    replacements.push({ start, end, html: hashtagMarkup(tag, surface) });
   }
 
   replacements.sort((a, b) => a.start - b.start);
@@ -118,8 +142,9 @@ const collectReplacements = (
 const transformTextNode = (
   value: string,
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
+  surface: NoteBodySurface,
 ): Node[] => {
-  const replacements = collectReplacements(value, refsByKey);
+  const replacements = collectReplacements(value, refsByKey, surface);
   if (replacements.length === 0) {
     return [textNode(value)];
   }
@@ -148,6 +173,7 @@ const transformChildren = (
   nodes: readonly Node[],
   refsByKey: ReadonlyMap<string, InternalLinkRef>,
   suppressed: boolean,
+  surface: NoteBodySurface,
 ): Node[] => {
   const out: Node[] = [];
   for (const node of nodes) {
@@ -155,7 +181,7 @@ const transformChildren = (
       if (suppressed) {
         out.push(textNode(node.value));
       } else {
-        out.push(...transformTextNode(node.value, refsByKey));
+        out.push(...transformTextNode(node.value, refsByKey, surface));
       }
       continue;
     }
@@ -165,7 +191,12 @@ const transformChildren = (
         suppressed || SUPPRESSING_TAGS.has(el.name.toLowerCase());
       out.push({
         ...el,
-        children: transformChildren(el.children, refsByKey, childSuppressed),
+        children: transformChildren(
+          el.children,
+          refsByKey,
+          childSuppressed,
+          surface,
+        ),
       });
       continue;
     }
@@ -186,7 +217,9 @@ class UltrahtmlNoteBodyRenderer implements NoteBodyRenderer {
   renderForDisplay(
     html: ContentHtml,
     refs: readonly InternalLinkRef[],
+    options?: { surface: NoteBodySurface },
   ): string {
+    const surface: NoteBodySurface = options?.surface ?? "auth";
     try {
       const refsByKey = new Map<string, InternalLinkRef>();
       for (const ref of refs) {
@@ -195,7 +228,7 @@ class UltrahtmlNoteBodyRenderer implements NoteBodyRenderer {
       const root = parse(html as string) as Node & { children: Node[] };
       const transformed = {
         ...root,
-        children: transformChildren(root.children, refsByKey, false),
+        children: transformChildren(root.children, refsByKey, false, surface),
       };
       return renderSync(transformed);
     } catch (cause) {

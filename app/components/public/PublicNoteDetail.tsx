@@ -34,7 +34,8 @@ const loadPublicNote = cache(
 );
 
 export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
-  const { note, owner, tagNames, publishedAt } = await loadPublicNote(args);
+  const { note, renderedContentHtml, owner, tagNames, publishedAt } =
+    await loadPublicNote(args);
 
   return (
     <PublicLayout>
@@ -105,7 +106,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
         <article
           className="note-detail-content"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized at save time via HtmlSanitizer
-          dangerouslySetInnerHTML={{ __html: note.contentHtml }}
+          dangerouslySetInnerHTML={{ __html: renderedContentHtml }}
         />
         <CodeHighlight />
       </div>
