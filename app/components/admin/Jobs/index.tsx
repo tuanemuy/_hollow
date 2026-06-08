@@ -272,7 +272,7 @@ function IngestionRow({
           ) : null}
           {summary !== "" ? (
             <p
-              className={`${FIELD_ERROR_CLASS} text-right`}
+              className={`${FIELD_ERROR_CLASS} text-right max-sm:text-left`}
               style={{ marginTop: 6 }}
             >
               {summary}
@@ -367,7 +367,7 @@ function ExportRow({
           ) : null}
           {summary !== "" ? (
             <p
-              className={`${FIELD_ERROR_CLASS} text-right`}
+              className={`${FIELD_ERROR_CLASS} text-right max-sm:text-left`}
               style={{ marginTop: 6 }}
             >
               {summary}

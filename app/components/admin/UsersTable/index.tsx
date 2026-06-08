@@ -226,7 +226,7 @@ function UserRow({
         </div>
         {summary !== "" ? (
           <p
-            className={`${FIELD_ERROR_CLASS} text-right`}
+            className={`${FIELD_ERROR_CLASS} text-right max-sm:text-left`}
             style={{ marginTop: 6 }}
             role="alert"
             aria-live="polite"
