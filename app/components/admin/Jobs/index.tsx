@@ -56,7 +56,7 @@ const SECTION_TITLE_CLASS = "text-xl font-semibold tracking-tight m-0";
 const SECTION_DESC_CLASS = "text-sm text-ink-secondary m-0 mb-4";
 const TABLE_WRAP_CLASS = "border border-hairline rounded-lg overflow-hidden";
 const TABLE_SCROLL_CLASS = "overflow-x-auto";
-const TABLE_CLASS = "w-full border-collapse text-sm";
+const TABLE_CLASS = "w-full min-w-[920px] border-collapse text-sm";
 const TH_CLASS =
   "font-medium text-ink-secondary bg-surface-elevated border-b border-hairline text-xs uppercase tracking-[0.04em] text-left align-middle px-4 py-3";
 const TH_RIGHT_CLASS = `${TH_CLASS.replace("text-left", "text-right")}`;
