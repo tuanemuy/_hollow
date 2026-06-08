@@ -192,6 +192,22 @@
     margin-top: 1.1em;
   }
 
+  /*
+   * Inline-edit host only (Issue #522): drop the leading block's
+   * `margin-top` and trailing block's `margin-bottom` so the visible
+   * top/bottom gap matches the host's `p-4` padding instead of stacking
+   * on it. Scoped to `[data-editing]` (set by `InlineEditor`) so the
+   * shared read-only surfaces (NoteDetail / PublicNoteDetail /
+   * LegalDocument / NoteRevisionDetail / HtmlEditor) keep their spacing.
+   */
+  .note-detail-content[data-editing] > :first-child {
+    margin-top: 0;
+  }
+
+  .note-detail-content[data-editing] > :last-child {
+    margin-bottom: 0;
+  }
+
   .note-detail-content p {
     font-size: 16px;
     line-height: var(--leading-relaxed);
