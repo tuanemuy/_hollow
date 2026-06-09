@@ -1,26 +1,15 @@
 "use client";
 
-import { useRouter } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, useTransition } from "react";
+import { useId, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
-import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   dialogActions,
   dialogTitle,
   fieldControl,
   fieldLabel,
-  formError,
   pillBtn,
   pillBtnPrimary,
 } from "@/components/common/styles";
-import { displayError } from "@/core/presentation/errorDisplay";
-import {
-  extractSerializedError,
-  type SerializedError,
-} from "@/core/presentation/errorResponse";
-import { mergeTagsFn } from "./actions";
-import { progressBarIndeterminate, progressTrack } from "./styles";
 
 type Props = {
   sourceTagId: string;
@@ -29,6 +18,11 @@ type Props = {
   candidates: readonly { id: string; name: string }[];
   open: boolean;
   onClose: () => void;
+  // Merge is owned by the parent `TagList`'s optimistic projection (same
+  // `remove` used by delete, ADR-003). The dialog is now just the target
+  // selector: it closes and hands off, surfacing failures in the row's
+  // `FORM_ERROR` slot after the optimistic remove snaps back.
+  onMerge: (sourceTagId: string, targetTagId: string) => void;
 };
 
 const DIALOG_DESCRIPTION = "text-sm text-ink-secondary mt-2";
@@ -40,12 +34,9 @@ export function MergeTagDialog({
   candidates,
   open,
   onClose,
+  onMerge,
 }: Props) {
-  const router = useRouter();
-  const mergeTags = useServerFn(mergeTagsFn);
   const [target, setTarget] = useState("");
-  const [error, setError] = useState<SerializedError | null>(null);
-  const [isPending, startTransition] = useTransition();
   const targetId = useId();
   const titleId = useId();
 
@@ -54,28 +45,16 @@ export function MergeTagDialog({
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (target === "") return;
-    setError(null);
-    startTransition(async () => {
-      try {
-        await mergeTags({
-          data: { sourceTagId, targetTagId: target },
-        });
-        await routerInvalidate(router);
-        onClose();
-      } catch (e) {
-        setError(extractSerializedError(e));
-      }
-    });
+    // Close synchronously and hand off; the source row is removed optimistically
+    // the instant the parent transition starts (this dialog unmounts with it),
+    // mirroring `runDelete`.
+    onClose();
+    onMerge(sourceTagId, target);
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      ariaLabelledBy={titleId}
-      closable={!isPending}
-    >
-      <form onSubmit={submit} aria-busy={isPending}>
+    <Dialog open={open} onClose={onClose} ariaLabelledBy={titleId}>
+      <form onSubmit={submit}>
         <h2 id={titleId} className={dialogTitle}>
           タグを統合
         </h2>
@@ -111,46 +90,17 @@ export function MergeTagDialog({
             を持つよう更新されます。
           </p>
         ) : null}
-        {error !== null ? (
-          <p className={formError} role="alert">
-            {displayError(error)}
-          </p>
-        ) : null}
-        {isPending && sourceNoteCount > 0 ? (
-          <div className="mt-3">
-            <span aria-live="polite" className="text-sm text-ink-secondary">
-              <strong>{sourceNoteCount} 件のノートを更新中…</strong>
-            </span>
-            <div
-              role="progressbar"
-              aria-busy={true}
-              aria-valuemin={0}
-              aria-valuemax={sourceNoteCount}
-              // biome-ignore lint/a11y/useValidAriaValues: indeterminate progressbar omits aria-valuenow attribute (React skips undefined props) — see .issue/55/adr.md ADR-002
-              aria-valuenow={undefined}
-              aria-label={`${sourceNoteCount} 件のノートを更新中`}
-              className={progressTrack}
-            >
-              <div className={progressBarIndeterminate} />
-            </div>
-          </div>
-        ) : null}
         <div className={dialogActions}>
-          <button
-            type="button"
-            className={pillBtn}
-            onClick={onClose}
-            disabled={isPending}
-          >
+          <button type="button" className={pillBtn} onClick={onClose}>
             キャンセル
           </button>
           <button
             type="submit"
             className={`${pillBtn} ${pillBtnPrimary}`}
             data-primary=""
-            disabled={isPending || target === ""}
+            disabled={target === ""}
           >
-            {isPending ? "統合中..." : "統合"}
+            統合
           </button>
         </div>
       </form>

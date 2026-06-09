@@ -6,7 +6,13 @@
  * (see CLAUDE.md "Repeated utility strings can be hoisted").
  */
 
-/** Indeterminate progress bar track — 同期処理中の不確定進捗用。 */
+/**
+ * Indeterminate progress bar track — 同期処理中の不確定進捗用。
+ *
+ * Currently unreferenced: the merge dialog dropped its synchronous progress
+ * banner when merge became optimistic (#607 ADR-003). Retained for the future
+ * async-job merge banner (#563) rather than re-deriving the tokens then.
+ */
 export const progressTrack =
   "relative h-1 w-full overflow-hidden rounded-pill bg-surface mt-3";
 
@@ -59,7 +65,8 @@ export const TAG_TOOLBAR =
  * `.search` visual tokens but left-aligned and width-capped for the toolbar.
  * The inner `<form>` carries `relative` to anchor the leading search icon.
  */
-export const TAG_SEARCH = "max-w-[320px] flex-1 basis-60 max-sm:max-w-none";
+export const TAG_SEARCH =
+  "max-w-[320px] flex-1 basis-60 max-sm:max-w-none max-sm:flex-none";
 
 /** Search input (mock header `.search input`) — surface pill with focus shadow. */
 export const TAG_SEARCH_INPUT =
@@ -116,3 +123,22 @@ export const TAG_EDITING_HEADING = "text-sm text-ink-tertiary";
 /** Inline rename input (mock `.rename-input` at the h-7 density). */
 export const TAG_RENAME_INPUT =
   "h-7 px-2.5 bg-bg border border-hairline rounded-md text-sm text-ink outline-none transition-colors motion-reduce:transition-none min-w-[140px] hover:border-hairline-strong focus:border-accent";
+
+/**
+ * Tag-create form row — sits between `page-header` and `tag-toolbar`. The form
+ * is not a separate component in the SSOT design, so it borrows the toolbar's
+ * surface-pill `.search` language plus the shared `.btn-primary` pill, kept at
+ * the same density as `TAG_TOOLBAR`. `items-stretch` keeps the input (h-9 pill)
+ * and the submit pill (h-9) aligned; the bottom margin matches the toolbar's
+ * `--space-5` rhythm. Below `sm` input and button stack like the toolbar.
+ */
+export const TAG_CREATE_FORM =
+  "flex items-stretch gap-2 mb-5 flex-wrap max-sm:flex-col max-sm:items-stretch";
+
+/**
+ * Create input — same surface-pill visual as `TAG_SEARCH_INPUT` (mock header
+ * `.search input`) but without the leading-icon left padding, since the create
+ * form has no search icon. Grows to fill the row up to a sensible cap.
+ */
+export const TAG_CREATE_INPUT =
+  "flex-1 min-w-[200px] max-w-[360px] h-9 px-4 rounded-pill bg-surface text-sm text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus:bg-surface-hover focus:shadow-focus max-sm:max-w-none max-sm:flex-none";

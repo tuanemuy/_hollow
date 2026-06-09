@@ -106,6 +106,12 @@ function makeTag(id: string, name: string, noteCount = 0): Tag {
   return { id, name, noteCount, lastUsedAt: null };
 }
 
+function getMergeSelect(): HTMLSelectElement {
+  const select = document.body.getElementsByTagName("select")[0];
+  if (!select) throw new Error("merge target select not found");
+  return select;
+}
+
 function makeTagWithLastUsed(
   id: string,
   name: string,
@@ -178,6 +184,53 @@ describe("reduceTags", () => {
     });
 
     expect(result[0].noteCount).toBe(42);
+  });
+
+  it("appends an added tag with noteCount 0 / lastUsedAt null", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [makeTag("t1", "alpha", 5)];
+
+    const result = reduceTags(tags, {
+      type: "add",
+      tag: { id: "tmp-1", name: "new-tag", noteCount: 0, lastUsedAt: null },
+    });
+
+    expect(result).toHaveLength(2);
+    // Existing rows are preserved unchanged.
+    expect(result[0].id).toBe("t1");
+    expect(result[0].name).toBe("alpha");
+    // Optimistic row is appended at the end with the expected defaults.
+    expect(result[1].id).toBe("tmp-1");
+    expect(result[1].name).toBe("new-tag");
+    expect(result[1].noteCount).toBe(0);
+    expect(result[1].lastUsedAt).toBeNull();
+  });
+
+  it("adds to an empty list", async () => {
+    const { reduceTags } = await import("../TagList");
+
+    const result = reduceTags([], {
+      type: "add",
+      tag: { id: "tmp-1", name: "first", noteCount: 0, lastUsedAt: null },
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("first");
+  });
+
+  it("does not mutate the input array when adding", async () => {
+    const { reduceTags } = await import("../TagList");
+    const tags = [makeTag("t1", "alpha", 5)];
+
+    const result = reduceTags(tags, {
+      type: "add",
+      tag: { id: "tmp-1", name: "beta", noteCount: 0, lastUsedAt: null },
+    });
+
+    // The reducer is pure: the baseline stays length 1 so that the snap-back to
+    // baseline drops the temp row and never shows it alongside the confirmed one.
+    expect(tags).toHaveLength(1);
+    expect(result).not.toBe(tags);
   });
 });
 
@@ -383,6 +436,248 @@ describe("TagList — optimistic delete", () => {
       (el) => el.textContent ?? "",
     );
     expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+  });
+});
+
+describe("TagList — optimistic merge", () => {
+  it("removes the source tag immediately while the merge is pending", async () => {
+    let resolveMerge: (() => void) | undefined;
+    mergeMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveMerge = res;
+      }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    expect(document.body.textContent).toContain("2 件のタグ");
+
+    // Open the merge dialog for the first row (alpha).
+    const mergeBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim().includes("統合"));
+    await act(async () => {
+      mergeBtn?.click();
+    });
+
+    // Select the merge target (beta) in the dialog's <select>.
+    const select = getMergeSelect();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(select, "t2");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const submitBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>(
+        'button[type="submit"]',
+      ),
+    ).find((b) => (b.textContent ?? "").trim() === "統合");
+    await act(async () => {
+      submitBtn?.click();
+    });
+    await flush();
+
+    expect(mergeMock).toHaveBeenCalledTimes(1);
+    const call = mergeMock.mock.calls[0]?.[0];
+    expect(call?.data?.sourceTagId).toBe("t1");
+    expect(call?.data?.targetTagId).toBe("t2");
+
+    // Source tag gone optimistically (count too), even though merge is unresolved.
+    expect(document.body.textContent).not.toContain("#alpha");
+    expect(document.body.textContent).toContain("#beta");
+    expect(document.body.textContent).toContain("1 件のタグ");
+
+    await act(async () => {
+      resolveMerge?.();
+    });
+    await flush();
+  });
+
+  it("restores the source row and shows an alert when merge fails", async () => {
+    let rejectMerge: ((e: unknown) => void) | undefined;
+    mergeMock.mockReturnValue(
+      new Promise<void>((_res, rej) => {
+        rejectMerge = rej;
+      }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    const mergeBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim().includes("統合"));
+    await act(async () => {
+      mergeBtn?.click();
+    });
+
+    const select = getMergeSelect();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(select, "t2");
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const submitBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>(
+        'button[type="submit"]',
+      ),
+    ).find((b) => (b.textContent ?? "").trim() === "統合");
+    await act(async () => {
+      submitBtn?.click();
+    });
+    await flush();
+
+    expect(document.body.textContent).not.toContain("#alpha");
+
+    await act(async () => {
+      rejectMerge?.(
+        new AppServerError({
+          kind: "system",
+          code: null,
+          message: "System error",
+        }),
+      );
+    });
+    await flush();
+
+    // Source row snaps back and the failure surfaces in its FORM_ERROR slot.
+    expect(document.body.textContent).toContain("#alpha");
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]')).map(
+      (el) => el.textContent ?? "",
+    );
+    expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+  });
+});
+
+describe("TagList — optimistic create", () => {
+  it("adds the new tag row immediately while the create is pending", async () => {
+    let resolveCreate: (() => void) | undefined;
+    createMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveCreate = res;
+      }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    expect(document.body.textContent).toContain("1 件のタグ");
+
+    // The create form's input is the empty one (the rename inputs carry tag
+    // names); it lives outside the list `ul`.
+    const createInput = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name="name"]'),
+    )[0];
+    if (!createInput) throw new Error("create input not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(createInput, "new-tag");
+      createInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const createForm = createInput.closest("form");
+    await act(async () => {
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+    });
+    await flush();
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0]?.[0]?.data?.name).toBe("new-tag");
+
+    // Optimistic row + bumped count shown while create is unresolved.
+    expect(document.body.textContent).toContain("#new-tag");
+    expect(document.body.textContent).toContain("2 件のタグ");
+
+    // The input is cleared immediately after submit: this both readies it for
+    // the next name and is the actual double-submit guard.
+    expect(createInput.value).toBe("");
+
+    await act(async () => {
+      resolveCreate?.();
+    });
+    await flush();
+  });
+
+  it("does not double-submit on rapid repeat submits", async () => {
+    // Keep the create unresolved so the form stays "mid-flight" across both
+    // submits; the guard must not depend on the server settling.
+    let resolveCreate: (() => void) | undefined;
+    createMock.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveCreate = res;
+      }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    const createInput = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name="name"]'),
+    )[0];
+    if (!createInput) throw new Error("create input not found");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(createInput, "new-tag");
+      createInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const createForm = createInput.closest("form");
+    // Submit twice back-to-back. The first submit clears the input, so the
+    // second sees an empty value and is dropped by the early return.
+    await act(async () => {
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+    });
+    await flush();
+
+    expect(createMock).toHaveBeenCalledTimes(1);
+    expect(createMock.mock.calls[0]?.[0]?.data?.name).toBe("new-tag");
+
+    // Settle the pending create so the optimistic transition tears down cleanly.
+    await act(async () => {
+      resolveCreate?.();
+    });
+    await flush();
+  });
+
+  it("ignores an empty submit", async () => {
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    const createInput = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[name="name"]'),
+    )[0];
+    if (!createInput) throw new Error("create input not found");
+    const createForm = createInput.closest("form");
+    await act(async () => {
+      createForm?.dispatchEvent(new Event("submit", { bubbles: true }));
+    });
+    await flush();
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("1 件のタグ");
   });
 });
 

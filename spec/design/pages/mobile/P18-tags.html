@@ -401,6 +401,35 @@
   }
   .stats .stat-dot { display: none; }
 
+  /* Tag create — 明示的なタグ作成フォーム（page-header 直下・ツールバー上）。
+     モバイルは入力と追加ボタンを縦積み。入力はヘッダ `.search input` と同じ
+     surface pill トークン（アイコンが無いぶん左 padding のみ通常値）。
+     実装 TagList の楽観的作成（#607）に整合。 */
+  .tag-create {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+  }
+  /* `.search input` の意匠を意図的に複製（作成フォームは検索アイコンが無いため
+     左 padding を通常の `--space-4` に戻す差分のみ）。値は全て既存トークン参照。 */
+  .tag-create input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .tag-create input::placeholder { color: var(--color-ink-tertiary); }
+  .tag-create input:hover { background: var(--color-surface-hover); }
+  .tag-create input:focus { background: var(--color-surface-hover); box-shadow: var(--shadow-focus); }
+
   /* Tag toolbar — 検索とソートを縦積み（モバイル） */
   .tag-toolbar {
     display: flex;
@@ -618,6 +647,14 @@
       <h1 class="page-title">タグ管理</h1>
       <div class="stats"><span><span class="stat-num">9</span> 件のタグ</span></div>
     </div>
+
+    <!-- タグ作成フォーム — 明示的なタグ追加（page-header 直下・ツールバー上）。
+         入力は surface pill（ヘッダ `.search input` と同トークン）、追加は `.btn-primary`。 -->
+    <form class="tag-create">
+      <label for="newTag" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">新しいタグ</label>
+      <input id="newTag" type="text" placeholder="新しいタグを追加" aria-label="新しいタグ">
+      <button type="submit" class="btn btn-primary">追加</button>
+    </form>
 
     <!-- ツールバー — 検索（上）＋ ソート切替（下）を縦積み。 -->
     <div class="tag-toolbar">

@@ -430,6 +430,37 @@
     margin-top: 2px;
   }
 
+  /* Tag create — 明示的なタグ作成フォーム（page-header 直下・ツールバー上）。
+     入力欄はヘッダ `.search input` と同じ surface pill トークンを共有し（検索
+     アイコンが無いぶん左 padding のみ通常の `--space-4` に戻す）、ボタンは汎用
+     `.btn`/`.btn-primary` を流用する。縦リズムは `.tag-toolbar` と同じ
+     `--space-5`。実装 TagList の楽観的作成（#607）に整合。 */
+  .tag-create {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+    flex-wrap: wrap;
+  }
+  /* `.search input` の意匠を意図的に複製（作成フォームは検索アイコンが無いため
+     左 padding を通常の `--space-4` に戻す差分のみ）。値は全て既存トークン参照。 */
+  .tag-create input {
+    flex: 1 1 200px;
+    max-width: 360px;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .tag-create input::placeholder { color: var(--color-ink-tertiary); }
+  .tag-create input:hover { background: var(--color-surface-hover); }
+  .tag-create input:focus { background: var(--color-surface-hover); box-shadow: var(--shadow-focus); }
+
   /* Tag toolbar — ページ内検索（左）＋ ソート切替（右）。
      既存トークンのみで構成し、ヘッダ `.search` / 汎用 `.segmented` を再利用する。 */
   .tag-toolbar {
@@ -540,7 +571,9 @@
     .main { padding: var(--space-6) var(--space-4) var(--space-16); }
     .stats .stat-dot { display: none; }
     .stats { gap: var(--space-3); }
-    /* 狭幅では検索とソートを縦積みにして破綻を防ぐ。 */
+    /* 狭幅では作成フォーム・検索・ソートを縦積みにして破綻を防ぐ。 */
+    .tag-create { flex-direction: column; align-items: stretch; }
+    .tag-create input { max-width: none; }
     .tag-toolbar { flex-direction: column; align-items: stretch; gap: var(--space-3); }
     .tag-toolbar .search { max-width: none; }
     .tag-sort { justify-content: space-between; }
@@ -645,6 +678,14 @@
       <!-- 実装 TagList のサブタイトルは件数のみ（「{count} 件のタグ」）。 -->
       <div class="stats"><span class="stat-num">9</span> 件のタグ</div>
     </div>
+
+    <!-- タグ作成フォーム — 明示的なタグ追加（page-header 直下・ツールバー上）。
+         入力は surface pill（ヘッダ `.search input` と同トークン）、追加は `.btn-primary`。 -->
+    <form class="tag-create">
+      <label for="newTag" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">新しいタグ</label>
+      <input id="newTag" type="text" placeholder="新しいタグを追加" aria-label="新しいタグ">
+      <button type="submit" class="btn btn-primary">追加</button>
+    </form>
 
     <!-- ツールバー — ページ内検索（左）＋ ソート切替（右）。
          検索は既存ヘッダ `.search` のトークンを共有、ソートは汎用 `.segmented` を再利用。 -->

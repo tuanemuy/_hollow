@@ -9,7 +9,7 @@ import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { SerializedError } from "@/core/presentation/errorResponse";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
 import { EMPTY_STATE, EMPTY_STATE_ICON, PAGE_SUBTITLE } from "../layout/styles";
-import { deleteTagFn, renameTagFn } from "./actions";
+import { createTagFn, deleteTagFn, mergeTagsFn, renameTagFn } from "./actions";
 import { CreateTagForm } from "./CreateTagForm";
 import { TAG_COUNT, TAG_LASTUSED, TAG_ROW } from "./styles";
 import { TagActions } from "./TagActions";
@@ -48,15 +48,22 @@ function formatLastUsed(iso: string | null): string {
   })}`;
 }
 
+type AddAction = Readonly<{ type: "add"; tag: Tag }>;
 type RemoveAction = Readonly<{ type: "remove"; id: string }>;
 type RenameAction = Readonly<{ type: "rename"; id: string; name: string }>;
-type TagsAction = RemoveAction | RenameAction;
+type TagsAction = AddAction | RemoveAction | RenameAction;
 
 export function reduceTags(
   cur: readonly Tag[],
   action: TagsAction,
 ): readonly Tag[] {
   switch (action.type) {
+    case "add":
+      // Append the optimistic row (client-generated temp id, noteCount 0,
+      // lastUsedAt null). The transition snaps `useOptimistic` back to the
+      // server baseline once the loader re-runs, so this temp row is replaced
+      // by the confirmed one — never displayed alongside it (ADR-002).
+      return [...cur, action.tag];
     case "remove":
       return cur.filter((tag) => tag.id !== action.id);
     case "rename":
@@ -71,19 +78,45 @@ export function reduceTags(
 
 export function TagList({ tags, query, sort, order }: Props) {
   const router = useRouter();
+  const createTag = useServerFn(createTagFn);
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
+  const mergeTags = useServerFn(mergeTagsFn);
 
-  // Server-confirmed baseline. `useOptimistic` removes / renames a tag
+  // Server-confirmed baseline. `useOptimistic` adds / removes / renames a tag
   // synchronously while the mutation + loader round-trip is in flight, then
   // snaps back once fresh props arrive. Hooks run before the empty-list early
   // return so the empty / count checks use the optimistic projection.
   const [optimisticTags, applyOptimistic] = useOptimistic(tags, reduceTags);
   const [, startMutation] = useTransition();
-  // Rename / delete errors are owned by the parent (the deleted row unmounts
-  // mid-flight) and surfaced in the affected row's `FORM_ERROR` slot.
+  // Rename / delete / merge errors are owned by the parent (the affected row
+  // unmounts mid-flight) and surfaced in the affected row's `FORM_ERROR` slot.
   const [actionErrorId, setActionErrorId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<SerializedError | null>(null);
+  // The create form's row is not yet committed, so its error lives under the
+  // form rather than in a row's slot (ADR-002).
+  const [createError, setCreateError] = useState<SerializedError | null>(null);
+
+  const onCreate = (name: string) => {
+    setCreateError(null);
+    // Client-generated temp id, never colliding with a server id; replaced by
+    // the confirmed row when the transition snaps back to baseline.
+    const tmpId = `tmp-${crypto.randomUUID()}`;
+    startMutation(async () => {
+      try {
+        applyOptimistic({
+          type: "add",
+          tag: { id: tmpId, name, noteCount: 0, lastUsedAt: null },
+        });
+        await createTag({ data: { name } });
+        await routerInvalidate(router);
+      } catch (e) {
+        // The optimistic row vanishes on snap-back; the error surfaces under
+        // the form.
+        setCreateError(extractSerializedError(e));
+      }
+    });
+  };
 
   const onRename = (tagId: string, name: string) => {
     setActionErrorId(null);
@@ -115,6 +148,23 @@ export function TagList({ tags, query, sort, order }: Props) {
     });
   };
 
+  const onMerge = (sourceTagId: string, targetTagId: string) => {
+    setActionErrorId(null);
+    setActionError(null);
+    startMutation(async () => {
+      try {
+        // Merge removes the source tag (its notes move to the target), so the
+        // optimistic projection is the same `remove` used by delete (ADR-003).
+        applyOptimistic({ type: "remove", id: sourceTagId });
+        await mergeTags({ data: { sourceTagId, targetTagId } });
+        await routerInvalidate(router);
+      } catch (e) {
+        setActionErrorId(sourceTagId);
+        setActionError(extractSerializedError(e));
+      }
+    });
+  };
+
   const all = optimisticTags.map((tag) => ({ id: tag.id, name: tag.name }));
   // A search term applied with no matches is a normal flow, distinct from a
   // never-created tag catalogue — branch the empty state on it.
@@ -122,14 +172,22 @@ export function TagList({ tags, query, sort, order }: Props) {
 
   return (
     <>
-      <p className={PAGE_SUBTITLE}>{optimisticTags.length} 件のタグ</p>
+      {/* Stats sit in the `page-header` block (mock `--space-6` bottom margin),
+          overriding the shared `PAGE_SUBTITLE` `mb-7` so the form / toolbar
+          rhythm below matches the SSOT (`--space-5` each). */}
+      <p className={`${PAGE_SUBTITLE} !mb-6`}>
+        {optimisticTags.length} 件のタグ
+      </p>
 
-      <CreateTagForm />
+      <CreateTagForm onCreate={onCreate} error={createError} />
 
       <TagListToolbar query={query} sort={sort} order={order} />
 
+      {/* The toolbar's `mb-5` already supplies the gap above the list, so the
+          shared `EMPTY_STATE` `mt-6` is cancelled to avoid a doubled margin
+          (mock `.tag-list` sits directly under `.tag-toolbar`). */}
       {optimisticTags.length === 0 ? (
-        <div className={EMPTY_STATE}>
+        <div className={`${EMPTY_STATE} !mt-0`}>
           <Icon icon={Hash} size={24} className={EMPTY_STATE_ICON} />
           {isSearchMiss ? (
             <>
@@ -153,7 +211,7 @@ export function TagList({ tags, query, sort, order }: Props) {
           )}
         </div>
       ) : (
-        <ul className="list-none m-0 p-0 mt-6">
+        <ul className="list-none m-0 p-0">
           {optimisticTags.map((tag) => {
             const candidates = all.filter((t) => t.id !== tag.id);
             return (
@@ -172,6 +230,7 @@ export function TagList({ tags, query, sort, order }: Props) {
                   candidates={candidates}
                   onRename={onRename}
                   onDelete={onDelete}
+                  onMerge={onMerge}
                   actionError={actionErrorId === tag.id ? actionError : null}
                 />
               </li>
