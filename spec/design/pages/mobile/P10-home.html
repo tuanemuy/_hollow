@@ -493,25 +493,14 @@
     background: #fff;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
   }
-  /* 右側の控えめなアクション群（選択モード・保存ビュー） */
+  /* 右側のアクション群（選択モード・保存ビュー）。
+     ボタンは desktop・実装と同じ pill-btn(surface 塗り)に統一 (#620)。
+     「ビューとして保存」は狭幅のためラベルを畳みアイコンのみ（実装の max-sm:hidden と一致）。 */
   .toolbar-actions {
     display: inline-flex;
     align-items: center;
     gap: 4px;
   }
-  .tool-btn {
-    min-height: 36px;
-    padding: 6px 10px;
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    color: var(--color-ink-secondary);
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: var(--transition-bg), var(--transition-color);
-  }
-  .tool-btn:hover { background: var(--color-surface); color: var(--color-ink); }
-  .tool-btn.active { background: var(--color-surface); color: var(--color-ink); }
   .view-select {
     min-height: 36px;
     height: 36px;
@@ -948,8 +937,9 @@
     <h1 class="page-title">すべてのノート</h1>
     <div class="page-subtitle">127 件のノート</div>
 
-    <!-- NoteListToolbar: 表示モードは segmented(P30 と統一)、選択モード・保存ビューは右に畳む。
-         新規/アップロードは下部固定CTAへ。「ビューとして保存」はアイコンのみに縮約。 -->
+    <!-- NoteListToolbar: 表示モードは segmented(P30/desktop と統一)、選択モード・保存ビューは右に畳む。
+         ボタンは pill-btn で desktop・実装と統一 (#620)。新規/アップロードは下部固定CTAへ。
+         「ビューとして保存」は狭幅のためアイコンのみに縮約。 -->
     <div class="toolbar">
       <div class="segmented" role="tablist" aria-label="表示形式">
         <button class="active" role="tab" aria-selected="true">
@@ -967,15 +957,15 @@
       </div>
 
       <div class="toolbar-actions">
-        <button class="tool-btn" aria-pressed="false" aria-label="選択モード">
+        <button class="pill-btn" aria-pressed="false" aria-label="選択モード">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           選択
         </button>
-        <button class="tool-btn" aria-label="ビューとして保存">
+        <button class="pill-btn" aria-label="ビューとして保存">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
         <select class="view-select" aria-label="保存済みビュー">
-          <option>保存ビュー</option>
+          <option>保存ビューを選択</option>
         </select>
       </div>
     </div>
