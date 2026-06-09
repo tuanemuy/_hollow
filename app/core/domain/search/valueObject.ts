@@ -218,6 +218,21 @@ export const SearchCursor = {
 };
 
 /**
+ * Which timestamp a `dateRange` window is evaluated against.
+ *
+ * - `'date_for_calendar'` — the note aggregate's `date_for_calendar`
+ *   projection, present on every indexed note regardless of visibility.
+ *   Used by the own-notes (all-visibility) surface so private / unlisted
+ *   notes are not dropped by a publication join. This is the default so
+ *   existing call sites keep their original date semantics.
+ * - `'published_at'` — the publication aggregate's `published_at` (公開日).
+ *   Used by the public surfaces (search / facets) where "期間" means the
+ *   公開日 and only `public` notes are in scope. The adapter joins
+ *   `publication_states` for this basis.
+ */
+export type DateBasis = "published_at" | "date_for_calendar";
+
+/**
  * Half-open `[from, to]` interval used as a query filter.
  * Construction enforces `from <= to`.
  */
@@ -320,6 +335,11 @@ export type SearchQuery = Readonly<{
   tagNames: readonly string[];
   directoryPathPrefix: SearchDirectoryPath | null;
   dateRange: DateRange | null;
+  // Which timestamp `dateRange` is evaluated against. The own-notes
+  // (all-visibility) surface uses `date_for_calendar`; the public surfaces
+  // (search / facets) use `published_at`. Defaults to `date_for_calendar`
+  // so the basis is opt-in per surface.
+  dateBasis: DateBasis;
   limit: SearchLimit;
   cursor: SearchCursor | null;
 }>;
@@ -332,6 +352,7 @@ export const SearchQuery = {
     tagNames: readonly string[];
     directoryPathPrefix: string | null;
     dateRange: { from: Date; to: Date } | null;
+    dateBasis?: DateBasis | undefined;
     limit: number;
     cursor: string | null;
   }): SearchQuery => {
@@ -351,6 +372,7 @@ export const SearchQuery = {
           : SearchDirectoryPath.create(params.directoryPathPrefix),
       dateRange:
         params.dateRange === null ? null : DateRange.create(params.dateRange),
+      dateBasis: params.dateBasis ?? "date_for_calendar",
       limit: SearchLimit.create(params.limit),
       cursor:
         params.cursor === null ? null : SearchCursor.create(params.cursor),

@@ -116,6 +116,9 @@ export const users = sqliteTable(
   },
   (table) => [
     uniqueIndex("uniq_users_email").on(table.email),
+    // `username` is stored lowercase (the `Username` value object rejects
+    // any non-lowercase input), so this index doubles as the case-folded
+    // prefix index used by `searchPublicByUsernamePrefix`'s range scan.
     uniqueIndex("uniq_users_username").on(table.username),
     index("idx_users_role_banned").on(table.role, table.banned),
     index("idx_users_deleted_at").on(table.deletedAt),
@@ -435,6 +438,15 @@ export const publicationStates = sqliteTable(
   (table) => [
     index("idx_pubs_visibility_owner").on(table.visibility, table.ownerId),
     index("idx_pubs_public_published_at").on(table.publishedAt),
+    // owner-scoped public listing ordered by published_at (P30 公開日順):
+    // the leading (owner_id, visibility) columns serve the equality filter
+    // and published_at the ordered read-out, so the listing avoids a full
+    // table scan.
+    index("idx_pubs_owner_visibility_published_at").on(
+      table.ownerId,
+      table.visibility,
+      table.publishedAt,
+    ),
     check(
       "pubs_visibility_enum",
       sql`${table.visibility} IN ('private', 'unlisted', 'public')`,

@@ -51,6 +51,11 @@ export async function searchOwnNotes({
     tagNames: input.tagNames ?? [],
     directoryPathPrefix,
     dateRange: input.dateRange ?? null,
+    // Own-notes spans all visibilities, so the period window is evaluated
+    // against the note's `date_for_calendar` (present on every indexed note)
+    // rather than `published_at` — a publication join would silently drop
+    // private / unlisted notes that have no public publication (ADR-006).
+    dateBasis: "date_for_calendar",
     limit: input.limit,
     cursor: input.cursor ?? null,
   });

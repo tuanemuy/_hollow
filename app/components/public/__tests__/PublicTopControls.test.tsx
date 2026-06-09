@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 let searchState: {
   display?: "list" | "tile" | "calendar";
   tags?: readonly string[];
-  sort?: "updatedAt" | "createdAt" | "title";
+  sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
 } = {};
 
 vi.mock("@tanstack/react-router", () => ({
@@ -36,10 +36,14 @@ describe("PublicTopControls URL updaters", () => {
       page: undefined,
       tags: undefined,
     });
-    // The default sort (updatedAt) is dropped so the URL stays clean.
-    expect(nextFilterSearch({}, { sort: "updatedAt" })).toEqual({
+    // The default sort (publishedAt) is dropped so the URL stays clean.
+    expect(nextFilterSearch({}, { sort: "publishedAt" })).toEqual({
       page: undefined,
       sort: undefined,
+    });
+    expect(nextFilterSearch({}, { sort: "updatedAt" })).toEqual({
+      page: undefined,
+      sort: "updatedAt",
     });
     expect(nextFilterSearch({}, { sort: "title" })).toEqual({
       page: undefined,
@@ -52,10 +56,11 @@ describe("PublicTopControls URL updaters", () => {
     expect(toggleTagSet(["a", "b"], "a")).toEqual(["b"]);
   });
 
-  it("nextSortAxis cycles updatedAt → createdAt → title → updatedAt", () => {
+  it("nextSortAxis cycles publishedAt → updatedAt → createdAt → title → publishedAt", () => {
+    expect(nextSortAxis("publishedAt")).toBe("updatedAt");
     expect(nextSortAxis("updatedAt")).toBe("createdAt");
     expect(nextSortAxis("createdAt")).toBe("title");
-    expect(nextSortAxis("title")).toBe("updatedAt");
+    expect(nextSortAxis("title")).toBe("publishedAt");
   });
 });
 

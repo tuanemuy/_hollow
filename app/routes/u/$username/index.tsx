@@ -25,7 +25,12 @@ import { validateInput } from "@/core/presentation/validator";
 // `loaderDeps` so toggling it never re-streams the RSC (ADR-004, the
 // `DisplayModeSwitch` technique). `.catch(...)` keeps hand-typed junk from
 // erroring the route; omission keeps the URL clean.
-const PUBLIC_SORTS = ["updatedAt", "createdAt", "title"] as const;
+const PUBLIC_SORTS = [
+  "publishedAt",
+  "updatedAt",
+  "createdAt",
+  "title",
+] as const;
 const DISPLAY_MODES = ["list", "tile", "calendar"] as const;
 
 const publicTopSearchSchema = paginationSearchSchema.extend({

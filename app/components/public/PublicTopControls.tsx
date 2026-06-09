@@ -20,9 +20,10 @@ import {
 } from "./styles";
 
 export type DisplayMode = "list" | "tile" | "calendar";
-export type SortAxis = "updatedAt" | "createdAt" | "title";
+export type SortAxis = "publishedAt" | "updatedAt" | "createdAt" | "title";
 
 export const SORT_ORDER: readonly SortAxis[] = [
+  "publishedAt",
   "updatedAt",
   "createdAt",
   "title",
@@ -32,7 +33,7 @@ export const SORT_ORDER: readonly SortAxis[] = [
  * Build the next URL-search params for a tag / sort change. Pure so the
  * wiring is unit-tested without a router. `tags` / `sort` are loader-dep
  * params, so any change resets to the first page; the default values
- * (`updatedAt`, empty tags) are dropped to keep the URL clean.
+ * (`publishedAt`, empty tags) are dropped to keep the URL clean.
  */
 export function nextFilterSearch(
   prev: Record<string, unknown>,
@@ -44,7 +45,7 @@ export function nextFilterSearch(
     next.tags = patch.tags && patch.tags.length > 0 ? patch.tags : undefined;
   }
   if ("sort" in patch) {
-    next.sort = patch.sort === "updatedAt" ? undefined : patch.sort;
+    next.sort = patch.sort === "publishedAt" ? undefined : patch.sort;
   }
   return next;
 }
@@ -77,11 +78,13 @@ const DISPLAY_OPTIONS: ReadonlyArray<{
   { mode: "calendar", label: "カレンダー", icon: Calendar },
 ];
 
-// "公開日順" is backed by `updatedAt` (see listUserPublicNotes). The toggle
-// flips between updated-desc and title-asc so the sort button is functional
-// rather than decorative.
+// "公開日順" is backed by the publication aggregate's `published_at` (see
+// listUserPublicNotes); `updatedAt` is the note's last-edit time. The toggle
+// cycles through the axes so the sort button is functional rather than
+// decorative.
 const SORT_LABELS: Readonly<Record<SortAxis, string>> = {
-  updatedAt: "公開日順",
+  publishedAt: "公開日順",
+  updatedAt: "更新日順",
   createdAt: "作成日順",
   title: "タイトル順",
 };
@@ -92,7 +95,7 @@ const selectTags = (s: {
   tags?: readonly string[] | undefined;
 }): readonly string[] => s.tags ?? [];
 const selectSort = (s: { sort?: SortAxis | undefined }): SortAxis =>
-  s.sort ?? "updatedAt";
+  s.sort ?? "publishedAt";
 
 /**
  * Client island for the P30 filter chips, display segmented control and

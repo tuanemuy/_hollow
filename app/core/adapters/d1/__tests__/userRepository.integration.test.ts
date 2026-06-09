@@ -185,13 +185,13 @@ describe("D1UserRepository.searchPublicByUsernamePrefix (integration, #568)", ()
     expect(rows.map((u) => u.username)).toEqual(["trash-live"]);
   });
 
-  it("treats LIKE wildcards in the prefix query literally (escapes % and _)", async () => {
+  it("treats LIKE wildcards in the prefix query literally (% and _ are not wildcards)", async () => {
     const container = createTestContainer();
-    // Usernames are constrained to [a-z0-9-] by the domain, so the stored
-    // value never holds a `%` / `_`; the escape matters for the
-    // *user-supplied prefix query*. If `%` / `_` were passed unescaped they
-    // would match any/one character and pull these rows in. Escaped, a query
-    // containing them matches literally and finds nothing.
+    // The prefix search is a half-open range scan (`username >= q AND
+    // username < upper(q)`), not a `LIKE`, so `%` / `_` carry no special
+    // meaning — they are ordinary characters in the bound. Usernames are
+    // constrained to [a-z0-9-] by the domain, so a query holding `%` / `_`
+    // bounds a range no real username falls into and matches nothing.
     const a = await seedUser(container, "ab-1");
     const b = await seedUser(container, "axb");
 
@@ -200,16 +200,15 @@ describe("D1UserRepository.searchPublicByUsernamePrefix (integration, #568)", ()
       await seedPublicNote(container, owner, dir, "public");
     }
 
-    // Unescaped, `a%` would match both `ab-1` and `axb`; escaped it is a
-    // literal `a%` prefix that no username can start with.
+    // `%` (0x25) sorts below `b`/`x`, so the range `[a%, a&)` excludes both
+    // real usernames — a wildcard `LIKE` would instead have pulled them in.
     const percentRows = await container.unitOfWorkProvider.run(
       async ({ userRepository }) =>
         userRepository.searchPublicByUsernamePrefix("a%", 10),
     );
     expect(percentRows).toEqual([]);
 
-    // Unescaped, `a_` would match `axb` (single-char wildcard); escaped it
-    // is a literal `a_` prefix that no username can start with.
+    // `_` (0x5f) likewise bounds a range no username starts with.
     const underscoreRows = await container.unitOfWorkProvider.run(
       async ({ userRepository }) =>
         userRepository.searchPublicByUsernamePrefix("a_", 10),
@@ -217,12 +216,33 @@ describe("D1UserRepository.searchPublicByUsernamePrefix (integration, #568)", ()
     expect(underscoreRows).toEqual([]);
 
     // Sanity: the literal prefix `a` still matches both rows, proving the
-    // empty results above are the escaping, not a broken query.
+    // empty results above are the range semantics, not a broken query.
     const plainRows = await container.unitOfWorkProvider.run(
       async ({ userRepository }) =>
         userRepository.searchPublicByUsernamePrefix("a", 10),
     );
     expect(plainRows.map((u) => u.username)).toEqual(["ab-1", "axb"]);
+  });
+
+  it("folds the prefix query to lowercase before the range scan", async () => {
+    const container = createTestContainer();
+    // Usernames are lowercase by the domain rule; the prefix *query* may be
+    // any case. The adapter lowercases the query before bounding the range,
+    // so `F`/`FOO` match the stored lowercase `foo`. (A mixed-case stored
+    // username cannot be rehydrated — the domain `Username` invariant
+    // rejects it — so only the query side needs case folding; no separate
+    // normalised column is required.)
+    const foo = await seedUser(container, "foo");
+    const dir = await seedDirectory(container, foo);
+    await seedPublicNote(container, foo, dir, "public");
+
+    for (const q of ["F", "f", "FOO", "foo"]) {
+      const rows = await container.unitOfWorkProvider.run(
+        async ({ userRepository }) =>
+          userRepository.searchPublicByUsernamePrefix(q, 10),
+      );
+      expect(rows.map((u) => u.username)).toEqual(["foo"]);
+    }
   });
 
   it("returns [] for empty prefix and non-positive limit", async () => {

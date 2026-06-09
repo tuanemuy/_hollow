@@ -57,7 +57,7 @@ const loadNotes = cache(
         page: number;
         limit: number;
         tagNames?: readonly string[];
-        sort?: "updatedAt" | "createdAt" | "title";
+        sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
       },
     ) => {
       try {
@@ -78,7 +78,7 @@ type Props = {
   page: number;
   limit: number;
   tags?: readonly string[] | undefined;
-  sort?: "updatedAt" | "createdAt" | "title" | undefined;
+  sort?: "publishedAt" | "updatedAt" | "createdAt" | "title" | undefined;
 };
 
 export async function UserPublicTop({

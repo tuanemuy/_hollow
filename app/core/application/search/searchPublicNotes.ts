@@ -35,6 +35,10 @@ export type SearchPublicNotesOutput = Readonly<{
  * `UserRepository.findByUsername` and rejected if the user is
  * deleted or suspended — both should appear as a missing author
  * from the public surface's perspective.
+ *
+ * `dateRange`, when set, narrows by the publication aggregate's
+ * `published_at` (公開日) — not the note's `date_for_calendar`. The
+ * adapter joins `publication_states` for the windowed read (ADR-003).
  */
 export async function searchPublicNotes({
   container,
@@ -49,6 +53,9 @@ export async function searchPublicNotes({
     tagNames: input.tagNames ?? [],
     directoryPathPrefix: null,
     dateRange: input.dateRange ?? null,
+    // Public surface: the period window means 公開日, so it is evaluated
+    // against the publication aggregate's `published_at` (ADR-006).
+    dateBasis: "published_at",
     limit: input.limit,
     cursor: input.cursor ?? null,
   });
