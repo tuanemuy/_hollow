@@ -12,6 +12,8 @@ export type VerifyEmailChangeInput = {
 
 export type VerifyEmailChangeOutput = {
   userId: string;
+  // Normalized addresses projected as plain `string`: the `EmailAddress`
+  // brand is intentionally not carried across to the presentation layer.
   oldEmail: string;
   newEmail: string;
 };
