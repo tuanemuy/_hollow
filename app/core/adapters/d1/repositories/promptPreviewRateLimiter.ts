@@ -15,8 +15,7 @@ export type PromptPreviewRateLimitConfig = Readonly<{
 }>;
 
 /**
- * D1-backed per-user fixed-window rate limiter for prompt previews
- * (Issue #574).
+ * D1-backed per-user fixed-window rate limiter for prompt previews.
  *
  * Each `tryConsume` claims a slot with a single
  * `INSERT ... ON CONFLICT(user_id, window_start) DO UPDATE
@@ -30,13 +29,8 @@ export type PromptPreviewRateLimitConfig = Readonly<{
  * - Existing row with `count >= max` → `setWhere` fails the UPDATE,
  *   RETURNING is empty → denied.
  *
- * There is no retry loop. Concurrent callers contend on SQLite's
- * per-statement write lock, which serializes their single
- * INSERT ... ON CONFLICT DO UPDATE statements. The first writer takes the
- * INSERT path; every subsequent concurrent claim finds the row already
- * present and takes the DO UPDATE path, so once `count >= max` the
- * `setWhere` predicate fails and RETURNING is empty → denied. An empty
- * RETURNING is therefore uniformly treated as denied (B1-W-003).
+ * There is no retry loop: the per-statement write lock serializes concurrent
+ * claims, so an empty RETURNING is uniformly treated as denied.
  *
  * The window bucket is `floor(now_ms / windowMs)`, so a fresh window
  * always starts at `count = 0` via a new primary key — no reset write is
@@ -44,7 +38,7 @@ export type PromptPreviewRateLimitConfig = Readonly<{
  * behind, so `tryConsume` also opportunistically deletes this user's older
  * window rows in the same call (best-effort, under `mapDbError`). This
  * bounds storage to roughly one row per user without a separately-wired
- * pruner (B1-W-007, ADR-009).
+ * pruner (ADR-009).
  */
 export class D1PromptPreviewRateLimiter implements PromptPreviewRateLimiter {
   constructor(

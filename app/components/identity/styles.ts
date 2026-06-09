@@ -184,7 +184,7 @@ export const PROMPT_META = "block text-xs text-ink-tertiary mt-2";
 
 export const PROMPT_ACTION_ROW = "flex flex-wrap items-center gap-2.5 mt-3.5";
 
-// ===== Prompt preview (Issue #574) =====
+// ===== Prompt preview =====
 
 export const PREVIEW_PANEL = "mt-3.5 pt-3.5 border-t border-hairline";
 

@@ -683,9 +683,9 @@ const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
 });
 
 /**
- * Prompt-preview rate limit (Issue #574): 20 previews per user per hour.
- * Each preview is a real billable LLM call, so the limiter caps abuse /
- * cost. Fixed-window granularity is sufficient for this guard.
+ * Prompt-preview rate limit: 20 previews per user per hour. Each preview
+ * is a real billable LLM call, so the limiter caps abuse / cost.
+ * Fixed-window granularity is sufficient for this guard.
  */
 const PROMPT_PREVIEW_RATE_LIMIT = Object.freeze({
   max: 20,

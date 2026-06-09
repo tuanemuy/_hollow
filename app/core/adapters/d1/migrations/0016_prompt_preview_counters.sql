@@ -1,6 +1,5 @@
--- 0016_prompt_preview_counters.sql
--- Issue #574: per-user fixed-window counter for the prompt-preview rate
--- limiter (`D1PromptPreviewRateLimiter`).
+-- Per-user fixed-window counter for the prompt-preview rate limiter
+-- (`D1PromptPreviewRateLimiter`).
 --
 -- One row per `(user_id, window_start)` bucket, where
 -- `window_start = floor(now_ms / windowMs)`. The limiter claims a slot

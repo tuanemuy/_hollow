@@ -20,9 +20,9 @@ export const updateUserPromptSchema = z.object({
     .nullable(),
 });
 
-// Sample-input upper bound for prompt previews (Issue #574 ADR-004).
-// Caps LLM input-token cost while leaving enough room for a meaningful
-// preview. Enforced at the transport boundary below.
+// Sample-input upper bound for prompt previews (ADR-004). Caps LLM
+// input-token cost while leaving enough room for a meaningful preview.
+// Enforced at the transport boundary below.
 export const SAMPLE_TEXT_MAX_LENGTH = 4000;
 
 // Preview-capable purposes only — `ocr_assist` has no LLM execution path

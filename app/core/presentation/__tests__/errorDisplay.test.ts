@@ -28,7 +28,7 @@ const EXPLICIT_INGESTION_CODES: readonly string[] = [
   "ingestion_invalid_file_name",
   "ingestion_invalid_byte_size",
   "ingestion_missing_saved_note_id",
-  // Prompt preview (Issue #574)
+  // Prompt preview
   "llm_rate_limited",
   "llm_quota_exceeded",
   "llm_preview_unavailable",
@@ -160,10 +160,10 @@ describe("renderErrorMessage business mapping", () => {
     );
   });
 
-  // Prompt preview (Issue #574): pin the dedicated message text for each new
-  // code so a mis-mapping (e.g. swapping rate-limited and quota text) is
-  // caught — the EXPLICIT_INGESTION_CODES loops above only prove these are not
-  // the generic fallback and do not leak the raw code.
+  // Pin the dedicated message text for each prompt-preview code so a
+  // mis-mapping (e.g. swapping rate-limited and quota text) is caught — the
+  // EXPLICIT_INGESTION_CODES loops above only prove these are not the generic
+  // fallback and do not leak the raw code.
   it.each([
     [
       "llm_rate_limited",

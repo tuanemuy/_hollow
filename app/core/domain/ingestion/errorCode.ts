@@ -29,10 +29,10 @@ export const IngestionErrorCode = {
 
   MissingSavedNoteId: "ingestion_missing_saved_note_id",
 
-  // Prompt preview (Issue #574). The previewPrompt usecase translates raw
-  // LLM transport errors into these so the UI can show an honest reason
-  // instead of the generic business fallback. `llm_failure` (unavailable /
-  // timeout) reuses the existing pipeline identifier.
+  // Prompt preview. The previewPrompt usecase translates raw LLM transport
+  // errors into these so the UI can show an honest reason instead of the
+  // generic business fallback. `llm_failure` (unavailable / timeout) reuses
+  // the existing pipeline identifier.
   LLMRateLimited: "llm_rate_limited",
   LLMQuotaExceeded: "llm_quota_exceeded",
   LLMPreviewUnavailable: "llm_preview_unavailable",

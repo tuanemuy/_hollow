@@ -793,15 +793,10 @@ export const userPromptOverrides = sqliteTable("user_prompt_overrides", {
   updatedAt: text("updated_at").notNull(),
 });
 
-// Per-user fixed-window counter backing `D1PromptPreviewRateLimiter`
-// (Issue #574). One row per `(user_id, window_start)` bucket, where
-// `window_start = floor(now_ms / windowMs)`. The limiter claims a slot
-// with a single `INSERT ... ON CONFLICT DO UPDATE SET count = count + 1
-// WHERE count < :max RETURNING` statement (atomic under SQLite's
-// per-statement write lock). Stale buckets are pruned opportunistically
-// by `D1PromptPreviewRateLimiter.tryConsume` within the same call (it
-// deletes the acting user's rows with `window_start < current`), so each
-// user stays bounded to ~1 row without a separate pruner (ADR-009).
+// Per-user fixed-window counter backing `D1PromptPreviewRateLimiter`.
+// One row per `(user_id, window_start)` bucket, where
+// `window_start = floor(now_ms / windowMs)`. See that class for the claim
+// and opportunistic-pruning contract (ADR-009).
 export const promptPreviewCounters = sqliteTable(
   "prompt_preview_counters",
   {

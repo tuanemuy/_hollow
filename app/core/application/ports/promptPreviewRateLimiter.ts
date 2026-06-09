@@ -1,7 +1,7 @@
 /**
- * Per-user, fixed-window rate limiter guarding the prompt-preview usecase
- * (Issue #574). Each preview triggers a real, billable LLM call, so the
- * usecase consults this port before invoking the provider.
+ * Per-user, fixed-window rate limiter guarding the prompt-preview usecase.
+ * Each preview triggers a real, billable LLM call, so the usecase consults
+ * this port before invoking the provider.
  *
  * The contract is intentionally minimal — a single atomic `tryConsume`
  * that both increments and decides — so the implementation can claim a

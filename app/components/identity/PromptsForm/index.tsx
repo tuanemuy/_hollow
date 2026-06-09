@@ -47,7 +47,7 @@ import { previewPromptFn, updateUserPromptFn } from "./action";
 import { SAMPLE_TEXT_MAX_LENGTH } from "./schema";
 
 // Preview-capable purposes share the LLM execution path; `ocr_assist`
-// does not (no LLMProvider method — Issue #574 ADR-001). This narrows the
+// does not (no LLMProvider method — ADR-001). This narrows the
 // 5-purpose save-side enum to the 4-purpose preview enum in one place.
 type PreviewPurpose = "structure" | "title" | "directory" | "metadata";
 const PREVIEW_PURPOSES = new Set<Purpose>([

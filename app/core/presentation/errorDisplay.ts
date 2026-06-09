@@ -44,8 +44,8 @@ function renderIngestionBusinessMessage(code: string): string | null {
       return "ファイルが正しく読み取れませんでした。別のファイルでお試しください";
     case "ingestion_missing_saved_note_id":
       return "保存処理が完了していません。しばらくしてから再度お試しください";
-    // プロンプトプレビュー（Issue #574）。previewPrompt usecase が実 LLM の
-    // 実行不可状況を正直に翻訳して throw するコード。
+    // プロンプトプレビュー。previewPrompt usecase が実 LLM の実行不可状況を
+    // 正直に翻訳して throw するコード。
     case "llm_rate_limited":
       return "リクエストが集中しています。しばらくしてから再度お試しください";
     case "llm_quota_exceeded":

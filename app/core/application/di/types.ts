@@ -185,8 +185,8 @@ export type RequestContainer = SharedDeps &
     /**
      * Per-user fixed-window rate limiter guarding `previewPrompt`. Each
      * preview triggers a real billable LLM call, so the usecase claims a
-     * slot here before invoking the provider (Issue #574). Request-scoped
-     * (a request-path usecase), unlike the worker-only `idempotencyStore`.
+     * slot here before invoking the provider. Request-scoped (a request-path
+     * usecase), unlike the worker-only `idempotencyStore`.
      */
     promptPreviewRateLimiter: PromptPreviewRateLimiter;
     /**

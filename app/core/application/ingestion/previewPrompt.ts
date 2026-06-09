@@ -13,7 +13,7 @@ import type { ServiceArgs } from "../types";
 /**
  * Preview-capable purposes. `ocr_assist` is intentionally excluded — the
  * `LLMProvider` port has no execution path for it, so the UI shows a
- * "preview unavailable" state instead (Issue #574 ADR-001).
+ * "preview unavailable" state instead (ADR-001).
  */
 export type PreviewPromptPurpose =
   | "structure"
@@ -58,9 +58,8 @@ export type PreviewPromptOutput =
 
 /**
  * Runs a real LLM call against an in-progress prompt so the user can see
- * the actual output before saving (Issue #574). No aggregate is mutated,
- * so this runs outside any unit of work (mirrors `runIngestionJob`'s LLM
- * call placement).
+ * the actual output before saving. No aggregate is mutated, so this runs
+ * outside any unit of work (mirrors `runIngestionJob`'s LLM call placement).
  *
  * Guards, in order:
  * 1. Per-user fixed-window rate limit (`promptPreviewRateLimiter`).
@@ -80,7 +79,7 @@ export async function previewPrompt({
   // This is the deliberate fail-safe choice: a request that reaches the
   // provider has already incurred (or risked) billable cost, so a failed
   // attempt must still count against the quota to prevent abuse / billing
-  // DoS via repeatedly-failing previews (B1-W-002, ADR-008).
+  // DoS via repeatedly-failing previews (ADR-008).
   const decision = await container.promptPreviewRateLimiter.tryConsume(
     input.actorUserId,
     now,
@@ -183,7 +182,7 @@ function translateLLMError(error: unknown): BusinessRuleError<string> {
   // where preview cannot run. Collapse it (and any non-business error) into
   // `llm_preview_unavailable` so the user sees the honest dedicated message
   // rather than errorDisplay's generic business fallback, and so no internal
-  // detail leaks (B1-W-001).
+  // detail leaks.
   return new BusinessRuleError(
     IngestionErrorCode.LLMPreviewUnavailable,
     "llm preview failed",
