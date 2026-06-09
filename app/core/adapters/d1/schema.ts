@@ -792,3 +792,20 @@ export const userPromptOverrides = sqliteTable("user_prompt_overrides", {
   version: integer("version").notNull().default(0),
   updatedAt: text("updated_at").notNull(),
 });
+
+// Per-user fixed-window counter backing `D1PromptPreviewRateLimiter`
+// (Issue #574). One row per `(user_id, window_start)` bucket, where
+// `window_start = floor(now_ms / windowMs)`. The limiter claims a slot
+// with a single `INSERT ... ON CONFLICT DO UPDATE SET count = count + 1
+// WHERE count < :max RETURNING` statement (atomic under SQLite's
+// per-statement write lock). Stale buckets accumulate as the window
+// advances; sweeping them is a pruner concern out of scope for this Issue.
+export const promptPreviewCounters = sqliteTable(
+  "prompt_preview_counters",
+  {
+    userId: text("user_id").notNull(),
+    windowStart: integer("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.windowStart] })],
+);

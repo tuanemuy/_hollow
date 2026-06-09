@@ -28,6 +28,11 @@ const EXPLICIT_INGESTION_CODES: readonly string[] = [
   "ingestion_invalid_file_name",
   "ingestion_invalid_byte_size",
   "ingestion_missing_saved_note_id",
+  // Prompt preview (Issue #574)
+  "llm_rate_limited",
+  "llm_quota_exceeded",
+  "llm_preview_unavailable",
+  "prompt_preview_rate_limited",
 ];
 
 // (b) Pipeline identifiers written to `job.errorCode` by

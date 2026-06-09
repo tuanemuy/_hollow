@@ -44,6 +44,16 @@ function renderIngestionBusinessMessage(code: string): string | null {
       return "ファイルが正しく読み取れませんでした。別のファイルでお試しください";
     case "ingestion_missing_saved_note_id":
       return "保存処理が完了していません。しばらくしてから再度お試しください";
+    // プロンプトプレビュー（Issue #574）。previewPrompt usecase が実 LLM の
+    // 実行不可状況を正直に翻訳して throw するコード。
+    case "llm_rate_limited":
+      return "リクエストが集中しています。しばらくしてから再度お試しください";
+    case "llm_quota_exceeded":
+      return "AI の利用上限に達しました。時間をおいて再度お試しください";
+    case "llm_preview_unavailable":
+      return "現在 AI が利用できないためプレビューできません";
+    case "prompt_preview_rate_limited":
+      return "プレビューの実行回数上限に達しました。しばらくしてから再度お試しください";
     // ---- (b) pipeline 識別子（runIngestionJob.ts の classifyPipelineError 由来） ----
     case "llm_failure":
       return "AIによる要約・構造化に失敗しました。しばらくしてから再試行をお試しください";

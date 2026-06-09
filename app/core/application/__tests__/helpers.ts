@@ -17,6 +17,7 @@ import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
+import { D1PromptPreviewRateLimiter } from "@/core/adapters/d1/repositories/promptPreviewRateLimiter";
 import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
 import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
 import { D1UnitOfWorkProvider } from "@/core/adapters/d1/unitOfWork";
@@ -165,6 +166,10 @@ export function createTestContainer(): TestContainer {
     pdfExtractor: new StubPDFExtractor(),
     tempFileStorage: new FakeTempFileStorage(),
     promptResolver: new D1PromptResolver(db),
+    promptPreviewRateLimiter: new D1PromptPreviewRateLimiter(db, {
+      max: 20,
+      windowMs: 3_600_000,
+    }),
     clock: SystemClock,
     idGenerator: UuidV7Generator,
     logger: ConsoleLogger,
