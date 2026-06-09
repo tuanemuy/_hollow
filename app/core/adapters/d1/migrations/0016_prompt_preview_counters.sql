@@ -8,8 +8,10 @@
 -- SET count = count + 1 WHERE count < :max RETURNING count` statement,
 -- which is atomic under SQLite's per-statement write lock.
 --
--- Stale buckets accumulate as the window advances; sweeping them is a
--- pruner concern out of scope for this Issue.
+-- Stale buckets are pruned opportunistically by
+-- `D1PromptPreviewRateLimiter.tryConsume` within the same call (it deletes
+-- the acting user's rows with `window_start < current`), so each user stays
+-- bounded to ~1 row without a separate pruner (ADR-009).
 --
 -- Manual migration (not drizzle-kit generated). `IF NOT EXISTS` keeps it
 -- idempotent for repeated local `db:migrate` runs.
