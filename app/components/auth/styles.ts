@@ -73,3 +73,19 @@ export const STATUS_ICON =
 export const STATUS_ICON_SUCCESS = "bg-success-surface text-success";
 
 export const STATUS_ICON_ERROR = "bg-error-surface text-error";
+
+// Address diff card (P06 email-change-confirm `.address-summary`): old → new
+// address contrast, the old row struck through. Mock padding is
+// `var(--space-4) var(--space-5)` (16px vertical / 20px horizontal) → `py-4 px-5`.
+export const ADDRESS_SUMMARY =
+  "flex flex-col gap-2 text-left px-5 py-4 rounded-lg bg-surface";
+
+export const ADDRESS_ROW = "flex items-baseline justify-between gap-4 text-sm";
+
+export const ADDRESS_LABEL = "text-ink-tertiary shrink-0";
+
+export const ADDRESS_VALUE = "text-ink font-medium text-right break-all";
+
+// Old-address value: overrides the base `font-medium` with `font-normal`
+// (mock `--weight-regular`) and dims + strikes through.
+export const ADDRESS_VALUE_OLD = `${ADDRESS_VALUE} text-ink-tertiary line-through font-normal`;
