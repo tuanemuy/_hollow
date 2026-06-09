@@ -3,19 +3,27 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  serverFnChainStub,
-  useServerFnRouter,
-} from "@/components/_test-utils/serverFnMock";
-import type { UserDTO } from "@/core/application/dto/identity";
+import { serverFnChainStub } from "@/components/_test-utils/serverFnMock";
+import type { SessionDTO, UserDTO } from "@/core/application/dto/identity";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { serverFn, invalidate } = vi.hoisted(() => ({
-  serverFn: vi.fn(),
+// Mock each server fn as a distinct spy so assertions can prove the *right*
+// fn was wired — not just that *some* fn received the payload. `useServerFn`
+// is an identity passthrough, so the SUT calls these spies directly.
+const { revokeSessionFn, otherServerFn, invalidate } = vi.hoisted(() => ({
+  revokeSessionFn: vi.fn(),
+  otherServerFn: vi.fn(),
   invalidate: vi.fn(),
+}));
+
+vi.mock("../action", () => ({
+  changePasswordFn: otherServerFn,
+  requestEmailChangeFn: otherServerFn,
+  revokeAllOtherSessionsFn: otherServerFn,
+  revokeSessionFn,
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -23,9 +31,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@tanstack/react-start", () => ({
-  // SecurityForm dispatches useServerFn three times; a single fallback is
-  // enough since these tests render only.
-  useServerFn: useServerFnRouter([], serverFn),
+  useServerFn: (fn: unknown) => fn,
   createMiddleware: () => serverFnChainStub(),
   createServerFn: () => serverFnChainStub(),
 }));
@@ -46,6 +52,17 @@ const USER: UserDTO = {
   lastUsernameChangedAt: null,
 };
 
+const session = (overrides: Partial<SessionDTO> = {}): SessionDTO => ({
+  id: "session-1",
+  isCurrent: false,
+  userAgent: "Mozilla/5.0",
+  ipAddress: "192.0.2.41",
+  createdAt: "2026-05-14T09:24:00.000Z",
+  updatedAt: "2026-05-14T09:24:00.000Z",
+  expiresAt: "2026-06-13T09:24:00.000Z",
+  ...overrides,
+});
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -53,7 +70,8 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  serverFn.mockReset();
+  revokeSessionFn.mockReset();
+  otherServerFn.mockReset();
   invalidate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -64,9 +82,9 @@ afterEach(() => {
   container.remove();
 });
 
-function render() {
+function render(sessions: readonly SessionDTO[] = []) {
   act(() => {
-    root.render(<SecurityForm user={USER} />);
+    root.render(<SecurityForm user={USER} sessions={sessions} />);
   });
 }
 
@@ -91,5 +109,53 @@ describe("SecurityForm new-password strength help", () => {
       : null;
     expect(help?.textContent).toContain("12文字以上");
     expect(help?.textContent).toContain("2種以上");
+  });
+});
+
+describe("SecurityForm active sessions list", () => {
+  it("shows the 'このセッション' pill and no sign-out button on the current row", () => {
+    render([session({ id: "cur", isCurrent: true })]);
+    expect(container.textContent).toContain("このセッション");
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    const signOutButtons = buttons.filter(
+      (b) => b.textContent?.trim() === "ログアウト",
+    );
+    expect(signOutButtons).toHaveLength(0);
+  });
+
+  it("renders a sign-out button only for non-current rows", () => {
+    render([
+      session({ id: "cur", isCurrent: true }),
+      session({ id: "other", isCurrent: false }),
+    ]);
+    const signOutButtons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).filter((b) => b.textContent?.trim() === "ログアウト");
+    expect(signOutButtons).toHaveLength(1);
+  });
+
+  it("invokes revokeSessionFn with the row's sessionId when signing out", async () => {
+    revokeSessionFn.mockResolvedValue({ ok: true });
+    render([session({ id: "other", isCurrent: false })]);
+    const button = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent?.trim() === "ログアウト");
+    expect(button).not.toBeUndefined();
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(revokeSessionFn).toHaveBeenCalledWith({
+      data: { sessionId: "other" },
+    });
+    // The sign-out must go through revokeSessionFn specifically, not any
+    // other server fn that happens to accept the same payload.
+    expect(otherServerFn).not.toHaveBeenCalled();
+  });
+
+  it("renders the raw userAgent verbatim as the session title", () => {
+    render([session({ id: "ua", userAgent: "CustomAgent/9.9" })]);
+    expect(container.textContent).toContain("CustomAgent/9.9");
   });
 });

@@ -128,6 +128,35 @@ export const BTN_SM = `${pillBtn} ${pillBtnSm}`;
 // Transparent at rest, error-surface on hover. Drives `data-ghost-danger data-sm`.
 export const BTN_SM_DANGER = `${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`;
 
+// ===== Active sessions list (mock `.session-list` / `.session-row`) =====
+
+export const SESSION_LIST = "flex flex-col mt-5";
+
+// 40px icon / 1fr main / auto action. Below `sm` the action wraps to the
+// second column (mock `@media (max-width: 640px)`). `data-revoking` dims the
+// row while its sign-out request is in flight.
+export const SESSION_ROW =
+  "grid grid-cols-[40px_1fr_auto] gap-3.5 items-start py-4 border-t border-hairline max-sm:grid-cols-[32px_1fr] max-sm:gap-2.5 transition-opacity motion-reduce:transition-none data-[revoking]:opacity-60";
+
+export const SESSION_ICON =
+  "w-9 h-9 rounded-md bg-surface text-ink-secondary inline-flex items-center justify-center shrink-0";
+
+export const SESSION_MAIN = "min-w-0";
+
+export const SESSION_TITLE =
+  "text-sm font-medium text-ink mb-0.5 flex items-center gap-2 flex-wrap";
+
+// "このセッション" pill (mock `.session-current`).
+export const SESSION_CURRENT =
+  "inline-flex items-center text-[11px] font-medium text-success bg-success-surface px-2 py-0.5 rounded-pill";
+
+export const SESSION_META = "text-xs text-ink-tertiary leading-normal";
+
+// Per-row sign-out button. Vertically centered against the row, and on
+// the narrow layout it drops to the second column left-aligned.
+export const SESSION_ACTION =
+  "self-center max-sm:col-start-2 max-sm:justify-self-start max-sm:mt-1";
+
 // ===== Prompts form =====
 
 export const PROMPT_CARD = "py-6 border-t border-hairline first:border-t-0";

@@ -1,10 +1,11 @@
-import { and, eq, gt, ne } from "drizzle-orm";
+import { and, desc, eq, gt, ne } from "drizzle-orm";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import type {
   IssuedSession,
   ResolvedSession,
   SessionMeta,
+  SessionRecord,
   SessionService,
 } from "@/core/domain/identity/ports/sessionService";
 import { UserId } from "@/core/domain/identity/valueObject";
@@ -125,6 +126,53 @@ export class D1SessionService implements SessionService {
         .where(predicate)
         .returning({ id: sessions.id });
       return rows.length;
+    });
+  }
+
+  async listForUser(userId: UserId): Promise<readonly SessionRecord[]> {
+    return mapDbError("Failed to list user sessions", async () => {
+      const now = this.clock.now();
+      // Same validity predicate as `resolve` (expired rows excluded). No
+      // `users` join: the caller is listing their own sessions and is a
+      // confirmed-alive actor. Newest-first via `created_at`.
+      const rows = await this.db
+        .select({
+          id: sessions.id,
+          token: sessions.token,
+          userAgent: sessions.userAgent,
+          ipAddress: sessions.ipAddress,
+          createdAt: sessions.createdAt,
+          updatedAt: sessions.updatedAt,
+          expiresAt: sessions.expiresAt,
+        })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.userId, userId),
+            gt(sessions.expiresAt, now.toISOString()),
+          ),
+        )
+        .orderBy(desc(sessions.createdAt));
+      return rows.map((row) => ({
+        id: row.id,
+        token: row.token,
+        userAgent: row.userAgent,
+        ipAddress: row.ipAddress,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+        expiresAt: new Date(row.expiresAt),
+      }));
+    });
+  }
+
+  async revokeByIdForUser(userId: UserId, sessionId: string): Promise<void> {
+    await mapDbError("Failed to revoke session", async () => {
+      // Owner-scoped + idempotent: the `userId` predicate means another
+      // user's id can never be revoked, and a non-matching predicate
+      // simply touches zero rows.
+      await this.db
+        .delete(sessions)
+        .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)));
     });
   }
 }

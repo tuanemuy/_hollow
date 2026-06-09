@@ -28,6 +28,10 @@ export const requestEmailChangeSchema = z.object({
 
 export const revokeAllOtherSessionsSchema = z.object({});
 
+export const revokeSessionSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
 export const deleteAccountSchema = z.object({
   confirmation: z.string().min(1).max(USERNAME_MAX),
 });
