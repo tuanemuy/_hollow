@@ -17,6 +17,7 @@ import { changePassword } from "../changePassword";
 import { changeUsername } from "../changeUsername";
 import { deleteAccount } from "../deleteAccount";
 import { demoteAdmin } from "../demoteAdmin";
+import { listUserSessions } from "../listUserSessions";
 import { logIn } from "../logIn";
 import { logOut } from "../logOut";
 import { promoteUserToAdmin } from "../promoteUserToAdmin";
@@ -26,6 +27,7 @@ import { requestPasswordReset } from "../requestPasswordReset";
 import { resendVerification } from "../resendVerification";
 import { resetPassword } from "../resetPassword";
 import { revokeAllOtherSessions } from "../revokeAllOtherSessions";
+import { revokeUserSession } from "../revokeUserSession";
 import { type SignUpInput, signUp } from "../signUp";
 import { suspendUser } from "../suspendUser";
 import { updateProfile } from "../updateProfile";
@@ -979,6 +981,162 @@ describe("RevokeAllOtherSessions", () => {
       .where(eq(schema.sessions.userId, userId));
     expect(afterRows).toHaveLength(1);
     expect(afterRows[0]?.token).toBe(currentToken);
+  });
+});
+
+describe("ListUserSessions / RevokeUserSession", () => {
+  const getContainer = setupTestContainer();
+  beforeEach(async () => {
+    await truncateIdentityTables(getContainer());
+  });
+
+  async function activeUser(seed: string) {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp(seed) });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    const { sessionToken } = await verifyEmail({
+      container,
+      input: { token: verifyToken },
+    });
+    return { userId, sessionToken };
+  }
+
+  it("lists the owner's valid sessions newest-first with isCurrent on the matching row", async () => {
+    const container = getContainer();
+    const { userId, sessionToken: currentToken } = await activeUser("lus0001");
+    // Seed two more sessions via logIn.
+    for (let i = 0; i < 2; i++) {
+      await logIn({
+        container,
+        input: {
+          email: uniqueEmail("lus0001"),
+          password: strongPassword("lus0001"),
+          userAgent: null,
+          ipAddress: null,
+        },
+      });
+    }
+
+    const { sessions } = await listUserSessions({
+      container,
+      input: { userId, currentSessionToken: currentToken },
+    });
+
+    expect(sessions).toHaveLength(3);
+    // token must never appear on a projected DTO.
+    for (const s of sessions) {
+      expect(s).not.toHaveProperty("token");
+    }
+    // exactly the current row is flagged.
+    expect(sessions.filter((s) => s.isCurrent)).toHaveLength(1);
+    // newest-first ordering by createdAt.
+    const created = sessions.map((s) => s.createdAt);
+    const sorted = [...created].sort((a, b) => (a < b ? 1 : -1));
+    expect(created).toEqual(sorted);
+  });
+
+  it("excludes expired sessions", async () => {
+    const container = getContainer();
+    const { userId, sessionToken } = await activeUser("lus0002");
+
+    // Backdate the lone session's expiry to the past.
+    await container.db
+      .update(schema.sessions)
+      .set({ expiresAt: new Date(0).toISOString() })
+      .where(eq(schema.sessions.token, sessionToken));
+
+    const { sessions } = await listUserSessions({
+      container,
+      input: { userId, currentSessionToken: sessionToken },
+    });
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("sets isCurrent=false for all rows when currentSessionToken is null", async () => {
+    const container = getContainer();
+    const { userId } = await activeUser("lus0003");
+
+    const { sessions } = await listUserSessions({
+      container,
+      input: { userId, currentSessionToken: null },
+    });
+    expect(sessions.length).toBeGreaterThan(0);
+    expect(sessions.every((s) => !s.isCurrent)).toBe(true);
+  });
+
+  it("revokes only the owner's own session by id", async () => {
+    const container = getContainer();
+    const { userId, sessionToken } = await activeUser("rus0001");
+    // A second session to revoke.
+    await logIn({
+      container,
+      input: {
+        email: uniqueEmail("rus0001"),
+        password: strongPassword("rus0001"),
+        userAgent: null,
+        ipAddress: null,
+      },
+    });
+
+    const before = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, userId));
+    expect(before).toHaveLength(2);
+    const target = before.find((r) => r.token !== sessionToken);
+    if (!target) throw new Error("expected a non-current session");
+
+    await revokeUserSession({
+      container,
+      input: { actorUserId: userId, sessionId: target.id },
+    });
+
+    const after = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, userId));
+    expect(after).toHaveLength(1);
+    expect(after[0]?.token).toBe(sessionToken);
+  });
+
+  it("does not revoke another user's session (owner scope)", async () => {
+    const container = getContainer();
+    const a = await activeUser("rus0010");
+    const b = await activeUser("rus0011");
+
+    const bRows = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, b.userId));
+    const bSessionId = bRows[0]?.id;
+    if (bSessionId === undefined) throw new Error("expected user b session");
+
+    // User a attempts to revoke user b's session id — must be a no-op.
+    await revokeUserSession({
+      container,
+      input: { actorUserId: a.userId, sessionId: bSessionId },
+    });
+
+    const bAfter = await container.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, b.userId));
+    expect(bAfter).toHaveLength(1);
+  });
+
+  it("is idempotent for an unknown session id", async () => {
+    const container = getContainer();
+    const { userId } = await activeUser("rus0020");
+    await expect(
+      revokeUserSession({
+        container,
+        input: { actorUserId: userId, sessionId: "no-such-session-id" },
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 

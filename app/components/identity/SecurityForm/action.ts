@@ -6,6 +6,7 @@ import {
   changePasswordSchema,
   requestEmailChangeSchema,
   revokeAllOtherSessionsSchema,
+  revokeSessionSchema,
 } from "../schema";
 
 export const changePasswordFn = createServerFn({ method: "POST" })
@@ -90,4 +91,25 @@ export const revokeAllOtherSessionsFn = createServerFn({ method: "POST" })
         currentSessionToken: token,
       },
     });
+  });
+
+export const revokeSessionFn = createServerFn({ method: "POST" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(revokeSessionSchema))
+  .handler(async ({ data }) => {
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const actor = await requireCurrentUser();
+    // Owner-scoped, id-based revocation — no session token needed; the
+    // actor identity is sufficient (see `.issue/572/adr.md` ADR-001).
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/identity/revokeUserSession"),
+    );
+    await module.revokeUserSession({
+      container,
+      input: {
+        actorUserId: actor.id,
+        sessionId: data.sessionId,
+      },
+    });
+    return { ok: true };
   });

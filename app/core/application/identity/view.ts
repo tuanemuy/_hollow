@@ -5,4 +5,9 @@
  * (`todo/view.ts` etc.) so callers can `import { toUserDTO } from "./view"`
  * consistently.
  */
-export { toUserDTO, type UserDTO } from "../dto/identity";
+export {
+  type SessionDTO,
+  toSessionDTO,
+  toUserDTO,
+  type UserDTO,
+} from "../dto/identity";

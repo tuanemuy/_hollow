@@ -187,6 +187,49 @@ Setup Token を提示して admin ユーザーを登録する。通常の `SignU
 
 ---
 
+## ListUserSessions
+
+### 概要
+P22「アクティブセッション一覧」用の read-only ユースケース。actor 自身の有効なセッションを端末ごとに列挙する。
+
+### 入力DTO
+- `userId: string`, `currentSessionToken: string | null`
+
+### 出力DTO
+- `sessions: SessionDTO[]`
+  - `SessionDTO = { id, isCurrent, userAgent, ipAddress, createdAt, updatedAt, expiresAt }`
+  - **token は含めない**。`isCurrent` は server 側で解決済みの bool（`record.token === currentSessionToken`、cookie 欠落時 `currentSessionToken=null` は全行 false）。
+
+### 処理フロー
+1. `UserId.create(userId)`
+2. `sessionService.listForUser(userId)`（期限切れ `expiresAt <= now` を除外、`createdAt` 降順）
+3. 各 `SessionRecord` を `toSessionDTO(record, currentSessionToken)` で射影（token を破棄し `isCurrent` を確定）
+
+### エラーケース
+- なし
+
+---
+
+## RevokeUserSession
+
+### 概要
+P22 の行単位ログアウト。`sessions.id` + 所有者スコープで失効する。token は受け取らない（`.issue/572/adr.md` ADR-001）。既存 token ベース `RevokeSession` とは別ユースケース。
+
+### 入力DTO
+- `actorUserId: string`, `sessionId: string`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+1. `UserId.create(actorUserId)`
+2. `sessionService.revokeByIdForUser(actorUserId, sessionId)`（冪等・所有者一致のみ削除。不一致/不在は no-op）
+
+### エラーケース
+- なし
+
+---
+
 ## RequestPasswordReset
 
 ### 入力DTO
