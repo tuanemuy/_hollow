@@ -258,4 +258,29 @@ describe("previewPrompt", () => {
         e.code === IngestionErrorCode.LLMPreviewUnavailable,
     );
   });
+
+  it("(g) collapses an unexpected BusinessRuleError (not unsupported_format) to llm_preview_unavailable", async () => {
+    const { container } = makeContainer({
+      llm: {
+        structure: () =>
+          Promise.reject(
+            new BusinessRuleError(
+              IngestionErrorCode.InvalidId,
+              "some unexpected business failure",
+            ),
+          ),
+      },
+    });
+
+    await expect(
+      previewPrompt({
+        container,
+        input: { actorUserId: ACTOR, purpose: "structure", sampleText: "raw" },
+      }),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        isBusinessRuleError(e) &&
+        e.code === IngestionErrorCode.LLMPreviewUnavailable,
+    );
+  });
 });

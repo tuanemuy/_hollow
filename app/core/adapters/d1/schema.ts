@@ -798,8 +798,10 @@ export const userPromptOverrides = sqliteTable("user_prompt_overrides", {
 // `window_start = floor(now_ms / windowMs)`. The limiter claims a slot
 // with a single `INSERT ... ON CONFLICT DO UPDATE SET count = count + 1
 // WHERE count < :max RETURNING` statement (atomic under SQLite's
-// per-statement write lock). Stale buckets accumulate as the window
-// advances; sweeping them is a pruner concern out of scope for this Issue.
+// per-statement write lock). Stale buckets are pruned opportunistically
+// by `D1PromptPreviewRateLimiter.tryConsume` within the same call (it
+// deletes the acting user's rows with `window_start < current`), so each
+// user stays bounded to ~1 row without a separate pruner (ADR-009).
 export const promptPreviewCounters = sqliteTable(
   "prompt_preview_counters",
   {
