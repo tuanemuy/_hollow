@@ -133,9 +133,10 @@ export const BTN_SM_DANGER = `${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}`;
 export const SESSION_LIST = "flex flex-col mt-5";
 
 // 40px icon / 1fr main / auto action. Below `sm` the action wraps to the
-// second column (mock `@media (max-width: 640px)`).
+// second column (mock `@media (max-width: 640px)`). `data-revoking` dims the
+// row while its sign-out request is in flight.
 export const SESSION_ROW =
-  "grid grid-cols-[40px_1fr_auto] gap-3.5 items-start py-4 border-t border-hairline max-sm:grid-cols-[32px_1fr] max-sm:gap-2.5";
+  "grid grid-cols-[40px_1fr_auto] gap-3.5 items-start py-4 border-t border-hairline max-sm:grid-cols-[32px_1fr] max-sm:gap-2.5 transition-opacity data-[revoking]:opacity-60";
 
 export const SESSION_ICON =
   "w-9 h-9 rounded-md bg-surface text-ink-secondary inline-flex items-center justify-center shrink-0";

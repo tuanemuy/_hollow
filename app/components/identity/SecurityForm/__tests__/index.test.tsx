@@ -3,19 +3,27 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  serverFnChainStub,
-  useServerFnRouter,
-} from "@/components/_test-utils/serverFnMock";
+import { serverFnChainStub } from "@/components/_test-utils/serverFnMock";
 import type { SessionDTO, UserDTO } from "@/core/application/dto/identity";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { serverFn, invalidate } = vi.hoisted(() => ({
-  serverFn: vi.fn(),
+// Mock each server fn as a distinct spy so assertions can prove the *right*
+// fn was wired — not just that *some* fn received the payload. `useServerFn`
+// is an identity passthrough, so the SUT calls these spies directly.
+const { revokeSessionFn, otherServerFn, invalidate } = vi.hoisted(() => ({
+  revokeSessionFn: vi.fn(),
+  otherServerFn: vi.fn(),
   invalidate: vi.fn(),
+}));
+
+vi.mock("../action", () => ({
+  changePasswordFn: otherServerFn,
+  requestEmailChangeFn: otherServerFn,
+  revokeAllOtherSessionsFn: otherServerFn,
+  revokeSessionFn,
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -23,9 +31,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@tanstack/react-start", () => ({
-  // SecurityForm dispatches useServerFn three times; a single fallback is
-  // enough since these tests render only.
-  useServerFn: useServerFnRouter([], serverFn),
+  useServerFn: (fn: unknown) => fn,
   createMiddleware: () => serverFnChainStub(),
   createServerFn: () => serverFnChainStub(),
 }));
@@ -64,7 +70,8 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  serverFn.mockReset();
+  revokeSessionFn.mockReset();
+  otherServerFn.mockReset();
   invalidate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -130,7 +137,7 @@ describe("SecurityForm active sessions list", () => {
   });
 
   it("invokes revokeSessionFn with the row's sessionId when signing out", async () => {
-    serverFn.mockResolvedValue({ ok: true });
+    revokeSessionFn.mockResolvedValue({ ok: true });
     render([session({ id: "other", isCurrent: false })]);
     const button = Array.from(
       container.querySelectorAll<HTMLButtonElement>("button"),
@@ -139,7 +146,12 @@ describe("SecurityForm active sessions list", () => {
     await act(async () => {
       button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    expect(serverFn).toHaveBeenCalledWith({ data: { sessionId: "other" } });
+    expect(revokeSessionFn).toHaveBeenCalledWith({
+      data: { sessionId: "other" },
+    });
+    // The sign-out must go through revokeSessionFn specifically, not any
+    // other server fn that happens to accept the same payload.
+    expect(otherServerFn).not.toHaveBeenCalled();
   });
 
   it("renders the raw userAgent verbatim as the session title", () => {

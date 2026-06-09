@@ -1008,14 +1008,16 @@ describe("ListUserSessions / RevokeUserSession", () => {
   it("lists the owner's valid sessions newest-first with isCurrent on the matching row", async () => {
     const container = getContainer();
     const { userId, sessionToken: currentToken } = await activeUser("lus0001");
-    // Seed two more sessions via logIn.
+    // Seed two more sessions via logIn, each with a distinct userAgent so the
+    // ordering assertion is deterministic even if two createdAt values land in
+    // the same millisecond (orderBy(createdAt) has no id tiebreak).
     for (let i = 0; i < 2; i++) {
       await logIn({
         container,
         input: {
           email: uniqueEmail("lus0001"),
           password: strongPassword("lus0001"),
-          userAgent: null,
+          userAgent: `lus0001-ua-${i}`,
           ipAddress: null,
         },
       });
@@ -1033,10 +1035,13 @@ describe("ListUserSessions / RevokeUserSession", () => {
     }
     // exactly the current row is flagged.
     expect(sessions.filter((s) => s.isCurrent)).toHaveLength(1);
-    // newest-first ordering by createdAt.
-    const created = sessions.map((s) => s.createdAt);
-    const sorted = [...created].sort((a, b) => (a < b ? 1 : -1));
-    expect(created).toEqual(sorted);
+    // newest-first ordering: the two logIn sessions (created after the
+    // verifyEmail session) come first, newest UA first; the original
+    // (current) session is oldest and last. Pinning via userAgent removes
+    // the sub-millisecond false-pass blind spot of a sort-only check.
+    expect(sessions[0].userAgent).toBe("lus0001-ua-1");
+    expect(sessions[1].userAgent).toBe("lus0001-ua-0");
+    expect(sessions[2].isCurrent).toBe(true);
   });
 
   it("excludes expired sessions", async () => {

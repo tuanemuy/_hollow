@@ -65,6 +65,14 @@ export type SessionDTO = Readonly<{
   userAgent: string | null;
   ipAddress: string | null;
   createdAt: Instant;
+  /**
+   * Currently equal to `createdAt`: the session row's `updatedAt` has no
+   * write path (it is set once at `issue` and `resolve` never touches it),
+   * so this is **not** a meaningful "last active" time. Retained for a
+   * future activity-tracking path but deliberately unused by the UI — the
+   * P22 list labels login time off `createdAt` (see `.issue/572/adr.md`
+   * ADR-002). Do not surface this as "最終アクセス".
+   */
   updatedAt: Instant;
   expiresAt: Instant;
 }>;

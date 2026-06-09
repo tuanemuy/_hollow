@@ -74,3 +74,21 @@ ADR-002 で「title は実値ベース・捏造禁止・`createdAt`=「ログイ
 ### Consequences
 - 良い点: 表示は backend 実データに厳密一致。捏造ゼロ。device-parser 導入時はこの projection/表示層だけ差し替えればよい。
 - トレードオフ: 現状 meta はほぼ IP のみで素朴。情報拡充は別 Issue（device-parser / geo / 活動時刻更新）。
+
+---
+
+## ADR-005: 行失効の状態フィードバック（data-revoking variant・成功の live region）
+
+### Status
+Accepted（レビュー Round 1 で確定）
+
+### Context
+レビューで 2 点指摘された: (1) `data-revoking` 属性を出すだけで消費する Tailwind variant が無く、視覚効果を駆動していなかった（ADR-004 は「data-revoking で失効中を示す」と記載）。(2) 一括失効は成功時に polite live region で件数をアナウンスするのに、行失効は「行が静かに消える」だけでスクリーンリーダーに成功が伝わらず非対称だった。
+
+### Decision
+- **data-revoking を活かす:** `SESSION_ROW` に `transition-opacity data-[revoking]:opacity-60` を追加し、失効中は行を淡色化する。属性が実際にスタイルを駆動するようにして「宙ぶらりんの状態属性」を解消。
+- **成功の live region:** `SecurityForm` に `rowRevoked` state と `aria-live="polite"` の sr-only リージョンを持たせ、`SessionRow` から `onRevoked` コールバックで通知する。行は `routerInvalidate` で unmount するため、通知は親に置く（成功メッセージ「セッションをログアウトしました」をアナウンス）。
+
+### Consequences
+- 良い点: 失効中の視覚フィードバックと成功のアナウンスが、一括失効と非対称なく揃う。a11y 向上。
+- トレードオフ: `SessionRow` に親への通知 prop（`onRevoked`）が増える。sr-only リージョンは視覚的には出ないが、視覚ユーザーには行消失そのものが成功サインになる。

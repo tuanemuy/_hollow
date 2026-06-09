@@ -91,7 +91,13 @@ function sessionTitle(session: SessionDTO): string {
   return ua !== undefined && ua !== "" ? ua : "不明な端末";
 }
 
-function SessionRow({ session }: { session: SessionDTO }) {
+function SessionRow({
+  session,
+  onRevoked,
+}: {
+  session: SessionDTO;
+  onRevoked: () => void;
+}) {
   const router = useRouter();
   const revoke = useServerFn(revokeSessionFn);
   const [isPending, startTransition] = useTransition();
@@ -101,8 +107,11 @@ function SessionRow({ session }: { session: SessionDTO }) {
     startTransition(async () => {
       try {
         await revoke({ data: { sessionId: session.id } });
-        await routerInvalidate(router);
         setError(null);
+        // Announce before invalidation: the row unmounts on re-fetch, so the
+        // notice has to live on the parent to reach a screen reader.
+        onRevoked();
+        await routerInvalidate(router);
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -212,6 +221,7 @@ export function SecurityForm({
     null,
   );
   const [revokedCount, setRevokedCount] = useState<number | null>(null);
+  const [rowRevoked, setRowRevoked] = useState(false);
 
   const onRevokeAll = () => {
     startTransition(async () => {
@@ -430,10 +440,17 @@ export function SecurityForm({
           {sessionsSummary}
         </p>
       ) : null}
+      <p aria-live="polite" className="sr-only">
+        {rowRevoked ? "セッションをログアウトしました" : ""}
+      </p>
       {sessions.length > 0 ? (
         <div className={SESSION_LIST}>
           {sessions.map((session) => (
-            <SessionRow key={session.id} session={session} />
+            <SessionRow
+              key={session.id}
+              session={session}
+              onRevoked={() => setRowRevoked(true)}
+            />
           ))}
         </div>
       ) : null}
