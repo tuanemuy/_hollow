@@ -76,6 +76,11 @@ export async function previewPrompt({
   input,
 }: ServiceArgs<PreviewPromptInput>): Promise<PreviewPromptOutput> {
   const now = container.clock.now();
+  // Consume a slot *before* the LLM call and never refund it on failure.
+  // This is the deliberate fail-safe choice: a request that reaches the
+  // provider has already incurred (or risked) billable cost, so a failed
+  // attempt must still count against the quota to prevent abuse / billing
+  // DoS via repeatedly-failing previews (B1-W-002, ADR-008).
   const decision = await container.promptPreviewRateLimiter.tryConsume(
     input.actorUserId,
     now,
@@ -174,11 +179,11 @@ function translateLLMError(error: unknown): BusinessRuleError<string> {
       "llm preview unavailable",
     );
   }
-  // Re-raise any other BusinessRuleError verbatim; wrap unknowns as a
-  // generic preview-unavailable so no internal detail leaks.
-  if (isBusinessRuleError(error)) {
-    return error;
-  }
+  // Any other BusinessRuleError reaching the preview path signals a state
+  // where preview cannot run. Collapse it (and any non-business error) into
+  // `llm_preview_unavailable` so the user sees the honest dedicated message
+  // rather than errorDisplay's generic business fallback, and so no internal
+  // detail leaks (B1-W-001).
   return new BusinessRuleError(
     IngestionErrorCode.LLMPreviewUnavailable,
     "llm preview failed",

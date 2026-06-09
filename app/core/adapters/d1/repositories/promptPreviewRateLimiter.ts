@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type {
   PromptPreviewRateLimiter,
   RateLimitDecision,
@@ -29,12 +29,22 @@ export type PromptPreviewRateLimitConfig = Readonly<{
  * - Existing row with `count < max` → `count` incremented, returned → allowed.
  * - Existing row with `count >= max` → `setWhere` fails the UPDATE,
  *   RETURNING is empty → denied.
- * - Lost INSERT race (concurrent insert won) collapses into the existing-row
- *   path on retry; an empty RETURNING is uniformly treated as denied.
+ *
+ * There is no retry loop. Concurrent callers contend on SQLite's
+ * per-statement write lock, which serializes their single
+ * INSERT ... ON CONFLICT DO UPDATE statements. The first writer takes the
+ * INSERT path; every subsequent concurrent claim finds the row already
+ * present and takes the DO UPDATE path, so once `count >= max` the
+ * `setWhere` predicate fails and RETURNING is empty → denied. An empty
+ * RETURNING is therefore uniformly treated as denied (B1-W-003).
  *
  * The window bucket is `floor(now_ms / windowMs)`, so a fresh window
  * always starts at `count = 0` via a new primary key — no reset write is
- * needed. Stale buckets are swept by a pruner (out of scope here).
+ * needed. Each new window would otherwise leave a stale primary-key row
+ * behind, so `tryConsume` also opportunistically deletes this user's older
+ * window rows in the same call (best-effort, under `mapDbError`). This
+ * bounds storage to roughly one row per user without a separately-wired
+ * pruner (B1-W-007, ADR-009).
  */
 export class D1PromptPreviewRateLimiter implements PromptPreviewRateLimiter {
   constructor(
@@ -58,6 +68,18 @@ export class D1PromptPreviewRateLimiter implements PromptPreviewRateLimiter {
           setWhere: sql`${promptPreviewCounters.count} < ${this.config.max}`,
         })
         .returning({ count: promptPreviewCounters.count });
+
+      // Opportunistically drop this user's stale window rows (any bucket
+      // older than the current one). Best-effort cleanup that bounds the
+      // table to ~one row per user without a separate pruner (ADR-009).
+      await this.db
+        .delete(promptPreviewCounters)
+        .where(
+          and(
+            eq(promptPreviewCounters.userId, userId),
+            lt(promptPreviewCounters.windowStart, windowStart),
+          ),
+        );
 
       if (rows.length > 0) {
         return { allowed: true, retryAfterSec: 0 };

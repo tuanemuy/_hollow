@@ -26,6 +26,11 @@ import { previewPrompt } from "../previewPrompt";
 
 const ACTOR = "00000000-0000-7000-9000-000000000001";
 
+// Pipeline identifier intentionally reused outside the IngestionErrorCode
+// enum for unavailable/timeout LLM failures (ADR-007). Kept as a shared
+// constant so the implementation and these tests stay in sync.
+const LLM_FAILURE_CODE = "llm_failure";
+
 type LLMStubs = {
   structure?: LLMStructureResult | (() => Promise<LLMStructureResult>);
   metadata?: LLMMetadataResult | (() => Promise<LLMMetadataResult>);
@@ -167,8 +172,8 @@ describe("previewPrompt", () => {
   it.each([
     [new LLMRateLimitError("rl"), IngestionErrorCode.LLMRateLimited],
     [new LLMQuotaExceededError("q"), IngestionErrorCode.LLMQuotaExceeded],
-    [new LLMUnavailableError("u"), "llm_failure"],
-    [new LLMTimeoutError("t"), "llm_failure"],
+    [new LLMUnavailableError("u"), LLM_FAILURE_CODE],
+    [new LLMTimeoutError("t"), LLM_FAILURE_CODE],
   ])("(d) translates %s to the expected business code", async (thrown, expectedCode) => {
     const { container } = makeContainer({
       llm: {
@@ -187,6 +192,28 @@ describe("previewPrompt", () => {
       }),
     ).rejects.toSatisfy(
       (e: unknown) => isBusinessRuleError(e) && e.code === expectedCode,
+    );
+  });
+
+  it("(d2) translates an LLM error from the metadata (suggestMetadata) path too", async () => {
+    const { container } = makeContainer({
+      llm: {
+        metadata: () => Promise.reject(new LLMRateLimitError("rl")),
+      },
+    });
+
+    await expect(
+      previewPrompt({
+        container,
+        input: {
+          actorUserId: ACTOR,
+          purpose: "metadata",
+          sampleText: "<p>html</p>",
+        },
+      }),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        isBusinessRuleError(e) && e.code === IngestionErrorCode.LLMRateLimited,
     );
   });
 

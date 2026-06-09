@@ -43,14 +43,14 @@ Accepted
 プレビューは実 LLM 課金を発生させるため呼び出し回数の制限が必要（ユーザー決定）。汎用レート制限基盤は既存に無い。Cloudflare の永続バインディングはコンテナに `DB: D1Database` のみ配線済みで、KV / Durable Object は未配線。既存の D1 アトミック claim パターン（`idempotencyStore`: `INSERT ... onConflictDoNothing RETURNING`）がある。
 
 ### Decision
-新規 D1 テーブル `prompt_preview_counters(user_id, window_start, count, PK(user_id, window_start))` + application port `PromptPreviewRateLimiter` + D1 adapter を本機能向け最小実装で追加。`tryConsume` は drizzle の `onConflictDoUpdate({ target, set: { count: sql\`count + 1\` }, setWhere: sql\`count < ${max}\` }).returning()` で競合安全に判定する（INSERT 成功時は count=1 を返す＝allowed、既存行で setWhere 不成立なら RETURNING 空＝denied、lost race の INSERT 失敗も RETURNING 空＝denied として同一視）。粒度は per-user・固定 window バケット（`window_start = floor(now/windowMs)`）。初期値は N=20 回 / 1 時間（要レビューで調整可）。
+新規 D1 テーブル `prompt_preview_counters(user_id, window_start, count, PK(user_id, window_start))` + application port `PromptPreviewRateLimiter` + D1 adapter を本機能向け最小実装で追加。`tryConsume` は drizzle の `onConflictDoUpdate({ target, set: { count: sql\`count + 1\` }, setWhere: sql\`count < ${max}\` }).returning()` で競合安全に判定する。retry ループは無く、単一の INSERT ... ON CONFLICT DO UPDATE 文が SQLite の per-statement write lock で直列化される。最初の書き手は INSERT 経路（count=1＝allowed）、以降の競合する claim は行が既に存在するため DO UPDATE 経路を通り、`count < max` のうちは加算して RETURNING 非空＝allowed、`count >= max` になると setWhere 不成立で UPDATE が成立せず RETURNING 空＝denied。RETURNING 空は一律 denied として扱う。粒度は per-user・固定 window バケット（`window_start = floor(now/windowMs)`）。初期値は N=20 回 / 1 時間（要レビューで調整可）。
 
 `idempotencyStore` の SQL 形状は `onConflictDoNothing().returning()`（DO NOTHING）であり本実装の DO UPDATE + setWhere とは別物。踏襲するのは「D1 の単一 statement アトミック claim」という考え方であって SQL 形状ではない。DO UPDATE + setWhere の drizzle 実例は `searchIndex` adapter にある。raw SQL は不要。
 
 ### Consequences
 - 良い点: 配線済み D1・既存のアトミック claim の考え方に沿い、競合安全な実カウンタを最小コードで実装。新規バインディング不要。drizzle API で表現でき raw SQL 不要。
 - トレードオフ: 固定 window のため境界付近でバースト可能（厳密なスライディングウィンドウではない）。プレビュー用途には十分。古い window 行の掃除は pruner で後日対応（本 Issue 対象外）。KV/DO への移行余地は残す。
-- 注意: 境界 count=max の挙動（「既存行で更新拒否＝RETURNING 空」と「lost race の INSERT 失敗＝RETURNING 空」を adapter が同一視して `allowed:false` とする）を integration test で固定する。
+- 注意: 境界 count=max の挙動（既存行で setWhere 不成立により UPDATE が成立せず RETURNING 空＝`allowed:false` となる）を integration test で固定する。retry ループは存在せず、直列化は SQLite の per-statement write lock が担う。
 
 ---
 
@@ -111,7 +111,7 @@ Accepted（実装時）
 
 ### Decision
 - port 契約は `tryConsume(userId, now): Promise<{ allowed, retryAfterSec }>` の最小形に留め、`max` / `windowMs` は **adapter コンストラクタの config** に閉じる。usecase は閾値を知らず allowed だけを見る。
-- `D1PromptPreviewRateLimiter` は drizzle `onConflictDoUpdate({ target:[userId,windowStart], set:{count: sql\`count + 1\`}, setWhere: sql\`count < ${max}\` }).returning()` の単一 statement でアトミックに claim。INSERT 成功（count=1）/ 既存行 count<max の UPDATE 成功 → allowed、既存行 count>=max（RETURNING 空）/ lost INSERT race → denied に同一視。raw SQL 不要。
+- `D1PromptPreviewRateLimiter` は drizzle `onConflictDoUpdate({ target:[userId,windowStart], set:{count: sql\`count + 1\`}, setWhere: sql\`count < ${max}\` }).returning()` の単一 statement でアトミックに claim。INSERT 成功（count=1）/ 既存行 count<max の UPDATE 成功 → allowed、既存行 count>=max は setWhere 不成立で RETURNING 空 → denied。retry ループは無く、競合は SQLite per-statement write lock で直列化される。raw SQL 不要。
 - DI 定数 `PROMPT_PREVIEW_RATE_LIMIT = { max:20, windowMs:3_600_000 }` を `serverCloudflare.ts` に置き、RequestContainer に配線。テストコンテナ（d1/application 両 helper）にも同値を配線。
 
 ### Consequences
@@ -134,5 +134,39 @@ unavailable / timeout の翻訳先 `llm_failure` は `errorDisplay.ts` group (b)
 ### Consequences
 - 良い点: 既存の `llm_failure` 表示文言と一貫。新規定数を最小限に抑える。
 - トレードオフ: 1 箇所だけ型強制が入る。`llm_failure` は元々 group (b) の識別子なので enum 化しない方が出所の意味（pipeline 識別子）と整合する。
+
+---
+
+## ADR-008: レート制限の消費は LLM 成否に関わらず行う（失敗時も消費）
+
+### Status
+Accepted（レビュー B1-W-002）
+
+### Context
+`previewPrompt` は LLM 呼び出しの前に `tryConsume` で無条件に1カウント消費し、LLM が失敗してもカウントを戻さない。プレビューは実 LLM の課金を発生させるため、この消費タイミングが濫用耐性に直結する。
+
+### Decision
+消費は LLM 呼び出しの前に行い、成否に関わらず戻さない。プロバイダに到達したリクエストは既に課金コストを負った（または負うリスクがある）ため、失敗した試行もクォータに計上する。
+
+### Consequences
+- 良い点: 安全側＝失敗を繰り返すプレビューによる濫用・課金 DoS を防止できる。実装が単純（消費後に refund 経路を持たない）。
+- トレードオフ: 一時的な LLM 障害時にも正規ユーザーのクォータを消費する。プレビュー用途では許容範囲（window が短く回復が早い）。
+
+---
+
+## ADR-009: カウンタ行は adapter 内 opportunistic cleanup で per-user bound する
+
+### Status
+Accepted（レビュー B1-W-007 / N-growth）
+
+### Context
+`prompt_preview_counters` は window ごとに新しい primary key（`(user_id, window_start)`）の行を追加するため、掃除経路が無いと行が単調増加する。当初 ADR-003 は「古い window 行の掃除は pruner で後日対応（本 Issue 対象外）」としていたが、pruner は未配線で成長 bound が存在しなかった。
+
+### Decision
+別途 pruner を配線するのではなく、`tryConsume` 内で当該 user の古い window 行（`window_start < 現在の windowStart`）を opportunistic に削除する。upsert と同じ `now` / `windowStart` を用い、同一呼び出し内で削除1文を追加する（best-effort、`mapDbError` 配下）。これにより1ユーザーあたり概ね最新 window の1行に収まる。
+
+### Consequences
+- 良い点: pruner の別配線・スケジューラ・追加バインディング無しで per-user の成長 bound を達成。アクティブユーザーほど自然に掃除される。
+- トレードオフ: tryConsume ごとに削除1文の追加コスト（同 user の単一 PK インデックス範囲削除なので軽量）。best-effort のため削除が失敗しても claim 結果には影響しない（同一 mapDbError 配下なので driver エラーは translate される）。非アクティブユーザーの最後の window 行は次回アクセスまで残る（上限1行のため無害）。
 
 ---

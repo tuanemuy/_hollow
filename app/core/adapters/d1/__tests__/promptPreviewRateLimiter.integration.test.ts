@@ -1,7 +1,9 @@
 import { env } from "cloudflare:test";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { getDatabase } from "../client";
 import { D1PromptPreviewRateLimiter } from "../repositories/promptPreviewRateLimiter";
+import { promptPreviewCounters } from "../schema";
 
 const WINDOW_MS = 3_600_000;
 
@@ -70,6 +72,54 @@ describe("D1PromptPreviewRateLimiter", () => {
     expect((await limiter.tryConsume(a, now)).allowed).toBe(false);
     // A different user has an independent bucket.
     expect((await limiter.tryConsume(b, now)).allowed).toBe(true);
+  });
+
+  it("opportunistically prunes the user's stale window rows, keeping ~one row per user", async () => {
+    const limiter = makeLimiter(5);
+    const userId = nextUserId();
+    const db = getDatabase(env.DB);
+    const now = new Date("2026-06-10T10:00:00.000Z");
+
+    await limiter.tryConsume(userId, now);
+    await limiter.tryConsume(userId, new Date(now.getTime() + WINDOW_MS));
+    // A third, later window: the two older buckets must have been deleted.
+    await limiter.tryConsume(userId, new Date(now.getTime() + 2 * WINDOW_MS));
+
+    const rows = await db
+      .select({ windowStart: promptPreviewCounters.windowStart })
+      .from(promptPreviewCounters)
+      .where(eq(promptPreviewCounters.userId, userId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.windowStart).toBe(
+      Math.floor((now.getTime() + 2 * WINDOW_MS) / WINDOW_MS),
+    );
+  });
+
+  it("only prunes the acting user's stale rows, not other users'", async () => {
+    const limiter = makeLimiter(5);
+    const a = nextUserId();
+    const b = nextUserId();
+    const db = getDatabase(env.DB);
+    const now = new Date("2026-06-10T10:00:00.000Z");
+
+    await limiter.tryConsume(b, now);
+    // `a` advancing windows must not delete `b`'s row in the older window.
+    await limiter.tryConsume(a, now);
+    await limiter.tryConsume(a, new Date(now.getTime() + WINDOW_MS));
+
+    const bRows = await db
+      .select({ windowStart: promptPreviewCounters.windowStart })
+      .from(promptPreviewCounters)
+      .where(
+        and(
+          eq(promptPreviewCounters.userId, b),
+          eq(
+            promptPreviewCounters.windowStart,
+            Math.floor(now.getTime() / WINDOW_MS),
+          ),
+        ),
+      );
+    expect(bRows).toHaveLength(1);
   });
 
   it("admits exactly max winners under concurrent claims on the same window", async () => {

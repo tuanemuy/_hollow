@@ -159,6 +159,36 @@ describe("renderErrorMessage business mapping", () => {
       "操作を完了できませんでした。時間をおいて再度お試しください",
     );
   });
+
+  // Prompt preview (Issue #574): pin the dedicated message text for each new
+  // code so a mis-mapping (e.g. swapping rate-limited and quota text) is
+  // caught — the EXPLICIT_INGESTION_CODES loops above only prove these are not
+  // the generic fallback and do not leak the raw code.
+  it.each([
+    [
+      "llm_rate_limited",
+      "リクエストが集中しています。しばらくしてから再度お試しください",
+    ],
+    [
+      "llm_quota_exceeded",
+      "AI の利用上限に達しました。時間をおいて再度お試しください",
+    ],
+    [
+      "llm_preview_unavailable",
+      "現在 AI が利用できないためプレビューできません",
+    ],
+    [
+      "prompt_preview_rate_limited",
+      "プレビューの実行回数上限に達しました。しばらくしてから再度お試しください",
+    ],
+  ])("maps prompt-preview code %s to its dedicated message", (code, expected) => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code,
+      message: code,
+    });
+    expect(message).toContain(expected);
+  });
 });
 
 // Directory business codes reachable through the directory dialogs. These
