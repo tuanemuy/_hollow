@@ -221,7 +221,10 @@ export function SecurityForm({
     null,
   );
   const [revokedCount, setRevokedCount] = useState<number | null>(null);
-  const [rowRevoked, setRowRevoked] = useState(false);
+  // Cumulative count of per-row sign-outs. Used as the live-region text so a
+  // screen reader re-announces on *every* revoke (a sticky boolean would only
+  // announce the first — aria-live re-reads only when the text changes).
+  const [rowRevokedCount, setRowRevokedCount] = useState(0);
 
   const onRevokeAll = () => {
     startTransition(async () => {
@@ -441,7 +444,9 @@ export function SecurityForm({
         </p>
       ) : null}
       <p aria-live="polite" className="sr-only">
-        {rowRevoked ? "セッションをログアウトしました" : ""}
+        {rowRevokedCount > 0
+          ? `${rowRevokedCount} 件のセッションをログアウトしました`
+          : ""}
       </p>
       {sessions.length > 0 ? (
         <div className={SESSION_LIST}>
@@ -449,7 +454,7 @@ export function SecurityForm({
             <SessionRow
               key={session.id}
               session={session}
-              onRevoked={() => setRowRevoked(true)}
+              onRevoked={() => setRowRevokedCount((n) => n + 1)}
             />
           ))}
         </div>

@@ -87,8 +87,9 @@ Accepted（レビュー Round 1 で確定）
 
 ### Decision
 - **data-revoking を活かす:** `SESSION_ROW` に `transition-opacity data-[revoking]:opacity-60` を追加し、失効中は行を淡色化する。属性が実際にスタイルを駆動するようにして「宙ぶらりんの状態属性」を解消。
-- **成功の live region:** `SecurityForm` に `rowRevoked` state と `aria-live="polite"` の sr-only リージョンを持たせ、`SessionRow` から `onRevoked` コールバックで通知する。行は `routerInvalidate` で unmount するため、通知は親に置く（成功メッセージ「セッションをログアウトしました」をアナウンス）。
+- **成功の live region:** `SecurityForm` に `rowRevokedCount`（累積カウント）state と `aria-live="polite"` の sr-only リージョンを持たせ、`SessionRow` から `onRevoked` コールバックでインクリメントする。行は `routerInvalidate` で unmount するため通知は親に置く。**カウントをメッセージに含める**（「N 件のセッションをログアウトしました」）ことで、複数端末を順次ログアウトしても毎回テキストが変化し再アナウンスされる（sticky bool だと初回しか読み上げられない。一括失効が `revokedCount` で毎回アナウンスするのと同じ理屈で非対称を解消）。
+- **motion-reduce:** `transition-opacity` に `motion-reduce:transition-none` を併記（コードベースの行淡色化の前例 `NoteListViews` に準拠）。
 
 ### Consequences
-- 良い点: 失効中の視覚フィードバックと成功のアナウンスが、一括失効と非対称なく揃う。a11y 向上。
+- 良い点: 失効中の視覚フィードバックと成功のアナウンスが、一括失効と非対称なく揃う（連続失効でも毎回アナウンス）。a11y 向上、prefers-reduced-motion 配慮。
 - トレードオフ: `SessionRow` に親への通知 prop（`onRevoked`）が増える。sr-only リージョンは視覚的には出ないが、視覚ユーザーには行消失そのものが成功サインになる。
