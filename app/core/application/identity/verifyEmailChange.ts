@@ -12,6 +12,8 @@ export type VerifyEmailChangeInput = {
 
 export type VerifyEmailChangeOutput = {
   userId: string;
+  oldEmail: string;
+  newEmail: string;
 };
 
 export async function verifyEmailChange({
@@ -20,7 +22,7 @@ export async function verifyEmailChange({
 }: ServiceArgs<VerifyEmailChangeInput>): Promise<VerifyEmailChangeOutput> {
   const now = container.clock.now();
 
-  const verifiedUserId = await container.unitOfWorkProvider.run(
+  return container.unitOfWorkProvider.run(
     async ({ userRepository, verificationChallenge }) => {
       const consumed = await verificationChallenge.consume(
         input.token,
@@ -51,9 +53,11 @@ export async function verifyEmailChange({
 
       const updated = User.changeEmail(found.entity, newEmail, now);
       await userRepository.save(updated, found.expectedVersion);
-      return updated.id;
+      return {
+        userId: updated.id,
+        oldEmail: found.entity.email,
+        newEmail,
+      };
     },
   );
-
-  return { userId: verifiedUserId };
 }

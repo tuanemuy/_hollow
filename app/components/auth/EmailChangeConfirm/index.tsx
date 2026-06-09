@@ -20,6 +20,11 @@ import {
 } from "@/core/presentation/errorResponse";
 import { HOME_SEARCH } from "../links";
 import {
+  ADDRESS_LABEL,
+  ADDRESS_ROW,
+  ADDRESS_SUMMARY,
+  ADDRESS_VALUE,
+  ADDRESS_VALUE_OLD,
   AUTH_BODY,
   AUTH_TITLE,
   BTN_PRIMARY_INLINE,
@@ -31,7 +36,7 @@ import { verifyEmailChangeFn } from "./action";
 
 type Status =
   | { kind: "loading" }
-  | { kind: "success" }
+  | { kind: "success"; oldEmail: string; newEmail: string }
   | { kind: "expired" }
   | { kind: "used" }
   | { kind: "not_found" }
@@ -63,10 +68,14 @@ export function EmailChangeConfirm({ token }: { token: string }) {
     startedRef.current = true;
     (async () => {
       try {
-        await verifyChange({ data: { token } });
+        const result = await verifyChange({ data: { token } });
         // _app の userDto.email キャッシュを破棄するため _app も invalidate（rule 1）
         await router.invalidate();
-        setStatus({ kind: "success" });
+        setStatus({
+          kind: "success",
+          oldEmail: result.oldEmail,
+          newEmail: result.newEmail,
+        });
       } catch (error) {
         setStatus(statusFromError(extractSerializedError(error)));
       }
@@ -95,6 +104,22 @@ export function EmailChangeConfirm({ token }: { token: string }) {
         <p className={AUTH_BODY}>
           新しいメールアドレスでの本人確認が完了しました。今後のログインや通知は新しいアドレスに切り替わります。
         </p>
+
+        {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the address diff (mock parity); <fieldset> carries form-control semantics that are inappropriate for a static read-only summary (mirrors FilterBar). */}
+        <div
+          className={`${ADDRESS_SUMMARY} mb-8`}
+          role="group"
+          aria-label="変更内容"
+        >
+          <div className={ADDRESS_ROW}>
+            <span className={ADDRESS_LABEL}>旧アドレス</span>
+            <span className={ADDRESS_VALUE_OLD}>{status.oldEmail}</span>
+          </div>
+          <div className={ADDRESS_ROW}>
+            <span className={ADDRESS_LABEL}>新アドレス</span>
+            <span className={ADDRESS_VALUE}>{status.newEmail}</span>
+          </div>
+        </div>
 
         <div className={`${ALERT} ${ALERT_WARNING} mb-8`} role="status">
           <span className={ALERT_ICON} aria-hidden="true">

@@ -1449,6 +1449,9 @@ describe("VerifyEmailChange", () => {
       input: { token: changeToken },
     });
     expect(result.userId).toBe(userId);
+    // oldEmail is the pre-change address (ADR-001), not the new one.
+    expect(result.oldEmail).toBe(uniqueEmail("vec001"));
+    expect(result.newEmail).toBe(newEmail);
 
     const userRows = await container.db
       .select()

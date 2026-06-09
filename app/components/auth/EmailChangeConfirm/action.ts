@@ -15,5 +15,9 @@ export const verifyEmailChangeFn = createServerFn({ method: "POST" })
       container,
       input: { token: data.token },
     });
-    return { userId: result.userId };
+    return {
+      userId: result.userId,
+      oldEmail: result.oldEmail,
+      newEmail: result.newEmail,
+    };
   });
