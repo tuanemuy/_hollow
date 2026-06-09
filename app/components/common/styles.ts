@@ -64,6 +64,25 @@ export const pillBtnGhostDanger =
   "data-[ghost-danger]:bg-transparent data-[ghost-danger]:text-ink-secondary data-[ghost-danger]:hover:not-disabled:not-aria-disabled:bg-error-surface data-[ghost-danger]:hover:not-disabled:not-aria-disabled:text-error data-[ghost-danger]:active:not-disabled:not-aria-disabled:bg-error-surface data-[ghost-danger]:active:not-disabled:not-aria-disabled:text-error";
 
 /**
+ * Append for neutral ghost pill button — drives "data-ghost" variant.
+ *
+ * Transparent at rest with secondary ink (a low-emphasis secondary action),
+ * turning to surface + primary ink on hover/active. The `data-on` compound
+ * (`data-[ghost]:data-[on]:…`) gives the same surface fill as a *persistent*
+ * toggled-on state, for buttons that latch (e.g. the 選択 select-mode toggle).
+ *
+ * Apply as `` `${pillBtn} ${pillBtnGhost}` `` with `data-ghost=""` (and
+ * `data-on` for the latched state). The `data-[ghost]:` variant is required
+ * for the same reason as `pillBtnGhostDanger`: variant utilities sort after
+ * the base `bg-surface` / `text-ink` and win deterministically. The base's
+ * `active:…:bg-surface-hover` press color is overridden to `bg-surface` so the
+ * press does not flash a darker gray over the ghost. See `.issue/273/adr.md`
+ * ADR-003 and `.issue/442/adr.md` ADR-001.
+ */
+export const pillBtnGhost =
+  "data-[ghost]:bg-transparent data-[ghost]:text-ink-secondary data-[ghost]:hover:not-disabled:not-aria-disabled:bg-surface data-[ghost]:hover:not-disabled:not-aria-disabled:text-ink data-[ghost]:active:not-disabled:not-aria-disabled:bg-surface data-[ghost]:active:not-disabled:not-aria-disabled:text-ink data-[ghost]:data-[on]:bg-surface data-[ghost]:data-[on]:text-ink";
+
+/**
  * Tall size add-on for pill buttons — overrides the base `h-9 / px-4 / text-sm`
  * dimensions with `h-12 / px-8 / text-md` and adds `justify-center`.
  *

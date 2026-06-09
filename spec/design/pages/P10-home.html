@@ -266,6 +266,18 @@
   }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
   .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  /* ghost = 低強調の二次アクション（選択・ビューとして保存, pillBtnGhost）。
+     透明 + ink-secondary、hover/active と latch 状態(.active)で surface + ink。 */
+  .pill-btn.ghost {
+    background: transparent;
+    color: var(--color-ink-secondary);
+  }
+  .pill-btn.ghost:hover,
+  .pill-btn.ghost:active,
+  .pill-btn.ghost.active {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
   .icon-btn {
     width: 36px; height: 36px;
     border-radius: var(--radius-full);
@@ -436,7 +448,7 @@
   /* ===== Toolbar (NoteListToolbar) =====
      表示モードは P30(個人公開ページ)・モバイルと同じ segmented control に統一
      (#620: #292 ADR-002 の pill-btn タブ群方針を上書き)。
-     右側に 選択 / ビューとして保存 / 新規作成 / アップロード CTA を並べる。 */
+     右側に 選択 / ビューとして保存（低強調の ghost）/ 新規作成 / アップロード CTA を並べる。 */
   .toolbar {
     display: flex;
     justify-content: space-between;
@@ -968,11 +980,11 @@
         </select>
       </div>
       <div class="toolbar-group">
-        <button class="pill-btn" aria-pressed="false" aria-label="選択モード">
+        <button class="pill-btn ghost" aria-pressed="false" aria-label="選択モード">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           <span class="label">選択</span>
         </button>
-        <button class="pill-btn" aria-label="ビューとして保存">
+        <button class="pill-btn ghost" aria-label="ビューとして保存">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
           <span class="label">ビューとして保存</span>
         </button>

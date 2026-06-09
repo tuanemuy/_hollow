@@ -40,22 +40,25 @@ P30 `PublicTopControls` の既存実装と同様、lucide コンポーネント�
 
 ---
 
-## ADR-003: ツールバー「選択」「ビューとして保存」の実装は維持し、モック側のみ統一する
+## ADR-003: ツールバー「選択」「ビューとして保存」を ghost 表現に統一する（実装・モック両方）
 
 ### Status
-Proposed
+Accepted（ユーザーフィードバックで改訂）
 
 ### Context
 Issue 不整合 #2 は、デスクトップ `.pill-btn`（surface 塗り）とモバイル `.tool-btn`（ghost、「ビューとして保存」はアイコンのみ）の差。Issue の主眼は **表示モードスイッチの segmented 統一**であり、ボタン群の統一は「それに合わせて」の従属項目。
 
-### Decision
-実装 `NoteListToolbar.tsx` の「選択」「ビューとして保存」ボタンは現行 `pillBtn`/`pillBtnPrimary` を**維持**する。統一はモック側のみで行い、**統一先は desktop モックの `.pill-btn`（surface 塗り）= 実装と一致する側**とする。すなわち mobile モックの `.tool-btn`（ghost）を `.pill-btn` トーンへ寄せる（ステップ 3a）。狭幅での「ビューとして保存」のラベル畳み（アイコンのみ）はレスポンシブ適応として残してよく、実装の `max-sm:hidden` と一致する。desktop モックの `.pill-btn` には手を入れない。
+レビュー時点（当初の Decision）では「実装 `pillBtn` を維持し、モックを実装＝ pill 側に寄せて統一」する判断だった。しかし PR 提出後、ユーザーから「『選択』『ビューとして保存』はモバイルの ghost のほうがシンプルで良かった」とのフィードバックがあり、統一の方向を **ghost 側**に倒すよう改訂する。#620 の肝は「モック⇔実装の一致」なので、モックだけ ghost にして実装を pill のまま残すと再び乖離する。よって**実装・desktop モック・mobile モックの三者すべてを ghost に統一**する。
 
-当初案（desktop モックを mobile の `.tool-btn` ghost に寄せる）は、現状 desktop モック=実装で一致しているツールバーボタンを逆に乖離させるため撤回した（レビュー P-001）。
+### Decision
+- 共通スタイルに **`pillBtnGhost`**（`common/styles.ts`）を新設。`pillBtn` を土台に `data-ghost` で透明背景・`ink-secondary` 文字、hover/active と latch 状態（`data-on`）で `surface` + `ink`。`pillBtnGhostDanger` と同じ「変数バリアントで base を確実に上書きする」パターン（`.issue/273/adr.md` ADR-003 / `.issue/442/adr.md` ADR-001）に準拠。
+- `NoteListToolbar.tsx` の「選択」「ビューとして保存」を `pillBtn + pillBtnGhost` に変更。「選択」の選択モードON は `data-primary`（accent 塗り）→ `data-on`（surface 塗り）に変え、ghost の latch 表現にする。「新規作成」（accent pill）「アップロード」（surface pill）は CTA 階層を残すため **pill のまま据え置き**。
+- desktop / mobile モックとも「選択」「ビューとして保存」を `.pill-btn.ghost`（pill 形のまま透明 ghost）に揃える。
+- 形態は **pill 形 ghost**（角丸 pill・`h-9`・44px タップ床を流用）を採用。モバイルが元採っていた角丸md・コンパクト ghost ではなく、ツールバーの pill 言語と形を揃えつつ低強調にする（ユーザー選択）。
 
 ### Consequences
-- 良い点: 回帰リスクの高いツールバーボタン実装に触れず、Issue の主眼（segmented 統一）に集中できる。`NoteListToolbar.test.tsx`（#382 icon-only 契約）を壊さない。desktop モック・実装・mobile モックの三者がツールバーボタンで一致する。
-- トレードオフ: mobile モックを修正する分の差分が増える（が、実装に寄せるため将来の乖離は減る）。完全な視覚統一の細部（hover トーン等）は実機確認で詰める。
+- 良い点: ユーザーの好み（シンプルな ghost）を満たしつつ、実装・desktop・mobile の三者が完全一致。`pillBtn` の a11y（タップ床・disabled 処理）を流用でき、`pillBtnGhostDanger` の確立パターンに沿うため Tailwind の上書き順問題も回避。`NoteListToolbar.test.tsx`（#382 icon-only 契約）は無改変で緑（全 3464 テストパス）。CTA 階層（新規作成の accent pill）は維持。
+- トレードオフ: 実装の見た目を変える（当初は回避していた）が、PR 未マージ・変更は2ボタンの配色のみで挙動不変、ブラウザ検証で OFF=透明/ON=surface/disabled も確認済みのため回帰リスクは低い。
 
 ---
 
