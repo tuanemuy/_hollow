@@ -187,7 +187,6 @@ export const SEARCH_SUMMARY =
   "py-4 pb-2 text-sm text-ink-secondary flex gap-3 items-center flex-wrap";
 export const SEARCH_HIT_LIST = "mt-2 pb-16";
 // Single-column card (no date right-rail in scope; see .issue/617/adr.md ADR-001).
-// Inner content stacks via the meta row carrying author + tags.
 export const SEARCH_HIT_ROW =
   "flex flex-col gap-1 py-5 px-3 max-sm:py-4 max-sm:px-2 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface";
 export const SEARCH_HIT_AUTHOR =
