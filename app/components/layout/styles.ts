@@ -24,9 +24,13 @@ export const HEADER_CTA_COLLAPSE =
 // reverts to the base `pillBtn` surface fill so the collapsed icon circle reads
 // as a normal secondary button next to the accent upload. Expressed as `sm:`
 // overrides over the base so mobile needs no override and desktop wins by
-// variant source order (no `!` needed — `bg-transparent` is not a shrink).
+// variant source order (no `!` needed — `bg-transparent` is not a shrink). The
+// hover override carries the same `not-disabled:not-aria-disabled:` guard as
+// the base `pillBtn` hover (and as `pillBtnGhost`): without `not-aria-disabled:`
+// it is only (0,3,0) and loses to the base hover (0,4,0) on specificity, so the
+// hover background would wrongly stay `surface-hover` instead of `surface`.
 export const HEADER_NEW_NOTE_DEMOTE =
-  "sm:bg-transparent sm:text-ink-secondary sm:hover:not-disabled:bg-surface sm:hover:not-disabled:text-ink";
+  "sm:bg-transparent sm:text-ink-secondary sm:hover:not-disabled:not-aria-disabled:bg-surface sm:hover:not-disabled:not-aria-disabled:text-ink";
 
 export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 

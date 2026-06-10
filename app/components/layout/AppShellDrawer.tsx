@@ -112,6 +112,22 @@ export function AppShellDrawer({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Let a popover layered inside the drawer (e.g. the sidebar-foot user
+        // menu, #628 ADR-003) consume Escape first: both its `usePopover`
+        // handler and this one listen on `document`, and `stopPropagation`
+        // does not stop a sibling listener on the same target. An *open*
+        // `usePopover` trigger carries both `aria-haspopup` and
+        // `aria-expanded="true"` (React has not re-rendered within this
+        // dispatch, so the check is order-independent). The `aria-haspopup`
+        // qualifier is required: directory tree nodes also use bare
+        // `aria-expanded` for expand/collapse (DirectoryTree) but are not
+        // popovers, so matching `aria-expanded` alone would wrongly block the
+        // drawer's own Escape whenever a directory is expanded. When a popover
+        // is open, skip closing the drawer so only the popover dismisses; the
+        // next Escape closes the drawer.
+        if (aside?.querySelector('[aria-haspopup][aria-expanded="true"]')) {
+          return;
+        }
         setOpen(false);
         return;
       }

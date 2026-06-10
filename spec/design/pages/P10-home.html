@@ -248,6 +248,8 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  /* 新規作成(text)は desktop ではテキストのみ（アイコンを隠す）。mobile の icon-only 化で表示に戻す。ADR-003/§7.2 */
+  .header-right .pill-btn.text .cta-icon { display: none; }
   .pill-btn {
     height: 36px;
     padding: 0 16px;
@@ -830,6 +832,8 @@
     .menu-btn { width: 36px; height: 36px; min-height: 36px; }
     .header-right .pill-btn span.label { display: none; }
     .header-right .pill-btn { width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center; }
+    /* 新規作成はモバイルでのみアイコン表示（desktop はテキストのみ。ADR-003/§7.2） */
+    .header-right .pill-btn.text .cta-icon { display: inline-flex; }
     /* 新規作成(text)はモバイルでは surface 表示にする（アップロード=accent との対比。確定ドラフト準拠） */
     .header-right .pill-btn.text { background: var(--color-surface); color: var(--color-ink); }
     .header-right .pill-btn.text:hover { background: var(--color-surface-hover); }
@@ -875,7 +879,7 @@
       <span class="label">アップロード</span>
     </button>
     <button class="pill-btn text" aria-label="新規作成">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <svg class="cta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span class="label">新規作成</span>
     </button>
   </div>

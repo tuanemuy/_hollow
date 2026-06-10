@@ -87,7 +87,9 @@ export function UserMenu({ user }: Props) {
           title={user.displayName}
           className={SIDEBAR_USER_ROW}
         >
-          <span className={AVATAR}>{initials(user.displayName)}</span>
+          <span className={`${AVATAR} shrink-0`}>
+            {initials(user.displayName)}
+          </span>
           <span className={SIDEBAR_USER_META}>
             <span className={SIDEBAR_USER_NAME}>{user.displayName}</span>
             <span className={SIDEBAR_USER_EMAIL}>{user.email}</span>
