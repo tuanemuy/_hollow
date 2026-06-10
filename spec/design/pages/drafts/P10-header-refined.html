@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — ヘッダー再設計 確定ドラフト (#628)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --text-xs: 12px; --text-sm: 13px; --text-base: 15px;
+    --weight-light: 300; --weight-medium: 500; --weight-semibold: 600;
+    --tracking-tightest: -0.022em; --tracking-normal: -0.003em;
+    --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
+    --radius-sm: 6px; --radius-md: 8px; --radius-pill: 980px; --radius-full: 9999px;
+    --header-height: 64px;
+    --transition-bg: background-color 120ms cubic-bezier(0.4,0,0.2,1);
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+  }
+  html, body { background: #e9e9ee; color: var(--color-ink); font-family: var(--font-sans); font-size: 15px; letter-spacing: var(--tracking-normal); -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; white-space: nowrap; }
+  a { color: inherit; text-decoration: none; }
+  input { font-family: inherit; }
+  :focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: inherit; }
+
+  .doc { max-width: 1360px; margin: 0 auto; padding: 36px 24px 120px; }
+  .doc h1 { font-size: 24px; font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tightest); margin-bottom: 8px; }
+  .doc .lede { color: var(--color-ink-secondary); font-size: 14px; margin-bottom: 32px; line-height: 1.7; }
+  .doc .lede b { color: var(--color-ink); }
+  .axis { margin-bottom: 48px; }
+  .axis > h2 { font-size: 18px; font-weight: var(--weight-semibold); margin-bottom: 14px; }
+  .cap { font-size: 12px; color: var(--color-ink-tertiary); margin: 0 0 8px; }
+
+  .frame { background: var(--color-bg); border: 1px solid var(--color-hairline); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; }
+  .frame.guide::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:1px; background:repeating-linear-gradient(to bottom,var(--color-accent) 0 4px,transparent 4px 8px); opacity:.4; pointer-events:none; }
+  .frame.mobile { width: 390px; }
+  .frame.mobile.narrow { width: 320px; }
+  .frame-cap { font-size: 11px; color: var(--color-ink-tertiary); padding: 6px 12px; background:#fafafd; border-bottom:1px solid var(--color-hairline); }
+  .mobile-row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+
+  /* ===== header ===== */
+  .header { background: var(--header-bg); backdrop-filter: var(--header-blur); -webkit-backdrop-filter: var(--header-blur); border-bottom:1px solid var(--color-hairline); display:grid; align-items:center; height: var(--header-height); }
+  /* 既存通り: grid auto 1fr auto。検索は中央列で max-w + mx-auto（物理中央化はしない） */
+  .header.d { grid-template-columns: auto 1fr auto; gap: var(--space-5); padding: 14px var(--space-6); }
+  .header.m { grid-template-columns: auto 1fr auto; gap: 10px; padding: 12px var(--space-4); }
+
+  .header-left { display:flex; align-items:center; gap: var(--space-3); min-width:0; }
+  .header-right { display:flex; align-items:center; gap: var(--space-2); min-width:0; }
+  .menu-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius: var(--radius-md); color: var(--color-ink); flex-shrink:0; }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo { font-size:21px; font-weight: var(--weight-light); letter-spacing: var(--tracking-tightest); color: var(--color-ink); }
+  .header.m .logo { font-size:19px; }
+
+  /* search: 既存通り（max-w + mx-auto, focus で glow）。高さは小さいまま、ボタンをこれに揃える */
+  .search { width:100%; max-width:460px; margin:0 auto; position:relative; min-width:0; }
+  .header.m .search { max-width:none; }
+  .search input { width:100%; height:36px; border:none; background: var(--color-surface); border-radius: var(--radius-pill); padding:0 16px 0 38px; font-size: var(--text-sm); color: var(--color-ink); outline:none; transition: var(--transition-bg); }
+  .header.m .search input { height:38px; padding:0 14px 0 36px; }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:hover, .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position:absolute; left:13px; top:50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events:none; }
+  .header.m .search-icon { left:12px; }
+
+  /* ボタンは input に揃える（小さく）: desktop 36 / mobile 38 */
+  .pill-btn { height:36px; padding:0 14px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display:inline-flex; align-items:center; justify-content:center; gap:6px; transition: var(--transition-bg); flex-shrink:0; }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color:#fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.text { background:transparent; padding:0 10px; color: var(--color-ink-secondary); }
+  .pill-btn.text:hover { background: var(--color-surface); color: var(--color-ink); }
+  /* icon-only square sized to input height */
+  .pill-btn.icon { width:36px; padding:0; }
+  .header.m .pill-btn { height:38px; }
+  .header.m .pill-btn.icon { width:38px; }
+  .header.m .menu-btn { width:38px; height:38px; }
+
+  /* ===== sidebar (user section at bottom) ===== */
+  .sb { width:260px; border-right:1px solid var(--color-hairline); padding: var(--space-5) var(--space-4) var(--space-3); display:flex; flex-direction:column; min-height: 420px; }
+  .sb-section { margin-bottom:24px; }
+  .sb-title { font-size:11px; font-weight:var(--weight-medium); color:var(--color-ink-tertiary); text-transform:uppercase; letter-spacing:.06em; padding:0 var(--space-3); margin-bottom:6px; }
+  .nav-item { display:flex; align-items:center; gap:var(--space-2); padding:7px var(--space-3); border-radius:var(--radius-md); font-size:var(--text-sm); color:var(--color-ink); }
+  .nav-item.active { background:var(--color-surface); font-weight:var(--weight-medium); }
+  .nav-item:hover { background:var(--color-surface); }
+  .nav-item .count { margin-left:auto; font-size:12px; color:var(--color-ink-tertiary); }
+  /* user section anchored at bottom */
+  .sb-user { margin-top:auto; border-top:1px solid var(--color-hairline); padding-top:var(--space-3); }
+  .user-row { display:flex; align-items:center; gap:10px; padding:8px var(--space-2); border-radius:var(--radius-md); cursor:pointer; transition:var(--transition-bg); width:100%; }
+  .user-row:hover { background:var(--color-surface); }
+  .avatar { width:32px; height:32px; border-radius:var(--radius-full); background:linear-gradient(135deg,#c9d3df 0%,#8e99a8 100%); color:#fff; font-size:12px; font-weight:var(--weight-medium); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .user-meta { min-width:0; text-align:left; flex:1; }
+  .user-name { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--color-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-sub { font-size:11px; color:var(--color-ink-tertiary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-row .caret { color:var(--color-ink-tertiary); flex-shrink:0; }
+
+  .desc { font-size:12.5px; color:var(--color-ink-secondary); line-height:1.6; max-width:780px; margin-top:10px; }
+  .desc code { background:var(--color-surface); padding:1px 5px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>ヘッダー再設計 — 確定ドラフト（Issue #628）</h1>
+  <p class="lede">
+    反映した決定: <b>① 検索は既存通り（focus で glow するピル・<code>max-w + mx-auto</code>、物理中央化はしない）</b> ／ <b>② CTA は案2-B（アップロード=accent / 新規作成=テキストのみ）</b> ／ <b>③ モバイルもデスクトップに合わせ両ボタン表示</b> ／ <b>④ 下部固定CTA廃止</b> ／ <b>⑤ ボタンは検索inputに揃えて小さく（desktop 36 / mobile 38）</b> ／ <b>⑥ ユーザー設定はヘッダーから外しサイドバー下部へ</b>。
+  </p>
+
+  <!-- ===== Desktop header ===== -->
+  <section class="axis">
+    <h2>デスクトップ ヘッダー</h2>
+    <p class="cap">検索は既存通り中央列で mx-auto（focus で glow）。検索36px / アップロード36px / 新規作成36px で高さが揃う。右端のアバターは廃止。</p>
+    <div class="frame">
+      <header class="header d">
+        <div class="header-left"><div class="logo">Hollow</div></div>
+        <div class="search"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="ノートを検索" aria-label="検索"></div>
+        <div class="header-right">
+          <button class="pill-btn primary" aria-label="アップロード"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>アップロード</button>
+          <button class="pill-btn text" aria-label="新規作成">新規作成</button>
+        </div>
+      </header>
+    </div>
+  </section>
+
+  <!-- ===== Mobile header ===== -->
+  <section class="axis">
+    <h2>モバイル ヘッダー（両ボタン・アバター廃止）</h2>
+    <p class="cap">検索38px / 各ボタン38px角で高さ統一（input に揃えて小さく）。アバターをサイドバーへ移したぶん、両ボタンを置いても 320px で横溢れしない。⚠️ 38px はタップターゲット44pxを下回る。</p>
+    <div class="mobile-row">
+      <div>
+        <div class="frame mobile"><div class="frame-cap">390px</div>
+          <header class="header m">
+            <div class="header-left"><button class="menu-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button></div>
+            <div class="search"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="検索" aria-label="ノートを検索"></div>
+            <div class="header-right">
+              <button class="pill-btn primary icon" aria-label="アップロード"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+              <button class="pill-btn icon" aria-label="新規作成"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            </div>
+          </header>
+        </div>
+        <p class="cap" style="margin-top:8px;">390px: アップロード=accent / 新規作成=surface。両方38px角。</p>
+      </div>
+      <div>
+        <div class="frame mobile narrow"><div class="frame-cap">320px（極狭）</div>
+          <header class="header m">
+            <div class="header-left"><button class="menu-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button></div>
+            <div class="search"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="検索" aria-label="ノートを検索"></div>
+            <div class="header-right">
+              <button class="pill-btn primary icon" aria-label="アップロード"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+              <button class="pill-btn icon" aria-label="新規作成"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            </div>
+          </header>
+        </div>
+        <p class="cap" style="margin-top:8px;">320px: 検索が縮むが横溢れなし（<code>min-w-0</code>）。</p>
+      </div>
+    </div>
+    <p class="desc">※ モバイルはスペースの都合上アイコンのみ（ラベルなし）。アップロードは accent 塗りで主役、新規作成は surface でデスクトップの 2-B の序列をそのまま縮約。<b>ボタンは検索inputに揃えて38px角</b>＝小さくしている。<b>⚠️ ただし 38px はプロジェクトの 44px タップターゲット指針（index.md §7.1 / 既存モバイルモック）を下回る</b>。</p>
+  </section>
+
+  <!-- ===== Sidebar user section ===== -->
+  <section class="axis">
+    <h2>サイドバー下部 — ユーザー設定の移設先</h2>
+    <p class="cap">ヘッダーから外したユーザーメニュー（名前/メール/設定/ログアウト）をサイドバー最下部に固定。クリックで従来のドロップダウン（設定 / ログアウト）が開く。デスクトップは常時表示、モバイルはハンバーガーのドロワー内に出る。</p>
+    <div class="frame" style="display:inline-block;">
+      <div class="sb">
+        <div class="sb-section">
+          <div class="sb-title">ライブラリ</div>
+          <div class="nav-item active">すべてのノート<span class="count">127</span></div>
+          <div class="nav-item">最近更新</div>
+          <div class="nav-item">お気に入り</div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-title">管理</div>
+          <div class="nav-item">保存ビュー</div>
+          <div class="nav-item">タグ</div>
+          <div class="nav-item">ゴミ箱</div>
+        </div>
+        <div class="sb-user">
+          <button class="user-row" aria-label="YK のメニュー">
+            <span class="avatar">YK</span>
+            <span class="user-meta">
+              <span class="user-name">山田 一郎</span>
+              <span class="user-sub">yumenaut@gmail.com</span>
+            </span>
+            <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

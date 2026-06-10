@@ -104,14 +104,24 @@ function menuitems(): HTMLElement[] {
 }
 
 describe("UserMenu", () => {
-  it("opens to show the identity header plus 設定 / ログアウト items", () => {
+  it("shows identity in the trigger row and a role-only panel header plus 設定 / ログアウト items", () => {
     render();
+    // #628: identity (name + email) lives in the always-visible trigger row,
+    // not in the menu panel — the menu moved to the sidebar foot.
+    const triggerText = trigger().textContent ?? "";
+    expect(triggerText).toContain("Alice");
+    expect(triggerText).toContain("alice@example.com");
+
     open();
     const items = menuitems();
     expect(items.map((el) => el.textContent)).toEqual(["設定", "ログアウト"]);
-    // Identity header is a non-MenuItem child: rendered but not a menuitem.
-    expect(container.textContent).toContain("alice@example.com");
     expect(items[0].getAttribute("tabindex")).toBe("0");
+
+    // The panel header carries only the role label; name / email are not
+    // duplicated inside the panel (they are in the trigger row above).
+    const panel = container.querySelector<HTMLElement>('[role="menu"]');
+    expect(panel?.textContent).toContain("メンバー");
+    expect(panel?.textContent ?? "").not.toContain("alice@example.com");
   });
 
   it("disables only the logout (danger) item while logout is pending and ignores its click", async () => {

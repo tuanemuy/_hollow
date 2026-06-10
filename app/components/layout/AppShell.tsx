@@ -19,7 +19,7 @@ type Props = {
 export function AppShell({ user, children }: Props) {
   return (
     <>
-      <Header user={user} />
+      <Header />
       <div className={APP_LAYOUT_WITH_SIDEBAR}>
         <Sidebar user={user} />
         <main className={APP_MAIN}>{children}</main>
