@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — ノート詳細（Suspense skeleton）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Color: brand */
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-accent-pressed: oklch(26.9% 0 0);
+    --color-accent-surface: oklch(97% 0 0);
+    --color-accent-ink: oklch(26.9% 0 0);
+
+    /* Color: neutral */
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-surface-elevated: #fbfbfd;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --color-hairline-strong: rgba(60,60,67,0.18);
+
+    /* Color: semantic */
+    --color-success: #1f8f3a;
+    --color-success-surface: #e6f4ea;
+    --color-warning: #a8580b;
+    --color-warning-surface: #fdf3e7;
+    --color-error: #c43e3e;
+    --color-error-surface: #fbebeb;
+    --color-info: var(--color-accent);
+
+    /* Color: publish status */
+    --color-status-private: #86868b;
+    --color-status-link: #a8580b;
+    --color-status-public: #1f8f3a;
+
+    /* Color: code */
+    --code-keyword: #aa3e3e;
+    --code-string: #2a8c4f;
+    --code-comment: var(--color-ink-tertiary);
+    --code-function: #5b3da1;
+    --code-number: #1d6fd6;
+
+    /* Typography */
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-heading: var(--font-sans);
+    --font-body: var(--font-sans);
+
+    --text-xs: clamp(11px, 0.7vw + 9px, 12px);
+    --text-sm: clamp(12px, 0.8vw + 10px, 13px);
+    --text-base: clamp(14px, 1vw + 11px, 16px);
+    --text-md: clamp(15px, 1vw + 12px, 17px);
+    --text-lg: clamp(17px, 1.2vw + 13px, 19px);
+    --text-xl: clamp(20px, 1.4vw + 14px, 24px);
+    --text-2xl: clamp(24px, 2vw + 16px, 30px);
+    --text-3xl: clamp(22px, 4vw, 40px);
+    --text-mono: clamp(12.5px, 0.6vw + 11px, 13.5px);
+
+    --weight-light: 300;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.7;
+
+    --tracking-tightest: -0.022em;
+    --tracking-tighter: -0.014em;
+    --tracking-tight: -0.008em;
+    --tracking-normal: -0.003em;
+
+    /* Spacing */
+    --space-0: 0;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+
+    /* Layout */
+    --container-max: 1280px;
+    --container-padding: clamp(16px, 4vw, 32px);
+    --sidebar-width: 260px;
+    --meta-rail-width: 260px;
+    --content-max: 760px;
+    --header-height: 64px;
+
+    /* Radius */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 980px;
+    --radius-full: 9999px;
+
+    /* Shadow */
+    --shadow-none: none;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
+    --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-decel: cubic-bezier(0, 0, 0.2, 1);
+    --ease-accel: cubic-bezier(0.4, 0, 1, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
+    --transition-default: all var(--duration-base) var(--ease-standard);
+    --transition-bg: background-color var(--duration-fast) var(--ease-standard);
+    --transition-color: color var(--duration-fast) var(--ease-standard);
+
+    /* Header */
+    --header-bg: rgba(255,255,255,0.85);
+    --header-blur: saturate(180%) blur(20px);
+
+    /* Breakpoints (参照用) */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+    --bp-2xl: 1536px;
+  }
+
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; }
+  input { font-family: inherit; }
+
+  /* === global mobile fixes (review 001) === */
+  button, .btn, .pill-btn, .icon-btn {
+    white-space: nowrap;
+  }
+  @media (max-width: 639px) {
+    button,
+    .pill-btn,
+    .icon-btn,
+    a.pill-btn,
+    [role="button"] {
+      min-height: 44px;
+    }
+    .icon-btn {
+      min-width: 44px;
+    }
+  }
+  .doc-title, h1, .page-title, .note-title, .modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: inherit;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--header-bg);
+    backdrop-filter: var(--header-blur);
+    -webkit-backdrop-filter: var(--header-blur);
+    border-bottom: 1px solid var(--color-hairline);
+    padding: 14px var(--space-6);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    height: var(--header-height);
+  }
+  @supports not (backdrop-filter: blur(1px)) {
+    .header { background: var(--color-bg); }
+  }
+  .header-left { display: flex; align-items: center; gap: var(--space-3); }
+  .menu-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .menu-btn:hover { background: var(--color-surface); }
+  .logo {
+    font-size: 21px;
+    font-weight: var(--weight-light);
+    letter-spacing: var(--tracking-tightest);
+    color: var(--color-ink);
+  }
+  .search { max-width: 460px; width: 100%; margin: 0 auto; position: relative; }
+  .search input {
+    width: 100%;
+    height: 36px;
+    border: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    padding: 0 16px 0 38px;
+    font-size: 14px;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .search input::placeholder { color: var(--color-ink-tertiary); }
+  .search input:hover { background: var(--color-surface-hover); }
+  .search input:focus { background: var(--color-surface-hover); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
+  .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  .pill-btn {
+    height: 36px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: var(--transition-bg);
+  }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn:active { background: var(--color-surface-hover); transform: scale(0.985); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  /* アイコンのみピル (pillBtnIcon): 正方形 36px・px-0。radius-pill で真円。 */
+  .pill-btn.icon-only { width: 36px; padding: 0; justify-content: center; }
+  /* 公開設定ピル先頭の公開状態ドット */
+  .pill-btn .pub-dot {
+    width: 6px; height: 6px; border-radius: var(--radius-full);
+    background: var(--color-status-public); display: inline-block;
+  }
+  .pill-btn .pub-dot.private { background: var(--color-status-private); }
+  .pill-btn .pub-dot.link { background: var(--color-status-link); }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink);
+    transition: var(--transition-bg);
+  }
+  .icon-btn:hover { background: var(--color-surface-hover); }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    color: #fff;
+    font-size: 12px; font-weight: var(--weight-medium);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== Layout ===== */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar { padding: var(--space-3) var(--space-4) var(--space-8); overflow-y: auto; }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 var(--space-3); margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: var(--transition-bg);
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--color-surface); }
+  .nav-item.active { background: var(--color-surface); font-weight: var(--weight-medium); }
+  .nav-item svg { color: var(--color-ink-secondary); flex-shrink: 0; }
+  .nav-item.active svg { color: var(--color-ink); }
+  .nav-item .count { margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary); }
+  .tree-child { padding-left: 22px; }
+  .tree-toggle {
+    width: 14px; height: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--color-ink-tertiary);
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+  .tree-toggle.open { transform: rotate(90deg); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 90;
+    opacity: 0; transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .sidebar-backdrop.open { display: block; opacity: 1; }
+
+  /* ===== Detail main =====
+     #356 ADR-002/003 と index.md §2.1 に従い単一カラム。
+     右メタレールは持たず、メタ情報・バックリンクは本文の下に置く（読書面の確保）。
+     lg+ でも 2 カラム（サイドバー + 主コンテンツ）までで、sticky 追従要素は作らない。 */
+  .main {
+    padding: var(--space-8) var(--space-5) 100px;
+    max-width: var(--content-max);
+    margin: 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-ink-tertiary);
+    margin-bottom: var(--space-6);
+    flex-wrap: wrap;
+  }
+  .breadcrumb a { color: var(--color-ink-tertiary); transition: var(--transition-color); }
+  .breadcrumb a:hover { color: var(--color-ink); }
+  .breadcrumb .sep { color: var(--color-hairline-strong); display: inline-flex; }
+  .breadcrumb .current { color: var(--color-ink-secondary); }
+
+  .doc-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-tightest);
+    line-height: 1.12;
+    color: var(--color-ink);
+    margin-bottom: var(--space-5);
+  }
+
+  /* ===== Skeleton (P13a の skeleton パターンを流用) =====
+     index.md「ロード状態」: スピナーより --color-surface の矩形 + 微パルスを優先。
+     P13a の .skeleton / .skeleton-bar / .w75 .w50 .w66 / .skeleton-text / .skeleton-sub を
+     そのまま再利用し、詳細画面の単一カラムへ配置するための左寄せ・サイズ補正のみ追加する。 */
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .skeleton {
+    padding: var(--space-8) 0;
+    text-align: center;
+  }
+  .skeleton-bar {
+    height: 12px;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    margin: var(--space-2) auto;
+    animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
+  }
+  .skeleton-bar.w75 { width: 75%; }
+  .skeleton-bar.w50 { width: 50%; }
+  .skeleton-bar.w66 { width: 66%; }
+  .skeleton-text {
+    margin-top: var(--space-4);
+    color: var(--color-ink-secondary);
+    font-size: var(--text-base);
+  }
+  .skeleton-sub {
+    margin-top: var(--space-1);
+    color: var(--color-ink-tertiary);
+    font-size: var(--text-xs);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-bar { animation: none; }
+  }
+
+  /* 詳細レイアウトでは矩形を左寄せに並べる（プレースホルダとして左揃え）。 */
+  .sk-block { text-align: left; }
+  .sk-block .skeleton-bar { margin-left: 0; margin-right: 0; }
+
+  /* タイトル: 幅広の矩形。本文 .doc-title と同じ縦位置・余白を踏襲。 */
+  .sk-title {
+    height: 34px;
+    width: 82%;
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-5);
+    animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
+  }
+  /* 公開状態チップ: pill 半径の小さな矩形（pub-pill 相当のサイズ感）。 */
+  .sk-chip {
+    height: 22px;
+    width: 96px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    margin-bottom: var(--space-6);
+    animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
+  }
+  /* 本文段落のリズムを示すブロック。段落間に余白を入れて散文の塊感を出す。 */
+  .sk-para { margin-top: var(--space-6); }
+  .sk-para:first-of-type { margin-top: 0; }
+  .sk-para .skeleton-bar { height: 14px; }
+  /* 見出し相当の太めの矩形。 */
+  .sk-heading {
+    height: 20px;
+    width: 40%;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    margin: var(--space-10) 0 var(--space-4);
+    animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
+  }
+  /* タグ pill 行: 公開ピル radius のチップを横並び。 */
+  .sk-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .sk-pill {
+    height: 22px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    animation: skeleton-pulse 1.4s var(--ease-standard) infinite;
+  }
+  .sk-pill.w-sm { width: 64px; }
+  .sk-pill.w-md { width: 84px; }
+  .sk-pill.w-lg { width: 72px; }
+
+  /* ===== Below-content meta (single column) =====
+     作成日 / 更新日 / 場所 / タグ を本文の下にまとめる（#356 ADR-002）。 */
+  .note-meta-block {
+    margin-top: var(--space-12);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .note-meta-block h4 {
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+  }
+  .meta-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+    border-top: 1px solid var(--color-hairline);
+    font-size: 13px;
+    align-items: center;
+  }
+  .meta-row:first-of-type { border-top: none; padding-top: 0; }
+  .meta-key {
+    color: var(--color-ink-tertiary);
+    font-weight: var(--weight-regular);
+  }
+  .meta-val { color: var(--color-ink); }
+
+  /* Backlinks: single card list (one location only) */
+  .backlinks-inline {
+    margin-top: var(--space-10);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .backlinks-inline h4 {
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+  }
+  .backlinks-inline .backlink-card {
+    display: block;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-2);
+  }
+
+  /* ===== Demo caption / page note (P13a の panel-caption / note を踏襲) ===== */
+  .panel-caption {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-bottom: var(--space-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .note {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    margin-top: var(--space-3);
+    line-height: var(--leading-normal);
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1023px) {
+    .sidebar {
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      width: 280px;
+      background: var(--color-bg);
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      padding-top: var(--space-5);
+    }
+    .sidebar.open { transform: translateX(0); }
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      grid-template-columns: var(--sidebar-width) 1fr;
+    }
+    .menu-btn { display: none; }
+    .sidebar {
+      border-right: 1px solid var(--color-hairline);
+      padding-top: var(--space-5);
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+    }
+    /* 単一カラムのまま余白だけ拡大。右メタレール・sticky 追従要素は持たない。 */
+    .main { padding: 56px var(--space-5) 120px; }
+  }
+
+  @media (max-width: 640px) {
+    .header { padding: 12px var(--space-4); gap: 10px; }
+    .logo { display: none; }
+    .header-right .pill-btn span.label { display: none; }
+    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
+    .main { padding: 22px var(--space-4) var(--space-20); }
+    .sk-title { height: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <button class="menu-btn" id="menuBtn" aria-label="メニューを開く">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="logo">Hollow</div>
+  </div>
+
+  <div class="search">
+    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="ノートを検索" aria-label="検索">
+  </div>
+
+  <div class="header-right">
+    <button class="pill-btn primary" aria-label="新規作成">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span class="label">新規作成</span>
+    </button>
+    <button class="pill-btn" aria-label="アップロード">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="label">アップロード</span>
+    </button>
+    <div class="avatar" aria-label="ユーザーメニュー">YK</div>
+  </div>
+</header>
+
+<div class="sidebar-backdrop" id="backdrop"></div>
+
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ライブラリ</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z"/></svg>
+        すべてのノート
+        <span class="count">127</span>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        最近更新
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/></svg>
+        お気に入り
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">ディレクトリ</div>
+
+      <div class="nav-item">
+        <span class="tree-toggle open"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        Research
+      </div>
+      <div class="tree-child">
+        <div class="nav-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          論文メモ
+        </div>
+        <div class="nav-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          書籍要約
+        </div>
+      </div>
+
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        日記
+      </div>
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        プロジェクト
+      </div>
+      <div class="nav-item">
+        <span class="tree-toggle"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H3z"/></svg>
+        雑記
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">保存したビュー</div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        未公開の下書き
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        今週のレビュー
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        タグ
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        ゴミ箱
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        エクスポート
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="panel-caption">Suspense fallback — 本文・メタ・バックリンクが順次解決</div>
+
+    <!-- ノート詳細の単一カラム（P11）と同じ構造を skeleton で再現する。
+         アプリシェル（ヘッダー・サイドバー）は静的のまま、コンテンツ領域だけを
+         プレースホルダ化し、aria-busy / aria-live で支援技術へ読み込み中を伝える。 -->
+    <div aria-busy="true" aria-live="polite" aria-label="ノートを読み込み中">
+
+      <!-- タイトル: 幅広の skeleton バー + 公開状態 skeleton チップ -->
+      <div class="sk-title"></div>
+      <div class="sk-chip"></div>
+
+      <!-- 本文: 段落ごとに幅を変えた skeleton バーで散文のリズムを示す -->
+      <div class="skeleton sk-block" style="padding-top:0;">
+        <div class="sk-para">
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w75"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w66"></div>
+        </div>
+
+        <div class="sk-heading"></div>
+
+        <div class="sk-para">
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w66"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w50"></div>
+        </div>
+
+        <div class="sk-para">
+          <div class="skeleton-bar w75"></div>
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w66"></div>
+        </div>
+
+        <div class="sk-heading"></div>
+
+        <div class="sk-para">
+          <div class="skeleton-bar"></div>
+          <div class="skeleton-bar w75"></div>
+          <div class="skeleton-bar w50"></div>
+        </div>
+
+        <p class="skeleton-text">本文を読み込んでいます…</p>
+        <p class="skeleton-sub">タイトル・本文・メタ情報・バックリンクの順に表示されます</p>
+      </div>
+
+      <!-- メタブロック: 作成 / 更新 / 場所 の短い skeleton バー + タグ pill 行 -->
+      <section class="note-meta-block" aria-label="プロパティ">
+        <h4>プロパティ</h4>
+        <div class="meta-row">
+          <div class="meta-key">作成</div>
+          <div class="meta-val"><div class="skeleton-bar w50" style="margin:0; height:12px;"></div></div>
+        </div>
+        <div class="meta-row">
+          <div class="meta-key">更新</div>
+          <div class="meta-val"><div class="skeleton-bar w50" style="margin:0; height:12px;"></div></div>
+        </div>
+        <div class="meta-row">
+          <div class="meta-key">場所</div>
+          <div class="meta-val"><div class="skeleton-bar w66" style="margin:0; height:12px;"></div></div>
+        </div>
+        <div class="meta-row">
+          <div class="meta-key">タグ</div>
+          <div class="meta-val">
+            <div class="sk-pill-row">
+              <div class="sk-pill w-sm"></div>
+              <div class="sk-pill w-md"></div>
+              <div class="sk-pill w-lg"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- バックリンク: ラベル付きセクション + skeleton リスト行 -->
+      <section class="backlinks-inline" aria-label="バックリンク">
+        <h4>バックリンク</h4>
+        <div class="backlink-card sk-block">
+          <div class="skeleton-bar w50" style="margin:0 0 8px; height:11px;"></div>
+          <div class="skeleton-bar w75" style="margin:0 0 8px; height:14px;"></div>
+          <div class="skeleton-bar" style="margin:0;"></div>
+        </div>
+        <div class="backlink-card sk-block">
+          <div class="skeleton-bar w50" style="margin:0 0 8px; height:11px;"></div>
+          <div class="skeleton-bar w66" style="margin:0 0 8px; height:14px;"></div>
+          <div class="skeleton-bar w75" style="margin:0;"></div>
+        </div>
+        <div class="backlink-card sk-block">
+          <div class="skeleton-bar w50" style="margin:0 0 8px; height:11px;"></div>
+          <div class="skeleton-bar w75" style="margin:0 0 8px; height:14px;"></div>
+          <div class="skeleton-bar w66" style="margin:0;"></div>
+        </div>
+      </section>
+
+    </div>
+
+    <p class="note">
+      Suspense フォールバック。アプリシェル（ヘッダー・サイドバー）は静的に保ち、
+      コンテンツ領域だけを <code style="font-family:var(--font-mono)">--color-surface</code> の矩形 + 微パルスで占位する。
+      スピナーは使わず、解決後の単一カラムレイアウト（タイトル → 本文 → メタ → バックリンク）と同じ縦リズムを示す。
+    </p>
+
+  </main>
+</div>
+
+<script>
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('backdrop');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      backdrop.classList.add('open');
+    });
+    backdrop.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('open');
+    });
+  }
+</script>
+
+</body>
+</html>
