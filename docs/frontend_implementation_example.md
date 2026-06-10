@@ -776,6 +776,68 @@ try {
 
 ---
 
+## Pending UX / 楽観的更新 / Suspense フォールバック規約
+
+ミューテーションとローディングの体験を揃えるための規約。詳細パターンは上の
+「[行内アクションは `useTransition` + `useOptimistic`](#行内アクションは-usetransition--useoptimistic)」
+「[フォーム送信は `useActionState`](#フォーム送信は-useactionstate)」を参照。
+
+### 規約1: すべてのミューテーションは楽観的更新か pending 可視化のいずれかを持つ
+
+ミューテーションは次のどちらかを必ず備える。
+
+- **楽観的更新**: `useOptimistic` で結果を即時反映する。
+- **pending 可視化**: `useTransition` / `useActionState` の pending を使い、
+  送信ボタンを `disabled` にし、ラベルを pending 文言（「保存中...」「追加中...」
+  「復元中...」等）に切り替える。必要に応じて `aria-busy={isPending}` を付ける。
+
+送信ボタンには pending ラベルを付けることを既定とする。二重送信防止のため
+pending 中は入力欄も `disabled` にする。
+
+### 規約2: 楽観的更新 vs pending 可視化の振り分け
+
+`.issue/635/adr.md` ADR-003 の基準を採る。
+
+- **(a) 自コンポーネントが所有する単一状態のトグル / インライン編集** → `useOptimistic`。
+  例: `directory/DirectoryTree` のリネーム、`note/list/FilterBar` のフィルタ選択。
+- **(b) 親が所有するリストの add / remove / rename** → 親の `useOptimistic`(reducer)
+  に集約する。例: `tag/TagList` の create / delete / rename / merge（子の
+  `CreateTagForm` は楽観状態を持たず、親へ name を渡して pending だけ受け取る）。
+- **(c) navigate を伴う作成 / 削除、またはダイアログ form 経由の確定操作** →
+  pending 可視化（disabled + ラベル + 必要に応じ `aria-busy`）。例: `NoteEditor`
+  の保存 / 作成、`MoveNoteDialog` / `BulkVisibilityDialog` / `directory/*Dialog`、
+  `publication/PublishSettings` の可視性変更。
+
+`useOptimistic` は **親が所有しているデータ** には使えない（上記「行内アクション」
+節の最後の注記を参照）。リストからの項目削除のように親 state を変える操作は、
+(b) のように親の reducer に集約するか、(c) のように `router.invalidate()` 経路に
+任せる。
+
+### 規約3: 非同期データ取得は `<Suspense>` + 共通 `Skeleton`
+
+非同期のデータ取得は `<Suspense>` 境界 + フォールバックの共通 `Skeleton` で
+表現する（spec/design L92「スピナーよりスケルトン優先」）。**`<Suspense>` 境界の
+実張りは #634 Phase 2 で導入する。本規約は方針の明文化のみ**。スピナーが適切な
+のはボタン内などの小領域に限る。
+
+### 規約4: 失敗はエラー境界 + リトライ導線
+
+ローディング / ミューテーションの失敗は route の `errorComponent` などのエラー
+境界で受け、リトライ導線を出す。mutation の `catch` では `extractSerializedError(e)`
+で `kind` を分岐する（上の「[Conflict などの失敗](#conflict-などの失敗)」節を参照）。
+
+### 規約5: 共通資産と motion 規約
+
+- ローディング UI の共通資産は `app/components/common/Skeleton.tsx` /
+  `app/components/common/Spinner.tsx`。スケルトン優先。`Spinner` は小領域専用で
+  多用しない。
+- パルス / スピン / トランジションは `motion-safe:` / `motion-reduce:` で
+  ガードし `prefers-reduced-motion: reduce` を尊重する。
+- 汎用ラッパー（`useServerAction` 風フック）は作らず、React 19 プリミティブ
+  （`useActionState` / `useTransition` / `useOptimistic`）を直接使う。
+
+---
+
 ## Conform によるクライアントバリデーション
 
 Conform のクライアントバリデーション + `useServerFn` の組み合わせ例。

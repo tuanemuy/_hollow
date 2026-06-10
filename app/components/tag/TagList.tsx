@@ -88,7 +88,11 @@ export function TagList({ tags, query, sort, order }: Props) {
   // snaps back once fresh props arrive. Hooks run before the empty-list early
   // return so the empty / count checks use the optimistic projection.
   const [optimisticTags, applyOptimistic] = useOptimistic(tags, reduceTags);
-  const [, startMutation] = useTransition();
+  // `isCreating` drives the create form's pending label. The transition is
+  // shared across create / rename / delete / merge, so the flag is also set
+  // by those — showing「追加中...」briefly during another action is rare and
+  // harmless (plan B-1, ADR-002).
+  const [isCreating, startMutation] = useTransition();
   // Rename / delete / merge errors are owned by the parent (the affected row
   // unmounts mid-flight) and surfaced in the affected row's `FORM_ERROR` slot.
   const [actionErrorId, setActionErrorId] = useState<string | null>(null);
@@ -179,7 +183,11 @@ export function TagList({ tags, query, sort, order }: Props) {
         {optimisticTags.length} 件のタグ
       </p>
 
-      <CreateTagForm onCreate={onCreate} error={createError} />
+      <CreateTagForm
+        onCreate={onCreate}
+        error={createError}
+        isPending={isCreating}
+      />
 
       <TagListToolbar query={query} sort={sort} order={order} />
 

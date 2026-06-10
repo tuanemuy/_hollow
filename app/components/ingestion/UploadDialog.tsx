@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { Skeleton } from "@/components/common/Skeleton";
 import {
   dialogTitle,
   field,
@@ -807,37 +808,33 @@ function PromptOverrideField({
   );
 }
 
+const UPLOAD_SKELETON_BARS = ["w-3/4", "w-1/2", "w-2/3"] as const;
+
 function UploadingView({ total }: Readonly<{ total: number }>) {
   return (
-    <div className="py-8 text-center text-sm text-ink-secondary">
-      <SkeletonBlock />
-      <p className="mt-4">
-        {total === 1
-          ? "アップロード中..."
-          : `${total} 件のファイルをアップロード中...`}
-      </p>
+    <div className="py-8 text-center">
+      <Skeleton
+        bars={UPLOAD_SKELETON_BARS}
+        align="center"
+        label={
+          total === 1
+            ? "アップロード中..."
+            : `${total} 件のファイルをアップロード中...`
+        }
+      />
     </div>
   );
 }
 
 function WaitingView() {
   return (
-    <div className="py-8 text-center text-sm text-ink-secondary">
-      <SkeletonBlock />
-      <p className="mt-4">LLM がタイトルとメタデータを提案中...</p>
-      <p className="mt-1 text-xs text-ink-tertiary">
-        この処理には数十秒かかることがあります
-      </p>
-    </div>
-  );
-}
-
-function SkeletonBlock() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="h-3 bg-surface rounded-md w-3/4 mx-auto motion-safe:animate-pulse" />
-      <div className="h-3 bg-surface rounded-md w-1/2 mx-auto motion-safe:animate-pulse" />
-      <div className="h-3 bg-surface rounded-md w-2/3 mx-auto motion-safe:animate-pulse" />
+    <div className="py-8 text-center">
+      <Skeleton
+        bars={UPLOAD_SKELETON_BARS}
+        align="center"
+        label="LLM がタイトルとメタデータを提案中..."
+        sublabel="この処理には数十秒かかることがあります"
+      />
     </div>
   );
 }

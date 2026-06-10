@@ -17,9 +17,12 @@ type Props = {
   // committed — the optimistic add lives in the list, but its error belongs
   // next to the input that produced it.
   error: SerializedError | null;
+  // Pending flag from the parent's create transition. Optional (defaults to
+  // false) so existing callers/tests are unaffected.
+  isPending?: boolean;
 };
 
-export function CreateTagForm({ onCreate, error }: Props) {
+export function CreateTagForm({ onCreate, error, isPending = false }: Props) {
   const nameId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,13 +52,16 @@ export function CreateTagForm({ onCreate, error }: Props) {
         maxLength={TAG_NAME_MAX_LENGTH}
         placeholder="新しいタグを追加"
         className={TAG_CREATE_INPUT}
+        disabled={isPending}
       />
       <button
         type="submit"
         className={`${pillBtn} ${pillBtnPrimary}`}
         data-primary=""
+        disabled={isPending}
+        aria-busy={isPending}
       >
-        追加
+        {isPending ? "追加中..." : "追加"}
       </button>
       {error !== null ? (
         <p className={`${FORM_ERROR} w-full`} role="alert">
