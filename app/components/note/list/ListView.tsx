@@ -81,7 +81,7 @@ function NoteListRow({
       data-mode={mode || undefined}
       data-pending={pending || undefined}
       aria-busy={pending || undefined}
-      className="transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface data-[pending]:opacity-60 data-[mode]:grid data-[mode]:grid-cols-[auto_1fr] data-[mode]:items-start data-[mode]:gap-4 data-[mode]:px-3 data-[mode]:py-5 data-[mode]:max-sm:px-2 data-[mode]:max-sm:py-4 data-[mode]:max-sm:gap-3"
+      className="transition-[color,background-color,opacity] motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface data-[pending]:opacity-60 data-[mode]:grid data-[mode]:grid-cols-[auto_1fr] data-[mode]:items-start data-[mode]:gap-4 data-[mode]:px-3 data-[mode]:py-5 data-[mode]:max-sm:px-2 data-[mode]:max-sm:py-4 data-[mode]:max-sm:gap-3"
     >
       {mode ? (
         <>

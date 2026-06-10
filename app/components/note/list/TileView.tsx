@@ -58,7 +58,7 @@ export function TileView({ notes }: Props) {
             data-selected={checked || undefined}
             data-pending={pending || undefined}
             aria-busy={pending || undefined}
-            className="relative rounded-lg border border-hairline overflow-hidden bg-bg transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:outline data-[selected]:outline-2 data-[selected]:outline-accent data-[selected]:-outline-offset-2 data-[pending]:opacity-60"
+            className="relative rounded-lg border border-hairline overflow-hidden bg-bg transition-[color,background-color,opacity] motion-reduce:transition-none hover:bg-surface data-[selected]:outline data-[selected]:outline-2 data-[selected]:outline-accent data-[selected]:-outline-offset-2 data-[pending]:opacity-60"
           >
             {mode ? (
               <span className="absolute top-2 left-2 z-[1] rounded-full bg-white/85 p-[2px]">

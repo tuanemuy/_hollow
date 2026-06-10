@@ -70,3 +70,20 @@ DoD は「共通 Skeleton / Spinner 資産が用意される」こと。一方 s
 ### Consequences
 - 良い点: DoD を満たしつつデザイン方針（スケルトン優先）を侵さない。Phase 2 以降で必要になったとき即使える。
 - トレードオフ: Phase 1 時点で Spinner の実利用箇所がほぼ無く「未使用資産」になりうる。土台整備という Issue の主旨に沿うため許容。
+
+---
+
+## ADR-005: 共通 Skeleton バーの角丸は既存 SkeletonBlock（rounded-md）を踏襲
+
+### Status
+Accepted（review-001 N-001 を受けて確定）
+
+### Context
+P13a モックの `.skeleton-bar` は `border-radius: var(--radius-sm)`（6px）だが、置換前の `UploadDialog.SkeletonBlock` は `rounded-md`（8px）を使っていた。共通 `Skeleton` をどちらに合わせるか。
+
+### Decision
+`rounded-md`（既存 `SkeletonBlock` の値）を踏襲する。P13a の `--radius-sm` に厳密一致させると現行 UploadDialog の表示を 8px→6px に変える（微小な regression）ことになるため。
+
+### Consequences
+- 良い点: 既存表示に対する regression ゼロ。12px 高のバーで 6px↔8px の角丸差は視認困難で実害なし。
+- トレードオフ: P13a モックの radius-sm とは 2px 乖離する。デザイン SSOT との厳密一致より既存挙動の維持を優先した。Phase 2 でスケルトンを各所へ展開する際、デザインと厳密に揃える必要が出たら再検討。

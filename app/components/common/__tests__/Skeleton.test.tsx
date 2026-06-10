@@ -49,6 +49,15 @@ describe("Skeleton", () => {
     expect(bars).toHaveLength(4);
   });
 
+  it("guards the bar pulse with motion-safe", () => {
+    act(() => {
+      root.render(<Skeleton bars={1} />);
+    });
+    const bar = getStatus().querySelector<HTMLElement>('[aria-hidden="true"]');
+    if (bar === null) throw new Error("skeleton bar not rendered");
+    expect(bar.className).toContain("motion-safe:animate-pulse");
+  });
+
   it("renders one bar per width when bars is an array", () => {
     act(() => {
       root.render(<Skeleton bars={["w-3/4", "w-1/2"]} />);
