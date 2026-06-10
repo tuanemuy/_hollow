@@ -124,8 +124,9 @@
     box-shadow: var(--shadow-focus);
     border-radius: inherit;
   }
-  /* ダイアログ系は desktop に 44px 床が無いため mobile 側で新設する */
-  button,
+  /* ダイアログ系は desktop に 44px 床が無いため mobile 側で新設する。
+     タッチ床 44px は主要アクション（pill ボタン）に限定し、裸の button は除外する
+     （チップやチェックの膨張・縦潰れ防止）。 */
   [role="button"] {
     min-height: 44px;
   }

@@ -105,8 +105,11 @@
   button, .btn, .pill-btn, .icon-btn {
     white-space: nowrap;
   }
+  /* タッチ床 44px は主要アクション（pill/icon ボタン）に限定する。
+     裸の button まで一律に伸ばすと、フィルタチップは膨張してデスクトップより大きく見え、
+     正方形のチェックボックス(.note-check)は縦長に潰れる。チップ・選択チェックは
+     各々で適切な最小高さを明示するため、ここでは対象を絞る。 */
   @media (max-width: 639px) {
-    button,
     .pill-btn,
     .icon-btn,
     a.pill-btn,
@@ -180,7 +183,7 @@
   .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); line-height: var(--leading-tight); margin-bottom: var(--space-2); }
   .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: var(--space-10); }
 
-  .btn { height: 36px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-bg); }
+  .btn { height: 40px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-bg); }
   .btn:hover { background: var(--color-surface-hover); }
   .btn.primary { background: var(--color-accent); color: #fff; }
   .btn.primary:hover { background: var(--color-accent-hover); }
