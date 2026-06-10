@@ -27,7 +27,7 @@ export const PILL_BTN = `${pillBtn} ${pillBtnPrimary}`;
 // `w-full` pins the container to the parent's width. Without it, the `mx-auto`
 // cross-axis auto margin cancels `align-items: stretch` inside PublicLayout's
 // `flex flex-col`, so the container shrinks to `max-content` (content width) and
-// its width tracks the longest note row / title / date. See issue #621.
+// its width tracks the longest note row / title / date.
 export const PUBLIC_MAIN =
   "w-full max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
 
@@ -126,7 +126,7 @@ export const CAL_ITEM =
   "block text-sm text-ink px-2 py-1.5 rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface hover:text-accent text-inherit";
 
 // ===== P31 detail =====
-// `w-full` for the same reason as PUBLIC_MAIN — see issue #621.
+// `w-full` for the same reason as PUBLIC_MAIN.
 export const NOTE_DETAIL_WRAP =
   "w-full max-w-[920px] mx-auto px-[var(--container-padding)] pt-8 pb-16";
 export const NOTE_DETAIL_BREADCRUMB =
