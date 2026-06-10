@@ -90,3 +90,23 @@ Step 2 / Step 3b の実装中、plan / 既存 ADR で具体形が未確定だっ
 ### Consequences
 - `pillBtnIcon` の `min-w` がインラインに残るが、値は `TOUCH_TARGET_SQUARE` と一致し、`data-[icon]:` スコープを壊さない。
 - admin `DesignTokensForm` の input/ボタンがモバイルでも高密度を保ち、admin 全体（Jobs / UsersTable / DesignTokensForm）で密度方針が一貫する。AA 床は維持。
+
+---
+
+## ADR-005: #638（ヘッダー再設計）とのマージ衝突の解消
+
+### Status
+Accepted
+
+### Context
+本Issue実装中に PR #638（Issue #628 グローバルヘッダー再設計）が main にマージされた。両PRは `spec/design/index.md`（§3/§7.1 タッチターゲット）・`layout/styles.ts`・`BulkActionBar.tsx`・モック `P10-home.html` / `mobile/P13-upload.html` を別方向で編集しており、コンフリクトした。さらに auto-merge が拾えない semantic 衝突があった: #638 の `HEADER_CTA_COLLAPSE` は base `pillBtn` の高さが `h-9`(36px) である前提で、ヘッダーCTAを検索input(36px)に揃えていた。本Issueが `pillBtn` を `h-10`(40px) にしたことで、ヘッダーCTAが40pxになり #638 の「ヘッダー=36px例外」が壊れた。
+
+### Decision
+両Issueの意図を共存させる形で解消した:
+- `spec/design/index.md`: #633 の「意図＋WCAG＋タッチ床の実装SSOT化」フレーミングをベースに、#638 の「グローバルヘッダー局所の36px例外」を保持。
+- `HEADER_CTA_COLLAPSE` に `h-9!`（36px強制）を追加。`!` は base `pillBtn` の `h-10` を下げ override するために必須（shrink は生成順で負けるため）。これによりヘッダー操作行は desktop/mobile とも36px（検索inputに一致）、一般の `pillBtn` は h-10(40px)/モバイル44px床を維持。
+- モック（P10-home + 他13ファイル）の `.header-right .pill-btn` を36pxに揃え直す（desktop override + mobile 36px square）。これは本Issueのモック作業が header pill を 36→40 に bump していた回帰の修正でもある。
+
+### Consequences
+- 一般ボタン（40px/44px床、#633）とヘッダー例外（36px、#638）が正しく共存。ブラウザ実測で確認（desktop: 検索input36 / ヘッダーCTA36 / body pillBtn40、mobile: ヘッダーCTA36×36 square / body pillBtn44）。
+- `HEADER_CTA_COLLAPSE` が base `pillBtn` の高さに依存しなくなり、将来 pillBtn 高さが変わっても36px例外は保たれる。
