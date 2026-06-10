@@ -24,8 +24,12 @@ export const PUBLIC_TEXT_LINK_SIGNUP = `${PUBLIC_TEXT_LINK} max-sm:hidden`;
 // ErrorPage「ホームへ戻る」) resolve to accent, bare ones keep base surface.
 export const PILL_BTN = `${pillBtn} ${pillBtnPrimary}`;
 
+// `w-full` pins the container to the parent's width. Without it, the `mx-auto`
+// cross-axis auto margin cancels `align-items: stretch` inside PublicLayout's
+// `flex flex-col`, so the container shrinks to `max-content` (content width) and
+// its width tracks the longest note row / title / date.
 export const PUBLIC_MAIN =
-  "max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
+  "w-full max-w-[var(--container-max)] mx-auto px-[var(--container-padding)]";
 
 export const PUBLIC_FOOTER = "border-t border-hairline pt-7 pb-10 mt-4";
 
@@ -122,8 +126,9 @@ export const CAL_ITEM =
   "block text-sm text-ink px-2 py-1.5 rounded-sm transition-colors motion-reduce:transition-none hover:bg-surface hover:text-accent text-inherit";
 
 // ===== P31 detail =====
+// `w-full` for the same reason as PUBLIC_MAIN.
 export const NOTE_DETAIL_WRAP =
-  "max-w-[920px] mx-auto px-[var(--container-padding)] pt-8 pb-16";
+  "w-full max-w-[920px] mx-auto px-[var(--container-padding)] pt-8 pb-16";
 export const NOTE_DETAIL_BREADCRUMB =
   "flex items-center gap-1.5 text-sm text-ink-tertiary mb-4 flex-wrap";
 export const DOC_TITLE =
