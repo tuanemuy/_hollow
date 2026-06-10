@@ -2,7 +2,9 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { ChevronsUpDown } from "lucide-react";
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/common/Icon";
 import { Menu, MenuItem } from "@/components/common/Menu";
 import type { UserDTO } from "@/core/application/dto";
 import { displayError } from "@/core/presentation/errorDisplay";
@@ -13,9 +15,12 @@ import {
 import { logOutFn } from "./action";
 import {
   AVATAR,
+  SIDEBAR_USER_CARET,
+  SIDEBAR_USER_EMAIL,
+  SIDEBAR_USER_META,
+  SIDEBAR_USER_NAME,
+  SIDEBAR_USER_ROW,
   USER_MENU_INFO,
-  USER_MENU_INFO_EMAIL,
-  USER_MENU_INFO_NAME,
   USER_MENU_INFO_ROLE,
 } from "./styles";
 
@@ -35,11 +40,13 @@ const ROLE_LABEL: Record<UserDTO["role"], string> = {
 };
 
 /**
- * Header avatar dropdown. The avatar trigger opens a WAI-ARIA menu that
- * surfaces the current user's identity plus navigation to `/settings` and a
- * logout action. Built on the shared `<Menu>`/`<MenuItem>` primitive (#467);
- * the identity header and logout error are non-MenuItem children, rendered
- * verbatim and excluded from the roving cycle.
+ * Sidebar-foot user menu (#628 ADR-003: relocated from the header avatar).
+ * The trigger is a full-width row — avatar + name + email + caret — and the
+ * `<Menu>` panel opens upward (`bottom-full`) since the row sits at the screen
+ * foot. The panel surfaces the role label plus navigation to `/settings` and a
+ * logout action; identity (name / email) lives in the trigger row, so the
+ * panel header carries only the role to avoid duplication. Built on the shared
+ * `<Menu>`/`<MenuItem>` primitive (#467).
  *
  * While logout is pending the logout (danger) item is `aria-disabled` — it
  * stays focusable in the roving cycle and its click is a no-op (#467 ADR-003).
@@ -71,22 +78,31 @@ export function UserMenu({ user }: Props) {
       open={open}
       onOpenChange={setOpen}
       ariaLabel={`${user.displayName} のメニュー`}
-      panelClassName="absolute right-0 mt-2 z-50 min-w-[220px] shadow-md"
+      panelClassName="absolute left-0 right-0 bottom-full mb-2 z-50 shadow-md"
       trigger={(triggerProps) => (
         <button
           {...triggerProps}
           type="button"
           aria-label={`${user.displayName} のメニュー`}
           title={user.displayName}
-          className={AVATAR}
+          className={SIDEBAR_USER_ROW}
         >
-          {initials(user.displayName)}
+          <span className={`${AVATAR} shrink-0`}>
+            {initials(user.displayName)}
+          </span>
+          <span className={SIDEBAR_USER_META}>
+            <span className={SIDEBAR_USER_NAME}>{user.displayName}</span>
+            <span className={SIDEBAR_USER_EMAIL}>{user.email}</span>
+          </span>
+          <Icon
+            icon={ChevronsUpDown}
+            size={16}
+            className={SIDEBAR_USER_CARET}
+          />
         </button>
       )}
     >
       <div className={USER_MENU_INFO}>
-        <span className={USER_MENU_INFO_NAME}>{user.displayName}</span>
-        <span className={USER_MENU_INFO_EMAIL}>{user.email}</span>
         <span className={USER_MENU_INFO_ROLE}>{ROLE_LABEL[user.role]}</span>
       </div>
       <MenuItem onSelect={() => router.navigate({ to: "/settings" })}>

@@ -12,7 +12,9 @@ import {
   NAV_ITEM,
   SIDEBAR_SECTION,
   SIDEBAR_SECTION_TITLE,
+  SIDEBAR_USER,
 } from "./styles";
+import { UserMenu } from "./UserMenu";
 
 type Props = {
   user: UserDTO;
@@ -155,6 +157,11 @@ export async function Sidebar({ user }: Props) {
             </Link>
           </li>
         </ul>
+      </div>
+
+      {/* User menu, relocated from the header to the sidebar foot (#628 ADR-003). */}
+      <div className={SIDEBAR_USER}>
+        <UserMenu user={user} />
       </div>
     </>
   );

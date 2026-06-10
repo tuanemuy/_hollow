@@ -350,9 +350,10 @@ export const dialogActions =
  * Popover panel shell for the WAI-ARIA `role="menu"` dropdowns
  * (`<Menu>`/`<MenuItem>` primitive). Holds only the panel chrome
  * (border / surface / shadow / vertical padding / stacking); width and
- * anchor position differ per consumer (Directory 160px, User 220px, Note
- * 180px) and are supplied via the caller's `panelClassName`
- * (`absolute right-0 mt-1 min-w-[…]`). See `.issue/467`.
+ * anchor position differ per consumer (Directory 160px, Note 180px, and the
+ * sidebar-foot User menu which spans the row full-width and opens upward —
+ * `bottom-full left-0 right-0`, #628 ADR-003) and are supplied via the
+ * caller's `panelClassName` (`absolute … min-w-[…]`). See `.issue/467`.
  */
 export const menuPanel =
   "rounded-md border border-hairline bg-bg shadow-sm py-1";

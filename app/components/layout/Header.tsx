@@ -5,23 +5,19 @@ import { BrandLockup } from "@/components/common/BrandLogo";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
-import type { UserDTO } from "@/core/application/dto";
 import { MenuButton } from "./MenuButton";
 import {
   APP_HEADER,
   APP_HEADER_LEFT,
   APP_HEADER_RIGHT,
+  HEADER_CTA_COLLAPSE,
+  HEADER_NEW_NOTE_DEMOTE,
   SEARCH_BOX_ICON,
   SEARCH_BOX_INPUT,
   SEARCH_BOX_WRAPPER,
 } from "./styles";
-import { UserMenu } from "./UserMenu";
 
-type Props = {
-  user: UserDTO;
-};
-
-export function Header({ user }: Props) {
+export function Header() {
   return (
     <header className={APP_HEADER}>
       <div className={APP_HEADER_LEFT}>
@@ -50,25 +46,28 @@ export function Header({ user }: Props) {
         </form>
       </div>
       <div className={APP_HEADER_RIGHT}>
-        {/* Retired to the下部固定CTAバー (`BottomCtaBar`) below `lg` per #588
-            ADR-001; only the desktop header keeps these CTAs inline. */}
-        <Link
-          to="/notes/new"
-          className={`${pillBtn} ${pillBtnPrimary} max-lg:hidden`}
-          data-primary=""
-          aria-label="新規作成"
-        >
-          <Icon icon={Plus} />
-          <span>新規作成</span>
-        </Link>
+        {/* Upload is the primary action (#628 ADR-003, 案2-B): accent fill,
+            placed first. New-note is demoted to a desktop text button. Both
+            collapse to a 36px icon-only circle below `sm` (label hidden), so the
+            mobile header carries search + both CTAs without a bottom CTA bar
+            (#628 ADR-001 supersedes #588). The user menu now lives in the
+            sidebar foot (#628 ADR-003). */}
         <UploadButton
-          className={`${pillBtn} max-lg:hidden`}
+          className={`${pillBtn} ${pillBtnPrimary} ${HEADER_CTA_COLLAPSE}`}
+          data-primary=""
           aria-label="アップロード"
         >
           <Icon icon={Upload} />
-          <span>アップロード</span>
+          <span className="max-sm:hidden">アップロード</span>
         </UploadButton>
-        <UserMenu user={user} />
+        <Link
+          to="/notes/new"
+          className={`${pillBtn} ${HEADER_NEW_NOTE_DEMOTE} ${HEADER_CTA_COLLAPSE}`}
+          aria-label="新規作成"
+        >
+          <Icon icon={Plus} className="sm:hidden" />
+          <span className="max-sm:hidden">新規作成</span>
+        </Link>
       </div>
     </header>
   );

@@ -72,7 +72,7 @@ const loadAppShell = createServerFn({ method: "GET" })
     ]);
     const userDto = toUserDTO(user);
     const [header, sidebar] = await Promise.all([
-      renderServerComponent(<Header user={userDto} />),
+      renderServerComponent(<Header />),
       renderServerComponent(<Sidebar user={userDto} />),
     ]);
     return { userDto: userDto as UserDTO | null, header, sidebar };
