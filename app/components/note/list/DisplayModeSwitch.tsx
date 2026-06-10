@@ -1,15 +1,22 @@
 "use client";
 
 import { getRouteApi, useRouter } from "@tanstack/react-router";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import { Calendar, LayoutGrid, List, type LucideIcon } from "lucide-react";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import { homeSearchUpdater } from "./homeSearch";
 import { selectDisplay } from "./listSelectors";
+import { DISPLAY_SEGMENTED, DISPLAY_SEGMENTED_BTN } from "./styles";
 
 const LABELS: Record<DisplayMode, string> = {
   list: "リスト",
   tile: "タイル",
   calendar: "カレンダー",
+};
+
+const ICONS: Record<DisplayMode, LucideIcon> = {
+  list: List,
+  tile: LayoutGrid,
+  calendar: Calendar,
 };
 
 const homeRoute = getRouteApi("/_app/");
@@ -44,19 +51,25 @@ export function DisplayModeSwitch() {
   };
 
   return (
-    <div role="tablist" aria-label="表示形式" className="inline-flex gap-1">
+    <div role="tablist" aria-label="表示形式" className={DISPLAY_SEGMENTED}>
       {DISPLAY_MODES.map((mode) => {
         const active = mode === current;
+        const IconComponent = ICONS[mode];
         return (
           <button
             key={mode}
             role="tab"
             type="button"
             aria-selected={active}
-            data-primary={active || undefined}
-            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-active={active || undefined}
+            className={DISPLAY_SEGMENTED_BTN}
             onClick={() => select(mode)}
           >
+            <IconComponent
+              className="size-[var(--icon-xs)]"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
             {LABELS[mode]}
           </button>
         );

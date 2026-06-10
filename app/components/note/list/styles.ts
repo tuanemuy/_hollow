@@ -9,6 +9,12 @@ type Visibility = OwnedNoteFilterItem["visibility"];
 export const CHIP_BASE =
   "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs";
 
+// P10 DisplayModeSwitch の segmented control。
+// = public/styles.ts SEGMENTED を複製（#620 ADR-001）。
+export const DISPLAY_SEGMENTED = "bg-surface rounded-[9px] p-[2px] inline-flex";
+export const DISPLAY_SEGMENTED_BTN =
+  "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
+
 export function visibilityChipClass(v: Visibility): string {
   if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;
   if (v === "unlisted") return `${CHIP_BASE} bg-warning-surface text-warning`;

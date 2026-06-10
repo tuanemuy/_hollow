@@ -4,7 +4,11 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { Bookmark, CheckSquare, Plus, Upload } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import {
+  pillBtn,
+  pillBtnGhost,
+  pillBtnPrimary,
+} from "@/components/common/styles";
 import { UploadButton } from "@/components/ingestion/UploadButton";
 import type { SavedViewDTO } from "@/core/application/dto/view";
 import type { NoteListSearch } from "../schema";
@@ -92,8 +96,9 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
         <div className="inline-flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            className={`${pillBtn} ${pillBtnPrimary}`}
-            data-primary={state.mode || undefined}
+            className={`${pillBtn} ${pillBtnGhost}`}
+            data-ghost=""
+            data-on={state.mode || undefined}
             aria-pressed={state.mode}
             aria-label="選択モード"
             onClick={() => dispatch({ type: "toggleSelectMode" })}
@@ -103,7 +108,8 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
           </button>
           <button
             type="button"
-            className={pillBtn}
+            className={`${pillBtn} ${pillBtnGhost}`}
+            data-ghost=""
             onClick={() => setOpen(true)}
             disabled={!hasAnyFilter && search.q === undefined}
             title={

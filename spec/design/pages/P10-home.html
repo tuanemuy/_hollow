@@ -266,6 +266,18 @@
   }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
   .pill-btn.primary:active { background: var(--color-accent-pressed); }
+  /* ghost = 低強調の二次アクション（選択・ビューとして保存, pillBtnGhost）。
+     透明 + ink-secondary、hover/active と latch 状態(.active)で surface + ink。 */
+  .pill-btn.ghost {
+    background: transparent;
+    color: var(--color-ink-secondary);
+  }
+  .pill-btn.ghost:hover,
+  .pill-btn.ghost:active,
+  .pill-btn.ghost.active {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
   .icon-btn {
     width: 36px; height: 36px;
     border-radius: var(--radius-full);
@@ -434,9 +446,9 @@
   }
 
   /* ===== Toolbar (NoteListToolbar) =====
-     実装は表示モードをセグメントではなく pill-btn タブ群で表現し、
-     右側に 選択 / ビューとして保存 / 新規作成 / アップロード CTA を並べる
-     (#292 ADR-002: 選択UIは別カテゴリなので pill 群で揃える)。 */
+     表示モードは P30(個人公開ページ)・モバイルと同じ segmented control に統一
+     (#620: #292 ADR-002 の pill-btn タブ群方針を上書き)。
+     右側に 選択 / ビューとして保存（低強調の ghost）/ 新規作成 / アップロード CTA を並べる。 */
   .toolbar {
     display: flex;
     justify-content: space-between;
@@ -451,27 +463,30 @@
     gap: var(--space-2);
     flex-wrap: wrap;
   }
-  /* 表示モードタブ = pill-btn を data-primary でアクティブ表現 (DisplayModeSwitch) */
-  .display-tabs { display: inline-flex; gap: 4px; }
-  .display-tab {
-    height: 36px;
-    padding: 0 16px;
-    border-radius: var(--radius-pill);
+  /* 表示モード = segmented control（P30/モバイルと統一, DisplayModeSwitch）。
+     アクティブは白カード + shadow で表現 (#620)。 */
+  .segmented {
     background: var(--color-surface);
-    font-size: var(--text-sm);
+    border-radius: 9px;
+    padding: 2px;
+    display: inline-flex;
+  }
+  .segmented button {
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 13px;
     font-weight: var(--weight-medium);
     color: var(--color-ink);
+    background: transparent;
+    transition: all 0.18s ease;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: var(--transition-bg);
+    gap: 5px;
   }
-  .display-tab:hover { background: var(--color-surface-hover); }
-  .display-tab.active {
-    background: var(--color-accent);
-    color: #fff;
+  .segmented button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
   }
-  .display-tab.active:hover { background: var(--color-accent-hover); }
   /* 保存ビュー select (NoteListToolbar) */
   .view-select {
     height: 36px;
@@ -943,24 +958,33 @@
     <h1 class="page-title">すべてのノート</h1>
     <div class="page-subtitle">127 件のノート</div>
 
-    <!-- NoteListToolbar: 表示モードタブ + 保存ビュー select / 選択・ビュー保存・新規・アップロード -->
+    <!-- NoteListToolbar: 表示モードスイッチ(segmented) + 保存ビュー select / 選択・ビュー保存・新規・アップロード -->
     <div class="toolbar">
       <div class="toolbar-group">
-        <div class="display-tabs" role="tablist" aria-label="表示形式">
-          <button class="display-tab active" role="tab" aria-selected="true">リスト</button>
-          <button class="display-tab" role="tab" aria-selected="false">タイル</button>
-          <button class="display-tab" role="tab" aria-selected="false">カレンダー</button>
+        <div class="segmented" role="tablist" aria-label="表示形式">
+          <button class="active" role="tab" aria-selected="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            リスト
+          </button>
+          <button role="tab" aria-selected="false">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            タイル
+          </button>
+          <button role="tab" aria-selected="false">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            カレンダー
+          </button>
         </div>
         <select class="view-select" aria-label="保存済みビュー">
           <option>保存ビューを選択</option>
         </select>
       </div>
       <div class="toolbar-group">
-        <button class="pill-btn" aria-pressed="false" aria-label="選択モード">
+        <button class="pill-btn ghost" aria-pressed="false" aria-label="選択モード">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           <span class="label">選択</span>
         </button>
-        <button class="pill-btn" aria-label="ビューとして保存">
+        <button class="pill-btn ghost" aria-label="ビューとして保存">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
           <span class="label">ビューとして保存</span>
         </button>
