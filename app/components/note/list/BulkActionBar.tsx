@@ -35,9 +35,8 @@ type OpenDialog = "move" | "visibility" | "export" | null;
 // mock's `padding: 10px var(--space-4)`). The sheet is shown only while a
 // selection exists — when the bar is mounted in selection mode with nothing
 // selected, mobile hides it (`max-sm:not-data-[selected]:hidden`) so no empty
-// bar occupies the bottom. (#628 removed the mobile下部固定CTAバー that this used
-// to share the floor with, so the prior z=45 bump over the cta-bar(z=40) is no
-// longer needed — a single z-40 suffices.) The `sm:` desktop pill renders in
+// bar occupies the bottom. A single `z-40` suffices: no other fixed bar
+// competes for the mobile bottom floor. The `sm:` desktop pill renders in
 // both states.
 const BULK_BAR =
   "z-40 flex items-center bg-ink text-white shadow-md sm:sticky sm:bottom-4 sm:mx-auto sm:mt-6 sm:max-w-[720px] sm:gap-4 sm:rounded-pill sm:pl-5 sm:pr-2 sm:py-2 max-sm:not-data-[selected]:hidden max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:gap-2 max-sm:rounded-t-lg max-sm:px-4 max-sm:py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]";

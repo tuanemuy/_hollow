@@ -159,8 +159,7 @@ export async function Sidebar({ user }: Props) {
         </ul>
       </div>
 
-      {/* User menu, relocated from the header (#628 ADR-003). `mt-auto`
-          (via SIDEBAR_USER) pins it to the sidebar foot. */}
+      {/* User menu, relocated from the header to the sidebar foot (#628 ADR-003). */}
       <div className={SIDEBAR_USER}>
         <UserMenu user={user} />
       </div>
