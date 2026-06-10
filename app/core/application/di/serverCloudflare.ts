@@ -14,6 +14,7 @@ import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
+import { D1PromptPreviewRateLimiter } from "@/core/adapters/d1/repositories/promptPreviewRateLimiter";
 import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
 import { instanceSettings as instanceSettingsTable } from "@/core/adapters/d1/schema";
 import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
@@ -633,6 +634,10 @@ export function createRequestContainer(
       ? new R2TempFileStorage(tempFilesBucket)
       : createUnavailableTempFileStorage(),
     promptResolver: new D1PromptResolver(db),
+    promptPreviewRateLimiter: new D1PromptPreviewRateLimiter(
+      db,
+      PROMPT_PREVIEW_RATE_LIMIT,
+    ),
     secretBox: selectSecretBox(
       { SECRET_BOX_MASTER_KEY: secretBoxMasterKey },
       { requireKey: requireSecretBoxKey ?? false },
@@ -675,6 +680,16 @@ const DEFAULT_EXPORT_DESIGN_TOKENS: Readonly<Record<string, string>> =
 const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
   maxConcurrentJobs: 3,
   maxJobsPerDay: 50,
+});
+
+/**
+ * Prompt-preview rate limit: 20 previews per user per hour. Each preview
+ * is a real billable LLM call, so the limiter caps abuse / cost.
+ * Fixed-window granularity is sufficient for this guard.
+ */
+const PROMPT_PREVIEW_RATE_LIMIT = Object.freeze({
+  max: 20,
+  windowMs: 3_600_000,
 });
 
 /**

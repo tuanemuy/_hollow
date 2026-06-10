@@ -28,6 +28,11 @@ const EXPLICIT_INGESTION_CODES: readonly string[] = [
   "ingestion_invalid_file_name",
   "ingestion_invalid_byte_size",
   "ingestion_missing_saved_note_id",
+  // Prompt preview
+  "llm_rate_limited",
+  "llm_quota_exceeded",
+  "llm_preview_unavailable",
+  "prompt_preview_rate_limited",
 ];
 
 // (b) Pipeline identifiers written to `job.errorCode` by
@@ -153,6 +158,36 @@ describe("renderErrorMessage business mapping", () => {
     expect(message).toBe(
       "操作を完了できませんでした。時間をおいて再度お試しください",
     );
+  });
+
+  // Pin the dedicated message text for each prompt-preview code so a
+  // mis-mapping (e.g. swapping rate-limited and quota text) is caught — the
+  // EXPLICIT_INGESTION_CODES loops above only prove these are not the generic
+  // fallback and do not leak the raw code.
+  it.each([
+    [
+      "llm_rate_limited",
+      "リクエストが集中しています。しばらくしてから再度お試しください",
+    ],
+    [
+      "llm_quota_exceeded",
+      "AI の利用上限に達しました。時間をおいて再度お試しください",
+    ],
+    [
+      "llm_preview_unavailable",
+      "現在 AI が利用できないためプレビューできません",
+    ],
+    [
+      "prompt_preview_rate_limited",
+      "プレビューの実行回数上限に達しました。しばらくしてから再度お試しください",
+    ],
+  ])("maps prompt-preview code %s to its dedicated message", (code, expected) => {
+    const message = renderErrorMessage({
+      kind: "business",
+      code,
+      message: code,
+    });
+    expect(message).toContain(expected);
   });
 });
 

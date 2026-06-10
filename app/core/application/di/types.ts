@@ -28,6 +28,7 @@ import type { IdempotencyStore } from "../ports/idempotencyStore";
 import type { IdGenerator } from "../ports/idGenerator";
 import type { Logger } from "../ports/logger";
 import type { OutboxRepository } from "../ports/outboxRepository";
+import type { PromptPreviewRateLimiter } from "../ports/promptPreviewRateLimiter";
 import type { UsageMetricsProvider } from "../ports/usageMetricsProvider";
 
 /**
@@ -181,6 +182,13 @@ export type RequestContainer = SharedDeps &
     pdfExtractor: PDFExtractor;
     tempFileStorage: TempFileStorage;
     promptResolver: PromptResolver;
+    /**
+     * Per-user fixed-window rate limiter guarding `previewPrompt`. Each
+     * preview triggers a real billable LLM call, so the usecase claims a
+     * slot here before invoking the provider. Request-scoped (a request-path
+     * usecase), unlike the worker-only `idempotencyStore`.
+     */
+    promptPreviewRateLimiter: PromptPreviewRateLimiter;
     /**
      * Symmetric envelope encryption for at-rest secrets. AdminSettings
      * usecases call into `SecretBox.encrypt` when persisting an

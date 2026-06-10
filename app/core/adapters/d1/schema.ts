@@ -792,3 +792,17 @@ export const userPromptOverrides = sqliteTable("user_prompt_overrides", {
   version: integer("version").notNull().default(0),
   updatedAt: text("updated_at").notNull(),
 });
+
+// Per-user fixed-window counter backing `D1PromptPreviewRateLimiter`.
+// One row per `(user_id, window_start)` bucket, where
+// `window_start = floor(now_ms / windowMs)`. See that class for the claim
+// and opportunistic-pruning contract (ADR-009).
+export const promptPreviewCounters = sqliteTable(
+  "prompt_preview_counters",
+  {
+    userId: text("user_id").notNull(),
+    windowStart: integer("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.windowStart] })],
+);

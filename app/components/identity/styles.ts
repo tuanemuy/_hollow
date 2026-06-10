@@ -183,3 +183,33 @@ export const PROMPT_PRE =
 export const PROMPT_META = "block text-xs text-ink-tertiary mt-2";
 
 export const PROMPT_ACTION_ROW = "flex flex-wrap items-center gap-2.5 mt-3.5";
+
+// ===== Prompt preview =====
+
+export const PREVIEW_PANEL = "mt-3.5 pt-3.5 border-t border-hairline";
+
+export const PREVIEW_PANEL_HEAD =
+  "flex flex-wrap items-center justify-between gap-3 mb-2.5";
+
+export const PREVIEW_PANEL_TITLE =
+  "text-[11px] font-medium text-ink-tertiary uppercase tracking-[0.06em]";
+
+export const PREVIEW_PANEL_NOTE = "text-xs text-ink-tertiary leading-normal";
+
+export const PREVIEW_SAMPLE_TEXTAREA = `${fieldControl} ${fieldTextarea} min-h-[100px] max-h-[240px]`;
+
+export const PREVIEW_PAIR =
+  "grid grid-cols-1 gap-2.5 md:grid-cols-[1fr_24px_1fr] md:items-stretch mt-2.5";
+
+export const PREVIEW_BLOCK = "bg-surface rounded-md px-3.5 py-3";
+
+export const PREVIEW_BLOCK_LABEL =
+  "text-[11px] text-ink-tertiary uppercase tracking-[0.06em] mb-1.5";
+
+export const PREVIEW_BLOCK_BODY =
+  "font-mono text-mono text-ink leading-relaxed whitespace-pre-wrap break-words";
+
+export const PREVIEW_ARROW =
+  "text-ink-tertiary text-center text-[11px] md:flex md:items-center md:justify-center";
+
+export const PREVIEW_UNAVAILABLE = "text-xs text-ink-tertiary leading-normal";
