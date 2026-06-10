@@ -205,24 +205,29 @@ export async function PublicSearch({
                 params={{ noteId: hit.noteId }}
                 className={SEARCH_HIT_ROW}
               >
-                <div className={SEARCH_HIT_AUTHOR}>
-                  <span
-                    className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[8px]`}
-                    aria-hidden="true"
-                  >
-                    {avatarInitials(hit.username)}
-                  </span>
-                  <span>@{hit.username}</span>
-                </div>
                 <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
                 {hit.snippet.length > 0 ? (
                   <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
                 ) : null}
-                {hit.tagNames.length > 0 ? (
-                  <div className={SEARCH_HIT_META}>
-                    <span>{hit.tagNames.map((t) => `#${t}`).join(" ")}</span>
-                  </div>
-                ) : null}
+                <div className={SEARCH_HIT_META}>
+                  <span className={SEARCH_HIT_AUTHOR}>
+                    <span
+                      className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[9px]`}
+                      aria-hidden="true"
+                    >
+                      {avatarInitials(hit.username)}
+                    </span>
+                    <span>@{hit.username}</span>
+                  </span>
+                  {hit.tagNames.length > 0 ? (
+                    <>
+                      <span className="text-hairline-strong">·</span>
+                      <span className="text-accent">
+                        {hit.tagNames.map((t) => `#${t}`).join(" ")}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
               </Link>
             ))
           )}

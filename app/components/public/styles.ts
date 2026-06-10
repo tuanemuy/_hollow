@@ -162,33 +162,41 @@ export const RELATED_META = "text-xs text-ink-tertiary";
 export const RELATED_TAGS = "text-accent mr-1.5";
 
 // ===== P32 search =====
-export const SEARCH_HERO = "py-12 pb-6 text-left";
+// Mock `.hero`: centered, max-w 720, padding 64/24 (PC) / 36/16 (mobile).
+export const SEARCH_HERO =
+  "max-w-[720px] mx-auto text-center pt-16 pb-6 max-sm:pt-9 max-sm:pb-4";
 export const SEARCH_HERO_H1 =
   "text-2xl font-normal tracking-tightest text-ink mb-1.5";
 export const SEARCH_HERO_SUB = "text-sm text-ink-secondary mb-6";
-export const SEARCH_FORM = "relative max-w-[640px]";
+export const SEARCH_FORM = "relative max-w-[640px] mx-auto";
+// Mock `.hero-search input`: surface fill, no border, 56px (PC) / 48px (mobile),
+// left padding 54/46 to clear the icon, focus swaps to surface-hover + shadow.
+// `text-md` token mirrors the mock's `--text-md` (padding stays an arbitrary
+// value since no standard scale token matches 54px/46px).
 export const SEARCH_FORM_INPUT =
-  "w-full h-12 border border-hairline bg-bg rounded-pill pl-12 pr-14 text-[15px] text-ink outline-none transition-colors motion-reduce:transition-none focus:border-hairline-strong focus:shadow-focus";
-// Center-anchored so it stays within the h-12 input even when the base
+  "w-full h-14 max-sm:h-12 border-0 bg-surface rounded-pill pl-[54px] max-sm:pl-[46px] pr-14 text-md text-ink outline-none transition-colors motion-reduce:transition-none focus:bg-surface-hover focus:shadow-focus placeholder:text-ink-tertiary";
+// Center-anchored so it stays within the input even when the base
 // `max-sm:min-h-[44px]` tap target fires on mobile (see .issue/417/adr.md ADR-004).
 // Requires `data-primary` on the consumer button.
 export const SEARCH_FORM_BUTTON = `${pillBtn} ${pillBtnPrimary} absolute right-1.5 top-1/2 -translate-y-1/2`;
+// Mock `.hero-icon`: left 22px (PC) / 18px (mobile), aligned with the input padding.
 export const SEARCH_FORM_ICON =
-  "absolute left-[18px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
+  "absolute left-[22px] max-sm:left-[18px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
 export const SEARCH_SUMMARY =
   "py-4 pb-2 text-sm text-ink-secondary flex gap-3 items-center flex-wrap";
 export const SEARCH_HIT_LIST = "mt-2 pb-16";
+// Single-column card (no date right-rail in scope; see .issue/617/adr.md ADR-001).
 export const SEARCH_HIT_ROW =
-  "block py-5 px-3 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface";
+  "flex flex-col gap-1 py-5 px-3 max-sm:py-4 max-sm:px-2 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface";
 export const SEARCH_HIT_AUTHOR =
-  "inline-flex items-center gap-1.5 text-xs text-ink-tertiary mb-1.5";
+  "inline-flex items-center gap-1 text-sm text-ink-secondary";
 export const SEARCH_HIT_TITLE =
-  "text-md font-medium text-ink tracking-tight mb-1";
+  "text-md font-medium text-ink tracking-tight leading-snug";
 export const SEARCH_HIT_SNIPPET =
-  "text-sm text-ink-secondary leading-relaxed overflow-hidden mb-1.5 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
+  "text-sm text-ink-secondary leading-relaxed overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
 export const SEARCH_HIT_META =
-  "text-xs text-ink-tertiary flex gap-2.5 flex-wrap";
+  "text-sm text-ink-tertiary flex items-center gap-2.5 flex-wrap";
 export const SEARCH_EMPTY = "py-20 px-3 text-center text-ink-secondary";
 export const PAGINATION = "mt-6 flex justify-between gap-3 flex-wrap";
 

@@ -265,7 +265,7 @@
     border: none;
     background: var(--color-surface);
     border-radius: var(--radius-pill);
-    padding: 0 20px 0 46px;
+    padding: 0 56px 0 46px;
     font-size: var(--text-md);
     font-family: inherit;
     color: var(--color-ink);
@@ -287,6 +287,22 @@
     transform: translateY(-50%);
     color: var(--color-ink-tertiary);
     pointer-events: none;
+  }
+  .hero-search .search-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: var(--color-accent);
+    color: #fff;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    border: none;
+    cursor: pointer;
+    transition: var(--transition-bg);
   }
 
   /* ===== Filter toolbar (stacked) ===== */
@@ -850,6 +866,7 @@
     <div class="hero-search">
       <svg class="hero-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" placeholder="公開ノートを検索…" value="outbox pattern" autofocus>
+      <button class="search-btn" type="submit">検索</button>
     </div>
   </section>
 
