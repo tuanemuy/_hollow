@@ -12,7 +12,9 @@ import {
   NAV_ITEM,
   SIDEBAR_SECTION,
   SIDEBAR_SECTION_TITLE,
+  SIDEBAR_USER,
 } from "./styles";
+import { UserMenu } from "./UserMenu";
 
 type Props = {
   user: UserDTO;
@@ -155,6 +157,12 @@ export async function Sidebar({ user }: Props) {
             </Link>
           </li>
         </ul>
+      </div>
+
+      {/* User menu, relocated from the header (#628 ADR-003). `mt-auto`
+          (via SIDEBAR_USER) pins it to the sidebar foot. */}
+      <div className={SIDEBAR_USER}>
+        <UserMenu user={user} />
       </div>
     </>
   );

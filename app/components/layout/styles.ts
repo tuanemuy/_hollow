@@ -8,6 +8,26 @@ export const APP_HEADER =
 export const APP_HEADER_LEFT = "flex items-center gap-3";
 export const APP_HEADER_RIGHT = "flex items-center gap-2";
 
+// Header CTA collapse (#628 ADR-003): the upload / new-note buttons render as
+// labeled pills on desktop and collapse to a 36px icon-only circle below `sm`
+// (label hidden via `max-sm:hidden` on the `<span>`). `max-sm:w-9 px-0
+// justify-center` makes the square; `max-sm:min-h-9!` cancels `pillBtn`'s
+// `max-sm:min-h-[44px]` tap floor for the header exception (ADR-004). The `!`
+// is required because a plain same-property utility ties the arbitrary-value
+// floor on specificity and loses by source order (see `common/styles`
+// `pillBtnSm` caveat). The result aligns with the 36px search input / menu.
+export const HEADER_CTA_COLLAPSE =
+  "max-sm:w-9 max-sm:px-0 max-sm:justify-center max-sm:min-h-9!";
+
+// New-note CTA demotion (#628 ADR-003, 案2-B): on desktop it is a low-emphasis
+// text button (transparent + secondary ink, surface on hover); below `sm` it
+// reverts to the base `pillBtn` surface fill so the collapsed icon circle reads
+// as a normal secondary button next to the accent upload. Expressed as `sm:`
+// overrides over the base so mobile needs no override and desktop wins by
+// variant source order (no `!` needed — `bg-transparent` is not a shrink).
+export const HEADER_NEW_NOTE_DEMOTE =
+  "sm:bg-transparent sm:text-ink-secondary sm:hover:not-disabled:bg-surface sm:hover:not-disabled:text-ink";
+
 export const SEARCH_BOX_WRAPPER = "max-w-[460px] w-full mx-auto relative";
 
 export const SEARCH_BOX_INPUT =
@@ -22,17 +42,33 @@ export const ICON_BTN =
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";
 
-// User menu (header avatar dropdown). The panel chrome / roving items now come
-// from the shared `<Menu>` primitive (`common/Menu`, #467); only the identity
-// header sub-styles remain domain-local.
+// User menu. Relocated from the header to the sidebar foot (#628 ADR-003); the
+// panel chrome / roving items come from the shared `<Menu>` primitive
+// (`common/Menu`, #467). The identity now lives in the trigger row (see
+// `SIDEBAR_USER_*`), so the panel header (`USER_MENU_INFO`) keeps only the role
+// label to avoid duplicating name / email.
 export const USER_MENU_INFO =
   "flex flex-col gap-0.5 px-3 py-2.5 border-b border-hairline";
 
-export const USER_MENU_INFO_NAME = "text-sm font-medium text-ink truncate";
-
-export const USER_MENU_INFO_EMAIL = "text-xs text-ink-secondary truncate";
-
 export const USER_MENU_INFO_ROLE = "text-xs text-ink-tertiary";
+
+// Sidebar foot user section (#628 ADR-003). `mt-auto` pushes it to the bottom
+// of the `flex flex-col` sidebar; a hairline separates it from the nav.
+export const SIDEBAR_USER = "mt-auto pt-3 border-t border-hairline";
+
+// The trigger row: avatar + identity column + caret, full sidebar width. Opens
+// the `<Menu>` panel upward (the panel uses `bottom-full` since the row sits at
+// the screen foot).
+export const SIDEBAR_USER_ROW =
+  "flex items-center gap-2.5 w-full px-2 py-2 rounded-md text-left transition-colors motion-reduce:transition-none hover:bg-surface";
+
+export const SIDEBAR_USER_META = "flex flex-col min-w-0 flex-1";
+
+export const SIDEBAR_USER_NAME = "text-sm font-medium text-ink truncate";
+
+export const SIDEBAR_USER_EMAIL = "text-xs text-ink-tertiary truncate";
+
+export const SIDEBAR_USER_CARET = "text-ink-tertiary shrink-0";
 
 export const APP_LAYOUT =
   "grid grid-cols-1 min-h-[calc(100vh-var(--header-height))]";
@@ -44,55 +80,24 @@ export const APP_LAYOUT_WITH_SIDEBAR = `${APP_LAYOUT} lg:grid-cols-[var(--sideba
 // in-flow sticky column. New media queries are avoided in favour of
 // `max-lg:` / `lg:` variants so the `--breakpoint-*` duplication does not
 // need touching (see CLAUDE.md styling notes).
+// `flex flex-col` lets the user section (`SIDEBAR_USER`) pin to the bottom via
+// `mt-auto` (#628 ADR-003: the user menu moved out of the header into the
+// sidebar foot). When the nav overflows, the user row scrolls to the end with
+// the content rather than overlapping it.
 export const APP_SIDEBAR =
-  "px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:max-w-[86vw] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
+  "flex flex-col px-4 pt-5 pb-8 overflow-y-auto bg-bg max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:w-[280px] max-lg:max-w-[86vw] max-lg:z-[100] max-lg:-translate-x-full max-lg:shadow-md max-lg:transition-transform max-lg:motion-reduce:transition-none data-[open]:max-lg:translate-x-0 lg:sticky lg:top-[var(--header-height)] lg:h-[calc(100vh-var(--header-height))] lg:border-r lg:border-hairline";
 
 // Scrim behind the mobile drawer; clicking it closes the drawer. Shown only
 // below `lg` and only while open, regardless of generated-CSS source order.
 export const SIDEBAR_BACKDROP =
   "fixed inset-0 z-[90] bg-black/20 hidden data-[open]:max-lg:block";
 
-// Bottom-fixed CTA bar chrome (mock `P10-home.html` `.cta-bar`): the reusable
-// frame for the mobile下部固定CTA. Below `lg` it is a `fixed` full-width bar
-// with safe-area bottom padding, a hairline top border, and `--header-bg` +
-// backdrop blur; `lg:hidden` removes it once the desktop header CTA is visible.
-//
-// The blur uses the SSOT token `var(--header-blur)` (per #587 ADR-006), NOT the
-// literal `saturate(180%) blur(20px)` baked into `APP_HEADER` — that literal is
-// pre-existing debt we intentionally do not propagate. The always-on base keeps
-// `bg-[var(--header-bg)]` and only adds the blur under `supports-[backdrop-filter]`
-// (CLAUDE.md backdrop-filter pattern / ADR-005); the mock's `@supports not`
-// fallback to `--color-bg` is approximated by this translucent base.
-//
-// z-index is 40 (mock `.cta-bar`). It sits below the bulk-bar (45); the bulk-bar's
-// fixed-positioning and z=45 bump are #588 (CTA and bulk-bar are mutually exclusive,
-// so z-40 parity is harmless until then).
-//
-// Padding mirrors the mock's `padding: 10px var(--space-4)`: `py-2.5` = 10px,
-// `px-4` = `var(--space-4)` = 16px; the bottom is overridden by the safe-area calc.
-export const BOTTOM_ACTION_BAR =
-  "lg:hidden fixed inset-x-0 bottom-0 z-40 flex gap-2 px-4 py-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] border-t border-hairline bg-[var(--header-bg)] supports-[backdrop-filter]:bg-[var(--header-bg)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
-
-// CTA content for the bottom action bar (mock `P10-home.html` `.cta-bar .pill-btn`
-// / `.cta-upload`), consumed by `note/list/BottomCtaBar`. The frame above lays the
-// children out in a `flex gap-2` row.
-//
-// Primary (新規作成): mock `flex: 1; justify-content: center; height: 48px`.
-// `flex-1` claims the remaining width; `h-12` = 48px is the token-scale step that
-// matches the mock; `justify-center` centers the icon+label.
-export const CTA_BAR_PRIMARY = "flex-1 justify-center h-12";
-
-// Upload (icon-only): mock `flex: 0 0 auto; width: 52px; padding: 0`. The mock's
-// literal 52px has no token-scale step; we map it to the 48px square (`h-12 w-12`,
-// the same token as the primary's height), which clears the 44px touch floor and
-// stays on-scale. `shrink-0` mirrors `flex: 0 0 auto`; `px-0 justify-center`
-// centers the lone icon by dropping the base pill's text padding.
-export const CTA_BAR_UPLOAD = "shrink-0 h-12 w-12 px-0 justify-center";
-
 // Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
-// `lg`.
+// `lg`. Sits in the global header's control row, so it follows the header
+// exception (#628 ADR-004): 36px (`w-9 h-9`) with no mobile 44px tap floor,
+// matching the search input / CTA heights rather than the app-wide floor.
 export const MENU_BTN =
-  "lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md text-ink transition-colors motion-reduce:transition-none hover:bg-surface max-sm:min-w-[44px] max-sm:min-h-[44px]";
+  "lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md text-ink transition-colors motion-reduce:transition-none hover:bg-surface";
 
 export const SIDEBAR_SECTION = "mb-7";
 

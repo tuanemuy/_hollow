@@ -121,9 +121,12 @@ export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
             <Icon icon={Bookmark} />
             <span className={CTA_LABEL}>ビューとして保存</span>
           </button>
-          {/* 新規作成 / アップロード move to the下部固定CTAバー (`BottomCtaBar`)
-              below `lg` (#588 ADR-001), so the toolbar copies are hidden there to
-              avoid a duplicate CTA; 選択 / ビューとして保存 stay (list-specific). */}
+          {/* 新規作成 / アップロード are carried by the global header on mobile
+              (#628 ADR-001/003 supersede #588: the header keeps both CTAs at all
+              widths instead of退避 to a bottom bar). The toolbar copies stay
+              `max-lg:hidden` to avoid a duplicate CTA below `lg`; 選択 / ビューと
+              して保存 stay (list-specific). Desktop header⇔toolbar CTA overlap is
+              tracked separately (#626). */}
           <Link
             to="/notes/new"
             data-primary
