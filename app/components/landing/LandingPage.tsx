@@ -341,7 +341,11 @@ export function LandingPage() {
             <p className={TEASER_BODY}>
               アカウントを作る前に、このインスタンスで公開されているノートを横断検索できます。
             </p>
-            <Link to="/" search={HOME_SEARCH} className={TEASER_LINK}>
+            <Link
+              to="/search"
+              search={{ q: "", limit: 20 }}
+              className={TEASER_LINK}
+            >
               公開検索を試す
               <Icon icon={ChevronRight} size={16} />
             </Link>
@@ -373,20 +377,11 @@ export function LandingPage() {
                 </li>
                 <li>
                   <Link
-                    to="/"
-                    search={HOME_SEARCH}
+                    to="/search"
+                    search={{ q: "", limit: 20 }}
                     className={FOOTER_LIST_LINK}
                   >
                     公開検索
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/"
-                    search={HOME_SEARCH}
-                    className={FOOTER_LIST_LINK}
-                  >
-                    エクスポート
                   </Link>
                 </li>
               </ul>
