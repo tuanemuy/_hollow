@@ -243,6 +243,8 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  /* ヘッダー操作行は検索 input(36px) に揃える局所例外（#628 ADR-004）。base .pill-btn=40px を上書き。 */
+  .header-right .pill-btn { height: 36px; }
   .pill-btn {
     height: 40px;
     padding: 0 var(--space-4);
@@ -554,7 +556,7 @@
     .header { padding: 0 var(--space-4); gap: var(--space-2); }
     .logo { display: none; }
     .header-right .pill-btn span.label { display: none; }
-    .header-right .pill-btn { width: 40px; padding: 0; justify-content: center; }
+    .header-right .pill-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
     .main { padding: var(--space-6) var(--space-4) var(--space-16); }
     .modal-card { width: 100%; }
   }
