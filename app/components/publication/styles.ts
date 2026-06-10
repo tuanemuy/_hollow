@@ -8,6 +8,8 @@
  * under `public`/`layout`/`auth`/`directory`. See `.issue/464/adr.md` ADR-001.
  */
 
+import { TOUCH_TARGET_SQUARE } from "@/components/common/styles";
+
 /**
  * Visibility-status dot, colored by a `data-visibility` value-match variant
  * (CLAUDE.md state-style convention) rather than conditional class strings.
@@ -69,13 +71,14 @@ export const PUBLISH_ACTION_FULL = "max-sm:w-full max-sm:justify-center";
  * (`flex-col items-stretch`), so nothing overflows a 390px sheet. At `sm`+ it
  * keeps the desktop inline `flex-wrap` row.
  *
- * The `[&>button]:max-sm:*` rules restore the mock's `.small-btn` 44px tap
- * floor + centered label on mobile, overriding `pillBtnSm`'s
- * `data-[sm]:max-sm:min-h-0` (which strips the floor for the desktop-dense
- * inline row). Scoped here so the three buttons need no per-button modifier.
+ * The mock's `.small-btn` mobile tap floor now comes for free: since the
+ * `pillBtnSm` floor-strip was inverted to the opt-in `pillBtnSmDense`
+ * (`.issue/633/adr.md` ADR-003), the base `pillBtn` `TOUCH_TARGET` simply
+ * applies on these `pillBtnSm` buttons. Only the centered label needs scoping
+ * here.
  */
 export const LINK_MINI_ROW =
-  "flex flex-wrap items-center gap-2 max-sm:flex-col max-sm:flex-nowrap max-sm:items-stretch [&>button]:max-sm:min-h-[44px] [&>button]:max-sm:justify-center";
+  "flex flex-wrap items-center gap-2 max-sm:flex-col max-sm:flex-nowrap max-sm:items-stretch [&>button]:max-sm:justify-center";
 
 /**
  * Link card for an issued share link (mock `.link-card`). Border + elevated
@@ -97,8 +100,7 @@ export const LINK_URL_ROW =
   "flex items-center gap-2 bg-bg border border-hairline rounded-md py-2 pl-3 pr-2 min-w-0";
 
 /** Small square ghost icon button inside the URL row (mock `.icon-mini`). */
-export const LINK_COPY_BTN =
-  "shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-sm bg-transparent text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const LINK_COPY_BTN = `shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-sm bg-transparent text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink ${TOUCH_TARGET_SQUARE}`;
 
 /**
  * Monospace, ellipsis-truncated URL inside a link row.

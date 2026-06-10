@@ -6,6 +6,8 @@
  * (see CLAUDE.md "Repeated utility strings can be hoisted").
  */
 
+import { TOUCH_TARGET, TOUCH_TARGET_SQUARE } from "../common/styles";
+
 /**
  * Indeterminate progress bar track — 同期処理中の不確定進捗用。
  *
@@ -90,12 +92,10 @@ export const SEGMENTED = "inline-flex p-0.5 rounded-md bg-surface";
  * Segmented item (mock `.segmented-item`) — active state via `data-active`.
  * The selected item gets the `bg` surface + ink color + subtle shadow.
  */
-export const SEGMENTED_ITEM =
-  "px-3.5 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-data-[active]:text-ink data-[active]:bg-bg data-[active]:text-ink data-[active]:shadow-xs max-sm:min-h-[44px]";
+export const SEGMENTED_ITEM = `px-3.5 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-data-[active]:text-ink data-[active]:bg-bg data-[active]:text-ink data-[active]:shadow-xs ${TOUCH_TARGET}`;
 
 /** Direction toggle (mock `.tag-sort .icon-btn-sm`) — 32px ghost icon button. */
-export const TAG_SORT_DIR =
-  "inline-flex items-center justify-center w-8 h-8 rounded-full text-ink bg-transparent transition-colors motion-reduce:transition-none hover:bg-surface active:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const TAG_SORT_DIR = `inline-flex items-center justify-center w-8 h-8 rounded-full text-ink bg-transparent transition-colors motion-reduce:transition-none hover:bg-surface active:bg-surface-hover ${TOUCH_TARGET_SQUARE}`;
 
 /**
  * Inline-rename editing block wrapper (mock `.tag-editing-block`). Paints the

@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { Icon } from "@/components/common/Icon";
+import { TOUCH_TARGET_SQUARE } from "@/components/common/styles";
 
 /**
  * Design-compliant selection checkbox (`spec/design/pages/P10-home.html`
@@ -14,8 +15,7 @@ import { Icon } from "@/components/common/Icon";
  * dropped: the checkbox only renders while selection mode is on, where it
  * must stay visible on touch devices that have no hover.
  */
-const NOTE_CHECK =
-  "inline-flex items-center justify-center w-5 h-5 rounded-full border-[1.5px] border-hairline-strong bg-transparent text-transparent transition-colors motion-reduce:transition-none hover:border-ink-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 data-[checked]:bg-accent data-[checked]:border-accent data-[checked]:text-white max-sm:min-w-[44px] max-sm:min-h-[44px]";
+const NOTE_CHECK = `inline-flex items-center justify-center w-5 h-5 rounded-full border-[1.5px] border-hairline-strong bg-transparent text-transparent transition-colors motion-reduce:transition-none hover:border-ink-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 data-[checked]:bg-accent data-[checked]:border-accent data-[checked]:text-white ${TOUCH_TARGET_SQUARE}`;
 
 type Props = Readonly<{
   checked: boolean;

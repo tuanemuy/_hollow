@@ -1,6 +1,6 @@
 // Shared utility class strings used across the authenticated app shell.
 
-import { navItem } from "../common/styles";
+import { navItem, TOUCH_TARGET_SQUARE } from "../common/styles";
 
 export const APP_HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline bg-[var(--header-bg)] px-6 py-[14px] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
@@ -16,8 +16,7 @@ export const SEARCH_BOX_INPUT =
 export const SEARCH_BOX_ICON =
   "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
-export const ICON_BTN =
-  "w-9 h-9 rounded-pill bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const ICON_BTN = `w-9 h-9 rounded-pill bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover ${TOUCH_TARGET_SQUARE}`;
 
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";
@@ -91,8 +90,7 @@ export const CTA_BAR_UPLOAD = "shrink-0 h-12 w-12 px-0 justify-center";
 
 // Hamburger that toggles the drawer. Hidden once the sidebar is in-flow at
 // `lg`.
-export const MENU_BTN =
-  "lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md text-ink transition-colors motion-reduce:transition-none hover:bg-surface max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const MENU_BTN = `lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md text-ink transition-colors motion-reduce:transition-none hover:bg-surface ${TOUCH_TARGET_SQUARE}`;
 
 export const SIDEBAR_SECTION = "mb-7";
 

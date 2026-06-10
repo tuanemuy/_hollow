@@ -14,7 +14,7 @@ import {
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnSm } from "@/components/common/styles";
+import { pillBtn, pillBtnSmDense } from "@/components/common/styles";
 import type {
   BackfillInternalLinksResultDTO,
   RebuildSearchIndexResultDTO,
@@ -75,15 +75,15 @@ const TD_HEAD_CLASS =
   "px-4 py-3 text-left align-middle max-sm:block max-sm:pb-3 max-sm:mb-2 max-sm:border-b max-sm:border-hairline";
 const STACK_LABEL =
   "hidden max-sm:inline-block max-sm:w-[84px] text-ink-tertiary text-xs uppercase tracking-[0.04em]";
-// Action cell inner row: stacks full-width below `sm`. The 44px tap floor is
-// restored with mobile-scoped `!important` because `pillBtnSm`'s
-// `data-[sm]:max-sm:min-h-0` strip (specificity (0,2,0)) outweighs a plain
-// `[&>button]` child selector ((0,1,1)). See `.issue/589/adr.md` ADR-007.
+// Action cell inner row: stacks full-width below `sm`. The buttons use
+// `pillBtnSmDense` so admin keeps its compact `h-7` density on mobile (no tap
+// floor); the row only stretches them full-width and centers the label. See
+// `.issue/633/adr.md` ADR-003.
 const ACTION_ROW_CLASS =
-  "max-sm:flex max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
-// Operation section row (rebuild / backfill / re-encrypt): same stacking + floor.
+  "max-sm:flex max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
+// Operation section row (rebuild / backfill / re-encrypt): same stacking.
 const OP_ROW_CLASS =
-  "flex items-center gap-3 max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
+  "flex items-center gap-3 max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:w-full [&>button]:max-sm:justify-center";
 const ROW_CLASS =
   "border-t border-hairline first:border-t-0 hover:bg-surface-elevated max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-4 max-sm:bg-bg";
 const EMPTY_CELL_CLASS =
@@ -262,7 +262,7 @@ function IngestionRow({
           {job.status === "failed" ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={runRetry}
               disabled={isPending}
@@ -357,7 +357,7 @@ function ExportRow({
           {job.status === "failed" ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={runRetry}
               disabled={isPending}
@@ -475,7 +475,7 @@ function SearchIndexSection() {
       <div className={OP_ROW_CLASS}>
         <button
           type="button"
-          className={`${pillBtn} ${pillBtnSm}`}
+          className={`${pillBtn} ${pillBtnSmDense}`}
           data-sm=""
           onClick={runRebuild}
           disabled={isPending}
@@ -543,7 +543,7 @@ function InternalLinkBackfillSection() {
       <div className={OP_ROW_CLASS}>
         <button
           type="button"
-          className={`${pillBtn} ${pillBtnSm}`}
+          className={`${pillBtn} ${pillBtnSmDense}`}
           data-sm=""
           onClick={runBackfill}
           disabled={isPending}
@@ -627,7 +627,7 @@ function SecretRotationSection() {
       <div className={OP_ROW_CLASS}>
         <button
           type="button"
-          className={`${pillBtn} ${pillBtnSm}`}
+          className={`${pillBtn} ${pillBtnSmDense}`}
           data-sm=""
           onClick={runReencrypt}
           disabled={isPending}
