@@ -127,9 +127,8 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const [isPending, startTransition] = useTransition();
   // Surfaces the inline directory-creation step that runs at save time when a
-  // pending (not-yet-created) directory name is set. Flipped on outside the
-  // transition so the label change paints immediately, and reset in a `finally`
-  // so it clears on both success and failure (plan B-3).
+  // pending (not-yet-created) directory name is set. Reset in a `finally` so it
+  // clears on both success and failure (plan B-3).
   const [creatingDirectory, setCreatingDirectory] = useState(false);
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
