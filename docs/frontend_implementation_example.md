@@ -851,15 +851,17 @@ mutation の `catch` では `extractSerializedError(e)` で `kind` を分岐す�
   `app/components/common/ProgressBar.tsx` を `value`（0–100）付きの determinate で
   使う。
 - **実数が取れない**（OCR / 音声 / LLM のワーカー非同期処理。ドメイン・wire に
-  進捗 % フィールドが無い）→ `ProgressBar`（indeterminate＝スライド）または
-  `Skeleton` で「進行中であること」だけを示す。例: `IngestionJobRow` の
+  進捗 % フィールドが無い）→ `ProgressBar`（indeterminate＝部分幅バーのパルス）
+  または `Skeleton` で「進行中であること」だけを示す。例: `IngestionJobRow` の
   processing カードは indeterminate `ProgressBar` + 状態文言、`UploadDialog` の
   `waiting`（LLM 推論待ち）は `Skeleton`。
 - `ProgressBar` の a11y: 既定は `role="progressbar"` + `aria-busy`（indeterminate
   時は `aria-valuenow` を付けない）+ `aria-label`。装飾的に使い、状態を隣接テキスト
   や親の `aria-live` 領域が伝える場合は `decorative`（`aria-hidden`）にして二重
-  読み上げを避ける。スライドは `motion-safe:`、`motion-reduce:` では静的バー。
-  新規 motion トークンは追加せずコンポーネント内で完結させる（#635 ADR-001）。
+  読み上げを避ける。パルス（`Skeleton` と同じ motion 言語）は `motion-safe:`、
+  `motion-reduce:` では静的な部分幅バー。新規 motion トークン / `@keyframes` は
+  追加せず Tailwind 標準の `animate-pulse` で完結させる（#635 ADR-001 / #637
+  ADR-004）。
 
 ### 規約5: 共通資産と motion 規約
 

@@ -7,11 +7,14 @@
  *
  *   - **indeterminate (default)** — no real progress value is available
  *     (e.g. the ingestion worker has no progress events; the P13 % values are
- *     static mock data). An accent segment slides left↔right across the track
- *     to signal "in progress". The slide is guarded with `motion-safe:` so
- *     under `prefers-reduced-motion: reduce` a static partial bar is shown
- *     instead (spec/design「アニメーション」L93). a11y: `role="progressbar"` +
- *     `aria-busy="true"` with **no** `aria-valuenow` (indeterminate).
+ *     static mock data). A partial-width accent segment pulses (opacity) to
+ *     signal "in progress" — Tailwind's built-in `animate-pulse`, the same
+ *     motion language as `Skeleton`, not a custom slide keyframe (#637 ADR-004
+ *     dropped the slide to avoid adding `@keyframes`). The pulse is guarded
+ *     with `motion-safe:` so under `prefers-reduced-motion: reduce` a static
+ *     partial bar is shown instead (spec/design「アニメーション」L93). a11y:
+ *     `role="progressbar"` + `aria-busy="true"` with **no** `aria-valuenow`
+ *     (indeterminate).
  *   - **determinate** — pass `value` (0–100) when a real ratio is known
  *     (e.g. client-side sequential upload `n / total`). The fill width tracks
  *     the value and `aria-valuenow` is reported.
@@ -38,7 +41,7 @@ export function ProgressBar({
   decorative = false,
   className,
 }: Readonly<{
-  /** Real progress ratio 0–100. Omit for an indeterminate (sliding) bar. */
+  /** Real progress ratio 0–100. Omit for an indeterminate (pulsing) bar. */
   value?: number;
   ariaLabel?: string;
   /**

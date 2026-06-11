@@ -74,4 +74,68 @@ describe("SubmitButton", () => {
     });
     expect(getButton().className).toBe("custom-class");
   });
+
+  it("emits data-primary by default and drops it when primary is false", () => {
+    act(() => {
+      root.render(
+        <form>
+          <SubmitButton label="保存" pendingLabel="保存中..." />
+        </form>,
+      );
+    });
+    expect(getButton().getAttribute("data-primary")).toBe("");
+
+    act(() => {
+      root.render(
+        <form>
+          <SubmitButton label="保存" pendingLabel="保存中..." primary={false} />
+        </form>,
+      );
+    });
+    expect(getButton().getAttribute("data-primary")).toBeNull();
+  });
+
+  // The whole point of useFormStatus(): while the enclosing `<form action>`
+  // is submitting, the button flips to the pending label, disables itself,
+  // and reports aria-busy. We hold the action promise open so the pending
+  // window is observable, then resolve it and assert it snaps back to idle.
+  it("shows the pending label, disables, and reports aria-busy while the form action is in flight", async () => {
+    let resolveAction: () => void = () => {};
+    const action = () =>
+      new Promise<void>((res) => {
+        resolveAction = res;
+      });
+
+    act(() => {
+      root.render(
+        <form action={action}>
+          <SubmitButton label="保存" pendingLabel="保存中..." />
+        </form>,
+      );
+    });
+
+    const form = container.querySelector("form");
+    if (form === null) throw new Error("form not rendered");
+
+    await act(async () => {
+      form.requestSubmit();
+      await Promise.resolve();
+    });
+
+    const pendingButton = getButton();
+    expect(pendingButton.textContent).toBe("保存中...");
+    expect(pendingButton.disabled).toBe(true);
+    expect(pendingButton.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      resolveAction();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const idleButton = getButton();
+    expect(idleButton.textContent).toBe("保存");
+    expect(idleButton.disabled).toBe(false);
+    expect(idleButton.getAttribute("aria-busy")).toBe("false");
+  });
 });

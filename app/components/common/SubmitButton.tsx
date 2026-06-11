@@ -19,17 +19,23 @@ import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
  * `disabled` is OR-combined with the form pending state for buttons whose
  * enabled-ness also depends on non-form state (e.g. a lockout flag).
  *
- * Styling defaults to the primary pill; pass `className` to override.
+ * Styling defaults to the primary pill (`primary` defaults to `true`, which
+ * emits `data-primary` so `pillBtn`'s `data-[primary]:` accent variant fires).
+ * Pass a non-primary `className` (e.g. a surface / ghost pill) **with**
+ * `primary={false}` so the `data-primary` flag does not linger and force the
+ * accent colours onto an overridden style.
  */
 export function SubmitButton({
   label,
   pendingLabel,
   disabled = false,
+  primary = true,
   className = `${pillBtn} ${pillBtnPrimary}`,
 }: Readonly<{
   label: string;
   pendingLabel: string;
   disabled?: boolean;
+  primary?: boolean;
   className?: string;
 }>) {
   const { pending } = useFormStatus();
@@ -39,7 +45,7 @@ export function SubmitButton({
       disabled={pending || disabled}
       aria-busy={pending}
       className={className}
-      data-primary=""
+      data-primary={primary ? "" : undefined}
     >
       {pending ? pendingLabel : label}
     </button>
