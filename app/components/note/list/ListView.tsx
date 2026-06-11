@@ -69,6 +69,9 @@ function NoteListRow({
   const { state, dispatch } = useSelection();
   const checked = state.ids.has(note.id);
   const mode = state.mode;
+  // Dim the row while a bulk trash over the current selection is in flight
+  // (#635 ADR-002), reusing the NoteListViews navigation-dim visual.
+  const pending = state.pendingBulk && checked;
   const updatedAtDisplay = formatDate(note.updatedAt);
   const toggle = () => dispatch({ type: "toggle", id: note.id });
   return (
@@ -76,7 +79,9 @@ function NoteListRow({
       key={note.id}
       data-selected={checked || undefined}
       data-mode={mode || undefined}
-      className="transition-colors motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface data-[mode]:grid data-[mode]:grid-cols-[auto_1fr] data-[mode]:items-start data-[mode]:gap-4 data-[mode]:px-3 data-[mode]:py-5 data-[mode]:max-sm:px-2 data-[mode]:max-sm:py-4 data-[mode]:max-sm:gap-3"
+      data-pending={pending || undefined}
+      aria-busy={pending || undefined}
+      className="transition-[color,background-color,opacity] motion-reduce:transition-none hover:bg-surface data-[selected]:bg-accent-surface data-[pending]:opacity-60 data-[mode]:grid data-[mode]:grid-cols-[auto_1fr] data-[mode]:items-start data-[mode]:gap-4 data-[mode]:px-3 data-[mode]:py-5 data-[mode]:max-sm:px-2 data-[mode]:max-sm:py-4 data-[mode]:max-sm:gap-3"
     >
       {mode ? (
         <>

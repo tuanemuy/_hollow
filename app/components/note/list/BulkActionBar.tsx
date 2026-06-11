@@ -77,6 +77,8 @@ export function BulkActionBar({ tree }: Props) {
     setError(null);
     setBatchMessage(null);
     startTransition(async () => {
+      // Dim the selected rows while the bulk trash is in flight (#635 ADR-002).
+      dispatch({ type: "setPendingBulk", value: true });
       try {
         const result = await trash({ data: { noteIds: ids } });
         if (result.failures.length > 0) {
@@ -97,6 +99,8 @@ export function BulkActionBar({ tree }: Props) {
         } else {
           setError(err);
         }
+      } finally {
+        dispatch({ type: "setPendingBulk", value: false });
       }
     });
   };

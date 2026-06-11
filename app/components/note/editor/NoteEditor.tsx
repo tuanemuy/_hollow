@@ -126,6 +126,10 @@ export function NoteEditor(props: NoteEditorProps) {
   });
 
   const [isPending, startTransition] = useTransition();
+  // Surfaces the inline directory-creation step that runs at save time when a
+  // pending (not-yet-created) directory name is set. Reset in a `finally` so it
+  // clears on both success and failure (plan B-3).
+  const [creatingDirectory, setCreatingDirectory] = useState(false);
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
 
@@ -235,9 +239,13 @@ export function NoteEditor(props: NoteEditorProps) {
     setSubmitError(null);
     const frontMatterJson = JSON.stringify(state.frontMatter);
     const tagNames = parseTagInput(state.tagInput);
+    // Set outside the transition so the「ディレクトリ作成中...」label paints
+    // at high priority before the save round-trip begins.
+    if (state.pendingDirectoryName !== null) setCreatingDirectory(true);
     startTransition(async () => {
       try {
         const directoryId = await resolveDirectoryId();
+        setCreatingDirectory(false);
         if (props.mode === "new") {
           const result = await createNote({
             data: {
@@ -270,6 +278,8 @@ export function NoteEditor(props: NoteEditorProps) {
         }
       } catch (e) {
         setSubmitError(extractSerializedError(e));
+      } finally {
+        setCreatingDirectory(false);
       }
     });
   };
@@ -299,8 +309,15 @@ export function NoteEditor(props: NoteEditorProps) {
             data-primary
             className={`${pillBtn} ${pillBtnPrimary}`}
             disabled={saveDisabled}
+            aria-busy={isPending}
           >
-            {isPending ? "保存中..." : props.mode === "new" ? "作成" : "保存"}
+            {creatingDirectory
+              ? "ディレクトリ作成中..."
+              : isPending
+                ? "保存中..."
+                : props.mode === "new"
+                  ? "作成"
+                  : "保存"}
           </button>
           <button
             type="button"

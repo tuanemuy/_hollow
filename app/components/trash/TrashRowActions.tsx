@@ -62,9 +62,10 @@ export function TrashRowActions({ noteId, noteTitle }: Props) {
         className={pillBtn}
         onClick={onRestore}
         disabled={isPending}
+        aria-busy={isPending}
       >
         <Icon icon={RotateCcw} />
-        復元
+        {isPending ? "復元中..." : "復元"}
       </button>
       <button
         type="button"

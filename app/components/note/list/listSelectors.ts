@@ -70,6 +70,10 @@ export type SelectionState = Readonly<{
   // flag is a purely client-side display concern, kept here alongside the
   // ids so "exit mode clears the selection" is a single atomic transition.
   mode: boolean;
+  // Whether a bulk mutation (trash) over the current selection is in flight.
+  // Lives here so the list rows can dim the selected items for the duration
+  // without prop-drilling the BulkActionBar's transition pending (#635 ADR-002).
+  pendingBulk: boolean;
 }>;
 
 export type SelectionAction =
@@ -79,11 +83,13 @@ export type SelectionAction =
   | Readonly<{ type: "clear" }>
   | Readonly<{ type: "enterSelectMode" }>
   | Readonly<{ type: "exitSelectMode" }>
-  | Readonly<{ type: "toggleSelectMode" }>;
+  | Readonly<{ type: "toggleSelectMode" }>
+  | Readonly<{ type: "setPendingBulk"; value: boolean }>;
 
 export const emptySelection: SelectionState = {
   ids: new Set<NoteId>(),
   mode: false,
+  pendingBulk: false,
 };
 
 export function selectionReducer(
@@ -95,32 +101,47 @@ export function selectionReducer(
       const next = new Set(state.ids);
       if (next.has(action.id)) next.delete(action.id);
       else next.add(action.id);
-      return { ids: next, mode: state.mode };
+      return { ids: next, mode: state.mode, pendingBulk: state.pendingBulk };
     }
     case "selectMany": {
       const next = new Set(state.ids);
       for (const id of action.ids) next.add(id);
-      return { ids: next, mode: state.mode };
+      return { ids: next, mode: state.mode, pendingBulk: state.pendingBulk };
     }
     case "selectAll": {
-      return { ids: new Set(action.ids), mode: state.mode };
+      return {
+        ids: new Set(action.ids),
+        mode: state.mode,
+        pendingBulk: state.pendingBulk,
+      };
     }
     case "clear": {
       if (state.ids.size === 0) return state;
-      return { ids: new Set<NoteId>(), mode: state.mode };
+      return {
+        ids: new Set<NoteId>(),
+        mode: state.mode,
+        pendingBulk: state.pendingBulk,
+      };
     }
     case "enterSelectMode": {
       if (state.mode) return state;
-      return { ids: state.ids, mode: true };
+      return { ids: state.ids, mode: true, pendingBulk: state.pendingBulk };
     }
     case "exitSelectMode": {
       // Leaving selection mode discards the pending selection so re-entering
       // starts clean.
-      if (!state.mode && state.ids.size === 0) return state;
+      if (!state.mode && state.ids.size === 0 && !state.pendingBulk)
+        return state;
       return emptySelection;
     }
     case "toggleSelectMode": {
-      return state.mode ? emptySelection : { ids: state.ids, mode: true };
+      return state.mode
+        ? emptySelection
+        : { ids: state.ids, mode: true, pendingBulk: state.pendingBulk };
+    }
+    case "setPendingBulk": {
+      if (state.pendingBulk === action.value) return state;
+      return { ids: state.ids, mode: state.mode, pendingBulk: action.value };
     }
   }
 }

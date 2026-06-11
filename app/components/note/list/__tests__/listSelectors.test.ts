@@ -138,6 +138,62 @@ describe("selectionReducer", () => {
       true,
     );
   });
+
+  // #635 ADR-002: `pendingBulk` lives alongside the ids so a bulk trash can
+  // dim the selected rows for the transition's duration. The cases below pin
+  // the setter, its no-op fast path, and preservation across every action.
+  it("starts with pendingBulk off", () => {
+    expect(emptySelection.pendingBulk).toBe(false);
+  });
+
+  it("setPendingBulk reflects true then false", () => {
+    const s1 = selectionReducer(emptySelection, {
+      type: "setPendingBulk",
+      value: true,
+    });
+    expect(s1.pendingBulk).toBe(true);
+    const s2 = selectionReducer(s1, { type: "setPendingBulk", value: false });
+    expect(s2.pendingBulk).toBe(false);
+  });
+
+  it("setPendingBulk is a no-op when the value is unchanged (referential equality)", () => {
+    const s1 = selectionReducer(emptySelection, {
+      type: "setPendingBulk",
+      value: true,
+    });
+    const s2 = selectionReducer(s1, { type: "setPendingBulk", value: true });
+    expect(s2).toBe(s1);
+    const s3 = selectionReducer(emptySelection, {
+      type: "setPendingBulk",
+      value: false,
+    });
+    expect(s3).toBe(emptySelection);
+  });
+
+  it("toggle / clear / enterSelectMode preserve pendingBulk", () => {
+    const pending = selectionReducer(emptySelection, {
+      type: "setPendingBulk",
+      value: true,
+    });
+    expect(
+      selectionReducer(pending, { type: "toggle", id: "a" }).pendingBulk,
+    ).toBe(true);
+    const withId = selectionReducer(pending, { type: "toggle", id: "a" });
+    expect(selectionReducer(withId, { type: "clear" }).pendingBulk).toBe(true);
+    expect(
+      selectionReducer(pending, { type: "enterSelectMode" }).pendingBulk,
+    ).toBe(true);
+  });
+
+  it("exitSelectMode resets even when only pendingBulk is set (mode/ids empty)", () => {
+    const pending = selectionReducer(emptySelection, {
+      type: "setPendingBulk",
+      value: true,
+    });
+    const next = selectionReducer(pending, { type: "exitSelectMode" });
+    expect(next).toBe(emptySelection);
+    expect(next.pendingBulk).toBe(false);
+  });
 });
 
 describe("groupNotesByDay", () => {
