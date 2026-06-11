@@ -981,9 +981,7 @@
     <div class="page-subtitle">127 件のノート</div>
 
     <!-- NoteListToolbar: 左 = 保存ビュー select / 右 = 選択・ビュー保存(ghost・アイコンのみ)・表示モード segmented。
-         #626: 表示モードは低頻度設定のため右端・アイコンのみ・ink 濃度差 active に降格（ADR-001）。
-         新規/アップロード CTA はヘッダー常時表示（#628 ADR-001/003）。ボタンは pill-btn で desktop・実装と統一 (#620)。
-         アイコンのみのため各 tab に aria-label 必須（aria 契約テストあり）。 -->
+         #626/#628/#620 の決定理由と aria 契約は .toolbar / .segmented / .toolbar-actions の注記を参照。 -->
     <div class="toolbar">
       <select class="view-select" aria-label="保存済みビュー">
         <option>保存ビューを選択</option>
