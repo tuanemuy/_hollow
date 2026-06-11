@@ -500,10 +500,12 @@
   .skeleton-line.w35 { width: 35%; }
   .skeleton-line.w25 { width: 25%; }
   .skeleton-line.w18 { width: 18%; }
-  /* タイトル/件数のヘッダ部スケルトン */
-  .sk-header { margin-bottom: 28px; }
-  .sk-header .skeleton-line:first-child { margin-bottom: var(--space-3); }
-  /* ツールバー段（segmented + ボタン群）のスケルトン */
+  /* タイトル段のスケルトン。#626 R2 ADR-004: 見出しはビュー切り替えトリガー（名前+chevron）に
+     なったが、骨組みとしては従来どおり1本のバーで表現する（chevron まで描くと過剰）。 */
+  .sk-header { margin-bottom: var(--space-3); /* page-title の margin-bottom(10px) 相当 */ }
+  /* 件数 + ツールバー段（#626 R2 ADR-007: 件数サブタイトルとアクション群を1行に統合）の骨組み。
+     左 = 件数ライン / 右 = アイコンボタン×2 + segmented。保存ビュー select は見出しトリガーへ
+     移設（ADR-004）したため select プレースホルダは廃止。 */
   .sk-toolbar {
     display: flex;
     justify-content: space-between;
@@ -519,8 +521,8 @@
   }
   /* #626: segmented はアイコンのみ 3 ボタン（右端）に縮小したためプレースホルダも追従 */
   .sk-rect.segmented-ph { width: 104px; height: 32px; border-radius: 9px; }
-  .sk-rect.select-ph { width: 150px; height: 36px; }
-  .sk-rect.btn-ph { width: 92px; height: 36px; border-radius: var(--radius-pill); }
+  /* #626 R2 ADR-005: 選択 / ビュー保存はアイコンのみ（36px角）になったため正方形に追従 */
+  .sk-rect.btn-ph { width: 36px; height: 36px; border-radius: var(--radius-full); }
   .sk-toolbar .group { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
   /* ピル/チップ型スケルトン（タグ・フィルタ）。pill 半径を使う。 */
   .skeleton-chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -742,22 +744,21 @@
   </aside>
 
   <main class="main">
-    <!-- ページ見出し + 件数サブタイトル。件数はノート取得に依存するためスケルトン。 -->
+    <!-- ページ見出し（= ビュー切り替えトリガー、#626 R2 ADR-004）。ビュー名取得に依存するためスケルトン。 -->
     <div class="sk-header" role="status" aria-busy="true" aria-live="polite" aria-label="ノート一覧を読み込み中">
       <div class="skeleton-line tall w35" style="height:34px; border-radius:var(--radius-md)"></div>
-      <div class="skeleton-line w18" style="margin-top:14px"></div>
     </div>
 
-    <!-- ツールバー（左 = 保存ビュー select / 右 = 選択・ビュー保存・表示モード segmented、#626 確定レイアウト）の骨組み。
-         CTA はヘッダー集約済み（#626 ADR-002）のためツールバーにプレースホルダなし。
+    <!-- 件数 + ツールバー段（左 = 件数 / 右 = 選択・ビュー保存（アイコンのみ）・表示モード segmented、
+         #626 R2 確定レイアウト: ADR-005/007）。CTA はヘッダー集約済み（#626 ADR-002）のためプレースホルダなし。
          operable な chrome ではなくプレースホルダとして表現。 -->
     <div class="sk-toolbar" aria-hidden="true">
       <div class="group">
-        <div class="sk-rect select-ph"></div>
+        <div class="skeleton-line" style="width:110px"></div>
       </div>
       <div class="group">
         <div class="sk-rect btn-ph"></div>
-        <div class="sk-rect btn-ph" style="width:140px"></div>
+        <div class="sk-rect btn-ph"></div>
         <div class="sk-rect segmented-ph"></div>
       </div>
     </div>
