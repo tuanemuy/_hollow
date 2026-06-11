@@ -14,6 +14,8 @@ import {
   ALERT_CONTENT,
   ALERT_TITLE,
   ALERT_WARNING,
+  TOUCH_TARGET,
+  TOUCH_TARGET_SQUARE,
 } from "@/components/common/styles";
 import {
   dateRangePresetLabels,
@@ -147,21 +149,18 @@ export const rowActions =
  * `text-sm` ≈ the mock's 30px) so no literal px is introduced; used for the
  * `<Link>` apply action.
  */
-export const applyBtn =
-  "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:bg-accent-surface max-sm:min-h-[44px]";
+export const applyBtn = `inline-flex items-center gap-1.5 px-4 py-1.5 rounded-pill bg-surface text-sm font-medium text-accent-ink transition-colors motion-reduce:transition-none hover:bg-accent-surface ${TOUCH_TARGET}`;
 
 /**
  * "⋯" overflow trigger (P20 `.row-menu-btn`). Circular icon button that fills
  * with surface on hover. `w-8 h-8` (32px) is the nearest token to the mock's
- * 30px; the `max-sm:min-w/h-[44px]` floor matches the codebase touch-target
+ * 30px; the `TOUCH_TARGET_SQUARE` floor matches the codebase touch-target
  * convention. Pairs with the shared `<Menu>` primitive's panel.
  */
-export const menuBtn =
-  "inline-flex items-center justify-center w-8 h-8 rounded-pill text-ink-secondary transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover hover:not-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const menuBtn = `inline-flex items-center justify-center w-8 h-8 rounded-pill text-ink-secondary transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover hover:not-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed ${TOUCH_TARGET_SQUARE}`;
 
 /** Text action button / link base (inline rename editor save/cancel). */
-export const textAction =
-  "inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-h-[44px]";
+export const textAction = `inline-flex items-center px-3 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover hover:not-disabled:not-aria-disabled:text-ink disabled:opacity-disabled disabled:cursor-not-allowed ${TOUCH_TARGET}`;
 
 /**
  * Broken-conditions banner — 案D `.alert.alert-warning` (white surface +
@@ -189,8 +188,7 @@ export const brokenCode = `${ALERT_BODY_CODE} bg-surface px-1.5 py-px rounded-xs
  * the trailing edge (`ml-auto self-center`), dropping to the start when the
  * alert wraps on mobile. Does not shrink.
  */
-export const fixBtn =
-  "shrink-0 ml-auto self-center px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-surface transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed max-sm:ml-0 max-sm:self-start max-sm:min-h-[44px]";
+export const fixBtn = `shrink-0 ml-auto self-center px-3 py-1.5 rounded-sm text-sm font-medium text-warning bg-surface transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed max-sm:ml-0 max-sm:self-start ${TOUCH_TARGET}`;
 
 /** Inline editing name input. */
 export const renameInput =

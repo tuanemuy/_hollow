@@ -7,7 +7,11 @@ import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { formError, scrollbarHidden } from "@/components/common/styles";
+import {
+  formError,
+  scrollbarHidden,
+  TOUCH_TARGET,
+} from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -45,11 +49,9 @@ const BULK_COUNT = "text-sm font-medium shrink-0 whitespace-nowrap";
 
 const BULK_ACTIONS = `inline-flex items-center gap-1 ml-auto overflow-x-auto flex-nowrap min-w-0 ${scrollbarHidden}`;
 
-// `max-sm:min-h-[44px]` gives the actions the mock's 44px touch target inside
-// the mobile full-width bar (`.bulk-action { height: 44px }`); `sm:` keeps the
-// compact `h-7` pill.
-const BULK_ACTION =
-  "h-7 px-3 rounded-pill text-white text-sm font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/12 disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:hover:not-disabled:bg-error/60 max-sm:min-h-[44px]";
+// `TOUCH_TARGET` gives the actions the mock's touch target inside the mobile
+// full-width bar; `sm:` keeps the compact `h-7` pill.
+const BULK_ACTION = `h-7 px-3 rounded-pill text-white text-sm font-medium inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:not-disabled:bg-white/12 disabled:opacity-disabled disabled:cursor-not-allowed data-[danger]:hover:not-disabled:bg-error/60 ${TOUCH_TARGET}`;
 
 const BULK_DIVIDER = "w-px h-[18px] bg-white/20 mx-1 shrink-0";
 

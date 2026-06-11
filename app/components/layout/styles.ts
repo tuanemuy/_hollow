@@ -1,6 +1,6 @@
 // Shared utility class strings used across the authenticated app shell.
 
-import { navItem } from "../common/styles";
+import { navItem, TOUCH_TARGET_SQUARE } from "../common/styles";
 
 export const APP_HEADER =
   "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline bg-[var(--header-bg)] px-6 py-[14px] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
@@ -9,15 +9,16 @@ export const APP_HEADER_LEFT = "flex items-center gap-3";
 export const APP_HEADER_RIGHT = "flex items-center gap-2";
 
 // Header CTA collapse (#628 ADR-003): the upload / new-note buttons render as
-// labeled pills on desktop and collapse to a 36px icon-only circle below `sm`
-// (label hidden via `max-sm:hidden` on the `<span>`). `max-sm:w-9 px-0
-// justify-center` makes the square; `max-sm:min-h-9!` cancels `pillBtn`'s
-// `max-sm:min-h-[44px]` tap floor for the header exception (ADR-004). The `!`
-// is required because a plain same-property utility ties the arbitrary-value
-// floor on specificity and loses by source order (see `common/styles`
-// `pillBtnSm` caveat). The result aligns with the 36px search input / menu.
+// labeled 36px pills on desktop and collapse to a 36px icon-only circle below
+// `sm` (label hidden via `max-sm:hidden` on the `<span>`). `h-9!` pins the
+// header exception height to 36px (#628 ADR-004) so it aligns with the 36px
+// search input / menu — the base `pillBtn` is `h-10` (40px, #633), and the `!`
+// is required because a plain `h-9` shrink loses to `h-10` by generated-CSS
+// source order (see `common/styles` `pillBtnSm` caveat). `max-sm:w-9 px-0
+// justify-center` makes the mobile square; `max-sm:min-h-9!` cancels `pillBtn`'s
+// `max-sm:min-h-[44px]` tap floor (same `!` reason).
 export const HEADER_CTA_COLLAPSE =
-  "max-sm:w-9 max-sm:px-0 max-sm:justify-center max-sm:min-h-9!";
+  "h-9! max-sm:w-9 max-sm:px-0 max-sm:justify-center max-sm:min-h-9!";
 
 // New-note CTA demotion (#628 ADR-003, 案2-B): on desktop it is a low-emphasis
 // text button (transparent + secondary ink, surface on hover); below `sm` it
@@ -40,8 +41,7 @@ export const SEARCH_BOX_INPUT =
 export const SEARCH_BOX_ICON =
   "absolute left-[11px] top-1/2 -translate-y-1/2 text-ink-tertiary pointer-events-none";
 
-export const ICON_BTN =
-  "w-9 h-9 rounded-pill bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const ICON_BTN = `w-9 h-9 rounded-pill bg-surface inline-flex items-center justify-center text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover ${TOUCH_TARGET_SQUARE}`;
 
 export const AVATAR =
   "w-8 h-8 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-xs font-medium inline-flex items-center justify-center no-underline cursor-pointer";

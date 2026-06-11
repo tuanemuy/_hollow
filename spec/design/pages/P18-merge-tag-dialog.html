@@ -148,8 +148,9 @@
   button {
     white-space: nowrap;
   }
+  /* タッチ床 44px は主要アクション（pill ボタン）に限定する。
+     裸の button まで一律に伸ばすと、チップやチェックは膨張・縦潰れする。 */
   @media (max-width: 639px) {
-    button,
     [role="button"] {
       min-height: 44px;
     }
@@ -286,7 +287,7 @@
     width: 100%;
   }
   .pill-btn {
-    height: 36px;
+    height: 40px;
     padding: 0 16px;
     border-radius: var(--radius-pill);
     background: var(--color-surface);

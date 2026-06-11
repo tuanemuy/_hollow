@@ -46,8 +46,11 @@
   button, .btn, .pill-btn, .icon-btn {
     white-space: nowrap;
   }
+  /* タッチ床 44px は主要アクション（pill/icon ボタン）に限定する。
+     裸の button まで一律に伸ばすと、フィルタチップは膨張してデスクトップより大きく見え、
+     正方形のチェックボックス(.note-check)は縦長に潰れる。チップ・選択チェックは
+     各々で適切な最小高さを明示するため、ここでは対象を絞る。 */
   @media (max-width: 639px) {
-    button,
     .pill-btn,
     .icon-btn,
     a.pill-btn,
@@ -99,8 +102,8 @@
   .btn.ghost:hover { background: var(--color-surface); }
   .btn.destructive { background: transparent; color: var(--color-ink-secondary); }
   .btn.destructive:hover { background: var(--color-error-surface); color: var(--color-error); }
-  /* mobile: sm でも 44px 床（タッチ床尊重・desktop 密度は緩める） */
-  .btn.sm { min-height: 44px; padding: 0 14px; font-size: var(--text-xs); }
+  /* admin 行アクションは密度優先でモバイルでも compact を維持（#292 / Issue #633） */
+  .btn.sm { min-height: 0; height: 28px; padding: 0 14px; font-size: var(--text-xs); }
   .btn.sm svg { width: 16px; height: 16px; }
 
   /* Section */

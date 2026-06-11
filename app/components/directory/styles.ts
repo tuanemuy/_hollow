@@ -7,7 +7,7 @@
  * the static utility tokens, identical bundle to inline strings.
  */
 
-import { navItem } from "../common/styles";
+import { navItem, TOUCH_TARGET_SQUARE } from "../common/styles";
 
 /**
  * Wrapper row for a single treeitem (link + actions trigger).
@@ -36,12 +36,10 @@ export const TREE_DISCLOSURE =
   "inline-flex items-center justify-center w-5 h-5 rounded text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none shrink-0";
 
 /** The "︙" / "+" trigger buttons sitting at the row edge. */
-export const TREE_ACTION_BUTTON =
-  "inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none opacity-0 group-hover:opacity-100 focus:opacity-100 data-[open]:opacity-100 max-sm:opacity-100 max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const TREE_ACTION_BUTTON = `inline-flex items-center justify-center w-7 h-7 rounded-md text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none opacity-0 group-hover:opacity-100 focus:opacity-100 data-[open]:opacity-100 max-sm:opacity-100 ${TOUCH_TARGET_SQUARE}`;
 
 /** The header-level "+" icon button (always visible, smaller). */
-export const SECTION_ACTION_BUTTON =
-  "inline-flex items-center justify-center w-6 h-6 rounded-md text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none max-sm:min-w-[44px] max-sm:min-h-[44px]";
+export const SECTION_ACTION_BUTTON = `inline-flex items-center justify-center w-6 h-6 rounded-md text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors motion-reduce:transition-none ${TOUCH_TARGET_SQUARE}`;
 
 /** Inline rename input rendered in place of the link. */
 export const TREE_ITEM_RENAME_INPUT =

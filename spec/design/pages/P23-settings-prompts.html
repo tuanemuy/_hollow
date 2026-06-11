@@ -314,8 +314,11 @@
   button, .btn, .pill-btn, .icon-btn {
     white-space: nowrap;
   }
+  /* タッチ床 44px は主要アクション（pill/icon ボタン）に限定する。
+     裸の button まで一律に伸ばすと、フィルタチップは膨張してデスクトップより大きく見え、
+     正方形のチェックボックス(.note-check)は縦長に潰れる。チップ・選択チェックは
+     各々で適切な最小高さを明示するため、ここでは対象を絞る。 */
   @media (max-width: 639px) {
-    button,
     .pill-btn,
     .icon-btn,
     a.pill-btn,
@@ -382,8 +385,10 @@
   .search input:focus { background: var(--color-surface-hover); }
   .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--color-ink-tertiary); pointer-events: none; }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  /* ヘッダー操作行は検索 input(36px) に揃える局所例外（#628 ADR-004）。base .pill-btn=40px を上書き。 */
+  .header-right .pill-btn { height: 36px; }
   .pill-btn {
-    height: 36px; padding: 0 16px;
+    height: 40px; padding: 0 16px;
     border-radius: var(--radius-pill);
     background: var(--color-surface);
     font-size: 14px; font-weight: var(--weight-medium);
@@ -690,7 +695,7 @@
     .header { padding: 12px 16px; gap: 10px; }
     .logo { display: none; }
     .header-right .pill-btn span.label { display: none; }
-    .header-right .pill-btn { width: 36px; padding: 0; justify-content: center; }
+    .header-right .pill-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
     .main { padding: 24px 16px 80px; }
     .avatar-row { flex-direction: column; align-items: flex-start; gap: 12px; }
   }

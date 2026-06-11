@@ -158,11 +158,13 @@
   button, .btn, .pill-btn, .icon-btn {
     white-space: nowrap;
   }
-  /* モバイルのタッチ床 44px（一般のボタン・アイコンボタン）。
-     #628 ADR-004: 撤廃はグローバルヘッダーの操作行のみに限定する例外。
-     ヘッダー配下の .pill-btn/.menu-btn は後段で局所的に 36px へ上書きして床を外す。 */
+  /* タッチ床 44px は主要アクション（.pill-btn / .icon-btn / [role=button]）に限定する。
+     裸の button まで一律に伸ばすと、フィルタチップは膨張してデスクトップより大きく見え、
+     正方形のチェックボックス(.note-check)は縦長に潰れる。チップ・選択チェックは
+     各々で適切な最小高さを明示するため、ここでは対象を絞る。
+     さらに #628 ADR-004: グローバルヘッダーの操作行（.header-right .pill-btn / .menu-btn）は
+     後段で局所的に 36px へ上書きして床を外す例外。 */
   @media (max-width: 639px) {
-    button,
     .pill-btn,
     .icon-btn,
     a.pill-btn,
@@ -248,10 +250,12 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
+  /* ヘッダー操作行は検索 input(36px) に揃える局所例外（#628 ADR-004）。base .pill-btn=40px を上書き。 */
+  .header-right .pill-btn { height: 36px; }
   /* 新規作成(text)は desktop ではテキストのみ（アイコンを隠す）。mobile の icon-only 化で表示に戻す。ADR-003/§7.2 */
   .header-right .pill-btn.text .cta-icon { display: none; }
   .pill-btn {
-    height: 36px;
+    height: 40px;
     padding: 0 16px;
     border-radius: var(--radius-pill);
     background: var(--color-surface);

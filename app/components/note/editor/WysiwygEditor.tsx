@@ -29,7 +29,11 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/common/Icon";
-import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import {
+  pillBtn,
+  pillBtnPrimary,
+  TOUCH_TARGET_SQUARE,
+} from "@/components/common/styles";
 import { searchInternalLinkTargetsFn } from "@/components/note/actions";
 import type { InternalLinkSuggestion } from "@/core/application/note/searchInternalLinkTargets";
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
@@ -119,12 +123,11 @@ export type WysiwygEditorProps = Readonly<{
  * on a 36×36 box renders as a circle, matching the circular `dialogCloseButton`
  * icon-button pattern. Bespoke rather than `pillBtn` because `pillBtn`'s `px-4`
  * cannot be overridden via class order to drop the horizontal padding, and the
- * icon-only tap-target needs both `min-w` and `min-h` of 44px on mobile (§3).
- * `data-[primary]:` background inversion conveys the `aria-pressed` active
- * state visually (.issue/309/adr.md ADR-006).
+ * icon-only tap-target needs both the `min-w` and `min-h` touch floor on mobile
+ * (`TOUCH_TARGET_SQUARE`, §3). `data-[primary]:` background inversion conveys
+ * the `aria-pressed` active state visually (.issue/309/adr.md ADR-006).
  */
-const EDITOR_TOOLBAR_BTN =
-  "inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover active:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed max-sm:min-w-[44px] max-sm:min-h-[44px] data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:not-disabled:bg-accent-hover data-[primary]:active:not-disabled:bg-accent-pressed";
+const EDITOR_TOOLBAR_BTN = `inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover active:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed ${TOUCH_TARGET_SQUARE} data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:not-disabled:bg-accent-hover data-[primary]:active:not-disabled:bg-accent-pressed`;
 
 const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
 

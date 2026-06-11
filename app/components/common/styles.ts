@@ -9,7 +9,31 @@
  */
 
 /**
+ * Mobile touch-target floor (single source of truth).
+ *
+ * The design guideline (`spec/design/index.md` §3 / §7.1) intentionally keeps
+ * only the *intent* — "don't mis-tap on touch" — and the WCAG references
+ * (floor = 2.5.8 Target Size (Minimum) AA, target = 2.5.5 Target Size
+ * (Enhanced) AAA). The concrete px lives here so it is managed in one place
+ * and the guideline does not depend on this constant's name (spec → impl
+ * dependency direction; see `.issue/633/adr.md` ADR-001).
+ *
+ * `TOUCH_TARGET` floors height only; `TOUCH_TARGET_SQUARE` floors both width
+ * and height for square icon-only buttons that must hit the target as a
+ * square.
+ */
+export const TOUCH_TARGET = "max-sm:min-h-[44px]";
+
+/** Square touch-target floor — both axes (icon-only / close buttons). */
+export const TOUCH_TARGET_SQUARE = "max-sm:min-w-[44px] max-sm:min-h-[44px]";
+
+/**
  * Pill button base — apply to every variant.
+ *
+ * The standard button/input height is unified at `h-10` (40px) so a pill sits
+ * flush with an adjacent `fieldControl` input on desktop. On mobile the
+ * `TOUCH_TARGET` floor lifts the effective height to the touch target. See
+ * `.issue/633/adr.md` ADR-002.
  *
  * hover/active utilities are guarded with `not-disabled:not-aria-disabled:`
  * so disabled buttons show no hover/active visual change. Both guards are
@@ -18,8 +42,7 @@
  * state via `aria-disabled` instead (hence the `aria-disabled:*` opacity
  * rules below). See `.issue/152/adr.md` ADR-001.
  */
-export const pillBtn =
-  "inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-disabled disabled:cursor-not-allowed aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed max-sm:min-h-[44px]";
+export const pillBtn = `inline-flex items-center gap-1.5 h-10 px-4 rounded-pill bg-surface text-sm font-medium text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:bg-surface-hover active:not-disabled:not-aria-disabled:scale-[0.985] motion-reduce:active:scale-100 disabled:opacity-disabled disabled:cursor-not-allowed aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed ${TOUCH_TARGET}`;
 
 /** Append for primary pill button — drives "data-primary" variant. */
 export const pillBtnPrimary =
@@ -83,12 +106,12 @@ export const pillBtnGhost =
   "data-[ghost]:bg-transparent data-[ghost]:text-ink-secondary data-[ghost]:hover:not-disabled:not-aria-disabled:bg-surface data-[ghost]:hover:not-disabled:not-aria-disabled:text-ink data-[ghost]:active:not-disabled:not-aria-disabled:bg-surface data-[ghost]:active:not-disabled:not-aria-disabled:text-ink data-[ghost]:data-[on]:bg-surface data-[ghost]:data-[on]:text-ink";
 
 /**
- * Tall size add-on for pill buttons — overrides the base `h-9 / px-4 / text-sm`
+ * Tall size add-on for pill buttons — overrides the base `h-10 / px-4 / text-sm`
  * dimensions with `h-12 / px-8 / text-md` and adds `justify-center`.
  *
  * The size utilities win over the base ones because Tailwind resolves
  * same-property utilities by generated-CSS order (not class-string order),
- * and both spacing (`h-12 > h-9`, `px-8 > px-4`) and the custom `text-md`
+ * and both spacing (`h-12 > h-10`, `px-8 > px-4`) and the custom `text-md`
  * token sort after their base counterparts. This holds only for the
  * *enlarging* direction; a shrinking size would lose and require a
  * `data-[…]:` variant. See `.issue/416/adr.md` ADR-005 (and ADR-001 for why
@@ -109,60 +132,75 @@ export const pillBtnTall = "h-12 px-8 text-md justify-center";
 /**
  * Small size add-on for pill buttons — drives "data-sm" variant.
  *
- * Overrides the base `h-9 / px-4 / text-sm` with `h-7 / px-3 / text-xs` and
- * cancels the base mobile tap-target floor (`max-sm:min-h-[44px]`).
+ * Overrides the base `h-10 / px-4 / text-sm` with `h-7 / px-3 / text-xs`. The
+ * base mobile tap-target floor (`TOUCH_TARGET`) is intentionally **kept**, so a
+ * small button still meets the touch target on mobile by default (it grows from
+ * 28px to the floor below `sm`). Desktop-dense contexts that want to keep the
+ * compact height on mobile opt out via `pillBtnSmDense`. See
+ * `.issue/633/adr.md` ADR-003 (the floor-strip was inverted to opt-in here).
  *
  * Unlike `pillBtnTall` (an enlarging add-on usable as plain utilities), this
  * is a *shrinking* size, so plain utilities lose: same-property utilities are
  * resolved by generated-CSS order, and the smaller `h-7` / `px-3` sort
- * *before* the base `h-9` / `px-4` and therefore cannot override them. The
+ * *before* the base `h-10` / `px-4` and therefore cannot override them. The
  * `data-[sm]:` variant sorts after the base utilities and wins
  * deterministically. See `.issue/416/adr.md` ADR-005 (shrink-direction
  * constraint) and `.issue/442/adr.md` ADR-003.
  *
- * Caveat — restoring the 44px tap floor in a mobile card: `data-[sm]:max-sm:min-h-0`
- * is `.class[data-sm]` = specificity (0,2,0). A parent child-combinator override
- * `[&>button]:max-sm:min-h-[44px]` is only (0,1,1) and loses, so the floor stays
- * stripped. When a `data-sm` button is stacked full-width in a card and needs its
- * 44px floor back, use mobile-scoped `!important` on the parent:
- * `[&>button]:max-sm:min-h-[44px]!` (and `max-sm:min-h-[44px]!` for inputs). See
- * `.issue/589/adr.md` ADR-007. (`publication/styles.ts` `LINK_MINI_ROW` predates
- * this and still has the latent bug.)
- *
  * `gap` is intentionally not overridden (the base `gap-1.5` is harmless for
  * text-only small buttons; mirrors `pillBtnTall`, #416 ADR-001).
+ *
+ * Consumers must keep `data-sm=""` on the element — dropping the attribute
+ * disables the `data-[sm]:` size variant entirely.
  *
  * Apply by appending after the other variants, e.g.
  * `` `${pillBtn} ${pillBtnGhostDanger} ${pillBtnSm}` `` with
  * `data-ghost-danger="" data-sm=""`.
  */
-export const pillBtnSm =
-  "data-[sm]:h-7 data-[sm]:px-3 data-[sm]:text-xs data-[sm]:max-sm:min-h-0";
+export const pillBtnSm = "data-[sm]:h-7 data-[sm]:px-3 data-[sm]:text-xs";
+
+/**
+ * Dense variant of `pillBtnSm` — the small size add-on **plus** an explicit
+ * mobile tap-target floor strip (`data-[sm]:max-sm:min-h-0`).
+ *
+ * For desktop-density-first contexts only (admin row actions etc.) where the
+ * compact `h-7` height should be preserved on mobile too. This is the single
+ * place the floor-strip token lives (it was previously baked into `pillBtnSm`
+ * and forced `!important` floor-restores elsewhere; see `.issue/633/adr.md`
+ * ADR-003). The strip `data-[sm]:max-sm:min-h-0` (0,2,0) beats the base
+ * `TOUCH_TARGET` (0,1,0) deterministically without `!important`.
+ *
+ * Consumers must keep `data-sm=""` on the element (same contract as
+ * `pillBtnSm`). The floor strip still keeps the AA minimum (h-7 = 28px).
+ *
+ * Apply as `` `${pillBtn} ${pillBtnSmDense}` `` with `data-sm=""`.
+ */
+export const pillBtnSmDense = `${pillBtnSm} data-[sm]:max-sm:min-h-0`;
 
 /**
  * Icon-only add-on for pill buttons — drives "data-icon" variant. Turns the
- * text-oriented pill (`h-9 px-4`) into a square `h-9 w-9` button so a lone icon
- * sits centered without the `px-4` text padding that otherwise stretches it
- * into an awkward oblong. With the base `rounded-pill` (`--radius-pill: 980px`)
- * a 36×36 square renders as a circle, keeping it in the same radius family as
+ * text-oriented pill (`h-10 px-4`) into a square `h-10 w-10` button so a lone
+ * icon sits centered without the `px-4` text padding that otherwise stretches
+ * it into an awkward oblong. With the base `rounded-pill` (`--radius-pill:
+ * 980px`) a square renders as a circle, keeping it in the same radius family as
  * the labeled pills.
  *
  * `px-0` is a *shrinking* override of the base `px-4`, so like `pillBtnSm` it
  * must be a `data-[icon]:` variant rather than a plain utility: same-property
  * utilities are resolved by Tailwind's generated-CSS order, and the smaller
  * `px-0` sorts *before* `px-4` and would lose. The variant sorts after the base
- * and wins deterministically. `w-9` / `justify-center` have no base counterpart
- * but are kept under the same variant for cohesion. The base mobile tap-target
- * floor only sets `min-h`; `data-[icon]:max-sm:min-w-[44px]` adds the matching
- * width floor so the circle meets the 44×44 touch target (§7.1). See
- * `.issue/416/adr.md` ADR-005 (shrink-direction constraint) and
- * `.issue/459/adr.md` ADR-002.
+ * and wins deterministically. `w-10` / `justify-center` have no base
+ * counterpart but are kept under the same variant for cohesion. The base mobile
+ * tap-target floor (`TOUCH_TARGET`) only sets `min-h`; the matching `min-w`
+ * floor (from `TOUCH_TARGET_SQUARE`) is added under the variant so the circle
+ * meets the square touch target (§7.1). See `.issue/416/adr.md` ADR-005
+ * (shrink-direction constraint) and `.issue/459/adr.md` ADR-002.
  *
  * Composes with the color variants, e.g.
  * `` `${pillBtn} ${pillBtnIcon} ${pillBtnPrimary}` `` with `data-icon="" data-primary`.
  */
 export const pillBtnIcon =
-  "data-[icon]:w-9 data-[icon]:px-0 data-[icon]:justify-center data-[icon]:max-sm:min-w-[44px]";
+  "data-[icon]:w-10 data-[icon]:px-0 data-[icon]:justify-center data-[icon]:max-sm:min-w-[44px]";
 
 /**
  * Nav-item link base — the shared primitive behind the sidebar nav links
@@ -225,8 +263,7 @@ export const field = "flex flex-col gap-2 mb-4";
 export const fieldLabel = "text-sm font-medium text-ink-secondary";
 
 /** Field input/textarea/select base. */
-export const fieldControl =
-  "w-full h-10 max-sm:min-h-[44px] rounded-md border border-transparent bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed";
+export const fieldControl = `w-full h-10 ${TOUCH_TARGET} rounded-md border border-transparent bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors motion-reduce:transition-none focus:border-accent focus:bg-bg disabled:opacity-disabled disabled:cursor-not-allowed`;
 
 /** Field textarea modifier. */
 export const fieldTextarea = "font-mono text-mono min-h-[320px] resize-y";
@@ -280,8 +317,7 @@ export const dialogGrabber =
  * for the surrounding a11y contract (focus trap inclusion, initial-focus
  * exclusion, `closable=false` disabling).
  */
-export const dialogCloseButton =
-  "absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 max-sm:min-w-[44px] max-sm:min-h-[44px] rounded-pill text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+export const dialogCloseButton = `absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 ${TOUCH_TARGET_SQUARE} rounded-pill text-ink-secondary text-xl leading-none hover:not-disabled:bg-surface hover:not-disabled:text-ink transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent`;
 
 /**
  * Modal dialog title.
@@ -304,8 +340,8 @@ export const dialogTitle =
  * primary/danger action — every dialog in #588's P10 group emits the buttons
  * in `[cancel, primary]` order, and the mocks render the primary on top). Each
  * button is stretched to full width and its label re-centered (the base
- * `pillBtn` only sets `items-center`, not `justify-center`). The 44px tap floor
- * comes from `pillBtn`'s own `max-sm:min-h-[44px]`. See `.issue/588` Step 2.
+ * `pillBtn` only sets `items-center`, not `justify-center`). The tap floor
+ * comes from `pillBtn`'s own `TOUCH_TARGET`. See `.issue/588` Step 2.
  */
 export const dialogActions =
   "inline-flex gap-2 mt-4 justify-end w-full max-sm:flex-col-reverse max-sm:[&>button]:w-full max-sm:[&>button]:justify-center";

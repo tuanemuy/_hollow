@@ -6,7 +6,7 @@ import { Pause, Play, Shield, ShieldOff } from "lucide-react";
 import { useId, useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnSm } from "@/components/common/styles";
+import { pillBtn, pillBtnSmDense } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -174,11 +174,11 @@ function UserRow({
         </span>
       </td>
       <td className="px-4 py-3 text-right align-middle max-sm:block max-sm:pt-3 max-sm:mt-2 max-sm:border-t max-sm:border-hairline">
-        <div className="flex gap-2 justify-end flex-wrap max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:min-h-[44px]! [&>button]:max-sm:w-full [&>button]:max-sm:justify-center">
+        <div className="flex gap-2 justify-end flex-wrap max-sm:flex-col max-sm:items-stretch [&>button]:max-sm:w-full [&>button]:max-sm:justify-center">
           {user.status === "active" && !isSelf ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={() => runAction(suspend)}
               disabled={isPending}
@@ -190,7 +190,7 @@ function UserRow({
           {user.status === "suspended" ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={() => runAction(reinstate)}
               disabled={isPending}
@@ -202,7 +202,7 @@ function UserRow({
           {user.status !== "deleted" && user.role === "member" ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={() => runAction(promote)}
               disabled={isPending}
@@ -214,7 +214,7 @@ function UserRow({
           {user.status !== "deleted" && user.role === "admin" && !isSelf ? (
             <button
               type="button"
-              className={`${pillBtn} ${pillBtnSm}`}
+              className={`${pillBtn} ${pillBtnSmDense}`}
               data-sm=""
               onClick={() => runAction(demote)}
               disabled={isPending}

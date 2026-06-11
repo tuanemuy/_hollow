@@ -1,6 +1,11 @@
 // Shared utility class strings for the public surface (P30–P34).
 
-import { pillBtn, pillBtnPrimary, pillBtnTall } from "../common/styles";
+import {
+  pillBtn,
+  pillBtnPrimary,
+  pillBtnTall,
+  TOUCH_TARGET,
+} from "../common/styles";
 
 export const PUBLIC_HEADER =
   "sticky top-0 z-50 bg-[var(--header-bg)] py-[14px] px-6 grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:px-4 max-sm:py-3 max-sm:gap-2.5";
@@ -180,8 +185,8 @@ export const SEARCH_FORM = "relative max-w-[640px] mx-auto";
 // value since no standard scale token matches 54px/46px).
 export const SEARCH_FORM_INPUT =
   "w-full h-14 max-sm:h-12 border-0 bg-surface rounded-pill pl-[54px] max-sm:pl-[46px] pr-14 text-md text-ink outline-none transition-colors motion-reduce:transition-none focus:bg-surface-hover focus:shadow-focus placeholder:text-ink-tertiary";
-// Center-anchored so it stays within the input even when the base
-// `max-sm:min-h-[44px]` tap target fires on mobile (see .issue/417/adr.md ADR-004).
+// Center-anchored so it stays within the input even when the base `pillBtn`
+// `TOUCH_TARGET` tap floor fires on mobile (see .issue/417/adr.md ADR-004).
 // Requires `data-primary` on the consumer button.
 export const SEARCH_FORM_BUTTON = `${pillBtn} ${pillBtnPrimary} absolute right-1.5 top-1/2 -translate-y-1/2`;
 // Mock `.hero-icon`: left 22px (PC) / 18px (mobile), aligned with the input padding.
@@ -330,7 +335,6 @@ export const ERR_DESC =
 export const ERR_ACTIONS =
   "flex gap-2.5 justify-center flex-wrap mb-6 max-sm:flex-col max-sm:items-stretch max-sm:[&>*]:w-full";
 // Mock `.back-link` normalized to tokens / Tailwind standard scale (no literal px).
-// Mobile mock centers the label and applies the 44px tap floor (`min-h-[44px]`).
-export const BACK_LINK =
-  "inline-flex items-center gap-1 text-sm text-ink-tertiary px-2.5 py-1.5 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface max-sm:justify-center max-sm:min-h-[44px]";
+// Mobile mock centers the label and applies the shared `TOUCH_TARGET` tap floor.
+export const BACK_LINK = `inline-flex items-center gap-1 text-sm text-ink-tertiary px-2.5 py-1.5 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface max-sm:justify-center ${TOUCH_TARGET}`;
 export const ERR_META = "text-xs text-ink-tertiary font-mono mt-3";
