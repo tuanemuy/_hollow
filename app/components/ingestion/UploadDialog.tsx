@@ -826,8 +826,8 @@ function UploadingView({
   // Multi-file uploads run as a client-side sequential loop, so the count
   // (`done / total`) is a real, determinate progress signal — show a
   // determinate `ProgressBar`. A single file has no meaningful intra-file
-  // progress (the server-fn POST does not expose upload bytes; see #637
-  // ADR-001), so it stays on the skeleton placeholder.
+  // progress (the server-fn POST does not expose upload bytes), so it stays
+  // on the skeleton placeholder.
   if (total === 1) {
     return (
       <div className="py-8 text-center">

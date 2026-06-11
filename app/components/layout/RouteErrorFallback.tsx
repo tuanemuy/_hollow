@@ -7,19 +7,14 @@ import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 
 /**
- * Shared `errorComponent` for `_app` *leaf* routes.
- *
- * Replaces the formerly-bare per-route fallbacks
- * (`<div role="alert"><h1>…</h1><pre>…</pre></div>` with no retry) with one
- * consistent panel that carries a 「再読み込み」retry affordance, so route-level
- * failures look and behave the same across the authenticated app (DoD#4).
+ * Shared `errorComponent` for `_app` *leaf* routes: a consistent panel with a
+ * 「再読み込み」retry affordance.
  *
  * Retry uses `routerInvalidate(router)`, which **excludes** the `_app` shell
  * route — re-evaluating the failed leaf without bouncing the AppShell loader
  * (`staleTime: Infinity`). The shell's own boundary
  * (`_app/route.tsx` `AppErrorFallback`) is a *separate* component that uses
- * `appShellInvalidate`; the two are intentionally distinct (see
- * `.issue/637/adr.md` ADR-002).
+ * `appShellInvalidate`; the two are intentionally distinct.
  */
 export function RouteErrorFallback({ error }: Readonly<{ error: unknown }>) {
   const router = useRouter();

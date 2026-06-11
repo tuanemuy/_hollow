@@ -1,35 +1,21 @@
 /**
- * Presentational progress indicator.
+ * Presentational progress indicator. Two modes:
  *
- * Mirrors the design mock `P13-upload.html` `.progress` / `.progress-bar`
- * (a surface-colored track with an accent fill) as utility-first classes.
- * Two modes:
+ *   - **indeterminate (default)** — no real progress value is available (e.g.
+ *     the ingestion worker emits no progress events). A partial-width accent
+ *     segment pulses (opacity) to signal "in progress". It reuses Tailwind's
+ *     built-in `animate-pulse` rather than a custom slide keyframe: no new
+ *     motion tokens/keyframes are added, and a scoped `<style>` keyframe would
+ *     trip `lint/security/noDangerouslySetInnerHtml`. The pulse is `motion-safe:`
+ *     so under `prefers-reduced-motion: reduce` a static partial bar is shown.
+ *     a11y: `role="progressbar"` + `aria-busy="true"` with no `aria-valuenow`.
+ *   - **determinate** — pass `value` (0–100) when a real ratio is known (e.g.
+ *     client-side sequential upload `n / total`). The fill width tracks the
+ *     value and `aria-valuenow` is reported.
  *
- *   - **indeterminate (default)** — no real progress value is available
- *     (e.g. the ingestion worker has no progress events; the P13 % values are
- *     static mock data). A partial-width accent segment pulses (opacity) to
- *     signal "in progress" — Tailwind's built-in `animate-pulse`, the same
- *     motion language as `Skeleton`, not a custom slide keyframe (#637 ADR-004
- *     dropped the slide to avoid adding `@keyframes`). The pulse is guarded
- *     with `motion-safe:` so under `prefers-reduced-motion: reduce` a static
- *     partial bar is shown instead (spec/design「アニメーション」L93). a11y:
- *     `role="progressbar"` + `aria-busy="true"` with **no** `aria-valuenow`
- *     (indeterminate).
- *   - **determinate** — pass `value` (0–100) when a real ratio is known
- *     (e.g. client-side sequential upload `n / total`). The fill width tracks
- *     the value and `aria-valuenow` is reported.
- *
- * The bar itself is the progress semantics; surrounding components should keep
- * any human-readable status in adjacent text so screen readers are not double
- * announced (the `aria-label` here names the bar, the text names the state).
- *
- * The indeterminate animation reuses Tailwind's built-in `animate-pulse`
- * (opacity) on a partial accent fill rather than a custom slide keyframe: per
- * #635 ADR-001 no new motion tokens / keyframes are added to `tokens.css` /
- * `index.css`, and a scoped `<style>` keyframe would trip
- * `lint/security/noDangerouslySetInnerHtml`. The pulse still reads as
- * "in progress"; under `prefers-reduced-motion: reduce` the same fill renders
- * statically (`motion-safe:` guards the pulse).
+ * Surrounding components should keep any human-readable status in adjacent text
+ * so screen readers are not double-announced (the `aria-label` names the bar,
+ * the text names the state).
  */
 
 const TRACK = "relative h-1.5 w-full overflow-hidden rounded-pill bg-surface";
