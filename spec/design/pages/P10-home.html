@@ -511,9 +511,11 @@
   }
 
   /* ===== Toolbar (NoteListToolbar) =====
-     表示モードは P30(個人公開ページ)・モバイルと同じ segmented control に統一
+     表示モードは P30(個人公開ページ)・モバイルと同じ segmented control
      (#620: #292 ADR-002 の pill-btn タブ群方針を上書き)。
-     右側に 選択 / ビューとして保存（低強調の ghost）/ 新規作成 / アップロード CTA を並べる。 */
+     #626: 表示モードは低頻度の設定のため右端へ移動し優先度を下げる。
+     左には保存ビュー select（何を見るか）、右に 選択 / ビューとして保存（ghost）/ segmented。
+     新規作成・アップロード CTA はヘッダーへ集約しツールバーから削除（#626 ADR-002、序列は #628 ADR-003）。 */
   .toolbar {
     display: flex;
     justify-content: space-between;
@@ -528,8 +530,10 @@
     gap: var(--space-2);
     flex-wrap: wrap;
   }
-  /* 表示モード = segmented control（P30/モバイルと統一, DisplayModeSwitch）。
-     アクティブは白カード + shadow で表現 (#620)。 */
+  /* 表示モード = segmented control（DisplayModeSwitch）。
+     #626 ADR-001: アイコンのみ + active は ink 濃度差（白カード + shadow 廃止、#620 の表現を上書き）。
+     アイコンのみ化のため aria-label / title 必須。role="tablist" / role="tab" / aria-selected の契約は維持
+     （実装側に aria 契約テストあり）。非表示モード用途の .segmented（P15/P16/P18 等）は対象外。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -537,21 +541,18 @@
     display: inline-flex;
   }
   .segmented button {
-    padding: 6px 14px;
+    width: 32px;
+    height: 28px;
     border-radius: 7px;
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-tertiary);
     background: transparent;
     transition: all 0.18s ease;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
+  .segmented button:hover { color: var(--color-ink-secondary); }
+  .segmented button.active { color: var(--color-ink); }
   /* 保存ビュー select (NoteListToolbar) */
   .view-select {
     height: 36px;
@@ -1043,23 +1044,12 @@
     <h1 class="page-title">すべてのノート</h1>
     <div class="page-subtitle">127 件のノート</div>
 
-    <!-- NoteListToolbar: 表示モードスイッチ(segmented) + 保存ビュー select / 選択・ビュー保存・新規・アップロード -->
+    <!-- NoteListToolbar: 左 = 保存ビュー select / 右 = 選択・ビュー保存(ghost)・表示モード segmented。
+         #626: 表示モードは低頻度設定のため右端・アイコンのみ・ink 濃度差 active に降格（ADR-001）。
+         新規作成/アップロード CTA はヘッダーへ集約済み（ADR-002）。
+         アイコンのみのため各 tab に aria-label / title 必須（aria 契約テストあり）。 -->
     <div class="toolbar">
       <div class="toolbar-group">
-        <div class="segmented" role="tablist" aria-label="表示形式">
-          <button class="active" role="tab" aria-selected="true">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-            リスト
-          </button>
-          <button role="tab" aria-selected="false">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            タイル
-          </button>
-          <button role="tab" aria-selected="false">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            カレンダー
-          </button>
-        </div>
         <select class="view-select" aria-label="保存済みビュー">
           <option>保存ビューを選択</option>
         </select>
@@ -1073,12 +1063,17 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
           <span class="label">ビューとして保存</span>
         </button>
-        <button class="pill-btn primary" aria-label="新規作成">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <button class="pill-btn" aria-label="アップロード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </button>
+        <div class="segmented" role="tablist" aria-label="表示形式">
+          <button class="active" role="tab" aria-selected="true" aria-label="リスト" title="リスト">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="タイル" title="タイル">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="カレンダー" title="カレンダー">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 

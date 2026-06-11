@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow — P10 ツールバー再設計 比較モック (#626)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-accent: oklch(37.1% 0 0);
+    --color-accent-hover: oklch(43.9% 0 0);
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f7;
+    --color-surface-hover: #ececef;
+    --color-ink: #1d1d1f;
+    --color-ink-secondary: #6e6e73;
+    --color-ink-tertiary: #86868b;
+    --color-hairline: rgba(60,60,67,0.12);
+    --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    --text-xs: 12px; --text-sm: 13px; --text-base: 15px; --text-md: 15px; --text-3xl: 28px;
+    --weight-light: 300; --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+    --tracking-tightest: -0.022em; --tracking-normal: -0.003em;
+    --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
+    --radius-md: 8px; --radius-pill: 980px; --radius-full: 9999px;
+    --transition-bg: background-color 120ms cubic-bezier(0.4,0,0.2,1);
+  }
+  html, body { background: #e9e9ee; color: var(--color-ink); font-family: var(--font-sans); font-size: 15px; letter-spacing: var(--tracking-normal); -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; white-space: nowrap; }
+  select { font-family: inherit; }
+
+  .doc { max-width: 1360px; margin: 0 auto; padding: 40px 24px 120px; }
+  .doc h1 { font-size: 26px; font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tightest); margin-bottom: 8px; }
+  .doc .lede { color: var(--color-ink-secondary); font-size: 15px; margin-bottom: 36px; line-height: 1.6; }
+  .doc .lede b { color: var(--color-ink); }
+  .axis { margin-bottom: 56px; }
+  .axis > h2 { font-size: 19px; font-weight: var(--weight-semibold); margin-bottom: 4px; }
+  .axis > .note { color: var(--color-ink-secondary); font-size: 13px; margin-bottom: 20px; line-height: 1.6; max-width: 860px; }
+  .opt-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: var(--weight-semibold); color: var(--color-ink); margin: 22px 0 8px; }
+  .opt-label .tag { background: var(--color-accent); color: #fff; border-radius: var(--radius-pill); padding: 2px 10px; font-size: 11px; }
+  .opt-label .tag.alt { background: var(--color-ink-secondary); }
+  .opt-label .tag.ref { background: var(--color-ink-tertiary); }
+  .opt-desc { color: var(--color-ink-secondary); font-size: 12.5px; margin-bottom: 10px; line-height: 1.55; max-width: 820px; }
+  .opt-desc b { color: var(--color-ink); }
+
+  /* viewport frame */
+  .frame { background: var(--color-bg); border: 1px solid var(--color-hairline); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+  .frame.desktop { width: 100%; }
+  .frame.mobile { width: 390px; }
+  .frame.mobile.narrow { width: 320px; }
+  .frame-cap { font-size: 11px; color: var(--color-ink-tertiary); padding: 6px 12px; background: #fafafd; border-bottom: 1px solid var(--color-hairline); }
+  .frame-body { padding: 24px; }
+  .frame.mobile .frame-body { padding: 20px 16px; }
+  .mobile-row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+
+  .page-title { font-size: var(--text-3xl); font-weight: var(--weight-regular); letter-spacing: var(--tracking-tightest); margin-bottom: 8px; }
+  .page-subtitle { font-size: var(--text-md); color: var(--color-ink-secondary); margin-bottom: 22px; }
+  .frame.mobile .page-title { font-size: 24px; }
+
+  /* ===== shared toolbar primitives (P10 正モック準拠) ===== */
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .toolbar-group { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+  .view-select { height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-hairline); background: var(--color-surface); font-size: var(--text-sm); color: var(--color-ink); }
+  .frame.mobile .view-select { max-width: 150px; color: var(--color-ink-secondary); }
+
+  .pill-btn { height: 36px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--color-surface); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--color-ink); display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-bg); flex-shrink: 0; }
+  .pill-btn:hover { background: var(--color-surface-hover); }
+  .pill-btn.primary { background: var(--color-accent); color: #fff; }
+  .pill-btn.primary:hover { background: var(--color-accent-hover); }
+  .pill-btn.ghost { background: transparent; color: var(--color-ink-secondary); }
+  .pill-btn.ghost:hover { background: var(--color-surface); color: var(--color-ink); }
+  .pill-btn.icon { width: 36px; padding: 0; justify-content: center; }
+
+  /* ===== 現状（参考）: 白カード active・アイコン+ラベル segmented ===== */
+  .segmented-cur { background: var(--color-surface); border-radius: 9px; padding: 2px; display: inline-flex; }
+  .segmented-cur button { padding: 6px 14px; border-radius: 7px; font-size: 13px; font-weight: var(--weight-medium); color: var(--color-ink); background: transparent; display: inline-flex; align-items: center; gap: 5px; }
+  .segmented-cur button.active { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04); }
+
+  /* ===== 案1-A: アイコンのみ+縮小（白カード active 維持） ===== */
+  .segmented-a { background: var(--color-surface); border-radius: 9px; padding: 2px; display: inline-flex; }
+  .segmented-a button { width: 32px; height: 28px; border-radius: 7px; color: var(--color-ink-secondary); background: transparent; display: inline-flex; align-items: center; justify-content: center; }
+  .segmented-a button.active { background: #fff; color: var(--color-ink); box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04); }
+
+  /* ===== 案1-B: 右端へ移動+アイコンのみ+ink 濃度差 active（白カード+shadow 廃止） ===== */
+  .segmented-b { background: var(--color-surface); border-radius: 9px; padding: 2px; display: inline-flex; }
+  .segmented-b button { width: 32px; height: 28px; border-radius: 7px; color: var(--color-ink-tertiary); background: transparent; transition: var(--transition-bg), color 120ms; display: inline-flex; align-items: center; justify-content: center; }
+  .segmented-b button:hover { color: var(--color-ink-secondary); }
+  .segmented-b button.active { color: var(--color-ink); }
+
+  /* ===== 案1-C: segmented 廃止 → ドロップダウン ===== */
+  .mode-select { height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-hairline); background: var(--color-surface); font-size: var(--text-sm); color: var(--color-ink); }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--color-ink-secondary); margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>P10 ツールバー再設計 — 比較モック（Issue #626）</h1>
+  <p class="lede">
+    課題は2つ。<b>課題1: 表示切り替え（リスト/タイル/カレンダー）の視覚的優先度</b> — 一度決めたら頻繁に変えない設定なのに、ツールバー左端先頭でアイコン+ラベルの白カード active と最も目立つ。<br>
+    <b>課題2: 新規作成・アップロード CTA の重複</b> — ヘッダー（#628 で「アップロード primary / 新規作成 text」と確定）とツールバー（新規作成 primary / アップロード surface）の両方に存在し、しかも primary の割り当てが逆転している。
+  </p>
+
+  <!-- ============ 参考: 現状 ============ -->
+  <section class="axis">
+    <h2>参考 — 現状のツールバー</h2>
+    <p class="note">segmented が左端先頭・アイコン+ラベル・白カード active で最も視覚的に強い。右端には新規作成（accent）+ アップロードのアイコン pill が並び、ヘッダー CTA と重複・序列逆転している。</p>
+    <div class="frame desktop"><div class="frame-cap">desktop — 現状</div>
+      <div class="frame-body">
+        <div class="page-title">すべてのノート</div>
+        <div class="page-subtitle">127 件のノート</div>
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <div class="segmented-cur" role="tablist" aria-label="表示形式">
+              <button class="active" role="tab" aria-selected="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>&nbsp;リスト</button>
+              <button role="tab" aria-selected="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>&nbsp;タイル</button>
+              <button role="tab" aria-selected="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>&nbsp;カレンダー</button>
+            </div>
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+          </div>
+          <div class="toolbar-group">
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>選択</button>
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>ビューとして保存</button>
+            <button class="pill-btn primary icon" aria-label="新規作成"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button class="pill-btn icon" aria-label="アップロード"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 課題1: 表示切り替えの視覚的優先度 ============ -->
+  <section class="axis">
+    <h2>課題1 — 表示切り替えの視覚的優先度を下げる</h2>
+    <p class="note">表示モードは「一度決めたらほぼ変えない」設定。利用頻度に即して目立ち度を下げる。いずれの案も CTA はツールバーから除いた状態（課題2 = 案a 適用後）で比較する。アイコンのみ化する場合、実装は <code>role="tablist"</code> / <code>role="tab"</code> / <code>aria-selected</code> / 各ボタンの <code>aria-label</code> を維持する（aria 契約テストあり）。</p>
+
+    <div class="opt-label"><span class="tag">案1-A</span> アイコンのみ+縮小（位置は左・白カード active 維持）</div>
+    <p class="opt-desc"><b>利点:</b> 最小変更。ラベル除去と縮小（32×28px）で専有面積と視覚ノイズが減る。#620 の白カード active 表現を維持するため P30/モバイルとの統一が崩れない。<br><b>欠点:</b> 左端先頭という「最初に目が行く位置」は変わらず、優先度の逆転（設定が一等地を占める）が解消しきらない。白カード+shadow は依然リッチで目を引く。</p>
+    <div class="frame desktop"><div class="frame-cap">desktop — 案1-A</div>
+      <div class="frame-body">
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <div class="segmented-a" role="tablist" aria-label="表示形式">
+              <button class="active" role="tab" aria-selected="true" aria-label="リスト" title="リスト"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="タイル" title="タイル"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="カレンダー" title="カレンダー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+            </div>
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+          </div>
+          <div class="toolbar-group">
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>選択</button>
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>ビューとして保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt-label"><span class="tag alt">案1-B</span> ツールバー右端へ移動+アイコンのみ+ink 濃度差 active（白カード+shadow 廃止）</div>
+    <p class="opt-desc"><b>利点:</b> 位置（左端先頭 → 右端の補助領域）と表現（白カード → ink 濃度差: 非アクティブ ink-tertiary / アクティブ ink）の両面で優先度を下げる。読み順の一等地（左）には保存ビュー select = 「何を見るか」が来て、操作頻度と優先度が一致する。装飾が消えて静かな佇まいになる（設計原則の余白・低ノイズと整合）。<br><b>欠点:</b> 表現変更が #620 の「白カード active で P30/モバイル統一」を上書きするため、適用範囲（表示モード系のみ）を ADR で確定する必要がある。濃度差のみの active は白カードよりコントラストが弱い（aria-selected と tooltip で補完）。</p>
+    <div class="frame desktop"><div class="frame-cap">desktop — 案1-B</div>
+      <div class="frame-body">
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+          </div>
+          <div class="toolbar-group">
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>選択</button>
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>ビューとして保存</button>
+            <div class="segmented-b" role="tablist" aria-label="表示形式">
+              <button class="active" role="tab" aria-selected="true" aria-label="リスト" title="リスト"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="タイル" title="タイル"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="カレンダー" title="カレンダー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt-label"><span class="tag alt">案1-C</span> segmented 廃止 → ドロップダウンへ退避</div>
+    <p class="opt-desc"><b>利点:</b> 専有面積が最小。表示モードを完全に「設定」として畳める。<br><b>欠点:</b> 現在のモードと選択肢の一覧性が失われ、切り替えが2操作になる。3択しかない列挙にドロップダウンは過剰な間接化。保存ビュー select と同形の select が2つ並ぶと役割（ビュー = 何を見るか / モード = どう見るか）の区別が付きにくい。#620 の segmented 統一を実質破棄することになり影響が最大。</p>
+    <div class="frame desktop"><div class="frame-cap">desktop — 案1-C</div>
+      <div class="frame-body">
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+          </div>
+          <div class="toolbar-group">
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>選択</button>
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>ビューとして保存</button>
+            <select class="mode-select" aria-label="表示形式"><option>リスト表示</option><option>タイル表示</option><option>カレンダー表示</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt-label"><span class="tag ref">案1-B モバイル幅</span> 390px / 320px</div>
+    <p class="opt-desc">モバイルは select（最大150px）を左、選択 + ビュー保存（アイコンのみ）+ segmented を右に。320px でも1行に収まる。</p>
+    <div class="mobile-row">
+      <div class="frame mobile"><div class="frame-cap">390px — 案1-B</div>
+        <div class="frame-body">
+          <div class="toolbar">
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+            <div class="toolbar-group" style="gap:4px">
+              <button class="pill-btn ghost icon" aria-label="選択モード"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+              <button class="pill-btn ghost icon" aria-label="ビューとして保存"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              <div class="segmented-b" role="tablist" aria-label="表示形式">
+                <button class="active" role="tab" aria-selected="true" aria-label="リスト"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+                <button role="tab" aria-selected="false" aria-label="タイル"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+                <button role="tab" aria-selected="false" aria-label="カレンダー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame mobile narrow"><div class="frame-cap">320px — 案1-B</div>
+        <div class="frame-body">
+          <div class="toolbar">
+            <select class="view-select" aria-label="保存済みビュー" style="max-width:118px"><option>保存ビュー</option></select>
+            <div class="toolbar-group" style="gap:4px">
+              <button class="pill-btn ghost icon" aria-label="選択モード"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+              <button class="pill-btn ghost icon" aria-label="ビューとして保存"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              <div class="segmented-b" role="tablist" aria-label="表示形式">
+                <button class="active" role="tab" aria-selected="true" aria-label="リスト"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+                <button role="tab" aria-selected="false" aria-label="タイル"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+                <button role="tab" aria-selected="false" aria-label="カレンダー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 課題2: CTA 重複 ============ -->
+  <section class="axis">
+    <h2>課題2 — 新規作成・アップロード CTA の重複解消</h2>
+    <p class="note">#628 ADR-001 で「ヘッダーに検索 + アップロード + 新規作成を常時表示（デスクトップ/モバイル共通）」が確定済み。重複の解消はどちらを削るかの問題。</p>
+
+    <div class="opt-label"><span class="tag">案2-a</span> ヘッダー集約（ツールバーから CTA を削除）— 基本線</div>
+    <p class="opt-desc"><b>利点:</b> #628 ADR-001/003 と完全整合。「作成系 = ヘッダー（グローバル・常時）」「一覧操作系 = ツールバー（文脈）」と役割が一意になり、primary の序列逆転（ヘッダー: アップロード主役 / ツールバー: 新規作成主役）も同時に消える。モバイル実装（ツールバーに CTA なし）とも一致する。ツールバーが軽くなり課題1 の再配置余地が生まれる。<br><b>欠点:</b> 一覧を深くスクロールした位置からは CTA がヘッダー（sticky）まで視線移動になる — ただしヘッダーは常時固定表示のため実害は小さい。</p>
+    <div class="frame desktop"><div class="frame-cap">desktop — 案2-a（課題1 = 案1-B と組み合わせた確定形）</div>
+      <div class="frame-body">
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <select class="view-select" aria-label="保存済みビュー"><option>保存ビューを選択</option></select>
+          </div>
+          <div class="toolbar-group">
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>選択</button>
+            <button class="pill-btn ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>ビューとして保存</button>
+            <div class="segmented-b" role="tablist" aria-label="表示形式">
+              <button class="active" role="tab" aria-selected="true" aria-label="リスト" title="リスト"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="タイル" title="タイル"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></button>
+              <button role="tab" aria-selected="false" aria-label="カレンダー" title="カレンダー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt-label"><span class="tag ref">案2-b（参考）</span> 役割分離: ヘッダー = アップロード / ツールバー = 新規作成</div>
+    <p class="opt-desc">作成手段で配置を分ける案。<b>欠点が支配的:</b> #628 ADR-001（両 CTA をヘッダー常時表示）の決定を崩す。ユーザーから見ると「どちらがどこにあるか」を覚える負担が増え、モバイル（ツールバーに CTA を置く幅がない）とデスクトップで構成が分岐する。簡略参考に留め、モック化は省略。</p>
+
+    <div class="opt-label"><span class="tag ref">案2-c（参考）</span> ツールバー集約: ヘッダーから CTA を削除</div>
+    <p class="opt-desc">CTA を一覧文脈に寄せる案。<b>欠点が支配的:</b> #628 ADR-001 の全面巻き戻しになり、ヘッダー再設計（ユーザーメニューのサイドバー移設までして CTA の幅を確保した）一連の決定と衝突する。P10 以外の画面（P11 等）でヘッダー CTA に依存する導線も失われる。簡略参考に留め、モック化は省略。</p>
+  </section>
+</div>
+</body>
+</html>

@@ -511,10 +511,10 @@
   }
 
   /* ===== Toolbar (NoteListToolbar) =====
-     mobile: 表示モードは P30(個人公開ページ)と同じ segmented control に寄せて
-     視覚的なまとまりを出し、ツールバーの密度を下げる。
-     選択モード・保存ビューは右側の控えめなアクションとして畳む。
-     新規/アップロード CTA は下部固定 CTA へ退避。 */
+     mobile: 表示モードは desktop と同じ segmented control。
+     #626: 表示モードは低頻度の設定のため右端へ移動し優先度を下げる（ADR-001）。
+     左には保存ビュー select、右に 選択 / ビュー保存（ghost・アイコンのみ）/ segmented。
+     新規/アップロード CTA はヘッダー常時表示（#628 ADR-001/003。下部固定 CTA は廃止済み）。 */
   .toolbar {
     display: flex;
     justify-content: space-between;
@@ -523,7 +523,9 @@
     margin-bottom: var(--space-4);
     gap: var(--space-3);
   }
-  /* 表示モード = まとめた1コントロール（P30 と統一） */
+  /* 表示モード = segmented（desktop と統一）。
+     #626 ADR-001: アイコンのみ + active は ink 濃度差（白カード + shadow 廃止、#620 の表現を上書き）。
+     アイコンのみ化のため aria-label 必須。role="tablist" / aria-selected の契約は維持。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -531,25 +533,20 @@
     display: inline-flex;
   }
   .segmented button {
-    min-height: 36px;
-    padding: 6px 12px;
+    width: 36px;
+    min-height: 32px;
     border-radius: 7px;
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-tertiary);
     background: transparent;
     transition: all var(--duration-base) var(--ease-standard);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
-  /* 右側のアクション群（選択モード・保存ビュー）。
+  .segmented button.active { color: var(--color-ink); }
+  /* 右側のアクション群（選択モード・ビューとして保存・表示モード segmented）。
      ボタンは desktop・実装と同じ pill-btn の ghost(透明・ink-secondary)に統一 (#620)。
-     低強調の二次アクション。「ビューとして保存」は狭幅のためラベルを畳みアイコンのみ（実装の max-sm:hidden と一致）。 */
+     低強調の二次アクション。「選択」「ビューとして保存」は狭幅のためラベルを畳みアイコンのみ (#626)。 */
   .toolbar-actions {
     display: inline-flex;
     align-items: center;
@@ -980,36 +977,33 @@
     <h1 class="page-title">すべてのノート</h1>
     <div class="page-subtitle">127 件のノート</div>
 
-    <!-- NoteListToolbar: 表示モードは segmented(P30/desktop と統一)、選択モード・保存ビューは右に畳む。
-         ボタンは pill-btn で desktop・実装と統一 (#620)。新規/アップロードは下部固定CTAへ。
-         「ビューとして保存」は狭幅のためアイコンのみに縮約。 -->
+    <!-- NoteListToolbar: 左 = 保存ビュー select / 右 = 選択・ビュー保存(ghost・アイコンのみ)・表示モード segmented。
+         #626: 表示モードは低頻度設定のため右端・アイコンのみ・ink 濃度差 active に降格（ADR-001）。
+         新規/アップロード CTA はヘッダー常時表示（#628 ADR-001/003）。ボタンは pill-btn で desktop・実装と統一 (#620)。
+         アイコンのみのため各 tab に aria-label 必須（aria 契約テストあり）。 -->
     <div class="toolbar">
-      <div class="segmented" role="tablist" aria-label="表示形式">
-        <button class="active" role="tab" aria-selected="true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-          リスト
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          タイル
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          カレンダー
-        </button>
-      </div>
+      <select class="view-select" aria-label="保存済みビュー">
+        <option>保存ビューを選択</option>
+      </select>
 
       <div class="toolbar-actions">
         <button class="pill-btn ghost" aria-pressed="false" aria-label="選択モード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          選択
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </button>
         <button class="pill-btn ghost" aria-label="ビューとして保存">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
-        <select class="view-select" aria-label="保存済みビュー">
-          <option>保存ビューを選択</option>
-        </select>
+        <div class="segmented" role="tablist" aria-label="表示形式">
+          <button class="active" role="tab" aria-selected="true" aria-label="リスト">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="タイル">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="カレンダー">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
