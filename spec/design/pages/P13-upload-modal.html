@@ -247,7 +247,7 @@
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
   /* ヘッダー操作行は検索 input(36px) に揃える局所例外（#628 ADR-004）。base .pill-btn=40px を上書き。 */
   .header-right .pill-btn { height: 36px; }
-  /* 新規作成(text)は desktop ではテキストのみ（アイコンを隠す）。mobile の icon-only 化で表示に戻す。ADR-003/§7.2 */
+  /* 新規作成(text)は desktop ではテキストのみ（アイコンを隠す）。mobile の icon-only 化で表示に戻す。 */
   .header-right .pill-btn.text .cta-icon { display: none; }
   .pill-btn {
     height: 40px;
@@ -265,7 +265,7 @@
   .pill-btn:hover { background: var(--color-surface-hover); }
   .pill-btn.primary { background: var(--color-accent); color: #fff; }
   .pill-btn.primary:hover { background: var(--color-accent-hover); }
-  /* text バリアント: 枠なしテキストボタン（#628 ADR-003 案2-B の格下げ secondary） */
+  /* text バリアント: 枠なしテキストボタン（格下げ secondary） */
   .pill-btn.text {
     background: transparent;
     padding: 0 10px;
@@ -308,7 +308,7 @@
     flex-direction: column;
   }
   .sidebar-section { margin-bottom: 28px; }
-  /* user section anchored at bottom (#628 ADR-003: ヘッダーから移設) */
+  /* user section anchored at bottom */
   .sidebar-user {
     margin-top: auto;
     border-top: 1px solid var(--color-hairline);
@@ -566,12 +566,12 @@
     .dropzone { padding: 32px 16px; }
     .header { padding: 12px var(--space-4); }
     .logo { display: none; }
-    /* モバイル: ヘッダー右の両CTAをアイコンのみ・36px角に（検索 input 36px に揃える。#628 ADR-003/004） */
+    /* モバイル: ヘッダー右の両CTAをアイコンのみ・36px角に（検索 input 36px に揃える） */
     .header-right .pill-btn span.label { display: none; }
     .header-right .pill-btn { width: 36px; height: 36px; min-height: 36px; padding: 0; justify-content: center; }
-    /* 新規作成はモバイルでのみアイコン表示（desktop はテキストのみ。ADR-003/§7.2） */
+    /* 新規作成はモバイルでのみアイコン表示（desktop はテキストのみ） */
     .header-right .pill-btn.text .cta-icon { display: inline-flex; }
-    /* 新規作成(text)はモバイルでは surface 表示にする（アップロード=accent との対比。確定ドラフト準拠） */
+    /* 新規作成(text)はモバイルでは surface 表示にする（アップロード=accent との対比） */
     .header-right .pill-btn.text { background: var(--color-surface); color: var(--color-ink); }
     .header-right .pill-btn.text:hover { background: var(--color-surface-hover); }
   }
@@ -636,7 +636,7 @@
       </div>
     </div>
   
-    <!-- ユーザー行: ヘッダーから移設（#628 ADR-003）。クリックで設定/ログアウトのメニューが開く。 -->
+    <!-- ユーザー行: クリックで設定/ログアウトのメニューが開く。 -->
     <div class="sidebar-user">
       <button class="user-row" aria-label="ユーザーメニュー">
         <span class="avatar">YK</span>

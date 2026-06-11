@@ -245,11 +245,10 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
-  /* mobile: ヘッダー右はアップロード + 新規作成 をアイコンのみ・36px角で常時表示（#628 ADR-001/003）。
-     アバターはサイドバー下部へ移設。 */
+  /* mobile: ヘッダー右はアップロード + 新規作成 をアイコンのみ・36px角で常時表示。 */
   /* icon-only: 検索 input 高さに揃えた正方形（mobile 36px） */
   .pill-btn.icon { width: 36px; padding: 0; justify-content: center; }
-  /* #628 ADR-004: ヘッダー操作行のみ 44px 床を局所的に外し、検索 input に揃えて 36px。
+  /* ヘッダー操作行のみ 44px 床を局所的に外し、検索 input に揃えて 36px。
      グローバルの button/.pill-btn 床ルールより高い特異度で勝たせる。 */
   .header .pill-btn,
   .header .menu-btn,

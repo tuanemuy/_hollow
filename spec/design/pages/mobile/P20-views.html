@@ -227,8 +227,7 @@
     pointer-events: none;
   }
   .header-right { display: flex; align-items: center; gap: var(--space-2); }
-  /* mobile: ヘッダー右はアップロード + 新規作成 をアイコンのみ・36px角で常時表示（#628 ADR-001/003）。
-     アバターはサイドバー下部へ移設。 */
+  /* mobile: ヘッダー右はアップロード + 新規作成 をアイコンのみ・36px角で常時表示。 */
   .pill-btn {
     height: 36px;
     padding: 0 16px;
@@ -253,7 +252,7 @@
   .pill-btn.primary:active { background: var(--color-accent-pressed); }
   /* icon-only: 検索 input 高さに揃えた正方形（mobile 36px） */
   .pill-btn.icon { width: 36px; padding: 0; justify-content: center; }
-  /* #628 ADR-004: ヘッダー操作行のみ 44px 床を局所的に外し、検索 input に揃えて 36px。
+  /* ヘッダー操作行のみ 44px 床を局所的に外し、検索 input に揃えて 36px。
      グローバルの button/.pill-btn 床ルールより高い特異度で勝たせる。 */
   .header .pill-btn,
   .header .menu-btn,
@@ -287,7 +286,7 @@
     overflow-y: auto;
   }
   .sidebar.open { transform: translateX(0); }
-  /* user section anchored at sidebar bottom (#628 ADR-003: ヘッダーから移設) */
+  /* user section anchored at sidebar bottom */
   .sidebar { display: flex; flex-direction: column; }
   .sidebar-user {
     margin-top: auto;
@@ -369,7 +368,7 @@
     font-size: var(--text-sm); color: var(--color-ink-secondary);
     max-width: 56ch;
   }
-  /* 主要CTA（新しいビュー）は page-header 内に配置（下部固定バーは #628 ADR-001 で廃止）。 */
+  /* 主要CTA（新しいビュー）は page-header 内に配置（下部固定バーは廃止）。 */
 
   /* Section */
   .section-block { margin-bottom: var(--space-10); }
@@ -614,8 +613,7 @@
   .sidebar-backdrop.open { display: block; opacity: 1; }
 
   /* ===== 新しいビュー作成CTA =====
-     下部固定CTAバーは廃止（#628 ADR-001）。desktop と同じく page-header 内の
-     ページ内ボタンとして配置（mobile はフルワイド）。 */
+     desktop と同じく page-header 内のページ内ボタン（mobile はフルワイド。下部固定CTAバーは廃止）。 */
   .new-view-btn {
     width: 100%;
     min-height: 48px;
@@ -682,7 +680,7 @@
       <div class="nav-item">アップロード</div>
     </div>
 
-    <!-- ユーザー行: ヘッダーから移設（#628 ADR-003）。クリックで設定/ログアウトのメニューが開く。 -->
+    <!-- ユーザー行: クリックで設定/ログアウトのメニューが開く。 -->
     <div class="sidebar-user">
       <button class="user-row" aria-label="ユーザーメニュー">
         <span class="avatar">YK</span>
@@ -701,7 +699,6 @@
         <h1 class="page-title">保存ビュー</h1>
         <p class="page-subtitle">よく使う絞り込み条件と表示形式を保存します。サイドバーから 1 クリックで適用できます。</p>
       </div>
-      <!-- 主アクション: 下部固定CTAバー廃止（#628 ADR-001）に伴い page-header 内へ（desktop と同じ位置） -->
       <button class="new-view-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         新しいビュー
