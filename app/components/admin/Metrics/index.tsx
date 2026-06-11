@@ -4,7 +4,10 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
+import { Suspense } from "react";
+import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
 import { Icon } from "@/components/common/Icon";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import {
   ALERT,
   ALERT_BODY,
@@ -17,7 +20,6 @@ import {
 } from "@/components/common/styles";
 import type { InstanceSettingsDTO } from "@/core/application/dto/adminSettings";
 import type { AlertDTO } from "@/core/application/dto/common";
-import { requireAdminUser } from "@/lib/server/currentUser";
 import { loadUsageMetrics } from "../Dashboard/action";
 import { loadInstanceSettings } from "../LLMSettingsForm/action";
 
@@ -124,11 +126,35 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
   );
 }
 
-export async function MetricsPage() {
-  const actor = await requireAdminUser();
+/**
+ * Admin metrics shell (Issue #636). The admin guard runs in the route
+ * handler; usage metrics + instance settings stream behind one merge
+ * boundary because every section below depends on both loads.
+ */
+export function MetricsPage({ actorId }: Readonly<{ actorId: string }>) {
+  return (
+    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
+      <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
+        利用状況
+      </h1>
+      <p className="text-md text-ink-secondary m-0 mb-8">
+        インスタンス全体の利用量と、設定済みの上限値。
+      </p>
+      <SectionErrorBoundary section="利用状況">
+        <Suspense
+          fallback={<AdminTableSkeleton ariaLabel="利用状況を読み込み中" />}
+        >
+          <MetricsSection actorId={actorId} />
+        </Suspense>
+      </SectionErrorBoundary>
+    </main>
+  );
+}
+
+async function MetricsSection({ actorId }: Readonly<{ actorId: string }>) {
   const [metrics, { settings }] = await Promise.all([
-    loadUsageMetrics(actor.id),
-    loadInstanceSettings(actor.id),
+    loadUsageMetrics(actorId),
+    loadInstanceSettings(actorId),
   ]);
   const totalStorage =
     metrics.storageDurableObjectBytes === null &&
@@ -138,14 +164,7 @@ export async function MetricsPage() {
         (metrics.storageR2Bytes ?? 0);
 
   return (
-    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
-      <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
-        利用状況
-      </h1>
-      <p className="text-md text-ink-secondary m-0 mb-8">
-        インスタンス全体の利用量と、設定済みの上限値。
-      </p>
-
+    <>
       <section
         className="grid grid-cols-1 gap-4 mb-10 sm:grid-cols-2 lg:grid-cols-4"
         aria-label="現在の利用量"
@@ -252,6 +271,6 @@ export async function MetricsPage() {
           </div>
         </div>
       </section>
-    </main>
+    </>
   );
 }

@@ -3,8 +3,10 @@
  *
  * A restrained spinning ring built from a `currentColor` border, so it inherits
  * the surrounding text color. The spin is guarded with `motion-safe:` so under
- * `prefers-reduced-motion: reduce` it renders as a static ring (spec/design
- * 「アニメーション」L93).
+ * `prefers-reduced-motion: reduce` it renders without animation (spec/design
+ * 「アニメーション」L93); the ring then switches to a dashed border so the
+ * static glyph still reads as "in progress" rather than a plain circle
+ * (#636 — a11y follow-up from #635).
  *
  * Use sparingly. Per spec/design (L92) skeletons are preferred over spinners
  * for load states; reach for `Spinner` only in small inline regions where a
@@ -26,7 +28,7 @@ export function Spinner({
   ariaLabel?: string;
   className?: string;
 }>) {
-  const base = `inline-block ${SIZE[size]} border-2 border-current border-t-transparent rounded-full motion-safe:animate-spin`;
+  const base = `inline-block ${SIZE[size]} border-2 border-current border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:border-dashed`;
   return (
     <span
       role="status"

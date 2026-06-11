@@ -7,8 +7,10 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderPromptsPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
     const { PromptsPage } = await import("@/components/admin/PromptsForm/Page");
-    return renderServerComponent(<PromptsPage />);
+    return renderServerComponent(<PromptsPage actorId={actor.id} />);
   });
 
 export const Route = createFileRoute("/admin/prompts")({

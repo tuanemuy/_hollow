@@ -7,10 +7,13 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderAccountDeletePage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await requireCurrentUser();
+    const { toUserDTO } = await import("@/core/application/dto/identity");
     const { AccountDeletePage } = await import(
       "@/components/identity/AccountDeleteForm/Page"
     );
-    return renderServerComponent(<AccountDeletePage />);
+    return renderServerComponent(<AccountDeletePage user={toUserDTO(user)} />);
   });
 
 export const Route = createFileRoute("/_app/settings/account-delete")({

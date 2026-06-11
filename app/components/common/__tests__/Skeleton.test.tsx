@@ -38,7 +38,24 @@ describe("Skeleton", () => {
     });
     const status = getStatus();
     expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(status.getAttribute("aria-busy")).toBe("true");
     expect(status.getAttribute("aria-label")).toBe("読み込み中");
+  });
+
+  it("suppresses the default aria-label when a visible label is rendered", () => {
+    act(() => {
+      root.render(<Skeleton label="読み込み中..." />);
+    });
+    expect(getStatus().getAttribute("aria-label")).toBeNull();
+  });
+
+  it("keeps an explicit ariaLabel even when a label is rendered", () => {
+    act(() => {
+      root.render(
+        <Skeleton label="読み込み中..." ariaLabel="一覧を読み込み中" />,
+      );
+    });
+    expect(getStatus().getAttribute("aria-label")).toBe("一覧を読み込み中");
   });
 
   it("renders the requested number of (aria-hidden) bars", () => {

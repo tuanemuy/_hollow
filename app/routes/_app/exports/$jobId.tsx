@@ -12,10 +12,41 @@ const renderExportJobDetail = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(z.object({ jobId: z.string().min(1) })))
   .handler(async ({ data }) => {
-    const { ExportJobDetailPage } = await import(
-      "@/components/export/ExportJobDetail/Page"
-    );
-    return renderServerComponent(<ExportJobDetailPage jobId={data.jobId} />);
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await requireCurrentUser();
+    const [
+      { ExportJobDetailPage, ExportJobNotFound },
+      { loadExportJob },
+      { isNotFoundError },
+      { isBusinessRuleError },
+      { ExportErrorCode },
+    ] = await Promise.all([
+      import("@/components/export/ExportJobDetail/Page"),
+      import("@/components/export/ExportJobDetail/loader"),
+      import("@/core/application/errors"),
+      import("@/core/domain/error"),
+      import("@/core/domain/export/errorCode"),
+    ]);
+    // Existence check stays in the handler (`.issue/636/plan.md` step 6).
+    // This is a single-loader route, so the check fetches everything the
+    // page needs — pass the DTO through instead of re-awaiting it behind
+    // a Suspense boundary (`.issue/636/adr.md` ADR-008).
+    try {
+      const { job } = await loadExportJob({
+        actorUserId: user.id,
+        jobId: data.jobId,
+      });
+      return renderServerComponent(<ExportJobDetailPage job={job} />);
+    } catch (error) {
+      if (
+        isNotFoundError(error) ||
+        (isBusinessRuleError(error) &&
+          error.code === ExportErrorCode.Unauthorized)
+      ) {
+        return renderServerComponent(<ExportJobNotFound />);
+      }
+      throw error;
+    }
   });
 
 export const Route = createFileRoute("/_app/exports/$jobId")({

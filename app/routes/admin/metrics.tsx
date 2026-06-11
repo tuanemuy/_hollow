@@ -7,8 +7,10 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderMetricsPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
     const { MetricsPage } = await import("@/components/admin/Metrics");
-    return renderServerComponent(<MetricsPage />);
+    return renderServerComponent(<MetricsPage actorId={actor.id} />);
   });
 
 export const Route = createFileRoute("/admin/metrics")({

@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { PAGE_TITLE } from "../layout/styles";
 import { loadTagsForManager } from "./loaders";
@@ -11,7 +14,26 @@ type Props = {
   order: TagListOrder | undefined;
 };
 
-export async function TagManager({ user, q, sort, order }: Props) {
+/**
+ * Tag management page shell (Issue #636). The static title renders
+ * immediately; the data-dependent list streams behind its own
+ * `<Suspense>` boundary so a slow / failing tag load no longer blocks
+ * or breaks the whole page.
+ */
+export function TagManager({ user, q, sort, order }: Props) {
+  return (
+    <>
+      <h1 className={PAGE_TITLE}>タグ管理</h1>
+      <SectionErrorBoundary section="タグ一覧">
+        <Suspense fallback={<ListPageSkeleton ariaLabel="タグを読み込み中" />}>
+          <TagListSection user={user} q={q} sort={sort} order={order} />
+        </Suspense>
+      </SectionErrorBoundary>
+    </>
+  );
+}
+
+async function TagListSection({ user, q, sort, order }: Props) {
   const { tags } = await loadTagsForManager(user.id, {
     query: q,
     sort,
@@ -29,14 +51,11 @@ export async function TagManager({ user, q, sort, order }: Props) {
   }));
 
   return (
-    <>
-      <h1 className={PAGE_TITLE}>タグ管理</h1>
-      <TagList
-        tags={tagList}
-        query={q}
-        sort={sort ?? "name"}
-        order={order ?? "asc"}
-      />
-    </>
+    <TagList
+      tags={tagList}
+      query={q}
+      sort={sort ?? "name"}
+      order={order ?? "asc"}
+    />
   );
 }

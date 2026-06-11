@@ -49,23 +49,13 @@ const renderHome = createServerFn({ method: "GET" })
     }
     const [
       { HomePage },
-      { toUserDTO },
-      {
-        loadOwnedNotes,
-        loadDirectoryTreeFlat,
-        loadAllTags,
-        loadSavedViewsByKind,
-        loadSavedViewById,
-        loadReferencingNoteTitle,
-      },
+      { loadAllTags, loadSavedViewById },
       { shouldRedirectForSavedView, viewQueryToSearch },
     ] = await Promise.all([
       import("@/components/note/HomePage"),
-      import("@/core/application/dto/identity"),
       import("@/components/note/loaders"),
       import("@/components/note/list/listSelectors"),
     ]);
-    const userDto = toUserDTO(user);
 
     // Resolve viewId-driven base search first so it can seed the listing
     // call. Explicit URL fields still win over the SavedView snapshot.
@@ -108,58 +98,18 @@ const renderHome = createServerFn({ method: "GET" })
     const pageForLoad = baseSearch.page ?? NOTE_LIST_PAGE_DEFAULT;
     const limitForLoad = baseSearch.limit ?? NOTE_LIST_LIMIT_DEFAULT;
 
-    const [owned, tree, tags, savedViews, referencing] = await Promise.all([
-      loadOwnedNotes({
-        actorUserId: user.id,
-        status: "active",
-        page: pageForLoad,
-        limit: limitForLoad,
-        ...(baseSearch.directoryId !== undefined
-          ? { directoryId: baseSearch.directoryId }
-          : {}),
-        ...(baseSearch.q !== undefined ? { q: baseSearch.q } : {}),
-        ...(baseSearch.tagNames !== undefined
-          ? { tagNames: baseSearch.tagNames }
-          : {}),
-        ...(baseSearch.visibility !== undefined
-          ? { visibility: baseSearch.visibility }
-          : {}),
-        ...(baseSearch.referencingNoteId !== undefined
-          ? { referencingNoteId: baseSearch.referencingNoteId }
-          : {}),
-        ...(baseSearch.from !== undefined || baseSearch.to !== undefined
-          ? {
-              dateRange: {
-                from: baseSearch.from ?? null,
-                to: baseSearch.to ?? null,
-              },
-            }
-          : {}),
-      }),
-      loadDirectoryTreeFlat({ actorUserId: user.id }),
-      loadAllTags({ actorUserId: user.id }),
-      loadSavedViewsByKind({ actorUserId: user.id, kind: "personal" }),
-      baseSearch.referencingNoteId !== undefined
-        ? loadReferencingNoteTitle({
-            actorUserId: user.id,
-            noteId: baseSearch.referencingNoteId,
-          })
-        : Promise.resolve({ title: null as string | null }),
-    ]);
-
+    // Issue #636: data loading moved into HomePage's per-section async
+    // server components so each section streams behind its own
+    // `<Suspense>` boundary. Only auth / SavedView normalisation (which
+    // may `redirect`) and page/limit resolution stay in the handler.
     return {
       authenticated: true as const,
       Home: await renderServerComponent(
         <HomePage
-          user={userDto}
+          userId={user.id}
           page={pageForLoad}
           limit={limitForLoad}
-          owned={owned}
-          tree={tree.flat}
-          tags={tags.tags}
-          savedViews={savedViews.views}
           search={baseSearch}
-          referencingNoteTitle={referencing.title}
         />,
       ),
     };

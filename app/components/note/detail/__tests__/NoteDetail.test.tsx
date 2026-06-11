@@ -28,7 +28,10 @@ vi.mock("../NoteActions", () => ({ NoteActions: () => null }));
 vi.mock("../NoteBreadcrumb", () => ({ NoteBreadcrumb: () => null }));
 vi.mock("../NoteMetaPanel", () => ({ NoteMetaPanel: () => null }));
 
-const { NoteDetail } = await import("../NoteDetail");
+// Issue #636: `NoteDetail` is now a sync shell (Suspense + error
+// boundary); the notFound / re-throw behaviour under test lives in the
+// async `NoteDetailContent` section.
+const { NoteDetailContent } = await import("../NoteDetail");
 
 const user = { id: "user-1" } as unknown as UserDTO;
 const noteId = "missing-note";
@@ -50,7 +53,7 @@ describe("NoteDetail notFound handling", () => {
       new NotFoundError("NOTE_NOT_FOUND", "Note not found: missing-note"),
     );
 
-    const element = await NoteDetail({
+    const element = await NoteDetailContent({
       user,
       noteId,
       appUrl: "https://example.test",
@@ -66,7 +69,7 @@ describe("NoteDetail notFound handling", () => {
     loadNoteDetail.mockRejectedValue(new Error("boom"));
 
     await expect(
-      NoteDetail({ user, noteId, appUrl: "https://example.test" }),
+      NoteDetailContent({ user, noteId, appUrl: "https://example.test" }),
     ).rejects.toThrow("boom");
   });
 });

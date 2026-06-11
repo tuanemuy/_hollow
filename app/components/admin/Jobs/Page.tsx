@@ -1,10 +1,14 @@
-import { requireAdminUser } from "@/lib/server/currentUser";
+import { Suspense } from "react";
+import { AdminTableSkeleton } from "@/components/common/AdminTableSkeleton";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { loadJobsSnapshot } from "./action";
 import { JobsBoard } from "./index";
 
-export async function JobsPage() {
-  await requireAdminUser();
-  const { ingestionJobs, exportJobs } = await loadJobsSnapshot();
+/**
+ * Admin jobs shell (Issue #636). The admin guard runs in the route
+ * handler; the job board streams behind its `<Suspense>` boundary.
+ */
+export function JobsPage() {
   return (
     <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
       <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
@@ -13,7 +17,18 @@ export async function JobsPage() {
       <p className="text-md text-ink-secondary m-0 mb-8">
         全ユーザーの取り込み・エクスポートジョブの状況と、定期クリーンアップの概要。
       </p>
-      <JobsBoard ingestionJobs={ingestionJobs} exportJobs={exportJobs} />
+      <SectionErrorBoundary section="ジョブ一覧">
+        <Suspense
+          fallback={<AdminTableSkeleton ariaLabel="ジョブを読み込み中" />}
+        >
+          <JobsSection />
+        </Suspense>
+      </SectionErrorBoundary>
     </main>
   );
+}
+
+async function JobsSection() {
+  const { ingestionJobs, exportJobs } = await loadJobsSnapshot();
+  return <JobsBoard ingestionJobs={ingestionJobs} exportJobs={exportJobs} />;
 }

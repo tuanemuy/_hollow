@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { PAGE_SUBTITLE, PAGE_TITLE } from "../layout/styles";
 import { DiscardedToggle } from "./DiscardedToggle";
@@ -10,9 +13,14 @@ type Props = {
   includeDiscarded: boolean;
 };
 
-export async function UploadPage({ user, includeDiscarded }: Props) {
-  const { jobs } = await loadIngestionJobs(user.id, { includeDiscarded });
-
+/**
+ * Upload page shell (Issue #636). The static chrome (title, subtitle,
+ * form, toggle) renders immediately; only the job queue streams behind
+ * its `<Suspense>` boundary. Queue progress polling is client-side
+ * inside `IngestionQueue` (no loader re-run), so the boundary does not
+ * flicker on poll ticks.
+ */
+export function UploadPage({ user, includeDiscarded }: Props) {
   return (
     <>
       <h1 className={PAGE_TITLE}>アップロード</h1>
@@ -26,15 +34,28 @@ export async function UploadPage({ user, includeDiscarded }: Props) {
         <div className="flex justify-end mb-4">
           <DiscardedToggle />
         </div>
-        {/* `key` forces a remount when the filter flips so IngestionQueue's
-            `useState(initialJobs)` re-initialises with the newly filtered
-            jobs instead of keeping the prior client state. */}
-        <IngestionQueue
-          key={includeDiscarded ? "with-discarded" : "default"}
-          initialJobs={jobs}
-          includeDiscarded={includeDiscarded}
-        />
+        <SectionErrorBoundary section="アップロードの一覧">
+          <Suspense
+            fallback={<ListPageSkeleton ariaLabel="アップロードを読み込み中" />}
+          >
+            <QueueSection user={user} includeDiscarded={includeDiscarded} />
+          </Suspense>
+        </SectionErrorBoundary>
       </section>
     </>
+  );
+}
+
+async function QueueSection({ user, includeDiscarded }: Props) {
+  const { jobs } = await loadIngestionJobs(user.id, { includeDiscarded });
+  return (
+    /* `key` forces a remount when the filter flips so IngestionQueue's
+       `useState(initialJobs)` re-initialises with the newly filtered
+       jobs instead of keeping the prior client state. */
+    <IngestionQueue
+      key={includeDiscarded ? "with-discarded" : "default"}
+      initialJobs={jobs}
+      includeDiscarded={includeDiscarded}
+    />
   );
 }

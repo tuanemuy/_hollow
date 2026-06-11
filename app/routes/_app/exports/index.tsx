@@ -16,10 +16,14 @@ const renderExportJobsPage = createServerFn({ method: "GET" })
     ),
   )
   .handler(async ({ data }) => {
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await requireCurrentUser();
     const { ExportJobsPage } = await import(
       "@/components/export/ExportJobsList/Page"
     );
-    return renderServerComponent(<ExportJobsPage offset={data.offset} />);
+    return renderServerComponent(
+      <ExportJobsPage offset={data.offset} userId={user.id} />,
+    );
   });
 
 const exportsSearchSchema = z.object({
