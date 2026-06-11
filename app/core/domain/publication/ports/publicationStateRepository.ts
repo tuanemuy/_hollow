@@ -20,11 +20,8 @@ export type PublicationListOpts = Readonly<{
  * come from a single pass.
  *
  * `publishedRange`, when supplied, filters on the publication aggregate's
- * `published_at`: `from` maps to `gte(published_at, from)` and `to` to a
- * `lt(published_at, to)`. The range is the same `DateRange` half-open VO the
- * note-list filter uses; the P30 presentation boundary pre-normalises `to` to
- * the day-after-00:00 so the user-chosen end date is inclusive (#619 ADR-006).
- * Applied to both the page and the `total` in the same pass.
+ * `published_at`: half-open `[from, to)`. Applied to both the page and the
+ * `total` in the same pass.
  */
 export type PublicNoteSortedOpts = Readonly<{
   order: "asc" | "desc";
@@ -88,13 +85,9 @@ export interface PublicationStateRepository
   ): Promise<PublicNoteSortedResult>;
 
   /**
-   * Owner-scoped public-note ids whose `published_at` falls in
-   * `publishedRange` (`from`/`to` are the same half-open `DateRange` VO the
-   * note-list filter uses; `to` is exclusive). Capped at `limit` ids — the
-   * caller passes the resolved set as the candidate (`note_id IN (...)`) for a
-   * note-column-sorted listing so the公開日範囲 filter is honoured on a path
-   * that does not otherwise read the publication aggregate (#619 ADR-005). The
-   * `active`-note JOIN keeps trashed-but-still-public rows out of the set.
+   * Owner-scoped public-note ids whose `published_at` falls in `publishedRange`
+   * (half-open `[from, to)`). Capped at `limit` ids. The `active`-note JOIN
+   * keeps trashed-but-still-public rows out of the set.
    */
   listPublicNoteIdsByOwnerInRange(
     ownerId: UserId,

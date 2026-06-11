@@ -37,8 +37,7 @@ const publicTopSearchSchema = paginationSearchSchema.extend({
   tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
   sort: z.enum(PUBLIC_SORTS).optional().catch(undefined),
   display: z.enum(DISPLAY_MODES).optional().catch(undefined),
-  // 公開日範囲フィルタ (#619). `YYYY-MM-DD` — same `z.string().date()` contract
-  // as the auth-side `noteListSearchSchema`. Server-driven (loader dep).
+  // Published date range filter: `YYYY-MM-DD`. Server-driven (loader dep).
   from: z.string().date().optional().catch(undefined),
   to: z.string().date().optional().catch(undefined),
 });

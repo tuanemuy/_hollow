@@ -10,13 +10,9 @@ describe("formatPublishedDate", () => {
 });
 
 describe("formatRelativeDate", () => {
-  // `now` is injected so the「今日／昨日」comparison is deterministic. The
-  // comparison uses local calendar day via `getFullYear()` / `getMonth()` /
-  // `getDate()`, so the test **depends on the runner's TZ**. Both `date` and
-  // `now` must be created the same way (local constructor) so they share the
-  // same TZ interpretation. For CI consistency, ensure TZ is fixed (e.g. `TZ=UTC`)
-  // or the implementation will be adjusted to use UTC-only methods if DST edge
-  // cases arise.
+  // Uses local calendar day, so tests depend on runner's TZ. Both dates
+  // constructed the same way (local) so they share TZ interpretation.
+  // For CI consistency, set TZ=UTC in the test environment.
   const at = (y: number, m: number, d: number, h = 12): Date =>
     new Date(y, m - 1, d, h);
 

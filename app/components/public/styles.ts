@@ -76,13 +76,11 @@ export const NOTE_DATE =
 export const EMPTY_LIST = "px-3 py-20 text-center text-ink-secondary text-md";
 
 // ===== P30 profile =====
-// Mock `.profile-hero`: `flex flex-col gap-5` (20px) — the avatar+name group
-// sits on top, bio / stats stack below at full width (no avatar-width indent).
-// Padding `56px 0 36px` ≈ `py-14 pb-9`. Mobile mock drops the gap to `--space-3`.
+// Profile hero layout: avatar+name on top, bio/stats below at full width.
+// Vertical gap 20px (sm) / 12px (mobile).
 export const PROFILE_HERO =
   "py-14 pb-9 flex flex-col gap-5 border-b border-hairline max-sm:gap-3 max-sm:py-8 max-sm:pb-7";
-// Mock `.profile-head`: avatar + `.profile-id` (name/username) on one row,
-// vertically centred, `gap-6` (24px). Mobile mock uses `--space-4` (16px).
+// Profile header: avatar + name/username on one row, gap 24px (sm) / 16px (mobile).
 export const PROFILE_HEAD = "flex items-center gap-6 max-sm:gap-4";
 export const PROFILE_ID = "min-w-0";
 export const PROFILE_AVATAR =
@@ -115,8 +113,7 @@ export const SEGMENTED_BTN =
   "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
 export const SORT_BTN =
   "text-[13px] text-ink-secondary inline-flex items-center gap-1 px-2 py-[6px] rounded-md transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
-// Sort dropdown (#619): right-anchored floating menu; below sm a full-width
-// bottom sheet so it never overflows the narrow viewport.
+// Sort dropdown: right-anchored menu (sm+), full-width bottom sheet (mobile).
 export const SORT_MENU_PANEL =
   "absolute right-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[180px] max-w-[calc(100vw-2rem)] max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
 export const SORT_MENU_ITEM =

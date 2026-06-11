@@ -97,9 +97,8 @@ const DISPLAY_OPTIONS: ReadonlyArray<{
   { mode: "calendar", label: "カレンダー", icon: Calendar },
 ];
 
-// "公開日順" is backed by the publication aggregate's `published_at` (see
-// listUserPublicNotes); the other axes sort on note columns. P30 lets the user
-// pick any axis from a dropdown (#619 ADR-002), unlike P32's fixed order.
+// "公開日順" is backed by the publication aggregate's `published_at`; the
+// other axes sort on note columns. Presentation chooses the axis via dropdown.
 const SORT_LABELS: Readonly<Record<SortAxis, string>> = {
   publishedAt: "公開日順",
   updatedAt: "更新日順",
@@ -164,14 +163,10 @@ function reduceFilters(
  * control and sort dropdown.
  *
  * Tags / sort / period drive the URL (server re-fetch via `loaderDeps`) and are
- * mirrored into an optimistic state so a click reflects immediately while the
- * loader round-trip is in flight, then snaps back to the server-confirmed
- * baseline (read from `useSearch`) once the navigation commits — the
- * `FilterBar.run(action, nav)` pattern (#619 ADR-002). `display` is a
- * client-only swap excluded from `loaderDeps`; it is NOT held in the optimistic
- * state (it would double-source against `PublicNoteViews`' own `useSearch`
- * read), so it relies on the `replace` URL update being reflected synchronously
- * (#619 ADR-002 / S-004).
+ * mirrored into an optimistic state so changes reflect immediately while the
+ * loader round-trip is in flight. `display` is client-only, excluded from
+ * `loaderDeps` and NOT held in optimistic state (to avoid double-sourcing with
+ * `PublicNoteViews`' own `useSearch` read).
  *
  * `tagOptions` are the chip candidates the server discovered in the current
  * listing; selected tags are merged in so a chip with its remove (×) affordance
@@ -204,9 +199,8 @@ export function PublicTopControls({
   // Optimistic patch + URL navigation in a single transition: the patched
   // value renders immediately, the loader fetch shows as pending, and the
   // navigation is awaited inside the transition so `useOptimistic` does not
-  // snap back to baseline before the fresh props commit (mirrors
-  // `FilterBar.run`, Issue #478). The await is wrapped so a cancelled
-  // navigation still settles cleanly, reverting to the server baseline.
+  // snap back to baseline before the fresh props commit. Cancelled navigations
+  // revert cleanly to the server baseline.
   const run = (
     action: FilterAction,
     patch: {
@@ -226,7 +220,7 @@ export function PublicTopControls({
             nextFilterSearch(prev, patch),
         });
       } catch {
-        // Reverting to baseline is the correct fallback for a filter toggle.
+        // Fall back to server baseline on navigation error.
       }
     });
   };
@@ -274,9 +268,8 @@ export function PublicTopControls({
 
   const clearDateRange = () => applyDateRange(undefined, undefined);
 
-  // `display` stays out of the optimistic state: it is loaderDep-excluded, so
-  // the `replace` URL update is reflected synchronously by `PublicNoteViews`'
-  // own `useSearch`. The active check reads `useSearch` directly.
+  // display mode is client-only (not in loaderDeps), so URL update reflects
+  // synchronously without waiting for the loader round-trip.
   const selectDisplayMode = (mode: DisplayMode) => {
     if (mode === display) return;
     router.navigate({
@@ -291,9 +284,7 @@ export function PublicTopControls({
   };
 
   return (
-    // `display: contents` so the filter-row and toolbar stay direct flex
-    // children of `.user-tools` (preserving its gap), while the wrapper still
-    // carries `aria-busy` for the in-flight loader round-trip.
+    // display: contents preserves `.user-tools` flex gap; wrapper carries aria-busy.
     <div className="contents" aria-busy={isPending}>
       <div className={FILTER_ROW}>
         <button
@@ -395,8 +386,7 @@ const DATE_INPUT_SM =
 const POPOVER_LABEL =
   "text-[11px] font-medium text-ink-tertiary uppercase tracking-wider";
 
-// 期間 chip + popover reusing the `listSelectors` preset / range logic with the
-// public `CHIP` styling (#619 ADR-002).
+// 期間 chip + popover reusing the `listSelectors` preset / range logic.
 function DatePopover({
   fromId,
   toId,
@@ -467,7 +457,7 @@ function DatePopover({
     >
       {({ close }) => (
         <div className="flex flex-col gap-3 w-full">
-          {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the preset toggle buttons; <fieldset> carries form-control semantics inappropriate here (mirrors FilterBar). */}
+          {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the preset toggle buttons; <fieldset> carries form-control semantics inappropriate here. */}
           <div role="group" aria-label="プリセット">
             <div className={`${POPOVER_LABEL} mb-2`}>プリセット</div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -543,8 +533,7 @@ type SortPopoverProps = Readonly<{
   onSelect: (axis: SortAxis) => void;
 }>;
 
-// 4-axis sort selection menu (#619 ADR-002): shared `Popover` (role="menu") +
-// `useRovingMenu` (menuitemradio), trigger keeps the chevron-down `SORT_BTN`.
+// 4-axis sort selection menu: `Popover` with `useRovingMenu` for keyboard navigation.
 function SortPopover({
   value,
   open,

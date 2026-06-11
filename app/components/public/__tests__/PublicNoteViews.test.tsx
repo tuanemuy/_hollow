@@ -87,9 +87,7 @@ describe("PublicNoteViews", () => {
   });
 
   it("falls back to updatedAt when publishedAt is null (relay lag tolerance)", () => {
-    // The implementation defends against relay-lag scenarios where publishedAt
-    // may be null by falling back to updatedAt in the noteDate() helper.
-    // This test exercises that fallback path.
+    // publishedAt may be null when the publication fetch lags; fallback to updatedAt.
     display = "list";
     const notesWithNull = [
       {
@@ -101,9 +99,6 @@ describe("PublicNoteViews", () => {
     const html = renderToStaticMarkup(
       <PublicNoteViews username="tuanemuy" notes={notesWithNull} />,
     );
-    // The meta row should show the updatedAt as a fallback.
-    // formatPublishedDate uses the date string directly, so the fallback
-    // to updatedAt (2026-03-01) should appear in the HTML.
     expect(html).toContain("2026年3月1日 公開");
   });
 });

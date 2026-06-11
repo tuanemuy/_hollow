@@ -251,9 +251,6 @@ describe("groupNotesByDay", () => {
     expect(buckets[0]?.dateKey).toBe("2024-02-01");
   });
 
-  // #619: the optional 3rd arg lets the public listing bucket on `publishedAt`
-  // while the default (no 3rd arg) keeps bucketing on `updatedAt` — the auth
-  // side stays unchanged (covered by every case above).
   it("buckets on a custom key extractor when supplied (publishedAt)", () => {
     const notes = [
       {
@@ -268,7 +265,6 @@ describe("groupNotesByDay", () => {
       },
     ];
     const buckets = groupNotesByDay(notes, "UTC", (n) => n.publishedAt);
-    // Both group under the shared publishedAt day, not their distinct updatedAt.
     expect(buckets).toHaveLength(1);
     expect(buckets[0]?.dateKey).toBe("2024-01-15");
     expect(buckets[0]?.notes).toHaveLength(2);
@@ -287,7 +283,6 @@ describe("groupNotesByDay", () => {
         publishedAt: "2024-01-16T00:00:00Z",
       },
     ];
-    // No 3rd argument: should group by updatedAt (same day, same bucket).
     const buckets = groupNotesByDay(notes, "UTC");
     expect(buckets).toHaveLength(1);
     expect(buckets[0]?.dateKey).toBe("2024-03-01");

@@ -1,7 +1,7 @@
 /**
  * Seed a deterministic *public* author + a spread of public notes into the
- * local dev D1, so the public profile page `/u/<username>` (P30, Issue #619)
- * can be exercised in the browser.
+ * local dev D1 so the public profile page `/u/<username>` can be exercised
+ * in the browser.
  *
  * Local dev only. Writes through `pnpm db:execute:local` (= `wrangler d1
  * execute hollow-local-d1 --local --file`), the same D1 that `pnpm dev`

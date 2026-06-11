@@ -658,10 +658,8 @@ export class D1NoteRepository implements NoteRepository {
       );
     }
 
-    // Pre-resolved note-id candidate set (#619 ADR-005): an immediate value
-    // the caller computed elsewhere, joined into the same intersection /
-    // chunking machinery as the tag candidates. An empty set short-circuits
-    // to "match nothing" via the `intersectIdSets` result below.
+    // Pre-resolved note-id candidate set: joined into the same intersection
+    // machinery as tag candidates. An empty set short-circuits to "match nothing".
     if (opts.noteIds !== undefined) {
       candidateSets.push(new Set(opts.noteIds as readonly string[]));
     }

@@ -1,18 +1,11 @@
 import type { DateRange } from "@/core/domain/note/valueObject";
 
 /**
- * Normalise the P30 公開日範囲 URL params (`from` / `to`, `YYYY-MM-DD`) into the
- * domain `DateRange` VO for `listUserPublicNotes` (#619 ADR-006).
- *
- * The string→Date conversion lives at this presentation boundary so the
- * usecase only ever sees the VO. The `DateRange` half-open `[from, to)`
- * contract is preserved: the user-chosen `to` is an **inclusive** end date, so
- * it is pushed to the day-after 00:00 (UTC) and the adapter applies `lt`. That
- * keeps notes published on the end date itself inside the window without
- * redefining the VO's half-open semantics.
- *
- * Returns `undefined` when neither bound is set (no filter), so callers can
- * omit the field entirely.
+ * Normalise the 公開日範囲 URL params (`from` / `to`, `YYYY-MM-DD`) into the
+ * domain `DateRange` VO. String→Date conversion lives here (presentation boundary).
+ * The user's **inclusive** end date is pushed to day-after 00:00 UTC so the
+ * half-open `[from, to)` contract is preserved while including the end date.
+ * Returns `undefined` when neither bound is set.
  */
 export function normalizePublicDateRange(
   from: string | undefined,
@@ -24,9 +17,8 @@ export function normalizePublicDateRange(
   return { from: fromDate, to: toExclusive };
 }
 
-// `YYYY-MM-DD` → that day's UTC 00:00. Invalid format strings → null
-// (effectively "no filter"); the route validator rejects malformed dates
-// earlier (ADR-006, CLAUDE.md validation boundary).
+// `YYYY-MM-DD` → that day's UTC 00:00. Invalid format strings → null.
+// (Route validator rejects malformed dates at the transport boundary.)
 function parseDateOnly(date: string | undefined): Date | null {
   if (date === undefined) return null;
   const d = new Date(`${date}T00:00:00.000Z`);

@@ -47,10 +47,9 @@ type SortedRow = Readonly<{ noteId: string; publishedAt: string }>;
 
 type PublicationStateRow = typeof publicationStates.$inferSelect;
 
-// `published_at` is stored as ISO-8601 text, so a lexicographic compare
-// matches chronological order; the `DateRange` is the half-open `[from, to)`
-// VO (the P30 boundary already pushed the inclusive end date to the
-// day-after-00:00 — #619 ADR-006), so `from` is `gte` and `to` is `lt`.
+// `published_at` is ISO-8601 text (lexicographic compare matches chronological order).
+// DateRange is half-open `[from, to)`; the presentation boundary pushed the
+// inclusive end date to day-after-00:00, so here `from` is `gte` and `to` is `lt`.
 function publishedRangeConditions(range: DateRange | undefined): SQL[] {
   if (range === undefined) return [];
   const conditions: SQL[] = [];

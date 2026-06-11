@@ -158,9 +158,8 @@ export function selectionReducer(
  * `getDate` extracts the ISO timestamp the bucketing is keyed on. It
  * defaults to `note.updatedAt` for auth-side backward compatibility; the
  * public listing passes a custom getter to group by `publishedAt` instead,
- * so both auth and public views share the same infrastructure (#619
- * ADR-003). Callers MUST override `getDate` if the type carries a date
- * field other than `updatedAt` to use for grouping.
+ * so both auth and public views share the same infrastructure. Callers MUST
+ * override `getDate` if the type carries a date field other than `updatedAt`.
  */
 export function groupNotesByDay<T extends { id: string; updatedAt: string }>(
   notes: readonly T[],

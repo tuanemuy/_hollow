@@ -1,10 +1,9 @@
 /**
- * Date formatting for the public surfaces (P30 listing / P32 search).
+ * Date formatting for the public surfaces.
  *
- * `formatDate()` / `formatPublishedDate()` use UTC (SSR/CSR values must
- * agree across runtime environments). `formatRelativeDate()` operates on
- * local calendar dates via the browser's timezone: "today" / "yesterday"
- * are computed in local TZ, as is the client-island rendering context.
+ * `formatDate()` / `formatPublishedDate()` use UTC (to keep SSR/CSR values
+ * consistent). `formatRelativeDate()` operates on local calendar dates
+ * ("today" / "yesterday" computed in browser timezone).
  */
 export function formatDate(date: Date): string {
   return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月${date.getUTCDate()}日 更新`;
@@ -15,20 +14,15 @@ export function formatShort(date: Date): string {
 }
 
 /**
- * Published date metadata: "YYYY年M月D日 公開" (P30 note meta row).
- * Uses UTC to keep SSR/CSR values consistent.
+ * Published date metadata: "YYYY年M月D日 公開". Uses UTC for SSR/CSR consistency.
  */
 export function formatPublishedDate(date: Date): string {
   return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月${date.getUTCDate()}日 公開`;
 }
 
 /**
- * Relative date label for the P30 right-side note column: "today" /
- * "yesterday" / "M月D日" (same year) / "YYYY年M月D日" (year-crossed).
- * Operates in local calendar time: `date` and `now` are any time point,
- * and the comparison uses `getFullYear()` / `getMonth()` / `getDate()`
- * (all in local TZ, not UTC). This matches the browser timezone for
- * client-island rendering.
+ * Relative date label: "today" / "yesterday" / "M月D日" (same year) /
+ * "YYYY年M月D日". Operates in local calendar time (browser timezone), not UTC.
  */
 export function formatRelativeDate(date: Date, now: Date): string {
   if (Number.isNaN(date.getTime())) return "";

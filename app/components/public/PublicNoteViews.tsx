@@ -46,8 +46,7 @@ export type PublicNoteItem = Readonly<{
 
 /**
  * The ISO timestamp the public views date on: the publication `publishedAt`
- * when present, else the note `updatedAt` (defensive — a public note always
- * carries a `published_at` by the entity invariant).
+ * when present, else the note `updatedAt` as a defensive fallback.
  */
 function noteDate(note: PublicNoteItem): string {
   return note.publishedAt ?? note.updatedAt;
@@ -87,9 +86,7 @@ function ListView({
   username,
   notes,
 }: Readonly<{ username: string; notes: readonly PublicNoteItem[] }>) {
-  // Client island, so the relative「今日／昨日」comparison uses the browser's
-  // clock (mirrors the calendar tz resolution). Captured once per render so
-  // every row in a single paint agrees on "now".
+  // Captured once per render so every row agrees on the browser's current time.
   const now = new Date();
   return (
     <>

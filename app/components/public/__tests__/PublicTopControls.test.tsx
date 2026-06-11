@@ -60,7 +60,6 @@ describe("PublicTopControls URL updaters", () => {
   });
 
   it("nextFilterSearch sets / clears the period bounds and resets the page", () => {
-    // Both bounds applied.
     expect(
       nextFilterSearch({ page: 2 }, { from: "2026-05-01", to: "2026-05-31" }),
     ).toEqual({
@@ -68,7 +67,6 @@ describe("PublicTopControls URL updaters", () => {
       from: "2026-05-01",
       to: "2026-05-31",
     });
-    // `from` only.
     expect(nextFilterSearch({}, { from: "2026-05-01", to: undefined })).toEqual(
       {
         page: undefined,
@@ -76,7 +74,6 @@ describe("PublicTopControls URL updaters", () => {
         to: undefined,
       },
     );
-    // `to` only.
     expect(nextFilterSearch({}, { from: undefined, to: "2026-05-31" })).toEqual(
       {
         page: undefined,
@@ -84,7 +81,6 @@ describe("PublicTopControls URL updaters", () => {
         to: "2026-05-31",
       },
     );
-    // Clearing both bounds drops the params.
     expect(
       nextFilterSearch(
         { page: 3, from: "2026-05-01", to: "2026-05-31" },

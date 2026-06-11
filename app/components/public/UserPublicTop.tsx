@@ -97,8 +97,7 @@ export async function UserPublicTop({
   from,
   to,
 }: Props) {
-  // String→Date conversion at the presentation boundary (#619 ADR-006); the
-  // usecase only ever sees the `DateRange` VO.
+  // String→Date conversion at the presentation boundary; usecases work with DateRange VO.
   const publishedRange = normalizePublicDateRange(from, to);
   const [{ user, publicNoteCount }, { notes, total }] = await Promise.all([
     loadProfile(username),

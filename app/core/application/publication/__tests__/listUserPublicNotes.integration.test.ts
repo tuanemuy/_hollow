@@ -452,8 +452,6 @@ describe("listUserPublicNotes (integration)", () => {
     expect(page2.notes.map((n) => n.title)).toEqual(["first"]);
   });
 
-  // #619: the projection carries the publication aggregate's published_at so
-  // the public listing can render「YYYY年M月D日 公開」.
   it("projects the publication published_at onto every listing item", async () => {
     const container = getContainer();
     const owner = await seedUser(container, "owner-projection");
@@ -470,7 +468,6 @@ describe("listUserPublicNotes (integration)", () => {
     await seedPublic(container, a, owner, "public", "2024-03-01T00:00:00.000Z");
     await seedPublic(container, b, owner, "public", "2024-01-01T00:00:00.000Z");
 
-    // publishedAt path.
     const byPublished = await listUserPublicNotes({
       container,
       input: { username: "owner-projection", page: 1, limit: 20 },
@@ -484,8 +481,6 @@ describe("listUserPublicNotes (integration)", () => {
       { title: "a", publishedAt: iso("2024-03-01T00:00:00.000Z") },
       { title: "b", publishedAt: iso("2024-01-01T00:00:00.000Z") },
     ]);
-
-    // noteColumn path (title sort) carries the same projection.
     const byTitle = await listUserPublicNotes({
       container,
       input: {
@@ -502,14 +497,10 @@ describe("listUserPublicNotes (integration)", () => {
     ]);
   });
 
-  // #619: the publishedRange filter is honoured on the publishedAt path
-  // (publication SQL) and the noteColumn path (resolved candidate ids), with
-  // the inclusive end date and the from-only / to-only / same-day boundaries.
   describe("publishedRange filter", () => {
     async function seedRangeOwner(container: TestContainer, username: string) {
       const owner = await seedUser(container, username);
       const dir = await seedDirectory(container, owner);
-      // Three notes published on Jan 10 / Feb 10 / Mar 10.
       const titles = ["jan", "feb", "mar"] as const;
       const pub = {
         jan: "2026-01-10T08:00:00.000Z",
@@ -534,7 +525,6 @@ describe("listUserPublicNotes (integration)", () => {
     it("filters by published_at range on the publishedAt path", async () => {
       const container = getContainer();
       const username = await seedRangeOwner(container, "range-pub");
-      // Feb 1 .. Mar 1 (exclusive) → only feb.
       const r = await listUserPublicNotes({
         container,
         input: {
@@ -604,16 +594,12 @@ describe("listUserPublicNotes (integration)", () => {
           publishedRange: range(null, "2026-02-11T00:00:00.000Z"),
         },
       });
-      // Feb 10 08:00 < Feb 11 00:00 → jan + feb included, mar excluded.
       expect(r.notes.map((n) => n.title)).toEqual(["jan", "feb"]);
     });
 
     it("end-date inclusive: the day-after-00:00 exclusive bound keeps the end day", async () => {
       const container = getContainer();
       const username = await seedRangeOwner(container, "range-incl");
-      // The presentation boundary turns an inclusive `to=2026-02-10` into the
-      // exclusive 2026-02-11T00:00. A note published on 2026-02-10 08:00 must
-      // stay in the window.
       const r = await listUserPublicNotes({
         container,
         input: {
@@ -653,7 +639,6 @@ describe("listUserPublicNotes (integration)", () => {
     it("noteColumn path with period filter returns only notes with non-null publishedAt", async () => {
       const container = getContainer();
       const username = await seedRangeOwner(container, "range-pub-check");
-      // Filter to Feb → expect feb note only, and its publishedAt must be set.
       const r = await listUserPublicNotes({
         container,
         input: {
@@ -670,11 +655,7 @@ describe("listUserPublicNotes (integration)", () => {
       });
       expect(r.notes).toHaveLength(1);
       expect(r.notes[0]?.title).toBe("feb");
-      // Every returned note must have a publishedAt (this is the assertion that
-      // the period filter only includes public/published notes).
       expect(r.notes.every((n) => n.publishedAt !== null)).toBe(true);
-      // Verify that all returned notes are public (the adapter's period filter
-      // and publication WHERE clause ensure only visibility='public' notes pass through).
       expect(r.notes.every((n) => n.visibility === "public")).toBe(true);
     });
   });

@@ -47,15 +47,11 @@ export type NoteListOpts = Readonly<{
  * matches nothing (the adapter short-circuits); `undefined` applies no
  * directory filter.
  *
- * `noteIds` restricts to notes whose id is **any** of the supplied ids —
- * a pre-resolved note-id candidate set the caller computed elsewhere
- * (e.g. the P30 public listing resolves the公開日範囲 filter on the
- * publication aggregate and passes the matching ids here so a
- * note-column-sorted page still honours that filter — #619 ADR-005). It
- * is intersected with the other candidate sets (tag AND etc.) on the
- * adapter side, so `items.length <= count` is preserved. An empty array
- * matches nothing (the adapter short-circuits); `undefined` applies no
- * id filter.
+ * `noteIds` restricts to notes whose id is any of the supplied ids —
+ * a pre-resolved candidate set the caller computed elsewhere. It is
+ * intersected with other candidate sets (tag AND etc.) on the adapter side,
+ * so `items.length <= count` is preserved. An empty array matches nothing;
+ * `undefined` applies no id filter.
  */
 export type NoteOwnerFilters = Readonly<{
   status?: NoteStatus;

@@ -41,23 +41,18 @@ export type ListUserPublicNotesInput = Readonly<{
   sort?: ListUserPublicNotesSort;
   order?: "asc" | "desc";
   /**
-   * Filter on the publication aggregate's `published_at` (公開日範囲). The
-   * half-open `DateRange` VO; the P30 presentation boundary normalises the
-   * user-chosen inclusive end date to the day-after-00:00 (#619 ADR-006). The
-   * filter is honoured on every sort axis: the `publishedAt` path pushes it
-   * into the publication SQL, the note-column path resolves the matching note
-   * ids via `listPublicNoteIdsByOwnerInRange` and intersects them as the
-   * candidate set (#619 ADR-005).
+   * Filter on the publication aggregate's `published_at` (公開日範囲).
+   * Half-open `DateRange` VO. The `publishedAt` sort path filters in publication SQL;
+   * the note-column path resolves matching note ids via `listPublicNoteIdsByOwnerInRange`
+   * and intersects them as the candidate set.
    */
   publishedRange?: DateRange;
 }>;
 
 /**
- * Public-listing item: the generic {@link NoteListItemDTO} plus the publication
- * aggregate's `publishedAt` (公開日), which is a public-domain concept and so is
- * not carried by the owner-scoped DTO (#619 ADR-001). `null` only for the
- * defensive relay-lag case — a `public` note always carries a non-null
- * `published_at` by the entity invariant.
+ * Public-listing item: {@link NoteListItemDTO} plus the publication aggregate's
+ * `publishedAt` (公開日), which is public-domain and not in the owner-scoped DTO.
+ * `null` only for defensive relay-lag tolerance.
  */
 export type PublicNoteListItem = NoteListItemDTO &
   Readonly<{ publishedAt: string | null }>;
@@ -159,11 +154,8 @@ export async function listUserPublicNotes({
               publicationStateRepository,
             });
 
-      // Common post-processing across both paths (#619 ADR-001): the page is
-      // settled, so a single bulk read of the live note ids yields the
-      // public-domain `published_at` for the projection. The `publishedAt`
-      // path sees publication directly while the note-column path does not, so
-      // collapsing the lookup here keeps it path-agnostic and N+1-free.
+      // Common post-processing across both paths: bulk read the page's
+      // publication states so both sort paths get `published_at` (N+1-free).
       const publishedAtById = new Map<string, string | null>();
       if (liveNotes.length > 0) {
         const states = await publicationStateRepository.findByNoteIds(
@@ -296,14 +288,12 @@ async function listByNoteColumn(args: {
   noteRepository: NoteRepository;
   publicationStateRepository: PublicationStateRepository;
 }): Promise<ListResult> {
-  // The note-column listing sorts on note columns and never reads the
-  // publication aggregate, so the 公開日範囲 filter cannot be expressed in its
-  // SQL. Resolve the matching public-note ids on the publication side and pass
-  // them as a note-id candidate set (#619 ADR-005): `listWithCount`'s existing
-  // `noteIds` candidate machinery intersects them with the tag candidates and
-  // keeps `items.length <= count`. An empty resolution can never match — short
-  // circuit. `NoteOwnerFilters.dateRange` is intentionally NOT used: it filters
-  // `notes.updatedAt`, not the publication `published_at`.
+  // The note-column sort never reads the publication aggregate, so the
+  // 公開日範囲 filter cannot be expressed in the note SQL. Resolve the matching
+  // public-note ids on the publication side and pass them as a note-id
+  // candidate set; the existing `noteIds` machinery intersects with tag
+  // candidates. `NoteOwnerFilters.dateRange` is intentionally NOT used: it
+  // filters `notes.updatedAt`, not the publication `published_at`.
   let publishedNoteIds: readonly NoteId[] | undefined;
   if (args.publishedRange !== undefined) {
     publishedNoteIds =
