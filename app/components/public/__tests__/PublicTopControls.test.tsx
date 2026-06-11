@@ -11,6 +11,8 @@ let searchState: {
   display?: "list" | "tile" | "calendar";
   tags?: readonly string[];
   sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
+  from?: string;
+  to?: string;
 } = {};
 
 vi.mock("@tanstack/react-router", () => ({
@@ -22,8 +24,9 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-const { PublicTopControls, nextFilterSearch, toggleTagSet, nextSortAxis } =
-  await import("../PublicTopControls");
+const { PublicTopControls, nextFilterSearch, toggleTagSet } = await import(
+  "../PublicTopControls"
+);
 
 describe("PublicTopControls URL updaters", () => {
   it("nextFilterSearch resets the page and drops default values", () => {
@@ -51,16 +54,43 @@ describe("PublicTopControls URL updaters", () => {
     });
   });
 
+  it("nextFilterSearch sets / clears the period bounds and resets the page", () => {
+    // Both bounds applied.
+    expect(
+      nextFilterSearch({ page: 2 }, { from: "2026-05-01", to: "2026-05-31" }),
+    ).toEqual({
+      page: undefined,
+      from: "2026-05-01",
+      to: "2026-05-31",
+    });
+    // `from` only.
+    expect(nextFilterSearch({}, { from: "2026-05-01", to: undefined })).toEqual(
+      {
+        page: undefined,
+        from: "2026-05-01",
+        to: undefined,
+      },
+    );
+    // `to` only.
+    expect(nextFilterSearch({}, { from: undefined, to: "2026-05-31" })).toEqual(
+      {
+        page: undefined,
+        from: undefined,
+        to: "2026-05-31",
+      },
+    );
+    // Clearing both bounds drops the params.
+    expect(
+      nextFilterSearch(
+        { page: 3, from: "2026-05-01", to: "2026-05-31" },
+        { from: undefined, to: undefined },
+      ),
+    ).toEqual({ page: undefined, from: undefined, to: undefined });
+  });
+
   it("toggleTagSet adds an absent tag and removes a present one", () => {
     expect(toggleTagSet(["a"], "b")).toEqual(["a", "b"]);
     expect(toggleTagSet(["a", "b"], "a")).toEqual(["b"]);
-  });
-
-  it("nextSortAxis cycles publishedAt → updatedAt → createdAt → title → publishedAt", () => {
-    expect(nextSortAxis("publishedAt")).toBe("updatedAt");
-    expect(nextSortAxis("updatedAt")).toBe("createdAt");
-    expect(nextSortAxis("createdAt")).toBe("title");
-    expect(nextSortAxis("title")).toBe("publishedAt");
   });
 });
 

@@ -5,7 +5,7 @@ import type {
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
-import type { NoteId } from "@/core/domain/note/valueObject";
+import type { DateRange, NoteId } from "@/core/domain/note/valueObject";
 import type { PublicationStateRepository } from "@/core/domain/publication/ports/publicationStateRepository";
 import type { TagId as TagIdVO } from "@/core/domain/tag/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
@@ -40,12 +40,37 @@ export type ListUserPublicNotesInput = Readonly<{
    */
   sort?: ListUserPublicNotesSort;
   order?: "asc" | "desc";
+  /**
+   * Filter on the publication aggregate's `published_at` (公開日範囲). The
+   * half-open `DateRange` VO; the P30 presentation boundary normalises the
+   * user-chosen inclusive end date to the day-after-00:00 (#619 ADR-006). The
+   * filter is honoured on every sort axis: the `publishedAt` path pushes it
+   * into the publication SQL, the note-column path resolves the matching note
+   * ids via `listPublicNoteIdsByOwnerInRange` and intersects them as the
+   * candidate set (#619 ADR-005).
+   */
+  publishedRange?: DateRange;
 }>;
 
+/**
+ * Public-listing item: the generic {@link NoteListItemDTO} plus the publication
+ * aggregate's `publishedAt` (公開日), which is a public-domain concept and so is
+ * not carried by the owner-scoped DTO (#619 ADR-001). `null` only for the
+ * defensive relay-lag case — a `public` note always carries a non-null
+ * `published_at` by the entity invariant.
+ */
+export type PublicNoteListItem = NoteListItemDTO &
+  Readonly<{ publishedAt: string | null }>;
+
 export type ListUserPublicNotesOutput = Readonly<{
-  notes: readonly NoteListItemDTO[];
+  notes: readonly PublicNoteListItem[];
   total: number;
 }>;
+
+// Upper bound on the published-range candidate ids resolved for the
+// note-column path before the note-side intersection. Mirrors
+// `TAG_CANDIDATE_CAP`; far above any realistic single-owner public-note count.
+const PUBLISHED_RANGE_CANDIDATE_CAP = 1000;
 
 /**
  * Lists a single user's public notes for the public profile page. The
@@ -115,6 +140,7 @@ export async function listUserPublicNotes({
           ? await listByPublishedAt({
               ownerId: user.id,
               tagIds,
+              publishedRange: input.publishedRange,
               order,
               limit: input.limit,
               offset,
@@ -124,12 +150,32 @@ export async function listUserPublicNotes({
           : await listByNoteColumn({
               ownerId: user.id,
               tagIds,
+              publishedRange: input.publishedRange,
               sort,
               order,
               limit: input.limit,
               offset,
               noteRepository,
+              publicationStateRepository,
             });
+
+      // Common post-processing across both paths (#619 ADR-001): the page is
+      // settled, so a single bulk read of the live note ids yields the
+      // public-domain `published_at` for the projection. The `publishedAt`
+      // path sees publication directly while the note-column path does not, so
+      // collapsing the lookup here keeps it path-agnostic and N+1-free.
+      const publishedAtById = new Map<string, string | null>();
+      if (liveNotes.length > 0) {
+        const states = await publicationStateRepository.findByNoteIds(
+          liveNotes.map((n) => n.id),
+        );
+        for (const s of states) {
+          publishedAtById.set(
+            s.noteId as string,
+            s.publishedAt !== null ? s.publishedAt.toISOString() : null,
+          );
+        }
+      }
 
       const allTagIds = new Set<string>();
       for (const note of liveNotes) {
@@ -143,18 +189,21 @@ export async function listUserPublicNotes({
         for (const t of tags) tagMap.set(t.id, t.name as string);
       }
 
-      const items = liveNotes.map((note) => {
+      const items: PublicNoteListItem[] = liveNotes.map((note) => {
         const excerpt = container.htmlSanitizer
           .toPlainText(note.contentHtml)
           .slice(0, 200);
         const tagNames = note.tagIds
           .map((id) => tagMap.get(id))
           .filter((name): name is string => name !== undefined);
-        return toNoteListItem(note, {
-          excerpt,
-          tagNames,
-          visibility: "public",
-        });
+        return {
+          ...toNoteListItem(note, {
+            excerpt,
+            tagNames,
+            visibility: "public",
+          }),
+          publishedAt: publishedAtById.get(note.id as string) ?? null,
+        };
       });
 
       return { notes: items, total };
@@ -178,6 +227,7 @@ const TAG_CANDIDATE_CAP = 1000;
 async function listByPublishedAt(args: {
   ownerId: UserId;
   tagIds: readonly TagIdVO[] | undefined;
+  publishedRange: DateRange | undefined;
   order: "asc" | "desc";
   limit: number;
   offset: number;
@@ -210,6 +260,9 @@ async function listByPublishedAt(args: {
         limit: args.limit,
         offset: args.offset,
         ...(candidateIds !== undefined ? { noteIds: candidateIds } : {}),
+        ...(args.publishedRange !== undefined
+          ? { publishedRange: args.publishedRange }
+          : {}),
       },
     );
 
@@ -235,16 +288,40 @@ async function listByPublishedAt(args: {
 async function listByNoteColumn(args: {
   ownerId: UserId;
   tagIds: readonly TagIdVO[] | undefined;
+  publishedRange: DateRange | undefined;
   sort: "updatedAt" | "createdAt" | "title";
   order: "asc" | "desc";
   limit: number;
   offset: number;
   noteRepository: NoteRepository;
+  publicationStateRepository: PublicationStateRepository;
 }): Promise<ListResult> {
+  // The note-column listing sorts on note columns and never reads the
+  // publication aggregate, so the 公開日範囲 filter cannot be expressed in its
+  // SQL. Resolve the matching public-note ids on the publication side and pass
+  // them as a note-id candidate set (#619 ADR-005): `listWithCount`'s existing
+  // `noteIds` candidate machinery intersects them with the tag candidates and
+  // keeps `items.length <= count`. An empty resolution can never match — short
+  // circuit. `NoteOwnerFilters.dateRange` is intentionally NOT used: it filters
+  // `notes.updatedAt`, not the publication `published_at`.
+  let publishedNoteIds: readonly NoteId[] | undefined;
+  if (args.publishedRange !== undefined) {
+    publishedNoteIds =
+      await args.publicationStateRepository.listPublicNoteIdsByOwnerInRange(
+        args.ownerId,
+        args.publishedRange,
+        PUBLISHED_RANGE_CANDIDATE_CAP,
+      );
+    if (publishedNoteIds.length === 0) {
+      return { liveNotes: [], total: 0 };
+    }
+  }
+
   const opts: NoteOwnerListOpts = {
     visibility: ["public"],
     status: "active",
     ...(args.tagIds !== undefined ? { tagIds: args.tagIds } : {}),
+    ...(publishedNoteIds !== undefined ? { noteIds: publishedNoteIds } : {}),
     sort: args.sort,
     order: args.order,
     limit: args.limit,

@@ -154,10 +154,17 @@ export function selectionReducer(
  * `tz` is required because Workers' `Intl.DateTimeFormat` defaults to
  * UTC; the caller (a client component) resolves the browser timezone
  * with `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+ *
+ * `getDate` extracts the ISO timestamp the bucketing is keyed on. It
+ * defaults to `note.updatedAt` so existing auth-side callers are
+ * unaffected; the public listing passes the publication `publishedAt`
+ * (falling back to `updatedAt`) so its three views share one date axis
+ * (#619 ADR-003).
  */
 export function groupNotesByDay<T extends { id: string; updatedAt: string }>(
   notes: readonly T[],
   tz: string,
+  getDate: (note: T) => string = (note) => note.updatedAt,
 ): ReadonlyArray<Readonly<{ dateKey: string; notes: readonly T[] }>> {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
@@ -168,7 +175,7 @@ export function groupNotesByDay<T extends { id: string; updatedAt: string }>(
   const orderedKeys: string[] = [];
   const byKey = new Map<string, T[]>();
   for (const note of notes) {
-    const date = new Date(note.updatedAt);
+    const date = new Date(getDate(note));
     const dateKey = Number.isNaN(date.getTime())
       ? "unknown"
       : formatter.format(date);

@@ -250,6 +250,29 @@ describe("groupNotesByDay", () => {
     const buckets = groupNotesByDay(notes, "Asia/Tokyo");
     expect(buckets[0]?.dateKey).toBe("2024-02-01");
   });
+
+  // #619: the optional 3rd arg lets the public listing bucket on `publishedAt`
+  // while the default (no 3rd arg) keeps bucketing on `updatedAt` — the auth
+  // side stays unchanged (covered by every case above).
+  it("buckets on a custom key extractor when supplied (publishedAt)", () => {
+    const notes = [
+      {
+        id: "1",
+        updatedAt: "2024-03-01T00:00:00Z",
+        publishedAt: "2024-01-15T00:00:00Z",
+      },
+      {
+        id: "2",
+        updatedAt: "2024-03-02T00:00:00Z",
+        publishedAt: "2024-01-15T00:00:00Z",
+      },
+    ];
+    const buckets = groupNotesByDay(notes, "UTC", (n) => n.publishedAt);
+    // Both group under the shared publishedAt day, not their distinct updatedAt.
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0]?.dateKey).toBe("2024-01-15");
+    expect(buckets[0]?.notes).toHaveLength(2);
+  });
 });
 
 describe("searchToViewQuery", () => {

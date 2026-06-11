@@ -76,15 +76,22 @@ export const NOTE_DATE =
 export const EMPTY_LIST = "px-3 py-20 text-center text-ink-secondary text-md";
 
 // ===== P30 profile =====
+// Mock `.profile-hero`: `flex flex-col gap-5` (20px) — the avatar+name group
+// sits on top, bio / stats stack below at full width (no avatar-width indent).
+// Padding `56px 0 36px` ≈ `py-14 pb-9`. Mobile mock drops the gap to `--space-3`.
 export const PROFILE_HERO =
-  "py-14 pb-9 grid grid-cols-[auto_1fr] gap-7 items-center border-b border-hairline max-sm:gap-4 max-sm:py-8 max-sm:pb-7";
+  "py-14 pb-9 flex flex-col gap-5 border-b border-hairline max-sm:gap-3 max-sm:py-8 max-sm:pb-7";
+// Mock `.profile-head`: avatar + `.profile-id` (name/username) on one row,
+// vertically centred, `gap-6` (24px). Mobile mock uses `--space-4` (16px).
+export const PROFILE_HEAD = "flex items-center gap-6 max-sm:gap-4";
+export const PROFILE_ID = "min-w-0";
 export const PROFILE_AVATAR =
   "w-24 h-24 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-3xl font-medium inline-flex items-center justify-center shrink-0 max-sm:w-16 max-sm:h-16 max-sm:text-[22px]";
 export const PROFILE_NAME =
-  "text-3xl font-normal tracking-tightest leading-tight text-ink mb-1.5 max-sm:text-[26px]";
-export const PROFILE_USERNAME = "text-md text-ink-secondary mb-3";
+  "text-3xl font-normal tracking-tightest leading-tight text-ink mb-1 max-sm:text-[26px]";
+export const PROFILE_USERNAME = "text-md text-ink-secondary";
 export const PROFILE_BIO =
-  "text-base text-ink leading-relaxed max-w-[var(--content-max)] mb-3.5 text-pretty";
+  "text-base text-ink leading-relaxed max-w-[var(--content-max)] text-pretty";
 export const PROFILE_STATS =
   "flex items-center gap-4.5 text-sm text-ink-secondary flex-wrap";
 
@@ -108,6 +115,12 @@ export const SEGMENTED_BTN =
   "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
 export const SORT_BTN =
   "text-[13px] text-ink-secondary inline-flex items-center gap-1 px-2 py-[6px] rounded-md transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+// Sort dropdown (#619): right-anchored floating menu; below sm a full-width
+// bottom sheet so it never overflows the narrow viewport.
+export const SORT_MENU_PANEL =
+  "absolute right-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[180px] max-w-[calc(100vw-2rem)] max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
+export const SORT_MENU_ITEM =
+  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
 
 // Tile view — same card system as P31 related.
 export const TILE_GRID =

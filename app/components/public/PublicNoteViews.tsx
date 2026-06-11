@@ -3,7 +3,7 @@
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { groupNotesByDay } from "../note/list/listSelectors";
-import { formatDate, formatShort } from "./formatNoteDate";
+import { formatPublishedDate, formatRelativeDate } from "./formatNoteDate";
 import {
   CAL_DAY_LIST,
   CAL_DAY_TITLE,
@@ -36,7 +36,19 @@ export type PublicNoteItem = Readonly<{
   excerpt: string;
   tagNames: readonly string[];
   updatedAt: string;
+  // Publication `published_at` (公開日). `null` only in the defensive
+  // relay-lag case; the views fall back to `updatedAt` for grouping.
+  publishedAt: string | null;
 }>;
+
+/**
+ * The ISO timestamp the public views date on: the publication `publishedAt`
+ * when present, else the note `updatedAt` (defensive — a public note always
+ * carries a `published_at` by the entity invariant).
+ */
+function noteDate(note: PublicNoteItem): string {
+  return note.publishedAt ?? note.updatedAt;
+}
 
 type DisplayMode = "list" | "tile" | "calendar";
 
@@ -72,6 +84,10 @@ function ListView({
   username,
   notes,
 }: Readonly<{ username: string; notes: readonly PublicNoteItem[] }>) {
+  // Client island, so the relative「今日／昨日」comparison uses the browser's
+  // clock (mirrors the calendar tz resolution). Captured once per render so
+  // every row in a single paint agrees on "now".
+  const now = new Date();
   return (
     <>
       {notes.map((note) => (
@@ -94,11 +110,11 @@ function ListView({
                   {note.tagNames.map((t) => `#${t}`).join(" ")}
                 </span>
               ) : null}
-              <span>{formatDate(new Date(note.updatedAt))}</span>
+              <span>{formatPublishedDate(new Date(noteDate(note)))}</span>
             </div>
           </div>
           <div className={NOTE_DATE}>
-            {formatShort(new Date(note.updatedAt))}
+            {formatRelativeDate(new Date(noteDate(note)), now)}
           </div>
         </Link>
       ))}
@@ -133,7 +149,7 @@ function TileView({
                     <span className="text-hairline-strong">·</span>
                   </>
                 ) : null}
-                <span>{formatDate(new Date(note.updatedAt))}</span>
+                <span>{formatPublishedDate(new Date(noteDate(note)))}</span>
               </div>
             </div>
           </Link>
@@ -152,7 +168,7 @@ function CalendarView({
       ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC")
       : "UTC";
   const grouped = useMemo(
-    () => groupNotesByDay<PublicNoteItem>(notes, tz),
+    () => groupNotesByDay<PublicNoteItem>(notes, tz, noteDate),
     [notes, tz],
   );
   return (

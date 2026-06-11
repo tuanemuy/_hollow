@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
 import { isNotFoundError } from "@/core/application/errors";
+import type { DateRange } from "@/core/domain/note/valueObject";
 import {
   PAGINATION_DEFAULT_LIMIT,
   PAGINATION_DEFAULT_PAGE,
@@ -11,6 +12,7 @@ import { serverData } from "@/core/presentation/serverAction";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import { type PublicNoteItem, PublicNoteViews } from "./PublicNoteViews";
 import { PublicTopControls } from "./PublicTopControls";
+import { normalizePublicDateRange } from "./publicDateRange";
 import {
   EMPTY_LIST,
   NOTE_LIST,
@@ -18,7 +20,9 @@ import {
   PILL_BTN,
   PROFILE_AVATAR,
   PROFILE_BIO,
+  PROFILE_HEAD,
   PROFILE_HERO,
+  PROFILE_ID,
   PROFILE_NAME,
   PROFILE_STATS,
   PROFILE_USERNAME,
@@ -58,6 +62,7 @@ const loadNotes = cache(
         limit: number;
         tagNames?: readonly string[];
         sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
+        publishedRange?: DateRange;
       },
     ) => {
       try {
@@ -79,6 +84,8 @@ type Props = {
   limit: number;
   tags?: readonly string[] | undefined;
   sort?: "publishedAt" | "updatedAt" | "createdAt" | "title" | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
 };
 
 export async function UserPublicTop({
@@ -87,7 +94,12 @@ export async function UserPublicTop({
   limit,
   tags,
   sort,
+  from,
+  to,
 }: Props) {
+  // String→Date conversion at the presentation boundary (#619 ADR-006); the
+  // usecase only ever sees the `DateRange` VO.
+  const publishedRange = normalizePublicDateRange(from, to);
   const [{ user, publicNoteCount }, { notes, total }] = await Promise.all([
     loadProfile(username),
     loadNotes({
@@ -96,6 +108,7 @@ export async function UserPublicTop({
       limit,
       ...(tags !== undefined && tags.length > 0 ? { tagNames: tags } : {}),
       ...(sort !== undefined ? { sort } : {}),
+      ...(publishedRange !== undefined ? { publishedRange } : {}),
     }),
   ]);
 
@@ -115,31 +128,34 @@ export async function UserPublicTop({
     excerpt: note.excerpt,
     tagNames: note.tagNames,
     updatedAt: note.updatedAt,
+    publishedAt: note.publishedAt,
   }));
 
   return (
     <PublicLayout>
       <main className={PUBLIC_MAIN}>
         <section className={PROFILE_HERO}>
-          <div className={PROFILE_AVATAR} aria-hidden="true">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <h1 className={PROFILE_NAME}>{user.displayName}</h1>
-            <div className={PROFILE_USERNAME}>@{user.username}</div>
-            {user.bio !== null && user.bio.length > 0 ? (
-              <p className={PROFILE_BIO}>{user.bio}</p>
-            ) : null}
-            <div className={PROFILE_STATS}>
-              <span>
-                <strong className="text-ink font-semibold mr-1">
-                  {publicNoteCount}
-                </strong>
-                公開ノート
-              </span>
-              <span className="text-hairline-strong">·</span>
-              <span>{joinedLabel}から</span>
+          <div className={PROFILE_HEAD}>
+            <div className={PROFILE_AVATAR} aria-hidden="true">
+              {initials}
             </div>
+            <div className={PROFILE_ID}>
+              <h1 className={PROFILE_NAME}>{user.displayName}</h1>
+              <div className={PROFILE_USERNAME}>@{user.username}</div>
+            </div>
+          </div>
+          {user.bio !== null && user.bio.length > 0 ? (
+            <p className={PROFILE_BIO}>{user.bio}</p>
+          ) : null}
+          <div className={PROFILE_STATS}>
+            <span>
+              <strong className="text-ink font-semibold mr-1">
+                {publicNoteCount}
+              </strong>
+              公開ノート
+            </span>
+            <span className="text-hairline-strong">·</span>
+            <span>{joinedLabel}から</span>
           </div>
         </section>
 
