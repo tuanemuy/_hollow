@@ -5,7 +5,7 @@ import { loadInstanceSettings } from "../LLMSettingsForm/action";
 import { PromptsForm } from "./index";
 
 /**
- * Admin prompts shell (Issue #636). The admin guard runs in the route
+ * Admin prompts shell. The admin guard runs in the route
  * handler; the prompts form streams behind its boundary.
  */
 export function PromptsPage({ actorId }: Readonly<{ actorId: string }>) {

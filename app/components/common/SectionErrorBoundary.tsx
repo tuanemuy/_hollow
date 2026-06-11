@@ -6,8 +6,7 @@
  * Errors thrown inside a streamed RSC section arrive through the flight
  * stream (not the server-fn `errorResponseMiddleware`) and are redacted by
  * React in production, so the fallback shows a generic message with the
- * section name plus a retry button instead of branching on error kind
- * (`.issue/636/adr.md` ADR-003). Retry re-runs the loaders via
+ * section name plus a retry button instead of branching on error kind. Retry re-runs the loaders via
  * `routerInvalidate` (page sections) or `appShellInvalidate` (sections fed
  * by the `_app` shell loader, e.g. Sidebar) and then resets the boundary.
  */
@@ -31,7 +30,7 @@ type Props = Readonly<{
   /**
    * When this value changes (e.g. on navigation that produces new search
    * params), the boundary clears a sticky error state so the freshly
-   * streamed children render instead of a stale fallback (#636 FE-W-001).
+   * streamed children render instead of a stale fallback.
    */
   resetKey?: string | number;
   children: ReactNode;

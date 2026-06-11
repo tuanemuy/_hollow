@@ -27,10 +27,10 @@ const renderExportJobDetail = createServerFn({ method: "GET" })
       import("@/core/domain/error"),
       import("@/core/domain/export/errorCode"),
     ]);
-    // Existence check stays in the handler (`.issue/636/plan.md` step 6).
+    // Existence check stays in the handler.
     // This is a single-loader route, so the check fetches everything the
     // page needs — pass the DTO through instead of re-awaiting it behind
-    // a Suspense boundary (`.issue/636/adr.md` ADR-008).
+    // a Suspense boundary.
     try {
       const { job } = await loadExportJob({
         actorUserId: user.id,

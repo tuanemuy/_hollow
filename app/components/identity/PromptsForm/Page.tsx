@@ -5,7 +5,7 @@ import { loadInstancePromptDefaults, loadUserPromptOverride } from "./action";
 import { PromptsForm } from "./index";
 
 /**
- * Prompts settings shell (Issue #636). Auth stays in the route handler;
+ * Prompts settings shell. Auth stays in the route handler;
  * defaults + overrides stream behind one `<Suspense>` boundary because
  * `PromptsForm` is a single client component needing both.
  */

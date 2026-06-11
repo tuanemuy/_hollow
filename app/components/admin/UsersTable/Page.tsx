@@ -5,7 +5,7 @@ import { loadAdminUsers } from "./action";
 import { UsersTable } from "./index";
 
 /**
- * Admin users shell (Issue #636). The admin guard runs in the route
+ * Admin users shell. The admin guard runs in the route
  * handler (outside the Suspense boundary); the count line and the table
  * stream behind the boundary because both depend on the user list.
  */

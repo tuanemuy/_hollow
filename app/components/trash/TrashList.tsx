@@ -33,9 +33,8 @@ function formatDate(iso: string): string {
 }
 
 /**
- * Trash page shell (Issue #636). The static title and retention note
- * render immediately; the count line (data-dependent — same trade-off
- * as `.issue/636/adr.md` ADR-007) and the list stream behind their own
+ * Trash page shell. The static title and retention note
+ * render immediately; the count line (data-dependent) and the list stream behind their own
  * `<Suspense>` boundary.
  */
 export function TrashList({ user, page, limit }: Props) {

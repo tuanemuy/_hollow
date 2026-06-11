@@ -2,9 +2,9 @@ import type { UserDTO } from "@/core/application/dto/identity";
 import { AccountDeleteForm } from "./index";
 
 /**
- * Issue #636: auth moved to the route handler (outside any Suspense
- * boundary). No async data remains, so this page renders synchronously
- * without a boundary (`.issue/636/adr.md` ADR-008).
+ * Auth is resolved in the route handler (outside any Suspense boundary).
+ * No async data remains, so this page renders synchronously without a
+ * boundary.
  */
 export function AccountDeletePage({ user }: Readonly<{ user: UserDTO }>) {
   return (

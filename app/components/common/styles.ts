@@ -467,8 +467,7 @@ export const ALERT_ACTION =
  * Skeleton placeholder primitives — surface-colored pulsing shapes shared by
  * every Suspense-fallback skeleton (`Skeleton`, the archetype skeletons and
  * the page-local ones). Height/width are supplied at the call site; only the
- * shared look (surface, radius family, `motion-safe:` pulse) lives here
- * (#636 AR-W-001).
+ * shared look (surface, radius family, `motion-safe:` pulse) lives here.
  */
 export const SKELETON_BAR = "bg-surface rounded-md motion-safe:animate-pulse";
 

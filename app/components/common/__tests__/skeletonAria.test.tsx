@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 /**
- * Aria contract for every Suspense-fallback skeleton (#636 TS-W-001):
+ * Aria contract for every Suspense-fallback skeleton:
  * each announcing skeleton owns exactly one `role="status"` region with
  * `aria-live="polite"` + `aria-busy="true"`, and its visual placeholder DOM
  * is `aria-hidden`. `ToolbarSkeleton` is the documented asymmetry — it is

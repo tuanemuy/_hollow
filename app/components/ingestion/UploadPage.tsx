@@ -14,7 +14,7 @@ type Props = {
 };
 
 /**
- * Upload page shell (Issue #636). The static chrome (title, subtitle,
+ * Upload page shell. The static chrome (title, subtitle,
  * form, toggle) renders immediately; only the job queue streams behind
  * its `<Suspense>` boundary. Queue progress polling is client-side
  * inside `IngestionQueue` (no loader re-run), so the boundary does not

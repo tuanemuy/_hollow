@@ -68,7 +68,7 @@ export const noteListSearchSchema = z.object({
   display: z.enum(DISPLAY_MODES).optional().catch(undefined),
   directoryId: z.string().min(1).optional().catch(undefined),
   // Trim at the transport boundary so a whitespace-only `?q=` can never make
-  // the heading ("検索結果") and the listing disagree (#636 TS-W-002).
+  // the heading ("検索結果") and the listing disagree.
   q: z.preprocess((v) => {
     if (typeof v !== "string") return v;
     const trimmed = v.trim();

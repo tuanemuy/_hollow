@@ -464,7 +464,7 @@ export function viewQueryEquals(
  * Whether the home heading should be in "search results" mode. Whitespace-only
  * queries do not count as an active search; `validateSearch` already trims /
  * drops them at the transport boundary, but the guard is kept so the heading
- * and the listing can never disagree (#636 TS-W-002).
+ * and the listing can never disagree.
  */
 export function isSearchActive(q: string | undefined): boolean {
   return q !== undefined && q.trim().length > 0;
@@ -490,7 +490,7 @@ export function hasAnyHomeFilter(search: NoteListSearch): boolean {
 /**
  * Stable key over every loader-relevant search field, used as the
  * `SectionErrorBoundary` `resetKey` so a navigation that changes the data a
- * section streams also clears a sticky error state (#636 FE-W-001).
+ * section streams also clears a sticky error state.
  * `display` is excluded for the same reason it is stripped from `loaderDeps`.
  */
 export function homeSectionResetKey(search: NoteListSearch): string {

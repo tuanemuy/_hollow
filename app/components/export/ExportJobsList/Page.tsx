@@ -9,7 +9,7 @@ const PAGE_SIZE = 20;
 type Props = { offset: number; userId: string };
 
 /**
- * Export jobs page shell (Issue #636). The static heading renders
+ * Export jobs page shell. The static heading renders
  * immediately; the job list streams behind its `<Suspense>` boundary.
  * Auth is resolved in the route handler (outside the boundary).
  */

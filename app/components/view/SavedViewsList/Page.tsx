@@ -10,7 +10,7 @@ import { NewViewButton } from "./NewViewButton";
 
 // Decorative only (`aria-hidden`): the list boundary below already owns the
 // single "読み込み中" status announcement for this page, so the button
-// placeholder must not add a second one (#636 AR-W-002 / FE-W-003).
+// placeholder must not add a second one.
 const NEW_VIEW_BUTTON_SKELETON = (
   <div aria-hidden="true" className={`h-9 w-28 ${SKELETON_PILL}`} />
 );
@@ -20,10 +20,10 @@ const NEW_VIEW_BUTTON_SKELETON = (
  * （`kind` ベースのタブ切替は本 Issue のスコープ外）。ルートが依然 `kind` を渡すため、
  * 後方互換として prop シグネチャは維持する。
  *
- * Page shell (Issue #636): the static heading renders immediately; the
+ * Page shell: the static heading renders immediately; the
  * new-view button (needs directories + tags) and the view sections each
  * stream behind their own `<Suspense>` boundary. Shared loaders dedup
- * within the render via `cache()` (`.issue/636/adr.md` ADR-002).
+ * within the render via `cache()`.
  */
 export function SavedViewsListPage({
   kind: _kind,

@@ -7,10 +7,9 @@ import { ExportJobDetailView } from "./index";
  * 同一の中立メッセージ JSX を返す。両者を画面で識別不能にすることで
  * 他人のジョブの存在有無を漏らさない。詳細は `.issue/12/adr.md` の ADR-004。
  *
- * Issue #636: ジョブ存在確認（not-found 判定）は route handler 側で行う。
+ * ジョブ存在確認（not-found 判定）は route handler 側で行う。
  * このルートは単一ローダーで、存在確認＝全データ取得のため、handler が
- * 取得済みの DTO をそのまま props で渡す（Suspense 境界は設けない —
- * `.issue/636/adr.md` ADR-008）。
+ * 取得済みの DTO をそのまま props で渡す（Suspense 境界は設けない）。
  */
 export function ExportJobNotFound() {
   return (

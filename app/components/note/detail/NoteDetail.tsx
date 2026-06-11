@@ -34,9 +34,9 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
  * （`.issue/12/adr.md` ADR-004 / `ExportJobDetail/Page.tsx` 参照）。そのため
  * 非存在ノートは notFound() を経由せず notFound 用 JSX を直接返す。
  * notFound JSX は throw ではなく通常の戻り値なので、Suspense 境界の中でも
- * 安全に成立する（redirect / notFound throw とは異なる — Issue #636）。
+ * 安全に成立する（redirect / notFound throw とは異なる）。
  *
- * Issue #636: タイトル・本文・メタ・バックリンクはすべて単一の
+ * タイトル・本文・メタ・バックリンクはすべて単一の
  * `loadNoteDetail` ローダー由来のため、独立境界には分割せず 1 つの
  * `<Suspense>` 境界でストリーミングする（P11 モックも単一フォールバック）。
  */

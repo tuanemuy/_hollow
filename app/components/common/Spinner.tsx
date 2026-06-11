@@ -5,8 +5,7 @@
  * the surrounding text color. The spin is guarded with `motion-safe:` so under
  * `prefers-reduced-motion: reduce` it renders without animation (spec/design
  * 「アニメーション」L93); the ring then switches to a dashed border so the
- * static glyph still reads as "in progress" rather than a plain circle
- * (#636 — a11y follow-up from #635).
+ * static glyph still reads as "in progress" rather than a plain circle.
  *
  * Use sparingly. Per spec/design (L92) skeletons are preferred over spinners
  * for load states; reach for `Spinner` only in small inline regions where a
@@ -31,7 +30,7 @@ export function Spinner({
    * Renders the spinner as a purely visual glyph (`aria-hidden`, no
    * `role="status"`). Use when an enclosing live region (e.g. a
    * `role="alert"` panel) already announces the pending state, so the
-   * spinner does not add a second announcement (#636 TS-W-003).
+   * spinner does not add a second announcement.
    */
   decorative?: boolean;
   className?: string;

@@ -10,7 +10,7 @@ type Props = Readonly<{
 }>;
 
 /**
- * Security settings shell (Issue #636). Auth and session-token reading
+ * Security settings shell. Auth and session-token reading
  * stay in the route handler; the session list streams behind its
  * `<Suspense>` boundary. The whole form is one merge boundary because
  * `SecurityForm` is a single client component needing both the user and

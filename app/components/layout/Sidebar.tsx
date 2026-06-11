@@ -33,7 +33,7 @@ const ACTIVE_NAV_PROPS = {
 const SIDEBAR_SAVED_VIEW_LIMIT = 8;
 
 /**
- * Sidebar shell (Issue #636 / mock P10 boundaries ①②). The static 管理 nav
+ * Sidebar shell (mock P10 boundaries ①②). The static 管理 nav
  * and user menu render immediately; the directory tree (which carries the
  * "すべてのノート" count — same boundary, no third system) and saved views
  * each stream behind their own `<Suspense>` + `SectionErrorBoundary`.
@@ -63,8 +63,7 @@ export function Sidebar({ user }: Props) {
       <SectionErrorBoundary section="保存したビュー" scope="shell">
         {/* Deliberately a single short bar: the resolved section renders
             nothing when there are no saved views, so the fallback is kept
-            minimal to limit the skeleton→nothing layout shift
-            (#636 FE-W-003 / adr.md ADR-007 追記). */}
+            minimal to limit the skeleton→nothing layout shift. */}
         <Suspense
           fallback={
             <Skeleton

@@ -5,7 +5,7 @@ import { loadInstanceSettings } from "./action";
 import { LLMSettingsForm } from "./index";
 
 /**
- * Admin LLM settings shell (Issue #636). The admin guard runs in the
+ * Admin LLM settings shell. The admin guard runs in the
  * route handler; the settings form streams behind its boundary.
  */
 export function LLMSettingsPage({ actorId }: Readonly<{ actorId: string }>) {

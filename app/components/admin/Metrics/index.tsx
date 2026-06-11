@@ -127,7 +127,7 @@ function LimitsCard({ limits }: { limits: InstanceSettingsDTO["limits"] }) {
 }
 
 /**
- * Admin metrics shell (Issue #636). The admin guard runs in the route
+ * Admin metrics shell. The admin guard runs in the route
  * handler; usage metrics + instance settings stream behind one merge
  * boundary because every section below depends on both loads.
  */

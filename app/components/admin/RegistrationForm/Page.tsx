@@ -5,7 +5,7 @@ import { loadInstanceSettings } from "../LLMSettingsForm/action";
 import { RegistrationForm } from "./index";
 
 /**
- * Admin registration shell (Issue #636). The admin guard runs in the
+ * Admin registration shell. The admin guard runs in the
  * route handler; the form streams behind its boundary.
  */
 export function RegistrationPage({ actorId }: Readonly<{ actorId: string }>) {

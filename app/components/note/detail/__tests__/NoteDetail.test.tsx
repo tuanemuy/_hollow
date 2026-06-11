@@ -28,9 +28,9 @@ vi.mock("../NoteActions", () => ({ NoteActions: () => null }));
 vi.mock("../NoteBreadcrumb", () => ({ NoteBreadcrumb: () => null }));
 vi.mock("../NoteMetaPanel", () => ({ NoteMetaPanel: () => null }));
 
-// Issue #636: `NoteDetail` is now a sync shell (Suspense + error
-// boundary); the notFound / re-throw behaviour under test lives in the
-// async `NoteDetailContent` section.
+// `NoteDetail` is a sync shell (Suspense + error boundary); the
+// notFound / re-throw behaviour under test lives in the async
+// `NoteDetailContent` section.
 const { NoteDetailContent } = await import("../NoteDetail");
 
 const user = { id: "user-1" } as unknown as UserDTO;

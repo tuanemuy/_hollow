@@ -34,25 +34,24 @@ type Props = {
 };
 
 /**
- * Home page composition (Issue #636). The shell (heading + selection
+ * Home page composition. The shell (heading + selection
  * context) renders synchronously from the URL-derived search; each
  * data-dependent section is an async server component inside its own
  * `<Suspense>` + `SectionErrorBoundary`, so one slow / failing loader no
  * longer blocks or breaks the whole page. Sections await the
  * `cache(serverData(...))` loaders directly — same-render dedup keeps
- * shared data (tree, tags) at one fetch (`.issue/636/adr.md` ADR-002).
+ * shared data (tree, tags) at one fetch.
  *
  * Boundary granularity: the toolbar (saved views) and the filter bar
  * (tags + tree + referencing title — a single client component requiring
- * multiple loaders) are merge boundaries per ADR-004/ADR-005; the note
+ * multiple loaders) are merge boundaries; the note
  * listing (including the count line, which depends on `owned.count`) is
  * its own boundary.
  */
 export function HomePage({ userId, page, limit, search }: Props) {
   const headingText = homeHeadingText(search.q);
   const hasAnyFilter = hasAnyHomeFilter(search);
-  // Clears sticky section errors when navigation changes loader inputs
-  // (#636 FE-W-001).
+  // Clears sticky section errors when navigation changes loader inputs.
   const resetKey = homeSectionResetKey(search);
 
   return (
@@ -150,7 +149,7 @@ async function FilterSection({
         referencingNoteTitle={referencing.title}
       />
       {/* BulkActionBar only needs the tree, so it lives in the boundary
-          that already awaits it (plan step 4 / ADR-002 dedup). */}
+          that already awaits it (same-render dedup). */}
       <BulkActionBar tree={flat} />
     </>
   );

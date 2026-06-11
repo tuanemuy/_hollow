@@ -98,9 +98,9 @@ const renderHome = createServerFn({ method: "GET" })
     const pageForLoad = baseSearch.page ?? NOTE_LIST_PAGE_DEFAULT;
     const limitForLoad = baseSearch.limit ?? NOTE_LIST_LIMIT_DEFAULT;
 
-    // Issue #636: data loading moved into HomePage's per-section async
-    // server components so each section streams behind its own
-    // `<Suspense>` boundary. Only auth / SavedView normalisation (which
+    // Data loading lives in HomePage's per-section async server
+    // components so each section streams behind its own `<Suspense>`
+    // boundary. Only auth / SavedView normalisation (which
     // may `redirect`) and page/limit resolution stay in the handler.
     return {
       authenticated: true as const,

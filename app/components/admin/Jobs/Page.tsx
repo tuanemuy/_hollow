@@ -5,7 +5,7 @@ import { loadJobsSnapshot } from "./action";
 import { JobsBoard } from "./index";
 
 /**
- * Admin jobs shell (Issue #636). The admin guard runs in the route
+ * Admin jobs shell. The admin guard runs in the route
  * handler; the job board streams behind its `<Suspense>` boundary.
  */
 export function JobsPage() {

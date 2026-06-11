@@ -5,10 +5,9 @@ import { loadInstanceSettings } from "../LLMSettingsForm/action";
 import { DesignTokensForm } from "./index";
 
 /**
- * Admin design tokens shell (Issue #636). The admin guard runs in the
+ * Admin design tokens shell. The admin guard runs in the
  * route handler; the form streams behind its boundary. Uses the form
- * archetype skeleton — this page is outside the P45 table archetype
- * (`.issue/636/plan.md` step 6).
+ * archetype skeleton — this page is outside the P45 table archetype.
  */
 export function DesignTokensPage({ actorId }: Readonly<{ actorId: string }>) {
   return (
