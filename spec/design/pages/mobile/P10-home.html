@@ -525,7 +525,10 @@
   }
   /* 表示モード = segmented（desktop と統一）。
      #626 ADR-001: アイコンのみ + active は ink 濃度差（白カード + shadow 廃止、#620 の表現を上書き）。
-     アイコンのみ化のため aria-label 必須。role="tablist" / aria-selected の契約は維持。 */
+     アイコンのみ化のため aria-label 必須。role="tablist" / aria-selected の契約は維持。
+     title はホバーが存在しないタッチ主体環境のため省略（ADR-001 のデバイス別適用範囲どおり）。
+     ボタンは 36×32px と desktop（32×28px）よりタッチターゲット配慮で拡大。
+     実装時は padding 等で当たり判定を 44×44px 相当へさらに拡大すること（見た目のアイコン寸法は維持）。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -995,13 +998,13 @@
         </button>
         <div class="segmented" role="tablist" aria-label="表示形式">
           <button class="active" role="tab" aria-selected="true" aria-label="リスト">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
           </button>
           <button role="tab" aria-selected="false" aria-label="タイル">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           </button>
           <button role="tab" aria-selected="false" aria-label="カレンダー">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </button>
         </div>
       </div>
