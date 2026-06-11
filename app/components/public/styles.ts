@@ -198,7 +198,7 @@ export const SEARCH_SUMMARY =
 export const SEARCH_HIT_LIST = "mt-2 pb-16";
 // Same row anatomy as P30 `NOTE_ROW`: 2-col grid (main | right-rail date) on
 // sm+, collapsing to one column on mobile where the date folds into the meta
-// line (mock `.result-card`). Padding keeps the P32 mock values.
+// line (P30 `NOTE_ROW`). Padding keeps the P32 mock values.
 export const SEARCH_HIT_ROW =
   "grid grid-cols-[1fr_auto] gap-6 items-center py-5 px-3 max-sm:py-4 max-sm:px-2 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:items-start";
 export const SEARCH_HIT_MAIN = "min-w-0 flex flex-col gap-1";

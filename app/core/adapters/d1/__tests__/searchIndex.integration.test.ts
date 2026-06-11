@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { SearchDocument } from "@/core/domain/search/entity";
@@ -605,6 +606,39 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     // would still pass if the LIKE path started returning bm25-like
     // values. It guards path regression, not the literal fixed-0 contract.
     expect(result.hits[0]?.score === 0).toBe(true);
+  });
+
+  it("throws SystemError(DataIntegrityError) when a stored updated_at is malformed", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const doc = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Corrupted",
+      body: "これはデザイン原則のメモです",
+    });
+    await container.searchIndex.upsert(doc);
+    // Corrupt the stored row directly — the column is TEXT, so the schema
+    // cannot prevent a non-ISO value. `toHit` must surface this as a
+    // DataIntegrityError instead of hydrating an Invalid Date.
+    await container.db
+      .update(schema.searchDocuments)
+      .set({ updatedAt: "not-a-date" })
+      .where(eq(schema.searchDocuments.noteId, doc.noteId));
+
+    const error = await container.searchIndex
+      .query(makeQuery({ keyword: "デザイン" }))
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
+    expect(error).toBeInstanceOf(SystemError);
+    expect((error as SystemError).code).toBe(
+      SystemErrorCode.DataIntegrityError,
+    );
+    expect((error as SystemError).message).toContain("malformed updated_at");
   });
 
   it("respects visibilityFilter alongside the CJK match path", async () => {

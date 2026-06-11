@@ -65,3 +65,20 @@ URL 由来の baseline `{ username, tags, period }` に `useOptimistic(baseline,
 ### Consequences
 - 良い点: React 19 標準プリミティブ・既存先例と一貫。loader 確定後は自動で URL 値にスナップバック
 - トレードオフ: 楽観値の参照漏れがあると表示が割れる（レビューで全描画箇所を確認）
+
+---
+
+## ADR-005: 公開面の日付表示は UTC 固定
+
+### Status
+Proposed
+
+### Context
+共有フォーマッタ `formatNoteDate.ts` は P30（client）と P32（RSC）の両方から使われるが、実行 TZ が異なり同じ `updatedAt` でも表示値が割れうる。P30 は従来ブラウザ TZ で表示していたが、SSR/CSR 間で hydration mismatch を生む芽もあった。
+
+### Decision
+共有フォーマッタ（`formatDate` / `formatShort`）を `getUTCFullYear` / `getUTCMonth` / `getUTCDate` に統一し、公開面の日付を UTC 基準で表示する。
+
+### Consequences
+- 良い点: 全環境（SSR/CSR・サーバー/ブラウザ）で決定的・一貫した表示になる
+- トレードオフ: 非 UTC ユーザーには表示日付が最大1日ずれて見える可能性がある

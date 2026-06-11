@@ -201,44 +201,47 @@ export async function PublicSearch({
               <p>キーワードを変えて再度お試しください。</p>
             </div>
           ) : (
-            hits.map((hit) => (
-              <Link
-                key={hit.noteId}
-                to="/notes/public/$noteId"
-                params={{ noteId: hit.noteId }}
-                className={SEARCH_HIT_ROW}
-              >
-                <div className={SEARCH_HIT_MAIN}>
-                  <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
-                  {hit.snippet.length > 0 ? (
-                    <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
-                  ) : null}
-                  <div className={SEARCH_HIT_META}>
-                    <span className={SEARCH_HIT_AUTHOR}>
-                      <span
-                        className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[9px]`}
-                        aria-hidden="true"
-                      >
-                        {avatarInitials(hit.username)}
-                      </span>
-                      <span>@{hit.username}</span>
-                    </span>
-                    {hit.tagNames.length > 0 ? (
-                      <>
-                        <span className="text-hairline-strong">·</span>
-                        <span className="text-accent">
-                          {hit.tagNames.map((t) => `#${t}`).join(" ")}
-                        </span>
-                      </>
+            hits.map((hit) => {
+              const updatedAt = new Date(hit.updatedAt);
+              return (
+                <Link
+                  key={hit.noteId}
+                  to="/notes/public/$noteId"
+                  params={{ noteId: hit.noteId }}
+                  className={SEARCH_HIT_ROW}
+                >
+                  <div className={SEARCH_HIT_MAIN}>
+                    <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
+                    {hit.snippet.length > 0 ? (
+                      <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
                     ) : null}
-                    <span>{formatDate(new Date(hit.updatedAt))}</span>
+                    <div className={SEARCH_HIT_META}>
+                      <span className={SEARCH_HIT_AUTHOR}>
+                        <span
+                          className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[9px]`}
+                          aria-hidden="true"
+                        >
+                          {avatarInitials(hit.username)}
+                        </span>
+                        <span>@{hit.username}</span>
+                      </span>
+                      {hit.tagNames.length > 0 ? (
+                        <>
+                          <span className="text-hairline-strong">·</span>
+                          <span className="text-accent">
+                            {hit.tagNames.map((t) => `#${t}`).join(" ")}
+                          </span>
+                        </>
+                      ) : null}
+                      <span>{formatDate(updatedAt)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className={SEARCH_HIT_DATE}>
-                  {formatShort(new Date(hit.updatedAt))}
-                </div>
-              </Link>
-            ))
+                  <div className={SEARCH_HIT_DATE}>
+                    {formatShort(updatedAt)}
+                  </div>
+                </Link>
+              );
+            })
           )}
         </section>
 

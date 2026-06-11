@@ -147,6 +147,7 @@ describe("searchPublicNotes", () => {
     });
 
     expect(result.hits.map((h) => h.visibility)).toEqual(["public"]);
+    expect(result.hits.map((h) => h.updatedAt)).toEqual([T0.toISOString()]);
   });
 
   it("resolves the username to a UserId and filters by ownerId when set", async () => {
