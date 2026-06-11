@@ -43,12 +43,13 @@ function Child() {
   return <p>recovered</p>;
 }
 
-function renderBoundary(scope?: "page" | "shell") {
+function renderBoundary(scope?: "page" | "shell", resetKey?: string | number) {
   act(() => {
     root.render(
       <SectionErrorBoundary
         section="ノート一覧"
         {...(scope !== undefined ? { scope } : {})}
+        {...(resetKey !== undefined ? { resetKey } : {})}
       >
         <Child />
       </SectionErrorBoundary>,
@@ -118,6 +119,56 @@ describe("SectionErrorBoundary", () => {
     };
     expect(opts.filter({ routeId: "/_app" })).toBe(true);
     expect(opts.filter({ routeId: "/_app/" })).toBe(false);
+  });
+
+  it("clears the error state when resetKey changes (#636 FE-W-001)", () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+    expect(getAlert()).toBeTruthy();
+
+    shouldThrow = false;
+    renderBoundary(undefined, "q=b");
+
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain("recovered");
+  });
+
+  it("keeps the error state when resetKey is unchanged", () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+
+    shouldThrow = false;
+    renderBoundary(undefined, "q=a");
+
+    expect(getAlert().textContent).toContain(
+      "ノート一覧を読み込めませんでした",
+    );
+  });
+
+  it("renders the pending spinner as decorative during retry (#636 TS-W-003)", async () => {
+    shouldThrow = true;
+    let resolveInvalidate: (() => void) | undefined;
+    invalidate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveInvalidate = resolve;
+        }),
+    );
+    renderBoundary();
+
+    shouldThrow = false;
+    await act(async () => {
+      getRetryButton().click();
+    });
+
+    const spinner = getRetryButton().querySelector("span");
+    expect(spinner).not.toBeNull();
+    expect(spinner?.getAttribute("aria-hidden")).toBe("true");
+    expect(spinner?.getAttribute("role")).toBeNull();
+
+    await act(async () => {
+      resolveInvalidate?.();
+    });
   });
 
   it("keeps the fallback when invalidation rejects", async () => {

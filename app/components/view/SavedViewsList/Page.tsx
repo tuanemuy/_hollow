@@ -1,24 +1,18 @@
 import { Suspense } from "react";
 import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
 import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
+import { SKELETON_PILL } from "@/components/common/styles";
 import { loadDirectoryTreeFlat } from "@/components/note/loaders";
 import { loadTagsForOwner } from "@/components/tag/loaders";
 import { SavedViewsList } from "./index";
 import { loadSavedViews } from "./loader";
 import { NewViewButton } from "./NewViewButton";
 
+// Decorative only (`aria-hidden`): the list boundary below already owns the
+// single "読み込み中" status announcement for this page, so the button
+// placeholder must not add a second one (#636 AR-W-002 / FE-W-003).
 const NEW_VIEW_BUTTON_SKELETON = (
-  <div
-    role="status"
-    aria-live="polite"
-    aria-busy="true"
-    aria-label="読み込み中"
-  >
-    <div
-      aria-hidden="true"
-      className="h-9 w-28 rounded-pill bg-surface motion-safe:animate-pulse"
-    />
-  </div>
+  <div aria-hidden="true" className={`h-9 w-28 ${SKELETON_PILL}`} />
 );
 
 /**

@@ -6,10 +6,11 @@
  * and note-list status regions.
  */
 
+import {
+  SKELETON_BAR as BAR,
+  SKELETON_PILL as PILL,
+} from "@/components/common/styles";
 import { filterBar } from "./styles";
-
-const BAR = "bg-surface rounded-md motion-safe:animate-pulse";
-const PILL = "bg-surface rounded-pill motion-safe:animate-pulse";
 
 const FILTER_CHIP_WIDTHS = [
   "w-[88px]",

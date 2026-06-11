@@ -28,21 +28,41 @@ type Props = Readonly<{
    * `_app` shell, `"shell"` targets only the `_app` shell loader.
    */
   scope?: Scope;
+  /**
+   * When this value changes (e.g. on navigation that produces new search
+   * params), the boundary clears a sticky error state so the freshly
+   * streamed children render instead of a stale fallback (#636 FE-W-001).
+   */
+  resetKey?: string | number;
   children: ReactNode;
 }>;
 
 type BoundaryProps = Readonly<{
   fallback: (reset: () => void) => ReactNode;
+  resetKey?: string | number;
   children: ReactNode;
 }>;
 
-type BoundaryState = Readonly<{ hasError: boolean }>;
+type BoundaryState = Readonly<{
+  hasError: boolean;
+  prevResetKey: string | number | undefined;
+}>;
 
 class Boundary extends Component<BoundaryProps, BoundaryState> {
-  override state: BoundaryState = { hasError: false };
+  override state: BoundaryState = { hasError: false, prevResetKey: undefined };
 
-  static getDerivedStateFromError(): BoundaryState {
+  static getDerivedStateFromError(): Partial<BoundaryState> {
     return { hasError: true };
+  }
+
+  static getDerivedStateFromProps(
+    props: BoundaryProps,
+    state: BoundaryState,
+  ): Partial<BoundaryState> | null {
+    if (props.resetKey !== state.prevResetKey) {
+      return { hasError: false, prevResetKey: props.resetKey };
+    }
+    return null;
   }
 
   reset = (): void => {
@@ -90,7 +110,8 @@ function SectionErrorFallback({
         disabled={isPending}
         className={pillBtn}
       >
-        {isPending ? <Spinner /> : null}
+        {/* The enclosing role="alert" already announces; keep the spinner visual-only. */}
+        {isPending ? <Spinner decorative /> : null}
         再読み込み
       </button>
     </div>
@@ -100,10 +121,12 @@ function SectionErrorFallback({
 export function SectionErrorBoundary({
   section,
   scope = "page",
+  resetKey,
   children,
 }: Props) {
   return (
     <Boundary
+      {...(resetKey !== undefined ? { resetKey } : {})}
       fallback={(reset) => (
         <SectionErrorFallback section={section} scope={scope} onReset={reset} />
       )}

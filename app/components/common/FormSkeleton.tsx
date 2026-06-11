@@ -6,8 +6,7 @@
  * is replaced.
  */
 
-const BAR = "bg-surface rounded-md motion-safe:animate-pulse";
-const PILL = "bg-surface rounded-pill motion-safe:animate-pulse";
+import { SKELETON_BAR as BAR, SKELETON_PILL as PILL } from "./styles";
 
 const FIELD_WIDTHS = ["w-3/5", "w-full", "w-3/5", "w-2/5"] as const;
 

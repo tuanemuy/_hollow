@@ -4,8 +4,10 @@
  * prose-rhythm paragraph bars, a meta/property block and backlink cards.
  */
 
-const BAR = "bg-surface rounded-md motion-safe:animate-pulse";
-const PILL = "bg-surface rounded-pill motion-safe:animate-pulse";
+import {
+  SKELETON_BAR as BAR,
+  SKELETON_PILL as PILL,
+} from "@/components/common/styles";
 
 const PARAGRAPHS: readonly (readonly string[])[] = [
   ["w-full", "w-3/4", "w-full", "w-2/3"],

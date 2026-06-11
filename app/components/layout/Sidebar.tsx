@@ -61,10 +61,14 @@ export function Sidebar({ user }: Props) {
       </SectionErrorBoundary>
 
       <SectionErrorBoundary section="保存したビュー" scope="shell">
+        {/* Deliberately a single short bar: the resolved section renders
+            nothing when there are no saved views, so the fallback is kept
+            minimal to limit the skeleton→nothing layout shift
+            (#636 FE-W-003 / adr.md ADR-007 追記). */}
         <Suspense
           fallback={
             <Skeleton
-              bars={["w-1/2", "w-1/3"]}
+              bars={["w-1/2"]}
               ariaLabel="保存したビューを読み込み中"
               className={SIDEBAR_SECTION}
             />

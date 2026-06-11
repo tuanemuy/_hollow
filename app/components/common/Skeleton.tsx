@@ -13,7 +13,9 @@
  * spec/design, prefer skeletons over spinners for load states.
  */
 
-const SKELETON_BAR = "h-3 bg-surface rounded-md motion-safe:animate-pulse";
+import { SKELETON_BAR } from "./styles";
+
+const BAR = `h-3 ${SKELETON_BAR}`;
 
 /**
  * A single skeleton bar. Width defaults to `w-full`; override it (and any
@@ -24,7 +26,7 @@ export function SkeletonBar({ className }: Readonly<{ className?: string }>) {
   return (
     <div
       aria-hidden="true"
-      className={className ? `${SKELETON_BAR} ${className}` : SKELETON_BAR}
+      className={className ? `${BAR} ${className}` : BAR}
     />
   );
 }

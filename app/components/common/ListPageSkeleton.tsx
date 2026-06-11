@@ -6,8 +6,7 @@
  * data-dependent list region is replaced by this skeleton.
  */
 
-const BAR = "bg-surface rounded-md motion-safe:animate-pulse";
-const PILL = "bg-surface rounded-pill motion-safe:animate-pulse";
+import { SKELETON_BAR as BAR, SKELETON_PILL as PILL } from "./styles";
 
 const ROW_WIDTHS = [
   ["w-[38%]", "w-[24%]"],

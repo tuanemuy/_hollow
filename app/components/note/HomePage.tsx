@@ -4,6 +4,11 @@ import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { BulkActionBar } from "./list/BulkActionBar";
 import { FilterBar } from "./list/FilterBar";
+import {
+  hasAnyHomeFilter,
+  homeHeadingText,
+  homeSectionResetKey,
+} from "./list/listSelectors";
 import { NoteListToolbar } from "./list/NoteListToolbar";
 import { NoteListViews } from "./list/NoteListViews";
 import { SelectionProvider } from "./list/SelectionContext";
@@ -44,18 +49,11 @@ type Props = {
  * its own boundary.
  */
 export function HomePage({ userId, page, limit, search }: Props) {
-  const searchActive = search.q !== undefined && search.q.trim().length > 0;
-  const headingText = searchActive
-    ? `「${search.q ?? ""}」の検索結果`
-    : "すべてのノート";
-
-  const hasAnyFilter =
-    (search.tagNames !== undefined && search.tagNames.length > 0) ||
-    search.from !== undefined ||
-    search.to !== undefined ||
-    search.directoryId !== undefined ||
-    search.visibility !== undefined ||
-    search.referencingNoteId !== undefined;
+  const headingText = homeHeadingText(search.q);
+  const hasAnyFilter = hasAnyHomeFilter(search);
+  // Clears sticky section errors when navigation changes loader inputs
+  // (#636 FE-W-001).
+  const resetKey = homeSectionResetKey(search);
 
   return (
     <SelectionProvider>
@@ -63,7 +61,7 @@ export function HomePage({ userId, page, limit, search }: Props) {
         {headingText}
       </h1>
 
-      <SectionErrorBoundary section="ツールバー">
+      <SectionErrorBoundary section="ツールバー" resetKey={resetKey}>
         <Suspense fallback={<ToolbarSkeleton />}>
           <ToolbarSection
             userId={userId}
@@ -73,13 +71,13 @@ export function HomePage({ userId, page, limit, search }: Props) {
         </Suspense>
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary section="フィルタ">
+      <SectionErrorBoundary section="フィルタ" resetKey={resetKey}>
         <Suspense fallback={<FilterBarSkeleton />}>
           <FilterSection userId={userId} search={search} />
         </Suspense>
       </SectionErrorBoundary>
 
-      <SectionErrorBoundary section="ノート一覧">
+      <SectionErrorBoundary section="ノート一覧" resetKey={resetKey}>
         <Suspense fallback={<NoteListSkeleton />}>
           <NotesSection
             userId={userId}

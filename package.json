@@ -94,7 +94,7 @@
     "@cloudflare/vitest-pool-workers": "^0.16.4",
     "@cloudflare/workers-types": "^4.20260511.1",
     "@tailwindcss/vite": "^4.3.0",
-    "@tanstack/react-router-devtools": "^1.166.13",
+    "@tanstack/react-router-devtools": "^1.167.0",
     "@types/markdown-it": "14.1.2",
     "@types/node": "^25.7.0",
     "@types/qrcode": "^1.5.6",

@@ -22,18 +22,24 @@ const SIZE = {
 export function Spinner({
   size = "sm",
   ariaLabel = "読み込み中",
+  decorative = false,
   className,
 }: Readonly<{
   size?: "sm" | "md";
   ariaLabel?: string;
+  /**
+   * Renders the spinner as a purely visual glyph (`aria-hidden`, no
+   * `role="status"`). Use when an enclosing live region (e.g. a
+   * `role="alert"` panel) already announces the pending state, so the
+   * spinner does not add a second announcement (#636 TS-W-003).
+   */
+  decorative?: boolean;
   className?: string;
 }>) {
   const base = `inline-block ${SIZE[size]} border-2 border-current border-t-transparent rounded-full motion-safe:animate-spin motion-reduce:border-dashed`;
-  return (
-    <span
-      role="status"
-      aria-label={ariaLabel}
-      className={className ? `${base} ${className}` : base}
-    />
-  );
+  const cls = className ? `${base} ${className}` : base;
+  if (decorative) {
+    return <span aria-hidden="true" className={cls} />;
+  }
+  return <span role="status" aria-label={ariaLabel} className={cls} />;
 }
