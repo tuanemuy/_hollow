@@ -2,11 +2,14 @@
 
 import { useServerFn } from "@tanstack/react-start";
 import { Inbox } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/common/Icon";
-import { displayError } from "@/core/presentation/errorDisplay";
-import { extractSerializedError } from "@/core/presentation/errorResponse";
-import { EMPTY_STATE, EMPTY_STATE_ICON, FORM_ERROR } from "../layout/styles";
+import { RetryableError } from "@/components/common/RetryableError";
+import {
+  extractSerializedError,
+  type SerializedError,
+} from "@/core/presentation/errorResponse";
+import { EMPTY_STATE, EMPTY_STATE_ICON } from "../layout/styles";
 import { getIngestionJobsFn, type IngestionJobWire } from "./actions";
 import { IngestionJobRow } from "./IngestionJobRow";
 
@@ -35,7 +38,10 @@ type Props = Readonly<{
 export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
   const fetchJobs = useServerFn(getIngestionJobsFn);
   const [jobs, setJobs] = useState<readonly IngestionJobWire[]>(initialJobs);
-  const [pollErrorMessage, setPollErrorMessage] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<SerializedError | null>(null);
+  // `true` once a fatal kind (unauthorized / forbidden) stops polling — the
+  // retry affordance is suppressed because re-fetching cannot recover it.
+  const [pollFatal, setPollFatal] = useState(false);
 
   // jobsRef holds the latest jobs so the polling tick can compute the
   // next interval without needing `jobs` in the effect's dependency
@@ -48,6 +54,9 @@ export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
   const cancelledRef = useRef(false);
   const fatalRef = useRef(false);
   const inflightRef = useRef(false);
+  // Lets the manual "今すぐ再取得" retry kick an immediate tick without
+  // duplicating the polling state machine. Populated by the polling effect.
+  const scheduleNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // Re-runs (e.g. fast-refresh) must not revive polling after a fatal kind.
@@ -94,16 +103,15 @@ export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
           });
           if (cancelledRef.current || fatalRef.current) return;
           setJobs(nextJobs);
-          setPollErrorMessage(null);
+          setPollError(null);
           failuresRef.current = 0;
         } catch (e) {
           if (cancelledRef.current || fatalRef.current) return;
-          // extractSerializedError is used purely to classify the kind —
-          // display text is built via displayError(e).
           const err = extractSerializedError(e);
           if (err.kind === "unauthorized" || err.kind === "forbidden") {
             fatalRef.current = true;
-            setPollErrorMessage(displayError(e));
+            setPollError(err);
+            setPollFatal(true);
             if (timerRef.current !== null) {
               clearTimeout(timerRef.current);
               timerRef.current = null;
@@ -111,7 +119,7 @@ export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
             return;
           }
           failuresRef.current += 1;
-          if (failuresRef.current >= 3) setPollErrorMessage(displayError(e));
+          if (failuresRef.current >= 3) setPollError(err);
         }
         if (cancelledRef.current || fatalRef.current) return;
         schedule(computeInterval());
@@ -128,12 +136,17 @@ export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
     };
 
     schedule(POLL_INTERVAL_MS);
+    // Expose an immediate-tick trigger for the manual retry button. Reuses the
+    // same `tick` (guarded by `inflightRef`) so the state machine is not
+    // duplicated.
+    scheduleNowRef.current = () => schedule(0);
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", onVisibility);
     }
 
     return () => {
       cancelledRef.current = true;
+      scheduleNowRef.current = null;
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -144,12 +157,24 @@ export function IngestionQueue({ initialJobs, includeDiscarded }: Props) {
     };
   }, [fetchJobs, includeDiscarded]);
 
+  // Manual "今すぐ再取得" — kicks an immediate tick. No-op once polling has
+  // stopped on a fatal kind (the button is suppressed in that case anyway).
+  const retryNow = useCallback(() => {
+    if (fatalRef.current) return;
+    setPollError(null);
+    failuresRef.current = 0;
+    scheduleNowRef.current?.();
+  }, []);
+
   return (
     <>
-      {pollErrorMessage !== null ? (
-        <p className={FORM_ERROR} role="status" aria-live="polite">
-          進捗の自動更新に失敗しました: {pollErrorMessage}
-        </p>
+      {pollError !== null ? (
+        <RetryableError
+          className="mb-4"
+          error={pollError}
+          onRetry={pollFatal ? undefined : retryNow}
+          retryLabel="今すぐ再取得"
+        />
       ) : null}
       {jobs.length === 0 ? (
         <div className={EMPTY_STATE}>

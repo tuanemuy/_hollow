@@ -1028,8 +1028,9 @@ describe("UploadDialog state machine", () => {
     act(() => {
       dispatchFile(findInputByAccept(), files);
     });
-    // uploading view active before any upload resolves.
-    expect(status?.textContent).toBe("2 件のファイルをアップロード中");
+    // uploading view active before any upload resolves; the count progress
+    // starts at 0 / total.
+    expect(status?.textContent).toBe("2 件中 0 件をアップロード");
 
     // Drain both uploads.
     await act(async () => {

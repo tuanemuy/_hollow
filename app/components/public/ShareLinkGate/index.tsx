@@ -6,6 +6,7 @@ import { Clock } from "lucide-react";
 import { useActionState, useId } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import {
   ALERT,
   ALERT_BODY,
@@ -179,14 +180,12 @@ export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
                 {message}
               </p>
             ) : null}
-            <button
-              type="submit"
+            <SubmitButton
+              label="閲覧する"
+              pendingLabel="確認中..."
+              disabled={isLocked}
               className={GATE_SUBMIT}
-              data-primary=""
-              disabled={isPending || isLocked}
-            >
-              {isPending ? "確認中..." : "閲覧する"}
-            </button>
+            />
           </form>
         ) : null}
       </div>

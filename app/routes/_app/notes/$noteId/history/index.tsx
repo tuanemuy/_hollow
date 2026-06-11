@@ -3,12 +3,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import {
   NOTE_HISTORY_DEFAULT_LIMIT,
   NOTE_HISTORY_DEFAULT_PAGE,
   noteHistorySearchSchema,
 } from "@/components/note/schema";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -71,12 +71,7 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/")({
       },
     }),
   component: NoteHistoryRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function NoteHistoryRoute() {

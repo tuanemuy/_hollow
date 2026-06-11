@@ -6,16 +6,15 @@ import { ArrowRight, Check, RefreshCw, Trash2 } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
+import { ProgressBar } from "@/components/common/ProgressBar";
+import { RetryableError } from "@/components/common/RetryableError";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   pillBtn,
   pillBtnDanger,
   pillBtnPrimary,
 } from "@/components/common/styles";
-import {
-  displayError,
-  displayJobErrorCode,
-} from "@/core/presentation/errorDisplay";
+import { displayJobErrorCode } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
@@ -78,6 +77,8 @@ export function IngestionJobRow({ job }: Props) {
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<SerializedError | null>(null);
+  // The last mutation attempted, so the inline `RetryableError` can re-run it.
+  const [lastAction, setLastAction] = useState<(() => void) | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   // Dim the card the moment discard starts rather than after the loader
@@ -96,6 +97,7 @@ export function IngestionJobRow({ job }: Props) {
     suggestedDirectoryId === null && suggestedDirectoryName !== null;
 
   const onCommit = () => {
+    setLastAction(() => onCommit);
     startTransition(async () => {
       try {
         const result = await commit({
@@ -125,6 +127,7 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   const runDiscard = () => {
+    setLastAction(() => runDiscard);
     startTransition(async () => {
       try {
         setOptimisticDiscarded(true);
@@ -139,6 +142,7 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   const onRegenerate = () => {
+    setLastAction(() => onRegenerate);
     startTransition(async () => {
       try {
         await regenerate({ data: { jobId } });
@@ -151,6 +155,7 @@ export function IngestionJobRow({ job }: Props) {
   };
 
   const onRetry = () => {
+    setLastAction(() => onRetry);
     startTransition(async () => {
       try {
         await ownerRetry({ data: { jobId } });
@@ -185,6 +190,18 @@ export function IngestionJobRow({ job }: Props) {
                 .join(" ")}
             </span>
           ) : null}
+        </div>
+      ) : null}
+      {job.status === "pending" || job.status === "processing" ? (
+        <div className="mt-3">
+          {/* The progress bar is decorative (indeterminate — the worker has no
+              progress events); the adjacent text carries the state for SR. */}
+          <ProgressBar decorative />
+          <p className="mt-2 text-xs text-ink-tertiary">
+            {job.status === "processing"
+              ? "タイトルとメタデータを解析中..."
+              : "処理を待っています..."}
+          </p>
         </div>
       ) : null}
       {(() => {
@@ -272,9 +289,11 @@ export function IngestionJobRow({ job }: Props) {
         ) : null}
       </div>
       {error !== null && !confirmDiscardOpen ? (
-        <p className={FORM_ERROR} role="alert">
-          {displayError(error)}
-        </p>
+        <RetryableError
+          error={error}
+          onRetry={lastAction ?? undefined}
+          isRetrying={isPending}
+        />
       ) : null}
       <ConfirmDialog
         open={confirmDiscardOpen}

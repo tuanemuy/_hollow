@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { useAuthGuardEffect } from "@/components/common/useAuthGuardEffect";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import {
   NOTE_LIST_LIMIT_DEFAULT,
   NOTE_LIST_PAGE_DEFAULT,
@@ -11,7 +12,6 @@ import {
   type NoteListSearch,
   noteListSearchSchema,
 } from "@/components/note/schema";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -148,14 +148,7 @@ export const Route = createFileRoute("/_app/")({
     return { meta, links };
   },
   component: HomeRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert" className="p-6">
-      <h1 className="text-xl font-semibold mb-3">エラーが発生しました</h1>
-      <pre className="text-sm text-ink-secondary whitespace-pre-wrap">
-        {sanitizeRouteError(error)}
-      </pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 const appLayoutRoute = getRouteApi("/_app");

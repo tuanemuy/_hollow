@@ -4,7 +4,7 @@ import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { uploadSearchSchema } from "@/components/ingestion/uploadSearch";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -47,12 +47,7 @@ export const Route = createFileRoute("/_app/upload/")({
       data: { includeDiscarded: deps.includeDiscarded ?? false },
     }),
   component: UploadRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function UploadRoute() {
