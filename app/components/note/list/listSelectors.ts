@@ -156,10 +156,11 @@ export function selectionReducer(
  * with `Intl.DateTimeFormat().resolvedOptions().timeZone`.
  *
  * `getDate` extracts the ISO timestamp the bucketing is keyed on. It
- * defaults to `note.updatedAt` so existing auth-side callers are
- * unaffected; the public listing passes the publication `publishedAt`
- * (falling back to `updatedAt`) so its three views share one date axis
- * (#619 ADR-003).
+ * defaults to `note.updatedAt` for auth-side backward compatibility; the
+ * public listing passes a custom getter to group by `publishedAt` instead,
+ * so both auth and public views share the same infrastructure (#619
+ * ADR-003). Callers MUST override `getDate` if the type carries a date
+ * field other than `updatedAt` to use for grouping.
  */
 export function groupNotesByDay<T extends { id: string; updatedAt: string }>(
   notes: readonly T[],

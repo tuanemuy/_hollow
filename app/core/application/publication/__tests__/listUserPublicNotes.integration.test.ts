@@ -649,5 +649,30 @@ describe("listUserPublicNotes (integration)", () => {
       expect(r.total).toBe(0);
       expect(r.notes).toEqual([]);
     });
+
+    it("noteColumn path with period filter returns only notes with non-null publishedAt", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-pub-check");
+      // Filter to Feb → expect feb note only, and its publishedAt must be set.
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "updatedAt",
+          order: "desc",
+          publishedRange: range(
+            "2026-02-01T00:00:00.000Z",
+            "2026-02-28T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.notes).toHaveLength(1);
+      expect(r.notes[0]?.title).toBe("feb");
+      // Every returned note must have a publishedAt (this is the assertion that
+      // the period filter only includes public/published notes).
+      expect(r.notes.every((n) => n.publishedAt !== null)).toBe(true);
+    });
   });
 });

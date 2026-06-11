@@ -273,6 +273,26 @@ describe("groupNotesByDay", () => {
     expect(buckets[0]?.dateKey).toBe("2024-01-15");
     expect(buckets[0]?.notes).toHaveLength(2);
   });
+
+  it("defaults to updatedAt when no 3rd arg is supplied (auth side backwards compatibility)", () => {
+    const notes = [
+      {
+        id: "1",
+        updatedAt: "2024-03-01T00:00:00Z",
+        publishedAt: "2024-01-15T00:00:00Z",
+      },
+      {
+        id: "2",
+        updatedAt: "2024-03-01T12:00:00Z",
+        publishedAt: "2024-01-16T00:00:00Z",
+      },
+    ];
+    // No 3rd argument: should group by updatedAt (same day, same bucket).
+    const buckets = groupNotesByDay(notes, "UTC");
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0]?.dateKey).toBe("2024-03-01");
+    expect(buckets[0]?.notes).toHaveLength(2);
+  });
 });
 
 describe("searchToViewQuery", () => {

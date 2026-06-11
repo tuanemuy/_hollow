@@ -29,6 +29,11 @@ const { PublicTopControls, nextFilterSearch, toggleTagSet } = await import(
 );
 
 describe("PublicTopControls URL updaters", () => {
+  // Period bounds are tested here for shape/presence, not validation. Invalid
+  // date strings (e.g. "2026-13-01", "not-a-date") are validated at the
+  // transport boundary (route's validateSearch), not in component tests.
+  // This test suite focuses on URL patch generation for valid inputs.
+
   it("nextFilterSearch resets the page and drops default values", () => {
     expect(nextFilterSearch({ page: 3 }, { tags: ["a", "b"] })).toEqual({
       page: undefined,

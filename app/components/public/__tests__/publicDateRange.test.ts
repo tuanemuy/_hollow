@@ -12,6 +12,13 @@ describe("normalizePublicDateRange", () => {
     expect(normalizePublicDateRange(undefined, undefined)).toBeUndefined();
   });
 
+  it("returns undefined when both bounds normalize to null (invalid strings)", () => {
+    // Invalid date strings → null for both bounds → undefined result.
+    // This documents the normalization step that the first test implicitly covers.
+    const result = normalizePublicDateRange("invalid", "also-invalid");
+    expect(result).toBeUndefined();
+  });
+
   it("maps `from` to that day's UTC 00:00", () => {
     const r = normalizePublicDateRange("2026-05-01", undefined);
     expect(r?.from?.toISOString()).toBe("2026-05-01T00:00:00.000Z");

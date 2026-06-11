@@ -36,8 +36,11 @@ export type PublicNoteItem = Readonly<{
   excerpt: string;
   tagNames: readonly string[];
   updatedAt: string;
-  // Publication `published_at` (公開日). `null` only in the defensive
-  // relay-lag case; the views fall back to `updatedAt` for grouping.
+  /**
+   * Publication `published_at` (公開日). Always non-null for public notes by
+   * entity invariant; null only for defensive relay-lag tolerance when
+   * publication state fetch lags behind the listing query.
+   */
   publishedAt: string | null;
 }>;
 

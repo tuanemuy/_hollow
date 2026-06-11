@@ -318,8 +318,8 @@ export class D1PublicationStateRepository
             ...publishedRangeConditions(opts.publishedRange),
           ),
         );
-      // `isNotNull` guarantees a non-null published_at; narrow the nullable
-      // column type to `SortedRow`.
+      // `isNotNull` (line 316) guarantees a non-null published_at; narrow
+      // the column type safely.
       return chunkRows.map((r) => ({
         noteId: r.noteId,
         publishedAt: r.publishedAt as string,
