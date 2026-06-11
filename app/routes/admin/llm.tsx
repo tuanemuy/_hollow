@@ -7,10 +7,12 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderLLMSettingsPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
     const { LLMSettingsPage } = await import(
       "@/components/admin/LLMSettingsForm/Page"
     );
-    return renderServerComponent(<LLMSettingsPage />);
+    return renderServerComponent(<LLMSettingsPage actorId={actor.id} />);
   });
 
 export const Route = createFileRoute("/admin/llm")({

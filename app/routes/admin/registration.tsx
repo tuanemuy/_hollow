@@ -7,10 +7,12 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderRegistrationPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
     const { RegistrationPage } = await import(
       "@/components/admin/RegistrationForm/Page"
     );
-    return renderServerComponent(<RegistrationPage />);
+    return renderServerComponent(<RegistrationPage actorId={actor.id} />);
   });
 
 export const Route = createFileRoute("/admin/registration")({

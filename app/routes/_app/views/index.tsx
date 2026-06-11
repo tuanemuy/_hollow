@@ -12,10 +12,14 @@ const renderSavedViewsPage = createServerFn({ method: "GET" })
     validateInput(z.object({ kind: z.enum(["personal", "public"]) })),
   )
   .handler(async ({ data }) => {
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await requireCurrentUser();
     const { SavedViewsListPage } = await import(
       "@/components/view/SavedViewsList/Page"
     );
-    return renderServerComponent(<SavedViewsListPage kind={data.kind} />);
+    return renderServerComponent(
+      <SavedViewsListPage kind={data.kind} userId={user.id} />,
+    );
   });
 
 const viewsSearchSchema = z.object({

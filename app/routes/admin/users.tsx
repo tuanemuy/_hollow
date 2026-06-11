@@ -7,8 +7,10 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderUsersPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const me = await requireAdminUser();
     const { UsersPage } = await import("@/components/admin/UsersTable/Page");
-    return renderServerComponent(<UsersPage />);
+    return renderServerComponent(<UsersPage currentUserId={me.id} />);
   });
 
 export const Route = createFileRoute("/admin/users")({

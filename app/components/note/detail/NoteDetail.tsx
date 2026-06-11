@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
@@ -12,6 +14,7 @@ import {
 import { FrontMatterPanel } from "./FrontMatterPanel";
 import { NoteActions } from "./NoteActions";
 import { NoteBreadcrumb } from "./NoteBreadcrumb";
+import { NoteDetailSkeleton } from "./NoteDetailSkeleton";
 import { NoteMetaPanel } from "./NoteMetaPanel";
 
 /**
@@ -30,6 +33,12 @@ import { NoteMetaPanel } from "./NoteMetaPanel";
  * `notFoundComponent` に届かず、通常の error として errorComponent に流れる
  * （`.issue/12/adr.md` ADR-004 / `ExportJobDetail/Page.tsx` 参照）。そのため
  * 非存在ノートは notFound() を経由せず notFound 用 JSX を直接返す。
+ * notFound JSX は throw ではなく通常の戻り値なので、Suspense 境界の中でも
+ * 安全に成立する（redirect / notFound throw とは異なる）。
+ *
+ * タイトル・本文・メタ・バックリンクはすべて単一の
+ * `loadNoteDetail` ローダー由来のため、独立境界には分割せず 1 つの
+ * `<Suspense>` 境界でストリーミングする（P11 モックも単一フォールバック）。
  */
 export type NoteDetailProps = Readonly<{
   user: UserDTO;
@@ -37,7 +46,21 @@ export type NoteDetailProps = Readonly<{
   appUrl: string;
 }>;
 
-export async function NoteDetail({ user, noteId, appUrl }: NoteDetailProps) {
+export function NoteDetail(props: NoteDetailProps) {
+  return (
+    <SectionErrorBoundary section="ノート" resetKey={props.noteId}>
+      <Suspense fallback={<NoteDetailSkeleton />}>
+        <NoteDetailContent {...props} />
+      </Suspense>
+    </SectionErrorBoundary>
+  );
+}
+
+export async function NoteDetailContent({
+  user,
+  noteId,
+  appUrl,
+}: NoteDetailProps) {
   let detail: Awaited<ReturnType<typeof loadNoteDetail>>;
   let publishState: Awaited<ReturnType<typeof loadPublishStateForNote>>;
   let tree: Awaited<ReturnType<typeof loadDirectoryTreeFlat>>;

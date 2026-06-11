@@ -459,3 +459,51 @@ export function viewQueryEquals(
     a.dateRange.from === b.dateRange.from && a.dateRange.to === b.dateRange.to
   );
 }
+
+/**
+ * Whether the home heading should be in "search results" mode. Whitespace-only
+ * queries do not count as an active search; `validateSearch` already trims /
+ * drops them at the transport boundary, but the guard is kept so the heading
+ * and the listing can never disagree.
+ */
+export function isSearchActive(q: string | undefined): boolean {
+  return q !== undefined && q.trim().length > 0;
+}
+
+/** Home `<h1>` text derived purely from the search query. */
+export function homeHeadingText(q: string | undefined): string {
+  return isSearchActive(q) ? `「${q}」の検索結果` : "すべてのノート";
+}
+
+/** Whether any non-query filter (tags / dates / directory / visibility / backlink) is set. */
+export function hasAnyHomeFilter(search: NoteListSearch): boolean {
+  return (
+    (search.tagNames !== undefined && search.tagNames.length > 0) ||
+    search.from !== undefined ||
+    search.to !== undefined ||
+    search.directoryId !== undefined ||
+    search.visibility !== undefined ||
+    search.referencingNoteId !== undefined
+  );
+}
+
+/**
+ * Stable key over every loader-relevant search field, used as the
+ * `SectionErrorBoundary` `resetKey` so a navigation that changes the data a
+ * section streams also clears a sticky error state.
+ * `display` is excluded for the same reason it is stripped from `loaderDeps`.
+ */
+export function homeSectionResetKey(search: NoteListSearch): string {
+  return JSON.stringify([
+    search.q,
+    search.directoryId,
+    search.viewId,
+    search.visibility,
+    search.referencingNoteId,
+    search.tagNames,
+    search.from,
+    search.to,
+    search.page,
+    search.limit,
+  ]);
+}

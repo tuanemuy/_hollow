@@ -7,10 +7,19 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderProfilePage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireCurrentUser } = await import("@/lib/server/currentUser");
+    const user = await requireCurrentUser();
+    const { getContainer } = await import(
+      "@/core/application/di/containerStore"
+    );
+    const container = await getContainer();
+    const { toUserDTO } = await import("@/core/application/dto/identity");
     const { ProfilePage } = await import(
       "@/components/identity/ProfileForm/Page"
     );
-    return renderServerComponent(<ProfilePage />);
+    return renderServerComponent(
+      <ProfilePage user={toUserDTO(user)} appUrl={container.config.appUrl} />,
+    );
   });
 
 export const Route = createFileRoute("/_app/settings/profile")({

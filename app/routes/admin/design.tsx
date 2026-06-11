@@ -7,10 +7,12 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderDesignTokensPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    const actor = await requireAdminUser();
     const { DesignTokensPage } = await import(
       "@/components/admin/DesignTokensForm/Page"
     );
-    return renderServerComponent(<DesignTokensPage />);
+    return renderServerComponent(<DesignTokensPage actorId={actor.id} />);
   });
 
 export const Route = createFileRoute("/admin/design")({

@@ -13,7 +13,9 @@
  * spec/design, prefer skeletons over spinners for load states.
  */
 
-const SKELETON_BAR = "h-3 bg-surface rounded-md motion-safe:animate-pulse";
+import { SKELETON_BAR } from "./styles";
+
+const BAR = `h-3 ${SKELETON_BAR}`;
 
 /**
  * A single skeleton bar. Width defaults to `w-full`; override it (and any
@@ -24,16 +26,19 @@ export function SkeletonBar({ className }: Readonly<{ className?: string }>) {
   return (
     <div
       aria-hidden="true"
-      className={className ? `${SKELETON_BAR} ${className}` : SKELETON_BAR}
+      className={className ? `${BAR} ${className}` : BAR}
     />
   );
 }
 
 /**
  * A status region that stacks one or more `SkeletonBar`s with optional
- * caption text. Owns the single `role="status"` + `aria-live="polite"`
- * announcement (default label「読み込み中」) so screen readers get one
- * non-redundant notification while the decorative bars stay `aria-hidden`.
+ * caption text. Owns the single `role="status"` + `aria-live="polite"` +
+ * `aria-busy="true"` announcement (default label「読み込み中」) so screen
+ * readers get one non-redundant notification while the decorative bars stay
+ * `aria-hidden`. When a visible `label` is rendered the default `aria-label`
+ * is suppressed to avoid a duplicate announcement; an explicit `ariaLabel`
+ * still wins.
  *
  * `bars` selects the bar layout: a number renders that many full-width bars,
  * or pass an array of width utility strings (e.g. `["w-3/4", "w-1/2"]`) to
@@ -44,7 +49,7 @@ export function Skeleton({
   bars = 3,
   label,
   sublabel,
-  ariaLabel = "読み込み中",
+  ariaLabel,
   align = "stretch",
   className,
 }: Readonly<{
@@ -59,12 +64,17 @@ export function Skeleton({
     typeof bars === "number"
       ? Array.from({ length: bars }, () => "w-full")
       : bars;
+  const computedAriaLabel =
+    ariaLabel ?? (label === undefined ? "読み込み中" : undefined);
 
   return (
     <div
       role="status"
       aria-live="polite"
-      aria-label={ariaLabel}
+      aria-busy="true"
+      {...(computedAriaLabel !== undefined
+        ? { "aria-label": computedAriaLabel }
+        : {})}
       className={className}
     >
       <div

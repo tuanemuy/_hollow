@@ -6,6 +6,10 @@ import {
   formatDateRangeChipLabel,
   formatReferencingNoteChipLabel,
   groupNotesByDay,
+  hasAnyHomeFilter,
+  homeHeadingText,
+  homeSectionResetKey,
+  isSearchActive,
   matchDateRangePreset,
   resolveDateRangePreset,
   searchToViewQuery,
@@ -782,5 +786,51 @@ describe("visibilitySwatchClass", () => {
     expect(visibilitySwatchClass("unlisted")).toBe("bg-warning");
     expect(visibilitySwatchClass("private")).toBe("bg-ink-tertiary");
     expect(visibilitySwatchClass("all")).toBe("bg-ink-tertiary");
+  });
+});
+
+describe("home heading / filter selectors (#636 TS-W-002)", () => {
+  it("isSearchActive is false for undefined / empty / whitespace-only q", () => {
+    expect(isSearchActive(undefined)).toBe(false);
+    expect(isSearchActive("")).toBe(false);
+    expect(isSearchActive("   ")).toBe(false);
+    expect(isSearchActive("\t\n")).toBe(false);
+  });
+
+  it("isSearchActive is true for a non-blank q", () => {
+    expect(isSearchActive("memo")).toBe(true);
+    expect(isSearchActive(" memo ")).toBe(true);
+  });
+
+  it("homeHeadingText switches between search results and all notes", () => {
+    expect(homeHeadingText("memo")).toBe("「memo」の検索結果");
+    expect(homeHeadingText(undefined)).toBe("すべてのノート");
+    expect(homeHeadingText("   ")).toBe("すべてのノート");
+  });
+
+  it("hasAnyHomeFilter is false when only q / page / limit are set", () => {
+    expect(hasAnyHomeFilter({ ...baseSearch, q: "memo" })).toBe(false);
+  });
+
+  it("hasAnyHomeFilter detects each non-query filter", () => {
+    expect(hasAnyHomeFilter({ ...baseSearch, tagNames: ["t"] })).toBe(true);
+    expect(hasAnyHomeFilter({ ...baseSearch, tagNames: [] })).toBe(false);
+    expect(hasAnyHomeFilter({ ...baseSearch, from: "2026-01-01" })).toBe(true);
+    expect(hasAnyHomeFilter({ ...baseSearch, to: "2026-01-31" })).toBe(true);
+    expect(hasAnyHomeFilter({ ...baseSearch, directoryId: "d1" })).toBe(true);
+    expect(hasAnyHomeFilter({ ...baseSearch, visibility: "public" })).toBe(
+      true,
+    );
+    expect(hasAnyHomeFilter({ ...baseSearch, referencingNoteId: "n1" })).toBe(
+      true,
+    );
+  });
+
+  it("homeSectionResetKey changes when loader-relevant fields change and ignores display", () => {
+    const a = homeSectionResetKey(baseSearch);
+    expect(homeSectionResetKey({ ...baseSearch, q: "memo" })).not.toBe(a);
+    expect(homeSectionResetKey({ ...baseSearch, page: 2 })).not.toBe(a);
+    expect(homeSectionResetKey({ ...baseSearch, display: "tile" })).toBe(a);
+    expect(homeSectionResetKey({ ...baseSearch })).toBe(a);
   });
 });

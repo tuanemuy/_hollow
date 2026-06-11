@@ -463,6 +463,18 @@ export const ALERT_BODY_CODE = "font-mono text-xs";
 export const ALERT_ACTION =
   "inline-flex items-center gap-1 mt-2 text-sm font-medium text-[var(--alert-accent)] hover:underline hover:[text-underline-offset:3px] disabled:opacity-disabled disabled:cursor-not-allowed";
 
+/**
+ * Skeleton placeholder primitives — surface-colored pulsing shapes shared by
+ * every Suspense-fallback skeleton (`Skeleton`, the archetype skeletons and
+ * the page-local ones). Height/width are supplied at the call site; only the
+ * shared look (surface, radius family, `motion-safe:` pulse) lives here.
+ */
+export const SKELETON_BAR = "bg-surface rounded-md motion-safe:animate-pulse";
+
+/** Pill-shaped skeleton placeholder (chips / pill-button placeholders). */
+export const SKELETON_PILL =
+  "bg-surface rounded-pill motion-safe:animate-pulse";
+
 /** Radio/checkbox row. */
 export const radioRow =
   "flex items-center gap-2 py-1 text-sm cursor-pointer [&_input]:accent-accent";

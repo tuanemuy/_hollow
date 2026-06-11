@@ -46,6 +46,13 @@ describe("Spinner", () => {
     expect(getStatus().className).toContain("motion-safe:animate-spin");
   });
 
+  it("renders a dashed static ring under reduced motion", () => {
+    act(() => {
+      root.render(<Spinner />);
+    });
+    expect(getStatus().className).toContain("motion-reduce:border-dashed");
+  });
+
   it("accepts a custom aria-label and className", () => {
     act(() => {
       root.render(<Spinner ariaLabel="送信中" className="text-accent" />);

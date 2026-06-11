@@ -1,7 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Clock, Trash2 } from "lucide-react";
+import { Suspense } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { pillBtn } from "@/components/common/styles";
 import { loadOwnedNotes } from "@/components/note/loaders";
 import type { UserDTO } from "@/core/application/dto/identity";
@@ -29,25 +32,15 @@ function formatDate(iso: string): string {
   });
 }
 
-export async function TrashList({ user, page, limit }: Props) {
-  // Trash always uses the filter path (no `q`), so we narrow eagerly
-  // here; the discriminant is checked rather than blindly asserted so
-  // a future search-on-trash extension would be caught.
-  const result = await loadOwnedNotes({
-    actorUserId: user.id,
-    status: "trashed",
-    page,
-    limit,
-  });
-  if (result.kind !== "filter") {
-    throw new Error("TrashList: expected filter-kind OwnedNotesResult");
-  }
-  const { notes, count } = result;
-
+/**
+ * Trash page shell. The static title and retention note
+ * render immediately; the count line (data-dependent) and the list stream behind their own
+ * `<Suspense>` boundary.
+ */
+export function TrashList({ user, page, limit }: Props) {
   return (
     <>
       <h1 className={PAGE_TITLE}>ゴミ箱</h1>
-      <p className={PAGE_SUBTITLE}>{count} 件のノートがゴミ箱にあります。</p>
 
       <div
         role="note"
@@ -66,6 +59,36 @@ export async function TrashList({ user, page, limit }: Props) {
           残しておきたいノートは「復元」で元のディレクトリに戻せます。
         </span>
       </div>
+
+      <SectionErrorBoundary section="ゴミ箱の一覧" resetKey={page}>
+        <Suspense
+          fallback={<ListPageSkeleton ariaLabel="ゴミ箱を読み込み中" />}
+        >
+          <TrashSection user={user} page={page} limit={limit} />
+        </Suspense>
+      </SectionErrorBoundary>
+    </>
+  );
+}
+
+async function TrashSection({ user, page, limit }: Props) {
+  // Trash always uses the filter path (no `q`), so we narrow eagerly
+  // here; the discriminant is checked rather than blindly asserted so
+  // a future search-on-trash extension would be caught.
+  const result = await loadOwnedNotes({
+    actorUserId: user.id,
+    status: "trashed",
+    page,
+    limit,
+  });
+  if (result.kind !== "filter") {
+    throw new Error("TrashList: expected filter-kind OwnedNotesResult");
+  }
+  const { notes, count } = result;
+
+  return (
+    <>
+      <p className={PAGE_SUBTITLE}>{count} 件のノートがゴミ箱にあります。</p>
 
       {notes.length === 0 ? (
         <div className={EMPTY_STATE}>

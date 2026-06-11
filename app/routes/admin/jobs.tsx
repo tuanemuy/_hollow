@@ -7,6 +7,8 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderJobsPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { requireAdminUser } = await import("@/lib/server/currentUser");
+    await requireAdminUser();
     const { JobsPage } = await import("@/components/admin/Jobs/Page");
     return renderServerComponent(<JobsPage />);
   });

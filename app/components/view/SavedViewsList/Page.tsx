@@ -1,34 +1,37 @@
+import { Suspense } from "react";
+import { ListPageSkeleton } from "@/components/common/ListPageSkeleton";
+import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
+import { SKELETON_PILL } from "@/components/common/styles";
 import { loadDirectoryTreeFlat } from "@/components/note/loaders";
 import { loadTagsForOwner } from "@/components/tag/loaders";
-import { requireCurrentUser } from "@/lib/server/currentUser";
 import { SavedViewsList } from "./index";
 import { loadSavedViews } from "./loader";
 import { NewViewButton } from "./NewViewButton";
+
+// Decorative only (`aria-hidden`): the list boundary below already owns the
+// single "読み込み中" status announcement for this page, so the button
+// placeholder must not add a second one.
+const NEW_VIEW_BUTTON_SKELETON = (
+  <div aria-hidden="true" className={`h-9 w-28 ${SKELETON_PILL}`} />
+);
 
 /**
  * `kind` prop は現状未使用。このページは個人ビュー・共有ビューを常に両方表示する
  * （`kind` ベースのタブ切替は本 Issue のスコープ外）。ルートが依然 `kind` を渡すため、
  * 後方互換として prop シグネチャは維持する。
+ *
+ * Page shell: the static heading renders immediately; the
+ * new-view button (needs directories + tags) and the view sections each
+ * stream behind their own `<Suspense>` boundary. Shared loaders dedup
+ * within the render via `cache()`.
  */
-export async function SavedViewsListPage({
+export function SavedViewsListPage({
   kind: _kind,
+  userId,
 }: {
   kind: "personal" | "public";
+  userId: string;
 }) {
-  const user = await requireCurrentUser();
-  const [{ views: personal }, { views: shared }, { flat }, { tags }] =
-    await Promise.all([
-      loadSavedViews({ actorUserId: user.id, kind: "personal" }),
-      loadSavedViews({ actorUserId: user.id, kind: "public" }),
-      loadDirectoryTreeFlat({ actorUserId: user.id }),
-      loadTagsForOwner(user.id),
-    ]);
-
-  const tagOptions = tags.map((tag) => ({
-    id: tag.id,
-    name: tag.name,
-  }));
-
   return (
     <main className="px-6 py-8 pb-20 mx-auto w-full max-w-[1100px] lg:px-10 lg:py-12 xl:px-16 xl:py-16 max-sm:px-4 max-sm:py-6 max-sm:pb-16">
       <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
@@ -41,9 +44,49 @@ export async function SavedViewsListPage({
             クリックで適用できます。
           </p>
         </div>
-        <NewViewButton directories={flat} tags={tagOptions} />
+        <SectionErrorBoundary section="新規ビュー作成">
+          <Suspense fallback={NEW_VIEW_BUTTON_SKELETON}>
+            <NewViewButtonSection userId={userId} />
+          </Suspense>
+        </SectionErrorBoundary>
       </div>
 
+      <SectionErrorBoundary section="保存ビューの一覧">
+        <Suspense
+          fallback={<ListPageSkeleton ariaLabel="保存ビューを読み込み中" />}
+        >
+          <ViewsSection userId={userId} />
+        </Suspense>
+      </SectionErrorBoundary>
+    </main>
+  );
+}
+
+async function NewViewButtonSection({ userId }: { userId: string }) {
+  const [{ flat }, { tags }] = await Promise.all([
+    loadDirectoryTreeFlat({ actorUserId: userId }),
+    loadTagsForOwner(userId),
+  ]);
+  const tagOptions = tags.map((tag) => ({ id: tag.id, name: tag.name }));
+  return <NewViewButton directories={flat} tags={tagOptions} />;
+}
+
+async function ViewsSection({ userId }: { userId: string }) {
+  const [{ views: personal }, { views: shared }, { flat }, { tags }] =
+    await Promise.all([
+      loadSavedViews({ actorUserId: userId, kind: "personal" }),
+      loadSavedViews({ actorUserId: userId, kind: "public" }),
+      loadDirectoryTreeFlat({ actorUserId: userId }),
+      loadTagsForOwner(userId),
+    ]);
+
+  const tagOptions = tags.map((tag) => ({
+    id: tag.id,
+    name: tag.name,
+  }));
+
+  return (
+    <>
       <section className="mb-12">
         <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
           <div>
@@ -77,6 +120,6 @@ export async function SavedViewsListPage({
         </div>
         <SavedViewsList views={shared} directories={flat} tags={tagOptions} />
       </section>
-    </main>
+    </>
   );
 }

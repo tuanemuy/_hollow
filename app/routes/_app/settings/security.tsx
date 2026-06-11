@@ -7,10 +7,18 @@ import { internalRouteHead } from "@/core/presentation/head";
 const renderSecurityPage = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async () => {
+    const { getCurrentSessionToken, requireCurrentUser } = await import(
+      "@/lib/server/currentUser"
+    );
+    const user = await requireCurrentUser();
+    const token = getCurrentSessionToken();
+    const { toUserDTO } = await import("@/core/application/dto/identity");
     const { SecurityPage } = await import(
       "@/components/identity/SecurityForm/Page"
     );
-    return renderServerComponent(<SecurityPage />);
+    return renderServerComponent(
+      <SecurityPage user={toUserDTO(user)} sessionToken={token} />,
+    );
   });
 
 export const Route = createFileRoute("/_app/settings/security")({
