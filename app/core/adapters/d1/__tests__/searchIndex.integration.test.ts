@@ -179,7 +179,7 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
 
     expect(result.hits).toHaveLength(1);
     expect(result.nextCursor).toBeNull();
-    // The MATCH path must hydrate `updatedAt` from `sd.updated_at` (#627).
+    // The MATCH path must hydrate `updatedAt` from `sd.updated_at`.
     expect(result.hits[0]?.updatedAt).toEqual(NOW);
   });
 
@@ -252,7 +252,7 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     );
     expect(asciiShort.hits).toHaveLength(1);
     expect(asciiShort.nextCursor).toBeNull();
-    // The LIKE fallback path must hydrate `updatedAt` too (#627).
+    // The LIKE fallback path must hydrate `updatedAt` too.
     expect(asciiShort.hits[0]?.updatedAt).toEqual(NOW);
 
     // Surrogate-pair emoji = 1 Unicode codepoint. It is shorter than the

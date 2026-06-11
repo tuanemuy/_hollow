@@ -97,7 +97,7 @@ type FilterValues = Readonly<{
 type FilterPatch = Partial<FilterValues>;
 
 // Patch-application reducer: re-applying queued patches on top of the
-// baseline keeps rapid consecutive changes consistent (FilterBar #354 / #478).
+// baseline keeps rapid consecutive changes consistent (FilterBar precedent).
 function reduceFilters(cur: FilterValues, patch: FilterPatch): FilterValues {
   return { ...cur, ...patch };
 }
@@ -131,13 +131,13 @@ export function SearchFilterDrawer({ facets }: Props) {
   // Server-confirmed baseline (URL search params). `useOptimistic` mirrors
   // filter selections into the UI synchronously while the loader round-trip
   // is in flight, then snaps back to this baseline once the navigation
-  // commits and fresh values arrive (FilterBar #354 ADR-003 precedent).
+  // commits and fresh values arrive (FilterBar precedent; .issue/354/adr.md ADR-003).
   const baseline: FilterValues = { username, tags, period };
   const [optimistic, applyOptimistic] = useOptimistic(baseline, reduceFilters);
 
   // The footer count follows the optimistic period; the facet totals
   // themselves refresh only after the loader confirms, so the number can be
-  // momentarily stale (accepted; see .issue/618/plan.md ステップ9).
+  // momentarily stale (accepted trade-off).
   const activeCount =
     (optimistic.username !== null ? 1 : 0) +
     optimistic.tags.length +
@@ -154,7 +154,7 @@ export function SearchFilterDrawer({ facets }: Props) {
   // `router.navigate` (loader round-trip included) is awaited so the
   // transition stays pending until the fresh values commit — a synchronous
   // transition would end immediately and `useOptimistic` would snap back to
-  // baseline before the selection is reflected (Issue #478). A rejected /
+  // baseline before the selection is reflected. A rejected /
   // cancelled navigation is caught so the optimistic value reverts cleanly.
   const navigate = useCallback(
     (patch: FilterPatch) => {
