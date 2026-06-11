@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -87,6 +88,20 @@ const selectPeriod = (s: {
   period?: SearchPeriod | undefined;
 }): SearchPeriod | null => s.period ?? null;
 
+type FilterValues = Readonly<{
+  username: string | null;
+  tags: readonly string[];
+  period: SearchPeriod | null;
+}>;
+
+type FilterPatch = Partial<FilterValues>;
+
+// Patch-application reducer: re-applying queued patches on top of the
+// baseline keeps rapid consecutive changes consistent (FilterBar precedent).
+function reduceFilters(cur: FilterValues, patch: FilterPatch): FilterValues {
+  return { ...cur, ...patch };
+}
+
 /**
  * Client island for the P32 search filter affordances: the「フィルター」
  * button (with active-count badge), the active-filter chip row, and the
@@ -113,52 +128,71 @@ export function SearchFilterDrawer({ facets }: Props) {
   const panelRef = useRef<HTMLElement | null>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
 
+  // Server-confirmed baseline (URL search params). `useOptimistic` mirrors
+  // filter selections into the UI synchronously while the loader round-trip
+  // is in flight, then snaps back to this baseline once the navigation
+  // commits and fresh values arrive (FilterBar precedent; .issue/354/adr.md ADR-003).
+  const baseline: FilterValues = { username, tags, period };
+  const [optimistic, applyOptimistic] = useOptimistic(baseline, reduceFilters);
+
+  // The footer count follows the optimistic period; the facet totals
+  // themselves refresh only after the loader confirms, so the number can be
+  // momentarily stale (accepted trade-off).
   const activeCount =
-    (username !== null ? 1 : 0) + tags.length + (period !== null ? 1 : 0);
+    (optimistic.username !== null ? 1 : 0) +
+    optimistic.tags.length +
+    (optimistic.period !== null ? 1 : 0);
 
   const facetByPeriod = new Map(facets.map((f) => [f.period, f.count]));
   const selectedPeriodCount =
-    period !== null
-      ? (facetByPeriod.get(period) ?? 0)
+    optimistic.period !== null
+      ? (facetByPeriod.get(optimistic.period) ?? 0)
       : (facetByPeriod.get("all") ?? 0);
 
   // Mutate the URL search params, preserving the keyword + pagination reset.
+  // The optimistic patch and the navigation share one async transition, and
+  // `router.navigate` (loader round-trip included) is awaited so the
+  // transition stays pending until the fresh values commit — a synchronous
+  // transition would end immediately and `useOptimistic` would snap back to
+  // baseline before the selection is reflected. A rejected /
+  // cancelled navigation is caught so the optimistic value reverts cleanly.
   const navigate = useCallback(
-    (patch: {
-      username?: string | null;
-      tags?: readonly string[];
-      period?: SearchPeriod | null;
-    }) => {
-      startTransition(() => {
-        // The `/search` route's strict search schema rejects the open
-        // `Record` reducer shape under `exactOptionalPropertyTypes`; the
-        // returned params are re-validated by the route's `validateSearch` on
-        // commit, so the structural cast here is safe.
-        router.navigate({
-          to: "/search",
-          search: (prev) => {
-            const next: Record<string, unknown> = {
-              ...(prev as Record<string, unknown>),
-            };
-            // Any filter change resets pagination.
-            next.cursor = undefined;
-            if ("username" in patch) {
-              next.username =
-                patch.username === null ? undefined : patch.username;
-            }
-            if ("tags" in patch) {
-              next.tags =
-                patch.tags && patch.tags.length > 0 ? patch.tags : undefined;
-            }
-            if ("period" in patch) {
-              next.period = patch.period === null ? undefined : patch.period;
-            }
-            return next as never;
-          },
-        });
+    (patch: FilterPatch) => {
+      startTransition(async () => {
+        applyOptimistic(patch);
+        try {
+          // The `/search` route's strict search schema rejects the open
+          // `Record` reducer shape under `exactOptionalPropertyTypes`; the
+          // returned params are re-validated by the route's `validateSearch`
+          // on commit, so the structural cast here is safe.
+          await router.navigate({
+            to: "/search",
+            search: (prev) => {
+              const next: Record<string, unknown> = {
+                ...(prev as Record<string, unknown>),
+              };
+              // Any filter change resets pagination.
+              next.cursor = undefined;
+              if ("username" in patch) {
+                next.username =
+                  patch.username === null ? undefined : patch.username;
+              }
+              if ("tags" in patch) {
+                next.tags =
+                  patch.tags && patch.tags.length > 0 ? patch.tags : undefined;
+              }
+              if ("period" in patch) {
+                next.period = patch.period === null ? undefined : patch.period;
+              }
+              return next as never;
+            },
+          });
+        } catch {
+          // Reverting to baseline is the correct fallback for a filter change.
+        }
       });
     },
-    [router],
+    [router, applyOptimistic],
   );
 
   const close = useCallback(() => setOpen(false), []);
@@ -211,11 +245,14 @@ export function SearchFilterDrawer({ facets }: Props) {
     };
   }, [open, close]);
 
+  // Next URL values are computed from the optimistic value, not the URL
+  // baseline, so rapid consecutive changes do not drop the in-flight ones
+  // (FilterBar `toggleTag` precedent).
   const removeTag = (tag: string) =>
-    navigate({ tags: tags.filter((t) => t !== tag) });
+    navigate({ tags: optimistic.tags.filter((t) => t !== tag) });
   const addTag = (tag: string) => {
-    if (tags.includes(tag)) return;
-    navigate({ tags: [...tags, tag] });
+    if (optimistic.tags.includes(tag)) return;
+    navigate({ tags: [...optimistic.tags, tag] });
   };
 
   const clearAll = () => navigate({ username: null, tags: [], period: null });
@@ -243,15 +280,15 @@ export function SearchFilterDrawer({ facets }: Props) {
 
       {activeCount > 0 ? (
         <div className={ACTIVE_CHIPS}>
-          {username !== null ? (
+          {optimistic.username !== null ? (
             <span className={ACTIVE_CHIP}>
               <span className={ACTIVE_CHIP_AVATAR} aria-hidden="true">
-                {initials(username)}
+                {initials(optimistic.username)}
               </span>
-              @{username}
+              @{optimistic.username}
               <button
                 type="button"
-                aria-label={`@${username} を解除`}
+                aria-label={`@${optimistic.username} を解除`}
                 className={ACTIVE_CHIP_REMOVE}
                 onClick={() => navigate({ username: null })}
               >
@@ -259,7 +296,7 @@ export function SearchFilterDrawer({ facets }: Props) {
               </button>
             </span>
           ) : null}
-          {tags.map((tag) => (
+          {optimistic.tags.map((tag) => (
             <span key={tag} className={ACTIVE_CHIP}>
               #{tag}
               <button
@@ -272,12 +309,12 @@ export function SearchFilterDrawer({ facets }: Props) {
               </button>
             </span>
           ))}
-          {period !== null ? (
+          {optimistic.period !== null ? (
             <span className={ACTIVE_CHIP}>
-              {PERIOD_LABELS[period]}
+              {PERIOD_LABELS[optimistic.period]}
               <button
                 type="button"
-                aria-label={`${PERIOD_LABELS[period]} を解除`}
+                aria-label={`${PERIOD_LABELS[optimistic.period]} を解除`}
                 className={ACTIVE_CHIP_REMOVE}
                 onClick={() => navigate({ period: null })}
               >
@@ -336,13 +373,17 @@ export function SearchFilterDrawer({ facets }: Props) {
 
         <div className={DRAWER_BODY}>
           <UserFacet
-            username={username}
+            username={optimistic.username}
             onSelect={(name) => navigate({ username: name })}
             onClear={() => navigate({ username: null })}
           />
-          <TagFacet selected={tags} onAdd={addTag} onRemove={removeTag} />
+          <TagFacet
+            selected={optimistic.tags}
+            onAdd={addTag}
+            onRemove={removeTag}
+          />
           <PeriodFacetSection
-            selected={period}
+            selected={optimistic.period}
             facetByPeriod={facetByPeriod}
             onSelect={(p) => navigate({ period: p })}
           />

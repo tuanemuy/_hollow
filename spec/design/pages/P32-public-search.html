@@ -376,7 +376,8 @@
     font-weight: var(--weight-semibold);
     margin-left: 2px;
   }
-  .sort-btn {
+  /* 非インタラクティブなラベル（ソート軸は関連度順で固定。#618 (b)案） */
+  .sort-label {
     height: 36px;
     padding: 0 12px;
     border-radius: var(--radius-pill);
@@ -385,9 +386,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    transition: var(--transition-bg);
   }
-  .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
 
   /* ===== Active filter chips ===== */
   .active-chips {
@@ -844,9 +843,9 @@
     .hero-search input { height: 48px; padding-left: 46px; }
     .hero-search .hero-icon { left: 18px; }
     .filter-btn { height: 44px; }
-    .sort-btn { height: 44px; }
-    .result-card { padding: var(--space-4) var(--space-2); gap: var(--space-3); }
-    .result-date { font-size: var(--text-xs); }
+    /* モバイルは単カラム縦積み。右列の短い日付は隠し、メタ行の「更新」日付を残す（P30 同型）。 */
+    .result-card { grid-template-columns: 1fr; align-items: start; padding: var(--space-4) var(--space-2); gap: var(--space-1); }
+    .result-date { display: none; }
   }
 </style>
 </head>
@@ -889,10 +888,7 @@
           フィルター
           <span class="badge">3</span>
         </button>
-        <button class="sort-btn">
-          関連度順
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
+        <span class="sort-label">関連度順</span>
       </div>
     </div>
 
@@ -930,9 +926,10 @@
               <span class="result-author"><span class="author-avatar-mini">TY</span><strong>@tuanemuy</strong></span>
               <span class="dot">·</span>
               <span class="tag">#cloudflare #ddd #architecture</span>
+              <span>2026年5月3日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年5月3日</div>
+          <div class="result-date">5月3日</div>
         </a>
 
         <a href="/kwakita/event-sourcing-basics" class="result-card">
@@ -943,9 +940,10 @@
               <span class="result-author"><span class="author-avatar-mini">KW</span><strong>@kwakita</strong></span>
               <span class="dot">·</span>
               <span class="tag">#ddd #event-sourcing #architecture</span>
+              <span>2026年4月22日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年4月22日</div>
+          <div class="result-date">4月22日</div>
         </a>
 
         <a href="/nmiura/dual-write-problem" class="result-card">
@@ -956,9 +954,10 @@
               <span class="result-author"><span class="author-avatar-mini">NM</span><strong>@nmiura</strong></span>
               <span class="dot">·</span>
               <span class="tag">#architecture #distributed</span>
+              <span>2026年4月18日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年4月18日</div>
+          <div class="result-date">4月18日</div>
         </a>
 
         <a href="/sasaki_dev/transactional-outbox-postgres" class="result-card">
@@ -969,9 +968,10 @@
               <span class="result-author"><span class="author-avatar-mini">SS</span><strong>@sasaki_dev</strong></span>
               <span class="dot">·</span>
               <span class="tag">#postgres #ddd</span>
+              <span>2026年4月10日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年4月10日</div>
+          <div class="result-date">4月10日</div>
         </a>
 
         <a href="/tuanemuy/cloudflare-d1-perf" class="result-card">
@@ -982,9 +982,10 @@
               <span class="result-author"><span class="author-avatar-mini">TY</span><strong>@tuanemuy</strong></span>
               <span class="dot">·</span>
               <span class="tag">#cloudflare #performance</span>
+              <span>2026年5月8日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年5月8日</div>
+          <div class="result-date">5月8日</div>
         </a>
 
         <a href="/yoshinaga/microservice-pitfalls" class="result-card">
@@ -995,9 +996,10 @@
               <span class="result-author"><span class="author-avatar-mini">YN</span><strong>@yoshinaga</strong></span>
               <span class="dot">·</span>
               <span class="tag">#microservices #architecture</span>
+              <span>2026年3月28日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年3月28日</div>
+          <div class="result-date">3月28日</div>
         </a>
 
         <a href="/kwakita/dlq-design" class="result-card">
@@ -1008,9 +1010,10 @@
               <span class="result-author"><span class="author-avatar-mini">KW</span><strong>@kwakita</strong></span>
               <span class="dot">·</span>
               <span class="tag">#queues #ops</span>
+              <span>2026年3月15日 更新</span>
             </div>
           </div>
-          <div class="result-date">2026年3月15日</div>
+          <div class="result-date">3月15日</div>
         </a>
 
       </div>

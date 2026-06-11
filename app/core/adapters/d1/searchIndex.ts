@@ -42,6 +42,7 @@ type SearchRow = Readonly<{
   tagNamesJson: string;
   visibility: string;
   score: number;
+  updatedAt: string;
 }>;
 
 /**
@@ -209,7 +210,8 @@ export class D1SearchIndex implements SearchIndex {
         snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET}) AS "snippet",
         sd.tag_names_json AS "tagNamesJson",
         sd.visibility   AS "visibility",
-        bm25(fts.search_documents_fts) AS "score"
+        bm25(fts.search_documents_fts) AS "score",
+        sd.updated_at   AS "updatedAt"
       FROM search_documents_fts AS fts
       JOIN search_documents AS sd
       JOIN users AS u ON u.id = sd.owner_id
@@ -246,7 +248,8 @@ export class D1SearchIndex implements SearchIndex {
         substr(sd.body_plain, 1, ${LIKE_SNIPPET_CHARS}) AS "snippet",
         sd.tag_names_json AS "tagNamesJson",
         sd.visibility   AS "visibility",
-        0               AS "score"
+        0               AS "score",
+        sd.updated_at   AS "updatedAt"
       FROM search_documents AS sd
       JOIN users AS u ON u.id = sd.owner_id
       ${publicationJoin(joinPublication)}
@@ -414,6 +417,13 @@ export class D1SearchIndex implements SearchIndex {
         error,
       );
     }
+    const updatedAt = new Date(row.updatedAt);
+    if (Number.isNaN(updatedAt.getTime())) {
+      throw new SystemError(
+        SystemErrorCode.DataIntegrityError,
+        `Stored search document has malformed updated_at (noteId=${row.noteId})`,
+      );
+    }
     try {
       // bm25() returns negative-or-zero values in SQLite FTS5 where lower
       // is more relevant. Flip the sign so the public `SearchScore`
@@ -433,6 +443,7 @@ export class D1SearchIndex implements SearchIndex {
             : 0,
         ),
         visibility: Visibility.create(row.visibility),
+        updatedAt,
       };
     } catch (error) {
       if (isRehydrationError(error)) {

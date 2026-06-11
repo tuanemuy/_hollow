@@ -113,6 +113,7 @@ function makeHit(over: Partial<SearchHit> = {}): SearchHit {
     tagNames: [],
     score: SearchScore.create(1),
     visibility: Visibility.create("private"),
+    updatedAt: T0,
     ...over,
   };
 }
