@@ -24,7 +24,9 @@ export function normalizePublicDateRange(
   return { from: fromDate, to: toExclusive };
 }
 
-// `YYYY-MM-DD` → that day's UTC 00:00. Invalid / absent input → null.
+// `YYYY-MM-DD` → that day's UTC 00:00. Invalid format strings → null
+// (effectively "no filter"); the route validator rejects malformed dates
+// earlier (ADR-006, CLAUDE.md validation boundary).
 function parseDateOnly(date: string | undefined): Date | null {
   if (date === undefined) return null;
   const d = new Date(`${date}T00:00:00.000Z`);

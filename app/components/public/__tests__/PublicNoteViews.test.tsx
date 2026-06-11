@@ -85,4 +85,25 @@ describe("PublicNoteViews", () => {
     // A day-group heading is present.
     expect(html).toContain("<h2");
   });
+
+  it("falls back to updatedAt when publishedAt is null (relay lag tolerance)", () => {
+    // The implementation defends against relay-lag scenarios where publishedAt
+    // may be null by falling back to updatedAt in the noteDate() helper.
+    // This test exercises that fallback path.
+    display = "list";
+    const notesWithNull = [
+      {
+        ...notes[0],
+        publishedAt: null,
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <PublicNoteViews username="tuanemuy" notes={notesWithNull} />,
+    );
+    // The meta row should show the updatedAt as a fallback.
+    // formatPublishedDate uses the date string directly, so the fallback
+    // to updatedAt (2026-03-01) should appear in the HTML.
+    expect(html).toContain("2026年3月1日 公開");
+  });
 });

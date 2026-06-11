@@ -673,6 +673,9 @@ describe("listUserPublicNotes (integration)", () => {
       // Every returned note must have a publishedAt (this is the assertion that
       // the period filter only includes public/published notes).
       expect(r.notes.every((n) => n.publishedAt !== null)).toBe(true);
+      // Verify that all returned notes are public (the adapter's period filter
+      // and publication WHERE clause ensure only visibility='public' notes pass through).
+      expect(r.notes.every((n) => n.visibility === "public")).toBe(true);
     });
   });
 });
