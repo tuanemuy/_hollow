@@ -374,7 +374,8 @@
     font-weight: var(--weight-semibold);
     margin-left: 2px;
   }
-  .sort-btn {
+  /* 非インタラクティブなラベル（ソート軸は関連度順で固定。#618 (b)案） */
+  .sort-label {
     height: 36px;
     padding: 0 12px;
     border-radius: var(--radius-pill);
@@ -383,9 +384,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    transition: var(--transition-bg);
   }
-  .sort-btn:hover { background: var(--color-surface); color: var(--color-ink); }
 
   /* ===== Active filter chips ===== */
   .active-chips {
@@ -842,7 +841,6 @@
     .hero-search input { height: 48px; padding-left: 46px; }
     .hero-search .hero-icon { left: 18px; }
     .filter-btn { height: 44px; }
-    .sort-btn { height: 44px; }
     .result-card { padding: var(--space-4) var(--space-2); gap: var(--space-3); }
     .result-date { font-size: var(--text-xs); }
   }
@@ -887,10 +885,7 @@
           フィルター
           <span class="badge">3</span>
         </button>
-        <button class="sort-btn">
-          関連度順
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
+        <span class="sort-label">関連度順</span>
       </div>
     </div>
 

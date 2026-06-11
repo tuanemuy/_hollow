@@ -23,7 +23,9 @@ export function toSearchHitView(hit: SearchHit): SearchHitDTO {
  * to produce an `OwnedSearchHitDTO`. The caller is responsible for
  * resolving the `Note` for `hit.noteId` — typically via a single
  * `NoteRepository.findByIds` re-indexed into a `Map`. `Note.updatedAt`
- * is a `Date`; it is serialised here as ISO 8601 for transport.
+ * is a `Date`; it is serialised here as ISO 8601 for transport and
+ * overrides the base DTO's index-sourced (eventually consistent) value
+ * with the authoritative aggregate timestamp.
  */
 export function toOwnedSearchHitView(
   hit: SearchHit,

@@ -380,7 +380,12 @@ export const SearchQuery = {
   },
 };
 
-/** Single result row returned by `SearchIndex.query`. */
+/**
+ * Single result row returned by `SearchIndex.query`.
+ *
+ * `updatedAt` comes from the search index (`search_documents.updated_at`)
+ * and is therefore eventually consistent with the Note aggregate.
+ */
 export type SearchHit = Readonly<{
   noteId: NoteId;
   ownerId: UserId;
@@ -390,4 +395,5 @@ export type SearchHit = Readonly<{
   tagNames: readonly string[];
   score: SearchScore;
   visibility: Visibility;
+  updatedAt: Date;
 }>;

@@ -3,6 +3,7 @@
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { groupNotesByDay } from "../note/list/listSelectors";
+import { formatDate, formatShort } from "./formatNoteDate";
 import {
   CAL_DAY_LIST,
   CAL_DAY_TITLE,
@@ -188,12 +189,4 @@ function formatDay(dateKey: string): string {
     day: "numeric",
     weekday: "short",
   });
-}
-
-function formatDate(date: Date): string {
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 更新`;
-}
-
-function formatShort(date: Date): string {
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
 }

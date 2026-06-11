@@ -107,6 +107,7 @@ describe("SearchService.runQuery", () => {
           tagNames: [],
           score: SearchScore.create(1.0),
           visibility: Visibility.create("public"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         },
       ],
       nextCursor: null,

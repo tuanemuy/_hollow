@@ -196,9 +196,16 @@ export const SEARCH_FORM_ICON =
 export const SEARCH_SUMMARY =
   "py-4 pb-2 text-sm text-ink-secondary flex gap-3 items-center flex-wrap";
 export const SEARCH_HIT_LIST = "mt-2 pb-16";
-// Single-column card (no date right-rail in scope; see .issue/617/adr.md ADR-001).
+// Same row anatomy as P30 `NOTE_ROW`: 2-col grid (main | right-rail date) on
+// sm+, collapsing to one column on mobile where the date folds into the meta
+// line (mock `.result-card`). Padding keeps the P32 mock values.
 export const SEARCH_HIT_ROW =
-  "flex flex-col gap-1 py-5 px-3 max-sm:py-4 max-sm:px-2 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface";
+  "grid grid-cols-[1fr_auto] gap-6 items-center py-5 px-3 max-sm:py-4 max-sm:px-2 border-t border-hairline transition-[background] duration-[120ms] motion-reduce:transition-none text-inherit hover:bg-surface max-sm:grid-cols-1 max-sm:gap-1.5 max-sm:items-start";
+export const SEARCH_HIT_MAIN = "min-w-0 flex flex-col gap-1";
+// Right-rail date for the sm+ 2-col row; hidden on mobile where the meta row
+// carries the full「更新」date (same rule as P30 `NOTE_DATE`).
+export const SEARCH_HIT_DATE =
+  "text-sm text-ink-tertiary whitespace-nowrap max-sm:hidden";
 export const SEARCH_HIT_AUTHOR =
   "inline-flex items-center gap-1 text-sm text-ink-secondary";
 export const SEARCH_HIT_TITLE =
@@ -274,8 +281,11 @@ export const TOKEN_LABEL =
 export const TOKEN_AVATAR = `${AUTHOR_AVATAR} w-4 h-4 text-[8px] shrink-0`;
 export const TOKEN_REMOVE =
   "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 shrink-0 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06]";
+// `focus-visible:shadow-none` cancels the global `:focus-visible` box-shadow
+// on the inner input so the focus ring stays single, carried by the wrapper
+// `TOKEN_INPUT`'s `focus-within:shadow-focus` (.issue/618/adr.md ADR-003).
 export const TOKEN_FIELD =
-  "flex-1 min-w-[100px] h-[26px] border-0 bg-transparent text-[13px] text-ink outline-none px-1 placeholder:text-ink-tertiary";
+  "flex-1 min-w-[100px] h-[26px] border-0 bg-transparent text-[13px] text-ink outline-none px-1 placeholder:text-ink-tertiary focus-visible:shadow-none";
 
 export const SUGGESTIONS =
   "mt-1.5 border border-hairline rounded-md bg-bg shadow-sm max-h-[220px] overflow-y-auto";

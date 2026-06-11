@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
 import { serverData } from "@/core/presentation/serverAction";
+import { formatDate, formatShort } from "./formatNoteDate";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import { SearchFilterDrawer } from "./SearchFilterDrawer";
 import { periodToDateRange, type SearchPeriod } from "./searchPeriod";
@@ -24,7 +25,9 @@ import {
   SEARCH_HERO_H1,
   SEARCH_HERO_SUB,
   SEARCH_HIT_AUTHOR,
+  SEARCH_HIT_DATE,
   SEARCH_HIT_LIST,
+  SEARCH_HIT_MAIN,
   SEARCH_HIT_META,
   SEARCH_HIT_ROW,
   SEARCH_HIT_SNIPPET,
@@ -205,28 +208,34 @@ export async function PublicSearch({
                 params={{ noteId: hit.noteId }}
                 className={SEARCH_HIT_ROW}
               >
-                <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
-                {hit.snippet.length > 0 ? (
-                  <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
-                ) : null}
-                <div className={SEARCH_HIT_META}>
-                  <span className={SEARCH_HIT_AUTHOR}>
-                    <span
-                      className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[9px]`}
-                      aria-hidden="true"
-                    >
-                      {avatarInitials(hit.username)}
-                    </span>
-                    <span>@{hit.username}</span>
-                  </span>
-                  {hit.tagNames.length > 0 ? (
-                    <>
-                      <span className="text-hairline-strong">·</span>
-                      <span className="text-accent">
-                        {hit.tagNames.map((t) => `#${t}`).join(" ")}
-                      </span>
-                    </>
+                <div className={SEARCH_HIT_MAIN}>
+                  <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
+                  {hit.snippet.length > 0 ? (
+                    <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
                   ) : null}
+                  <div className={SEARCH_HIT_META}>
+                    <span className={SEARCH_HIT_AUTHOR}>
+                      <span
+                        className={`${AUTHOR_AVATAR} w-[18px] h-[18px] text-[9px]`}
+                        aria-hidden="true"
+                      >
+                        {avatarInitials(hit.username)}
+                      </span>
+                      <span>@{hit.username}</span>
+                    </span>
+                    {hit.tagNames.length > 0 ? (
+                      <>
+                        <span className="text-hairline-strong">·</span>
+                        <span className="text-accent">
+                          {hit.tagNames.map((t) => `#${t}`).join(" ")}
+                        </span>
+                      </>
+                    ) : null}
+                    <span>{formatDate(new Date(hit.updatedAt))}</span>
+                  </div>
+                </div>
+                <div className={SEARCH_HIT_DATE}>
+                  {formatShort(new Date(hit.updatedAt))}
                 </div>
               </Link>
             ))

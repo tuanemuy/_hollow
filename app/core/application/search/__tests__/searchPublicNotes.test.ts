@@ -88,6 +88,7 @@ function makeHit(over: Partial<SearchHit> = {}): SearchHit {
     tagNames: [],
     score: SearchScore.create(1),
     visibility: Visibility.create("public"),
+    updatedAt: T0,
     ...over,
   };
 }
