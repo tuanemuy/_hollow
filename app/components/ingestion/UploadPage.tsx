@@ -34,7 +34,10 @@ export function UploadPage({ user, includeDiscarded }: Props) {
         <div className="flex justify-end mb-4">
           <DiscardedToggle />
         </div>
-        <SectionErrorBoundary section="アップロードの一覧">
+        <SectionErrorBoundary
+          section="アップロードの一覧"
+          resetKey={String(includeDiscarded)}
+        >
           <Suspense
             fallback={<ListPageSkeleton ariaLabel="アップロードを読み込み中" />}
           >

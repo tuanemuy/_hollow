@@ -17,7 +17,10 @@ export function ExportJobsPage({ offset, userId }: Props) {
   return (
     <main>
       <h1>エクスポートジョブ</h1>
-      <SectionErrorBoundary section="エクスポートジョブの一覧">
+      <SectionErrorBoundary
+        section="エクスポートジョブの一覧"
+        resetKey={offset}
+      >
         <Suspense
           fallback={
             <ListPageSkeleton ariaLabel="エクスポートジョブを読み込み中" />

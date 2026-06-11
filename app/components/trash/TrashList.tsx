@@ -61,7 +61,7 @@ export function TrashList({ user, page, limit }: Props) {
         </span>
       </div>
 
-      <SectionErrorBoundary section="ゴミ箱の一覧">
+      <SectionErrorBoundary section="ゴミ箱の一覧" resetKey={page}>
         <Suspense
           fallback={<ListPageSkeleton ariaLabel="ゴミ箱を読み込み中" />}
         >

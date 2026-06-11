@@ -48,7 +48,7 @@ export type NoteDetailProps = Readonly<{
 
 export function NoteDetail(props: NoteDetailProps) {
   return (
-    <SectionErrorBoundary section="ノート">
+    <SectionErrorBoundary section="ノート" resetKey={props.noteId}>
       <Suspense fallback={<NoteDetailSkeleton />}>
         <NoteDetailContent {...props} />
       </Suspense>

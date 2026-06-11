@@ -134,6 +134,21 @@ describe("noteListSearchSchema", () => {
     });
     expect(parsed.referencingNoteId).toBeUndefined();
   });
+
+  it("trims surrounding whitespace from `q` (#636 TS-W-002)", () => {
+    const parsed = noteListSearchSchema.parse({ q: " memo " });
+    expect(parsed.q).toBe("memo");
+  });
+
+  it("normalizes whitespace-only `q` to undefined (#636 TS-W-002)", () => {
+    const parsed = noteListSearchSchema.parse({ q: "   " });
+    expect(parsed.q).toBeUndefined();
+  });
+
+  it("falls back to undefined when `q` is not a string via .catch(undefined)", () => {
+    const parsed = noteListSearchSchema.parse({ q: 123 as never });
+    expect(parsed.q).toBeUndefined();
+  });
 });
 
 describe("bulkMoveSchema", () => {
