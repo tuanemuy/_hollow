@@ -203,6 +203,8 @@
   .menu-btn:hover { background: var(--color-surface); }
   /* mobile: logo は省スペース化のため非表示（drawer 内ブランドで代替） */
   .logo {
+    display: flex;
+    align-items: center;
     display: none;
     font-size: 21px; font-weight: var(--weight-light);
     letter-spacing: var(--tracking-tightest); color: var(--color-ink);
@@ -321,6 +323,8 @@
   }
   .user-row .caret { color: var(--color-ink-tertiary); flex-shrink: 0; }
   .sidebar-brand {
+    display: flex;
+    align-items: center;
     font-size: 21px; font-weight: var(--weight-light);
     letter-spacing: var(--tracking-tightest); color: var(--color-ink);
     padding: 0 var(--space-3) var(--space-4);

@@ -3,7 +3,7 @@
 ## ADR-001: wordmark はテキストではなくアウトライン path を埋め込む
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 Issue 本文は「インライン Vesica SVG + wordmark テキスト」と書いているが、wordmark のフォントは Avenir Next（macOS 専用）。`<text>` 要素では他環境でフォールバックし、完了条件「実装 BrandLockup と視覚一致」を満たせない。
@@ -20,7 +20,7 @@ Issue 本文は「インライン Vesica SVG + wordmark テキスト」と書い
 ## ADR-002: viewBox は実装の `-5 -1 480 86` を採用
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 マスター資産 `spec/design/icons/hollow-lockup.svg` は tight box（`0 0 473.84 84.48`）で、マークのストロークが箱外にはみ出てクリップされる（BrandLogo.tsx 内コメントに明記）。
@@ -37,7 +37,7 @@ Proposed
 ## ADR-003: admin モックの header-right は触らない
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 #628 のヘッダー再設計はアプリのグローバルヘッダー限定。実装 `app/routes/admin/route.tsx` はヘッダー右に AD アバターを維持している。
@@ -54,7 +54,7 @@ admin モック（P40〜P47 系 17ファイル）はロゴのみ差し替え、h
 ## ADR-004: drafts/ はロゴのみ差し替え、ヘッダーは維持
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 `drafts/P10-header-options.html` 等は #628 の検討過程を記録した資料。ヘッダーを書き換えると資料価値が失われる。一方、完了条件の grep は `spec/design/pages/` 全体に掛かる。
@@ -71,7 +71,7 @@ drafts/ はロゴ置換のみ行い、ヘッダーは触らない。
 ## ADR-005: フッターロゴも水平ロックアップで統一
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 Issue 本文は「フッター用ロゴ（Landing 等、縦積みロックアップ）も対象」と書くが、実装 `LandingPage.tsx` のフッターも水平 `BrandLockup` を使っており、縦積みロックアップは実装に存在しない。
