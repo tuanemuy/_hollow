@@ -247,6 +247,24 @@ describe("ViewSwitcher keyboard contract", () => {
     expect(document.activeElement).toBe(options()[0]);
   });
 
+  it("does not pull focus back into the panel when a commit happens while <body> holds focus (restoreFocusOnCommit defaults off)", () => {
+    // Negative guard: the focus-restore-on-commit pass is opt-in for
+    // multi-select listboxes only. Single-select
+    // consumers like ViewSwitcher must keep the default (off) so an
+    // unrelated re-render never steals focus while <body> happens to be the
+    // active element.
+    render({});
+    openListbox();
+    expect(document.activeElement).toBe(options()[0]);
+    act(() => {
+      options()[0].blur();
+    });
+    expect(document.activeElement).toBe(document.body);
+    render({ q: "memo" });
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("closes on Escape and restores focus to the trigger", () => {
     render({});
     openListbox();

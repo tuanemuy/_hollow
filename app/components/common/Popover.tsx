@@ -43,6 +43,12 @@ export type PopoverProps = Readonly<{
     | undefined;
   /** Ref to the panel element — used by menu consumers for roving focus. */
   panelRef?: ((node: HTMLDivElement | null) => void) | undefined;
+  /**
+   * Renders `aria-multiselectable="true"` on the `role="listbox"` panel
+   * (multi-select listboxes, e.g. the FilterBar tag picker). Listbox mode
+   * only; omitted (no attribute) by default.
+   */
+  multiselectable?: boolean | undefined;
   trigger: (props: PopoverTriggerProps) => ReactNode;
   children: ReactNode | ((props: { close: () => void }) => ReactNode);
 }>;
@@ -56,6 +62,7 @@ export function Popover({
   clampToViewport = false,
   onMenuKeyDown,
   panelRef,
+  multiselectable,
   trigger,
   children,
 }: PopoverProps) {
@@ -114,6 +121,7 @@ export function Popover({
             id={popover.panelId}
             role="listbox"
             aria-label={label}
+            aria-multiselectable={multiselectable || undefined}
             className={panelClassName}
             style={popover.panelStyle}
             onKeyDown={onMenuKeyDown}

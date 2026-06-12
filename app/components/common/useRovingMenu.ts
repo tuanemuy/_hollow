@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 /**
  * Second-layer roving-tabindex primitive (Issue #467 ADR-001) — menu-mode
@@ -29,6 +29,16 @@ export type UseRovingMenuOptions = Readonly<{
    * filter passes the currently-selected option so focus lands there.
    */
   initialIndex?: number;
+  /**
+   * Opt-in focus-restore pass for panels that stay open across selections
+   * (multi-select listboxes). When a React commit swaps the focused item node
+   * and drops focus to `<body>` (e.g. the RSC re-render after a filter
+   * navigation), the pass refocuses the active item after the commit.
+   * Off by default: single-select consumers close on selection
+   * and must not have focus pulled back into the panel by unrelated
+   * re-renders while `<body>` happens to hold focus.
+   */
+  restoreFocusOnCommit?: boolean;
 }>;
 
 export type UseRovingMenu = Readonly<{
@@ -36,6 +46,13 @@ export type UseRovingMenu = Readonly<{
   /** Returns `tabIndex` for the item at `index` (roving: one 0, rest -1). */
   getTabIndex: (index: number) => 0 | -1;
   onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
+  /**
+   * Moves the roving active index. Needed by panels that stay open after a
+   * click (multi-select listboxes): the panel's mousedown preventDefault
+   * keeps focus where it was, so without this an option click would leave
+   * `activeIndex` stale and the next ArrowDown would jump from the old spot.
+   */
+  setActiveIndex: (index: number) => void;
 }>;
 
 export function useRovingMenu({
@@ -44,12 +61,21 @@ export function useRovingMenu({
   panelRef,
   itemRole = "menuitem",
   initialIndex = 0,
+  restoreFocusOnCommit = false,
 }: UseRovingMenuOptions): UseRovingMenu {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  // Tracks the last seen `open` so the reset below only fires on a real
+  // closed → open transition. Effects can re-fire WITHOUT a dep change when
+  // the subtree is suspended and resumed (e.g. the RSC re-render after a
+  // filter navigation while a multi-select listbox stays open); resetting
+  // there would clobber the roving position mid-interaction.
+  const prevOpenRef = useRef(false);
 
   // On (re)open, reset the active index to the desired landing item.
   useEffect(() => {
-    if (!open) return;
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!open || wasOpen) return;
     setActiveIndex(initialIndex);
   }, [open, initialIndex]);
 
@@ -63,6 +89,36 @@ export function useRovingMenu({
     );
     items?.[activeIndex]?.focus();
   }, [open, activeIndex, panelRef, itemRole]);
+
+  // Focus-restore pass (opt-in via `restoreFocusOnCommit`), run after EVERY
+  // commit (no dep array) while open. Panels that stay open across selections
+  // (multi-select listboxes) lose focus to <body> when a React commit swaps
+  // the focused item node — e.g. the RSC re-render after a filter
+  // navigation — leaving the roving arrow keys dead. The drop happens
+  // inside the commit (its `focusout` carries `relatedTarget: null` and the
+  // panel ref is detached mid-commit), so the only reliable hook point is
+  // "after a commit, refs re-attached": check and refocus here. The
+  // activeElement guard keeps this from stealing focus on window blur (there
+  // the item stays activeElement) or from a user who moved focus elsewhere
+  // (then activeElement is that element, not <body>). The index is clamped
+  // because the item set may have shrunk in the very commit that dropped
+  // focus (filter navigation can change the option list); a stale
+  // out-of-range index would leave the arrow keys dead again.
+  useEffect(() => {
+    if (!restoreFocusOnCommit) return;
+    if (!open) return;
+    if (document.activeElement !== document.body) return;
+    const items = panelRef.current?.querySelectorAll<HTMLElement>(
+      `[role="${itemRole}"]`,
+    );
+    if (!items || items.length === 0) return;
+    const clamped = Math.min(activeIndex, items.length - 1);
+    if (clamped !== activeIndex) setActiveIndex(clamped);
+    // preventScroll: the restore may race a user scroll (e.g. dragging the
+    // panel scrollbar while an optimistic navigation settles); the default
+    // scroll-into-view would yank the list back to the refocused option.
+    items[clamped]?.focus({ preventScroll: true });
+  });
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     const count = itemCount;
@@ -80,5 +136,5 @@ export function useRovingMenu({
   const getTabIndex = (index: number): 0 | -1 =>
     index === activeIndex ? 0 : -1;
 
-  return { activeIndex, getTabIndex, onKeyDown };
+  return { activeIndex, getTabIndex, onKeyDown, setActiveIndex };
 }

@@ -15,8 +15,22 @@ import {
  * behaviour shared by every WAI-ARIA Menu / Popover in the app — outside
  * `mousedown`, `Escape`, and focus-out — plus focus restoration to the
  * trigger, the `aria-haspopup`/`aria-expanded`/`aria-controls` wiring, and an
- * opt-in horizontal viewport clamp (`shiftX`). It deliberately knows nothing
- * about roving tabindex; that lives in the second-layer `useRovingMenu`.
+ * opt-in horizontal viewport clamp (`shiftX`).
+ *
+ * Dismiss paths: outside `mousedown` (document listener), `Escape` (document
+ * listener, restores trigger focus), Tab-out (focus-out with a non-null
+ * `relatedTarget`), and the caller's `closeAndRestoreFocus`. Focus *loss*
+ * (focus-out with `relatedTarget: null` — window blur, programmatic
+ * `element.blur()`, or React swapping the focused node mid-commit) does NOT
+ * close the popover: closing there dismissed multi-select panels
+ * mid-interaction. Consequence: the editor-side commit-on-blur calls
+ * (`NoteEditor` / `InlineEditor` / `FrontMatterEditor`) no longer dismiss an
+ * open popover — acceptable because those blurs fire while focus is in an
+ * editor field, i.e. the popover already lost focus through a user-driven
+ * (non-null relatedTarget) path beforehand. If a real "close on window blur"
+ * need appears, add an explicit `visibilitychange` / window `blur` listener
+ * rather than reverting the guard. It deliberately knows nothing about roving
+ * tabindex; that lives in the second-layer `useRovingMenu`.
  *
  * Open/close state is owned by the caller (`open` / `onOpenChange`) so a host
  * can keep multiple popovers mutually exclusive (FilterBar) or own the toggle
@@ -170,6 +184,14 @@ export function usePopover({
   const onFocusOut = (event: React.FocusEvent<HTMLDivElement>) => {
     if (!open) return;
     const next = event.relatedTarget;
+    // `relatedTarget === null` means focus was *lost* (window blur, or React
+    // replacing the focused node during a commit — e.g. the RSC re-render
+    // after a filter navigation drops focus from a roving-focused option to
+    // <body>), not moved by the user. Closing here would dismiss multi-select
+    // panels mid-interaction. Real outside interactions still close via the
+    // document mousedown listener, and Tab-out carries a non-null
+    // relatedTarget.
+    if (next === null) return;
     if (next instanceof Node && containerRef.current?.contains(next)) return;
     onOpenChange(false);
   };

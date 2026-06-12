@@ -163,6 +163,22 @@ describe("Popover (dialog mode)", () => {
     }
   });
 
+  it("stays open on focus-out with relatedTarget=null (focus lost, not moved)", () => {
+    // After a filter navigation commits, the RSC re-render can drop focus
+    // from a roving-focused option straight to <body> (focusout with
+    // relatedTarget=null). That focus *loss* must not
+    // dismiss the panel — only real user dismissal paths (outside mousedown,
+    // Escape, Tab-out with a non-null relatedTarget) close it.
+    render({ initialOpen: true });
+    const body = panel()?.querySelector("span") as HTMLElement;
+    act(() => {
+      body.dispatchEvent(
+        new FocusEvent("focusout", { bubbles: true, relatedTarget: null }),
+      );
+    });
+    expect(panel()).not.toBeNull();
+  });
+
   it("the close render-prop callback closes and restores focus to the trigger", () => {
     render({ initialOpen: true });
     const closeBtn = Array.from(
@@ -227,6 +243,41 @@ describe("Popover (dialog mode)", () => {
     expect(event.defaultPrevented).toBe(prevented);
     // An inside mousedown never counts as an outside-dismiss.
     expect(container.querySelector(`[role="${haspopup}"]`)).not.toBeNull();
+  });
+
+  // The tag picker is a multi-select listbox; `multiselectable` must
+  // reach the listbox panel as `aria-multiselectable="true"` and stay absent
+  // by default (single-select consumers like ViewSwitcher are untouched).
+  it.each([
+    [true, "true"],
+    [undefined, null],
+  ] as const)("listbox multiselectable=%s renders aria-multiselectable=%s", (multiselectable, expected) => {
+    function ListboxHarness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          haspopup="listbox"
+          multiselectable={multiselectable}
+          label="テストリスト"
+          panelClassName="absolute left-0 top-full"
+          trigger={(props) => (
+            <button {...props} type="button" aria-label="開く">
+              開く
+            </button>
+          )}
+        >
+          <span>本文</span>
+        </Popover>
+      );
+    }
+    act(() => {
+      root.render(<ListboxHarness />);
+    });
+    const listbox = container.querySelector<HTMLElement>('[role="listbox"]');
+    expect(listbox).not.toBeNull();
+    expect(listbox?.getAttribute("aria-multiselectable")).toBe(expected);
   });
 
   it("applies a translateX clamp when the panel overflows the viewport", () => {

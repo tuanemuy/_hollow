@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
-import { popoverSheetPanel } from "@/components/common/styles";
+import { popoverSheetPanel, TOUCH_TARGET } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { NoteListSearch } from "../schema";
 import { homeSearchUpdater } from "./homeSearch";
@@ -134,10 +134,10 @@ export function FilterBar({
   const [isPending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
-  // Mutually-exclusive popover state: opening one closes the other (#476).
-  const [openPopover, setOpenPopover] = useState<"date" | "visibility" | null>(
-    null,
-  );
+  // Mutually-exclusive popover state: opening one closes the others.
+  const [openPopover, setOpenPopover] = useState<
+    "tag" | "date" | "visibility" | null
+  >(null);
   const fromId = useId();
   const toId = useId();
 
@@ -332,6 +332,16 @@ export function FilterBar({
         </div>
       ) : null}
 
+      {tags.length > 0 ? (
+        <TagPickerPopover
+          tags={tags}
+          selected={selected}
+          open={openPopover === "tag"}
+          onOpenChange={(next) => setOpenPopover(next ? "tag" : null)}
+          onToggle={toggleTag}
+        />
+      ) : null}
+
       <DatePopover
         fromId={fromId}
         toId={toId}
@@ -426,6 +436,122 @@ export function FilterBar({
         isPending={isPending}
       />
     </div>
+  );
+}
+
+type TagPickerPopoverProps = Readonly<{
+  tags: readonly TagOption[];
+  selected: ReadonlySet<string>;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onToggle: (name: string) => void;
+}>;
+
+// Extension of VISIBILITY_OPTION_ITEM / ViewSwitcher's OPTION_ITEM: adds an
+// accent focus-visible outline ring, `[overflow-wrap:anywhere]` for long tag
+// names, and TOUCH_TARGET. VISIBILITY_OPTION_ITEM carries the same additions
+// so the two adjacent filter popovers focus-render identically; full
+// consolidation into a shared constant is a follow-up.
+const TAG_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
+
+/**
+ * "+ タグ" ghost-chip trigger + multi-select tag listbox. The panel stays
+ * open across toggles (`aria-multiselectable`); each option click runs the
+ * same optimistic `toggleTag` as the inline tag chips. `title` is rendered
+ * unconditionally — intentional deviation from the mobile mock, matching the
+ * clear-× precedent.
+ */
+function TagPickerPopover({
+  tags,
+  selected,
+  open,
+  onOpenChange,
+  onToggle,
+}: TagPickerPopoverProps) {
+  const listRef = useRef<HTMLElement | null>(null);
+
+  // APG Listbox pattern: land roving focus on the first selected option when
+  // the picker opens (fall back to the first option), matching
+  // VisibilityPopover's landing behaviour within the same FilterBar.
+  const initialIndex = (() => {
+    const i = tags.findIndex((t) => selected.has(t.name));
+    return i < 0 ? 0 : i;
+  })();
+
+  const roving = useRovingMenu({
+    open,
+    itemCount: tags.length,
+    panelRef: listRef,
+    itemRole: "option",
+    initialIndex,
+    // The multi-select panel stays open across toggles, so the RSC re-render
+    // after each filter navigation can drop focus to <body> — only this
+    // consumer needs the after-commit restore pass.
+    restoreFocusOnCommit: true,
+  });
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={onOpenChange}
+      haspopup="listbox"
+      multiselectable
+      label="タグで絞り込み"
+      panelClassName={`${FILTER_POPOVER_PANEL} max-h-[min(60vh,400px)] overflow-y-auto`}
+      clampToViewport
+      panelRef={(node) => {
+        listRef.current = node;
+      }}
+      onMenuKeyDown={roving.onKeyDown}
+      trigger={(triggerProps) => (
+        <button
+          {...triggerProps}
+          type="button"
+          aria-label="タグで絞り込み"
+          title="タグで絞り込み"
+          className={filterChipGhost}
+        >
+          <Plus
+            className="size-[11px] shrink-0"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          タグ
+        </button>
+      )}
+    >
+      {tags.map((tag, index) => {
+        const active = selected.has(tag.name);
+        return (
+          <button
+            key={tag.id}
+            type="button"
+            role="option"
+            aria-selected={active}
+            data-active={active || undefined}
+            tabIndex={roving.getTabIndex(index)}
+            onClick={() => {
+              // The listbox panel's mousedown preventDefault keeps focus
+              // put, so sync the roving index here — otherwise the next
+              // ArrowDown after a click would move from the stale index.
+              roving.setActiveIndex(index);
+              onToggle(tag.name);
+            }}
+            className={TAG_OPTION_ITEM}
+          >
+            #{tag.name}
+            <span className="text-[11px] text-ink-tertiary">
+              {tag.noteCount}
+            </span>
+            {active ? (
+              <span aria-hidden="true" className="ml-auto text-success">
+                ✓
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </Popover>
   );
 }
 
@@ -604,9 +730,11 @@ type VisibilityPopoverProps = Readonly<{
 // programmatic focus on open does not grey the landed item; `data-[active]`
 // keeps the selected-option surface + weight. The shared `menuItem` style is
 // intentionally NOT reused here because it lacks the `data-[active]` selection
-// indicator this radio group needs.
-const VISIBILITY_OPTION_ITEM =
-  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
+// indicator this radio group needs. Carries the same focus ring /
+// overflow-wrap / TOUCH_TARGET additions as TAG_OPTION_ITEM so keyboard focus
+// renders identically across the adjacent filter popovers; consolidation into
+// a shared constant is a follow-up.
+const VISIBILITY_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 
 function VisibilityPopover({
   value,
