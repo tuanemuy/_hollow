@@ -119,7 +119,13 @@ export function Popover({
             style={popover.panelStyle}
             onKeyDown={onMenuKeyDown}
             onMouseDown={(event) => {
-              event.preventDefault();
+              // The listbox panel scrolls (max-h + overflow-y); a mousedown
+              // on the scrollbar targets the panel itself, and preventDefault
+              // there breaks scrollbar dragging on Firefox. Guard only option
+              // children.
+              if (event.target !== event.currentTarget) {
+                event.preventDefault();
+              }
             }}
           >
             {body}

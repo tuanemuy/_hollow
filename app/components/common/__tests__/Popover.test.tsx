@@ -179,12 +179,15 @@ describe("Popover (dialog mode)", () => {
   // the a11y lint), so the Safari/Firefox click-drop guard (panel
   // `onMouseDown` preventDefault keeps focus from blurring to <body> and
   // closing before the click lands) must be locked per branch. The dialog
-  // branch deliberately omits it so form inputs inside can take focus.
+  // branch deliberately omits it so form inputs inside can take focus. The
+  // listbox panel scrolls, so a mousedown on the panel itself (scrollbar)
+  // must NOT be prevented — only on its children.
   it.each([
-    ["menu", true],
-    ["listbox", true],
-    ["dialog", false],
-  ] as const)("%s panel mousedown defaultPrevented = %s", (haspopup, prevented) => {
+    ["menu", true, "child"],
+    ["listbox", true, "child"],
+    ["listbox", false, "panel"],
+    ["dialog", false, "child"],
+  ] as const)("%s mousedown defaultPrevented = %s (target: %s)", (haspopup, prevented, target) => {
     function RoleHarness() {
       const [open, setOpen] = useState(true);
       return (
@@ -210,12 +213,16 @@ describe("Popover (dialog mode)", () => {
     const panelEl = container.querySelector<HTMLElement>(
       `[role="${haspopup}"]`,
     ) as HTMLElement;
+    const targetEl =
+      target === "panel"
+        ? panelEl
+        : (panelEl.querySelector("span") as HTMLElement);
     const event = new MouseEvent("mousedown", {
       bubbles: true,
       cancelable: true,
     });
     act(() => {
-      panelEl.dispatchEvent(event);
+      targetEl.dispatchEvent(event);
     });
     expect(event.defaultPrevented).toBe(prevented);
     // An inside mousedown never counts as an outside-dismiss.
