@@ -34,16 +34,41 @@ let relatedNotes: Array<{
   tagNames: string[];
   publishedAt: string | null;
 }> = [];
+let tagNames: string[] = [];
+
+// renderToStaticMarkup output in a node environment has no DOM to query,
+// so anchors are extracted structurally (attribute order / class strings /
+// escaping must not matter to the assertions).
+const decodeEntities = (value: string) =>
+  value
+    .replaceAll("&quot;", '"')
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
+
+const extractAnchors = (html: string) =>
+  Array.from(html.matchAll(/<a\b([^>]*)>(.*?)<\/a>/gs)).map((match) => {
+    const attributes = new Map(
+      Array.from(match[1].matchAll(/([\w-]+)="([^"]*)"/g)).map(
+        ([, name, value]) => [name, decodeEntities(value)],
+      ),
+    );
+    return { attributes, text: match[2] };
+  });
+
+const stripAnchors = (html: string) => html.replaceAll(/<a\b.*?<\/a>/gs, "");
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     className,
   }: {
     to: string;
     params?: Record<string, string>;
+    search?: Record<string, unknown>;
     children: React.ReactNode;
     className?: string;
   }) => {
@@ -51,8 +76,12 @@ vi.mock("@tanstack/react-router", () => ({
       (acc, [key, value]) => acc.replace(`$${key}`, value),
       to,
     );
+    const dataSearch =
+      search && Object.keys(search).length > 0
+        ? JSON.stringify(search)
+        : undefined;
     return (
-      <a href={href} className={className}>
+      <a href={href} className={className} data-search={dataSearch}>
         {children}
       </a>
     );
@@ -77,7 +106,7 @@ vi.mock("@/core/presentation/serverAction", () => ({
         note,
         renderedContentHtml: "<p>body</p>",
         owner,
-        tagNames: ["cloudflare"],
+        tagNames,
         publishedAt: new Date("2026-05-03T00:00:00.000Z"),
       };
     },
@@ -98,6 +127,7 @@ const { PublicNoteDetail } = await import("../PublicNoteDetail");
 
 describe("PublicNoteDetail backlink / related sections", () => {
   it("renders both sections with links to the public note route", async () => {
+    tagNames = ["cloudflare"];
     backlinks = [
       {
         noteId: "01930000-0000-7000-8000-000000000002",
@@ -137,7 +167,41 @@ describe("PublicNoteDetail backlink / related sections", () => {
     );
   });
 
+  it("links inline meta tags to the author's tag-filtered page, keeps bottom-meta tags as spans", async () => {
+    tagNames = ["cloudflare", "workers"];
+    backlinks = [];
+    relatedNotes = [];
+
+    const element = await PublicNoteDetail({
+      args: { kind: "byId", noteId: note.id },
+    });
+    const html = renderToStaticMarkup(element);
+
+    const tagAnchors = extractAnchors(html).filter((anchor) =>
+      anchor.attributes.has("data-search"),
+    );
+    expect(tagAnchors).toHaveLength(tagNames.length);
+    for (const tag of tagNames) {
+      const anchor = tagAnchors.find((a) => a.text === `#${tag}`);
+      expect(anchor).toBeDefined();
+      expect(anchor?.attributes.get("href")).toBe("/u/tuanemuy");
+      expect(
+        JSON.parse(anchor?.attributes.get("data-search") ?? ""),
+      ).toStrictEqual({ tags: [tag] });
+    }
+
+    // Bottom-meta tags must not be rendered as links: with every anchor
+    // removed, each `#tag` text must still survive inside a <span>.
+    const withoutAnchors = stripAnchors(html);
+    for (const tag of tagNames) {
+      expect(withoutAnchors).toMatch(
+        new RegExp(`<span\\b[^>]*>#${tag}</span>`),
+      );
+    }
+  });
+
   it("hides each section when its data is empty", async () => {
+    tagNames = ["cloudflare"];
     backlinks = [];
     relatedNotes = [];
 

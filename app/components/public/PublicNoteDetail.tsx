@@ -138,9 +138,15 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
           {tagNames.length > 0 ? (
             <span>
               {tagNames.map((t) => (
-                <span key={t} className="text-accent mr-1">
+                <Link
+                  key={t}
+                  to="/u/$username"
+                  params={{ username: owner.username }}
+                  search={{ tags: [t] }}
+                  className="text-accent mr-1"
+                >
                   #{t}
-                </span>
+                </Link>
               ))}
             </span>
           ) : null}
@@ -168,7 +174,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
               ))}
             </div>
           ) : null}
-          <div>
+          <div className="ml-auto">
             {publishedAt !== null
               ? `${formatJaDate(publishedAt)} 公開 · `
               : null}
