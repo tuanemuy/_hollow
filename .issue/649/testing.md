@@ -70,7 +70,7 @@ P30 系モックはブラウザでファイルを直接開いて確認する（`
   2. `aria-haspopup` / `aria-expanded` / `aria-label` / `title` を確認する。開閉して `aria-expanded` の変化を見る。
   3. デバイスツールバーで iPhone SE に切り替え、Computed パネルで min-height を確認する。
   4. キーボードのみで操作: Tab で見出しにフォーカス → Enter で開く → 矢印キーで項目移動 → Enter で選択 → 再度開いて Esc で閉じる。
-- **期待結果:** `aria-haspopup="listbox"`、開閉に応じた `aria-expanded`、`aria-label="ビューを切り替え: 現在 すべてのノート"` 形式 + `title` 併記。モバイルで min-height 44px。listbox 項目は `role="option"` + `aria-selected` で矢印キー移動・Enter 選択・Esc クローズが効く。
+- **期待結果:** `aria-haspopup="listbox"`、開閉に応じた `aria-expanded`、`aria-label="すべてのノート — ビューを切り替え"`（{可視見出し} — ビューを切り替え 形式、`.issue/649/adr.md` ADR-005） + `title` 併記。モバイルで min-height 44px。listbox 項目は `role="option"` + `aria-selected` で矢印キー移動・Enter 選択・Esc クローズが効く。
 - **確認ポイント:** フォーカス時に focus-visible リングが見える。
 
 ### 4. 検索時の見出し表示（ADR-005）
@@ -81,7 +81,7 @@ P30 系モックはブラウザでファイルを直接開いて確認する（`
   1. 検索ボックスで任意のキーワード（例: `test`）を検索する。
   2. 見出しテキストと `aria-label` を DevTools で確認する。
   3. 見出しから任意のビューを選択する。
-- **期待結果:** 見出しは「「test」の検索結果」。`aria-label` は「ビューを切り替え」のみ（「現在 …」を付けない）。ビュー選択で q を含まない状態へ遷移する。
+- **期待結果:** 見出しは「「test」の検索結果」。`aria-label` は「「test」の検索結果 — ビューを切り替え」（可視見出しが先頭、`.issue/649/adr.md` ADR-005）。ビュー選択で q を含まない状態へ遷移する。
 
 ### 5. 選択 / ビュー保存のアイコンのみ化
 
@@ -94,7 +94,7 @@ P30 系モックはブラウザでファイルを直接開いて確認する（`
   4. iPhone SE に切り替えてボタンの当たり判定（44px 床）とタップ動作を確認する。
   5. 「ビューとして保存」を押し、SaveViewDialog が従来どおり開いて保存できることを確認する。
 - **期待結果:** 両ボタンとも可視テキストなし・`aria-label` と `title` あり。デスクトップ 36px 角、モバイル 44px タッチ床。選択モードと保存ダイアログの挙動は不変。
-- **確認ポイント:** フィルタ未適用などビュー保存が disabled の条件のとき、disabled 状態と title 文言が従来どおり。
+- **確認ポイント:** フィルタ未適用などビュー保存が無効の条件のとき、`aria-disabled="true"`（native `disabled` ではない）+ `aria-describedby` で sr-only の理由提示があり、title 文言が従来どおり（`.issue/649/adr.md` ADR-010）。
 
 ### 6. 表示モード segmented の確定表現
 

@@ -94,7 +94,7 @@ export function HomePage({ userId, page, limit, search }: Props) {
         section="ツールバー"
         resetKey={resetKey}
         fallbackHeading={
-          <h1 className="mb-[10px] text-3xl font-regular tracking-tightest leading-tight text-ink">
+          <h1 className="mb-[10px] text-3xl font-regular tracking-tightest leading-tight text-ink [overflow-wrap:anywhere]">
             {homeHeadingText(search.q)}
           </h1>
         }

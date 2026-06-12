@@ -24,7 +24,7 @@ const TRIGGER =
 
 // パネルは h1 の外（Popover コンテナ直下）に出るが、見出しサイズを継承しない
 // よう書体をリセットする。
-const PANEL = `absolute left-0 top-full mt-1 z-40 ${menuPanel} min-w-[240px] max-w-[calc(100vw-2rem)] text-sm font-regular tracking-normal leading-normal`;
+const PANEL = `absolute left-0 top-full mt-1 z-40 ${menuPanel} min-w-[240px] max-w-[calc(100vw-2rem)] max-h-[min(60vh,400px)] overflow-y-auto text-sm font-regular tracking-normal leading-normal`;
 
 // `bg-surface` だけでは白パネル上で約1.08:1 と知覚できないため（WCAG 2.4.7）、
 // トリガー類と同じ accent アウトラインを負オフセットで内側に描く。共通の
