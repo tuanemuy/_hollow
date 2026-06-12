@@ -14,7 +14,7 @@ export function EditLockBanner({ lock }: EditLockBannerProps) {
   if (lock.state !== "denied") return null;
   return (
     <div
-      className="flex flex-col gap-1 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink"
+      className="mb-4 flex flex-col gap-1 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink"
       role="status"
       aria-live="polite"
     >

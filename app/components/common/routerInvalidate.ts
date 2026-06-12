@@ -2,7 +2,8 @@
  * `_app` AppShell に対する `router.invalidate()` 制御を集約するモジュール。
  *
  * 公開 API は 2 つあり、補完関係にある:
- *   - `routerInvalidate(router, filter?)`: `_app` を **常に除外** して invalidate
+ *   - `routerInvalidate(router, filter?)`: `_app` とエディター系ルートを
+ *     **常に除外** して invalidate
  *   - `appShellInvalidate(router)`: `_app` のみを **狙って** invalidate
  *
  * AppShell loader (`_app.loader`) の `staleTime: Infinity` を mutation 後にも
@@ -17,15 +18,34 @@ import type { AnyRouter } from "@tanstack/react-router";
 
 const APP_SHELL_ROUTE_ID = "/_app";
 
+/**
+ * Editor routes are excluded from `routerInvalidate` unconditionally
+ * (Issue #669, `.issue/669/adr.md` ADR-003): their loaders only seed the
+ * editor's initial values — after mount the source of truth is the
+ * editor's local state — so re-running the loader either does nothing or
+ * destroys in-progress edits (RSC tree swap remounts the editor and drops
+ * focus). Both routes use `staleTime: 0`, so the next navigation into an
+ * editor always fresh-loads; skipping invalidation cannot serve stale data.
+ */
+const EDITOR_ROUTE_IDS: readonly string[] = [
+  "/_app/notes/$noteId/edit",
+  "/_app/notes/new",
+];
+
 type InvalidateOpts = NonNullable<Parameters<AnyRouter["invalidate"]>[0]>;
 type InvalidateFilter = NonNullable<InvalidateOpts["filter"]>;
 
 /**
- * `router.invalidate()` のラッパー。`_app` layout route を **常に除外**
- * し、AppShell loader の `staleTime: Infinity` を mutation 後にも維持する。
+ * `router.invalidate()` のラッパー。`_app` layout route と
+ * エディター系ルート（`/_app/notes/$noteId/edit` / `/_app/notes/new`）を
+ * **常に除外** する。invalidate は「表示系ルートの再評価」であり、
+ * エディタールートの loader は初期値 seed 専用（source of truth は
+ * ローカル state）かつ `staleTime: 0` で再進入時に必ず fresh load される
+ * ため、構造的に invalidate の対象外（Issue #669 / `.issue/669/adr.md`
+ * ADR-003）。
  *
- * 追加の `filter` を渡した場合は `_app` 除外と **AND 合成** され、
- * `_app` 除外の不変条件はラッパー経由では絶対にすり抜けない。
+ * 追加の `filter` を渡した場合は上記除外と **AND 合成** され、
+ * 除外の不変条件はラッパー経由では絶対にすり抜けない。
  *
  * 以下のいずれかに該当する mutation でのみ生の `router.invalidate()`
  * を直接呼ぶこと（AppShell を再評価させたいケース）:
@@ -43,7 +63,9 @@ export function routerInvalidate(
 ): Promise<void> {
   return router.invalidate({
     filter: (match) =>
-      match.routeId !== APP_SHELL_ROUTE_ID && (filter?.(match) ?? true),
+      match.routeId !== APP_SHELL_ROUTE_ID &&
+      !EDITOR_ROUTE_IDS.includes(match.routeId) &&
+      (filter?.(match) ?? true),
   });
 }
 

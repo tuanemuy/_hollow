@@ -11,9 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
-  field,
   fieldControl,
   fieldLabel,
   formError,
@@ -107,6 +105,8 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const noteId = props.mode === "edit" ? props.noteId : null;
 
+  // Seed only on first mount (lazy initializer): a loader re-run delivering
+  // fresh `initial*` props must NOT reset in-progress edits (#669).
   const [state, dispatch] = useReducer(editorReducer, undefined, () => {
     const base = {
       surface: props.mode === "new" ? ("new" as const) : ("edit" as const),
@@ -270,7 +270,8 @@ export function NoteEditor(props: NoteEditorProps) {
               frontMatterJson,
             },
           });
-          await routerInvalidate(router);
+          // No invalidate here: the detail route uses `staleTime: 0`, so the
+          // navigation below always fresh-loads the saved note (#669).
           await router.navigate({
             to: "/notes/$noteId",
             params: { noteId: props.noteId },
@@ -285,8 +286,11 @@ export function NoteEditor(props: NoteEditorProps) {
   };
 
   return (
+    // No form `gap` on purpose: each row carries the mock's own
+    // `margin-bottom` (`mb-*`) so values smaller than a uniform gap
+    // (e.g. the directory row's 12px) stay reproducible (#669).
     <form
-      className="flex flex-col gap-4 max-sm:pb-[env(safe-area-inset-bottom)]"
+      className="flex flex-col max-sm:pb-[env(safe-area-inset-bottom)]"
       onSubmit={onSubmit}
     >
       <EditLockBanner lock={state.editLock} />
@@ -349,7 +353,22 @@ export function NoteEditor(props: NoteEditorProps) {
         />
       </div>
 
-      <div className={field}>
+      <DirectoryPicker
+        tree={props.tree}
+        directoryId={state.directoryId}
+        pendingDirectoryName={state.pendingDirectoryName}
+        onSelectExisting={(id) =>
+          dispatch({ type: "setDirectory", directoryId: id })
+        }
+        onSetPendingName={(name) =>
+          dispatch({ type: "setPendingDirectoryName", value: name })
+        }
+        disabled={isPending}
+        allowExistingActions
+        variant="row"
+      />
+
+      <div className="mb-5 flex flex-col gap-2">
         <label htmlFor="note-editor-tags" className={fieldLabel}>
           タグ（カンマ区切り）
         </label>
@@ -365,20 +384,6 @@ export function NoteEditor(props: NoteEditorProps) {
           className={fieldControl}
         />
       </div>
-
-      <DirectoryPicker
-        tree={props.tree}
-        directoryId={state.directoryId}
-        pendingDirectoryName={state.pendingDirectoryName}
-        onSelectExisting={(id) =>
-          dispatch({ type: "setDirectory", directoryId: id })
-        }
-        onSetPendingName={(name) =>
-          dispatch({ type: "setPendingDirectoryName", value: name })
-        }
-        disabled={isPending}
-        allowExistingActions
-      />
 
       {state.mode === "html" ? (
         <>
@@ -455,7 +460,7 @@ export function NoteEditor(props: NoteEditorProps) {
       ) : null}
 
       {submitError !== null ? (
-        <p className={formError} role="alert">
+        <p className={`${formError} mt-4`} role="alert">
           {displayError(submitError)}
         </p>
       ) : null}

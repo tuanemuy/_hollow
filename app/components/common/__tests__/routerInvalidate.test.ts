@@ -51,6 +51,26 @@ describe("routerInvalidate", () => {
     expect(filter({ routeId: "__root__" })).toBe(true);
   });
 
+  it("always excludes the editor routes (Issue #669) while display routes stay invalidatable", async () => {
+    const { router, invalidate } = makeRouter();
+    await routerInvalidate(router);
+    const filter = takeFilter(invalidate);
+    expect(filter({ routeId: "/_app/notes/$noteId/edit" })).toBe(false);
+    expect(filter({ routeId: "/_app/notes/new" })).toBe(false);
+    // display routes are untouched by the editor exclusion
+    expect(filter({ routeId: "/_app/notes" })).toBe(true);
+    expect(filter({ routeId: "/_app/notes/$noteId" })).toBe(true);
+  });
+
+  it("does not leak editor routes through even when the additional filter would pass them", async () => {
+    const { router, invalidate } = makeRouter();
+    const alwaysTrue = () => true;
+    await routerInvalidate(router, alwaysTrue);
+    const filter = takeFilter(invalidate);
+    expect(filter({ routeId: "/_app/notes/$noteId/edit" })).toBe(false);
+    expect(filter({ routeId: "/_app/notes/new" })).toBe(false);
+  });
+
   it("AND-composes the additional filter with `_app` exclusion", async () => {
     const { router, invalidate } = makeRouter();
     const onlyNotes = (m: FakeMatch) => m.routeId.startsWith("/_app/notes");
@@ -91,6 +111,7 @@ describe("appShellInvalidate", () => {
     // Strict equality — `startsWith` would erroneously include leaves.
     expect(filter({ routeId: "/_app/notes" })).toBe(false);
     expect(filter({ routeId: "/_app/notes/$noteId" })).toBe(false);
+    expect(filter({ routeId: "/_app/notes/$noteId/edit" })).toBe(false);
     expect(filter({ routeId: "/_app/tags" })).toBe(false);
     expect(filter({ routeId: "/_app/trash" })).toBe(false);
   });

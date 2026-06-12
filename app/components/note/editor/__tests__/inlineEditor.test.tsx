@@ -218,6 +218,39 @@ describe("InlineEditor structural preservation", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("does not rebuild the host DOM when the emitted value round-trips back (Issue #669 focus preservation)", async () => {
+    // Controlled-editor wiring: keystroke → emit(onChange) → parent state
+    // update → same HTML comes back as the `value` prop. The live DOM
+    // (and therefore focus / caret) must survive that round-trip.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={onChange} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    const textNode = p?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    await act(async () => {
+      (textNode as Text).textContent = "foobar";
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const emitted = onChange.mock.calls[0][0] as string;
+    expect(emitted).toContain("foobar");
+
+    // Feed the emitted HTML back as the value prop (round-trip).
+    await act(async () => {
+      root.render(<InlineEditor value={emitted} onChange={onChange} />);
+    });
+    await flushMutations();
+    // Same element instances — the host was NOT rebuilt, so focus would
+    // have been preserved in a real browser.
+    expect(host.querySelector("p")).toBe(p);
+    expect(host.querySelector("p")?.firstChild).toBe(textNode);
+    // No echo emit either.
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it("disables contentEditable when disabled = true", async () => {
     await act(async () => {
       root.render(

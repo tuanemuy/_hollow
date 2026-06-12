@@ -435,7 +435,11 @@ export function InlineEditor({
   // True while we re-decorate a `<pre>` so the observer ignores the
   // self-driven span churn (Issue #498).
   const isHighlightingRef = useRef(false);
-  const lastEmittedHtmlRef = useRef<string>(value);
+  // `null` until the first build so the resync effect always builds on
+  // mount; afterwards it holds the last HTML this editor emitted (or
+  // resynced to) so a self-emit round-trip is a no-op.
+  const lastEmittedHtmlRef = useRef<string | null>(null);
+  const rebuildRef = useRef<((nextValue: string) => void) | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initFailedFiredRef = useRef(false);
   const onChangeRef = useRef(onChange);
@@ -454,64 +458,19 @@ export function InlineEditor({
     disabledRef.current = disabled === true;
   }, [disabled]);
 
-  // Single effect owns the DOM lifecycle: mount, value-resync, and
-  // teardown. `disabled` is handled in its own effect that toggles the
-  // contenteditable attributes in place — no rebuild needed.
+  // Mount-once effect owns the host-level machinery: event listeners,
+  // the MutationObserver, and the `rebuild` function. The host element
+  // is stable across `value` changes, so none of this needs to be torn
+  // down when the content is resynced — only the host's *children* are
+  // replaced (by `rebuild`, below). Splitting the DOM lifecycle this way
+  // is what keeps focus alive across a self-emit round-trip (Issue #669):
+  // a `[value]`-dependent effect would run its cleanup (listener removal
+  // + `host.replaceChildren()`) on every keystroke's emit → value change,
+  // destroying the focused node. `disabled` is handled in its own effect
+  // that toggles the contenteditable attributes in place.
   useEffect(() => {
     const host = hostRef.current;
     if (host === null) return;
-
-    if (value === lastEmittedHtmlRef.current && host.childNodes.length > 0) {
-      // Self-emit round-trip; nothing to do.
-      return;
-    }
-
-    // Tear down any prior observer / DOM before rebuilding.
-    if (observerRef.current !== null) {
-      observerRef.current.disconnect();
-      observerRef.current.takeRecords();
-      observerRef.current = null;
-    }
-    host.replaceChildren();
-
-    // Parse the saved HTML. Failure → onInitFailed exactly once.
-    let body: HTMLBodyElement | null = null;
-    try {
-      const parsed = new DOMParser().parseFromString(value, "text/html");
-      body = parsed.body as HTMLBodyElement | null;
-    } catch {
-      if (!initFailedFiredRef.current) {
-        initFailedFiredRef.current = true;
-        onInitFailedRef.current?.();
-      }
-      return;
-    }
-    if (body === null) {
-      if (!initFailedFiredRef.current) {
-        initFailedFiredRef.current = true;
-        onInitFailedRef.current?.();
-      }
-      return;
-    }
-
-    const trimmed = value.trim();
-    if (trimmed.length === 0 && body.childNodes.length === 0) {
-      // Empty note: keep an empty host but stay in inline mode (ADR-002).
-      lastEmittedHtmlRef.current = value;
-      return;
-    }
-    if (trimmed.length > 0 && body.childNodes.length === 0) {
-      if (!initFailedFiredRef.current) {
-        initFailedFiredRef.current = true;
-        onInitFailedRef.current?.();
-      }
-      return;
-    }
-
-    snapshotRef.current = body.cloneNode(true) as HTMLBodyElement;
-    host.replaceChildren(...Array.from(body.childNodes));
-    applyEditable(host, !disabledRef.current);
-    lastEmittedHtmlRef.current = serializeHostContent(host);
 
     const emit = () => {
       if (debounceTimerRef.current !== null) {
@@ -615,6 +574,64 @@ export function InlineEditor({
       characterData: true,
       attributes: true,
     });
+
+    // Replace the host's children from `nextValue` (mount and external
+    // value changes). Parse failure → onInitFailed exactly once.
+    const rebuild = (nextValue: string) => {
+      observer.disconnect();
+      observer.takeRecords();
+      host.replaceChildren();
+
+      const restartObserver = () => {
+        observer.observe(host, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+          attributes: true,
+        });
+      };
+
+      let body: HTMLBodyElement | null = null;
+      try {
+        const parsed = new DOMParser().parseFromString(nextValue, "text/html");
+        body = parsed.body as HTMLBodyElement | null;
+      } catch {
+        body = null;
+      }
+      if (body === null) {
+        if (!initFailedFiredRef.current) {
+          initFailedFiredRef.current = true;
+          onInitFailedRef.current?.();
+        }
+        restartObserver();
+        return;
+      }
+
+      const trimmed = nextValue.trim();
+      if (trimmed.length === 0 && body.childNodes.length === 0) {
+        // Empty note: keep an empty host but stay in inline mode (ADR-002).
+        lastEmittedHtmlRef.current = nextValue;
+        restartObserver();
+        return;
+      }
+      if (trimmed.length > 0 && body.childNodes.length === 0) {
+        if (!initFailedFiredRef.current) {
+          initFailedFiredRef.current = true;
+          onInitFailedRef.current?.();
+        }
+        restartObserver();
+        return;
+      }
+
+      snapshotRef.current = body.cloneNode(true) as HTMLBodyElement;
+      host.replaceChildren(...Array.from(body.childNodes));
+      applyEditable(host, !disabledRef.current);
+      lastEmittedHtmlRef.current = serializeHostContent(host);
+      restartObserver();
+      // Decorate all code blocks once the DOM is in place.
+      highlightAll();
+    };
+    rebuildRef.current = rebuild;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing) return;
@@ -770,9 +787,6 @@ export function InlineEditor({
     host.addEventListener("focusin", onFocusIn);
     host.addEventListener("focusout", onFocusOut);
 
-    // Decorate all code blocks once the DOM is in place.
-    highlightAll();
-
     return () => {
       host.removeEventListener("keydown", onKeyDown);
       host.removeEventListener("paste", onPaste);
@@ -781,19 +795,28 @@ export function InlineEditor({
       host.removeEventListener("input", onInput);
       host.removeEventListener("focusin", onFocusIn);
       host.removeEventListener("focusout", onFocusOut);
-      if (observerRef.current !== null) {
-        observerRef.current.disconnect();
-        observerRef.current.takeRecords();
-        observerRef.current = null;
-      }
+      observer.disconnect();
+      observer.takeRecords();
+      observerRef.current = null;
+      rebuildRef.current = null;
       if (debounceTimerRef.current !== null) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
       host.replaceChildren();
+      // Reset so a StrictMode remount (or any future remount of the same
+      // instance) rebuilds instead of treating `value` as a self-emit.
+      lastEmittedHtmlRef.current = null;
     };
-    // `disabled` is intentionally NOT in the dep list: it is handled by
-    // the dedicated effect below to avoid a full rebuild on toggle.
+  }, []);
+
+  // Value resync: rebuild only when `value` did NOT originate from our
+  // own emit. A self-emit round-trip (keystroke → debounce → onChange →
+  // parent state → value prop) leaves the live DOM — and the user's
+  // focus / caret — untouched (Issue #669).
+  useEffect(() => {
+    if (value === lastEmittedHtmlRef.current) return;
+    rebuildRef.current?.(value);
   }, [value]);
 
   useEffect(() => {
@@ -825,13 +848,13 @@ export function InlineEditor({
   }, [disabled]);
 
   return (
-    <div className="mt-4">
+    <div>
       <section
         ref={hostRef}
         aria-label="ノート本文"
         data-editing=""
         data-disabled={disabled === true || undefined}
-        className="note-detail-content min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed caret-accent transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none selection:bg-accent-surface focus-within:border-accent focus-within:shadow-focus [&_:focus-visible]:shadow-none data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
+        className="note-detail-content min-h-[480px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed caret-accent transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none selection:bg-accent-surface focus-within:border-accent focus-within:shadow-focus [&_:focus-visible]:shadow-none data-[disabled]:opacity-disabled data-[disabled]:cursor-not-allowed"
       />
     </div>
   );

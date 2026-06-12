@@ -505,11 +505,11 @@ export function WysiwygEditor({
   const linkActive = editor?.isActive("link") === true;
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="flex flex-col">
       {hasUnsupported ? (
         <div
           data-acked={isAcked || undefined}
-          className="flex flex-col gap-2 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink data-[acked]:bg-surface data-[acked]:text-ink-secondary"
+          className="mb-3 flex flex-col gap-2 rounded-md bg-warning-surface px-4 py-3 text-sm text-ink data-[acked]:bg-surface data-[acked]:text-ink-secondary"
           role={isAcked ? "note" : "alert"}
         >
           {isAcked ? (
@@ -574,7 +574,7 @@ export function WysiwygEditor({
       </div>
       <EditorContent
         editor={editor}
-        className="min-h-[320px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus-within:border-accent focus-within:shadow-focus [&_.ProseMirror]:min-h-[280px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:focus-visible:shadow-none [&_.ProseMirror]:caret-accent [&_.ProseMirror]:selection:bg-accent-surface [&_.ProseMirror>:first-child]:mt-0 [&_.ProseMirror>:last-child]:mb-0 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-hairline-strong [&_blockquote]:pl-4 [&_blockquote]:text-ink-secondary [&_code]:rounded-xs [&_code]:bg-surface [&_code]:px-[6px] [&_code]:py-[2px] [&_code]:font-mono [&_code]:text-sm [&_pre]:rounded-md [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-sm [&_a]:text-accent [&_a]:underline [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
+        className="min-h-[480px] rounded-md border border-hairline bg-bg p-4 text-base leading-relaxed transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus-within:border-accent focus-within:shadow-focus [&_.ProseMirror]:min-h-[440px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:focus-visible:shadow-none [&_.ProseMirror]:caret-accent [&_.ProseMirror]:selection:bg-accent-surface [&_.ProseMirror>:first-child]:mt-0 [&_.ProseMirror>:last-child]:mb-0 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-hairline-strong [&_blockquote]:pl-4 [&_blockquote]:text-ink-secondary [&_code]:rounded-xs [&_code]:bg-surface [&_code]:px-[6px] [&_code]:py-[2px] [&_code]:font-mono [&_code]:text-sm [&_pre]:rounded-md [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-sm [&_a]:text-accent [&_a]:underline [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
       />
     </div>
   );

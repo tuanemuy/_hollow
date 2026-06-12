@@ -1,12 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import {
-  field,
-  fieldControl,
-  fieldLabel,
-  fieldTextarea,
-} from "@/components/common/styles";
+import { field, fieldControl, fieldLabel } from "@/components/common/styles";
 import { CodeHighlight } from "../content/CodeHighlight";
 
 /**
@@ -26,7 +21,7 @@ export type HtmlEditorProps = Readonly<{
 export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
   const textareaId = useId();
   return (
-    <div className="mt-4">
+    <div>
       <div className={field}>
         <label htmlFor={textareaId} className={fieldLabel}>
           本文（HTML）
@@ -39,7 +34,9 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
           rows={18}
           disabled={disabled}
           spellCheck={false}
-          className={`${fieldControl} ${fieldTextarea}`}
+          // The editor pane uses a 480px floor (mock `.editor`) instead of
+          // the shared `fieldTextarea` (320px), which other forms keep (#669).
+          className={`${fieldControl} font-mono text-mono min-h-[480px] resize-y`}
         />
       </div>
       <details className="mt-2 rounded-md border border-hairline bg-surface-elevated">
