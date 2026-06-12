@@ -164,9 +164,9 @@ describe("Popover (dialog mode)", () => {
   });
 
   it("stays open on focus-out with relatedTarget=null (focus lost, not moved)", () => {
-    // Regression for Issue #658 TC-4: after a filter navigation commits, the
-    // RSC re-render can drop focus from a roving-focused option straight to
-    // <body> (focusout with relatedTarget=null). That focus *loss* must not
+    // After a filter navigation commits, the RSC re-render can drop focus
+    // from a roving-focused option straight to <body> (focusout with
+    // relatedTarget=null). That focus *loss* must not
     // dismiss the panel — only real user dismissal paths (outside mousedown,
     // Escape, Tab-out with a non-null relatedTarget) close it.
     render({ initialOpen: true });
@@ -245,7 +245,7 @@ describe("Popover (dialog mode)", () => {
     expect(container.querySelector(`[role="${haspopup}"]`)).not.toBeNull();
   });
 
-  // #658: the tag picker is a multi-select listbox; `multiselectable` must
+  // The tag picker is a multi-select listbox; `multiselectable` must
   // reach the listbox panel as `aria-multiselectable="true"` and stay absent
   // by default (single-select consumers like ViewSwitcher are untouched).
   it.each([

@@ -134,7 +134,7 @@ export function FilterBar({
   const [isPending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
-  // Mutually-exclusive popover state: opening one closes the others (#476).
+  // Mutually-exclusive popover state: opening one closes the others.
   const [openPopover, setOpenPopover] = useState<
     "tag" | "date" | "visibility" | null
   >(null);
@@ -451,15 +451,15 @@ type TagPickerPopoverProps = Readonly<{
 // accent focus-visible outline ring, `[overflow-wrap:anywhere]` for long tag
 // names, and TOUCH_TARGET. VISIBILITY_OPTION_ITEM carries the same additions
 // so the two adjacent filter popovers focus-render identically; full
-// consolidation is the shared follow-up (.issue/649/adr.md ADR-011).
+// consolidation into a shared constant is a follow-up.
 const TAG_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 
 /**
- * "+ タグ" ghost-chip trigger + multi-select tag listbox (Issue #658 / #626
- * ADR-008). The panel stays open across toggles (`aria-multiselectable`);
- * each option click runs the same optimistic `toggleTag` as the inline tag
- * chips. `title` is rendered unconditionally — intentional deviation from the
- * mobile mock, matching the clear-× precedent (.issue/658/adr.md ADR-004).
+ * "+ タグ" ghost-chip trigger + multi-select tag listbox. The panel stays
+ * open across toggles (`aria-multiselectable`); each option click runs the
+ * same optimistic `toggleTag` as the inline tag chips. `title` is rendered
+ * unconditionally — intentional deviation from the mobile mock, matching the
+ * clear-× precedent.
  */
 function TagPickerPopover({
   tags,
@@ -485,8 +485,8 @@ function TagPickerPopover({
     itemRole: "option",
     initialIndex,
     // The multi-select panel stays open across toggles, so the RSC re-render
-    // after each filter navigation can drop focus to <body> (Issue #658
-    // TC-5) — only this consumer needs the after-commit restore pass.
+    // after each filter navigation can drop focus to <body> — only this
+    // consumer needs the after-commit restore pass.
     restoreFocusOnCommit: true,
   });
 
@@ -732,8 +732,8 @@ type VisibilityPopoverProps = Readonly<{
 // intentionally NOT reused here because it lacks the `data-[active]` selection
 // indicator this radio group needs. Carries the same focus ring /
 // overflow-wrap / TOUCH_TARGET additions as TAG_OPTION_ITEM so keyboard focus
-// renders identically across the adjacent filter popovers (consolidation:
-// .issue/649/adr.md ADR-011).
+// renders identically across the adjacent filter popovers; consolidation into
+// a shared constant is a follow-up.
 const VISIBILITY_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 
 function VisibilityPopover({

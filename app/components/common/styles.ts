@@ -366,7 +366,7 @@ export const menuPanel =
  * `max-sm:fixed` is load-bearing: the consumers position the panel `absolute`
  * inside the popover's `relative inline-flex` trigger wrapper, so without it
  * `left-0 / right-0` resolve against the (chip-sized) wrapper and the panel
- * collapses to the trigger's width (Issue #658 TC-6).
+ * collapses to the trigger's width.
  * Stays non-modal (no backdrop) — `usePopover` keeps its dismiss-on-outside
  * behaviour unchanged. When a consumer goes full-width the `clampToViewport`
  * horizontal shift is unnecessary.

@@ -309,7 +309,7 @@ describe("FilterBar すべてクリア × (Issue #649 / #626 ADR-006)", () => {
   });
 });
 
-describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
+describe("FilterBar — + タグ TagPicker", () => {
   const TAGS: readonly Tag[] = [
     { id: "t1", name: "alpha", noteCount: 3 },
     { id: "t2", name: "beta", noteCount: 1 },
@@ -335,7 +335,7 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     });
   }
 
-  it("renders the ghost chip after the tag chips and before the 期間 chip, with the ADR-008 a11y contract", () => {
+  it("renders the ghost chip after the tag chips and before the 期間 chip, with the listbox a11y contract", () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBar(TAGS, []);
     const trigger = pickerTrigger();
@@ -392,7 +392,7 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     const cls = listbox()?.className ?? "";
     expect(cls).toContain(popoverSheetPanel);
     // Containing the shared constant is not enough on its own (the constant
-    // itself once lacked the sheet utilities — Issue #658 TC-6), so pin the
+    // itself once lacked the sheet utilities), so pin the
     // utilities that actually detach the panel from the chip-sized trigger
     // wrapper and anchor it to the viewport bottom below `sm`.
     for (const utility of [
@@ -429,8 +429,8 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
       resolveNav?.();
     });
     await flush();
-    // TC-4 regression surfaced AFTER the navigation settled (the RSC
-    // re-render's focus loss closed the panel), so the open state must also
+    // The focus-loss regression surfaced AFTER the navigation settled (the
+    // RSC re-render's focus loss closed the panel), so the open state must also
     // hold once the promise resolves, not just while pending. (The optimistic
     // selection itself reverts to the baseline here because no real loader
     // ever delivers updated props in this harness.)
@@ -486,7 +486,7 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     expect(document.activeElement).toBe(options()[2]);
   });
 
-  it("restores focus to the active option when a commit drops focus to <body> (Issue #658 TC-5)", async () => {
+  it("restores focus to the active option when a commit drops focus to <body>", async () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBar(TAGS, []);
     openPicker();
@@ -519,7 +519,7 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     expect(document.activeElement).toBe(options()[2]);
   });
 
-  it("clamps the restored focus index when the option set shrinks in the same commit (ADR-008)", async () => {
+  it("clamps the restored focus index when the option set shrinks in the same commit", async () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBar(TAGS, []);
     openPicker();
@@ -531,7 +531,7 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     // A filter navigation can both drop focus to <body> and shrink the
     // option list in the same commit. The restore pass must clamp the stale
     // out-of-range index (2 → last remaining option) instead of no-opping,
-    // or the arrow keys stay dead (same symptom as TC-5).
+    // or the arrow keys stay dead (same symptom as the focus-drop case above).
     act(() => {
       options()[2].blur();
     });

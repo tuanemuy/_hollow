@@ -248,8 +248,8 @@ describe("ViewSwitcher keyboard contract", () => {
   });
 
   it("does not pull focus back into the panel when a commit happens while <body> holds focus (restoreFocusOnCommit defaults off)", () => {
-    // Negative guard for Issue #658 ADR-008: the focus-restore-on-commit
-    // pass is opt-in for multi-select listboxes only. Single-select
+    // Negative guard: the focus-restore-on-commit pass is opt-in for
+    // multi-select listboxes only. Single-select
     // consumers like ViewSwitcher must keep the default (off) so an
     // unrelated re-render never steals focus while <body> happens to be the
     // active element.

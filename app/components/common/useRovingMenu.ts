@@ -33,8 +33,8 @@ export type UseRovingMenuOptions = Readonly<{
    * Opt-in focus-restore pass for panels that stay open across selections
    * (multi-select listboxes). When a React commit swaps the focused item node
    * and drops focus to `<body>` (e.g. the RSC re-render after a filter
-   * navigation — Issue #658 TC-5), the pass refocuses the active item after
-   * the commit. Off by default: single-select consumers close on selection
+   * navigation), the pass refocuses the active item after the commit.
+   * Off by default: single-select consumers close on selection
    * and must not have focus pulled back into the panel by unrelated
    * re-renders while `<body>` happens to hold focus.
    */
@@ -67,8 +67,8 @@ export function useRovingMenu({
   // Tracks the last seen `open` so the reset below only fires on a real
   // closed → open transition. Effects can re-fire WITHOUT a dep change when
   // the subtree is suspended and resumed (e.g. the RSC re-render after a
-  // filter navigation while a multi-select listbox stays open — Issue #658
-  // TC-5); resetting there would clobber the roving position mid-interaction.
+  // filter navigation while a multi-select listbox stays open); resetting
+  // there would clobber the roving position mid-interaction.
   const prevOpenRef = useRef(false);
 
   // On (re)open, reset the active index to the desired landing item.
@@ -93,8 +93,8 @@ export function useRovingMenu({
   // Focus-restore pass (opt-in via `restoreFocusOnCommit`), run after EVERY
   // commit (no dep array) while open. Panels that stay open across selections
   // (multi-select listboxes) lose focus to <body> when a React commit swaps
-  // the focused item node — e.g. the RSC re-render after a filter navigation
-  // (Issue #658 TC-5) — leaving the roving arrow keys dead. The drop happens
+  // the focused item node — e.g. the RSC re-render after a filter
+  // navigation — leaving the roving arrow keys dead. The drop happens
   // inside the commit (its `focusout` carries `relatedTarget: null` and the
   // panel ref is detached mid-commit), so the only reliable hook point is
   // "after a commit, refs re-attached": check and refocus here. The
