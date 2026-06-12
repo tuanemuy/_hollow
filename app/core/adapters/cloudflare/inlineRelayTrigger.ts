@@ -21,9 +21,12 @@ import {
  * dlq Workers and Cloudflare Queues are not running, so newly-persisted
  * outbox rows would otherwise sit idle until manual intervention.
  *
- * Wired exclusively from `app/server.cloudflare.ts` under
- * `import.meta.env.DEV`; Vite inlines the flag to `false` at build time
- * so this adapter cannot ship into staging or production bundles.
+ * Wired exclusively from `app/server.cloudflare.ts` behind
+ * {@link resolveInlineRelayGate} (Vite dev OR the local-only
+ * `DEV_INLINE_RELAY` var under `pnpm start`); the entry guards the call
+ * with `import.meta.env?.MODE !== "production"`, which `vite build`
+ * inlines to `false` so this adapter cannot ship into staging or
+ * production bundles.
  *
  * Contract behaviour:
  * - `kick()` schedules the drain via `waitUntil` and returns
@@ -48,6 +51,28 @@ import {
  * 4. Per event, call `idempotencyStore.hasProcessed` → `dispatchDomainEvent`
  *    → `markProcessed`, mirroring the production `handleQueue` contract.
  */
+/**
+ * Runtime gate deciding whether the dev-only {@link InlineRelayTrigger}
+ * should be wired into the request container.
+ *
+ * - `viteDev` — `import.meta.env.DEV === true` under `pnpm dev`.
+ * - `flag` — the `DEV_INLINE_RELAY` var. LOCAL `wrangler.toml [vars]`
+ *   only; never add it to the staging / production toml templates.
+ *
+ * Disabling the path in production builds is NOT this function's
+ * responsibility: the entry point (`app/server.cloudflare.ts`) places
+ * the constant `import.meta.env?.MODE !== "production"` condition on
+ * the left of a short-circuit `&&`, so `vite build` dead-code-eliminates
+ * the whole branch — verified by the post-build grep in
+ * docs/runtime_cloudflare.md.
+ */
+export function resolveInlineRelayGate(input: {
+  viteDev: boolean;
+  flag: string | undefined;
+}): boolean {
+  return input.viteDev === true || input.flag === "true";
+}
+
 export class InlineRelayTrigger implements RelayTrigger {
   constructor(
     private readonly env: ServerEnv,

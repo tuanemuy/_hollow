@@ -13,7 +13,10 @@ import type {
   ProcessOutboxEventsOptions,
 } from "@/core/application/workers/eventRelayWorker";
 import type { DomainEvent, EventId } from "@/core/domain/common/event";
-import { InlineRelayTrigger } from "../inlineRelayTrigger";
+import {
+  InlineRelayTrigger,
+  resolveInlineRelayGate,
+} from "../inlineRelayTrigger";
 
 // Module mocks: drive the dispatch path with synthetic events instead of
 // reaching through a real D1 / outbox repository. The cloudflare-adapter
@@ -122,6 +125,28 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("resolveInlineRelayGate", () => {
+  // "Disabled in production builds" is not covered here on purpose: that
+  // guarantee lives in the entry point's DCE gate and is verified by the
+  // post-build grep (docs/runtime_cloudflare.md), not by this function.
+  it.each<{ viteDev: boolean; flag: string | undefined; expected: boolean }>([
+    { viteDev: true, flag: undefined, expected: true },
+    { viteDev: true, flag: "false", expected: true },
+    { viteDev: true, flag: "true", expected: true },
+    { viteDev: false, flag: "true", expected: true },
+    { viteDev: false, flag: undefined, expected: false },
+    { viteDev: false, flag: "false", expected: false },
+    { viteDev: false, flag: "TRUE", expected: false },
+    { viteDev: false, flag: "", expected: false },
+  ])("viteDev=$viteDev flag=$flag → $expected", ({
+    viteDev,
+    flag,
+    expected,
+  }) => {
+    expect(resolveInlineRelayGate({ viteDev, flag })).toBe(expected);
+  });
 });
 
 describe("InlineRelayTrigger.kick", () => {
