@@ -140,9 +140,11 @@ export function MediaUploader({
       </div>
       {state.kind === "uploading" ? (
         <div className="mt-2">
-          <p className="text-xs text-ink-tertiary" aria-live="polite">
-            アップロード中…
-            {state.progress !== null ? `（${state.progress}%）` : null}
+          <p className="text-xs text-ink-tertiary">
+            <span aria-live="polite">アップロード中…</span>
+            {state.progress !== null ? (
+              <span aria-hidden="true">（{state.progress}%）</span>
+            ) : null}
           </p>
           {state.progress !== null ? (
             <ProgressBar value={state.progress} decorative className="mt-1" />
