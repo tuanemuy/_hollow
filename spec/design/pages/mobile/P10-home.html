@@ -320,7 +320,7 @@
     min-height: calc(100vh - var(--header-height));
   }
   /* grid item の min-width:auto による blowout を防ぐ。
-     これで内部スクロール行(toolbar/filter-bar)が親幅を押し広げない。 */
+     これで内部スクロール行(page-meta-row/filter-bar)が親幅を押し広げない。 */
   .layout > .main { min-width: 0; }
 
   /* ===== Sidebar (drawer 常時) ===== */
@@ -504,26 +504,56 @@
     color: var(--color-ink);
     margin-bottom: 10px;
   }
-  .page-subtitle {
-    font-size: var(--text-md);
-    color: var(--color-ink-secondary);
-    margin-bottom: var(--space-5);
+  /* #626 R2 ADR-004: 保存ビュー切り替えは見出し自体をトリガーにする（desktop と同方針）。
+     タップでビュー一覧のドロップダウン（またはボトムシート）が開く想定（モックは閉状態のみ）。
+     当たり判定はタッチ配慮で min-height 44px（[role=button] のグローバル床ではなく明示）。 */
+  .view-switcher {
+    display: inline-flex;
+    /* chevron は baseline ではなく見出しテキストに対して縦中央に揃える（#626 R3 フィードバック） */
+    align-items: center;
+    gap: 8px;
+    font: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    color: inherit;
+    margin-left: -8px;
+    padding: 2px 8px;
+    min-height: 44px;
+    border-radius: var(--radius-md);
+    transition: var(--transition-bg);
+    /* グローバルの button { white-space: nowrap } を打ち消し、長いビュー名でも 320px 幅で折り返す */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
   }
+  .view-switcher:hover { background: var(--color-surface); }
+  .view-switcher .caret { color: var(--color-ink-tertiary); flex-shrink: 0; }
 
-  /* ===== Toolbar (NoteListToolbar) =====
-     mobile: 表示モードは P30(個人公開ページ)と同じ segmented control に寄せて
-     視覚的なまとまりを出し、ツールバーの密度を下げる。
-     選択モード・保存ビューは右側の控えめなアクションとして畳む。
-     新規/アップロード CTA は下部固定 CTA へ退避。 */
-  .toolbar {
+  /* ===== 件数 + ツールバー段 (NoteListToolbar) =====
+     mobile: 表示モードは desktop と同じ segmented control。
+     #626: 表示モードは低頻度の設定のため右端へ移動し優先度を下げる（ADR-001）。
+     #626 R2: 保存ビュー select は見出しトリガーへ移設（ADR-004）。空いた左に件数サブタイトルを
+     統合し1行にする（ADR-007）。320px 幅では flex-wrap で2行に折り返す。
+     右は 選択 / ビュー保存（ghost・アイコンのみ、ADR-005）/ segmented。
+     新規/アップロード CTA はヘッダー常時表示（#628 ADR-001/003。下部固定 CTA は廃止済み）。 */
+  .page-meta-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: var(--space-4);
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
   }
-  /* 表示モード = まとめた1コントロール（P30 と統一） */
+  .page-subtitle {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+  }
+  /* 表示モード = segmented（desktop と統一）。
+     #626 ADR-001: アイコンのみ + active は ink 濃度差（白カード + shadow 廃止、#620 の表現を上書き）。
+     アイコンのみ化のため aria-label 必須。role="tablist" / aria-selected の契約は維持。
+     title はホバーが存在しないタッチ主体環境のため省略（ADR-001 のデバイス別適用範囲どおり）。
+     ボタンは 36×32px と desktop（32×28px）よりタッチターゲット配慮で拡大。
+     実装時は padding 等で当たり判定を 44×44px 相当へさらに拡大すること（見た目のアイコン寸法は維持）。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -531,40 +561,25 @@
     display: inline-flex;
   }
   .segmented button {
-    min-height: 36px;
-    padding: 6px 12px;
+    width: 36px;
+    min-height: 32px;
     border-radius: 7px;
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-tertiary);
     background: transparent;
     transition: all var(--duration-base) var(--ease-standard);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
-  /* 右側のアクション群（選択モード・保存ビュー）。
+  .segmented button.active { color: var(--color-ink); }
+  /* 右側のアクション群（選択モード・ビューとして保存・表示モード segmented）。
      ボタンは desktop・実装と同じ pill-btn の ghost(透明・ink-secondary)に統一 (#620)。
-     低強調の二次アクション。「ビューとして保存」は狭幅のためラベルを畳みアイコンのみ（実装の max-sm:hidden と一致）。 */
+     低強調の二次アクション。「選択」「ビューとして保存」はアイコンのみ
+     （#626 R2 ADR-005: デバイス共通の確定形。狭幅対応の妥協ではなくデスクトップと同方針）。 */
   .toolbar-actions {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-  }
-  .view-select {
-    min-height: 36px;
-    height: 36px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-hairline);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-    color: var(--color-ink-secondary);
-    max-width: 150px;
   }
 
   /* ===== FilterBar (#497) ===== mobile: チップ列は横スクロール（内部隔離） */
@@ -628,21 +643,21 @@
     color: rgba(255,255,255,0.85);
   }
   .filter-chip .chip-remove:hover { color: #fff; background: rgba(255,255,255,0.18); }
-  .filter-clear {
+  /* #626 R2 ADR-006: 「すべてクリア」のテキストボタンは廃止し、チップ列末尾の小さな × に置き換え。
+     見た目は 32px（チップと同高）に留め、実装時は padding 等で当たり判定を 44×44px 相当へ拡大すること。
+     タッチ主体のため title は省略し aria-label のみ（ADR-001 のデバイス別契約どおり）。 */
+  .filter-clear-x {
+    width: 32px;
     height: 32px;
-    padding: 0 14px;
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    border-radius: var(--radius-full);
     display: inline-flex;
     align-items: center;
-    white-space: nowrap;
+    justify-content: center;
+    color: var(--color-ink-tertiary);
     flex-shrink: 0;
-    transition: var(--transition-bg);
+    transition: var(--transition-bg), var(--transition-color);
   }
-  .filter-clear:hover { background: var(--color-surface-hover); }
+  .filter-clear-x:hover { background: var(--color-surface); color: var(--color-ink); }
 
   /* Note list — mobile: 単カラム縦積み（チェック + 本文の2列、日付は本文下メタへ） */
   .note-list { margin-top: var(--space-2); }
@@ -977,53 +992,60 @@
   </aside>
 
   <main class="main">
-    <h1 class="page-title">すべてのノート</h1>
-    <div class="page-subtitle">127 件のノート</div>
+    <!-- #626 R2 ADR-004: 見出し = 現在のビュー名 + 切り替えトリガー（タップでビュー一覧が開く。閉状態のみモック化）。 -->
+    <h1 class="page-title">
+      <button class="view-switcher" aria-haspopup="listbox" aria-expanded="false" aria-label="ビューを切り替え: 現在 すべてのノート">
+        すべてのノート
+        <svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </h1>
 
-    <!-- NoteListToolbar: 表示モードは segmented(P30/desktop と統一)、選択モード・保存ビューは右に畳む。
-         ボタンは pill-btn で desktop・実装と統一 (#620)。新規/アップロードは下部固定CTAへ。
-         「ビューとして保存」は狭幅のためアイコンのみに縮約。 -->
-    <div class="toolbar">
-      <div class="segmented" role="tablist" aria-label="表示形式">
-        <button class="active" role="tab" aria-selected="true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-          リスト
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          タイル
-        </button>
-        <button role="tab" aria-selected="false">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          カレンダー
-        </button>
-      </div>
+    <!-- NoteListToolbar: 件数と同行に統合（#626 R2 ADR-007）。
+         左 = 件数 / 右 = 選択・ビュー保存(ghost・アイコンのみ)・表示モード segmented。
+         #626/#628/#620 の決定理由と aria 契約は .page-meta-row / .segmented / .toolbar-actions の注記を参照。 -->
+    <div class="page-meta-row">
+      <div class="page-subtitle">127 件のノート</div>
 
       <div class="toolbar-actions">
         <button class="pill-btn ghost" aria-pressed="false" aria-label="選択モード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          選択
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         </button>
         <button class="pill-btn ghost" aria-label="ビューとして保存">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
-        <select class="view-select" aria-label="保存済みビュー">
-          <option>保存ビューを選択</option>
-        </select>
+        <div class="segmented" role="tablist" aria-label="表示形式">
+          <button class="active" role="tab" aria-selected="true" aria-label="リスト">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="タイル">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button role="tab" aria-selected="false" aria-label="カレンダー">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- FilterBar (#497): チップ列は横スクロール（内部隔離） -->
+    <!-- FilterBar (#497): チップ列は横スクロール（内部隔離）。
+         #626 R2 ADR-006: 「すべてクリア」はチップ列末尾の小さな × に置き換え（フィルタ適用時のみ表示）。 -->
     <div class="filter-bar" aria-label="フィルタ">
       <div class="filter-tags">
         <button class="filter-chip active">#research<span class="chip-count">23</span></button>
         <button class="filter-chip">#日記<span class="chip-count">14</span></button>
         <button class="filter-chip">#essay<span class="chip-count">9</span></button>
       </div>
+      <!-- #626 R3 ADR-008: 表示中以外のタグで絞り込む導線（+ アイコン = 追加）。タップでタグ一覧の
+           ピッカー（ボトムシート想定）が開く。タッチ主体のため title は省略し aria-label のみ。 -->
+      <button class="filter-chip-ghost" aria-haspopup="listbox" aria-label="タグで絞り込み">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>タグ
+      </button>
       <button class="filter-chip-ghost">期間<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">公開状態<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">内部リンク参照<span class="chip-caret">▾</span></button>
-      <button class="filter-clear">すべてクリア</button>
+      <button class="filter-clear-x" aria-label="フィルタをすべてクリア">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
 
     <div class="note-list" id="noteList">

@@ -504,17 +504,40 @@
     color: var(--color-ink);
     margin-bottom: 10px;
   }
-  .page-subtitle {
-    font-size: var(--text-md);
-    color: var(--color-ink-secondary);
-    margin-bottom: 28px;
+  /* #626 R2 ADR-004: 保存ビューの切り替えはツールバーの select ではなく、
+     ページ見出し自体をトリガーにする（見出し = 現在のビュー名）。
+     クリックで「すべてのノート / 未公開の下書き / 今週のレビュー …」のリストが
+     ドロップダウンで開く想定（モックは閉状態のみ。挙動は実装側）。
+     見出しの語り口を崩さないよう、装飾は chevron と hover の surface のみに留める。 */
+  .view-switcher {
+    display: inline-flex;
+    /* chevron は baseline ではなく見出しテキストに対して縦中央に揃える（#626 R3 フィードバック） */
+    align-items: center;
+    gap: 10px;
+    font: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    color: inherit;
+    margin: 0 0 0 -10px;
+    padding: 2px 10px;
+    border-radius: var(--radius-md);
+    transition: var(--transition-bg);
+    /* グローバルの button { white-space: nowrap } を打ち消し、長いビュー名でも折り返す */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
   }
+  .view-switcher:hover { background: var(--color-surface); }
+  .view-switcher .caret { color: var(--color-ink-tertiary); flex-shrink: 0; }
 
-  /* ===== Toolbar (NoteListToolbar) =====
-     表示モードは P30(個人公開ページ)・モバイルと同じ segmented control に統一
-     (#620: #292 ADR-002 の pill-btn タブ群方針を上書き)。
-     右側に 選択 / ビューとして保存（低強調の ghost）/ 新規作成 / アップロード CTA を並べる。 */
-  .toolbar {
+  /* ===== 件数 + ツールバー段 (NoteListToolbar) =====
+     表示モードは P30(個人公開ページ)・モバイルと同じ segmented control
+     (#620: #292 ADR-002 の pill-btn タブ群方針を上書き → #626 ADR-001 で右端・アイコンのみ化)。
+     #626 R2: 保存ビュー select を見出しトリガーへ移設（ADR-004）したことでツールバー左が空いたため、
+     件数サブタイトルと同じ行に統合する（ADR-007: 余白を別要素で埋めず、行数を1つ減らして静けさを保つ）。
+     左 = 件数、右 = 選択 / ビューとして保存（ghost・アイコンのみ、ADR-005）/ segmented。
+     新規作成・アップロード CTA はヘッダーへ集約しツールバーから削除（#626 ADR-002、序列は #628 ADR-003）。 */
+  .page-meta-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -522,14 +545,24 @@
     gap: var(--space-3);
     flex-wrap: wrap;
   }
+  .page-subtitle {
+    font-size: var(--text-md);
+    color: var(--color-ink-secondary);
+  }
   .toolbar-group {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
     flex-wrap: wrap;
   }
-  /* 表示モード = segmented control（P30/モバイルと統一, DisplayModeSwitch）。
-     アクティブは白カード + shadow で表現 (#620)。 */
+  /* 選択 / ビューとして保存はアイコンのみ（#626 R2 ADR-005）。
+     aria-label 必須 + デスクトップ（hover 環境）は title 必須（ADR-001 の契約を踏襲）。 */
+  .toolbar-group .pill-btn.icon { height: 36px; min-height: 36px; }
+  /* 表示モード = segmented control（DisplayModeSwitch）。
+     #626 ADR-001: アイコンのみ + active は ink 濃度差（白カード + shadow 廃止、#620 の表現を上書き）。
+     アイコンのみ化のため aria-label 必須 + デスクトップ（hover 環境）は title も必須（モバイルは aria-label のみ）。
+     role="tablist" / role="tab" / aria-selected の契約は維持
+     （実装側に aria 契約テストあり）。非表示モード用途の .segmented（P15/P16/P18 等）は対象外。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -537,35 +570,22 @@
     display: inline-flex;
   }
   .segmented button {
-    padding: 6px 14px;
+    width: 32px;
+    height: 28px;
     border-radius: 7px;
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-tertiary);
     background: transparent;
     transition: all 0.18s ease;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
-  /* 保存ビュー select (NoteListToolbar) */
-  .view-select {
-    height: 36px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-hairline);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-    color: var(--color-ink);
-  }
+  .segmented button:hover { color: var(--color-ink-secondary); }
+  .segmented button.active { color: var(--color-ink); }
 
   /* ===== FilterBar (#497) =====
      枠線で囲った 1 行のフィルタ帯。タグチップ（件数バッジ付き）+ 期間/公開状態/
-     内部リンク参照のゴーストチップ + すべてクリア。 */
+     内部リンク参照のゴーストチップ + クリア ×。 */
   /* ツールバー直下に重ねず、線ではなく余白で区切る（設計原則 §2.2）。
      横パディングは 0 にして先頭チップの左端を見出し・ツールバーと揃える。
      border-bottom を持たせると note-list 先頭行の border-top と二重線になり
@@ -623,21 +643,20 @@
     color: rgba(255,255,255,0.85);
   }
   .filter-chip .chip-remove:hover { color: #fff; background: rgba(255,255,255,0.18); }
-  /* すべてクリア = pillBtn を右寄せ */
-  .filter-clear {
-    margin-left: auto;
-    height: 36px;
-    padding: 0 16px;
-    border-radius: var(--radius-pill);
-    background: var(--color-surface);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+  /* #626 R2 ADR-006: 「すべてクリア」のテキストボタン（右寄せ pill）は廃止し、
+     チップ列の末尾に小さな ×（全クリア）を置く。クリア対象（チップ群）の直後にあるほうが
+     関係が読み取りやすく、ツールバー級の強調も不要なため。aria-label / title は必須。 */
+  .filter-clear-x {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
     display: inline-flex;
     align-items: center;
-    transition: var(--transition-bg);
+    justify-content: center;
+    color: var(--color-ink-tertiary);
+    transition: var(--transition-bg), var(--transition-color);
   }
-  .filter-clear:hover { background: var(--color-surface-hover); }
+  .filter-clear-x:hover { background: var(--color-surface); color: var(--color-ink); }
 
   /* Note list */
   .note-list { margin-top: var(--space-2); }
@@ -1039,60 +1058,62 @@
   </aside>
 
   <main class="main">
-    <!-- 実装(NoteList)はホーム先頭にパンくずを置かず、見出し+件数サブタイトル。 -->
-    <h1 class="page-title">すべてのノート</h1>
-    <div class="page-subtitle">127 件のノート</div>
+    <!-- 実装(NoteList)はホーム先頭にパンくずを置かず、見出し+件数サブタイトル。
+         #626 R2 ADR-004: 見出し = 現在のビュー名 + 切り替えトリガー。
+         クリックでビュー一覧（すべてのノート / 保存ビュー）のドロップダウンが開く（閉状態のみモック化）。 -->
+    <h1 class="page-title">
+      <button class="view-switcher" aria-haspopup="listbox" aria-expanded="false" aria-label="ビューを切り替え: 現在 すべてのノート" title="ビューを切り替え">
+        すべてのノート
+        <svg class="caret" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </h1>
 
-    <!-- NoteListToolbar: 表示モードスイッチ(segmented) + 保存ビュー select / 選択・ビュー保存・新規・アップロード -->
-    <div class="toolbar">
+    <!-- NoteListToolbar: 件数と同行に統合（#626 R2 ADR-007）。
+         左 = 件数 / 右 = 選択・ビュー保存(ghost・アイコンのみ)・表示モード segmented。
+         決定理由と aria 契約は .page-meta-row / .segmented の注記を参照。 -->
+    <div class="page-meta-row">
+      <div class="page-subtitle">127 件のノート</div>
       <div class="toolbar-group">
+        <button class="pill-btn ghost icon" aria-pressed="false" aria-label="選択モード" title="選択モード">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </button>
+        <button class="pill-btn ghost icon" aria-label="ビューとして保存" title="ビューとして保存">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
         <div class="segmented" role="tablist" aria-label="表示形式">
-          <button class="active" role="tab" aria-selected="true">
+          <button class="active" role="tab" aria-selected="true" aria-label="リスト" title="リスト">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-            リスト
           </button>
-          <button role="tab" aria-selected="false">
+          <button role="tab" aria-selected="false" aria-label="タイル" title="タイル">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            タイル
           </button>
-          <button role="tab" aria-selected="false">
+          <button role="tab" aria-selected="false" aria-label="カレンダー" title="カレンダー">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            カレンダー
           </button>
         </div>
-        <select class="view-select" aria-label="保存済みビュー">
-          <option>保存ビューを選択</option>
-        </select>
-      </div>
-      <div class="toolbar-group">
-        <button class="pill-btn ghost" aria-pressed="false" aria-label="選択モード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          <span class="label">選択</span>
-        </button>
-        <button class="pill-btn ghost" aria-label="ビューとして保存">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          <span class="label">ビューとして保存</span>
-        </button>
-        <button class="pill-btn primary" aria-label="新規作成">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <button class="pill-btn" aria-label="アップロード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </button>
       </div>
     </div>
 
-    <!-- FilterBar (#497): タグチップ(件数バッジ) + 期間/公開状態/内部リンク参照ゴーストチップ + すべてクリア -->
+    <!-- FilterBar (#497): タグチップ(件数バッジ) + 期間/公開状態/内部リンク参照ゴーストチップ。
+         #626 R2 ADR-006: 「すべてクリア」はチップ列末尾の小さな × に置き換え（フィルタ適用時のみ表示）。 -->
     <div class="filter-bar" aria-label="フィルタ">
       <div class="filter-tags">
         <button class="filter-chip active">#research<span class="chip-count">23</span></button>
         <button class="filter-chip">#日記<span class="chip-count">14</span></button>
         <button class="filter-chip">#essay<span class="chip-count">9</span></button>
       </div>
+      <!-- #626 R3 ADR-008: 表示中以外のタグで絞り込む導線。+ アイコンで「追加」を明示し、
+           クリックでタグ一覧のピッカーが開く想定（モックは閉状態のみ）。
+           末尾のクリア ×（ADR-006）とは「破線チップ = 追加」「裸の円形 × = 解除」で役割を区別する。 -->
+      <button class="filter-chip-ghost" aria-haspopup="listbox" aria-label="タグで絞り込み" title="タグで絞り込み">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>タグ
+      </button>
       <button class="filter-chip-ghost">期間<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">公開状態<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">内部リンク参照<span class="chip-caret">▾</span></button>
-      <button class="filter-clear">すべてクリア</button>
+      <button class="filter-clear-x" aria-label="フィルタをすべてクリア" title="フィルタをすべてクリア">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
 
     <div class="note-list" id="noteList">
