@@ -44,7 +44,7 @@ export type SearchPublicNotesOutput = Readonly<{
  *
  * `dateRange`, when set, narrows by the publication aggregate's
  * `published_at` (公開日) — not the note's `date_for_calendar`. The
- * adapter joins `publication_states` for the windowed read (ADR-003).
+ * adapter joins `publication_states` for the windowed read.
  */
 export async function searchPublicNotes({
   container,
@@ -60,7 +60,7 @@ export async function searchPublicNotes({
     directoryPathPrefix: null,
     dateRange: input.dateRange ?? null,
     // Public surface: the period window means 公開日, so it is evaluated
-    // against the publication aggregate's `published_at` (ADR-006).
+    // against the publication aggregate's `published_at`.
     dateBasis: "published_at",
     sort: input.sort ?? "relevance",
     limit: input.limit,

@@ -196,7 +196,7 @@ export const SEARCH_FORM = "relative max-w-[640px] mx-auto";
 export const SEARCH_FORM_INPUT =
   "w-full h-14 max-sm:h-12 border-0 bg-surface rounded-pill pl-[54px] max-sm:pl-[46px] pr-14 text-md text-ink outline-none transition-colors motion-reduce:transition-none focus:bg-surface-hover focus:shadow-focus placeholder:text-ink-tertiary";
 // Center-anchored so it stays within the input even when the base `pillBtn`
-// `TOUCH_TARGET` tap floor fires on mobile (see .issue/417/adr.md ADR-004).
+// `TOUCH_TARGET` tap floor fires on mobile.
 // Requires `data-primary` on the consumer button.
 export const SEARCH_FORM_BUTTON = `${pillBtn} ${pillBtnPrimary} absolute right-1.5 top-1/2 -translate-y-1/2`;
 // Mock `.hero-icon`: left 22px (PC) / 18px (mobile), aligned with the input padding.
@@ -294,7 +294,7 @@ export const TOKEN_REMOVE =
   "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 shrink-0 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06]";
 // `focus-visible:shadow-none` cancels the global `:focus-visible` box-shadow
 // on the inner input so the focus ring stays single, carried by the wrapper
-// `TOKEN_INPUT`'s `focus-within:shadow-focus` (.issue/618/adr.md ADR-003).
+// `TOKEN_INPUT`'s `focus-within:shadow-focus`.
 export const TOKEN_FIELD =
   "flex-1 min-w-[100px] h-[26px] border-0 bg-transparent text-[13px] text-ink outline-none px-1 placeholder:text-ink-tertiary focus-visible:shadow-none";
 

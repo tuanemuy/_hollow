@@ -14,9 +14,9 @@ import { createTestContainer, type TestContainer } from "./helpers";
 // before any `searchIndex.upsert` will succeed.
 
 /**
- * D1 SearchIndex integration tests. Targets the trigram-tokenizer switch
- * from Issue #50 — exercises CJK partial-match, the ASCII regression
- * surface, and the adapter-side short-token guard. These are SQL-layer
+ * D1 SearchIndex integration tests. Exercises the trigram tokenizer's
+ * CJK partial-match, the ASCII regression surface, and the adapter-side
+ * short-token guard. These are SQL-layer
  * concerns that the fake `SearchIndex` (used by application-layer tests)
  * cannot detect.
  *
@@ -235,8 +235,7 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
   it("falls back to LIKE for short tokens that trigram cannot index", async () => {
     // Short tokens (< 3 codepoints) cannot match through trigram MATCH,
     // so the adapter routes them to the LIKE fallback over the host
-    // table. This replaces the former `'""'` zero-hit guard. The body
-    // below contains `AI` and the emoji; both must now match.
+    // table. The body below contains `AI` and the emoji; both must match.
     const container = createTestContainer();
     const ownerId = await seedUser(container);
     const directoryId = await seedDirectory(container, ownerId);
@@ -408,7 +407,7 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     // have no publication_states row. A window that excludes NOW returns
     // nothing; a window that includes NOW returns the matches — proving the
     // date filter applies via `sd.date_for_calendar` without a publication
-    // join (Issue #605 / ADR-006).
+    // join.
     const before = new Date("2025-01-01T00:00:00.000Z");
     const beforeRange = await container.searchIndex.query(
       makeQuery({

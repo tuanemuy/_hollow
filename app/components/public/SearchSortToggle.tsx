@@ -35,11 +35,10 @@ export function reduceSortSearch(
 
 /**
  * P32 sort toggle: cycles 関連度順 ⇄ 新着順 on click (two options, so a
- * cycle button instead of a dropdown — .issue/642/adr.md ADR-002). The URL
- * is the single source of truth; the label is mirrored optimistically while
- * the loader round-trip is in flight (FilterBar precedent;
- * .issue/354/adr.md ADR-003) and snaps back to the URL-confirmed value once
- * the navigation commits. Deriving `next` from the optimistic value also
+ * cycle button instead of a dropdown). The URL is the single source of
+ * truth; the label is mirrored optimistically while the loader round-trip
+ * is in flight (FilterBar precedent) and snaps back to the URL-confirmed
+ * value once the navigation commits. Deriving `next` from the optimistic value also
  * keeps rapid double-clicks toggling as expected instead of re-sending the
  * same sort.
  */

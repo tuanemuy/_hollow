@@ -152,8 +152,8 @@ export class D1SearchIndex implements SearchIndex {
       const sharedFilters = buildSharedFilters(q);
       // A date window on the public surface (`dateBasis === 'published_at'`)
       // is evaluated against the publication aggregate's `published_at`, so
-      // the query joins `publication_states` to expose `ps.published_at`
-      // (ADR-003 / ADR-006). The own-notes surface uses
+      // the query joins `publication_states` to expose `ps.published_at`.
+      // The own-notes surface uses
       // `dateBasis === 'date_for_calendar'`, which lives on `sd` and needs no
       // join — joining would drop private / unlisted notes that lack a public
       // publication row.
@@ -296,7 +296,7 @@ export class D1SearchIndex implements SearchIndex {
         const extraFilters = dateClause === null ? [] : [dateClause];
         // A `published_at`-based window joins `publication_states` to expose
         // `ps.published_at`; a `date_for_calendar`-based window stays on `sd`
-        // and needs no join. Mirrors the `query` path gate (ADR-006).
+        // and needs no join. Mirrors the `query` path gate.
         const joinPublication =
           dateClause !== null && q.dateBasis === "published_at";
         const count =
@@ -551,8 +551,7 @@ function buildNonDateFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   return filterClauses;
 }
 
-// Date window clause, evaluated against the column selected by `basis`
-// (ADR-006):
+// Date window clause, evaluated against the column selected by `basis`:
 //   - `'published_at'`  → the publication aggregate's `ps.published_at`
 //     (公開日). The public surfaces use this; callers must pair it with
 //     {@link publicationJoin} so `ps` resolves.
