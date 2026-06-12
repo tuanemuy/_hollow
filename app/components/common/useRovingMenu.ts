@@ -114,7 +114,10 @@ export function useRovingMenu({
     if (!items || items.length === 0) return;
     const clamped = Math.min(activeIndex, items.length - 1);
     if (clamped !== activeIndex) setActiveIndex(clamped);
-    items[clamped]?.focus();
+    // preventScroll: the restore may race a user scroll (e.g. dragging the
+    // panel scrollbar while an optimistic navigation settles); the default
+    // scroll-into-view would yank the list back to the refocused option.
+    items[clamped]?.focus({ preventScroll: true });
   });
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {

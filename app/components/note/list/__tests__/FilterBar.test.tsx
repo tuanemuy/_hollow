@@ -519,6 +519,51 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
     expect(document.activeElement).toBe(options()[2]);
   });
 
+  it("clamps the restored focus index when the option set shrinks in the same commit (ADR-008)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openPicker();
+    await act(async () => {
+      options()[2].click();
+    });
+    await flush();
+    expect(document.activeElement).toBe(options()[2]);
+    // A filter navigation can both drop focus to <body> and shrink the
+    // option list in the same commit. The restore pass must clamp the stale
+    // out-of-range index (2 → last remaining option) instead of no-opping,
+    // or the arrow keys stay dead (same symptom as TC-5).
+    act(() => {
+      options()[2].blur();
+    });
+    expect(document.activeElement).toBe(document.body);
+    renderBar(TAGS.slice(0, 2), []);
+    await flush();
+    expect(options()).toHaveLength(2);
+    expect(document.activeElement).toBe(options()[1]);
+    // The clamped index must also be synced into state so subsequent arrow
+    // navigation continues from the clamped position.
+    act(() => {
+      options()[1].dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowUp",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(document.activeElement).toBe(options()[0]);
+    act(() => {
+      options()[0].dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(document.activeElement).toBe(options()[1]);
+  });
+
   it("closes on Escape and restores focus to the trigger", () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBar(TAGS, []);

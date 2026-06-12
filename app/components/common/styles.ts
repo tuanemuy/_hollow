@@ -375,7 +375,7 @@ export const menuPanel =
  * `FILTER_POPOVER_PANEL` (FilterBar) replacement onto this constant is #588.
  */
 export const popoverSheetPanel =
-  "rounded-lg border border-hairline bg-bg shadow-md p-4 max-sm:fixed max-sm:bottom-0 max-sm:top-auto max-sm:mt-0 max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none";
+  "rounded-lg border border-hairline bg-bg shadow-md p-4 max-sm:pb-[calc(var(--space-4)+env(safe-area-inset-bottom))] max-sm:fixed max-sm:bottom-0 max-sm:top-auto max-sm:mt-0 max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none";
 
 /**
  * A single `role="menuitem"` row inside `menuPanel`.
