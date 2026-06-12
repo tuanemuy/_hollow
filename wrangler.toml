@@ -42,7 +42,9 @@ R2_DEV_OBJECT_PROXY = "true"
 # to drain the outbox inside the main Worker's isolate. Do NOT add this
 # var to `wrangler.staging.toml` / `wrangler.production.toml`: the Vite
 # build dead-code-eliminates the inline path so the var would be inert
-# there, but keeping it out makes the intent unambiguous. See
+# there, but keeping it out makes the intent unambiguous. Takes effect
+# only with a `pnpm build:local` artifact — after a plain `pnpm build`
+# the inline path is DCE'd and this var is silently inert. See
 # docs/runtime_cloudflare.md "Local dev outbox dispatch".
 DEV_INLINE_RELAY = "true"
 # Sender address used by `ResendEmailSender` when `RESEND_API_KEY` is
