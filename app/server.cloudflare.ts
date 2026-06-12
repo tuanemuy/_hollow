@@ -56,10 +56,12 @@ export default {
     // staging / production bundles (Issue #66 / ADR-003, Issue #663).
     // The constant condition must stay on the left of the short-circuit
     // `&&` (outside the function call): Rollup does not fold constants
-    // across call boundaries. Under `pnpm start` (`wrangler dev` without
-    // Vite) `import.meta.env` is `undefined`, so guard with optional
-    // chaining; the runtime gate then relies on the local-only
-    // `DEV_INLINE_RELAY` var.
+    // across call boundaries. `pnpm start` always runs the Vite build
+    // output via the redirected config: under `pnpm build:local` `MODE`
+    // is inlined to `"development"` and the runtime gate relies on the
+    // local-only `DEV_INLINE_RELAY` var; under plain `pnpm build` the
+    // path is DCE'd entirely. The optional chaining is a defence for
+    // non-Vite execution (e.g. tests), not for `pnpm start`.
     // `import.meta` must be referenced inline (not via an intermediate
     // variable) or Vite's define replacement does not apply.
     const baseConfig = readRequestServerConfig(env, ctx);

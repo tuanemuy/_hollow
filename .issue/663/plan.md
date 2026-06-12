@@ -20,6 +20,8 @@
 | AC-4 | `pnpm dev`（Vite）の既存 InlineRelayTrigger 挙動が退行しない | #66 の既存機能 | 3, 7 |
 | AC-5 | docs/runtime_cloudflare.md の「`pnpm start` ではインライン経路が無効」という記述が新しい仕組みに合わせて更新されている | Issue「やること（案）」（構成整備＝ドキュメント含む） | 6 |
 
+> **実装後の注記（PR #673 レビュー Round 1 反映）:** 本計画中の `pnpm build && pnpm start` 表記（AC-1・ステップ 7-4・テスト方針等）は、実装中に判明した redirected config の事実（`pnpm build` が `.wrangler/deploy/config.json` を書き、`pnpm start` は常に `dist/server/` の Vite ビルド成果物を実行する — 素の production ビルドではインライン経路が DCE 済みで var は無効）により、**`pnpm build:local && pnpm start`** に読み替えること。同様に「調査結果」の「`pnpm start`（wrangler dev が TS ソースを直接バンドル）では `import.meta.env` が `undefined`」という前提は誤りだった。経緯と正しい手順は `.issue/663/adr.md`・`docs/runtime_cloudflare.md`「Local dev outbox dispatch」・`.issue/663/testing.md` を参照。本文は履歴成果物として原文のまま残す。
+
 ## スコープ
 
 ### 含まれないもの

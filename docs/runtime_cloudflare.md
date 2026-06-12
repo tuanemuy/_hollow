@@ -51,7 +51,7 @@ Trigger model: the request path kicks the relay through the `RELAY` Service Bind
 - **DCE gate (build-time):** `import.meta.env?.MODE !== "production"` sits on the left of a top-level short-circuit `&&` in `app/server.cloudflare.ts`. `vite build` inlines `MODE` to `"production"`, so the branch is removed from deploy bundles. This — not the runtime gate — is the "disabled in production" guarantee; verify it with the grep below.
 - **Runtime gate:** `resolveInlineRelayGate({ viteDev, flag })` enables the path when `import.meta.env.DEV === true` (`pnpm dev`) **or** `DEV_INLINE_RELAY === "true"` (local `wrangler.toml [vars]` — this is what carries `pnpm start`). Under `pnpm dev` the Vite plugin also supplies the local `[vars]`, so both OR conditions are true; harmless, `viteDev` alone suffices. Never add `DEV_INLINE_RELAY` to `wrangler.staging.toml` / `wrangler.production.toml` — DCE makes it inert today, but keep the intent unambiguous in case the main Worker's build pipeline ever changes.
 
-To enable the inline path under `pnpm start`, build with **`pnpm build:local && pnpm start`**, not plain `pnpm build`. `pnpm build` (`@cloudflare/vite-plugin`) writes `.wrangler/deploy/config.json`, which redirects `wrangler dev` to `dist/server/wrangler.json` → `dist/server/index.js` — i.e. `pnpm start` always runs the Vite build output, never the TS sources. In the production-mode output `MODE` is inlined to `"production"` and the inline path has been dead-code-eliminated, so `DEV_INLINE_RELAY` can never take effect. `pnpm build:local` (`vite build --mode development` with `NODE_ENV=production`) produces an otherwise-equivalent bundle that keeps the inline path. Run the DCE grep (below) against a plain `pnpm build` output only — `build:local` output intentionally retains the path.
+To enable the inline path under `pnpm start`, build with **`pnpm build:local && pnpm start`**, not plain `pnpm build`. `pnpm build` (`@cloudflare/vite-plugin`) writes `.wrangler/deploy/config.json`, which redirects `wrangler dev` to `dist/server/wrangler.json` → `dist/server/index.js` — i.e. `pnpm start` always runs the Vite build output, never the TS sources. In the production-mode output `MODE` is inlined to `"production"` and the inline path has been dead-code-eliminated, so `DEV_INLINE_RELAY` can never take effect. **Beware: under plain `pnpm build && pnpm start` the var is silently inert** — the path no longer exists in the bundle, so there is no runtime warning; the only symptom is the original Issue #663 behaviour (job-style exports stuck in "待機中"). `pnpm build:local` (`vite build --mode development` with `NODE_ENV=production`) produces an otherwise-equivalent bundle that keeps the inline path. Note also that the redirected config bakes `wrangler.toml [vars]` into `dist/server/wrangler.json` at build time, so after changing any `[vars]` value (e.g. `DEV_INLINE_RELAY`) you must re-run `pnpm build:local` — restarting `pnpm start` alone does not pick the change up. Run the DCE grep (below) against a plain `pnpm build` output only — `build:local` output intentionally retains the path.
 
 Behaviour of the inline path:
 
@@ -64,7 +64,7 @@ Behaviour of the inline path:
 
 ## Local presigned object flow (dev proxy)
 
-ローカル検証（`pnpm build && pnpm start` = `wrangler dev`, `http://localhost:8787`）で presigned アップロード/ダウンロードフロー（presign → ブラウザ PUT → finalize → 表示）を E2E 完走させる仕組み（Issue #657）。
+ローカル検証（`pnpm build:local && pnpm start` = `wrangler dev`, `http://localhost:8787`）で presigned アップロード/ダウンロードフロー（presign → ブラウザ PUT → finalize → 表示）を E2E 完走させる仕組み（Issue #657）。プロキシ自体は実行時ゲート（`R2_DEV_OBJECT_PROXY`）のみで DCE 対象外のため素の `pnpm build` でも動作するが、ジョブ型エクスポート等 outbox 経由の機能を含めて E2E 完走させる場合は `pnpm build:local` が必須（[Local dev outbox dispatch](#local-dev-outbox-dispatch) 参照）。
 
 仕組み:
 
@@ -75,7 +75,7 @@ Behaviour of the inline path:
 制約・注意点:
 
 - **staging / production では無効。** `R2_S3_ENDPOINT` / `R2_DEV_OBJECT_PROXY` は `wrangler.toml`（LOCAL DEV ONLY）にのみ定義する。`wrangler.staging.toml` / `wrangler.production.toml` に追加しないこと — 未設定なら presign は従来どおりアカウントスコープの R2 エンドポイントに向き、`/dev/r2/` ルートは不活性。
-- **対象は `pnpm build && pnpm start`（:8787）のみ。** `pnpm dev`（vite, :3000）はアプリのオリジンが presign 先（:8787 固定）と異なり cross-origin になるため、このフローは完走しない。
+- **対象は `pnpm build:local && pnpm start`（:8787）のみ。** `pnpm dev`（vite, :3000）はアプリのオリジンが presign 先（:8787 固定）と異なり cross-origin になるため、このフローは完走しない。
 - **ブラウザでは必ず `http://localhost:8787` 表記でアクセスすること。** `http://127.0.0.1:8787` で開くと presign URL のオリジン（`localhost`）と食い違い、same-origin 前提が崩れて preflight が復活する／host 署名不一致で 403 になる。
 - **検証サーバーは必ずポート 8787 で起動すること**（`wrangler dev` のデフォルト。明示するなら `--port 8787`）。8787 が使用中で wrangler が別ポートにフォールバックすると、presign 先（`R2_S3_ENDPOINT` の :8787）とアプリオリジンが食い違いフローが完走しない。`APP_URL` / `R2_S3_ENDPOINT` のポートと一致させる。
 - **dev サーバーを localhost 外に公開してはいけない**（`wrangler dev --ip 0.0.0.0` での LAN 公開や cloudflared 等のトンネル共有を含む）。`.dev.vars.example` の固定ダミー credential は dev プロキシの署名鍵そのものであり、リポジトリにコミットされた既知の値である以上「公開された署名鍵」に等しい — 公開した瞬間、誰でも有効な presigned URL を鋳造でき、ローカルバケットの全 read/write が事実上無認証で開く。やむを得ず公開する場合は `.dev.vars` の `R2_*` を各自のランダム値に差し替えること。
@@ -85,7 +85,7 @@ Behaviour of the inline path:
 
 | File                       | Purpose                                                                                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `wrangler.toml`            | **Local dev only** — `pnpm dev` / `pnpm build` discover it via `@cloudflare/vite-plugin` (configured in `vite.config.cloudflare.ts`). Do not deploy from this file. |
+| `wrangler.toml`            | **Local dev only** — `pnpm dev` / `pnpm build` / `pnpm build:local` discover it via `@cloudflare/vite-plugin` (configured in `vite.config.cloudflare.ts`); `pnpm start` consumes it indirectly through the `[vars]` baked into `dist/server/wrangler.json` at build time, so `[vars]` edits require a rebuild to reach `pnpm start`. Do not deploy from this file. |
 | `wrangler.staging.toml`    | Staging deploys (`pnpm deploy:staging*`).                                                                                                  |
 | `wrangler.production.toml` | Production deploys (`pnpm deploy:production*`).                                                                                            |
 
