@@ -21,9 +21,9 @@ import { insertMediaIntoHtml } from "./mediaInsert";
  * (ADR-009) so the orphan purger and `MediaService.reconcileRefs` keep
  * the asset alive once saved.
  *
- * Uploads run independently per file. The progress placeholder is
- * intentionally simple: showing "uploading" / "failed" inline below the
- * picker rather than draggable inline progress bars.
+ * Uploads run independently per file. The PUT phase reports real byte
+ * progress (determinate bar); presign/finalize have no progress source,
+ * so the bar stays indeterminate until the first progress event.
  */
 export type MediaUploaderProps = Readonly<{
   contentHtml: string;
