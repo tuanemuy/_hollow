@@ -60,11 +60,9 @@ import {
  *   only; never add it to the staging / production toml templates.
  *
  * Disabling the path in production builds is NOT this function's
- * responsibility: the entry point (`app/server.cloudflare.ts`) places
- * the constant `import.meta.env?.MODE !== "production"` condition on
- * the left of a short-circuit `&&`, so `vite build` dead-code-eliminates
- * the whole branch — verified by the post-build grep in
- * docs/runtime_cloudflare.md.
+ * responsibility: that lives in the entry point's constant-folded DCE
+ * gate (`app/server.cloudflare.ts`), verified by the post-build grep
+ * in docs/runtime_cloudflare.md.
  */
 export function resolveInlineRelayGate(input: {
   viteDev: boolean;

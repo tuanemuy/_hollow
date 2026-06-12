@@ -49,21 +49,19 @@ export default {
     env: AppEnv,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    // `import.meta.env.MODE` is inlined to `"production"` by `vite build`,
-    // turning the `&&` left-hand side into a constant `false` — so the
-    // entire `InlineRelayTrigger` branch, including the import above and
-    // the `resolveInlineRelayGate` call, is dead-code-eliminated from
-    // staging / production bundles (Issue #66 / ADR-003, Issue #663).
-    // The constant condition must stay on the left of the short-circuit
-    // `&&` (outside the function call): Rollup does not fold constants
-    // across call boundaries. `pnpm start` always runs the Vite build
-    // output via the redirected config: under `pnpm build:local` `MODE`
-    // is inlined to `"development"` and the runtime gate relies on the
-    // local-only `DEV_INLINE_RELAY` var; under plain `pnpm build` the
-    // path is DCE'd entirely. The optional chaining is a defence for
-    // non-Vite execution (e.g. tests), not for `pnpm start`.
-    // `import.meta` must be referenced inline (not via an intermediate
-    // variable) or Vite's define replacement does not apply.
+    // `vite build` inlines `import.meta.env.MODE` to `"production"`,
+    // making the `&&` left-hand side a constant `false`, so the entire
+    // `InlineRelayTrigger` branch — including the import above — is
+    // dead-code-eliminated from staging / production bundles
+    // (Issue #66 / ADR-003, Issue #663). DCE constraints: the constant
+    // condition must stay on the left of the short-circuit `&&` (Rollup
+    // does not fold constants across call boundaries), and `import.meta`
+    // must be referenced inline (Vite's define replacement does not
+    // apply through an intermediate variable). `pnpm start` runs a Vite
+    // build artifact: `pnpm build:local` inlines `MODE` to
+    // `"development"` and the runtime gate falls back to the local-only
+    // `DEV_INLINE_RELAY` var; plain `pnpm build` removes the path. The
+    // optional chaining is a defence for non-Vite execution (e.g. tests).
     const baseConfig = readRequestServerConfig(env, ctx);
     const inlineRelay =
       (import.meta as { env?: { MODE?: string } }).env?.MODE !== "production" &&
