@@ -68,7 +68,7 @@ type OptimisticFilters = Readonly<{
 }>;
 
 // Shared by the optimistic reducer and the navigate-time search updater so
-// the two toggle computations cannot drift apart (Issue #664 review W-001).
+// the two toggle computations cannot drift apart (Issue #664).
 function toggleInSet(names: Iterable<string>, name: string): Set<string> {
   const next = new Set(names);
   if (next.has(name)) next.delete(name);

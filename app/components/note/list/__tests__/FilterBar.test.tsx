@@ -459,10 +459,10 @@ describe("FilterBar — + タグ TagPicker", () => {
     openPicker();
     const cls = listbox()?.className ?? "";
     expect(cls).toContain(popoverSheetPanel);
-    // Containing the shared constant is not enough on its own (the constant
-    // itself once lacked the sheet utilities), so pin the
-    // utilities that actually detach the panel from the chip-sized trigger
-    // wrapper and anchor it to the viewport bottom below `sm`.
+    // Containing the shared constant is not enough on its own (a regression
+    // inside the constant would still pass), so pin the utilities that
+    // actually detach the panel from the chip-sized trigger wrapper and
+    // anchor it to the viewport bottom below `sm`.
     for (const utility of [
       "max-sm:fixed",
       "max-sm:bottom-0",
