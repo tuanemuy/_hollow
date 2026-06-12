@@ -294,6 +294,36 @@ describe("buildDevObjectStorageResponse — method / path guards", () => {
     expect(store.has(key)).toBe(true);
   });
 
+  it("serves a stored object back through a presigned GET for a key that requires percent-decoding (store-and-serve round trip)", async () => {
+    const store = new Map<string, StoredObject>();
+    const key = "owner/source/file name.png";
+    const putUrl = await presigner().presignUpload(key, "image/png", 300);
+    const payload = new TextEncoder().encode("png-bytes");
+    const putResponse = await buildDevObjectStorageResponse({
+      request: new Request(putUrl, {
+        method: "PUT",
+        headers: { "content-type": "image/png" },
+        body: payload,
+      }),
+      bucket: fakeBucket(store),
+      bucketName: "media",
+      presignConfig: CONFIG,
+    });
+    expect(putResponse.status).toBe(200);
+
+    const getUrl = await presigner().presignDownload(key, 300);
+    const getResponse = await buildDevObjectStorageResponse({
+      request: new Request(getUrl, { method: "GET" }),
+      bucket: fakeBucket(store),
+      bucketName: "media",
+      presignConfig: CONFIG,
+    });
+    expect(getResponse.status).toBe(200);
+    expect(new TextDecoder().decode(await getResponse.arrayBuffer())).toBe(
+      "png-bytes",
+    );
+  });
+
   it("returns 404 (not a thrown URIError) for malformed percent-encoding in the key", async () => {
     const response = await buildDevObjectStorageResponse({
       request: new Request("http://localhost:8787/dev/r2/media/%zz", {

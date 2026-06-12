@@ -71,6 +71,7 @@ Trigger model: the request path kicks the relay through the `RELAY` Service Bind
 - **対象は `pnpm build && pnpm start`（:8787）のみ。** `pnpm dev`（vite, :3000）はアプリのオリジンが presign 先（:8787 固定）と異なり cross-origin になるため、このフローは完走しない。
 - **ブラウザでは必ず `http://localhost:8787` 表記でアクセスすること。** `http://127.0.0.1:8787` で開くと presign URL のオリジン（`localhost`）と食い違い、same-origin 前提が崩れて preflight が復活する／host 署名不一致で 403 になる。
 - **検証サーバーは必ずポート 8787 で起動すること**（`wrangler dev` のデフォルト。明示するなら `--port 8787`）。8787 が使用中で wrangler が別ポートにフォールバックすると、presign 先（`R2_S3_ENDPOINT` の :8787）とアプリオリジンが食い違いフローが完走しない。`APP_URL` / `R2_S3_ENDPOINT` のポートと一致させる。
+- **dev サーバーを localhost 外に公開してはいけない**（`wrangler dev --ip 0.0.0.0` での LAN 公開や cloudflared 等のトンネル共有を含む）。`.dev.vars.example` の固定ダミー credential は dev プロキシの署名鍵そのものであり、リポジトリにコミットされた既知の値である以上「公開された署名鍵」に等しい — 公開した瞬間、誰でも有効な presigned URL を鋳造でき、ローカルバケットの全 read/write が事実上無認証で開く。やむを得ず公開する場合は `.dev.vars` の `R2_*` を各自のランダム値に差し替えること。
 - PUT は Worker 経由になるため `wrangler dev` のリクエストボディ上限内である必要がある。ローカル検証用途（数 MB〜数十 MB）では問題ない。本番（R2 直）とは転送経路が異なる点に注意 — リモート R2 の CORS 挙動そのものは staging で検証する。
 
 ## Wrangler config layout
