@@ -59,7 +59,7 @@ afterEach(() => {
   container.remove();
 });
 
-// Icon-only since #626 ADR-001 — tabs are identified by `aria-label`.
+// Icon-only (#626 ADR-001) — tabs are identified by `aria-label`.
 function tabByLabel(label: string): HTMLButtonElement {
   const buttons = Array.from(
     container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),

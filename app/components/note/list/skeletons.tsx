@@ -36,8 +36,7 @@ export function ToolbarSkeleton() {
       <div className="mb-3">
         <div className={`${BAR} h-[34px] w-[35%]`} />
       </div>
-      {/* page-meta-row: 左 = 件数ライン / 右 = アイコンボタン×2 + segmented。
-          CTA・保存ビュー select のプレースホルダは廃止（#626 ADR-002/004）。 */}
+      {/* page-meta-row: 左 = 件数ライン / 右 = アイコンボタン×2 + segmented。 */}
       <div className="flex justify-between items-center gap-3 flex-wrap mb-5">
         <div className={`${BAR} h-3 w-[110px]`} />
         <div className="inline-flex items-center gap-2">

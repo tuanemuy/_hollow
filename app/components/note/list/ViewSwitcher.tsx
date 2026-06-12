@@ -15,7 +15,7 @@ import {
   viewSwitcherAriaLabel,
 } from "./listSelectors";
 
-// 見出し=トリガー（#626 R2 ADR-004）。装飾は chevron と hover の surface のみに留め、
+// 見出し=トリガー（#626 ADR-004）。装飾は chevron と hover の surface のみに留め、
 // `-ml` で押下面のパディング分を相殺してテキスト左端を保つ。グローバルな
 // `whitespace-nowrap` ではなく折り返し（`overflow-wrap:anywhere`）を許す。
 // モバイルはタッチ配慮で min-h 44px（mock `view-switcher` の明示指定）。
@@ -43,8 +43,7 @@ type Props = {
  * The `<h1>` shows the current view name (or the search phrasing while a
  * keyword search is active — `.issue/649/adr.md` ADR-005) and opens a
  * `role="listbox"` dropdown of すべてのノート + the saved views. Selecting
- * navigates with the same URL contract the old toolbar `<select>` had
- * (#215 / #219).
+ * navigates with the SavedView URL contract (#215 / #219).
  */
 export function ViewSwitcher({ search, savedViews }: Props) {
   const router = useRouter();

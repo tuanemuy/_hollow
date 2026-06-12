@@ -20,7 +20,7 @@ import type { NoteListSearch } from "../../schema";
  * 3. keyboard contract — roving tabindex starts on the selected option,
  *    arrow keys move it, Escape closes and restores trigger focus, and
  *    selection restores focus BEFORE navigating.
- * 4. navigation contract (moved verbatim from the old toolbar `<select>`):
+ * 4. navigation contract:
  *    viewId selection → `{ viewId }` only (`display` dropped for the #219
  *    redirect normalisation); すべてのノート → only `display` survives.
  */

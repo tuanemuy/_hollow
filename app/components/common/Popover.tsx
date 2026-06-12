@@ -16,8 +16,7 @@ import {
  *
  * Below `sm` the panel is intended to become a full-width bottom-anchored
  * sheet (see `popoverSheetPanel` in `common/styles.ts`); when full-width the
- * `clampToViewport` horizontal shift is unnecessary. The actual per-consumer
- * switch is wired in #588.
+ * `clampToViewport` horizontal shift is unnecessary.
  *
  * Non-modal by design: no focus trap. The trigger is rendered by the caller
  * via the `trigger` render prop (it receives the `ref`, the
@@ -90,7 +89,7 @@ export function Popover({
         // onBlur → close → click on an unmounted item (the click drops). This
         // matches `<Menu>`'s guard. Menu / listbox mode only — the dialog
         // branch deliberately omits it so form-input focus inside the
-        // dialog works. The listbox branch (#649, ViewSwitcher) shares the
+        // dialog works. The listbox branch (ViewSwitcher) shares the
         // roving-focus wiring (`onMenuKeyDown`) with menu mode. The two
         // branches stay separate JSX so the `role` is a literal (a11y lint
         // cannot resolve a dynamic role).

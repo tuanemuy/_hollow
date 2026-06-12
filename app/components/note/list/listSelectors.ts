@@ -285,7 +285,7 @@ export function viewQueryToSearch(
  *
  * When the home loader resolved the referenced note's title the chip
  * shows that title; otherwise it falls back to the first 8 characters
- * of the id (the existing pre-resolver behaviour).
+ * of the id.
  */
 export function formatReferencingNoteChipLabel(
   id: string,

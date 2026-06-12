@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NoteListSearch } from "../../schema";
 
 /**
- * Issue #649 (#626 ADR-002/005): locks the confirmed toolbar shape —
- * the 新規作成 / アップロード CTAs are gone (header-only, #628), the
- * saved-view `<select>` moved to the heading trigger (`ViewSwitcher`),
+ * Locks the toolbar shape (#626 ADR-002/005) —
+ * the 新規作成 / アップロード CTAs live in the global header only (#628), the
+ * saved-view switcher lives in the heading trigger (`ViewSwitcher`),
  * and 選択 / ビューとして保存 are icon-only with `aria-label` + `title`.
  */
 

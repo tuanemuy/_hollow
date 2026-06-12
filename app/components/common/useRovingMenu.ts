@@ -7,7 +7,7 @@ import { type RefObject, useEffect, useState } from "react";
  * only. Tracks the active item index, mirrors it into real DOM `.focus()`
  * whenever the menu is open, and handles Arrow / Home / End navigation.
  *
- * Index discipline (#467 plan ステップ4): the CALLER owns `itemCount` and the
+ * Index discipline: the CALLER owns `itemCount` and the
  * per-item index — `<Menu>` derives them from `Children.toArray` MenuItem
  * extraction, VisibilityPopover from the `VISIBILITY_OPTIONS` map index. This
  * hook's `querySelectorAll` is used ONLY to execute programmatic focus, never

@@ -65,7 +65,7 @@ describe("selectionReducer", () => {
     expect(s2.ids.size).toBe(0);
   });
 
-  // W-006: selectMany with an empty array still allocates a fresh set
+  // selectMany with an empty array still allocates a fresh set
   // (the reducer doesn't fast-path that case) but must preserve every
   // existing id. Documenting the behaviour pins it against accidental
   // regressions in the loop guard.
@@ -228,7 +228,7 @@ describe("groupNotesByDay", () => {
     expect(groupNotesByDay([], "UTC")).toEqual([]);
   });
 
-  // W-005: the `tz` argument is the whole reason this helper exists
+  // the `tz` argument is the whole reason this helper exists
   // (Workers default to UTC). The cases below pin the timezone shift,
   // contrast it against UTC, and exercise a month rollover so DST-style
   // edge cases stay obvious.
@@ -312,7 +312,7 @@ describe("searchToViewQuery", () => {
     expect(out.query.visibilityFilter).toEqual([]);
   });
 
-  // W-003: the dateRange branch must engage when *either* bound is
+  // the dateRange branch must engage when *either* bound is
   // present, with the missing side null'd rather than dropped. Without
   // this the SavedView would lose the open-ended interval entirely.
   it("dateRange with only `from` keeps `to` null", () => {
@@ -371,7 +371,7 @@ describe("viewQueryToSearch", () => {
     expect(out.tagNames).toEqual(["name-tag-1", "name-tag-2"]);
   });
 
-  // W-004: every nullable field on the SavedView query is its own
+  // every nullable field on the SavedView query is its own
   // branch in `viewQueryToSearch`. We pin the null / partial cases
   // explicitly and assert the resolver-call protocol.
   const emptyView: SavedViewDTO = {
