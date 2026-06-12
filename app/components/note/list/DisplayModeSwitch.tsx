@@ -7,6 +7,7 @@ import { homeSearchUpdater } from "./homeSearch";
 import { selectDisplay } from "./listSelectors";
 import { DISPLAY_SEGMENTED, DISPLAY_SEGMENTED_BTN } from "./styles";
 
+// アイコンのみ化（#626 ADR-001）後は `aria-label` / `title` 用のラベル。
 const LABELS: Record<DisplayMode, string> = {
   list: "リスト",
   tile: "タイル",
@@ -61,6 +62,8 @@ export function DisplayModeSwitch() {
             role="tab"
             type="button"
             aria-selected={active}
+            aria-label={LABELS[mode]}
+            title={LABELS[mode]}
             data-active={active || undefined}
             className={DISPLAY_SEGMENTED_BTN}
             onClick={() => select(mode)}
@@ -70,7 +73,6 @@ export function DisplayModeSwitch() {
               strokeWidth={1.8}
               aria-hidden="true"
             />
-            {LABELS[mode]}
           </button>
         );
       })}

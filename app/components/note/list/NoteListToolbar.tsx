@@ -1,148 +1,67 @@
 "use client";
 
-import { Link, useRouter } from "@tanstack/react-router";
-import { Bookmark, CheckSquare, Plus, Upload } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Bookmark, CheckSquare } from "lucide-react";
+import { useState } from "react";
 import { Icon } from "@/components/common/Icon";
-import {
-  pillBtn,
-  pillBtnGhost,
-  pillBtnPrimary,
-} from "@/components/common/styles";
-import { UploadButton } from "@/components/ingestion/UploadButton";
-import type { SavedViewDTO } from "@/core/application/dto/view";
+import { pillBtn, pillBtnGhost, pillBtnIcon } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
 import { DisplayModeSwitch } from "./DisplayModeSwitch";
 import { SaveViewDialog } from "./SaveViewDialog";
 import { useSelection } from "./SelectionContext";
+import { TOOLBAR_ICON_BTN } from "./styles";
 
-// CTA labels collapse to icon-only below the `sm` breakpoint
-// (`spec/design/pages/P10-home.html` @media max-width:640px).
-const CTA_LABEL = "max-sm:hidden";
+// 選択 / ビューとして保存はアイコンのみ（#626 R2 ADR-005）。aria-label は全環境
+// 必須、title は常時レンダー（`.issue/649/adr.md` ADR-003）。
+const ICON_BTN = `${pillBtn} ${pillBtnGhost} ${pillBtnIcon} ${TOOLBAR_ICON_BTN}`;
 
 type Props = {
   search: NoteListSearch;
-  savedViews: readonly SavedViewDTO[];
   hasAnyFilter: boolean;
 };
 
-export function NoteListToolbar({ search, savedViews, hasAnyFilter }: Props) {
-  const router = useRouter();
+/**
+ * Right-hand action group of the page-meta row: 選択 / ビューとして保存 /
+ * 表示モード segmented (#626 ADR-001/005/007). The 新規作成 / アップロード
+ * CTAs live in the global header only (#626 ADR-002, #628 ADR-001/003) and
+ * the saved-view `<select>` moved into the heading trigger (`ViewSwitcher`).
+ */
+export function NoteListToolbar({ search, hasAnyFilter }: Props) {
   const { state, dispatch } = useSelection();
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const onSelectView = (viewId: string) => {
-    if (viewId === "") {
-      // Issue #215: `page` / `limit` are dropped so the URL collapses to
-      // `/` (or `/?display=...`) — `noteListSearchSchema` fills the
-      // defaults on parse.
-      startTransition(async () => {
-        try {
-          await router.navigate({
-            to: "/",
-            search: (prev) => {
-              const p = prev as Partial<NoteListSearch>;
-              return {
-                display: p.display,
-              };
-            },
-          });
-        } catch {
-          // Navigation cancelled/superseded — `isPending` settles either way.
-        }
-      });
-      return;
-    }
-    // `display` is intentionally dropped from the URL here. The server
-    // fn detects "viewId present + display absent" and redirects with
-    // `display = view.displayMode` (Issue #219 ADR-002), so the URL
-    // ends up normalised to the SavedView's stored mode. Keeping a
-    // stale `prev.display` would suppress that redirect.
-    startTransition(async () => {
-      try {
-        await router.navigate({
-          to: "/",
-          search: () => ({ viewId }),
-        });
-      } catch {
-        // Navigation cancelled/superseded — `isPending` settles either way.
-      }
-    });
-  };
 
   return (
     <>
-      <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
-        <div className="inline-flex items-center gap-2 flex-wrap">
-          <DisplayModeSwitch />
-          {savedViews.length > 0 ? (
-            <select
-              aria-label="保存済みビュー"
-              value={search.viewId ?? ""}
-              onChange={(e) => onSelectView(e.target.value)}
-              disabled={isPending}
-              className="h-9 px-3 rounded-md border border-hairline bg-surface text-sm text-ink"
-            >
-              <option value="">保存ビューを選択</option>
-              {savedViews.map((view) => (
-                <option key={view.id} value={view.id}>
-                  {view.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </div>
-        <div className="inline-flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnGhost}`}
-            data-ghost=""
-            data-on={state.mode || undefined}
-            aria-pressed={state.mode}
-            aria-label="選択モード"
-            onClick={() => dispatch({ type: "toggleSelectMode" })}
-          >
-            <Icon icon={CheckSquare} />
-            <span className={CTA_LABEL}>{state.mode ? "選択中" : "選択"}</span>
-          </button>
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnGhost}`}
-            data-ghost=""
-            onClick={() => setOpen(true)}
-            disabled={!hasAnyFilter && search.q === undefined}
-            title={
-              !hasAnyFilter && search.q === undefined
-                ? "条件が設定されていません"
-                : undefined
-            }
-          >
-            <Icon icon={Bookmark} />
-            <span className={CTA_LABEL}>ビューとして保存</span>
-          </button>
-          {/* 新規作成 / アップロード are carried by the global header on mobile
-              (#628 ADR-001/003 supersede #588: the header keeps both CTAs at all
-              widths instead of退避 to a bottom bar). The toolbar copies stay
-              `max-lg:hidden` to avoid a duplicate CTA below `lg`; 選択 / ビューと
-              して保存 stay (list-specific). Desktop header⇔toolbar CTA overlap is
-              tracked separately (#626). */}
-          <Link
-            to="/notes/new"
-            data-primary
-            aria-label="新規作成"
-            title="新規作成"
-            className={`${pillBtn} ${pillBtnPrimary} max-lg:hidden`}
-          >
-            <Icon icon={Plus} />
-          </Link>
-          <UploadButton
-            className={`${pillBtn} max-lg:hidden`}
-            aria-label="アップロード"
-          >
-            <Icon icon={Upload} />
-          </UploadButton>
-        </div>
+      <div className="inline-flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          className={ICON_BTN}
+          data-ghost=""
+          data-icon=""
+          data-on={state.mode || undefined}
+          aria-pressed={state.mode}
+          aria-label="選択モード"
+          title="選択モード"
+          onClick={() => dispatch({ type: "toggleSelectMode" })}
+        >
+          <Icon icon={CheckSquare} />
+        </button>
+        <button
+          type="button"
+          className={ICON_BTN}
+          data-ghost=""
+          data-icon=""
+          onClick={() => setOpen(true)}
+          disabled={!hasAnyFilter && search.q === undefined}
+          aria-label="ビューとして保存"
+          title={
+            !hasAnyFilter && search.q === undefined
+              ? "条件が設定されていません"
+              : "ビューとして保存"
+          }
+        >
+          <Icon icon={Bookmark} />
+        </button>
+        <DisplayModeSwitch />
       </div>
       <SaveViewDialog
         open={open}

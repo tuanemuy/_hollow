@@ -19,8 +19,11 @@ export type UseRovingMenuOptions = Readonly<{
   open: boolean;
   itemCount: number;
   panelRef: RefObject<HTMLElement | null>;
-  /** `menuitem` for actions menus, `menuitemradio` for the visibility filter. */
-  itemRole?: "menuitem" | "menuitemradio";
+  /**
+   * `menuitem` for actions menus, `menuitemradio` for the visibility filter,
+   * `option` for `role="listbox"` popovers (ViewSwitcher).
+   */
+  itemRole?: "menuitem" | "menuitemradio" | "option";
   /**
    * Index to land focus on when the menu opens. Defaults to 0; the visibility
    * filter passes the currently-selected option so focus lands there.

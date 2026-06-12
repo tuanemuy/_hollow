@@ -470,9 +470,47 @@ export function isSearchActive(q: string | undefined): boolean {
   return q !== undefined && q.trim().length > 0;
 }
 
-/** Home `<h1>` text derived purely from the search query. */
-export function homeHeadingText(q: string | undefined): string {
-  return isSearchActive(q) ? `「${q}」の検索結果` : "すべてのノート";
+/** Default view name shown when no SavedView is applied (or it cannot be resolved). */
+export const ALL_NOTES_VIEW_NAME = "すべてのノート";
+
+/**
+ * Resolve the current view's display name from the URL `viewId` and the
+ * loaded SavedViews. A missing / deleted / foreign id falls back to the
+ * default name so the heading never goes blank (#626 ADR-004).
+ */
+export function resolveViewName(
+  viewId: string | undefined,
+  views: ReadonlyArray<Readonly<{ id: string; name: string }>>,
+): string {
+  if (viewId === undefined) return ALL_NOTES_VIEW_NAME;
+  return views.find((v) => v.id === viewId)?.name ?? ALL_NOTES_VIEW_NAME;
+}
+
+/**
+ * Home `<h1>` text. While a search is active the search phrasing wins over
+ * the view name (`.issue/649/adr.md` ADR-005); otherwise the heading shows
+ * the current view name (#626 ADR-004).
+ */
+export function homeHeadingText(
+  q: string | undefined,
+  viewName: string = ALL_NOTES_VIEW_NAME,
+): string {
+  return isSearchActive(q) ? `「${q}」の検索結果` : viewName;
+}
+
+/**
+ * `aria-label` for the heading's view-switcher trigger (`.issue/649/adr.md`
+ * ADR-005): while searching the visible heading is the search phrasing, so
+ * appending「現在 {ビュー名}」would contradict it — the label collapses to
+ * the bare action.
+ */
+export function viewSwitcherAriaLabel(
+  q: string | undefined,
+  viewName: string = ALL_NOTES_VIEW_NAME,
+): string {
+  return isSearchActive(q)
+    ? "ビューを切り替え"
+    : `ビューを切り替え: 現在 ${viewName}`;
 }
 
 /** Whether any non-query filter (tags / dates / directory / visibility / backlink) is set. */

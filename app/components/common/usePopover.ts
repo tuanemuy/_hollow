@@ -58,7 +58,7 @@ export function computeShiftX(
   return shift;
 }
 
-export type PopupRole = "dialog" | "menu";
+export type PopupRole = "dialog" | "menu" | "listbox";
 
 export type PopoverTriggerProps = Readonly<{
   ref: Ref<HTMLButtonElement>;

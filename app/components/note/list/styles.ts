@@ -9,11 +9,25 @@ type Visibility = OwnedNoteFilterItem["visibility"];
 export const CHIP_BASE =
   "inline-flex items-center gap-1.5 h-7 px-3 rounded-pill text-xs";
 
-// P10 DisplayModeSwitch の segmented control。
-// = public/styles.ts SEGMENTED を複製（#620 ADR-001）。
+// P10 DisplayModeSwitch の segmented control（#626 ADR-001 の確定表現）。
+// アイコンのみ・active は ink 濃度差（白カード + shadow は廃止 — #620 の複製表現を上書き）。
+// ボタンはデスクトップ 32×28px / モバイル 36×32px。モバイルでは見た目寸法を保ったまま
+// 擬似要素で当たり判定を 44px 相当へ拡張する（縦を優先し横は隣接ボタンと干渉しない範囲）。
 export const DISPLAY_SEGMENTED = "bg-surface rounded-[9px] p-[2px] inline-flex";
 export const DISPLAY_SEGMENTED_BTN =
-  "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
+  "relative w-8 h-7 max-sm:w-9 max-sm:h-8 rounded-[7px] bg-transparent inline-flex items-center justify-center text-ink-tertiary transition-all duration-[180ms] motion-reduce:transition-none hover:text-ink-secondary data-[active]:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent max-sm:after:absolute max-sm:after:content-[''] max-sm:after:-inset-y-1.5 max-sm:after:-inset-x-0.5";
+
+// 選択 / ビューとして保存のアイコンのみボタン（#626 R2 ADR-005）。
+// `pillBtn + pillBtnGhost + pillBtnIcon` に重ねて、デスクトップのみ 36px 角へ縮める。
+// 縮小方向だが responsive 変種（sm:）は基底ユーティリティより後にソートされるため勝つ。
+// モバイルは pillBtnIcon の 44px 床がそのまま立つ。
+export const TOOLBAR_ICON_BTN =
+  "sm:h-9 sm:min-h-9 data-[icon]:sm:w-9 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+
+// チップ列末尾の「フィルタをすべてクリア」円形 ×（#626 R2 ADR-006）。
+// デスクトップ 28px / モバイル 32px。モバイルは擬似要素で当たり判定 44px 相当。
+export const filterClearX =
+  "relative inline-flex items-center justify-center w-7 h-7 max-sm:w-8 max-sm:h-8 rounded-full shrink-0 text-ink-tertiary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent max-sm:after:absolute max-sm:after:content-[''] max-sm:after:-inset-y-1.5 max-sm:after:-inset-x-1.5";
 
 export function visibilityChipClass(v: Visibility): string {
   if (v === "public") return `${CHIP_BASE} bg-success-surface text-success`;

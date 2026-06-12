@@ -12,12 +12,14 @@ import {
   isSearchActive,
   matchDateRangePreset,
   resolveDateRangePreset,
+  resolveViewName,
   searchToViewQuery,
   selectDisplay,
   selectionReducer,
   shouldRedirectForSavedView,
   viewQueryEquals,
   viewQueryToSearch,
+  viewSwitcherAriaLabel,
 } from "../listSelectors";
 import { visibilityLabel, visibilitySwatchClass } from "../styles";
 
@@ -806,6 +808,38 @@ describe("home heading / filter selectors (#636 TS-W-002)", () => {
     expect(homeHeadingText("memo")).toBe("「memo」の検索結果");
     expect(homeHeadingText(undefined)).toBe("すべてのノート");
     expect(homeHeadingText("   ")).toBe("すべてのノート");
+  });
+
+  it("homeHeadingText shows the view name, but search wins over it (ADR-005)", () => {
+    expect(homeHeadingText(undefined, "今週のレビュー")).toBe("今週のレビュー");
+    expect(homeHeadingText("memo", "今週のレビュー")).toBe(
+      "「memo」の検索結果",
+    );
+  });
+
+  it("resolveViewName resolves the id and falls back to すべてのノート", () => {
+    const views = [
+      { id: "v1", name: "今週のレビュー" },
+      { id: "v2", name: "未公開の下書き" },
+    ];
+    expect(resolveViewName("v2", views)).toBe("未公開の下書き");
+    expect(resolveViewName(undefined, views)).toBe("すべてのノート");
+    // Deleted / foreign id never blanks the heading.
+    expect(resolveViewName("gone", views)).toBe("すべてのノート");
+  });
+
+  it("viewSwitcherAriaLabel composes per the ADR-005 rule", () => {
+    expect(viewSwitcherAriaLabel(undefined, "今週のレビュー")).toBe(
+      "ビューを切り替え: 現在 今週のレビュー",
+    );
+    expect(viewSwitcherAriaLabel(undefined)).toBe(
+      "ビューを切り替え: 現在 すべてのノート",
+    );
+    // While searching the visible heading is the search phrasing, so the
+    // label drops 「現在 …」 to avoid contradicting it.
+    expect(viewSwitcherAriaLabel("memo", "今週のレビュー")).toBe(
+      "ビューを切り替え",
+    );
   });
 
   it("hasAnyHomeFilter is false when only q / page / limit are set", () => {

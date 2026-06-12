@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
+import { X } from "lucide-react";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
-import { pillBtn, popoverSheetPanel } from "@/components/common/styles";
+import { popoverSheetPanel } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { NoteListSearch } from "../schema";
 import { homeSearchUpdater } from "./homeSearch";
@@ -23,6 +24,7 @@ import {
   filterChipCaret,
   filterChipGhost,
   filterChipRemove,
+  filterClearX,
   filterLabel,
   visibilityLabel,
   visibilitySwatchClass,
@@ -401,13 +403,20 @@ export function FilterBar({
         </button>
       )}
 
+      {/* #626 R2 ADR-006: 「すべてクリア」pill はチップ列末尾の円形 × に置き換え。 */}
       {hasAnyFilter ? (
         <button
           type="button"
-          className={`${pillBtn} max-sm:ml-0 ml-auto`}
+          className={filterClearX}
+          aria-label="フィルタをすべてクリア"
+          title="フィルタをすべてクリア"
           onClick={clearAll}
         >
-          すべてクリア
+          <X
+            className="size-[var(--icon-xs)]"
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
         </button>
       ) : null}
 

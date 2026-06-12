@@ -6,34 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NoteListSearch } from "../../schema";
 
 /**
- * Issue #382: locks the icon-only treatment of the 新規作成 / アップロード CTAs.
- * Both drop their visible label at every breakpoint and rely on the parent
- * element's `aria-label` for the accessible name.
+ * Issue #649 (#626 ADR-002/005): locks the confirmed toolbar shape —
+ * the 新規作成 / アップロード CTAs are gone (header-only, #628), the
+ * saved-view `<select>` moved to the heading trigger (`ViewSwitcher`),
+ * and 選択 / ビューとして保存 are icon-only with `aria-label` + `title`.
  */
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
-
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({
-    children,
-    ...rest
-  }: { children?: React.ReactNode } & Record<string, unknown>) => {
-    const { to, params, search, hash, ...attrs } = rest as Record<
-      string,
-      unknown
-    >;
-    void to;
-    void params;
-    void search;
-    void hash;
-    return <a {...(attrs as Record<string, unknown>)}>{children}</a>;
-  },
-  useRouter: () => ({ navigate: vi.fn().mockResolvedValue(undefined) }),
-  useLocation: <T,>({ select }: { select: (l: { hash: string }) => T }) =>
-    select({ hash: "" }),
-}));
 
 vi.mock("../SelectionContext", () => ({
   useSelection: () => ({
@@ -63,38 +44,52 @@ afterEach(() => {
   container.remove();
 });
 
-function renderToolbar() {
+function renderToolbar(hasAnyFilter = false) {
   act(() => {
     root.render(
       <NoteListToolbar
         search={{} as NoteListSearch}
-        savedViews={[]}
-        hasAnyFilter={false}
+        hasAnyFilter={hasAnyFilter}
       />,
     );
   });
 }
 
-describe("NoteListToolbar icon-only CTAs (Issue #382)", () => {
-  it("renders 新規作成 as an icon-only link with an aria-label and no visible text", () => {
+describe("NoteListToolbar confirmed layout (Issue #649 / #626)", () => {
+  it("renders no 新規作成 / アップロード CTAs and no saved-view select", () => {
     renderToolbar();
-    const create = container.querySelector('[aria-label="新規作成"]');
-    expect(create).not.toBeNull();
-    expect(create?.getAttribute("title")).toBe("新規作成");
-    expect(create?.textContent).toBe("");
-    const svg = create?.querySelector("svg");
+    expect(container.querySelector('[aria-label="新規作成"]')).toBeNull();
+    expect(container.querySelector('[aria-label="アップロード"]')).toBeNull();
+    expect(container.querySelector("select")).toBeNull();
+  });
+
+  it("renders 選択 as an icon-only toggle with aria-pressed / aria-label / title", () => {
+    renderToolbar();
+    const select = container.querySelector('[aria-label="選択モード"]');
+    expect(select).not.toBeNull();
+    expect(select?.getAttribute("aria-pressed")).toBe("false");
+    expect(select?.getAttribute("title")).toBe("選択モード");
+    expect(select?.textContent).toBe("");
+    const svg = select?.querySelector("svg");
     expect(svg).not.toBeNull();
     // The Icon stays decorative — no second accessible name on the SVG.
     expect(svg?.getAttribute("aria-label")).toBeNull();
   });
 
-  it("renders アップロード as an icon-only control with an aria-label and no visible text", () => {
-    renderToolbar();
-    const upload = container.querySelector('[aria-label="アップロード"]');
-    expect(upload).not.toBeNull();
-    expect(upload?.textContent).toBe("");
-    const svg = upload?.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(svg?.getAttribute("aria-label")).toBeNull();
+  it("renders ビューとして保存 as an icon-only button with aria-label / title", () => {
+    renderToolbar(true);
+    const save = container.querySelector('[aria-label="ビューとして保存"]');
+    expect(save).not.toBeNull();
+    expect(save?.getAttribute("title")).toBe("ビューとして保存");
+    expect(save?.textContent).toBe("");
+    expect(save?.hasAttribute("disabled")).toBe(false);
+    expect(save?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("disables ビューとして保存 with an explanatory title when no condition is set", () => {
+    renderToolbar(false);
+    const save = container.querySelector('[aria-label="ビューとして保存"]');
+    expect(save?.hasAttribute("disabled")).toBe(true);
+    expect(save?.getAttribute("title")).toBe("条件が設定されていません");
   });
 });
