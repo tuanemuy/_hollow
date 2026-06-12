@@ -37,6 +37,10 @@ R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 # docs/runtime_cloudflare.md "ローカルでの presigned フロー".
 R2_S3_ENDPOINT = "http://localhost:8787/dev/r2"
 R2_DEV_OBJECT_PROXY = "true"
+# LOCAL DEV ONLY — enables InlineRelayTrigger for `pnpm start`
+# (`wrangler dev` without Vite). Absent from staging / production toml
+# so InlineRelayTrigger is never mixed into deployed workers (Issue #663).
+IS_LOCAL_DEV = "true"
 # Sender address used by `ResendEmailSender` when `RESEND_API_KEY` is
 # also set. Local dev keeps the secret unset so DI stays on
 # `ConsoleEmailSender`; this dummy value is wired only so the typed

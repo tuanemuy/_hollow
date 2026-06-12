@@ -53,9 +53,14 @@ export default {
     // Vite) `import.meta.env` itself is `undefined`, so guard with
     // optional chaining to avoid `TypeError: Cannot read properties of
     // undefined` at boot.
+    // `env.IS_LOCAL_DEV === "true"` covers the `pnpm start` path where
+    // `import.meta.env` is unavailable; the flag is set only in the local
+    // `wrangler.toml [vars]` and never in staging / production toml
+    // (Issue #663).
     const baseConfig = readRequestServerConfig(env, ctx);
     const isDev =
-      (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+      (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true ||
+      env.IS_LOCAL_DEV === "true";
     const config: RequestServerConfig = isDev
       ? {
           ...baseConfig,

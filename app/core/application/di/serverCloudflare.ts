@@ -280,6 +280,11 @@ export type ServerEnv = Readonly<{
   // object-storage proxy route in the fetch entry. Public information.
   // Never set this in `wrangler.staging.toml` / `wrangler.production.toml`.
   R2_DEV_OBJECT_PROXY?: string;
+  // LOCAL DEV ONLY flag (`"true"`) that enables InlineRelayTrigger for
+  // `pnpm start` (`wrangler dev` without Vite). Absent from staging /
+  // production toml so deployed workers always use the real relay path.
+  // See Issue #663 / server.cloudflare.ts for wire-up.
+  IS_LOCAL_DEV?: string;
   // Worker tuning knobs. Wrangler `[vars]` deliver strings — parse +
   // default via `readRelayTuning` / `readPruneTuning` at the worker
   // entry boundary. Missing values fall back to the application-layer
