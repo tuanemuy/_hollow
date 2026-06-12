@@ -151,33 +151,33 @@ export const DOC_TITLE =
 export const NOTE_META_INLINE =
   "flex items-center gap-2.5 text-sm text-ink-tertiary flex-wrap mb-4.5";
 export const PUB_PILL =
-  "inline-flex items-center gap-1 px-2 py-0.5 rounded-pill bg-success-surface text-success text-[11px] font-medium";
+  "inline-flex items-center gap-1 px-2 py-0.5 rounded-pill bg-success-surface text-success text-xs font-medium";
 export const PUB_PILL_DOT = "w-1.5 h-1.5 rounded-full bg-success";
 export const AUTHOR_MINI =
-  "inline-flex items-center gap-2.5 py-1.5 pr-3 pl-1.5 rounded-pill bg-surface mb-4.5";
+  "inline-flex items-center gap-2.5 py-1.5 pr-3 pl-1.5 rounded-pill bg-surface mb-4.5 transition-colors motion-reduce:transition-none hover:bg-surface-hover";
 export const AUTHOR_AVATAR =
   "w-7 h-7 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-[11px] font-medium inline-flex items-center justify-center";
 
-// Tag row + 公開/更新 dates re-stated at the end of the article body, above
+// Tags left / 公開・更新 dates right at the end of the article body, above
 // the backlink / related sections.
 export const NOTE_BOTTOM_META =
-  "max-w-[var(--content-max)] mt-12 pt-5 border-t border-hairline flex flex-col gap-1.5 text-sm text-ink-tertiary";
+  "max-w-[var(--content-max)] mt-16 pt-6 border-t border-hairline flex items-center justify-between gap-4 flex-wrap text-sm text-ink-tertiary";
 export const NOTE_BOTTOM_META_TAGS = "flex gap-1 flex-wrap";
 
 export const SECTION_BLOCK = "max-w-[var(--content-max)] mt-12";
 export const SECTION_TITLE =
-  "text-xs font-medium text-ink-tertiary uppercase tracking-wider mb-3.5";
+  "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em] mb-3.5";
 export const BACKLINK_LIST = "flex flex-col gap-0.5";
 export const BACKLINK_ITEM =
   "py-3 px-3.5 rounded-md flex items-center gap-2.5 transition-colors motion-reduce:transition-none text-inherit hover:bg-surface";
 export const BACKLINK_ICON = "text-ink-tertiary shrink-0";
-export const BACKLINK_TEXT = "text-sm text-ink";
+export const BACKLINK_TEXT = "text-[14px] text-ink";
 export const RELATED_GRID =
   "grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 mt-1";
 export const RELATED_CARD =
   "p-4 px-4.5 border border-hairline rounded-lg bg-bg transition-colors motion-reduce:transition-none flex flex-col gap-1.5 text-inherit hover:bg-surface-elevated hover:border-hairline-strong";
 export const RELATED_TITLE =
-  "text-sm font-medium text-ink tracking-tight leading-snug";
+  "text-[14px] font-medium text-ink tracking-tight leading-snug";
 export const RELATED_META = "text-xs text-ink-tertiary";
 export const RELATED_TAGS = "text-accent mr-1.5";
 

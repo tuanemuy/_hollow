@@ -39,11 +39,13 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     className,
   }: {
     to: string;
     params?: Record<string, string>;
+    search?: Record<string, unknown>;
     children: React.ReactNode;
     className?: string;
   }) => {
@@ -51,8 +53,12 @@ vi.mock("@tanstack/react-router", () => ({
       (acc, [key, value]) => acc.replace(`$${key}`, value),
       to,
     );
+    const dataSearch =
+      search && Object.keys(search).length > 0
+        ? JSON.stringify(search)
+        : undefined;
     return (
-      <a href={href} className={className}>
+      <a href={href} className={className} data-search={dataSearch}>
         {children}
       </a>
     );
@@ -135,6 +141,23 @@ describe("PublicNoteDetail backlink / related sections", () => {
     expect(html).toContain(
       "/notes/public/01930000-0000-7000-8000-000000000003",
     );
+  });
+
+  it("links inline meta tags to the author's tag-filtered page, keeps bottom-meta tags as spans", async () => {
+    backlinks = [];
+    relatedNotes = [];
+
+    const element = await PublicNoteDetail({
+      args: { kind: "byId", noteId: note.id },
+    });
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain(
+      `<a href="/u/tuanemuy" class="text-accent mr-1" data-search="${JSON.stringify(
+        { tags: ["cloudflare"] },
+      ).replaceAll('"', "&quot;")}">#cloudflare</a>`,
+    );
+    expect(html).toContain('<span class="text-accent">#cloudflare</span>');
   });
 
   it("hides each section when its data is empty", async () => {
