@@ -129,7 +129,7 @@ hook 内部の state setter をそのまま公開する最小変更で、既存�
 
 ピッカー option の高速連続クリック（同一タスク内 ×3）で最後の 1 件しか URL に残らない事象は、**既存のインラインタグチップの連打でも同一に再現**することをブラウザで確認した（チップ 3 連打 → `?tagNames=["test-tag-03"]` のみ）。`toggleTag` は main から変更なし（ピッカーは同じハンドラを共有）であり、本 Issue の新規コード起因ではない既存バグのため、スコープ外として修正しない。原因: `toggleTag` がレンダー時点の `optimistic.tagNames` スナップショットから次の配列を**事前計算**して `router.navigate` の search updater に固定値で渡すため、同一スナップショットを読んだ複数クリックが互いの更新を上書きする（last-write-wins）。修正方向: search updater 内で `prev.tagNames` を基準にトグルを計算する。別 Issue で対応する。
 
-## ADR-005: TC-6 修正 — `popoverSheetPanel` 自体に `max-sm:fixed` ボトムシート化を実装
+## ADR-007: TC-6 修正 — `popoverSheetPanel` 自体に `max-sm:fixed` ボトムシート化を実装
 
 ### Context
 ブラウザ検証 TC-6 でモバイル幅のタグピッカーがボトムシートにならず、トリガー幅（56px）の縦長ストリップに崩れた。切り分けの結果、**既存の期間/公開状態ポップオーバーも同条件で同様に崩れていた**（実測: 期間パネル w=52.7px / position: absolute）。原因は共有定数 `popoverSheetPanel`（#587/#588）が `max-sm:left-0 max-sm:right-0 max-sm:w-auto` しか持たず、`max-sm:fixed` を欠いていたこと。パネルは `Popover` の `relative inline-flex` ラッパー内で `absolute` 配置されるため、`left-0/right-0` がチップ幅のラッパーを基準に解決され、フルワイドにならない（JSDoc の「full-width bottom-anchored sheet」と実装が乖離していた）。動作している public 側のシート（`public/styles.ts` / `PublicTopControls.tsx`）は `max-sm:fixed max-sm:bottom-0 max-sm:top-auto max-sm:mt-0 max-sm:rounded-b-none` を持つ。
@@ -143,3 +143,16 @@ FilterBar 側（`FILTER_POPOVER_PANEL`）ではなく **共有定数 `popoverShe
 ### Consequences
 - 良い点: AC-7 達成。#588 以来潜在していた期間/公開状態シートの崩れも同時に解消
 - トレードオフ: `max-sm:mt-0` は `FILTER_POPOVER_PANEL` の `mt-2` を variant 順序で上書きする前提（Tailwind v4 の variant 後置ソート）。`VISIBILITY_OPTION_ITEM` 等の他 option 行への `TOUCH_TARGET` 展開は #649 ADR-011 の共通化課題に委ねる
+
+## ADR-008: review-001 対応 — コミット後フォーカス復元 effect は `restoreFocusOnCommit` opt-in にする
+
+### コンテキスト
+review-001（frontend W-003 / shared W-002）で、ADR-006 の dep なし復元 effect が `useRovingMenu` の全コンシューマ（Menu / ViewSwitcher / VisibilityPopover / SortMenu）に常時適用されるグローバル挙動変更である点が指摘された。activeElement ガードで主要な誤爆は防げているが、「パネル外の理由で `<body>` にフォーカスが落ちた直後に open 中のパネルが再レンダーされるとフォーカスを横取りしうる」のは、選択即クローズの単一選択コンシューマには不要なリスクである。また項目集合が縮んだ再レンダーでは古い `activeIndex` が範囲外になり、復元が no-op になって矢印キーが死んだままになる（TC-5 と同症状の再発リスク）。
+
+### 決定内容
+1. `UseRovingMenuOptions` に `restoreFocusOnCommit?: boolean`（デフォルト false）を追加し、復元 effect をその opt-in 時のみ実行する。有効化するのは「選択後もパネルが開き続ける」TagPickerPopover のみ。既存コンシューマは従来挙動（復元なし）に戻る。
+2. 復元時に `Math.min(activeIndex, items.length - 1)` でクランプし、クランプが起きた場合は `setActiveIndex` で state も同期する（次の ArrowDown が不連続な位置へ飛ばないように）。フォールバック先は末尾（直前の操作位置に最も近い項目）。
+
+### 理由
+- 「panelRef 配下に直前までフォーカスがあったことを focusout で記録する」代替案は、ADR-006 の調査で確認したとおり focusout 時点で panelRef が detach されるため判定が不安定。boolean opt-in は要件（マルチセレクトのみ必要）を最も素直に型へ落とし込める
+- デフォルト false により共有フックの後方互換を保ち、将来のコンシューマが意図せず復元挙動を背負う罠を消す

@@ -72,8 +72,11 @@ function renderBar(tags: readonly Tag[], selectedTagNames: readonly string[]) {
 }
 
 function tagButton(name: string): HTMLButtonElement {
+  // Scope to `[aria-pressed]` so this never matches the picker's
+  // `role="option"` buttons (which also contain `#name`) when the listbox is
+  // open — without it the result silently depends on DOM order.
   const btns = Array.from(
-    container.querySelectorAll<HTMLButtonElement>("button"),
+    container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"),
   );
   const found = btns.find((b) => (b.textContent ?? "").includes(`#${name}`));
   if (!found) throw new Error(`tag chip "${name}" not found`);
@@ -376,6 +379,10 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
       "false",
     ]);
     expect(opts[1].textContent).toContain("#beta");
+    // APG Listbox: roving focus lands on the first selected option when the
+    // picker opens (matching VisibilityPopover's landing behaviour).
+    expect(opts[1].getAttribute("tabindex")).toBe("0");
+    expect(document.activeElement).toBe(opts[1]);
   });
 
   it("keeps the panel built on the shared sheet panel styles (mobile bottom sheet basis)", () => {
@@ -422,6 +429,39 @@ describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
       resolveNav?.();
     });
     await flush();
+    // TC-4 regression surfaced AFTER the navigation settled (the RSC
+    // re-render's focus loss closed the panel), so the open state must also
+    // hold once the promise resolves, not just while pending. (The optimistic
+    // selection itself reverts to the baseline here because no real loader
+    // ever delivers updated props in this harness.)
+    expect(listbox()).not.toBeNull();
+  });
+
+  it("deselects an already-selected tag optimistically and keeps the panel open", async () => {
+    let resolveNav: (() => void) | undefined;
+    routerNavigate.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveNav = () => res();
+      }),
+    );
+    renderBar(TAGS, ["beta"]);
+    openPicker();
+    expect(options()[1].getAttribute("aria-selected")).toBe("true");
+    await act(async () => {
+      options()[1].click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    // The deselect path runs a different array operation (filter, not
+    // concat), so it is pinned independently of the select-direction case.
+    expect(options()[1].getAttribute("aria-selected")).toBe("false");
+    expect(tagButton("beta").getAttribute("aria-pressed")).toBe("false");
+    expect(listbox()).not.toBeNull();
+    await act(async () => {
+      resolveNav?.();
+    });
+    await flush();
+    expect(listbox()).not.toBeNull();
   });
 
   it("syncs roving focus to the clicked option so ArrowDown moves to its successor", async () => {

@@ -447,9 +447,11 @@ type TagPickerPopoverProps = Readonly<{
   onToggle: (name: string) => void;
 }>;
 
-// Same option vocabulary as VISIBILITY_OPTION_ITEM / ViewSwitcher's
-// OPTION_ITEM (consolidation is the shared follow-up — .issue/649/adr.md
-// ADR-011).
+// Extension of VISIBILITY_OPTION_ITEM / ViewSwitcher's OPTION_ITEM: adds an
+// accent focus-visible outline ring, `[overflow-wrap:anywhere]` for long tag
+// names, and TOUCH_TARGET. VISIBILITY_OPTION_ITEM carries the same additions
+// so the two adjacent filter popovers focus-render identically; full
+// consolidation is the shared follow-up (.issue/649/adr.md ADR-011).
 const TAG_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 
 /**
@@ -468,12 +470,24 @@ function TagPickerPopover({
 }: TagPickerPopoverProps) {
   const listRef = useRef<HTMLElement | null>(null);
 
+  // APG Listbox pattern: land roving focus on the first selected option when
+  // the picker opens (fall back to the first option), matching
+  // VisibilityPopover's landing behaviour within the same FilterBar.
+  const initialIndex = (() => {
+    const i = tags.findIndex((t) => selected.has(t.name));
+    return i < 0 ? 0 : i;
+  })();
+
   const roving = useRovingMenu({
     open,
     itemCount: tags.length,
     panelRef: listRef,
     itemRole: "option",
-    initialIndex: 0,
+    initialIndex,
+    // The multi-select panel stays open across toggles, so the RSC re-render
+    // after each filter navigation can drop focus to <body> (Issue #658
+    // TC-5) — only this consumer needs the after-commit restore pass.
+    restoreFocusOnCommit: true,
   });
 
   return (
@@ -716,9 +730,11 @@ type VisibilityPopoverProps = Readonly<{
 // programmatic focus on open does not grey the landed item; `data-[active]`
 // keeps the selected-option surface + weight. The shared `menuItem` style is
 // intentionally NOT reused here because it lacks the `data-[active]` selection
-// indicator this radio group needs.
-const VISIBILITY_OPTION_ITEM =
-  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
+// indicator this radio group needs. Carries the same focus ring /
+// overflow-wrap / TOUCH_TARGET additions as TAG_OPTION_ITEM so keyboard focus
+// renders identically across the adjacent filter popovers (consolidation:
+// .issue/649/adr.md ADR-011).
+const VISIBILITY_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 
 function VisibilityPopover({
   value,
