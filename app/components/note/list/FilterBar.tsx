@@ -67,6 +67,15 @@ type OptimisticFilters = Readonly<{
   referencingNoteId: string | undefined;
 }>;
 
+// Shared by the optimistic reducer and the navigate-time search updater so
+// the two toggle computations cannot drift apart (Issue #664).
+function toggleInSet(names: Iterable<string>, name: string): Set<string> {
+  const next = new Set(names);
+  if (next.has(name)) next.delete(name);
+  else next.add(name);
+  return next;
+}
+
 type FilterAction =
   | Readonly<{ type: "toggleTag"; name: string }>
   | Readonly<{
@@ -85,12 +94,8 @@ function reduceFilters(
   action: FilterAction,
 ): OptimisticFilters {
   switch (action.type) {
-    case "toggleTag": {
-      const next = new Set(cur.tagNames);
-      if (next.has(action.name)) next.delete(action.name);
-      else next.add(action.name);
-      return { ...cur, tagNames: next };
-    }
+    case "toggleTag":
+      return { ...cur, tagNames: toggleInSet(cur.tagNames, action.name) };
     case "setDateRange":
       return { ...cur, from: action.from, to: action.to };
     case "setDate":
@@ -179,16 +184,17 @@ export function FilterBar({
     });
   };
 
+  // The toggle is computed inside the updater from `prev.tagNames` (the
+  // search at navigate time), not from a render-time snapshot — a snapshot
+  // captured before earlier navigations commit would make rapid toggles
+  // overwrite each other (Issue #664).
   const toggleTag = (name: string) => {
-    const next = new Set(optimistic.tagNames);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    const arr = [...next];
-    run({ type: "toggleTag", name }, (prev) =>
-      homeSearchUpdater(prev, {
+    run({ type: "toggleTag", name }, (prev) => {
+      const arr = [...toggleInSet(prev.tagNames ?? [], name)];
+      return homeSearchUpdater(prev, {
         tagNames: arr.length === 0 ? undefined : arr,
-      }),
-    );
+      });
+    });
   };
 
   // Adding / changing a filter resets pagination to page 1 (drops any prior

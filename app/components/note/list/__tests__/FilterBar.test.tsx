@@ -184,6 +184,74 @@ describe("FilterBar — optimistic selection (Issue #478)", () => {
 });
 
 /**
+ * Issue #664: rapid toggles in the same task must accumulate. The toggle is
+ * computed inside the functional search updater from `prev.tagNames`, so each
+ * navigate builds on the previous one instead of overwriting it with a stale
+ * render-time snapshot (last-write-wins).
+ */
+describe("FilterBar — consecutive tag toggles (Issue #664)", () => {
+  const TAGS: readonly Tag[] = [
+    { id: "t1", name: "alpha", noteCount: 3 },
+    { id: "t2", name: "beta", noteCount: 1 },
+    { id: "t3", name: "gamma", noteCount: 7 },
+  ];
+
+  type SearchUpdater = (prev: unknown) => Record<string, unknown>;
+
+  function chainUpdaters(initial: Record<string, unknown>) {
+    return routerNavigate.mock.calls.reduce<Record<string, unknown>>(
+      (prev, call) => (call[0] as { search: SearchUpdater }).search(prev),
+      initial,
+    );
+  }
+
+  it("accumulates three rapid toggles into tagNames (AC-1)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+
+    await act(async () => {
+      tagButton("alpha").click();
+      tagButton("beta").click();
+      tagButton("gamma").click();
+    });
+    await flush();
+
+    expect(routerNavigate).toHaveBeenCalledTimes(3);
+    const final = chainUpdaters({});
+    expect(final.tagNames).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("deselects only the re-clicked tag (AC-2)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, ["alpha", "beta"]);
+
+    await act(async () => {
+      tagButton("beta").click();
+    });
+    await flush();
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const final = chainUpdaters({ tagNames: ["alpha", "beta"] });
+    expect(final.tagNames).toEqual(["alpha"]);
+  });
+
+  it("clears tagNames to undefined when the last tag is deselected (AC-3)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, ["alpha"]);
+
+    await act(async () => {
+      tagButton("alpha").click();
+    });
+    await flush();
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const final = chainUpdaters({ tagNames: ["alpha"] });
+    expect(final.tagNames).toBeUndefined();
+    expect("tagNames" in final).toBe(true);
+  });
+});
+
+/**
  * Issue #467: the existing #478 cases above only cover tag chips, not the
  * Date/Visibility popovers. These lock the popover migration onto the shared
  * `<Popover>` + `useRovingMenu` primitives.
@@ -391,10 +459,10 @@ describe("FilterBar — + タグ TagPicker", () => {
     openPicker();
     const cls = listbox()?.className ?? "";
     expect(cls).toContain(popoverSheetPanel);
-    // Containing the shared constant is not enough on its own (the constant
-    // itself once lacked the sheet utilities), so pin the
-    // utilities that actually detach the panel from the chip-sized trigger
-    // wrapper and anchor it to the viewport bottom below `sm`.
+    // Containing the shared constant is not enough on its own (a regression
+    // inside the constant would still pass), so pin the utilities that
+    // actually detach the panel from the chip-sized trigger wrapper and
+    // anchor it to the viewport bottom below `sm`.
     for (const utility of [
       "max-sm:fixed",
       "max-sm:bottom-0",
