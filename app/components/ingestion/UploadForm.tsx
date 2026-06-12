@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { useId, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
+import { RetryableError } from "@/components/common/RetryableError";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   ALERT,
@@ -18,12 +19,10 @@ import {
 } from "@/components/common/styles";
 import { IngestionService } from "@/core/domain/ingestion/service";
 import { DEFAULT_MAX_INGESTION_BYTES } from "@/core/domain/ingestion/valueObject";
-import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { FORM_ERROR } from "../layout/styles";
 import { uploadFileFn } from "./actions";
 
 const DROPZONE =
@@ -165,18 +164,19 @@ export function UploadForm() {
   const [validation, setValidation] = useState<FileValidationResult | null>(
     null,
   );
+  // The accepted files of the last submission, so a failed upload can be
+  // re-submitted as-is via the inline retry affordance.
+  const lastAcceptedRef = useRef<readonly File[]>([]);
 
   const inputId = useId();
 
-  const submitFiles = (files: FileList | null) => {
-    if (files === null || files.length === 0) return;
+  const uploadAccepted = (accepted: readonly File[]) => {
+    if (accepted.length === 0) return;
+    lastAcceptedRef.current = accepted;
     setError(null);
-    const result = validateUploadFiles(files);
-    setValidation(result);
-    if (result.accepted.length === 0) return;
     startTransition(async () => {
       try {
-        for (const file of result.accepted) {
+        for (const file of accepted) {
           const formData = new FormData();
           formData.append("file", file);
           await upload({ data: formData });
@@ -189,6 +189,14 @@ export function UploadForm() {
         setError(extractSerializedError(e));
       }
     });
+  };
+
+  const submitFiles = (files: FileList | null) => {
+    if (files === null || files.length === 0) return;
+    setError(null);
+    const result = validateUploadFiles(files);
+    setValidation(result);
+    uploadAccepted(result.accepted);
   };
 
   return (
@@ -226,9 +234,12 @@ export function UploadForm() {
       </label>
       <UploadValidationBanners result={validation} />
       {error !== null ? (
-        <p className={FORM_ERROR} role="alert">
-          {displayError(error)}
-        </p>
+        <RetryableError
+          className="mt-2"
+          error={error}
+          onRetry={() => uploadAccepted(lastAcceptedRef.current)}
+          isRetrying={isPending}
+        />
       ) : null}
     </>
   );

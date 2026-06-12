@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { internalRouteHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -60,12 +61,7 @@ export const Route = createFileRoute("/_app/exports/$jobId")({
   loader: ({ params }) =>
     renderExportJobDetail({ data: { jobId: params.jobId } }),
   component: ExportJobDetailRoute,
-  errorComponent: () => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <p>時間をおいて再度お試しください。</p>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function ExportJobDetailRoute() {

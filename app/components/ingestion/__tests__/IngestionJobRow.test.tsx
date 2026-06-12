@@ -258,6 +258,76 @@ describe("IngestionJobRow", () => {
     expect(alertText).toContain("再試行に必要なデータが見つかりません");
   });
 
+  // After 再試行 fails, the inline RetryableError renders its OWN 再試行
+  // button (small pill, `data-sm`) distinct from the owner-action 再試行
+  // (plain pill, no `data-sm`). Both carry the same label, so the test must
+  // disambiguate by attribute — clicking the RetryableError one re-runs the
+  // last action (owner retry) a second time without grabbing the wrong button.
+  it("renders a distinct RetryableError retry button after 再試行 fails and re-runs the last action", async () => {
+    ownerRetryMock.mockRejectedValue(
+      new AppServerError({
+        kind: "business",
+        code: "ingestion_no_temp_storage_for_retry",
+        message: "Ingestion job has no staged upload to retry",
+      }),
+    );
+
+    await renderRow(failedJob);
+
+    const retryButtons = () =>
+      Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>("button"),
+      ).filter((b) => (b.textContent ?? "").trim() === "再試行");
+
+    // Before any failure: exactly one 再試行 — the owner action (no data-sm).
+    const before = retryButtons();
+    expect(before).toHaveLength(1);
+    expect(before[0]?.getAttribute("data-sm")).toBeNull();
+
+    await act(async () => {
+      before[0]?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(ownerRetryMock).toHaveBeenCalledTimes(1);
+    expect(routerInvalidate).not.toHaveBeenCalled();
+
+    // After the failure: two 再試行 buttons now coexist — the owner action
+    // and the RetryableError affordance. They are distinguishable by `data-sm`.
+    const after = retryButtons();
+    expect(after).toHaveLength(2);
+    const ownerRetryBtn = after.find((b) => b.getAttribute("data-sm") === null);
+    const retryableErrorBtn = after.find(
+      (b) => b.getAttribute("data-sm") === "",
+    );
+    expect(ownerRetryBtn).toBeDefined();
+    expect(retryableErrorBtn).toBeDefined();
+    // The RetryableError button lives inside its own role=alert region — a
+    // separate alert from the card's own failure-reason `<p role="alert">`.
+    const alerts = Array.from(container.querySelectorAll('[role="alert"]'));
+    const retryableAlert = alerts.find((el) =>
+      el.contains(retryableErrorBtn as Node),
+    );
+    expect(retryableAlert).toBeDefined();
+    expect(retryableAlert?.textContent).toContain(
+      "再試行に必要なデータが見つかりません",
+    );
+
+    // Clicking the RetryableError retry re-runs the captured last action
+    // (the owner retry), proving the inline retry path is wired.
+    await act(async () => {
+      retryableErrorBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(ownerRetryMock).toHaveBeenCalledTimes(2);
+  });
+
   // A discarded card is visually distinguished (data-discarded drives the
   // dimmed Tailwind variant) and shows the "破棄済み" badge so it cannot be
   // confused with a retained job once the toggle reveals it.

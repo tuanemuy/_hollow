@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Dialog } from "@/components/common/Dialog";
 import { Icon } from "@/components/common/Icon";
+import { ProgressBar } from "@/components/common/ProgressBar";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { Skeleton } from "@/components/common/Skeleton";
 import {
@@ -44,7 +45,7 @@ import {
 
 type View =
   | { kind: "select" }
-  | { kind: "uploading"; total: number }
+  | { kind: "uploading"; total: number; done: number }
   | {
       kind: "waiting";
       jobId: string;
@@ -143,7 +144,7 @@ function viewStatusText(view: View): string {
     case "uploading":
       return view.total === 1
         ? "アップロード中"
-        : `${view.total} 件のファイルをアップロード中`;
+        : `${view.total} 件中 ${view.done} 件をアップロード`;
     case "waiting":
       return "LLM がタイトルとメタデータを提案中";
     case "editing":
@@ -400,7 +401,7 @@ export function UploadDialog({ open, onClose }: Props) {
       if (list.length === 1) {
         const file = list[0];
         if (file === undefined) return;
-        setView({ kind: "uploading", total: 1 });
+        setView({ kind: "uploading", total: 1, done: 0 });
         void (async () => {
           try {
             const formData = new FormData();
@@ -425,9 +426,10 @@ export function UploadDialog({ open, onClose }: Props) {
       }
 
       // Multiple files: enqueue all, surface aggregate result.
-      setView({ kind: "uploading", total: list.length });
+      setView({ kind: "uploading", total: list.length, done: 0 });
       void (async () => {
         let succeeded = 0;
+        let done = 0;
         const failedNames: string[] = [];
         for (const f of list) {
           try {
@@ -441,6 +443,11 @@ export function UploadDialog({ open, onClose }: Props) {
             if (cancelledRef.current) return;
             failedNames.push(f.name);
           }
+          done += 1;
+          // Reflect the count progress live as each file settles. Guarded so a
+          // dismissed dialog does not write into a stale closure.
+          if (cancelledRef.current) return;
+          setView({ kind: "uploading", total: list.length, done });
         }
         await routerInvalidate(router);
         if (cancelledRef.current) return;
@@ -548,7 +555,9 @@ export function UploadDialog({ open, onClose }: Props) {
         />
       ) : null}
 
-      {view.kind === "uploading" ? <UploadingView total={view.total} /> : null}
+      {view.kind === "uploading" ? (
+        <UploadingView total={view.total} done={view.done} />
+      ) : null}
 
       {view.kind === "waiting" ? <WaitingView /> : null}
 
@@ -810,18 +819,35 @@ function PromptOverrideField({
 
 const UPLOAD_SKELETON_BARS = ["w-3/4", "w-1/2", "w-2/3"] as const;
 
-function UploadingView({ total }: Readonly<{ total: number }>) {
+function UploadingView({
+  total,
+  done,
+}: Readonly<{ total: number; done: number }>) {
+  // Multi-file uploads run as a client-side sequential loop, so the count
+  // (`done / total`) is a real, determinate progress signal — show a
+  // determinate `ProgressBar`. A single file has no meaningful intra-file
+  // progress (the server-fn POST does not expose upload bytes), so it stays
+  // on the skeleton placeholder.
+  if (total === 1) {
+    return (
+      <div className="py-8 text-center">
+        <Skeleton
+          bars={UPLOAD_SKELETON_BARS}
+          align="center"
+          label="アップロード中..."
+        />
+      </div>
+    );
+  }
+  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <div className="py-8 text-center">
-      <Skeleton
-        bars={UPLOAD_SKELETON_BARS}
-        align="center"
-        label={
-          total === 1
-            ? "アップロード中..."
-            : `${total} 件のファイルをアップロード中...`
-        }
-      />
+    <div className="py-8">
+      <p className="mb-3 text-center text-sm text-ink-secondary">
+        {total} 件中 {done} 件をアップロード...
+      </p>
+      {/* Decorative: the always-mounted `aria-live` region above announces the
+          `done / total` progress, so the bar must not double-announce. */}
+      <ProgressBar value={percent} decorative />
     </div>
   );
 }

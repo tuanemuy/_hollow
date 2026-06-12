@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { buildHead } from "@/core/presentation/head";
 
 import "@/components/export/ExportForm/action";
@@ -14,12 +14,7 @@ export const Route = createFileRoute("/_app/exports")({
     });
   },
   component: ExportsLayout,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function ExportsLayout() {

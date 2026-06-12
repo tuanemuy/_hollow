@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { buildHead } from "@/core/presentation/head";
 
 export const Route = createFileRoute("/_app/notes/$noteId/history")({
@@ -13,12 +13,7 @@ export const Route = createFileRoute("/_app/notes/$noteId/history")({
     });
   },
   component: NoteHistoryLayout,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function NoteHistoryLayout() {

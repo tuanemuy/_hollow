@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import {
   finalizeMediaUploadFn,
   presignMediaUploadFn,
@@ -409,14 +410,12 @@ export function ProfileForm({
         </div>
 
         <div className={ACTION_ROW}>
-          <button
-            type="submit"
-            disabled={profilePending}
+          <SubmitButton
+            label="保存"
+            pendingLabel="保存中..."
+            disabled={avatarUpload.kind === "uploading"}
             className={BTN_PRIMARY}
-            data-primary=""
-          >
-            {profilePending ? "保存中..." : "保存"}
-          </button>
+          />
           <button
             type="button"
             disabled={profilePending}
@@ -484,14 +483,11 @@ export function ProfileForm({
           ) : null}
         </div>
         <div className={ACTION_ROW}>
-          <button
-            type="submit"
-            disabled={usernamePending}
+          <SubmitButton
+            label="ユーザー名を変更"
+            pendingLabel="変更中..."
             className={BTN_PRIMARY}
-            data-primary=""
-          >
-            {usernamePending ? "変更中..." : "ユーザー名を変更"}
-          </button>
+          />
         </div>
         {usernameSummary !== "" ? (
           <p role="alert" className={FIELD_ERROR}>

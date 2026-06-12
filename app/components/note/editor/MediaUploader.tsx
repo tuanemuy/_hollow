@@ -2,12 +2,12 @@
 
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
-import { field, fieldLabel, pillBtn } from "@/components/common/styles";
+import { RetryableError } from "@/components/common/RetryableError";
+import { field, fieldLabel } from "@/components/common/styles";
 import {
   finalizeMediaUploadFn,
   presignMediaUploadFn,
 } from "@/components/media/actions";
-import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
@@ -118,17 +118,10 @@ export function MediaUploader({
         </p>
       ) : null}
       {state.kind === "error" ? (
-        <div
-          className="text-error text-sm mt-2 flex flex-col gap-2"
-          role="alert"
-        >
-          <p>アップロードに失敗: {displayError(state.error)}</p>
-          {state.lastFile !== null ? (
-            <button type="button" className={pillBtn} onClick={onRetry}>
-              再試行
-            </button>
-          ) : null}
-        </div>
+        <RetryableError
+          error={state.error}
+          onRetry={state.lastFile !== null ? onRetry : undefined}
+        />
       ) : null}
     </div>
   );

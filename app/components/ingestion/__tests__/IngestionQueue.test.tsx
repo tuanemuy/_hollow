@@ -207,9 +207,10 @@ describe("IngestionQueue polling", () => {
 
     await advance(POLL_INTERVAL_MS);
     expect(fetchJobsMock).toHaveBeenCalledTimes(1);
-    expect(document.body.textContent ?? "").toContain(
-      "進捗の自動更新に失敗しました",
-    );
+    // RetryableError surfaces the displayed error; unauthorized is fatal so no
+    // retry button (「今すぐ再取得」) is offered.
+    expect(document.body.textContent ?? "").toContain("認証が必要です");
+    expect(document.body.textContent ?? "").not.toContain("今すぐ再取得");
 
     // No further ticks no matter how far the clock advances.
     await advance(POLL_IDLE_MS * 3);
@@ -246,22 +247,22 @@ describe("IngestionQueue polling", () => {
     await advance(POLL_INTERVAL_MS);
     expect(fetchJobsMock).toHaveBeenCalledTimes(1);
     expect(document.body.textContent ?? "").not.toContain(
-      "進捗の自動更新に失敗しました",
+      "対象が見つかりません",
     );
 
     // 2nd failure: after one failure the active interval backs off to 12000ms.
     await advance(POLL_BACKOFF_MS);
     expect(fetchJobsMock).toHaveBeenCalledTimes(2);
     expect(document.body.textContent ?? "").not.toContain(
-      "進捗の自動更新に失敗しました",
+      "対象が見つかりません",
     );
 
-    // 3rd failure → notice appears; polling has NOT stopped (non-fatal).
+    // 3rd failure → notice appears; polling has NOT stopped (non-fatal), so the
+    // RetryableError offers a「今すぐ再取得」manual retry.
     await advance(POLL_BACKOFF_MS);
     expect(fetchJobsMock).toHaveBeenCalledTimes(3);
-    expect(document.body.textContent ?? "").toContain(
-      "進捗の自動更新に失敗しました",
-    );
+    expect(document.body.textContent ?? "").toContain("対象が見つかりません");
+    expect(document.body.textContent ?? "").toContain("今すぐ再取得");
 
     // Polling continues past the fatal-style stop.
     await advance(POLL_BACKOFF_MS);

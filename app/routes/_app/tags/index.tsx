@@ -2,11 +2,11 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import {
   tagListParamsSchema,
   tagListSearchSchema,
 } from "@/components/tag/schema";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -59,12 +59,7 @@ export const Route = createFileRoute("/_app/tags/")({
       },
     }),
   component: TagsRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function TagsRoute() {

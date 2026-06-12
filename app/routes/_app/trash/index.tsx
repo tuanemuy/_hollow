@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { HOME_SEARCH } from "@/components/auth/links";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import {
@@ -54,12 +54,7 @@ export const Route = createFileRoute("/_app/trash/")({
       },
     }),
   component: TrashRoute,
-  errorComponent: ({ error }) => (
-    <div role="alert">
-      <h1>エラーが発生しました</h1>
-      <pre>{sanitizeRouteError(error)}</pre>
-    </div>
-  ),
+  errorComponent: RouteErrorFallback,
 });
 
 function TrashRoute() {

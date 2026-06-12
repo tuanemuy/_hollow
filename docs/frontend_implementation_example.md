@@ -822,9 +822,46 @@ pending 中は入力欄も `disabled` にする。
 
 ### 規約4: 失敗はエラー境界 + リトライ導線
 
-ローディング / ミューテーションの失敗は route の `errorComponent` などのエラー
-境界で受け、リトライ導線を出す。mutation の `catch` では `extractSerializedError(e)`
-で `kind` を分岐する（上の「[Conflict などの失敗](#conflict-などの失敗)」節を参照）。
+ローディング / ミューテーションの失敗はエラー境界で受け、リトライ導線を出す。
+mutation の `catch` では `extractSerializedError(e)` で `kind` を分岐する
+（上の「[Conflict などの失敗](#conflict-などの失敗)」節を参照）。リトライ導線は
+次のように統一する（#637）。
+
+- **インライン mutation 失敗** → 共通 `app/components/common/RetryableError.tsx`。
+  `error: SerializedError` を `displayError(error)` で `role="alert"` 表示し、
+  `onRetry`（直前に失敗した操作の再実行）を渡すと `再試行` ボタン（`pillBtn` +
+  `RefreshCw`、`isRetrying` 時 `disabled` + `aria-busy`）を併置する。ボタンは
+  **`onRetry` あり かつ `error.retryable !== false`** のときだけ出る — fatal
+  （unauthorized / forbidden 等）では `onRetry` を渡しても抑制される。
+  `IngestionQueue` のポーリング失敗のように fatal で停止する場合は、呼び出し側で
+  `onRetry` を `undefined` にしてさらに明示的に抑制する。
+- **ルート失敗（`errorComponent`）** → `_app` 子ルートは共通
+  `app/components/layout/RouteErrorFallback.tsx`（`sanitizeRouteError` で文言化 +
+  `再読み込み` リトライ）。リトライは `routerInvalidate(router)`（`_app` 除外）で、
+  生の `router.invalidate()` は使わない。`_app` シェル境界
+  （`_app/route.tsx` の `AppErrorFallback`）はシェル専用 `appShellInvalidate` を
+  使う別物として保つ（`.issue/637/adr.md` ADR-002）。
+
+### 規約4b: 進捗表現は「実数が取れる箇所だけ determinate」
+
+進捗の可視化は、実数進捗が取れるかどうかで使い分ける（#637 ADR-001）。
+
+- **実数が取れる**（クライアントが逐次 `await` する処理。例: `UploadDialog` の
+  複数ファイル送信ループの `n / total` 件数）→ 共通
+  `app/components/common/ProgressBar.tsx` を `value`（0–100）付きの determinate で
+  使う。
+- **実数が取れない**（OCR / 音声 / LLM のワーカー非同期処理。ドメイン・wire に
+  進捗 % フィールドが無い）→ `ProgressBar`（indeterminate＝部分幅バーのパルス）
+  または `Skeleton` で「進行中であること」だけを示す。例: `IngestionJobRow` の
+  processing カードは indeterminate `ProgressBar` + 状態文言、`UploadDialog` の
+  `waiting`（LLM 推論待ち）は `Skeleton`。
+- `ProgressBar` の a11y: 既定は `role="progressbar"` + `aria-busy`（indeterminate
+  時は `aria-valuenow` を付けない）+ `aria-label`。装飾的に使い、状態を隣接テキスト
+  や親の `aria-live` 領域が伝える場合は `decorative`（`aria-hidden`）にして二重
+  読み上げを避ける。パルス（`Skeleton` と同じ motion 言語）は `motion-safe:`、
+  `motion-reduce:` では静的な部分幅バー。新規 motion トークン / `@keyframes` は
+  追加せず Tailwind 標準の `animate-pulse` で完結させる（#635 ADR-001 / #637
+  ADR-004）。
 
 ### 規約5: 共通資産と motion 規約
 
@@ -834,7 +871,26 @@ pending 中は入力欄も `disabled` にする。
 - パルス / スピン / トランジションは `motion-safe:` / `motion-reduce:` で
   ガードし `prefers-reduced-motion: reduce` を尊重する。
 - 汎用ラッパー（`useServerAction` 風フック）は作らず、React 19 プリミティブ
-  （`useActionState` / `useTransition` / `useOptimistic`）を直接使う。
+  （`useActionState` / `useTransition` / `useOptimistic` / `useFormStatus`）を
+  直接使う。
+
+### 規約6: `useFormStatus` は `<form action>` の子送信ボタンに限定
+
+`useFormStatus` は **`<form action={…}>` の子コンポーネント**が親フォームの送信
+pending を取得する API。共通 `app/components/common/SubmitButton.tsx`
+（`useFormStatus().pending` で `disabled` + `aria-busy` + pending ラベル、
+`label` / `pendingLabel` prop）を、既存の `<form action>` フォームの送信ボタンを
+子に切り出す形でのみ使う（#637 ADR-003）。
+
+- 導入済み: `identity/SecurityForm`（pwAction / emailAction）、
+  `identity/ProfileForm`（usernameAction / profileAction）、
+  `public/ShareLinkGate`。複合 pending 条件（avatar アップロード中 / ロック中）は
+  form-pending 以外を `disabled` prop で OR 合成して残す。
+- 導入しない: 同一コンポーネント内に `useActionState` の pending がある箇所
+  （その場で普通の `disabled` を使えば足りる）、`<form onSubmit>` +
+  `event.preventDefault()` 方式のフォーム（`useFormStatus` が効かない。
+  `CreateTagForm` 等を `action` 化してまで導入しない）、auth フォーム群
+  （`<form action>` 不使用）。
 
 ---
 

@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import type { SessionDTO, UserDTO } from "@/core/application/dto/identity";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -324,14 +325,11 @@ export function SecurityForm({
         </label>
 
         <div className={ACTION_ROW}>
-          <button
-            type="submit"
-            disabled={pwPending}
+          <SubmitButton
+            label="パスワードを変更"
+            pendingLabel="変更中..."
             className={BTN_PRIMARY}
-            data-primary=""
-          >
-            {pwPending ? "変更中..." : "パスワードを変更"}
-          </button>
+          />
         </div>
         {pwSummary !== "" ? (
           <p role="alert" className={FIELD_ERROR}>
@@ -398,14 +396,11 @@ export function SecurityForm({
         </div>
 
         <div className={ACTION_ROW}>
-          <button
-            type="submit"
-            disabled={emailPending}
+          <SubmitButton
+            label="確認メールを送信"
+            pendingLabel="送信中..."
             className={BTN_PRIMARY}
-            data-primary=""
-          >
-            {emailPending ? "送信中..." : "確認メールを送信"}
-          </button>
+          />
         </div>
         {emailSummary !== "" ? (
           <p role="alert" className={FIELD_ERROR}>

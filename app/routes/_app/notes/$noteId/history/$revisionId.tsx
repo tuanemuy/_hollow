@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { HOME_SEARCH } from "@/components/auth/links";
-import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
+import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { buildHead } from "@/core/presentation/head";
 import { validateInput } from "@/core/presentation/validator";
@@ -55,12 +55,7 @@ export const Route = createFileRoute("/_app/notes/$noteId/history/$revisionId")(
         data: { noteId: params.noteId, revisionId: params.revisionId },
       }),
     component: NoteRevisionRoute,
-    errorComponent: ({ error }) => (
-      <div role="alert">
-        <h1>エラーが発生しました</h1>
-        <pre>{sanitizeRouteError(error)}</pre>
-      </div>
-    ),
+    errorComponent: RouteErrorFallback,
   },
 );
 

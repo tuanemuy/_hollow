@@ -148,6 +148,22 @@ function findInputByAccept(): HTMLInputElement {
   return input;
 }
 
+// The multi-file UploadingView renders a determinate (decorative) ProgressBar:
+// the track is `aria-hidden` and its inner accent fill carries the ratio as an
+// inline `width: N%` style. Read that percent back so the test can assert the
+// bar advances in step with the count.
+function uploadProgressPercent(): number {
+  const fill = document.body.querySelector<HTMLElement>(
+    '[aria-hidden="true"] > div[style*="width"]',
+  );
+  if (fill === null) throw new Error("determinate progress fill not rendered");
+  const match = /width:\s*([\d.]+)%/.exec(fill.getAttribute("style") ?? "");
+  if (match?.[1] === undefined) {
+    throw new Error("progress fill has no width style");
+  }
+  return Number(match[1]);
+}
+
 function dispatchFile(input: HTMLInputElement, files: File[]) {
   // happy-dom's FileList constructor is not directly exposed; mock the
   // `files` getter on the element to return our array as a FileList-like.
@@ -1028,17 +1044,19 @@ describe("UploadDialog state machine", () => {
     act(() => {
       dispatchFile(findInputByAccept(), files);
     });
-    // uploading view active before any upload resolves.
-    expect(status?.textContent).toBe("2 件のファイルをアップロード中");
+    // uploading view active before any upload resolves; the count progress
+    // starts at 0 / total. The determinate ProgressBar fill is at 0%.
+    expect(status?.textContent).toBe("2 件中 0 件をアップロード");
+    expect(uploadProgressPercent()).toBe(0);
 
     // Drain both uploads.
+    const MAX_FLUSH = 50;
     await act(async () => {
       // The submitFiles loop awaits the first upload before kicking off
       // the second, so we resolve them in order. A bounded microtask
       // flush avoids the infinite-loop risk if a future refactor of
       // `submitFiles` ever inserts an extra microtask / setTimeout in
       // front of the first `upload()` call.
-      const MAX_FLUSH = 50;
       for (let i = 0; i < MAX_FLUSH && resolvers.length === 0; i++) {
         await Promise.resolve();
       }
@@ -1048,6 +1066,16 @@ describe("UploadDialog state machine", () => {
       resolvers[0]?.({ jobId: "job-a" });
       await Promise.resolve();
       await Promise.resolve();
+    });
+    // Intermediate: the first of two files is done. The live region and the
+    // determinate ProgressBar must both reflect 1 / 2 (= 50%) before the
+    // second upload resolves — this is the core "progress actually advances"
+    // assertion that the original two-point test (0 → final) skipped.
+    expect(status?.textContent).toBe("2 件中 1 件をアップロード");
+    expect(uploadProgressPercent()).toBe(50);
+
+    // Resolve the second upload → terminal multi-result.
+    await act(async () => {
       for (let i = 0; i < MAX_FLUSH && resolvers.length < 2; i++) {
         await Promise.resolve();
       }
