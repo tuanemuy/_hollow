@@ -110,6 +110,12 @@ export async function verifyPresignedRequest(params: {
   const signedHeaderNames = signedHeadersParam.split(";");
   const canonicalHeaderEntries: Array<[string, string]> = [];
   for (const name of signedHeaderNames) {
+    // Query-derived header names reach Headers.get() before signature
+    // verification; an invalid token (empty, space, "(") makes it throw
+    // TypeError, so reject non-token names as malformed instead.
+    if (!/^[a-z0-9-]+$/.test(name)) {
+      return { ok: false, reason: "malformed" };
+    }
     const value = name === "host" ? url.host : headers.get(name);
     if (value === null) {
       return { ok: false, reason: "signature_mismatch" };

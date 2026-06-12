@@ -286,6 +286,21 @@ describe("verifyPresignedRequest — malformed parameters", () => {
     ).toEqual({ ok: false, reason: "malformed" });
   });
 
+  // Invalid header names would make Headers.get() throw TypeError before
+  // signature verification, so they must be rejected as malformed instead
+  // of escaping as an unhandled 500.
+  it.each([
+    ["empty value", ""],
+    ["name containing a space", "host;x amz-meta"],
+    ["name containing a symbol", "host;x(amz)"],
+  ])("rejects X-Amz-SignedHeaders with %s without throwing", async (_label, signedHeaders) => {
+    expect(
+      await verifyWith((url) =>
+        url.searchParams.set("X-Amz-SignedHeaders", signedHeaders),
+      ),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
   it("rejects an X-Amz-Algorithm other than AWS4-HMAC-SHA256", async () => {
     expect(
       await verifyWith((url) =>
