@@ -2,6 +2,7 @@
 
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
+import { ProgressBar } from "@/components/common/ProgressBar";
 import { RetryableError } from "@/components/common/RetryableError";
 import { field, fieldLabel } from "@/components/common/styles";
 import {
@@ -20,9 +21,9 @@ import { insertMediaIntoHtml } from "./mediaInsert";
  * (ADR-009) so the orphan purger and `MediaService.reconcileRefs` keep
  * the asset alive once saved.
  *
- * Uploads run independently per file. The progress placeholder is
- * intentionally simple: showing "uploading" / "failed" inline below the
- * picker rather than draggable inline progress bars.
+ * Uploads run independently per file. The PUT phase reports real byte
+ * progress (determinate bar); presign/finalize have no progress source,
+ * so the bar stays indeterminate until the first progress event.
  */
 export type MediaUploaderProps = Readonly<{
   contentHtml: string;
@@ -32,12 +33,42 @@ export type MediaUploaderProps = Readonly<{
 
 type UploadState =
   | { kind: "idle" }
-  | { kind: "uploading" }
+  | { kind: "uploading"; progress: number | null }
   | { kind: "error"; error: SerializedError; lastFile: File | null };
 
 function kindForMime(mimeType: string): "image" | "video" {
   if (mimeType.startsWith("video/")) return "video";
   return "image";
+}
+
+// fetch does not expose upload progress events, so the presigned PUT —
+// the only phase with a real byte ratio — goes through XHR.
+function putWithProgress(
+  url: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload failed (network error)"));
+    xhr.onabort = () => reject(new Error("Upload aborted"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    xhr.send(file);
+  });
 }
 
 export function MediaUploader({
@@ -51,7 +82,7 @@ export function MediaUploader({
   const [state, setState] = useState<UploadState>({ kind: "idle" });
 
   const runUpload = async (file: File) => {
-    setState({ kind: "uploading" });
+    setState({ kind: "uploading", progress: null });
     try {
       const presigned = await presignMediaUpload({
         data: {
@@ -60,14 +91,9 @@ export function MediaUploader({
           byteSize: file.size,
         },
       });
-      const putRes = await fetch(presigned.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
+      await putWithProgress(presigned.uploadUrl, file, (percent) => {
+        setState({ kind: "uploading", progress: percent });
       });
-      if (!putRes.ok) {
-        throw new Error(`Upload failed with status ${putRes.status}`);
-      }
       const finalized = await finalizeMediaUpload({
         data: { mediaId: presigned.mediaId },
       });
@@ -113,9 +139,19 @@ export function MediaUploader({
         />
       </div>
       {state.kind === "uploading" ? (
-        <p className="text-xs text-ink-tertiary mt-2" aria-live="polite">
-          アップロード中…
-        </p>
+        <div className="mt-2">
+          <p className="text-xs text-ink-tertiary">
+            <span aria-live="polite">アップロード中…</span>
+            {state.progress !== null ? (
+              <span aria-hidden="true">（{state.progress}%）</span>
+            ) : null}
+          </p>
+          {state.progress !== null ? (
+            <ProgressBar value={state.progress} decorative className="mt-1" />
+          ) : (
+            <ProgressBar decorative className="mt-1" />
+          )}
+        </div>
       ) : null}
       {state.kind === "error" ? (
         <RetryableError
