@@ -114,6 +114,7 @@ async function makeDoc(
     body: string;
     visibility?: "private" | "unlisted" | "public";
     tagNames?: readonly string[];
+    updatedAt?: Date;
   },
 ) {
   const noteId = await seedNote(container, params.ownerId, params.directoryId);
@@ -126,7 +127,7 @@ async function makeDoc(
     tagNames: params.tagNames ?? [],
     directoryPath: "",
     frontMatterDate: null,
-    updatedAt: NOW,
+    updatedAt: params.updatedAt ?? NOW,
   } as const;
   return SearchDocument.fromSnapshot(snapshot, NOW);
 }
@@ -138,6 +139,7 @@ function makeQuery(params: {
   tagNames?: readonly string[];
   dateRange?: { from: Date; to: Date } | null;
   dateBasis?: "published_at" | "date_for_calendar";
+  sort?: "relevance" | "newest";
   limit?: number;
   cursor?: string | null;
 }) {
@@ -153,6 +155,7 @@ function makeQuery(params: {
     directoryPathPrefix: null,
     dateRange: params.dateRange ?? null,
     dateBasis: params.dateBasis,
+    sort: params.sort,
     limit: params.limit ?? 10,
     cursor: params.cursor ?? null,
   });
@@ -733,6 +736,183 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(result.hits[0]?.noteId).toBe(rebuilt.noteId);
     // Explicit negative: the pre-rebuild doc must be gone from the index.
     expect(result.hits.find((h) => h.noteId === stale.noteId)).toBeUndefined();
+  });
+});
+
+describe("D1SearchIndex sort (#642)", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("orders by updated_at DESC with note_id tie-breaker on the MATCH path (sort: 'newest')", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const old = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Old design note",
+      body: "design body",
+      updatedAt: at("2026-01-01T00:00:00.000Z"),
+    });
+    const fresh = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Fresh design note",
+      body: "design body",
+      updatedAt: at("2026-03-01T00:00:00.000Z"),
+    });
+    const mid = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Mid design note",
+      body: "design body",
+      updatedAt: at("2026-02-01T00:00:00.000Z"),
+    });
+    for (const doc of [old, fresh, mid]) {
+      await container.searchIndex.upsert(doc);
+    }
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "design", sort: "newest" }),
+    );
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      fresh.noteId,
+      mid.noteId,
+      old.noteId,
+    ]);
+  });
+
+  it("breaks updated_at ties by note_id ASC (sort: 'newest')", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const a = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Tie design A",
+      body: "design body",
+    });
+    const b = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Tie design B",
+      body: "design body",
+    });
+    await container.searchIndex.upsert(a);
+    await container.searchIndex.upsert(b);
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "design", sort: "newest" }),
+    );
+
+    const expected = [a.noteId, b.noteId].sort();
+    expect(result.hits.map((h) => h.noteId)).toEqual(expected);
+  });
+
+  it("orders by updated_at DESC on the LIKE fallback path too (sort: 'newest')", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const old = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Old AI",
+      body: "AI body",
+      updatedAt: at("2026-01-01T00:00:00.000Z"),
+    });
+    const fresh = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Fresh AI",
+      body: "AI body",
+      updatedAt: at("2026-03-01T00:00:00.000Z"),
+    });
+    await container.searchIndex.upsert(old);
+    await container.searchIndex.upsert(fresh);
+
+    // "AI" is below the trigram minimum, so this exercises the LIKE route.
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", sort: "newest" }),
+    );
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      fresh.noteId,
+      old.noteId,
+    ]);
+  });
+
+  it("paginates 'newest' with a stable cursor: pages are contiguous with no overlap", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const docs = [];
+    for (let i = 0; i < 5; i += 1) {
+      const doc = await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: `Paging design ${i}`,
+        body: "design body",
+        updatedAt: at(`2026-01-0${i + 1}T00:00:00.000Z`),
+      });
+      await container.searchIndex.upsert(doc);
+      docs.push(doc);
+    }
+    const expectedOrder = [...docs].reverse().map((d) => d.noteId);
+
+    const first = await container.searchIndex.query(
+      makeQuery({ keyword: "design", sort: "newest", limit: 3 }),
+    );
+    expect(first.hits.map((h) => h.noteId)).toEqual(expectedOrder.slice(0, 3));
+    expect(first.nextCursor).not.toBeNull();
+
+    const second = await container.searchIndex.query(
+      makeQuery({
+        keyword: "design",
+        sort: "newest",
+        limit: 3,
+        cursor: first.nextCursor,
+      }),
+    );
+    expect(second.hits.map((h) => h.noteId)).toEqual(expectedOrder.slice(3));
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it("keeps the bm25 relevance order when sort is omitted (regression: default)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    // The dense doc repeats the keyword and is older; relevance order must
+    // rank it first regardless of updated_at.
+    const dense = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "design design design",
+      body: "design design design design",
+      updatedAt: at("2026-01-01T00:00:00.000Z"),
+    });
+    const sparse = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Note",
+      body: "one mention of design in a much longer body of plain filler text",
+      updatedAt: at("2026-03-01T00:00:00.000Z"),
+    });
+    await container.searchIndex.upsert(dense);
+    await container.searchIndex.upsert(sparse);
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "design" }),
+    );
+
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      dense.noteId,
+      sparse.noteId,
+    ]);
   });
 });
 

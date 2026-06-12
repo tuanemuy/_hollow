@@ -233,6 +233,22 @@ export const SearchCursor = {
 export type DateBasis = "published_at" | "date_for_calendar";
 
 /**
+ * Result ordering for a `SearchQuery`.
+ *
+ * - `'relevance'` — rank by the index's relevance score (bm25 on the FTS
+ *   path; the LIKE fallback has no score and keeps a stable `note_id`
+ *   order). This is the default so existing call sites keep their
+ *   original ordering.
+ * - `'newest'` — order by the index projection's `updated_at`
+ *   descending (the same value surfaced as `SearchHit.updatedAt`), with
+ *   `note_id` as a stable tie-breaker.
+ *
+ * `sort` only affects `SearchIndex.query` ordering; count surfaces
+ * (`countByDateRanges`) are order-independent.
+ */
+export type SearchSort = "relevance" | "newest";
+
+/**
  * Half-open `[from, to]` interval used as a query filter.
  * Construction enforces `from <= to`.
  */
@@ -340,6 +356,9 @@ export type SearchQuery = Readonly<{
   // (search / facets) use `published_at`. Defaults to `date_for_calendar`
   // so the basis is opt-in per surface.
   dateBasis: DateBasis;
+  // Result ordering. Defaults to `'relevance'` so existing surfaces are
+  // unaffected; only the public search surface (P32) exposes `'newest'`.
+  sort: SearchSort;
   limit: SearchLimit;
   cursor: SearchCursor | null;
 }>;
@@ -353,6 +372,7 @@ export const SearchQuery = {
     directoryPathPrefix: string | null;
     dateRange: { from: Date; to: Date } | null;
     dateBasis?: DateBasis | undefined;
+    sort?: SearchSort | undefined;
     limit: number;
     cursor: string | null;
   }): SearchQuery => {
@@ -373,6 +393,7 @@ export const SearchQuery = {
       dateRange:
         params.dateRange === null ? null : DateRange.create(params.dateRange),
       dateBasis: params.dateBasis ?? "date_for_calendar",
+      sort: params.sort ?? "relevance",
       limit: SearchLimit.create(params.limit),
       cursor:
         params.cursor === null ? null : SearchCursor.create(params.cursor),

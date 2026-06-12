@@ -1,6 +1,6 @@
 import { type UserId, Username } from "@/core/domain/identity/valueObject";
 import { SearchService } from "@/core/domain/search/service";
-import { SearchQuery } from "@/core/domain/search/valueObject";
+import { SearchQuery, type SearchSort } from "@/core/domain/search/valueObject";
 import { NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 import { type SearchHitDTO, toSearchHitView } from "./view";
@@ -17,6 +17,12 @@ export type SearchPublicNotesInput = Readonly<{
    * otherwise the usecase raises `NotFoundError('user')`.
    */
   username?: string | null;
+  /**
+   * Result ordering. `'newest'` orders by the index projection's
+   * `updated_at` descending (the value shown on the result card);
+   * omitted / null falls back to `'relevance'`.
+   */
+  sort?: SearchSort | null;
   cursor?: string | null;
   limit: number;
 }>;
@@ -56,6 +62,7 @@ export async function searchPublicNotes({
     // Public surface: the period window means 公開日, so it is evaluated
     // against the publication aggregate's `published_at` (ADR-006).
     dateBasis: "published_at",
+    sort: input.sort ?? "relevance",
     limit: input.limit,
     cursor: input.cursor ?? null,
   });

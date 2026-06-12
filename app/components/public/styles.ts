@@ -240,9 +240,10 @@ export const FILTER_BTN =
   "h-9 px-3.5 rounded-pill bg-surface text-[13px] font-medium text-ink inline-flex items-center gap-1.5 relative transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-accent-surface data-[active]:text-accent-ink max-sm:h-11";
 export const FILTER_BTN_BADGE =
   "inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-pill bg-accent text-white text-[11px] font-semibold ml-0.5";
-// Relevance-order label is fixed (no toggle).
-export const SORT_LABEL =
-  "h-9 px-3 rounded-pill text-[13px] text-ink-secondary inline-flex items-center gap-1 max-sm:h-11";
+// P32 mock `.sort-btn`: pill button cycling 関連度順 ⇄ 新着順; mobile raises
+// it to the 44px tap floor. Distinct from the P31 toolbar `SORT_BTN` above.
+export const SEARCH_SORT_BTN =
+  "h-9 px-3 rounded-pill text-[13px] text-ink-secondary inline-flex items-center gap-1 transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink max-sm:h-11";
 
 // Row hides itself when empty via the caller (no `:empty` selector in
 // Tailwind — the caller omits the row).

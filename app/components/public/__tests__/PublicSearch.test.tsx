@@ -36,6 +36,7 @@ describe("PublicSearch hero", () => {
       username: null,
       tags: null,
       period: null,
+      sort: null,
       cursor: null,
       limit: 20,
     });
@@ -61,6 +62,7 @@ describe("PublicSearch hero", () => {
       username: null,
       tags: null,
       period: null,
+      sort: null,
       cursor: null,
       limit: 20,
     });

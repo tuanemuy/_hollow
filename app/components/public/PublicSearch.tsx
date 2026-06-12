@@ -2,10 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
+import type { SearchSort } from "@/core/domain/search/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 import { formatDate, formatShort } from "./formatNoteDate";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import { SearchFilterDrawer } from "./SearchFilterDrawer";
+import { SearchSortToggle } from "./SearchSortToggle";
 import { periodToDateRange, type SearchPeriod } from "./searchPeriod";
 import {
   AUTHOR_AVATAR,
@@ -32,7 +34,6 @@ import {
   SEARCH_HIT_ROW,
   SEARCH_HIT_SNIPPET,
   SEARCH_HIT_TITLE,
-  SORT_LABEL,
 } from "./styles";
 
 type SearchArgs = {
@@ -40,6 +41,7 @@ type SearchArgs = {
   username: string | null;
   tags: readonly string[] | null;
   period: SearchPeriod | null;
+  sort: SearchSort | null;
   cursor: string | null;
   limit: number;
 };
@@ -59,6 +61,7 @@ const runSearch = cache(
           tagNames: args.tags ?? [],
           dateRange: periodToDateRange(args.period, new Date()),
           username: args.username,
+          sort: args.sort,
           cursor: args.cursor,
           limit: args.limit,
         },
@@ -96,13 +99,14 @@ export async function PublicSearch({
   username,
   tags,
   period,
+  sort,
   cursor,
   limit,
 }: SearchArgs) {
   const hasKeyword = keyword.trim().length > 0;
 
   const [{ hits, nextCursor }, { facets }] = await Promise.all([
-    runSearch({ keyword, username, tags, period, cursor, limit }),
+    runSearch({ keyword, username, tags, period, sort, cursor, limit }),
     hasKeyword
       ? runFacets({ keyword, tags, username })
       : Promise.resolve({ facets: [] as const }),
@@ -154,6 +158,9 @@ export async function PublicSearch({
               {period !== null ? (
                 <input type="hidden" name="period" value={period} />
               ) : null}
+              {sort !== null ? (
+                <input type="hidden" name="sort" value={sort} />
+              ) : null}
               <button
                 type="submit"
                 className={SEARCH_FORM_BUTTON}
@@ -178,9 +185,7 @@ export async function PublicSearch({
             </div>
             <div className={FILTER_BAR_RIGHT}>
               <SearchFilterDrawer facets={facets} />
-              {/* Sort axis is fixed to relevance order (no toggle) — the
-                  public search ranks by score. */}
-              <span className={SORT_LABEL}>関連度順</span>
+              <SearchSortToggle sort={sort} />
             </div>
           </div>
         ) : null}
@@ -257,6 +262,7 @@ export async function PublicSearch({
                   ? { tags: [...tags] }
                   : {}),
                 ...(period !== null ? { period } : {}),
+                ...(sort !== null ? { sort } : {}),
                 cursor: nextCursor,
                 limit,
               }}

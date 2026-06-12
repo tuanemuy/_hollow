@@ -150,6 +150,42 @@ describe("searchPublicNotes", () => {
     expect(result.hits.map((h) => h.updatedAt)).toEqual([T0.toISOString()]);
   });
 
+  it("propagates input.sort into SearchQuery.sort", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchPublicNotes({
+      container,
+      input: { viewerUserId: null, keyword: "x", sort: "newest", limit: 5 },
+    });
+
+    expect(observed?.sort).toBe("newest");
+  });
+
+  it("defaults SearchQuery.sort to 'relevance' when input.sort is omitted or null", async () => {
+    const observed: SearchQuery[] = [];
+    const searchIndex = makeIndex(async (q) => {
+      observed.push(q);
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchPublicNotes({
+      container,
+      input: { viewerUserId: null, keyword: "x", limit: 5 },
+    });
+    await searchPublicNotes({
+      container,
+      input: { viewerUserId: null, keyword: "x", sort: null, limit: 5 },
+    });
+
+    expect(observed.map((q) => q.sort)).toEqual(["relevance", "relevance"]);
+  });
+
   it("resolves the username to a UserId and filters by ownerId when set", async () => {
     let observed: SearchQuery | undefined;
     const searchIndex = makeIndex(async (q) => {
