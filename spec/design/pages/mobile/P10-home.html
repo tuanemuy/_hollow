@@ -509,7 +509,8 @@
      当たり判定はタッチ配慮で min-height 44px（[role=button] のグローバル床ではなく明示）。 */
   .view-switcher {
     display: inline-flex;
-    align-items: baseline;
+    /* chevron は baseline ではなく見出しテキストに対して縦中央に揃える（#626 R3 フィードバック） */
+    align-items: center;
     gap: 8px;
     font: inherit;
     letter-spacing: inherit;
@@ -1034,6 +1035,11 @@
         <button class="filter-chip">#日記<span class="chip-count">14</span></button>
         <button class="filter-chip">#essay<span class="chip-count">9</span></button>
       </div>
+      <!-- #626 R3 ADR-008: 表示中以外のタグで絞り込む導線（+ アイコン = 追加）。タップでタグ一覧の
+           ピッカー（ボトムシート想定）が開く。タッチ主体のため title は省略し aria-label のみ。 -->
+      <button class="filter-chip-ghost" aria-haspopup="listbox" aria-label="タグで絞り込み">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>タグ
+      </button>
       <button class="filter-chip-ghost">期間<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">公開状態<span class="chip-caret">▾</span></button>
       <button class="filter-chip-ghost">内部リンク参照<span class="chip-caret">▾</span></button>
