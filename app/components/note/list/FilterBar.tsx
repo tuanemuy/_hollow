@@ -67,6 +67,15 @@ type OptimisticFilters = Readonly<{
   referencingNoteId: string | undefined;
 }>;
 
+// Shared by the optimistic reducer and the navigate-time search updater so
+// the two toggle computations cannot drift apart (Issue #664 review W-001).
+function toggleInSet(names: Iterable<string>, name: string): Set<string> {
+  const next = new Set(names);
+  if (next.has(name)) next.delete(name);
+  else next.add(name);
+  return next;
+}
+
 type FilterAction =
   | Readonly<{ type: "toggleTag"; name: string }>
   | Readonly<{
@@ -85,12 +94,8 @@ function reduceFilters(
   action: FilterAction,
 ): OptimisticFilters {
   switch (action.type) {
-    case "toggleTag": {
-      const next = new Set(cur.tagNames);
-      if (next.has(action.name)) next.delete(action.name);
-      else next.add(action.name);
-      return { ...cur, tagNames: next };
-    }
+    case "toggleTag":
+      return { ...cur, tagNames: toggleInSet(cur.tagNames, action.name) };
     case "setDateRange":
       return { ...cur, from: action.from, to: action.to };
     case "setDate":
@@ -185,10 +190,7 @@ export function FilterBar({
   // overwrite each other (Issue #664).
   const toggleTag = (name: string) => {
     run({ type: "toggleTag", name }, (prev) => {
-      const next = new Set(prev.tagNames ?? []);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      const arr = [...next];
+      const arr = [...toggleInSet(prev.tagNames ?? [], name)];
       return homeSearchUpdater(prev, {
         tagNames: arr.length === 0 ? undefined : arr,
       });
