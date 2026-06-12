@@ -658,6 +658,12 @@ export class D1NoteRepository implements NoteRepository {
       );
     }
 
+    // Pre-resolved note-id candidate set: joined into the same intersection
+    // machinery as tag candidates. An empty set short-circuits to "match nothing".
+    if (opts.noteIds !== undefined) {
+      candidateSets.push(new Set(opts.noteIds as readonly string[]));
+    }
+
     if (candidateSets.length > 0) {
       const intersected = intersectIdSets(candidateSets);
       if (intersected.size === 0) return null;

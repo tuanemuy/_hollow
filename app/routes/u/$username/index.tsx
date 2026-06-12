@@ -37,6 +37,9 @@ const publicTopSearchSchema = paginationSearchSchema.extend({
   tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
   sort: z.enum(PUBLIC_SORTS).optional().catch(undefined),
   display: z.enum(DISPLAY_MODES).optional().catch(undefined),
+  // Published date range filter: `YYYY-MM-DD`. Server-driven (loader dep).
+  from: z.string().date().optional().catch(undefined),
+  to: z.string().date().optional().catch(undefined),
 });
 
 // Reuse `paginationSchema` (strict-RPC variant — required `number`s for the
@@ -48,6 +51,8 @@ const renderInputSchema = z
     username: z.string().min(1).max(64),
     tags: z.array(z.string().min(1).max(64)).max(8).optional(),
     sort: z.enum(PUBLIC_SORTS).optional(),
+    from: z.string().date().optional(),
+    to: z.string().date().optional(),
   })
   .extend(paginationSchema.shape);
 
@@ -63,6 +68,8 @@ const renderUserPublicTop = createServerFn({ method: "GET" })
         limit={data.limit}
         tags={data.tags}
         sort={data.sort}
+        from={data.from}
+        to={data.to}
       />,
     );
   });
@@ -109,6 +116,8 @@ export const Route = createFileRoute("/u/$username/")({
     limit: search.limit,
     tags: search.tags,
     sort: search.sort,
+    from: search.from,
+    to: search.to,
   }),
   loader: ({ params, deps }) =>
     renderUserPublicTop({
@@ -118,6 +127,8 @@ export const Route = createFileRoute("/u/$username/")({
         limit: deps.limit ?? PAGINATION_DEFAULT_LIMIT,
         ...(deps.tags !== undefined ? { tags: deps.tags } : {}),
         ...(deps.sort !== undefined ? { sort: deps.sort } : {}),
+        ...(deps.from !== undefined ? { from: deps.from } : {}),
+        ...(deps.to !== undefined ? { to: deps.to } : {}),
       },
     }),
   head: async ({ match, params }) => {

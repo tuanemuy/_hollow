@@ -5,7 +5,7 @@ import type {
   NoteOwnerListOpts,
   NoteRepository,
 } from "@/core/domain/note/ports/noteRepository";
-import type { NoteId } from "@/core/domain/note/valueObject";
+import type { DateRange, NoteId } from "@/core/domain/note/valueObject";
 import type { PublicationStateRepository } from "@/core/domain/publication/ports/publicationStateRepository";
 import type { TagId as TagIdVO } from "@/core/domain/tag/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
@@ -40,12 +40,32 @@ export type ListUserPublicNotesInput = Readonly<{
    */
   sort?: ListUserPublicNotesSort;
   order?: "asc" | "desc";
+  /**
+   * Filter on the publication aggregate's `published_at` (公開日範囲).
+   * Half-open `DateRange` VO. The `publishedAt` sort path filters in publication SQL;
+   * the note-column path resolves matching note ids via `listPublicNoteIdsByOwnerInRange`
+   * and intersects them as the candidate set.
+   */
+  publishedRange?: DateRange;
 }>;
 
+/**
+ * Public-listing item: {@link NoteListItemDTO} plus the publication aggregate's
+ * `publishedAt` (公開日), which is public-domain and not in the owner-scoped DTO.
+ * `null` only for defensive relay-lag tolerance.
+ */
+export type PublicNoteListItem = NoteListItemDTO &
+  Readonly<{ publishedAt: string | null }>;
+
 export type ListUserPublicNotesOutput = Readonly<{
-  notes: readonly NoteListItemDTO[];
+  notes: readonly PublicNoteListItem[];
   total: number;
 }>;
+
+// Upper bound on the published-range candidate ids resolved for the
+// note-column path before the note-side intersection. Mirrors
+// `TAG_CANDIDATE_CAP`; far above any realistic single-owner public-note count.
+const PUBLISHED_RANGE_CANDIDATE_CAP = 1000;
 
 /**
  * Lists a single user's public notes for the public profile page. The
@@ -115,6 +135,7 @@ export async function listUserPublicNotes({
           ? await listByPublishedAt({
               ownerId: user.id,
               tagIds,
+              publishedRange: input.publishedRange,
               order,
               limit: input.limit,
               offset,
@@ -124,12 +145,29 @@ export async function listUserPublicNotes({
           : await listByNoteColumn({
               ownerId: user.id,
               tagIds,
+              publishedRange: input.publishedRange,
               sort,
               order,
               limit: input.limit,
               offset,
               noteRepository,
+              publicationStateRepository,
             });
+
+      // Common post-processing across both paths: bulk read the page's
+      // publication states so both sort paths get `published_at` (N+1-free).
+      const publishedAtById = new Map<string, string | null>();
+      if (liveNotes.length > 0) {
+        const states = await publicationStateRepository.findByNoteIds(
+          liveNotes.map((n) => n.id),
+        );
+        for (const s of states) {
+          publishedAtById.set(
+            s.noteId as string,
+            s.publishedAt !== null ? s.publishedAt.toISOString() : null,
+          );
+        }
+      }
 
       const allTagIds = new Set<string>();
       for (const note of liveNotes) {
@@ -143,18 +181,21 @@ export async function listUserPublicNotes({
         for (const t of tags) tagMap.set(t.id, t.name as string);
       }
 
-      const items = liveNotes.map((note) => {
+      const items: PublicNoteListItem[] = liveNotes.map((note) => {
         const excerpt = container.htmlSanitizer
           .toPlainText(note.contentHtml)
           .slice(0, 200);
         const tagNames = note.tagIds
           .map((id) => tagMap.get(id))
           .filter((name): name is string => name !== undefined);
-        return toNoteListItem(note, {
-          excerpt,
-          tagNames,
-          visibility: "public",
-        });
+        return {
+          ...toNoteListItem(note, {
+            excerpt,
+            tagNames,
+            visibility: "public",
+          }),
+          publishedAt: publishedAtById.get(note.id as string) ?? null,
+        };
       });
 
       return { notes: items, total };
@@ -178,6 +219,7 @@ const TAG_CANDIDATE_CAP = 1000;
 async function listByPublishedAt(args: {
   ownerId: UserId;
   tagIds: readonly TagIdVO[] | undefined;
+  publishedRange: DateRange | undefined;
   order: "asc" | "desc";
   limit: number;
   offset: number;
@@ -210,6 +252,9 @@ async function listByPublishedAt(args: {
         limit: args.limit,
         offset: args.offset,
         ...(candidateIds !== undefined ? { noteIds: candidateIds } : {}),
+        ...(args.publishedRange !== undefined
+          ? { publishedRange: args.publishedRange }
+          : {}),
       },
     );
 
@@ -235,16 +280,38 @@ async function listByPublishedAt(args: {
 async function listByNoteColumn(args: {
   ownerId: UserId;
   tagIds: readonly TagIdVO[] | undefined;
+  publishedRange: DateRange | undefined;
   sort: "updatedAt" | "createdAt" | "title";
   order: "asc" | "desc";
   limit: number;
   offset: number;
   noteRepository: NoteRepository;
+  publicationStateRepository: PublicationStateRepository;
 }): Promise<ListResult> {
+  // The note-column sort never reads the publication aggregate, so the
+  // 公開日範囲 filter cannot be expressed in the note SQL. Resolve the matching
+  // public-note ids on the publication side and pass them as a note-id
+  // candidate set; the existing `noteIds` machinery intersects with tag
+  // candidates. `NoteOwnerFilters.dateRange` is intentionally NOT used: it
+  // filters `notes.updatedAt`, not the publication `published_at`.
+  let publishedNoteIds: readonly NoteId[] | undefined;
+  if (args.publishedRange !== undefined) {
+    publishedNoteIds =
+      await args.publicationStateRepository.listPublicNoteIdsByOwnerInRange(
+        args.ownerId,
+        args.publishedRange,
+        PUBLISHED_RANGE_CANDIDATE_CAP,
+      );
+    if (publishedNoteIds.length === 0) {
+      return { liveNotes: [], total: 0 };
+    }
+  }
+
   const opts: NoteOwnerListOpts = {
     visibility: ["public"],
     status: "active",
     ...(args.tagIds !== undefined ? { tagIds: args.tagIds } : {}),
+    ...(publishedNoteIds !== undefined ? { noteIds: publishedNoteIds } : {}),
     sort: args.sort,
     order: args.order,
     limit: args.limit,

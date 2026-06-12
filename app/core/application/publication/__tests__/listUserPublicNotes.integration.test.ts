@@ -451,4 +451,212 @@ describe("listUserPublicNotes (integration)", () => {
     expect(page2.total).toBe(3);
     expect(page2.notes.map((n) => n.title)).toEqual(["first"]);
   });
+
+  it("projects the publication published_at onto every listing item", async () => {
+    const container = getContainer();
+    const owner = await seedUser(container, "owner-projection");
+    const dir = await seedDirectory(container, owner);
+
+    const a = await seedNote(container, owner, dir, {
+      title: "a",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+    const b = await seedNote(container, owner, dir, {
+      title: "b",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    });
+    await seedPublic(container, a, owner, "public", "2024-03-01T00:00:00.000Z");
+    await seedPublic(container, b, owner, "public", "2024-01-01T00:00:00.000Z");
+
+    const byPublished = await listUserPublicNotes({
+      container,
+      input: { username: "owner-projection", page: 1, limit: 20 },
+    });
+    expect(
+      byPublished.notes.map((n) => ({
+        title: n.title,
+        publishedAt: n.publishedAt,
+      })),
+    ).toEqual([
+      { title: "a", publishedAt: iso("2024-03-01T00:00:00.000Z") },
+      { title: "b", publishedAt: iso("2024-01-01T00:00:00.000Z") },
+    ]);
+    const byTitle = await listUserPublicNotes({
+      container,
+      input: {
+        username: "owner-projection",
+        page: 1,
+        limit: 20,
+        sort: "title",
+        order: "asc",
+      },
+    });
+    expect(byTitle.notes.map((n) => n.publishedAt)).toEqual([
+      iso("2024-03-01T00:00:00.000Z"),
+      iso("2024-01-01T00:00:00.000Z"),
+    ]);
+  });
+
+  describe("publishedRange filter", () => {
+    async function seedRangeOwner(container: TestContainer, username: string) {
+      const owner = await seedUser(container, username);
+      const dir = await seedDirectory(container, owner);
+      const titles = ["jan", "feb", "mar"] as const;
+      const pub = {
+        jan: "2026-01-10T08:00:00.000Z",
+        feb: "2026-02-10T08:00:00.000Z",
+        mar: "2026-03-10T08:00:00.000Z",
+      };
+      for (const title of titles) {
+        const note = await seedNote(container, owner, dir, {
+          title,
+          updatedAt: "2026-04-01T00:00:00.000Z",
+        });
+        await seedPublic(container, note, owner, "public", pub[title]);
+      }
+      return username;
+    }
+
+    const range = (from: string | null, to: string | null) => ({
+      from: from === null ? null : new Date(from),
+      to: to === null ? null : new Date(to),
+    });
+
+    it("filters by published_at range on the publishedAt path", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-pub");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "publishedAt",
+          publishedRange: range(
+            "2026-02-01T00:00:00.000Z",
+            "2026-03-01T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.total).toBe(1);
+      expect(r.notes.map((n) => n.title)).toEqual(["feb"]);
+    });
+
+    it("filters by published_at range on the noteColumn path (title sort)", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-col");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "title",
+          order: "asc",
+          publishedRange: range(
+            "2026-02-01T00:00:00.000Z",
+            "2026-03-01T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.total).toBe(1);
+      expect(r.notes.map((n) => n.title)).toEqual(["feb"]);
+    });
+
+    it("from-only includes everything on/after the bound", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-from");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "publishedAt",
+          order: "asc",
+          publishedRange: range("2026-02-01T00:00:00.000Z", null),
+        },
+      });
+      expect(r.notes.map((n) => n.title)).toEqual(["feb", "mar"]);
+    });
+
+    it("to-only includes everything before the exclusive bound", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-to");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "publishedAt",
+          order: "asc",
+          publishedRange: range(null, "2026-02-11T00:00:00.000Z"),
+        },
+      });
+      expect(r.notes.map((n) => n.title)).toEqual(["jan", "feb"]);
+    });
+
+    it("end-date inclusive: the day-after-00:00 exclusive bound keeps the end day", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-incl");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "publishedAt",
+          publishedRange: range(
+            "2026-02-10T00:00:00.000Z",
+            "2026-02-11T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.notes.map((n) => n.title)).toEqual(["feb"]);
+    });
+
+    it("returns an empty page when the range matches nothing (noteColumn path)", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-empty");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "title",
+          publishedRange: range(
+            "2025-01-01T00:00:00.000Z",
+            "2025-02-01T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.total).toBe(0);
+      expect(r.notes).toEqual([]);
+    });
+
+    it("noteColumn path with period filter returns only notes with non-null publishedAt", async () => {
+      const container = getContainer();
+      const username = await seedRangeOwner(container, "range-pub-check");
+      const r = await listUserPublicNotes({
+        container,
+        input: {
+          username,
+          page: 1,
+          limit: 20,
+          sort: "updatedAt",
+          order: "desc",
+          publishedRange: range(
+            "2026-02-01T00:00:00.000Z",
+            "2026-02-28T00:00:00.000Z",
+          ),
+        },
+      });
+      expect(r.notes).toHaveLength(1);
+      expect(r.notes[0]?.title).toBe("feb");
+      expect(r.notes.every((n) => n.publishedAt !== null)).toBe(true);
+      expect(r.notes.every((n) => n.visibility === "public")).toBe(true);
+    });
+  });
 });

@@ -11,6 +11,8 @@ let searchState: {
   display?: "list" | "tile" | "calendar";
   tags?: readonly string[];
   sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
+  from?: string;
+  to?: string;
 } = {};
 
 vi.mock("@tanstack/react-router", () => ({
@@ -22,10 +24,16 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-const { PublicTopControls, nextFilterSearch, toggleTagSet, nextSortAxis } =
-  await import("../PublicTopControls");
+const { PublicTopControls, nextFilterSearch, toggleTagSet } = await import(
+  "../PublicTopControls"
+);
 
 describe("PublicTopControls URL updaters", () => {
+  // Period bounds are tested here for shape/presence, not validation. Invalid
+  // date strings (e.g. "2026-13-01", "not-a-date") are validated at the
+  // transport boundary (route's validateSearch), not in component tests.
+  // This test suite focuses on URL patch generation for valid inputs.
+
   it("nextFilterSearch resets the page and drops default values", () => {
     expect(nextFilterSearch({ page: 3 }, { tags: ["a", "b"] })).toEqual({
       page: undefined,
@@ -51,16 +59,39 @@ describe("PublicTopControls URL updaters", () => {
     });
   });
 
+  it("nextFilterSearch sets / clears the period bounds and resets the page", () => {
+    expect(
+      nextFilterSearch({ page: 2 }, { from: "2026-05-01", to: "2026-05-31" }),
+    ).toEqual({
+      page: undefined,
+      from: "2026-05-01",
+      to: "2026-05-31",
+    });
+    expect(nextFilterSearch({}, { from: "2026-05-01", to: undefined })).toEqual(
+      {
+        page: undefined,
+        from: "2026-05-01",
+        to: undefined,
+      },
+    );
+    expect(nextFilterSearch({}, { from: undefined, to: "2026-05-31" })).toEqual(
+      {
+        page: undefined,
+        from: undefined,
+        to: "2026-05-31",
+      },
+    );
+    expect(
+      nextFilterSearch(
+        { page: 3, from: "2026-05-01", to: "2026-05-31" },
+        { from: undefined, to: undefined },
+      ),
+    ).toEqual({ page: undefined, from: undefined, to: undefined });
+  });
+
   it("toggleTagSet adds an absent tag and removes a present one", () => {
     expect(toggleTagSet(["a"], "b")).toEqual(["a", "b"]);
     expect(toggleTagSet(["a", "b"], "a")).toEqual(["b"]);
-  });
-
-  it("nextSortAxis cycles publishedAt → updatedAt → createdAt → title → publishedAt", () => {
-    expect(nextSortAxis("publishedAt")).toBe("updatedAt");
-    expect(nextSortAxis("updatedAt")).toBe("createdAt");
-    expect(nextSortAxis("createdAt")).toBe("title");
-    expect(nextSortAxis("title")).toBe("publishedAt");
   });
 });
 

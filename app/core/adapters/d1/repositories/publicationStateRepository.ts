@@ -4,8 +4,11 @@ import {
   count,
   desc,
   eq,
+  gte,
   inArray,
   isNotNull,
+  lt,
+  type SQL,
   sql,
 } from "drizzle-orm";
 import {
@@ -20,6 +23,7 @@ import type {
 } from "@/core/domain/common/transactionalRepository";
 import { isRehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
+import type { DateRange } from "@/core/domain/note/valueObject";
 import { NoteId } from "@/core/domain/note/valueObject";
 import { PublicationState } from "@/core/domain/publication/entity";
 import type {
@@ -42,6 +46,23 @@ import { mapDbError } from "./helpers";
 type SortedRow = Readonly<{ noteId: string; publishedAt: string }>;
 
 type PublicationStateRow = typeof publicationStates.$inferSelect;
+
+// `published_at` is ISO-8601 text (lexicographic compare matches chronological order).
+// DateRange is half-open `[from, to)`; the presentation boundary pushed the
+// inclusive end date to day-after-00:00, so here `from` is `gte` and `to` is `lt`.
+function publishedRangeConditions(range: DateRange | undefined): SQL[] {
+  if (range === undefined) return [];
+  const conditions: SQL[] = [];
+  if (range.from !== null) {
+    conditions.push(
+      gte(publicationStates.publishedAt, range.from.toISOString()),
+    );
+  }
+  if (range.to !== null) {
+    conditions.push(lt(publicationStates.publishedAt, range.to.toISOString()));
+  }
+  return conditions;
+}
 
 /**
  * D1 implementation of `PublicationStateRepository`. Mirrors
@@ -236,6 +257,7 @@ export class D1PublicationStateRepository
       eq(publicationStates.visibility, "public"),
       isNotNull(publicationStates.publishedAt),
       eq(notes.status, "active"),
+      ...publishedRangeConditions(opts.publishedRange),
     );
 
     const orderBy =
@@ -292,10 +314,11 @@ export class D1PublicationStateRepository
             eq(publicationStates.visibility, "public"),
             isNotNull(publicationStates.publishedAt),
             inArray(publicationStates.noteId, [...chunk]),
+            ...publishedRangeConditions(opts.publishedRange),
           ),
         );
-      // `isNotNull` guarantees a non-null published_at; narrow the nullable
-      // column type to `SortedRow`.
+      // `isNotNull` (line 316) guarantees a non-null published_at; narrow
+      // the column type safely.
       return chunkRows.map((r) => ({
         noteId: r.noteId,
         publishedAt: r.publishedAt as string,
@@ -319,6 +342,34 @@ export class D1PublicationStateRepository
       noteIds: page.map((r) => NoteId.create(r.noteId)),
       total: sorted.length,
     };
+  }
+
+  listPublicNoteIdsByOwnerInRange(
+    ownerId: UserId,
+    publishedRange: DateRange,
+    limit: number,
+  ): Promise<readonly NoteId[]> {
+    return mapDbError(
+      "Failed to list public publication_states in published_at range",
+      async () => {
+        const rows = await this.db
+          .select({ noteId: publicationStates.noteId })
+          .from(publicationStates)
+          .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+          .where(
+            and(
+              eq(publicationStates.ownerId, ownerId),
+              eq(publicationStates.visibility, "public"),
+              isNotNull(publicationStates.publishedAt),
+              eq(notes.status, "active"),
+              ...publishedRangeConditions(publishedRange),
+            ),
+          )
+          .orderBy(asc(publicationStates.noteId))
+          .limit(limit);
+        return rows.map((r) => NoteId.create(r.noteId));
+      },
+    );
   }
 
   findByNoteIds(ids: readonly NoteId[]): Promise<readonly PublicationState[]> {

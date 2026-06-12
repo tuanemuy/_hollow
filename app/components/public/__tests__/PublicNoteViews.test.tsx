@@ -47,11 +47,12 @@ const notes = [
     excerpt: "本文の抜粋",
     tagNames: ["cloudflare"],
     updatedAt: "2026-03-01T00:00:00.000Z",
+    publishedAt: "2026-02-10T00:00:00.000Z",
   },
 ];
 
 describe("PublicNoteViews", () => {
-  it("renders list rows linking to the public note route", () => {
+  it("renders list rows linking to the public note route with the published date", () => {
     display = "list";
     const html = renderToStaticMarkup(
       <PublicNoteViews username="tuanemuy" notes={notes} />,
@@ -59,6 +60,8 @@ describe("PublicNoteViews", () => {
     expect(html).toContain("最初のノート");
     expect(html).toContain("#cloudflare");
     expect(html).toContain('href="/u/tuanemuy/first-note"');
+    // Meta row shows the published date, not the updated date.
+    expect(html).toContain("2026年2月10日 公開");
   });
 
   it("renders the tile grid when display=tile", () => {
@@ -81,5 +84,21 @@ describe("PublicNoteViews", () => {
     expect(html).toContain('href="/u/tuanemuy/first-note"');
     // A day-group heading is present.
     expect(html).toContain("<h2");
+  });
+
+  it("falls back to updatedAt when publishedAt is null (relay lag tolerance)", () => {
+    // publishedAt may be null when the publication fetch lags; fallback to updatedAt.
+    display = "list";
+    const notesWithNull = [
+      {
+        ...notes[0],
+        publishedAt: null,
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <PublicNoteViews username="tuanemuy" notes={notesWithNull} />,
+    );
+    expect(html).toContain("2026年3月1日 公開");
   });
 });
