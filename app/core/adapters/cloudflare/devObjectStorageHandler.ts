@@ -28,7 +28,7 @@ export function resolveDevObjectStorageGate(params: {
 }
 
 /**
- * Local-dev terminator for presigned R2 URLs (Issue #657, ADR-001).
+ * Local-dev terminator for presigned R2 URLs (`.issue/657/adr.md` ADR-001).
  *
  * In local verification (`wrangler dev`), `R2_S3_ENDPOINT` points the
  * presigner at `http://localhost:8787/dev/r2`, so browser PUT/GET land

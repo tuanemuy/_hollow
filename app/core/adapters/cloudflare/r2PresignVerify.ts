@@ -40,7 +40,7 @@ export type PresignVerificationResult =
  * signature check.
  *
  * The signature comparison is constant-time: presigned URLs are bearer
- * credentials and ADR-001 leans on this verification as the safety net
+ * credentials and `.issue/657/adr.md` ADR-001 leans on this verification as the safety net
  * against accidental production enablement of the dev proxy.
  */
 export async function verifyPresignedRequest(params: {

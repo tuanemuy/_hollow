@@ -27,7 +27,7 @@ afterEach(() => {
 // Round-trip: URLs minted by `R2ObjectStorage.presign*` must pass
 // verification with the same credentials. This is the load-bearing
 // guarantee that the signer and the verifier share one canonical form
-// (ADR-002 of Issue #657).
+// (`.issue/657/adr.md` ADR-002).
 describe("verifyPresignedRequest — round trip", () => {
   it("accepts a presignUpload URL (PUT with matching Content-Type)", async () => {
     const url = await storage().presignUpload(

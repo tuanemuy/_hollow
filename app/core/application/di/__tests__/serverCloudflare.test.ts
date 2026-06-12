@@ -180,7 +180,7 @@ describe("readRequestServerConfig", () => {
     expect(config.adminLlmProvider).toBe("anthropic");
   });
 
-  // Issue #657: `R2_S3_ENDPOINT` threads the local dev-proxy endpoint
+  // `R2_S3_ENDPOINT` threads the local dev-proxy endpoint
   // into the presign config; absent (staging / production) the config
   // must not carry an `endpoint` key so the adapter falls back to the
   // account-scoped R2 endpoint.

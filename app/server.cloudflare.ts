@@ -73,7 +73,7 @@ export default {
       // layer and cannot emit a raw XML body. See ADR-010 in
       // `.issue/205/adr.md` for the rationale.
       const url = new URL(request.url);
-      // LOCAL DEV ONLY (Issue #657): same-origin terminator for presigned
+      // LOCAL DEV ONLY: same-origin terminator for presigned
       // R2 URLs. `R2_DEV_OBJECT_PROXY` is set solely in the local
       // `wrangler.toml [vars]`, so staging / production never enter this
       // branch. Missing binding / presign config → 404 rather than crash.

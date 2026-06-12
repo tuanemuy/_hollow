@@ -33,7 +33,7 @@ R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 # mismatch with finalize's `stat`). Do NOT add these two vars to
 # `wrangler.staging.toml` / `wrangler.production.toml`: staging /
 # production must keep presigning against the remote R2 S3 endpoint and
-# must not serve objects through the Worker. See Issue #657 and
+# must not serve objects through the Worker. See
 # docs/runtime_cloudflare.md "ローカルでの presigned フロー".
 R2_S3_ENDPOINT = "http://localhost:8787/dev/r2"
 R2_DEV_OBJECT_PROXY = "true"

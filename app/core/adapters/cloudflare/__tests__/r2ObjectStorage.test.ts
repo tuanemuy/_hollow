@@ -85,11 +85,10 @@ describe("R2ObjectStorage.presignDownload", () => {
   });
 });
 
-// Issue #657: `presign()` now preserves the endpoint's path prefix so a
-// local dev proxy endpoint (`http://localhost:8787/dev/r2`) can be
-// signed. The default-endpoint output must stay byte-identical to the
-// pre-change implementation — the golden strings below were generated
-// by the pre-#657 code at the fixed system time.
+// `presign()` preserves the endpoint's path prefix so a local dev proxy
+// endpoint (`http://localhost:8787/dev/r2`) can be signed. The golden
+// strings below pin the default-endpoint output byte-for-byte at the
+// fixed system time so prefix handling can never alter it.
 describe("R2ObjectStorage.presign — endpoint path handling", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -99,7 +98,7 @@ describe("R2ObjectStorage.presign — endpoint path handling", () => {
     vi.useRealTimers();
   });
 
-  it("default endpoint: presignUpload output is byte-identical to the pre-#657 implementation (golden)", async () => {
+  it("default endpoint: presignUpload output matches the golden URL", async () => {
     const storage = new R2ObjectStorage(FAKE_BUCKET, PRESIGN_CONFIG);
     const url = await storage.presignUpload(
       "owner/source/abc",
@@ -111,7 +110,7 @@ describe("R2ObjectStorage.presign — endpoint path handling", () => {
     );
   });
 
-  it("default endpoint: presignDownload with downloadFileName is byte-identical to the pre-#657 implementation (golden)", async () => {
+  it("default endpoint: presignDownload with downloadFileName matches the golden URL", async () => {
     const storage = new R2ObjectStorage(FAKE_BUCKET, PRESIGN_CONFIG);
     const url = await storage.presignDownload("owner/source/abc", 60, {
       downloadFileName: "report.pdf",

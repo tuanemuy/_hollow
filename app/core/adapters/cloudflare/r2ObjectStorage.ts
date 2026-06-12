@@ -32,7 +32,7 @@ export type R2PresignConfig = Readonly<{
   /**
    * Optional override for the endpoint used in presigned URLs. When set
    * (e.g. a custom domain, or the local dev proxy
-   * `http://localhost:8787/dev/r2` — Issue #657), presigned URLs are
+   * `http://localhost:8787/dev/r2`), presigned URLs are
    * issued against this origin and any path prefix it carries is
    * preserved in front of `/<bucket>/<key>`. Defaults to the
    * account-scoped R2 endpoint.
