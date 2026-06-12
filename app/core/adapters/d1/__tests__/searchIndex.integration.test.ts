@@ -788,6 +788,7 @@ describe("D1SearchIndex sort (#642)", () => {
     const ownerId = await seedUser(container);
     const directoryId = await seedDirectory(container, ownerId);
 
+    // `nextId` is a monotonic counter, so generation order is note_id ASC.
     const a = await makeDoc(container, {
       ownerId,
       directoryId,
@@ -800,15 +801,26 @@ describe("D1SearchIndex sort (#642)", () => {
       title: "Tie design B",
       body: "design body",
     });
-    await container.searchIndex.upsert(a);
-    await container.searchIndex.upsert(b);
+    const c = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Tie design C",
+      body: "design body",
+    });
+    // Upsert in reverse so insertion order disagrees with note_id ASC.
+    for (const doc of [c, b, a]) {
+      await container.searchIndex.upsert(doc);
+    }
 
     const result = await container.searchIndex.query(
       makeQuery({ keyword: "design", sort: "newest" }),
     );
 
-    const expected = [a.noteId, b.noteId].sort();
-    expect(result.hits.map((h) => h.noteId)).toEqual(expected);
+    expect(result.hits.map((h) => h.noteId)).toEqual([
+      a.noteId,
+      b.noteId,
+      c.noteId,
+    ]);
   });
 
   it("orders by updated_at DESC on the LIKE fallback path too (sort: 'newest')", async () => {
@@ -844,34 +856,73 @@ describe("D1SearchIndex sort (#642)", () => {
     ]);
   });
 
-  it("paginates 'newest' with a stable cursor: pages are contiguous with no overlap", async () => {
-    const container = createTestContainer();
-    const ownerId = await seedUser(container);
-    const directoryId = await seedDirectory(container, ownerId);
-
-    const docs = [];
-    for (let i = 0; i < 5; i += 1) {
-      const doc = await makeDoc(container, {
-        ownerId,
-        directoryId,
-        title: `Paging design ${i}`,
-        body: "design body",
-        updatedAt: at(`2026-01-0${i + 1}T00:00:00.000Z`),
-      });
+  // Seeds 5 docs whose newest order is [top, second, tieA, tieB, last]
+  // with the equal-updated_at pair (tieA/tieB) straddling the limit-3 page
+  // boundary — the one spot where offset-cursor stability depends on the
+  // note_id tie-breaker. tieA/tieB are generated first so note_id ASC
+  // (monotonic `nextId`) fixes their relative order independently of
+  // updated_at.
+  async function seedPagingFixture(
+    container: TestContainer,
+    ownerId: UserId,
+    directoryId: string,
+    word: string,
+  ) {
+    const tieA = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: `Tie A ${word}`,
+      body: `${word} body`,
+      updatedAt: at("2026-01-03T00:00:00.000Z"),
+    });
+    const tieB = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: `Tie B ${word}`,
+      body: `${word} body`,
+      updatedAt: at("2026-01-03T00:00:00.000Z"),
+    });
+    const top = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: `Top ${word}`,
+      body: `${word} body`,
+      updatedAt: at("2026-01-05T00:00:00.000Z"),
+    });
+    const second = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: `Second ${word}`,
+      body: `${word} body`,
+      updatedAt: at("2026-01-04T00:00:00.000Z"),
+    });
+    const last = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: `Last ${word}`,
+      body: `${word} body`,
+      updatedAt: at("2026-01-02T00:00:00.000Z"),
+    });
+    for (const doc of [tieA, tieB, top, second, last]) {
       await container.searchIndex.upsert(doc);
-      docs.push(doc);
     }
-    const expectedOrder = [...docs].reverse().map((d) => d.noteId);
+    return [top, second, tieA, tieB, last].map((d) => d.noteId);
+  }
 
+  async function expectContiguousNewestPages(
+    container: TestContainer,
+    keyword: string,
+    expectedOrder: string[],
+  ) {
     const first = await container.searchIndex.query(
-      makeQuery({ keyword: "design", sort: "newest", limit: 3 }),
+      makeQuery({ keyword, sort: "newest", limit: 3 }),
     );
     expect(first.hits.map((h) => h.noteId)).toEqual(expectedOrder.slice(0, 3));
     expect(first.nextCursor).not.toBeNull();
 
     const second = await container.searchIndex.query(
       makeQuery({
-        keyword: "design",
+        keyword,
         sort: "newest",
         limit: 3,
         cursor: first.nextCursor,
@@ -879,6 +930,35 @@ describe("D1SearchIndex sort (#642)", () => {
     );
     expect(second.hits.map((h) => h.noteId)).toEqual(expectedOrder.slice(3));
     expect(second.nextCursor).toBeNull();
+  }
+
+  it("paginates 'newest' with a stable cursor across an updated_at tie on the page boundary (MATCH path)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    const expectedOrder = await seedPagingFixture(
+      container,
+      ownerId,
+      directoryId,
+      "design",
+    );
+    await expectContiguousNewestPages(container, "design", expectedOrder);
+  });
+
+  it("paginates 'newest' with a stable cursor across an updated_at tie on the page boundary (LIKE path)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    // "AI" is below the trigram minimum, so this exercises the LIKE route.
+    const expectedOrder = await seedPagingFixture(
+      container,
+      ownerId,
+      directoryId,
+      "AI",
+    );
+    await expectContiguousNewestPages(container, "AI", expectedOrder);
   });
 
   it("keeps the bm25 relevance order when sort is omitted (regression: default)", async () => {
@@ -905,14 +985,59 @@ describe("D1SearchIndex sort (#642)", () => {
     await container.searchIndex.upsert(dense);
     await container.searchIndex.upsert(sparse);
 
-    const result = await container.searchIndex.query(
+    const expected = [dense.noteId, sparse.noteId];
+
+    const omitted = await container.searchIndex.query(
       makeQuery({ keyword: "design" }),
     );
+    expect(omitted.hits.map((h) => h.noteId)).toEqual(expected);
 
-    expect(result.hits.map((h) => h.noteId)).toEqual([
-      dense.noteId,
-      sparse.noteId,
-    ]);
+    // Explicit 'relevance' must be the same contract as the default.
+    const explicit = await container.searchIndex.query(
+      makeQuery({ keyword: "design", sort: "relevance" }),
+    );
+    expect(explicit.hits.map((h) => h.noteId)).toEqual(expected);
+  });
+
+  it("keeps the note_id ASC stable order on the LIKE path for default and explicit 'relevance'", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    // `nextId` is a monotonic counter, so generation order is note_id ASC.
+    // updated_at is deliberately reverse-chronological relative to note_id
+    // so a 'newest' leak would flip the order, and upsert order is reversed
+    // so an insertion-order accident would flip it too.
+    const a = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "First AI",
+      body: "AI body",
+      updatedAt: at("2026-01-01T00:00:00.000Z"),
+    });
+    const b = await makeDoc(container, {
+      ownerId,
+      directoryId,
+      title: "Second AI",
+      body: "AI body",
+      updatedAt: at("2026-03-01T00:00:00.000Z"),
+    });
+    for (const doc of [b, a]) {
+      await container.searchIndex.upsert(doc);
+    }
+
+    // "AI" is below the trigram minimum, so this exercises the LIKE route.
+    const expected = [a.noteId, b.noteId];
+
+    const omitted = await container.searchIndex.query(
+      makeQuery({ keyword: "AI" }),
+    );
+    expect(omitted.hits.map((h) => h.noteId)).toEqual(expected);
+
+    const explicit = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", sort: "relevance" }),
+    );
+    expect(explicit.hits.map((h) => h.noteId)).toEqual(expected);
   });
 });
 

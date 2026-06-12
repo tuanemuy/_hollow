@@ -64,8 +64,9 @@ NoteSnapshot は application 層の dispatcher（`dispatchDomainEvent`）が、N
 ## 値オブジェクト
 
 ### SearchQuery
-- フィールド: `keyword: string`, `ownerIdFilter: UserId | null`, `visibilityFilter: Visibility[]`, `tagNames: string[]`, `dateRange: DateRange | null`, `sort: SearchSort`, `limit: number`, `cursor: string | null`
+- フィールド: `keyword: string`, `ownerIdFilter: UserId | null`, `visibilityFilter: Visibility[]`, `tagNames: string[]`, `directoryPathPrefix: string | null`, `dateRange: DateRange | null`, `dateBasis: DateBasis`（デフォルト `date_for_calendar`）, `sort: SearchSort`, `limit: number`, `cursor: string | null`
 - バリデーション: `keyword` 長さ 1..200、`limit` 1..50
+- `dateBasis: DateBasis`（`'published_at' | 'date_for_calendar'`、デフォルト `date_for_calendar`）: `dateRange` をどの日付軸で適用するかを指定する
 - `sort: SearchSort`（`'relevance' | 'newest'`、デフォルト `relevance`）: `newest` は検索インデックス projection の `updated_at`（`SearchHit.updatedAt` と同じ値）降順 + `note_id` 昇順 tie-breaker。`sort` は `query` の並び順のみに影響し、カウント系（`countByDateRanges`）の結果には影響しない
 - 注記: ドメイン契約は `keyword` 長さ 1..200 で不変。ただし D1 adapter は FTS5 `tokenize='trigram'` の制約により 3 Unicode codepoint 未満のクエリトークンを内部的に除外する（`spec/database/index.md` の `search_documents_fts` 節、`.issue/50/adr.md` ADR-003 参照）
 

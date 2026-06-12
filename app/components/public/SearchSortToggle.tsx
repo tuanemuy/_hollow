@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import type { SearchSort } from "@/core/domain/search/valueObject";
 import { SEARCH_SORT_BTN } from "./styles";
 
@@ -17,20 +17,45 @@ type Props = Readonly<{
 }>;
 
 /**
+ * Pure navigate reducer for a sort change: any switch drops `cursor` so the
+ * offset cursor never applies to a re-ordered list, and `relevance` (the
+ * default) removes `sort` to keep the URL clean. All other params pass
+ * through untouched.
+ */
+export function reduceSortSearch(
+  prev: Record<string, unknown>,
+  sort: SearchSort,
+): Record<string, unknown> {
+  return {
+    ...prev,
+    cursor: undefined,
+    sort: sort === "relevance" ? undefined : sort,
+  };
+}
+
+/**
  * P32 sort toggle: cycles 関連度順 ⇄ 新着順 on click (two options, so a
  * cycle button instead of a dropdown — .issue/642/adr.md ADR-002). The URL
- * is the single source of truth: `sort=newest` is written explicitly,
- * relevance removes the param to keep the URL clean, and any switch drops
- * `cursor` so the offset cursor never applies to a re-ordered list.
+ * is the single source of truth; the label is mirrored optimistically while
+ * the loader round-trip is in flight (FilterBar precedent;
+ * .issue/354/adr.md ADR-003) and snaps back to the URL-confirmed value once
+ * the navigation commits. Deriving `next` from the optimistic value also
+ * keeps rapid double-clicks toggling as expected instead of re-sending the
+ * same sort.
  */
 export function SearchSortToggle({ sort }: Props) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
-  const current: SearchSort = sort ?? "relevance";
+  const [isPending, startTransition] = useTransition();
+  const confirmed: SearchSort = sort ?? "relevance";
+  const [current, applyOptimistic] = useOptimistic(
+    confirmed,
+    (_prev: SearchSort, next: SearchSort) => next,
+  );
   const next: SearchSort = current === "relevance" ? "newest" : "relevance";
 
   const toggle = () => {
     startTransition(async () => {
+      applyOptimistic(next);
       try {
         // Same structural cast rationale as `SearchFilterDrawer.navigate`:
         // the strict search schema rejects the open `Record` reducer shape
@@ -38,18 +63,11 @@ export function SearchSortToggle({ sort }: Props) {
         // the params on commit.
         await router.navigate({
           to: "/search",
-          search: (prev) => {
-            const nextSearch: Record<string, unknown> = {
-              ...(prev as Record<string, unknown>),
-            };
-            // A sort change resets pagination.
-            nextSearch.cursor = undefined;
-            nextSearch.sort = next === "relevance" ? undefined : next;
-            return nextSearch as never;
-          },
+          search: (prev) =>
+            reduceSortSearch(prev as Record<string, unknown>, next) as never,
         });
       } catch {
-        // A cancelled / rejected navigation keeps the current sort.
+        // A cancelled / rejected navigation reverts the optimistic sort.
       }
     });
   };
@@ -59,6 +77,8 @@ export function SearchSortToggle({ sort }: Props) {
       type="button"
       className={SEARCH_SORT_BTN}
       aria-label={`並び替え: ${SORT_LABELS[current]}（${SORT_LABELS[next]}に切り替え）`}
+      aria-busy={isPending || undefined}
+      data-pending={isPending || undefined}
       onClick={toggle}
     >
       {SORT_LABELS[current]}
