@@ -7,6 +7,7 @@ import { homeSearchUpdater } from "./homeSearch";
 import { selectDisplay } from "./listSelectors";
 import { DISPLAY_SEGMENTED, DISPLAY_SEGMENTED_BTN } from "./styles";
 
+// アイコンのみ表示（#626 ADR-001）のため `aria-label` / `title` 用のラベル。
 const LABELS: Record<DisplayMode, string> = {
   list: "リスト",
   tile: "タイル",
@@ -28,7 +29,7 @@ const homeRoute = getRouteApi("/_app/");
  * Issue #219: `display` is excluded from the home route's `loaderDeps`,
  * so `router.navigate({ search: ... })` only updates the URL — no
  * loader re-run, no RSC re-stream. The swap completes in one React
- * render pass, so we no longer need `useTransition` to keep the old
+ * render pass, so no `useTransition` is needed to keep the old
  * frame interactive. `replace: true` keeps history clean because
  * view-mode swaps are not navigation events the user expects to walk
  * through with the back button.
@@ -61,6 +62,8 @@ export function DisplayModeSwitch() {
             role="tab"
             type="button"
             aria-selected={active}
+            aria-label={LABELS[mode]}
+            title={LABELS[mode]}
             data-active={active || undefined}
             className={DISPLAY_SEGMENTED_BTN}
             onClick={() => select(mode)}
@@ -70,7 +73,6 @@ export function DisplayModeSwitch() {
               strokeWidth={1.8}
               aria-hidden="true"
             />
-            {LABELS[mode]}
           </button>
         );
       })}

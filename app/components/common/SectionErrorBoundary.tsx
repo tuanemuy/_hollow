@@ -33,6 +33,13 @@ type Props = Readonly<{
    * streamed children render instead of a stale fallback.
    */
   resetKey?: string | number;
+  /**
+   * Rendered above the alert in the error fallback. Used when the section
+   * owns a page-level landmark (e.g. the home toolbar boundary contains the
+   * page's only `<h1>`) that must survive an error so the heading structure
+   * never disappears (`.issue/649/adr.md` ADR-009).
+   */
+  fallbackHeading?: ReactNode;
   children: ReactNode;
 }>;
 
@@ -121,13 +128,21 @@ export function SectionErrorBoundary({
   section,
   scope = "page",
   resetKey,
+  fallbackHeading,
   children,
 }: Props) {
   return (
     <Boundary
       {...(resetKey !== undefined ? { resetKey } : {})}
       fallback={(reset) => (
-        <SectionErrorFallback section={section} scope={scope} onReset={reset} />
+        <>
+          {fallbackHeading}
+          <SectionErrorFallback
+            section={section}
+            scope={scope}
+            onReset={reset}
+          />
+        </>
       )}
     >
       {children}

@@ -276,3 +276,31 @@ describe("FilterBar — DatePopover (Issue #467)", () => {
     expect(routerNavigate).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("FilterBar すべてクリア × (Issue #649 / #626 ADR-006)", () => {
+  const clearX = () =>
+    container.querySelector<HTMLButtonElement>(
+      'button[aria-label="フィルタをすべてクリア"]',
+    );
+
+  it("is hidden when no filter is applied", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith();
+    expect(clearX()).toBeNull();
+  });
+
+  it("renders as an icon-only circular × with title when a filter is applied, and clears on click", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith({ from: "2026-01-01", to: "2026-01-31" });
+    const btn = clearX();
+    expect(btn).not.toBeNull();
+    expect(btn?.getAttribute("title")).toBe("フィルタをすべてクリア");
+    expect(btn?.textContent).toBe("");
+    expect(btn?.querySelector("svg")).not.toBeNull();
+    await act(async () => {
+      btn?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+  });
+});

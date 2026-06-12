@@ -85,6 +85,27 @@ describe("SectionErrorBoundary", () => {
     );
   });
 
+  it("renders fallbackHeading above the alert so a page-level <h1> survives an error (#649 ADR-009)", () => {
+    shouldThrow = true;
+    act(() => {
+      root.render(
+        <SectionErrorBoundary
+          section="ツールバー"
+          fallbackHeading={<h1>すべてのノート</h1>}
+        >
+          <Child />
+        </SectionErrorBoundary>,
+      );
+    });
+    const h1 = container.querySelector("h1");
+    if (h1 === null) throw new Error("fallback heading not rendered");
+    expect(h1.textContent).toBe("すべてのノート");
+    // The heading precedes the alert in document order.
+    expect(
+      h1.compareDocumentPosition(getAlert()) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("invalidates the router (excluding _app) and resets on retry", async () => {
     shouldThrow = true;
     renderBoundary();

@@ -175,6 +175,60 @@ describe("Popover (dialog mode)", () => {
     expect(document.activeElement).toBe(trigger());
   });
 
+  // #649: the menu / listbox branches are separate JSX (literal `role` for
+  // the a11y lint), so the Safari/Firefox click-drop guard (panel
+  // `onMouseDown` preventDefault keeps focus from blurring to <body> and
+  // closing before the click lands) must be locked per branch. The dialog
+  // branch deliberately omits it so form inputs inside can take focus. The
+  // listbox panel scrolls, so a mousedown on the panel itself (scrollbar)
+  // must NOT be prevented — only on its children.
+  it.each([
+    ["menu", true, "child"],
+    ["listbox", true, "child"],
+    ["listbox", false, "panel"],
+    ["dialog", false, "child"],
+  ] as const)("%s mousedown defaultPrevented = %s (target: %s)", (haspopup, prevented, target) => {
+    function RoleHarness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          haspopup={haspopup}
+          label="テストパネル"
+          panelClassName="absolute left-0 top-full"
+          trigger={(props) => (
+            <button {...props} type="button" aria-label="開く">
+              開く
+            </button>
+          )}
+        >
+          <span>本文</span>
+        </Popover>
+      );
+    }
+    act(() => {
+      root.render(<RoleHarness />);
+    });
+    const panelEl = container.querySelector<HTMLElement>(
+      `[role="${haspopup}"]`,
+    ) as HTMLElement;
+    const targetEl =
+      target === "panel"
+        ? panelEl
+        : (panelEl.querySelector("span") as HTMLElement);
+    const event = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      targetEl.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(prevented);
+    // An inside mousedown never counts as an outside-dismiss.
+    expect(container.querySelector(`[role="${haspopup}"]`)).not.toBeNull();
+  });
+
   it("applies a translateX clamp when the panel overflows the viewport", () => {
     const rectStub = vi
       .spyOn(Element.prototype, "getBoundingClientRect")

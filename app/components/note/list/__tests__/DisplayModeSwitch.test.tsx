@@ -59,20 +59,51 @@ afterEach(() => {
   container.remove();
 });
 
+// Icon-only (#626 ADR-001) — tabs are identified by `aria-label`.
 function tabByLabel(label: string): HTMLButtonElement {
   const buttons = Array.from(
     container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
   );
-  const found = buttons.find((b) => b.textContent?.trim() === label);
+  const found = buttons.find((b) => b.getAttribute("aria-label") === label);
   if (found === undefined) {
     throw new Error(
-      `tab "${label}" not found among [${buttons.map((b) => b.textContent?.trim()).join(", ")}]`,
+      `tab "${label}" not found among [${buttons.map((b) => b.getAttribute("aria-label")).join(", ")}]`,
     );
   }
   return found;
 }
 
 describe("DisplayModeSwitch", () => {
+  it("keeps the icon-only aria contract (#626 ADR-001): tablist / tab / aria-selected / aria-label / title, no visible text", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    const tablist = container.querySelector('[role="tablist"]');
+    expect(tablist).not.toBeNull();
+    expect(tablist?.getAttribute("aria-label")).toBe("表示形式");
+
+    const tabs = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    );
+    expect(tabs.map((t) => t.getAttribute("aria-label"))).toEqual([
+      "リスト",
+      "タイル",
+      "カレンダー",
+    ]);
+    for (const tab of tabs) {
+      expect(tab.getAttribute("title")).toBe(tab.getAttribute("aria-label"));
+      // Icon-only: the accessible name comes from aria-label, not text.
+      expect(tab.textContent).toBe("");
+      expect(tab.querySelector("svg")).not.toBeNull();
+    }
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+  });
+
   it("navigates with replace: true and a function search returning the clicked mode", () => {
     act(() => {
       root.render(<DisplayModeSwitch />);

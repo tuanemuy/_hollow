@@ -292,7 +292,7 @@ export function viewQueryToSearch(
  *
  * When the home loader resolved the referenced note's title the chip
  * shows that title; otherwise it falls back to the first 8 characters
- * of the id (the existing pre-resolver behaviour).
+ * of the id.
  */
 export function formatReferencingNoteChipLabel(
   id: string,
@@ -477,9 +477,46 @@ export function isSearchActive(q: string | undefined): boolean {
   return q !== undefined && q.trim().length > 0;
 }
 
-/** Home `<h1>` text derived purely from the search query. */
-export function homeHeadingText(q: string | undefined): string {
-  return isSearchActive(q) ? `「${q}」の検索結果` : "すべてのノート";
+/** Default view name shown when no SavedView is applied (or it cannot be resolved). */
+export const ALL_NOTES_VIEW_NAME = "すべてのノート";
+
+/**
+ * Resolve the current view's display name from the URL `viewId` and the
+ * loaded SavedViews. A missing / deleted / foreign id falls back to the
+ * default name so the heading never goes blank (#626 ADR-004).
+ */
+export function resolveViewName(
+  viewId: string | undefined,
+  views: ReadonlyArray<Readonly<{ id: string; name: string }>>,
+): string {
+  if (viewId === undefined) return ALL_NOTES_VIEW_NAME;
+  return views.find((v) => v.id === viewId)?.name ?? ALL_NOTES_VIEW_NAME;
+}
+
+/**
+ * Home `<h1>` text. While a search is active the search phrasing wins over
+ * the view name (`.issue/649/adr.md` ADR-005); otherwise the heading shows
+ * the current view name (#626 ADR-004).
+ */
+export function homeHeadingText(
+  q: string | undefined,
+  viewName: string = ALL_NOTES_VIEW_NAME,
+): string {
+  return isSearchActive(q) ? `「${q}」の検索結果` : viewName;
+}
+
+/**
+ * `aria-label` for the heading's view-switcher trigger (`.issue/649/adr.md`
+ * ADR-005): the visible heading text leads and the action follows, so the
+ * accessible name always CONTAINS the visible label (WCAG 2.5.3
+ * Label in Name) in both the search and non-search states, while never
+ * contradicting the search phrasing with「現在 {ビュー名}」.
+ */
+export function viewSwitcherAriaLabel(
+  q: string | undefined,
+  viewName: string = ALL_NOTES_VIEW_NAME,
+): string {
+  return `${homeHeadingText(q, viewName)} — ビューを切り替え`;
 }
 
 /** Whether any non-query filter (tags / dates / directory / visibility / backlink) is set. */

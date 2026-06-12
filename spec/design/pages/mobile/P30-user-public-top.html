@@ -376,6 +376,14 @@
     gap: 12px;
     flex-wrap: wrap;
   }
+  /* 表示モード segmented（#626 ADR-001 の確定表現に追従 — #649）。
+     アイコンのみ + active は ink 濃度差（白カード + shadow 廃止）。
+     アイコンのみ化のため aria-label 必須。title はタッチ主体環境のため省略可。
+     role="tablist" / role="tab" / aria-selected の契約は維持。
+     ボタンは 36×32px（P10 mobile と同寸。タッチターゲット配慮で desktop 32×28px より拡大）。
+     実装時は padding 等で当たり判定を 44×44px 相当へさらに拡大すること（見た目は維持）。
+     非表示モード用途の .segmented（P15/P16/P18 等）は対象外。
+     実装追従は #619（P30 のモック完全一致）が引き取る。 */
   .segmented {
     background: var(--color-surface);
     border-radius: 9px;
@@ -383,22 +391,17 @@
     display: inline-flex;
   }
   .segmented button {
-    min-height: 36px;
-    padding: 6px 12px;
+    width: 36px;
+    min-height: 32px;
     border-radius: 7px;
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
+    color: var(--color-ink-tertiary);
     background: transparent;
     transition: all 0.18s ease;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
   }
-  .segmented button.active {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04);
-  }
+  .segmented button.active { color: var(--color-ink); }
   .sort-btn {
     min-height: 36px;
     font-size: 13px;
@@ -542,18 +545,15 @@
     </div>
 
     <div class="toolbar">
-      <div class="segmented">
-        <button class="active" aria-label="リスト表示">
+      <div class="segmented" role="tablist" aria-label="表示形式">
+        <button class="active" role="tab" aria-selected="true" aria-label="リスト">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-          リスト
         </button>
-        <button aria-label="タイル表示">
+        <button role="tab" aria-selected="false" aria-label="タイル">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          タイル
         </button>
-        <button aria-label="カレンダー表示">
+        <button role="tab" aria-selected="false" aria-label="カレンダー">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          カレンダー
         </button>
       </div>
 

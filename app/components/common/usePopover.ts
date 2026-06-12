@@ -41,7 +41,7 @@ export const POPOVER_SHEET_BREAKPOINT = 640;
  * cannot be exercised through the DOM. Given the panel's natural (unshifted)
  * rect and the viewport width, returns the px offset that nudges the panel
  * back inside `[margin, viewportWidth - margin]`. Right-edge overflow is
- * corrected first, then left-edge, mirroring the original FilterPopover logic.
+ * corrected first, then left-edge.
  */
 export function computeShiftX(
   rect: Readonly<{ left: number; right: number }>,
@@ -58,7 +58,7 @@ export function computeShiftX(
   return shift;
 }
 
-export type PopupRole = "dialog" | "menu";
+export type PopupRole = "dialog" | "menu" | "listbox";
 
 export type PopoverTriggerProps = Readonly<{
   ref: Ref<HTMLButtonElement>;

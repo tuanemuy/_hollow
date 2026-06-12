@@ -17,12 +17,14 @@ import {
   NoteListSkeleton,
   ToolbarSkeleton,
 } from "./list/skeletons";
+import { ViewSwitcher } from "./list/ViewSwitcher";
 import {
   loadAllTags,
   loadDirectoryTreeFlat,
   loadOwnedNotes,
   loadReferencingNoteTitle,
   loadSavedViewsByKind,
+  type OwnedNotesQuery,
 } from "./loaders";
 import type { NoteListSearch } from "./schema";
 
@@ -34,37 +36,74 @@ type Props = {
 };
 
 /**
- * Home page composition. The shell (heading + selection
- * context) renders synchronously from the URL-derived search; each
- * data-dependent section is an async server component inside its own
- * `<Suspense>` + `SectionErrorBoundary`, so one slow / failing loader no
- * longer blocks or breaks the whole page. Sections await the
- * `cache(serverData(...))` loaders directly — same-render dedup keeps
- * shared data (tree, tags) at one fetch.
+ * Home page composition. Each data-dependent section is an async server
+ * component inside its own `<Suspense>` + `SectionErrorBoundary`, so one
+ * slow / failing loader no longer blocks or breaks the whole page.
+ * Sections await the `cache(serverData(...))` loaders directly —
+ * same-render dedup keeps shared data (tree, tags, owned notes) at one
+ * fetch.
  *
- * Boundary granularity: the toolbar (saved views) and the filter bar
- * (tags + tree + referencing title — a single client component requiring
- * multiple loaders) are merge boundaries; the note
- * listing (including the count line, which depends on `owned.count`) is
- * its own boundary.
+ * Boundary granularity (#649, `.issue/649/adr.md` ADR-002): the heading
+ * (`ViewSwitcher`, needs saved views) + page-meta row (count + toolbar
+ * actions) form one boundary; the filter bar (tags + tree + referencing
+ * title) is another; the note listing is its own. The heading boundary and
+ * the listing both await `loadOwnedNotes` — React `cache` keys by argument
+ * *reference identity*, so the query object is built exactly once here and
+ * the same reference is passed to both sections (a structurally-equal
+ * literal per section would double the query).
  */
 export function HomePage({ userId, page, limit, search }: Props) {
-  const headingText = homeHeadingText(search.q);
   const hasAnyFilter = hasAnyHomeFilter(search);
   // Clears sticky section errors when navigation changes loader inputs.
   const resetKey = homeSectionResetKey(search);
 
+  const notesQuery: OwnedNotesQuery = {
+    actorUserId: userId,
+    status: "active",
+    page,
+    limit,
+    ...(search.directoryId !== undefined
+      ? { directoryId: search.directoryId }
+      : {}),
+    ...(search.q !== undefined ? { q: search.q } : {}),
+    ...(search.tagNames !== undefined ? { tagNames: search.tagNames } : {}),
+    ...(search.visibility !== undefined
+      ? { visibility: search.visibility }
+      : {}),
+    ...(search.referencingNoteId !== undefined
+      ? { referencingNoteId: search.referencingNoteId }
+      : {}),
+    ...(search.from !== undefined || search.to !== undefined
+      ? {
+          dateRange: {
+            from: search.from ?? null,
+            to: search.to ?? null,
+          },
+        }
+      : {}),
+  };
+
   return (
     <SelectionProvider>
-      <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">
-        {headingText}
-      </h1>
-
-      <SectionErrorBoundary section="ツールバー" resetKey={resetKey}>
+      {/* The heading boundary holds the page's only <h1>; the error
+          fallback keeps a static (non-trigger) heading so the page never
+          loses its h1 (`.issue/649/adr.md` ADR-009). The view name is
+          unavailable without savedViews, so the search phrasing / default
+          name from the URL is used. */}
+      <SectionErrorBoundary
+        section="ツールバー"
+        resetKey={resetKey}
+        fallbackHeading={
+          <h1 className="mb-[10px] text-3xl font-regular tracking-tightest leading-tight text-ink [overflow-wrap:anywhere]">
+            {homeHeadingText(search.q)}
+          </h1>
+        }
+      >
         <Suspense fallback={<ToolbarSkeleton />}>
-          <ToolbarSection
+          <HeaderSection
             userId={userId}
             search={search}
+            notesQuery={notesQuery}
             hasAnyFilter={hasAnyFilter || search.q !== undefined}
           />
         </Suspense>
@@ -78,37 +117,44 @@ export function HomePage({ userId, page, limit, search }: Props) {
 
       <SectionErrorBoundary section="ノート一覧" resetKey={resetKey}>
         <Suspense fallback={<NoteListSkeleton />}>
-          <NotesSection
-            userId={userId}
-            page={page}
-            limit={limit}
-            search={search}
-          />
+          <NotesSection notesQuery={notesQuery} />
         </Suspense>
       </SectionErrorBoundary>
     </SelectionProvider>
   );
 }
 
-async function ToolbarSection({
+/**
+ * Heading (view-switcher trigger) + page-meta row: left = note count,
+ * right = toolbar action group (#626 ADR-004/007). `notesQuery` must be the
+ * same object reference `NotesSection` receives (see `HomePage` JSDoc).
+ */
+async function HeaderSection({
   userId,
   search,
+  notesQuery,
   hasAnyFilter,
 }: Readonly<{
   userId: string;
   search: NoteListSearch;
+  notesQuery: OwnedNotesQuery;
   hasAnyFilter: boolean;
 }>) {
-  const { views } = await loadSavedViewsByKind({
-    actorUserId: userId,
-    kind: "personal",
-  });
+  const [{ views }, owned] = await Promise.all([
+    loadSavedViewsByKind({
+      actorUserId: userId,
+      kind: "personal",
+    }),
+    loadOwnedNotes(notesQuery),
+  ]);
   return (
-    <NoteListToolbar
-      search={search}
-      savedViews={views}
-      hasAnyFilter={hasAnyFilter}
-    />
+    <>
+      <ViewSwitcher search={search} savedViews={views} />
+      <div className="flex justify-between items-center flex-wrap gap-x-3 gap-y-2 mb-5">
+        <p className="text-md text-ink-secondary">{owned.count} 件のノート</p>
+        <NoteListToolbar search={search} hasAnyFilter={hasAnyFilter} />
+      </div>
+    </>
   );
 }
 
@@ -156,66 +202,27 @@ async function FilterSection({
 }
 
 async function NotesSection({
-  userId,
-  page,
-  limit,
-  search,
-}: Readonly<{
-  userId: string;
-  page: number;
-  limit: number;
-  search: NoteListSearch;
-}>) {
-  const owned = await loadOwnedNotes({
-    actorUserId: userId,
-    status: "active",
-    page,
-    limit,
-    ...(search.directoryId !== undefined
-      ? { directoryId: search.directoryId }
-      : {}),
-    ...(search.q !== undefined ? { q: search.q } : {}),
-    ...(search.tagNames !== undefined ? { tagNames: search.tagNames } : {}),
-    ...(search.visibility !== undefined
-      ? { visibility: search.visibility }
-      : {}),
-    ...(search.referencingNoteId !== undefined
-      ? { referencingNoteId: search.referencingNoteId }
-      : {}),
-    ...(search.from !== undefined || search.to !== undefined
-      ? {
-          dateRange: {
-            from: search.from ?? null,
-            to: search.to ?? null,
-          },
-        }
-      : {}),
-  });
+  notesQuery,
+}: Readonly<{ notesQuery: OwnedNotesQuery }>) {
+  const owned = await loadOwnedNotes(notesQuery);
 
-  return (
-    <>
-      <p className="text-md text-ink-secondary mb-7">
-        {owned.count} 件のノート
+  return owned.notes.length === 0 ? (
+    <div className="mt-6 rounded-lg border border-dashed border-hairline-strong px-6 py-12 text-center text-ink-secondary">
+      <h2 className="mb-2 text-xl font-medium text-ink">
+        該当するノートがありません
+      </h2>
+      <p className="mb-4 text-sm">
+        条件を変更するか、新しいノートを作成してください。
       </p>
-      {owned.notes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-hairline-strong px-6 py-12 text-center text-ink-secondary">
-          <h2 className="mb-2 text-xl font-medium text-ink">
-            該当するノートがありません
-          </h2>
-          <p className="mb-4 text-sm">
-            条件を変更するか、新しいノートを作成してください。
-          </p>
-          <Link
-            to="/notes/new"
-            data-primary
-            className={`${pillBtn} ${pillBtnPrimary}`}
-          >
-            最初のノートを作成
-          </Link>
-        </div>
-      ) : (
-        <NoteListViews notes={owned.notes} />
-      )}
-    </>
+      <Link
+        to="/notes/new"
+        data-primary
+        className={`${pillBtn} ${pillBtnPrimary}`}
+      >
+        最初のノートを作成
+      </Link>
+    </div>
+  ) : (
+    <NoteListViews notes={owned.notes} />
   );
 }

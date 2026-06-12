@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
+import { X } from "lucide-react";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
-import { pillBtn, popoverSheetPanel } from "@/components/common/styles";
+import { popoverSheetPanel } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { NoteListSearch } from "../schema";
 import { homeSearchUpdater } from "./homeSearch";
@@ -23,6 +24,7 @@ import {
   filterChipCaret,
   filterChipGhost,
   filterChipRemove,
+  filterClearX,
   filterLabel,
   visibilityLabel,
   visibilitySwatchClass,
@@ -404,10 +406,16 @@ export function FilterBar({
       {hasAnyFilter ? (
         <button
           type="button"
-          className={`${pillBtn} max-sm:ml-0 ml-auto`}
+          className={filterClearX}
+          aria-label="フィルタをすべてクリア"
+          title="フィルタをすべてクリア"
           onClick={clearAll}
         >
-          すべてクリア
+          <X
+            className="size-[var(--icon-xs)]"
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
         </button>
       ) : null}
 
@@ -435,21 +443,19 @@ type DatePopoverProps = Readonly<{
   onClear: () => void;
 }>;
 
-// Rebased onto the shared `popoverSheetPanel` (#588 ADR-003): below `sm` it
+// Built on the shared `popoverSheetPanel` (#588 ADR-003): below `sm` it
 // becomes a full-width bottom-anchored sheet (`max-sm:left-0 max-sm:right-0
 // max-sm:w-auto`, supplied by the shared constant), so the panel never overflows
-// the narrow viewport and the `clampToViewport` shiftX is unnecessary (and is
-// switched off via `clampNarrow` below).
+// the narrow viewport and the `clampToViewport` shiftX is unnecessary.
 //
-// At `sm` and up the original floating-card behaviour is preserved: `left-0`
-// anchors the panel to the trigger's left edge and `<Popover>`'s `clampToViewport`
-// nudges it into the viewport (#476). The fixed `sm:w-[280px]` (rather than
-// `w-max`) keeps the native `<input type="date">` children from ballooning the
-// panel to their huge intrinsic `max-content` width; `sm:max-w` still caps it.
+// At `sm` and up it is a floating card: `left-0` anchors the panel to the
+// trigger's left edge and `<Popover>`'s `clampToViewport` nudges it into the
+// viewport (#476). The fixed `sm:w-[280px]` (rather than `w-max`) keeps the
+// native `<input type="date">` children from ballooning the panel to their
+// huge intrinsic `max-content` width; `sm:max-w` still caps it.
 //
-// `sm:p-3` restores the original 12px desktop padding (#588 ADR-003): the shared
-// `popoverSheetPanel` carries `p-4` (16px, mock-aligned for the mobile sheet),
-// so without this override the desktop popover would silently regress 12px→16px.
+// `sm:p-3` overrides the shared `popoverSheetPanel`'s `p-4` (16px, mock-aligned
+// for the mobile sheet) back to the 12px desktop padding the mock specifies.
 const FILTER_POPOVER_PANEL = `absolute left-0 top-full mt-2 z-40 ${popoverSheetPanel} sm:p-3 sm:w-[280px] sm:max-w-[calc(100vw-2rem)]`;
 
 const SR_ONLY =
@@ -598,7 +604,7 @@ type VisibilityPopoverProps = Readonly<{
 // programmatic focus on open does not grey the landed item; `data-[active]`
 // keeps the selected-option surface + weight. The shared `menuItem` style is
 // intentionally NOT reused here because it lacks the `data-[active]` selection
-// indicator this radio group needs (#467 plan ステップ9).
+// indicator this radio group needs.
 const VISIBILITY_OPTION_ITEM =
   "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
 

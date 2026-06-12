@@ -8,7 +8,7 @@ import {
 } from "./usePopover";
 
 /**
- * Dual-mode (`role="menu"` / `role="dialog"`) render-prop popover wrapper
+ * Multi-mode (`role="menu"` / `role="listbox"` / `role="dialog"`) render-prop popover wrapper
  * built on the first-layer `usePopover` (Issue #467 ADR-001). This is the
  * receiver for popovers that own their open state externally and need full
  * control over the panel body — currently the FilterBar's 期間 (dialog) and
@@ -16,8 +16,7 @@ import {
  *
  * Below `sm` the panel is intended to become a full-width bottom-anchored
  * sheet (see `popoverSheetPanel` in `common/styles.ts`); when full-width the
- * `clampToViewport` horizontal shift is unnecessary. The actual per-consumer
- * switch is wired in #588.
+ * `clampToViewport` horizontal shift is unnecessary.
  *
  * Non-modal by design: no focus trap. The trigger is rendered by the caller
  * via the `trigger` render prop (it receives the `ref`, the
@@ -36,8 +35,8 @@ export type PopoverProps = Readonly<{
   /** Opt-in horizontal viewport clamp (FilterBar). */
   clampToViewport?: boolean | undefined;
   /**
-   * Key handler for the `role="menu"` panel (roving-tabindex arrow keys).
-   * Only meaningful when `haspopup === "menu"`.
+   * Key handler for the `role="menu"` / `role="listbox"` panel
+   * (roving-tabindex arrow keys). Not used by the dialog branch.
    */
   onMenuKeyDown?:
     | ((event: React.KeyboardEvent<HTMLDivElement>) => void)
@@ -84,13 +83,17 @@ export function Popover({
     >
       {trigger(popover.triggerProps)}
       {open ? (
+        // onMouseDown preventDefault keeps focus on the active item during
+        // mouse interaction: on macOS Safari/Firefox a `<button>` click moves
+        // focus to <body>, which would otherwise trigger the container's
+        // onBlur → close → click on an unmounted item (the click drops). This
+        // matches `<Menu>`'s guard. Menu / listbox mode only — the dialog
+        // branch deliberately omits it so form-input focus inside the
+        // dialog works. The listbox branch (ViewSwitcher) shares the
+        // roving-focus wiring (`onMenuKeyDown`) with menu mode. The two
+        // branches stay separate JSX so the `role` is a literal (a11y lint
+        // cannot resolve a dynamic role).
         haspopup === "menu" ? (
-          // onMouseDown preventDefault keeps focus on the active item during
-          // mouse interaction: on macOS Safari/Firefox a `<button>` click moves
-          // focus to <body>, which would otherwise trigger the container's
-          // onBlur → close → click on an unmounted item (the click drops). This
-          // matches `<Menu>`'s guard. Menu mode only — the dialog branch
-          // deliberately omits it so form-input focus inside the dialog works.
           <div
             ref={assignPanelRef}
             id={popover.panelId}
@@ -101,6 +104,27 @@ export function Popover({
             onKeyDown={onMenuKeyDown}
             onMouseDown={(event) => {
               event.preventDefault();
+            }}
+          >
+            {body}
+          </div>
+        ) : haspopup === "listbox" ? (
+          <div
+            ref={assignPanelRef}
+            id={popover.panelId}
+            role="listbox"
+            aria-label={label}
+            className={panelClassName}
+            style={popover.panelStyle}
+            onKeyDown={onMenuKeyDown}
+            onMouseDown={(event) => {
+              // The listbox panel scrolls (max-h + overflow-y); a mousedown
+              // on the scrollbar targets the panel itself, and preventDefault
+              // there breaks scrollbar dragging on Firefox. Guard only option
+              // children.
+              if (event.target !== event.currentTarget) {
+                event.preventDefault();
+              }
             }}
           >
             {body}
