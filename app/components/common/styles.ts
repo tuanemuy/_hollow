@@ -362,8 +362,11 @@ export const menuPanel =
  * Popover panel chrome for the narrow full-width sheet treatment.
  *
  * Base is the floating card (`rounded-lg border / bg-bg / shadow-md / p-4`);
- * below `sm` it stretches edge-to-edge (`max-sm:left-0 max-sm:right-0
- * max-sm:w-auto`) so the popover reads as a full-width bottom-anchored sheet.
+ * below `sm` it becomes a viewport-fixed, bottom-anchored full-width sheet.
+ * `max-sm:fixed` is load-bearing: the consumers position the panel `absolute`
+ * inside the popover's `relative inline-flex` trigger wrapper, so without it
+ * `left-0 / right-0` resolve against the (chip-sized) wrapper and the panel
+ * collapses to the trigger's width (Issue #658 TC-6).
  * Stays non-modal (no backdrop) — `usePopover` keeps its dismiss-on-outside
  * behaviour unchanged. When a consumer goes full-width the `clampToViewport`
  * horizontal shift is unnecessary.
@@ -372,7 +375,7 @@ export const menuPanel =
  * `FILTER_POPOVER_PANEL` (FilterBar) replacement onto this constant is #588.
  */
 export const popoverSheetPanel =
-  "rounded-lg border border-hairline bg-bg shadow-md p-4 max-sm:left-0 max-sm:right-0 max-sm:w-auto";
+  "rounded-lg border border-hairline bg-bg shadow-md p-4 max-sm:fixed max-sm:bottom-0 max-sm:top-auto max-sm:mt-0 max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none";
 
 /**
  * A single `role="menuitem"` row inside `menuPanel`.

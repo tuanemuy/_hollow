@@ -25,6 +25,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("../NotePickerDialog", () => ({ NotePickerDialog: () => null }));
 
 const { FilterBar } = await import("../FilterBar");
+const { popoverSheetPanel } = await import("@/components/common/styles");
 
 type Tag = { id: string; name: string; noteCount: number };
 
@@ -302,5 +303,205 @@ describe("FilterBar すべてクリア × (Issue #649 / #626 ADR-006)", () => {
     });
     await flush();
     expect(routerNavigate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("FilterBar — + タグ TagPicker (Issue #658 / #626 ADR-008)", () => {
+  const TAGS: readonly Tag[] = [
+    { id: "t1", name: "alpha", noteCount: 3 },
+    { id: "t2", name: "beta", noteCount: 1 },
+    { id: "t3", name: "gamma", noteCount: 7 },
+  ];
+
+  const pickerTrigger = () =>
+    container.querySelector<HTMLButtonElement>(
+      'button[aria-label="タグで絞り込み"]',
+    );
+
+  const listbox = () =>
+    container.querySelector<HTMLElement>('[role="listbox"]');
+
+  const options = () =>
+    Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    );
+
+  function openPicker() {
+    act(() => {
+      pickerTrigger()?.click();
+    });
+  }
+
+  it("renders the ghost chip after the tag chips and before the 期間 chip, with the ADR-008 a11y contract", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    const trigger = pickerTrigger();
+    expect(trigger).not.toBeNull();
+    expect(trigger?.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(trigger?.getAttribute("title")).toBe("タグで絞り込み");
+    expect(trigger?.querySelector("svg")).not.toBeNull();
+    expect(trigger?.textContent).toContain("タグ");
+
+    const lastTagChip = tagButton("gamma");
+    const dateChip = buttonByText("期間");
+    expect(
+      lastTagChip.compareDocumentPosition(trigger as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      (trigger as Node).compareDocumentPosition(dateChip) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("is not rendered when there are no tags", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar([], []);
+    expect(pickerTrigger()).toBeNull();
+  });
+
+  it("opens a multiselectable listbox with every tag as an option reflecting selection", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, ["beta"]);
+    expect(listbox()).toBeNull();
+    openPicker();
+    const panel = listbox();
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute("aria-multiselectable")).toBe("true");
+    const opts = options();
+    expect(opts).toHaveLength(TAGS.length);
+    expect(opts.map((o) => o.getAttribute("aria-selected"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(opts[1].textContent).toContain("#beta");
+  });
+
+  it("keeps the panel built on the shared sheet panel styles (mobile bottom sheet basis)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openPicker();
+    const cls = listbox()?.className ?? "";
+    expect(cls).toContain(popoverSheetPanel);
+    // Containing the shared constant is not enough on its own (the constant
+    // itself once lacked the sheet utilities — Issue #658 TC-6), so pin the
+    // utilities that actually detach the panel from the chip-sized trigger
+    // wrapper and anchor it to the viewport bottom below `sm`.
+    for (const utility of [
+      "max-sm:fixed",
+      "max-sm:bottom-0",
+      "max-sm:top-auto",
+      "max-sm:left-0",
+      "max-sm:right-0",
+    ]) {
+      expect(cls).toContain(utility);
+    }
+  });
+
+  it("toggles a tag optimistically on option click and keeps the panel open", async () => {
+    let resolveNav: (() => void) | undefined;
+    routerNavigate.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveNav = () => res();
+      }),
+    );
+    renderBar(TAGS, []);
+    openPicker();
+    await act(async () => {
+      options()[0].click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    // Optimistic selection is mirrored on the option and the inline chip
+    // while the navigation is pending; multi-select keeps the panel open.
+    expect(options()[0].getAttribute("aria-selected")).toBe("true");
+    expect(tagButton("alpha").getAttribute("aria-pressed")).toBe("true");
+    expect(listbox()).not.toBeNull();
+    await act(async () => {
+      resolveNav?.();
+    });
+    await flush();
+  });
+
+  it("syncs roving focus to the clicked option so ArrowDown moves to its successor", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openPicker();
+    const opts = options();
+    await act(async () => {
+      opts[1].click();
+    });
+    await flush();
+    expect(document.activeElement).toBe(options()[1]);
+    act(() => {
+      options()[1].dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(document.activeElement).toBe(options()[2]);
+  });
+
+  it("restores focus to the active option when a commit drops focus to <body> (Issue #658 TC-5)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openPicker();
+    await act(async () => {
+      options()[1].click();
+    });
+    await flush();
+    expect(document.activeElement).toBe(options()[1]);
+    // The RSC re-render after the filter navigation drops focus to <body>
+    // mid-commit (the focused option node is swapped). Simulate that here as
+    // blur-to-body followed by a re-render commit: the hook's after-commit
+    // restore pass must pull focus back onto the active option, or every
+    // subsequent ArrowDown is swallowed by <body>.
+    act(() => {
+      options()[1].blur();
+    });
+    expect(document.activeElement).toBe(document.body);
+    renderBar(TAGS, ["beta"]);
+    await flush();
+    expect(document.activeElement).toBe(options()[1]);
+    act(() => {
+      options()[1].dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(document.activeElement).toBe(options()[2]);
+  });
+
+  it("closes on Escape and restores focus to the trigger", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openPicker();
+    expect(listbox()).not.toBeNull();
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(listbox()).toBeNull();
+    expect(document.activeElement).toBe(pickerTrigger());
+  });
+
+  it("closes the 期間 popover when the tag picker opens (mutual exclusion)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    act(() => {
+      buttonByText("期間").click();
+    });
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    openPicker();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(listbox()).not.toBeNull();
   });
 });

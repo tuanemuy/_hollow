@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 /**
  * Second-layer roving-tabindex primitive (Issue #467 ADR-001) — menu-mode
@@ -36,6 +36,13 @@ export type UseRovingMenu = Readonly<{
   /** Returns `tabIndex` for the item at `index` (roving: one 0, rest -1). */
   getTabIndex: (index: number) => 0 | -1;
   onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
+  /**
+   * Moves the roving active index. Needed by panels that stay open after a
+   * click (multi-select listboxes): the panel's mousedown preventDefault
+   * keeps focus where it was, so without this an option click would leave
+   * `activeIndex` stale and the next ArrowDown would jump from the old spot.
+   */
+  setActiveIndex: (index: number) => void;
 }>;
 
 export function useRovingMenu({
@@ -46,10 +53,18 @@ export function useRovingMenu({
   initialIndex = 0,
 }: UseRovingMenuOptions): UseRovingMenu {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  // Tracks the last seen `open` so the reset below only fires on a real
+  // closed → open transition. Effects can re-fire WITHOUT a dep change when
+  // the subtree is suspended and resumed (e.g. the RSC re-render after a
+  // filter navigation while a multi-select listbox stays open — Issue #658
+  // TC-5); resetting there would clobber the roving position mid-interaction.
+  const prevOpenRef = useRef(false);
 
   // On (re)open, reset the active index to the desired landing item.
   useEffect(() => {
-    if (!open) return;
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!open || wasOpen) return;
     setActiveIndex(initialIndex);
   }, [open, initialIndex]);
 
@@ -63,6 +78,26 @@ export function useRovingMenu({
     );
     items?.[activeIndex]?.focus();
   }, [open, activeIndex, panelRef, itemRole]);
+
+  // Focus-restore pass, run after EVERY commit (no dep array) while open.
+  // Panels that stay open across selections (multi-select listboxes) lose
+  // focus to <body> when a React commit swaps the focused item node — e.g.
+  // the RSC re-render after a filter navigation (Issue #658 TC-5) — leaving
+  // the roving arrow keys dead. The drop happens inside the commit (its
+  // `focusout` carries `relatedTarget: null` and the panel ref is detached
+  // mid-commit), so the only reliable hook point is "after a commit, refs
+  // re-attached": check and refocus here. The activeElement guard keeps this
+  // from stealing focus on window blur (there the item stays activeElement)
+  // or from a user who moved focus elsewhere (then activeElement is that
+  // element, not <body>).
+  useEffect(() => {
+    if (!open) return;
+    if (document.activeElement !== document.body) return;
+    const items = panelRef.current?.querySelectorAll<HTMLElement>(
+      `[role="${itemRole}"]`,
+    );
+    items?.[activeIndex]?.focus();
+  });
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     const count = itemCount;
@@ -80,5 +115,5 @@ export function useRovingMenu({
   const getTabIndex = (index: number): 0 | -1 =>
     index === activeIndex ? 0 : -1;
 
-  return { activeIndex, getTabIndex, onKeyDown };
+  return { activeIndex, getTabIndex, onKeyDown, setActiveIndex };
 }

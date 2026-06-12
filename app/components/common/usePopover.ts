@@ -170,6 +170,14 @@ export function usePopover({
   const onFocusOut = (event: React.FocusEvent<HTMLDivElement>) => {
     if (!open) return;
     const next = event.relatedTarget;
+    // `relatedTarget === null` means focus was *lost* (window blur, or React
+    // replacing the focused node during a commit — e.g. the RSC re-render
+    // after a filter navigation drops focus from a roving-focused option to
+    // <body>), not moved by the user. Closing here would dismiss multi-select
+    // panels mid-interaction (Issue #658 TC-4). Real outside interactions
+    // still close via the document mousedown listener, and Tab-out carries a
+    // non-null relatedTarget.
+    if (next === null) return;
     if (next instanceof Node && containerRef.current?.contains(next)) return;
     onOpenChange(false);
   };
