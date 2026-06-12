@@ -179,16 +179,20 @@ export function FilterBar({
     });
   };
 
+  // The toggle is computed inside the updater from `prev.tagNames` (the
+  // search at navigate time), not from a render-time snapshot — a snapshot
+  // captured before earlier navigations commit would make rapid toggles
+  // overwrite each other (Issue #664).
   const toggleTag = (name: string) => {
-    const next = new Set(optimistic.tagNames);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    const arr = [...next];
-    run({ type: "toggleTag", name }, (prev) =>
-      homeSearchUpdater(prev, {
+    run({ type: "toggleTag", name }, (prev) => {
+      const next = new Set(prev.tagNames ?? []);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      const arr = [...next];
+      return homeSearchUpdater(prev, {
         tagNames: arr.length === 0 ? undefined : arr,
-      }),
-    );
+      });
+    });
   };
 
   // Adding / changing a filter resets pagination to page 1 (drops any prior
