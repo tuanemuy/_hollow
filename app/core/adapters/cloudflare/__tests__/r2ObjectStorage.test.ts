@@ -1,5 +1,5 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildAttachmentDisposition,
   R2ObjectStorage,
@@ -82,5 +82,66 @@ describe("R2ObjectStorage.presignDownload", () => {
 
     expect(url.searchParams.get("response-content-disposition")).toBeNull();
     expect(url.searchParams.get("X-Amz-Signature")).toMatch(/^[0-9a-f]+$/);
+  });
+});
+
+// Issue #657: `presign()` now preserves the endpoint's path prefix so a
+// local dev proxy endpoint (`http://localhost:8787/dev/r2`) can be
+// signed. The default-endpoint output must stay byte-identical to the
+// pre-change implementation — the golden strings below were generated
+// by the pre-#657 code at the fixed system time.
+describe("R2ObjectStorage.presign — endpoint path handling", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-13T00:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("default endpoint: presignUpload output is byte-identical to the pre-#657 implementation (golden)", async () => {
+    const storage = new R2ObjectStorage(FAKE_BUCKET, PRESIGN_CONFIG);
+    const url = await storage.presignUpload(
+      "owner/source/abc",
+      "image/png",
+      300,
+    );
+    expect(url.toString()).toBe(
+      "https://acct123.r2.cloudflarestorage.com/media/owner/source/abc?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAEXAMPLE%2F20260613%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260613T000000Z&X-Amz-Expires=300&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=1ccf44e1077140ca3452dba5b738f26a9b67911a3e90b0dd49eba4502fffa36b",
+    );
+  });
+
+  it("default endpoint: presignDownload with downloadFileName is byte-identical to the pre-#657 implementation (golden)", async () => {
+    const storage = new R2ObjectStorage(FAKE_BUCKET, PRESIGN_CONFIG);
+    const url = await storage.presignDownload("owner/source/abc", 60, {
+      downloadFileName: "report.pdf",
+    });
+    expect(url.toString()).toBe(
+      "https://acct123.r2.cloudflarestorage.com/media/owner/source/abc?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAEXAMPLE%2F20260613%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260613T000000Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B+filename%3D%22report.pdf%22%3B+filename*%3DUTF-8%27%27report.pdf&X-Amz-Signature=7573eebf4941bde3bddd9967881d2c5caa4e84286acc25037fef8932bc37befe",
+    );
+  });
+
+  it("path-prefixed endpoint: signs `/dev/r2/<bucket>/<key>`", async () => {
+    const storage = new R2ObjectStorage(FAKE_BUCKET, {
+      ...PRESIGN_CONFIG,
+      endpoint: "http://localhost:8787/dev/r2",
+    });
+    const url = await storage.presignUpload(
+      "owner/source/abc",
+      "image/png",
+      300,
+    );
+    expect(url.origin).toBe("http://localhost:8787");
+    expect(url.pathname).toBe("/dev/r2/media/owner/source/abc");
+    expect(url.searchParams.get("X-Amz-Signature")).toMatch(/^[0-9a-f]+$/);
+  });
+
+  it("path-prefixed endpoint with a trailing slash normalises to a single separator", async () => {
+    const storage = new R2ObjectStorage(FAKE_BUCKET, {
+      ...PRESIGN_CONFIG,
+      endpoint: "http://localhost:8787/dev/r2/",
+    });
+    const url = await storage.presignDownload("owner/source/abc", 60);
+    expect(url.pathname).toBe("/dev/r2/media/owner/source/abc");
   });
 });

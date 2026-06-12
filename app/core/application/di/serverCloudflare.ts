@@ -268,6 +268,18 @@ export type ServerEnv = Readonly<{
   // Bucket name used in the SigV4 presign path (`/<bucket>/<key>`).
   // Public information delivered via `wrangler.toml [vars]`.
   R2_OBJECT_BUCKET_NAME?: string;
+  // Optional override for the S3-compatible endpoint presigned URLs are
+  // minted against. LOCAL DEV ONLY in practice: `wrangler.toml [vars]`
+  // points it at the same-origin dev proxy (`http://localhost:8787/dev/r2`)
+  // so presigned PUT/GET terminate on the local miniflare binding.
+  // Public information (the endpoint is visible in every presigned URL).
+  // Unset on staging / production → presign targets the account-scoped
+  // R2 endpoint as before.
+  R2_S3_ENDPOINT?: string;
+  // LOCAL DEV ONLY flag (`"true"` to enable) gating the `/dev/r2/*`
+  // object-storage proxy route in the fetch entry. Public information.
+  // Never set this in `wrangler.staging.toml` / `wrangler.production.toml`.
+  R2_DEV_OBJECT_PROXY?: string;
   // Worker tuning knobs. Wrangler `[vars]` deliver strings — parse +
   // default via `readRelayTuning` / `readPruneTuning` at the worker
   // entry boundary. Missing values fall back to the application-layer
@@ -356,6 +368,7 @@ export function readRequestServerConfig(
             bucketName: env.R2_OBJECT_BUCKET_NAME as string,
             accessKeyId: env.R2_ACCESS_KEY_ID as string,
             secretAccessKey: env.R2_SECRET_ACCESS_KEY as string,
+            ...(env.R2_S3_ENDPOINT ? { endpoint: env.R2_S3_ENDPOINT } : {}),
           },
         }
       : {}),

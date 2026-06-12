@@ -27,6 +27,16 @@ APP_URL = "http://localhost:8787"
 # Public information (S3 endpoint URL is exposed in presigned links
 # anyway), so it lives in `[vars]` rather than `.dev.vars`. See ADR-006.
 R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
+# LOCAL DEV ONLY — point presigned URLs at the same-origin dev proxy so
+# the presigned upload/download flow completes E2E against the local
+# miniflare `OBJECT_STORAGE` binding (no CORS preflight, no store
+# mismatch with finalize's `stat`). Do NOT add these two vars to
+# `wrangler.staging.toml` / `wrangler.production.toml`: staging /
+# production must keep presigning against the remote R2 S3 endpoint and
+# must not serve objects through the Worker. See Issue #657 and
+# docs/runtime_cloudflare.md "ローカルでの presigned フロー".
+R2_S3_ENDPOINT = "http://localhost:8787/dev/r2"
+R2_DEV_OBJECT_PROXY = "true"
 # Sender address used by `ResendEmailSender` when `RESEND_API_KEY` is
 # also set. Local dev keeps the secret unset so DI stays on
 # `ConsoleEmailSender`; this dummy value is wired only so the typed
