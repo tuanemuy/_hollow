@@ -194,6 +194,30 @@ describe("verifyPresignedRequest — rejections", () => {
     expect(result).toEqual({ ok: false, reason: "signature_mismatch" });
   });
 
+  it("accepts a URL exactly at the expiry instant (boundary is valid)", async () => {
+    const url = await storage().presignDownload("owner/source/abc", 60);
+    vi.setSystemTime(new Date("2026-06-13T00:01:00.000Z"));
+    const result = await verifyPresignedRequest({
+      method: "GET",
+      url,
+      headers: new Headers(),
+      config: CONFIG,
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("rejects 1ms past the expiry instant", async () => {
+    const url = await storage().presignDownload("owner/source/abc", 60);
+    vi.setSystemTime(new Date("2026-06-13T00:01:00.001Z"));
+    const result = await verifyPresignedRequest({
+      method: "GET",
+      url,
+      headers: new Headers(),
+      config: CONFIG,
+    });
+    expect(result).toEqual({ ok: false, reason: "expired" });
+  });
+
   it("rejects a URL with no SigV4 query parameters at all", async () => {
     const result = await verifyPresignedRequest({
       method: "GET",
@@ -202,5 +226,71 @@ describe("verifyPresignedRequest — rejections", () => {
       config: CONFIG,
     });
     expect(result).toEqual({ ok: false, reason: "malformed" });
+  });
+});
+
+// `malformed` branches fire before signature verification, so each case
+// rewrites a single SigV4 parameter on an otherwise valid presigned URL
+// and asserts the reason is `malformed` (not `signature_mismatch`).
+describe("verifyPresignedRequest — malformed parameters", () => {
+  async function verifyWith(mutate: (url: URL) => void): Promise<unknown> {
+    const url = await storage().presignDownload("owner/source/abc", 60);
+    mutate(url);
+    return verifyPresignedRequest({
+      method: "GET",
+      url,
+      headers: new Headers(),
+      config: CONFIG,
+    });
+  }
+
+  it("rejects an X-Amz-Date that does not match the SigV4 shape", async () => {
+    expect(
+      await verifyWith((url) =>
+        url.searchParams.set("X-Amz-Date", "2026-06-13T00:00:00Z"),
+      ),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("rejects a shape-valid but non-existent X-Amz-Date (NaN date)", async () => {
+    expect(
+      await verifyWith((url) =>
+        url.searchParams.set("X-Amz-Date", "20261399T000000Z"),
+      ),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it.each([
+    "60.5",
+    "",
+    "1e3",
+    "0",
+    "-60",
+  ])("rejects X-Amz-Expires=%j", async (expires) => {
+    expect(
+      await verifyWith((url) => url.searchParams.set("X-Amz-Expires", expires)),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("rejects X-Amz-Expires above the 7-day S3 ceiling", async () => {
+    expect(
+      await verifyWith((url) =>
+        url.searchParams.set("X-Amz-Expires", "604801"),
+      ),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("rejects a missing X-Amz-SignedHeaders parameter", async () => {
+    expect(
+      await verifyWith((url) => url.searchParams.delete("X-Amz-SignedHeaders")),
+    ).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("rejects an X-Amz-Algorithm other than AWS4-HMAC-SHA256", async () => {
+    expect(
+      await verifyWith((url) =>
+        url.searchParams.set("X-Amz-Algorithm", "AWS4-HMAC-SHA1"),
+      ),
+    ).toEqual({ ok: false, reason: "malformed" });
   });
 });

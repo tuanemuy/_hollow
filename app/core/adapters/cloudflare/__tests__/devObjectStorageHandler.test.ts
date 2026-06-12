@@ -1,6 +1,9 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildDevObjectStorageResponse } from "../devObjectStorageHandler";
+import {
+  buildDevObjectStorageResponse,
+  resolveDevObjectStorageGate,
+} from "../devObjectStorageHandler";
 import { R2ObjectStorage, type R2PresignConfig } from "../r2ObjectStorage";
 
 const CONFIG: R2PresignConfig = {
@@ -177,7 +180,27 @@ describe("buildDevObjectStorageResponse — GET", () => {
     });
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("content-disposition")).toBe("attachment");
     expect(await response.text()).toBe("png-bytes");
+  });
+
+  it("returns 403 for an expired GET URL", async () => {
+    const store = new Map<string, StoredObject>([
+      [
+        "owner/source/abc",
+        { body: new ArrayBuffer(1), contentType: "image/png" },
+      ],
+    ]);
+    const url = await presigner().presignDownload("owner/source/abc", 60);
+    vi.setSystemTime(new Date("2026-06-13T00:01:01.000Z"));
+    const response = await buildDevObjectStorageResponse({
+      request: new Request(url, { method: "GET" }),
+      bucket: fakeBucket(store),
+      bucketName: "media",
+      presignConfig: CONFIG,
+    });
+    expect(response.status).toBe(403);
   });
 
   it("reflects a signed response-content-disposition onto the response", async () => {
@@ -269,5 +292,77 @@ describe("buildDevObjectStorageResponse — method / path guards", () => {
     });
     expect(response.status).toBe(200);
     expect(store.has(key)).toBe(true);
+  });
+
+  it("returns 404 (not a thrown URIError) for malformed percent-encoding in the key", async () => {
+    const response = await buildDevObjectStorageResponse({
+      request: new Request("http://localhost:8787/dev/r2/media/%zz", {
+        method: "GET",
+      }),
+      bucket: fakeBucket(new Map()),
+      bucketName: "media",
+      presignConfig: CONFIG,
+    });
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("resolveDevObjectStorageGate", () => {
+  const devPath = "/dev/r2/media/owner/abc";
+
+  it.each([
+    undefined,
+    "false",
+    "TRUE",
+    "1",
+  ])("passes through when the flag is %j (strict 'true' comparison)", (flag) => {
+    expect(
+      resolveDevObjectStorageGate({
+        flag,
+        pathname: devPath,
+        hasBucket: true,
+        hasPresignConfig: true,
+      }),
+    ).toBe("pass");
+  });
+
+  it("passes through paths outside the dev prefix even when enabled", () => {
+    expect(
+      resolveDevObjectStorageGate({
+        flag: "true",
+        pathname: "/api/notes",
+        hasBucket: true,
+        hasPresignConfig: true,
+      }),
+    ).toBe("pass");
+  });
+
+  it.each([
+    { hasBucket: false, hasPresignConfig: true },
+    { hasBucket: true, hasPresignConfig: false },
+    { hasBucket: false, hasPresignConfig: false },
+  ])("returns not_found when env is incomplete (%j)", ({
+    hasBucket,
+    hasPresignConfig,
+  }) => {
+    expect(
+      resolveDevObjectStorageGate({
+        flag: "true",
+        pathname: devPath,
+        hasBucket,
+        hasPresignConfig,
+      }),
+    ).toBe("not_found");
+  });
+
+  it("handles when the flag is 'true', the path matches, and env is complete", () => {
+    expect(
+      resolveDevObjectStorageGate({
+        flag: "true",
+        pathname: devPath,
+        hasBucket: true,
+        hasPresignConfig: true,
+      }),
+    ).toBe("handle");
   });
 });

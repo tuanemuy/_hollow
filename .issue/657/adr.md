@@ -72,3 +72,21 @@ Accepted（実装時判断）
 
 ### 理由
 SigV4 の仕様上、メソッドとヘッダ値は canonical request の構成要素であり、署名再計算が唯一の正であるべき。独立比較を足すと署名ロジックとの二重管理（検証ずれの温床）になる。テストではメソッド不一致・Content-Type 不一致がともに拒否されることを確認している。
+
+---
+
+## ADR-005: dev GET 配信のレスポンスヘッダ硬化と期限検証の defense-in-depth（Round 1 レビュー対応）
+
+### Status
+Accepted（レビュー対応時判断）
+
+### コンテキスト
+PR #662 Round 1 レビューで、(a) dev プロキシの GET が**アプリオリジン上で**オブジェクトを配信するため、本番誤有効化時に stored XSS の足場になり得る（security W-001）、(b) `X-Amz-Date` の NaN 日付素通り・`X-Amz-Expires` 上限なし・not-before なし（security W-003）が指摘された。
+
+### 決定内容
+- GET レスポンスに `X-Content-Type-Options: nosniff` を常時付与し、`response-content-disposition` 未指定時は `Content-Disposition: attachment` をデフォルトにする。`attachment` はナビゲーション時のみ作用し `<img>` 等のサブリソース読み込みには影響しないため、dev の画像プレビューは壊れない。
+- verify は shape-valid だが実在しない `X-Amz-Date`（Invalid Date）を `malformed` で拒否し、`X-Amz-Expires` に S3 本家と同じ 7 日（604800 秒）上限を設けた。
+- not-before（未来日付 `X-Amz-Date` の拒否）は**見送り**。改竄には署名再計算が必要で外部攻撃者には悪用できず、dev 用途の安全網としては過剰（クロックスキュー誤判定のリスクの方が高い）と判断した。
+
+### 理由
+ADR-001 が誤有効化時の安全根拠を署名検証に置いている以上、レスポンス側ヘッダと期限検証単体の正しさも安全網の一部であるべき、というレビュー指摘に同意したため。誤有効化時、有効な presigned GET URL の終端が R2 の別オリジンではなくアプリの Cookie が効くオリジンになる点が ADR-001 の評価から漏れていた。

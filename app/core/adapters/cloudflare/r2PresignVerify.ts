@@ -71,8 +71,23 @@ export async function verifyPresignedRequest(params: {
   if (!/^\d{8}T\d{6}Z$/.test(amzDate)) {
     return { ok: false, reason: "malformed" };
   }
-  const expiresSec = Number(expires);
-  if (!Number.isInteger(expiresSec) || expiresSec <= 0) {
+  // Strict decimal only: `Number("1e3")` would otherwise slip through
+  // the integer check.
+  const expiresSec = /^\d+$/.test(expires) ? Number(expires) : Number.NaN;
+  if (
+    !Number.isInteger(expiresSec) ||
+    expiresSec <= 0 ||
+    expiresSec > MAX_EXPIRES_SECONDS
+  ) {
+    return { ok: false, reason: "malformed" };
+  }
+
+  // The regex above only checks shape; a non-existent calendar date
+  // (e.g. month 13) yields an Invalid Date whose NaN arithmetic would
+  // silently skip the expiry check, so reject it as malformed (before
+  // the credential comparison, which would mask it as a scope mismatch).
+  const issuedAt = parseAmzDate(amzDate);
+  if (Number.isNaN(issuedAt.getTime())) {
     return { ok: false, reason: "malformed" };
   }
 
@@ -82,7 +97,6 @@ export async function verifyPresignedRequest(params: {
     return { ok: false, reason: "credential_mismatch" };
   }
 
-  const issuedAt = parseAmzDate(amzDate);
   if (Date.now() > issuedAt.getTime() + expiresSec * 1000) {
     return { ok: false, reason: "expired" };
   }
@@ -131,6 +145,9 @@ export async function verifyPresignedRequest(params: {
   }
   return { ok: true };
 }
+
+// S3's own presigned-URL ceiling (7 days); anything larger is malformed.
+const MAX_EXPIRES_SECONDS = 604800;
 
 function parseAmzDate(amzDate: string): Date {
   const iso = `${amzDate.slice(0, 4)}-${amzDate.slice(4, 6)}-${amzDate.slice(6, 8)}T${amzDate.slice(9, 11)}:${amzDate.slice(11, 13)}:${amzDate.slice(13, 15)}Z`;

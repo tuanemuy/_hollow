@@ -6,7 +6,7 @@ import type { ExecutionContext } from "@cloudflare/workers-types";
 import { default as defaultEntry } from "@tanstack/react-start/server-entry";
 import {
   buildDevObjectStorageResponse,
-  DEV_OBJECT_STORAGE_PATH_PREFIX,
+  resolveDevObjectStorageGate,
 } from "@/core/adapters/cloudflare/devObjectStorageHandler";
 import { InlineRelayTrigger } from "@/core/adapters/cloudflare/inlineRelayTrigger";
 import { installContainerStore } from "@/core/application/di/containerStore";
@@ -77,14 +77,17 @@ export default {
       // R2 URLs. `R2_DEV_OBJECT_PROXY` is set solely in the local
       // `wrangler.toml [vars]`, so staging / production never enter this
       // branch. Missing binding / presign config → 404 rather than crash.
-      if (
-        env.R2_DEV_OBJECT_PROXY === "true" &&
-        url.pathname.startsWith(DEV_OBJECT_STORAGE_PATH_PREFIX)
-      ) {
-        const { objectStorageBucket, r2PresignConfig } = baseConfig;
-        if (!objectStorageBucket || !r2PresignConfig) {
-          return new Response("Not Found", { status: 404 });
-        }
+      const { objectStorageBucket, r2PresignConfig } = baseConfig;
+      const devProxyGate = resolveDevObjectStorageGate({
+        flag: env.R2_DEV_OBJECT_PROXY,
+        pathname: url.pathname,
+        hasBucket: objectStorageBucket !== undefined,
+        hasPresignConfig: r2PresignConfig !== undefined,
+      });
+      if (devProxyGate === "not_found") {
+        return new Response("Not Found", { status: 404 });
+      }
+      if (devProxyGate === "handle" && objectStorageBucket && r2PresignConfig) {
         return buildDevObjectStorageResponse({
           request,
           bucket: objectStorageBucket,
