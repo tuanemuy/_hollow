@@ -24,7 +24,10 @@ vi.mock("../SelectionContext", () => ({
 }));
 
 vi.mock("../DisplayModeSwitch", () => ({ DisplayModeSwitch: () => null }));
-vi.mock("../SaveViewDialog", () => ({ SaveViewDialog: () => null }));
+vi.mock("../SaveViewDialog", () => ({
+  SaveViewDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="save-view-dialog" /> : null,
+}));
 
 const { NoteListToolbar } = await import("../NoteListToolbar");
 
@@ -78,18 +81,43 @@ describe("NoteListToolbar confirmed layout (Issue #649 / #626)", () => {
 
   it("renders ビューとして保存 as an icon-only button with aria-label / title", () => {
     renderToolbar(true);
-    const save = container.querySelector('[aria-label="ビューとして保存"]');
+    const save = container.querySelector<HTMLButtonElement>(
+      '[aria-label="ビューとして保存"]',
+    );
     expect(save).not.toBeNull();
     expect(save?.getAttribute("title")).toBe("ビューとして保存");
     expect(save?.textContent).toBe("");
     expect(save?.hasAttribute("disabled")).toBe(false);
+    expect(save?.hasAttribute("aria-disabled")).toBe(false);
     expect(save?.querySelector("svg")).not.toBeNull();
+    act(() => {
+      save?.click();
+    });
+    expect(
+      container.querySelector('[data-testid="save-view-dialog"]'),
+    ).not.toBeNull();
   });
 
-  it("disables ビューとして保存 with an explanatory title when no condition is set", () => {
+  it("keeps a disabled ビューとして保存 focusable (aria-disabled) with the reason described, and ignores clicks", () => {
     renderToolbar(false);
-    const save = container.querySelector('[aria-label="ビューとして保存"]');
-    expect(save?.hasAttribute("disabled")).toBe(true);
+    const save = container.querySelector<HTMLButtonElement>(
+      '[aria-label="ビューとして保存"]',
+    );
+    // `aria-disabled` (not native `disabled`): keyboard / SR users can reach
+    // the button and hear the reason via aria-describedby (`.issue/649/adr.md`
+    // ADR-010); a native disabled button is unfocusable and title-only.
+    expect(save?.hasAttribute("disabled")).toBe(false);
+    expect(save?.getAttribute("aria-disabled")).toBe("true");
     expect(save?.getAttribute("title")).toBe("条件が設定されていません");
+    const describedBy = save?.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    const reason = document.getElementById(describedBy as string);
+    expect(reason?.textContent).toBe("条件が設定されていません");
+    act(() => {
+      save?.click();
+    });
+    expect(
+      container.querySelector('[data-testid="save-view-dialog"]'),
+    ).toBeNull();
   });
 });

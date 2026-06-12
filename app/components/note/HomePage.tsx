@@ -4,7 +4,11 @@ import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { BulkActionBar } from "./list/BulkActionBar";
 import { FilterBar } from "./list/FilterBar";
-import { hasAnyHomeFilter, homeSectionResetKey } from "./list/listSelectors";
+import {
+  hasAnyHomeFilter,
+  homeHeadingText,
+  homeSectionResetKey,
+} from "./list/listSelectors";
 import { NoteListToolbar } from "./list/NoteListToolbar";
 import { NoteListViews } from "./list/NoteListViews";
 import { SelectionProvider } from "./list/SelectionContext";
@@ -81,7 +85,20 @@ export function HomePage({ userId, page, limit, search }: Props) {
 
   return (
     <SelectionProvider>
-      <SectionErrorBoundary section="ツールバー" resetKey={resetKey}>
+      {/* The heading boundary holds the page's only <h1>; the error
+          fallback keeps a static (non-trigger) heading so the page never
+          loses its h1 (`.issue/649/adr.md` ADR-009). The view name is
+          unavailable without savedViews, so the search phrasing / default
+          name from the URL is used. */}
+      <SectionErrorBoundary
+        section="ツールバー"
+        resetKey={resetKey}
+        fallbackHeading={
+          <h1 className="mb-[10px] text-3xl font-regular tracking-tightest leading-tight text-ink">
+            {homeHeadingText(search.q)}
+          </h1>
+        }
+      >
         <Suspense fallback={<ToolbarSkeleton />}>
           <HeaderSection
             userId={userId}

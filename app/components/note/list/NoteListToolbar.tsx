@@ -1,7 +1,7 @@
 "use client";
 
 import { Bookmark, CheckSquare } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Icon } from "@/components/common/Icon";
 import { pillBtn, pillBtnGhost, pillBtnIcon } from "@/components/common/styles";
 import type { NoteListSearch } from "../schema";
@@ -28,6 +28,12 @@ type Props = {
 export function NoteListToolbar({ search, hasAnyFilter }: Props) {
   const { state, dispatch } = useSelection();
   const [open, setOpen] = useState(false);
+  // ビューとして保存 is `aria-disabled` (not `disabled`) so keyboard / SR
+  // users can still reach it and hear WHY it is unavailable via
+  // `aria-describedby` — a native `disabled` button is unfocusable and the
+  // `title`-only reason never reaches them (`.issue/649/adr.md` ADR-010).
+  const saveDisabled = !hasAnyFilter && search.q === undefined;
+  const saveReasonId = useId();
 
   return (
     <>
@@ -50,17 +56,22 @@ export function NoteListToolbar({ search, hasAnyFilter }: Props) {
           className={ICON_BTN}
           data-ghost=""
           data-icon=""
-          onClick={() => setOpen(true)}
-          disabled={!hasAnyFilter && search.q === undefined}
+          onClick={() => {
+            if (saveDisabled) return;
+            setOpen(true);
+          }}
+          aria-disabled={saveDisabled || undefined}
+          aria-describedby={saveDisabled ? saveReasonId : undefined}
           aria-label="ビューとして保存"
-          title={
-            !hasAnyFilter && search.q === undefined
-              ? "条件が設定されていません"
-              : "ビューとして保存"
-          }
+          title={saveDisabled ? "条件が設定されていません" : "ビューとして保存"}
         >
           <Icon icon={Bookmark} />
         </button>
+        {saveDisabled ? (
+          <span id={saveReasonId} className="sr-only">
+            条件が設定されていません
+          </span>
+        ) : null}
         <DisplayModeSwitch />
       </div>
       <SaveViewDialog

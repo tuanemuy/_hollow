@@ -500,17 +500,16 @@ export function homeHeadingText(
 
 /**
  * `aria-label` for the heading's view-switcher trigger (`.issue/649/adr.md`
- * ADR-005): while searching the visible heading is the search phrasing, so
- * appending「現在 {ビュー名}」would contradict it — the label collapses to
- * the bare action.
+ * ADR-005): the visible heading text leads and the action follows, so the
+ * accessible name always CONTAINS the visible label (WCAG 2.5.3
+ * Label in Name) in both the search and non-search states, while never
+ * contradicting the search phrasing with「現在 {ビュー名}」.
  */
 export function viewSwitcherAriaLabel(
   q: string | undefined,
   viewName: string = ALL_NOTES_VIEW_NAME,
 ): string {
-  return isSearchActive(q)
-    ? "ビューを切り替え"
-    : `ビューを切り替え: 現在 ${viewName}`;
+  return `${homeHeadingText(q, viewName)} — ビューを切り替え`;
 }
 
 /** Whether any non-query filter (tags / dates / directory / visibility / backlink) is set. */

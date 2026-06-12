@@ -52,20 +52,22 @@ export function ViewSwitcher({ search, savedViews }: Props) {
   const headingText = homeHeadingText(search.q, viewName);
   const ariaLabel = viewSwitcherAriaLabel(search.q, viewName);
 
-  // すべてのノート (index 0) + 保存ビュー。
+  // すべてのノート (index 0) + 保存ビュー。不明（削除済み等）な viewId は
+  // `findIndex + 1 = 0` で index 0 に落ち、見出しの `resolveViewName`
+  // フォールバック（すべてのノート）と aria-selected / 初期フォーカスが
+  // 必ず一致する。
   const itemCount = savedViews.length + 1;
   const selectedIndex =
     search.viewId === undefined
       ? 0
       : savedViews.findIndex((v) => v.id === search.viewId) + 1;
-  const initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
   const roving = useRovingMenu({
     open,
     itemCount,
     panelRef,
     itemRole: "option",
-    initialIndex,
+    initialIndex: selectedIndex,
   });
 
   const onSelectView = (viewId: string) => {
@@ -150,8 +152,8 @@ export function ViewSwitcher({ search, savedViews }: Props) {
               <button
                 type="button"
                 role="option"
-                aria-selected={search.viewId === undefined}
-                data-active={search.viewId === undefined || undefined}
+                aria-selected={selectedIndex === 0}
+                data-active={selectedIndex === 0 || undefined}
                 tabIndex={roving.getTabIndex(0)}
                 onClick={() => select("")}
                 className={OPTION_ITEM}
@@ -159,7 +161,7 @@ export function ViewSwitcher({ search, savedViews }: Props) {
                 {ALL_NOTES_VIEW_NAME}
               </button>
               {savedViews.map((view, i) => {
-                const selected = view.id === search.viewId;
+                const selected = selectedIndex === i + 1;
                 return (
                   <button
                     key={view.id}

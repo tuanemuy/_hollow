@@ -828,17 +828,19 @@ describe("home heading / filter selectors (#636 TS-W-002)", () => {
     expect(resolveViewName("gone", views)).toBe("すべてのノート");
   });
 
-  it("viewSwitcherAriaLabel composes per the ADR-005 rule", () => {
+  it("viewSwitcherAriaLabel composes per the ADR-005 rule (label-in-name)", () => {
+    // The visible heading text leads (WCAG 2.5.3 — the accessible name must
+    // contain the visible label); the action follows after the dash.
     expect(viewSwitcherAriaLabel(undefined, "今週のレビュー")).toBe(
-      "ビューを切り替え: 現在 今週のレビュー",
+      "今週のレビュー — ビューを切り替え",
     );
     expect(viewSwitcherAriaLabel(undefined)).toBe(
-      "ビューを切り替え: 現在 すべてのノート",
+      "すべてのノート — ビューを切り替え",
     );
-    // While searching the visible heading is the search phrasing, so the
-    // label drops 「現在 …」 to avoid contradicting it.
+    // While searching the heading shows the search phrasing — the label
+    // contains it verbatim instead of the (contradicting)「現在 {ビュー名}」.
     expect(viewSwitcherAriaLabel("memo", "今週のレビュー")).toBe(
-      "ビューを切り替え",
+      "「memo」の検索結果 — ビューを切り替え",
     );
   });
 
