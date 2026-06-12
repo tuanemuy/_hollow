@@ -12,3 +12,7 @@
 | 4 | 見出しをクリック | `aria-expanded="true"`、listbox が開き `role="option"` は「すべてのノート」1 項目のみ（`aria-selected="true"`） |
 | 5 | 唯一の項目を選択 | エラーなし。URL `/`、見出し「すべてのノート」のまま |
 | 6 | `pnpm db:execute:local .issue/649/manual-test/seed.sql` でビュー 3 件を復元し、count=3 を確認 | OK（データ復元済み） |
+
+## 注記（R2 レビュー Test-W-001 対応）
+
+本ケースの aria-label 証跡は R1 修正前のコードに対する実行記録。R1 修正（B-001 / ADR-005 改訂）で aria-label は「{可視見出し} — ビューを切り替え」の合成形式へ変更済み。新形式はユニットテスト（`listSelectors.test.ts` / `ViewSwitcher.test.tsx`）で契約固定済みのため再実行はしていない。

@@ -178,3 +178,18 @@ Accepted（実装時決定）
 ### Consequences
 - 良い点: 実装が単純で、savedViews の件数によって見出しの DOM/挙動が分岐しない。
 - トレードオフ: 項目1つの listbox は情報量が薄い（保存ビューを作る前のユーザーに「ビュー」という概念の予告にはなる）。
+
+## ADR-011: ViewSwitcher オプションのフォーカスは accent アウトライン（内側）で示す
+
+### Status
+Accepted（レビュー R2 A11y-W-001 反映）
+
+### Context
+共通 `menuItem` パターンを踏襲した `focus-visible:bg-surface` は白パネル上で約1.08:1 のコントラストしかなく、roving tabindex で移動中の現在位置が知覚できない（WCAG 2.4.7）。本 PR の新規コンポーネントである ViewSwitcher が同パターンを増殖させていた。
+
+### Decision
+`OPTION_ITEM` に既存のフォーカストークン（`focus-visible:outline-2 focus-visible:outline-accent`）を `-outline-offset-2` で内側に描いて追加する。共通 `menuItem`（`app/components/common/styles.ts`）は app 全体の整合に関わるため本 PR では変更せず、共通課題として別途扱う。
+
+### Consequences
+- 良い点: トリガー類と同じ accent 系インジケーターで一貫し、矢印キー移動中の位置が知覚可能になる。負オフセットによりパネル端でのアウトライン切れもない。
+- トレードオフ: 既存メニュー（menuItem）とは一時的に表現が不揃いになる。共通パターン側の解消までの過渡的な差異として許容する。

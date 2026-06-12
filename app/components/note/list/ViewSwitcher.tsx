@@ -26,8 +26,12 @@ const TRIGGER =
 // よう書体をリセットする。
 const PANEL = `absolute left-0 top-full mt-1 z-40 ${menuPanel} min-w-[240px] max-w-[calc(100vw-2rem)] text-sm font-regular tracking-normal leading-normal`;
 
+// `bg-surface` だけでは白パネル上で約1.08:1 と知覚できないため（WCAG 2.4.7）、
+// トリガー類と同じ accent アウトラインを負オフセットで内側に描く。共通の
+// `menuItem` パターンにも同じ課題があるが、app 全体の整合はここでは変えず
+// 共通課題として扱う（`.issue/649/adr.md` ADR-011）。
 const OPTION_ITEM =
-  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere]";
+  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium [overflow-wrap:anywhere]";
 
 type Props = {
   search: NoteListSearch;
