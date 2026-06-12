@@ -179,6 +179,42 @@ describe("readRequestServerConfig", () => {
     );
     expect(config.adminLlmProvider).toBe("anthropic");
   });
+
+  // `R2_S3_ENDPOINT` threads the local dev-proxy endpoint
+  // into the presign config; absent (staging / production) the config
+  // must not carry an `endpoint` key so the adapter falls back to the
+  // account-scoped R2 endpoint.
+  const r2Env: Partial<ServerEnv> = {
+    OBJECT_STORAGE: {} as R2Bucket,
+    R2_ACCOUNT_ID: "acc",
+    R2_ACCESS_KEY_ID: "key",
+    R2_SECRET_ACCESS_KEY: "sec",
+    R2_OBJECT_BUCKET_NAME: "buck",
+  };
+
+  it("threads R2_S3_ENDPOINT into r2PresignConfig.endpoint when set", () => {
+    const config = readRequestServerConfig(
+      envWith({ ...r2Env, R2_S3_ENDPOINT: "http://localhost:8787/dev/r2" }),
+    );
+    expect(config.r2PresignConfig?.endpoint).toBe(
+      "http://localhost:8787/dev/r2",
+    );
+  });
+
+  it("omits r2PresignConfig.endpoint when R2_S3_ENDPOINT is unset (default R2 endpoint)", () => {
+    const config = readRequestServerConfig(envWith(r2Env));
+    expect(config.r2PresignConfig).toBeDefined();
+    expect(Object.hasOwn(config.r2PresignConfig as object, "endpoint")).toBe(
+      false,
+    );
+  });
+
+  it("does not flip r2PresignReady on R2_S3_ENDPOINT alone (endpoint is optional)", () => {
+    const config = readRequestServerConfig(
+      envWith({ R2_S3_ENDPOINT: "http://localhost:8787/dev/r2" }),
+    );
+    expect(Object.hasOwn(config, "r2PresignConfig")).toBe(false);
+  });
 });
 
 describe("createRequestContainer", () => {

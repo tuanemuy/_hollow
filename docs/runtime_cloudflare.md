@@ -7,6 +7,7 @@ Multi-Worker, edge-distributed runtime. The main app runs in the `app` Worker; o
 - [Quick start](#quick-start)
 - [Worker matrix](#worker-matrix)
 - [Local dev outbox dispatch](#local-dev-outbox-dispatch)
+- [Local presigned object flow (dev proxy)](#local-presigned-object-flow-dev-proxy)
 - [Wrangler config layout](#wrangler-config-layout)
 - [One-time Cloudflare resource creation](#one-time-cloudflare-resource-creation)
 - [Secrets and vars](#secrets-and-vars)
@@ -53,6 +54,25 @@ Trigger model: the request path kicks the relay through the `RELAY` Service Bind
 - Production / staging deploys (`pnpm build` → `wrangler deploy`) take the **unchanged** Service Binding path. `vite build` inlines `import.meta.env.DEV` to `false`, so the entire `InlineRelayTrigger` branch — including the `import` — is dead-code-eliminated from the deployed bundle. Verify with `test -d dist/ && grep -rn "InlineRelayTrigger\|inline-dev\|import.meta.env" dist/ && echo "FAIL: residue found" || echo "OK: dead-code eliminated"` after `pnpm build`.
 - Behavioural difference vs. production: dev sees projections update with effectively zero latency; production hops through the Queue and pays a few hundred ms per event. Code that assumes synchronous side effects in dev may surprise you when the Queue is in front of the consumer in production.
 - `pnpm start` (`wrangler dev` without Vite) does not propagate `import.meta.env.DEV`, so the inline path stays disabled. Without a sibling relay/consumer running, outbox rows will sit there until the next deploy's safety-net cron picks them up — for full-loop checks under `pnpm start`, run the relay/consumer Workers manually.
+
+## Local presigned object flow (dev proxy)
+
+ローカル検証（`pnpm build && pnpm start` = `wrangler dev`, `http://localhost:8787`）で presigned アップロード/ダウンロードフロー（presign → ブラウザ PUT → finalize → 表示）を E2E 完走させる仕組み（Issue #657）。
+
+仕組み:
+
+- `wrangler.toml [vars]` の `R2_S3_ENDPOINT = "http://localhost:8787/dev/r2"` により、`R2ObjectStorage.presign*` がリモート R2 の S3 エンドポイントではなく **same-origin の dev プロキシルート**へ署名する。same-origin なのでブラウザの CORS preflight は発生しない。
+- `R2_DEV_OBJECT_PROXY = "true"` のときだけ、fetch エントリ（`app/server.cloudflare.ts`）が `/dev/r2/<bucket>/<key>` への PUT/GET を `buildDevObjectStorageResponse`（`app/core/adapters/cloudflare/devObjectStorageHandler.ts`）に委譲する。終端はローカル miniflare の `OBJECT_STORAGE` binding なので、finalize の `stat` と同一ストアになる。
+- dev プロキシでも SigV4 署名を必ず検証する（`r2PresignVerify.ts`）。不正な署名・期限切れ・Content-Type 不一致は 403。presign と verify が同じクレデンシャルを使うため、**`.dev.vars` の `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` はダミー値で動く**（空文字は不可 — DI が unavailable アダプターに落ちる）。
+
+制約・注意点:
+
+- **staging / production では無効。** `R2_S3_ENDPOINT` / `R2_DEV_OBJECT_PROXY` は `wrangler.toml`（LOCAL DEV ONLY）にのみ定義する。`wrangler.staging.toml` / `wrangler.production.toml` に追加しないこと — 未設定なら presign は従来どおりアカウントスコープの R2 エンドポイントに向き、`/dev/r2/` ルートは不活性。
+- **対象は `pnpm build && pnpm start`（:8787）のみ。** `pnpm dev`（vite, :3000）はアプリのオリジンが presign 先（:8787 固定）と異なり cross-origin になるため、このフローは完走しない。
+- **ブラウザでは必ず `http://localhost:8787` 表記でアクセスすること。** `http://127.0.0.1:8787` で開くと presign URL のオリジン（`localhost`）と食い違い、same-origin 前提が崩れて preflight が復活する／host 署名不一致で 403 になる。
+- **検証サーバーは必ずポート 8787 で起動すること**（`wrangler dev` のデフォルト。明示するなら `--port 8787`）。8787 が使用中で wrangler が別ポートにフォールバックすると、presign 先（`R2_S3_ENDPOINT` の :8787）とアプリオリジンが食い違いフローが完走しない。`APP_URL` / `R2_S3_ENDPOINT` のポートと一致させる。
+- **dev サーバーを localhost 外に公開してはいけない**（`wrangler dev --ip 0.0.0.0` での LAN 公開や cloudflared 等のトンネル共有を含む）。`.dev.vars.example` の固定ダミー credential は dev プロキシの署名鍵そのものであり、リポジトリにコミットされた既知の値である以上「公開された署名鍵」に等しい — 公開した瞬間、誰でも有効な presigned URL を鋳造でき、ローカルバケットの全 read/write が事実上無認証で開く。やむを得ず公開する場合は `.dev.vars` の `R2_*` を各自のランダム値に差し替えること。
+- PUT は Worker 経由になるため `wrangler dev` のリクエストボディ上限内である必要がある。ローカル検証用途（数 MB〜数十 MB）では問題ない。本番（R2 直）とは転送経路が異なる点に注意 — リモート R2 の CORS 挙動そのものは staging で検証する。
 
 ## Wrangler config layout
 
@@ -144,7 +164,7 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 
 `pnpm dev` always provisions the `TEMP_FILES` / `OBJECT_STORAGE` R2 bindings via miniflare's in-memory R2 simulator. The bindings exist even when `.dev.vars` is empty:
 
-- Leaving `R2_*` empty → DI falls back to an inline unavailable `ObjectStorage` adapter (presign / put / get all reject with `StorageUnavailableError`). The `TEMP_FILES` binding itself still works because data-plane R2 ops do not consult the SigV4 credentials.
+- Leaving `R2_*` empty → DI falls back to an inline unavailable `ObjectStorage` adapter (presign / put / get all reject with `StorageUnavailableError`). The `TEMP_FILES` binding itself still works because data-plane R2 ops do not consult the SigV4 credentials. With the local presigned-flow proxy (see [Local presigned object flow](#local-presigned-object-flow-dev-proxy)) dummy non-empty `R2_*` values are sufficient — no real Cloudflare token is needed for local dev.
 - Leaving `ADMIN_LLM_API_KEY` empty (or omitting `ADMIN_LLM_MODEL` in `wrangler.toml [vars]`) → DI keeps `StubLLMProvider`. Ingestion jobs fail at the metadata step with `BusinessRuleError("unsupported_format")` so the failure mode is observable.
 - Setting the full set → DI wires the real adapters. Hitting Anthropic from local dev incurs real cost — issue a low-quota api key for development.
 

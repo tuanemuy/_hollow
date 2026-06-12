@@ -5,6 +5,17 @@ import {
   StorageNotFoundError,
   StorageUnavailableError,
 } from "@/core/domain/media/ports/objectStorage";
+import {
+  deriveSigningKey,
+  encodeKey,
+  encodeRfc3986,
+  hmacHex,
+  R2_REGION,
+  S3_SERVICE,
+  sha256Hex,
+  toAmzDate,
+  UNSIGNED_PAYLOAD,
+} from "./r2Sigv4";
 
 /**
  * Credentials and endpoint configuration required to presign R2 object
@@ -19,17 +30,15 @@ export type R2PresignConfig = Readonly<{
   accessKeyId: string;
   secretAccessKey: string;
   /**
-   * Optional override for the host used in presigned URLs. When set
-   * (e.g. a custom domain or `<account>.r2.cloudflarestorage.com`),
-   * presigned URLs are issued against this host. Defaults to the
+   * Optional override for the endpoint used in presigned URLs. When set
+   * (e.g. a custom domain, or the local dev proxy
+   * `http://localhost:8787/dev/r2`), presigned URLs are
+   * issued against this origin and any path prefix it carries is
+   * preserved in front of `/<bucket>/<key>`. Defaults to the
    * account-scoped R2 endpoint.
    */
   endpoint?: string;
 }>;
-
-const R2_REGION = "auto";
-const S3_SERVICE = "s3";
-const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 
 /**
  * Cloudflare R2 implementation of the {@link ObjectStorage} port.
@@ -176,7 +185,13 @@ export class R2ObjectStorage implements ObjectStorage {
       const credential = `${this.presignConfig.accessKeyId}/${credentialScope}`;
 
       const url = new URL(this.endpoint);
-      url.pathname = `/${this.presignConfig.bucketName}/${encodeKey(key)}`;
+      // Preserve any path prefix carried by the endpoint (e.g. the local
+      // dev proxy at `http://localhost:8787/dev/r2`). The default
+      // account-scoped endpoint has pathname `/`, which normalises to an
+      // empty prefix and reproduces the historical `/<bucket>/<key>` form
+      // byte-for-byte.
+      const basePath = url.pathname.replace(/\/+$/, "");
+      url.pathname = `${basePath}/${this.presignConfig.bucketName}/${encodeKey(key)}`;
 
       const signedHeaderNames: string[] = ["host"];
       const canonicalHeaderEntries: Array<[string, string]> = [
@@ -257,22 +272,6 @@ export class R2ObjectStorage implements ObjectStorage {
   }
 }
 
-// `YYYYMMDDTHHMMSSZ` per SigV4 spec.
-function toAmzDate(now: Date): string {
-  const iso = now.toISOString();
-  return iso.replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-}
-
-// SigV4 follows RFC 3986: every byte except `A-Z a-z 0-9 - _ . ~` is
-// percent-encoded. `encodeURIComponent` leaves `! * ' ( )` unescaped,
-// so they are re-encoded here.
-function encodeRfc3986(value: string): string {
-  return encodeURIComponent(value).replace(
-    /[!*'()]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-}
-
 // Build a `Content-Disposition: attachment` value with both an ASCII
 // `filename` fallback (RFC 6266) and an RFC 5987 `filename*=UTF-8''`
 // form so non-ASCII names survive. `OriginalFileName` admits arbitrary
@@ -291,69 +290,4 @@ export function buildAttachmentDisposition(fileName: string): string {
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
   );
   return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${rfc5987}`;
-}
-
-// S3 keys are percent-encoded segment-wise but `/` is preserved as a
-// path separator. R2 follows the same convention.
-function encodeKey(key: string): string {
-  return key
-    .split("/")
-    .map((segment) => encodeRfc3986(segment))
-    .join("/");
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(input),
-  );
-  return toHex(new Uint8Array(buf));
-}
-
-async function hmacSha256(
-  key: ArrayBuffer | Uint8Array,
-  data: string,
-): Promise<ArrayBuffer> {
-  const keyBytes =
-    key instanceof Uint8Array
-      ? (key.buffer.slice(
-          key.byteOffset,
-          key.byteOffset + key.byteLength,
-        ) as ArrayBuffer)
-      : key;
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(data));
-}
-
-async function hmacHex(
-  key: ArrayBuffer | Uint8Array,
-  data: string,
-): Promise<string> {
-  const sig = await hmacSha256(key, data);
-  return toHex(new Uint8Array(sig));
-}
-
-async function deriveSigningKey(
-  secretAccessKey: string,
-  dateStamp: string,
-): Promise<ArrayBuffer> {
-  const kSecret = new TextEncoder().encode(`AWS4${secretAccessKey}`);
-  const kDate = await hmacSha256(kSecret, dateStamp);
-  const kRegion = await hmacSha256(kDate, R2_REGION);
-  const kService = await hmacSha256(kRegion, S3_SERVICE);
-  return hmacSha256(kService, "aws4_request");
-}
-
-function toHex(bytes: Uint8Array): string {
-  let out = "";
-  for (let i = 0; i < bytes.length; i++) {
-    out += (bytes[i] as number).toString(16).padStart(2, "0");
-  }
-  return out;
 }

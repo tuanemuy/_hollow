@@ -119,9 +119,16 @@ ADMIN_LLM_API_KEY=""
 
 # --- R2 SigV4 presign credentials ---------------------------------------
 # Required by `R2ObjectStorage` to mint short-lived presigned URLs for
-# export downloads. Issue via Cloudflare dashboard → R2 → "Manage R2
-# API Tokens"; for local dev, scope a read/write token to the dev
-# `hollow-local-objects` bucket only.
+# media uploads and export downloads.
+#
+# Local dev ships `R2_S3_ENDPOINT` / `R2_DEV_OBJECT_PROXY` in
+# `wrangler.toml [vars]`, so presigned URLs terminate on the local
+# same-origin dev proxy and the same credentials sign AND verify the
+# URL. Dummy values therefore work for local dev — they just must be
+# non-empty (empty → DI downgrades to the inline unavailable
+# `ObjectStorage` adapter). Real Cloudflare R2 tokens (dashboard → R2 →
+# "Manage R2 API Tokens") are only needed when presigning against the
+# real S3 endpoint (staging / production, via SOPS secrets).
 #
 # All three (plus the `OBJECT_STORAGE` binding from `wrangler.toml` and
 # the `R2_OBJECT_BUCKET_NAME` var) must be set together for DI to wire
@@ -129,6 +136,6 @@ ADMIN_LLM_API_KEY=""
 # `ObjectStorage` adapter that rejects every call with
 # `StorageUnavailableError`. The data-plane `TEMP_FILES` binding still
 # works without these credentials.
-R2_ACCOUNT_ID=""
-R2_ACCESS_KEY_ID=""
-R2_SECRET_ACCESS_KEY=""
+R2_ACCOUNT_ID="local-dev-account"
+R2_ACCESS_KEY_ID="local-dev-access-key"
+R2_SECRET_ACCESS_KEY="local-dev-secret-key"

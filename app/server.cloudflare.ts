@@ -4,6 +4,10 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ExecutionContext } from "@cloudflare/workers-types";
 import { default as defaultEntry } from "@tanstack/react-start/server-entry";
+import {
+  buildDevObjectStorageResponse,
+  resolveDevObjectStorageGate,
+} from "@/core/adapters/cloudflare/devObjectStorageHandler";
 import { InlineRelayTrigger } from "@/core/adapters/cloudflare/inlineRelayTrigger";
 import { installContainerStore } from "@/core/application/di/containerStore";
 import {
@@ -69,6 +73,28 @@ export default {
       // layer and cannot emit a raw XML body. See ADR-010 in
       // `.issue/205/adr.md` for the rationale.
       const url = new URL(request.url);
+      // LOCAL DEV ONLY: same-origin terminator for presigned
+      // R2 URLs. `R2_DEV_OBJECT_PROXY` is set solely in the local
+      // `wrangler.toml [vars]`, so staging / production never enter this
+      // branch. Missing binding / presign config → 404 rather than crash.
+      const { objectStorageBucket, r2PresignConfig } = baseConfig;
+      const devProxyGate = resolveDevObjectStorageGate({
+        flag: env.R2_DEV_OBJECT_PROXY,
+        pathname: url.pathname,
+        hasBucket: objectStorageBucket !== undefined,
+        hasPresignConfig: r2PresignConfig !== undefined,
+      });
+      if (devProxyGate === "not_found") {
+        return new Response("Not Found", { status: 404 });
+      }
+      if (devProxyGate === "handle" && objectStorageBucket && r2PresignConfig) {
+        return buildDevObjectStorageResponse({
+          request,
+          bucket: objectStorageBucket,
+          bucketName: r2PresignConfig.bucketName,
+          presignConfig: r2PresignConfig,
+        });
+      }
       if (
         (request.method === "GET" || request.method === "HEAD") &&
         url.pathname === "/sitemap.xml"
