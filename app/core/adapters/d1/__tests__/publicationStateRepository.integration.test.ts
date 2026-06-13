@@ -480,13 +480,15 @@ describe("D1PublicationStateRepository.countPublicByOwner (integration, #612)", 
       visibility: "public",
       publishedAt: "2024-01-01T00:00:00.000Z",
     });
+    // Non-NULL published_at so visibility is the sole exclusion reason:
+    // if the visibility filter regressed, these rows would be counted.
     await seedNote(container, owner, dir, {
       visibility: "private",
-      publishedAt: null,
+      publishedAt: "2024-01-01T00:00:00.000Z",
     });
     await seedNote(container, owner, dir, {
       visibility: "unlisted",
-      publishedAt: null,
+      publishedAt: "2024-01-01T00:00:00.000Z",
     });
 
     const result = await container.unitOfWorkProvider.run(
