@@ -12,7 +12,7 @@ import { type RefObject, useEffect, useRef } from "react";
  * and `/_app/settings/prompts` render their `component` straight from
  * `Route.useLoaderData()` (the `renderServerComponent(...)` RSC payload). When
  * `routerInvalidate(router)` fires — the live path is the AppShell-resident
- * `UploadDialog` completing an upload (`UploadDialog.tsx:452`) — the loader
+ * `UploadDialog` completing an upload — the loader
  * (`staleTime: 0`) re-runs and a fresh RSC payload is reconciled into the SAME
  * client component instance. #670 Step 0 confirmed the node is NOT remounted
  * and `useState` is preserved (so the input value survives), yet the focused
@@ -46,7 +46,7 @@ import { type RefObject, useEffect, useRef } from "react";
  * React's synthetic `onFocus`, so an `autoFocus`-opened field never interacted
  * with would otherwise never arm and would not be restored (Issue #680
  * browser gate E-1). `preventScroll: true`
- * mirrors `useRovingMenu` (L116-120): the restore may race a user scroll and
+ * mirrors `useRovingMenu`: the restore may race a user scroll and
  * the default scroll-into-view would yank the list back. Note that, as with
  * roving menu's clamped index, the commit that dropped focus may also have
  * changed the field's value; `setSelectionRange` clamps offsets to the current
