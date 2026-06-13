@@ -8,4 +8,3 @@ config:
   hollow:llmProvider: ""
   hollow:llmModel: ""
   hollow:llmBaseUrl: ""
-  hollow:manageCustomDomain: "false"
