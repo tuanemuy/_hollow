@@ -30,6 +30,10 @@ import "@/components/tag/actions";
 import "@/components/view/actions";
 import "@/components/media/actions";
 import "@/components/publication/PublishSettings/action";
+// `logOutFn` is reached only through the dynamically-imported
+// `Sidebar` → `UserMenu` (client) chain below, which the RSC build does
+// not traverse statically, so it must be registered here too (#718).
+import "@/components/layout/logOutAction";
 
 // `/` is the only authenticated route that also serves a landing page to
 // unauthenticated visitors. Normalising the pathname keeps that exception
