@@ -131,6 +131,7 @@ Cloudflare infrastructure (D1 / Queues / DNS / Worker Routes) is managed by Pulu
 - `PULUMI_ACCESS_TOKEN`
 - `PULUMI_CONFIG_PASSPHRASE` (only if any stack config uses `--secret`)
 - `SOPS_AGE_KEY` — per-stage age private key, set as an Environment Secret on the `staging` / `production` Environment (see [`infra/secrets/README.md`](infra/secrets/README.md))
+- `RELEASE_PLEASE_TOKEN` — PAT used by `release-please.yml` to push the `vX.Y.Z` tag; a `GITHUB_TOKEN`-pushed tag does **not** trigger `deploy-production.yml`. Classic PAT with `repo` scope, or fine-grained with contents + pull-requests: write. Repository secret (see [`docs/deployment_setup.md`](docs/deployment_setup.md)).
 
 運用詳細は [`docs/deployment_setup.md`](docs/deployment_setup.md) を参照。
 
