@@ -139,8 +139,7 @@ export function NoteEditor(props: NoteEditorProps) {
   // view-only UI state — the open/close of a dialog and the tags it must
   // list — so it lives in orchestrator `useState` rather than the reducer,
   // which is reserved for model state (content / mode / autosave / dirty).
-  // `null` = no dialog; non-null = dialog open with the tags that would be
-  // lost. The actual `setMode "wysiwyg"` happens on confirm, not here.
+  // The actual `setMode "wysiwyg"` happens on confirm, not here.
   const [pendingWysiwygSwitch, setPendingWysiwygSwitch] = useState<{
     lostTags: readonly string[];
   } | null>(null);
