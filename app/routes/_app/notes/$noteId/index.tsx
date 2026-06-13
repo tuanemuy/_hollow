@@ -34,7 +34,7 @@ const renderNoteDetail = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/notes/$noteId/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   head: ({ match, params }) => {
     const config = match.context?.config;
     if (!config) return {};

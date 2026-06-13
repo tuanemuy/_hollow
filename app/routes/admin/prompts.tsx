@@ -14,7 +14,7 @@ const renderPromptsPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/admin/prompts")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   head: ({ match }) =>
     internalRouteHead(match.context?.config, "プロンプト", "/admin/prompts"),
   loader: () => renderPromptsPage(),

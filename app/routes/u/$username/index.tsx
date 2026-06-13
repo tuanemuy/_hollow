@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { ErrorPage } from "@/components/public/ErrorPage";
+import { PUBLIC_ROUTE_GC_TIME } from "@/components/public/routeCache";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import {
@@ -107,7 +108,8 @@ const loadProfileMeta = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/u/$username/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
+  gcTime: PUBLIC_ROUTE_GC_TIME,
   validateSearch: (search) => publicTopSearchSchema.parse(search),
   // `display` is excluded so its client-only swap does not re-run the
   // loader (ADR-004); `tags` / `sort` drive server re-fetch.

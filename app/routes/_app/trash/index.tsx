@@ -31,7 +31,7 @@ const renderTrash = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/trash/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   validateSearch: (search) => paginationSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   head: ({ match }) => {

@@ -20,7 +20,7 @@ const renderTerms = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/terms")({
-  staleTime: 60_000,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   loader: () => renderTerms(),
   head: ({ match }) => {
     const config = match.context?.config;

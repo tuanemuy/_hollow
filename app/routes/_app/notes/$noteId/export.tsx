@@ -19,7 +19,7 @@ const renderSingleExportPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/notes/$noteId/export")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   head: ({ match, params }) =>
     internalRouteHead(
       match.context?.config,

@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { z } from "zod";
 import { ErrorPage } from "@/components/public/ErrorPage";
+import { PUBLIC_ROUTE_GC_TIME } from "@/components/public/routeCache";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import {
@@ -52,7 +53,8 @@ const loadNoteMeta = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/u/$username/$noteSlug")({
-  staleTime: 10_000,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
+  gcTime: PUBLIC_ROUTE_GC_TIME,
   loader: ({ params }) =>
     renderPublicNote({
       data: { username: params.username, noteSlug: params.noteSlug },
