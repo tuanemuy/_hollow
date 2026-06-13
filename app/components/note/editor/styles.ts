@@ -10,7 +10,7 @@ import { scrollbarHidden } from "@/components/common/styles";
 /**
  * P12 document-style title input: borderless, large, transparent. Uses the
  * heading font and the mock's tight 1.12 line-height (`.title-input`). As a
- * "writing surface" it is caret-only (Issue #692): the global `:focus-visible`
+ * "writing surface" it is caret-only: the global `:focus-visible`
  * box ring is cancelled with `focus-visible:shadow-none` and focus is shown by
  * the accent caret (`caret-accent`), consistent with the editor body.
  */
