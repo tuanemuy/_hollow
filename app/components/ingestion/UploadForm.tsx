@@ -24,6 +24,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { uploadFileFn } from "./actions";
+import { notifyIngestionQueueChanged } from "./queueBadgeBus";
 
 const DROPZONE =
   "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
@@ -181,12 +182,22 @@ export function UploadForm() {
           formData.append("file", file);
           await upload({ data: formData });
         }
-        await routerInvalidate(router);
+        // Enqueue is confirmed — announce first so the header queue badge
+        // refreshes, and reset the input, before the (best-effort) router
+        // invalidate. A failed invalidate must not mask a successful upload.
+        notifyIngestionQueueChanged();
         if (fileInputRef.current !== null) {
           fileInputRef.current.value = "";
         }
       } catch (e) {
         setError(extractSerializedError(e));
+        return;
+      }
+      try {
+        await routerInvalidate(router);
+      } catch {
+        // Isolated: the upload already landed; a stale router view self-heals
+        // on the next navigation / queue poll.
       }
     });
   };

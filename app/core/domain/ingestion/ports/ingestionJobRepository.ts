@@ -4,6 +4,16 @@ import type { IngestionJob } from "../entity";
 import type { IngestionJobId, IngestionStatus } from "../valueObject";
 
 /**
+ * Counting options for owner-scoped status counts. See
+ * {@link IngestionJobRepository.countByOwner} for the contract, including
+ * why this speaks a multi-include `statuses` while the listing opts speak
+ * `status` / `excludeStatuses`.
+ */
+export type IngestionJobCountOpts = Readonly<{
+  statuses: readonly IngestionStatus[];
+}>;
+
+/**
  * Listing options for owner-scoped queries.
  *
  * Offset/limit-style; ingestion lists are bounded per user. Filtering by
@@ -41,6 +51,7 @@ export type IngestionJobListOpts = Readonly<{
  * read-only listings that ingestion usecases need:
  *
  * - `findByOwner` for the per-user job dashboard.
+ * - `countByOwner` for the header queue badge.
  * - `findStuck` for the recovery worker that ages-out processing-stuck
  *   jobs into `failed` so the operator can decide whether to retry.
  *
@@ -54,6 +65,25 @@ export interface IngestionJobRepository
     ownerId: UserId,
     opts: IngestionJobListOpts,
   ): Promise<readonly IngestionJob[]>;
+
+  /**
+   * Read-only count of jobs owned by `ownerId` whose `status` is in
+   * `statuses`. Used by the header queue badge (`countActiveIngestionJobs`)
+   * so the caller never has to materialise the rows just to count them.
+   *
+   * Not a write-intent surface: callers that intend to mutate must still
+   * go through `findById` to capture an `ExpectedVersion`.
+   *
+   * Vocabulary note: `findByOwner`'s opts speak `status` (single include)
+   * + `excludeStatuses` (multi exclude) because listing defaults to
+   * "everything except discarded". Counting has the opposite shape — its
+   * sole use is "how many rows are in this status set", so a multi-include
+   * `statuses` (one `IN (...)` filter) is the natural contract here.
+   *
+   * An empty `statuses` array means an empty status set and MUST resolve
+   * to 0 without touching the database.
+   */
+  countByOwner(ownerId: UserId, opts: IngestionJobCountOpts): Promise<number>;
 
   /**
    * Admin-only read-only listing across all owners, most-recent-first.

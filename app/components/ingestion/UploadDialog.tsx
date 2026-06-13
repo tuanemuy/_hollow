@@ -16,82 +16,37 @@ import {
   fieldLabel,
   pillBtn,
 } from "@/components/common/styles";
-import {
-  displayError,
-  displayJobErrorCode,
-} from "@/core/presentation/errorDisplay";
+import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { FORM_ERROR } from "../layout/styles";
-import { getDirectoryTreeFn } from "../note/actions";
-import type { FlatDirectory } from "../note/loaders";
 import {
-  discardIngestionPreviewFn,
   type EffectiveIngestionPromptsWire,
   getEffectiveIngestionPromptsFn,
-  getIngestionJobFn,
-  type IngestionJobWire,
-  ownerRetryIngestionJobFn,
   uploadFileFn,
 } from "./actions";
-import { IngestionPreviewForm } from "./IngestionPreviewForm";
+import { notifyIngestionQueueChanged } from "./queueBadgeBus";
 import {
   type FileValidationResult,
   UploadValidationBanners,
   validateUploadFiles,
 } from "./UploadForm";
 
+/**
+ * Fire-and-forget upload modal (Issue #538): files are enqueued and the
+ * dialog lands on the `queued` confirmation immediately — preview editing
+ * and saving happen on the `/upload` queue page (`IngestionJobEditDialog`).
+ */
 type View =
   | { kind: "select" }
   | { kind: "uploading"; total: number; done: number }
   | {
-      kind: "waiting";
-      jobId: string;
-      startedAt: number;
-      // Where this waiting session was entered from. Decides where a
-      // terminal poll failure (fatal error or transient cap) lands:
-      // `upload` (first-time upload) falls back to `select`; `existingJob`
-      // (regenerate / failed-retry of a persisted job) keeps the editing
-      // context by routing to `queueGuidance` instead. See .issue/319/adr.md.
-      origin: "upload" | "existingJob";
-    }
-  | {
-      kind: "editing";
-      job: IngestionJobWire;
-    }
-  | {
-      kind: "failed";
-      job: IngestionJobWire;
-    }
-  | {
-      kind: "multiResult";
+      kind: "queued";
       total: number;
       succeeded: number;
       failedNames: readonly string[];
-    }
-  | {
-      kind: "timedOut";
-      jobId: string;
-    }
-  | {
-      // Successful commit. The note is persisted; instead of immediately
-      // navigating away we keep the user in the modal with a success
-      // confirmation and an explicit link to the new note.
-      // `title` is the user's edited title, threaded up from the form
-      // since the commit server-fn only returns `{ noteId }`.
-      kind: "committed";
-      noteId: string;
-      title: string;
-    }
-  | {
-      // Terminal poll failure for an `existingJob`-origin waiting session.
-      // The job is persisted in the queue, so instead of dumping the user
-      // back to the dropzone (`select`) we keep them oriented toward the
-      // job via the queue. The triggering error is surfaced from the
-      // `error` state. See .issue/319/adr.md.
-      kind: "queueGuidance";
     };
 
 type Props = {
@@ -101,34 +56,6 @@ type Props = {
 
 const DROPZONE =
   "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
-
-const POLL_INTERVAL_MS = 1800;
-const POLL_TIMEOUT_MS = 180_000;
-const POLL_MAX_TRANSIENT_FAILURES = 3;
-
-/**
- * Business-kind errors (`notFound`, `forbidden`, `validation`,
- * `business`) imply the job is unrecoverable from the modal's POV —
- * stop polling immediately. `secretBox` (missing / wrong master key) is
- * an operator-config precondition that retrying won't heal, so it is
- * fatal too. `system` / `unknown` are treated as transient and counted
- * toward the retry cap.
- */
-function isPollFatalError(err: SerializedError): boolean {
-  switch (err.kind) {
-    case "notFound":
-    case "forbidden":
-    case "business":
-    case "unauthorized":
-    case "validation":
-    case "conflict":
-    case "secretBox":
-      return true;
-    case "system":
-    case "unknown":
-      return false;
-  }
-}
 
 /**
  * Pure derivation of the SR status text for the current view. Used inside
@@ -145,27 +72,12 @@ function viewStatusText(view: View): string {
       return view.total === 1
         ? "アップロード中"
         : `${view.total} 件中 ${view.done} 件をアップロード`;
-    case "waiting":
-      return "LLM がタイトルとメタデータを提案中";
-    case "editing":
-      return "プレビュー編集に進みました";
-    case "failed":
-      return "取り込みに失敗しました";
-    case "multiResult": {
+    case "queued": {
       const base = `${view.total} 件中 ${view.succeeded} 件をキューに追加しました`;
       return view.failedNames.length > 0
         ? `${base}（${view.failedNames.length} 件失敗）`
         : base;
     }
-    case "timedOut":
-      return "推論の完了を待ちきれませんでした";
-    case "committed":
-      return "ノートを登録しました";
-    case "queueGuidance":
-      // The error itself is announced via the inline `role="alert"` region;
-      // the polite region carries only the non-duplicate guidance so the
-      // user is not double-announced (same rationale as `select`).
-      return "ジョブはキューに残っています";
     default:
       throw new Error(`unreachable view kind: ${JSON.stringify(view)}`);
   }
@@ -174,12 +86,9 @@ function viewStatusText(view: View): string {
 export function UploadDialog({ open, onClose }: Props) {
   const router = useRouter();
   const upload = useServerFn(uploadFileFn);
-  const getJob = useServerFn(getIngestionJobFn);
-  const getTree = useServerFn(getDirectoryTreeFn);
   const getEffectivePrompts = useServerFn(getEffectiveIngestionPromptsFn);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
   const [view, setView] = useState<View>({ kind: "select" });
   const [error, setError] = useState<SerializedError | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -190,12 +99,9 @@ export function UploadDialog({ open, onClose }: Props) {
     null,
   );
 
-  const [tree, setTree] = useState<readonly FlatDirectory[]>([]);
-  const [isTreeLoading, setIsTreeLoading] = useState(false);
-
   // Per-upload custom prompts entered in the `select` view's "advanced
   // options" accordion. Applied to every file of the current submission
-  // (single or batch) and reset when the dialog re-opens. See #228.
+  // (single or batch) and reset when the dialog re-opens.
   const [structurePrompt, setStructurePrompt] = useState("");
   const [metadataPrompt, setMetadataPrompt] = useState("");
 
@@ -204,7 +110,7 @@ export function UploadDialog({ open, onClose }: Props) {
   // opens the custom-prompt accordion (see `onAdvancedToggle`) — most
   // uploads never open it, so we avoid a request until it is needed.
   // A fetch failure leaves this `null`, which simply suppresses the
-  // default hints; the upload itself is never blocked. See #358.
+  // default hints; the upload itself is never blocked.
   const [resolvedDefaults, setResolvedDefaults] =
     useState<EffectiveIngestionPromptsWire | null>(null);
   const promptsFetchedRef = useRef(false);
@@ -212,21 +118,28 @@ export function UploadDialog({ open, onClose }: Props) {
   const inputId = useId();
   const titleId = useId();
 
-  // Move focus to the title input when the view transitions into `editing`.
-  // `Dialog.initialFocusRef` is intentionally not used here because the dialog
-  // always opens in the `select` view (the rAF initial-focus effect has long
-  // since fired by the time we reach editing). See ADR-004.
+  // Focus management across view transitions: when a view swap unmounts
+  // the focused element, focus falls to document.body
+  // and keyboard users lose their place in the dialog. Land focus on the
+  // primary action of the `queued` result, and back on the dropzone when
+  // returning to `select` ("続けてアップロード"). The initial `select` on
+  // open is excluded — the Dialog's own initial-focus handling owns that.
+  const dropzoneRef = useRef<HTMLLabelElement>(null);
+  const queuedPrimaryRef = useRef<HTMLAnchorElement>(null);
+  const prevViewKindRef = useRef<View["kind"]>("select");
   useEffect(() => {
-    if (view.kind === "editing") {
-      titleInputRef.current?.focus();
-    }
+    const prev = prevViewKindRef.current;
+    prevViewKindRef.current = view.kind;
+    if (view.kind === prev) return;
+    if (view.kind === "queued") queuedPrimaryRef.current?.focus();
+    else if (view.kind === "select") dropzoneRef.current?.focus();
   }, [view.kind]);
 
   // Flag flipped by the `open` cleanup so in-flight `submitFiles`
   // callbacks know to skip their post-await `setView`. Without this
   // a slow upload that resolves after the modal has been dismissed
-  // would silently transition the next-opened dialog into `waiting`
-  // for a job the user never started.
+  // would silently transition the next-opened dialog into `queued`
+  // for a submission the user never started.
   const cancelledRef = useRef(false);
 
   // Reset to the select state whenever the dialog opens. The cleanup
@@ -244,134 +157,13 @@ export function UploadDialog({ open, onClose }: Props) {
       setMetadataPrompt("");
       setResolvedDefaults(null);
       promptsFetchedRef.current = false;
+      prevViewKindRef.current = "select";
       if (fileInputRef.current !== null) fileInputRef.current.value = "";
     }
     return () => {
       cancelledRef.current = true;
     };
   }, [open]);
-
-  // Lazy-load the directory tree the first time we enter the `editing`
-  // view. Depends on the `isEditing` boolean — not the whole `view`
-  // object — so a `setView` that keeps `kind === "editing"` never
-  // re-runs the load (same scalar-dependency pattern as the polling
-  // effect below; see .issue/258/adr.md).
-  const isEditing = view.kind === "editing";
-  useEffect(() => {
-    if (!isEditing) return;
-    if (tree.length > 0) return;
-    let cancelled = false;
-    setIsTreeLoading(true);
-    void (async () => {
-      try {
-        const { flat } = await getTree();
-        if (!cancelled) setTree(flat);
-      } catch {
-        // Tree load failure leaves the picker empty — the user can
-        // still type a new directory name. Silent recovery is preferable
-        // to blocking the editing UX with a banner.
-      } finally {
-        if (!cancelled) setIsTreeLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isEditing, tree.length, getTree]);
-
-  // Transient (system / unknown) poll-failure counter for the current
-  // `waiting` session. Held on a ref — not in the `view` discriminant —
-  // so incrementing it never changes `view`'s identity and never
-  // re-runs the polling effect. Reset to 0 at each entry into `waiting`
-  // (see `submitFiles` / `onRegenerated`). See .issue/258/adr.md.
-  const transientFailuresRef = useRef(0);
-
-  // Polling loop driven by the `waiting` view. The effect depends only on
-  // the scalars that identify a `waiting` session (`jobId` / `startedAt`),
-  // so it mounts exactly once per session and stays mounted through
-  // transient failures — those reschedule the next tick inline rather than
-  // re-creating the `view` object. The recursive `setTimeout` is tracked on
-  // a ref so the effect cleanup can `clearTimeout` whichever timer is
-  // currently outstanding; without that ref a tick scheduled mid-flight
-  // would survive a view change / unmount.
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const waitingJobId = view.kind === "waiting" ? view.jobId : null;
-  const waitingStartedAt = view.kind === "waiting" ? view.startedAt : null;
-  const waitingOrigin = view.kind === "waiting" ? view.origin : null;
-  useEffect(() => {
-    if (
-      waitingJobId === null ||
-      waitingStartedAt === null ||
-      waitingOrigin === null
-    )
-      return;
-    let cancelled = false;
-    // A terminal poll failure (fatal error or transient cap) abandons the
-    // waiting session. `upload`-origin sessions fall back to the dropzone;
-    // `existingJob`-origin sessions keep the user oriented toward the
-    // persisted job via the queue instead. See .issue/319/adr.md.
-    const failWaiting = (serialized: SerializedError) => {
-      setError(serialized);
-      setView(
-        waitingOrigin === "existingJob"
-          ? { kind: "queueGuidance" }
-          : { kind: "select" },
-      );
-    };
-    const tick = async () => {
-      if (cancelled) return;
-      try {
-        const { job } = await getJob({ data: { jobId: waitingJobId } });
-        if (cancelled) return;
-        if (job.status === "previewing") {
-          setView({ kind: "editing", job });
-          return;
-        }
-        if (job.status === "failed") {
-          setView({ kind: "failed", job });
-          return;
-        }
-        if (job.status === "saved" || job.status === "discarded") {
-          // Edge: the job moved past previewing between two polls (e.g.
-          // a parallel tab acted on it). Close the modal so the user is
-          // not stuck on a stale state.
-          onClose();
-          return;
-        }
-        // Still pending / processing — schedule the next poll if we
-        // have not run out of time.
-        if (Date.now() - waitingStartedAt > POLL_TIMEOUT_MS) {
-          setView({ kind: "timedOut", jobId: waitingJobId });
-          return;
-        }
-        pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
-      } catch (e) {
-        if (cancelled) return;
-        const serialized = extractSerializedError(e);
-        if (isPollFatalError(serialized)) {
-          failWaiting(serialized);
-          return;
-        }
-        transientFailuresRef.current += 1;
-        if (transientFailuresRef.current >= POLL_MAX_TRANSIENT_FAILURES) {
-          failWaiting(serialized);
-          return;
-        }
-        // Transient failure under the cap: keep the same `waiting` session
-        // and reschedule the next tick at the regular interval — same path
-        // as the pending branch, so the cadence stays at POLL_INTERVAL_MS.
-        pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
-      }
-    };
-    pollTimerRef.current = setTimeout(tick, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      if (pollTimerRef.current !== null) {
-        clearTimeout(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [waitingJobId, waitingStartedAt, waitingOrigin, getJob, onClose]);
 
   const submitFiles = useCallback(
     (files: FileList | null) => {
@@ -407,15 +199,26 @@ export function UploadDialog({ open, onClose }: Props) {
             const formData = new FormData();
             formData.append("file", file);
             appendOverride(formData);
-            const { jobId } = await upload({ data: formData });
-            if (cancelledRef.current) return;
-            transientFailuresRef.current = 0;
-            setView({
-              kind: "waiting",
-              jobId,
-              startedAt: Date.now(),
-              origin: "upload",
-            });
+            await upload({ data: formData });
+            // The job is enqueued at this point — notify the badge and land
+            // on the `queued` view even when the dialog was dismissed
+            // mid-flight, and never let a loader failure during invalidate
+            // masquerade as an upload failure.
+            notifyIngestionQueueChanged();
+            if (!cancelledRef.current) {
+              setView({
+                kind: "queued",
+                total: 1,
+                succeeded: 1,
+                failedNames: [],
+              });
+            }
+            try {
+              await routerInvalidate(router);
+            } catch {
+              // A leaf-loader failure must not regress the (already
+              // truthful) queued result view.
+            }
           } catch (e) {
             if (cancelledRef.current) return;
             setError(extractSerializedError(e));
@@ -449,14 +252,21 @@ export function UploadDialog({ open, onClose }: Props) {
           if (cancelledRef.current) return;
           setView({ kind: "uploading", total: list.length, done });
         }
-        await routerInvalidate(router);
-        if (cancelledRef.current) return;
-        setView({
-          kind: "multiResult",
-          total: list.length,
-          succeeded,
-          failedNames,
-        });
+        notifyIngestionQueueChanged();
+        if (!cancelledRef.current) {
+          setView({
+            kind: "queued",
+            total: list.length,
+            succeeded,
+            failedNames,
+          });
+        }
+        try {
+          await routerInvalidate(router);
+        } catch {
+          // A leaf-loader failure must not regress the (already truthful)
+          // queued result view, nor become an unhandled rejection.
+        }
       })();
     },
     [upload, router, structurePrompt, metadataPrompt],
@@ -466,7 +276,7 @@ export function UploadDialog({ open, onClose }: Props) {
   // custom-prompt accordion is opened. Fired from the `details` `onToggle`
   // (open only). A failure is swallowed — the default hints simply stay
   // hidden and the upload flow is unaffected (same philosophy as the
-  // directory-tree lazy load). See #358.
+  // directory-tree lazy load).
   const onAdvancedToggle = useCallback(
     (open: boolean) => {
       if (!open || promptsFetchedRef.current) return;
@@ -484,48 +294,21 @@ export function UploadDialog({ open, onClose }: Props) {
     [getEffectivePrompts],
   );
 
-  // Successful commit lands on the `committed` view (instead of an
-  // immediate navigate) so the user gets an explicit success confirmation
-  // and a link to the new note.
-  const onCommitted = useCallback((noteId: string, title: string) => {
-    setView({ kind: "committed", noteId, title });
+  // "続けてアップロード": return to a clean dropzone, preserving the
+  // user-entered custom prompts for the next submission.
+  const onUploadMore = useCallback(() => {
+    setView({ kind: "select" });
+    setError(null);
+    setValidation(null);
+    if (fileInputRef.current !== null) fileInputRef.current.value = "";
   }, []);
-
-  const onDiscarded = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
-  // Regeneration returns the job to `pending` and re-drives the LLM
-  // asynchronously. Re-enter the `waiting` view so the existing polling
-  // loop tracks `pending → processing → previewing` and lands back in
-  // `editing` with the fresh preview (see .issue/253/adr.md ADR-003).
-  const onRegenerated = useCallback((jobId: string) => {
-    transientFailuresRef.current = 0;
-    setView({
-      kind: "waiting",
-      jobId,
-      startedAt: Date.now(),
-      // Both regenerate (editing view) and failed-retry (failed view) reach
-      // this handler — they act on a job already persisted in the queue, so
-      // a terminal poll failure should route to `queueGuidance`, not `select`.
-      origin: "existingJob",
-    });
-  }, []);
-
-  // While the user has a single job mid-flight, the dialog must keep
-  // its body content laid out responsively — the inner stack scrolls
-  // and the action bar inside `IngestionPreviewForm` sticks.
-  const isPending =
-    view.kind === "uploading" ||
-    view.kind === "waiting" ||
-    view.kind === "editing";
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
       ariaLabelledBy={titleId}
-      closeOnBackdropClick={!isPending}
+      closeOnBackdropClick={view.kind !== "uploading"}
       showCloseButton
       closable={view.kind !== "uploading"}
     >
@@ -539,6 +322,7 @@ export function UploadDialog({ open, onClose }: Props) {
       {view.kind === "select" ? (
         <SelectView
           inputId={inputId}
+          dropzoneRef={dropzoneRef}
           fileInputRef={fileInputRef}
           isDragOver={isDragOver}
           onDragOver={() => setIsDragOver(true)}
@@ -559,50 +343,15 @@ export function UploadDialog({ open, onClose }: Props) {
         <UploadingView total={view.total} done={view.done} />
       ) : null}
 
-      {view.kind === "waiting" ? <WaitingView /> : null}
-
-      {view.kind === "editing" ? (
-        <IngestionPreviewForm
-          job={view.job}
-          tree={tree}
-          isTreeLoading={isTreeLoading}
-          titleInputRef={titleInputRef}
-          onCommitted={onCommitted}
-          onDiscarded={onDiscarded}
-          onRegenerated={onRegenerated}
-          onCancel={onClose}
-        />
-      ) : null}
-
-      {view.kind === "failed" ? (
-        <FailedView
-          job={view.job}
-          onClose={onClose}
-          onRetried={onRegenerated}
-        />
-      ) : null}
-
-      {view.kind === "multiResult" ? (
-        <MultiResultView
+      {view.kind === "queued" ? (
+        <QueuedView
           total={view.total}
           succeeded={view.succeeded}
           failedNames={view.failedNames}
+          primaryActionRef={queuedPrimaryRef}
+          onUploadMore={onUploadMore}
           onClose={onClose}
         />
-      ) : null}
-
-      {view.kind === "committed" ? (
-        <CommittedView
-          noteId={view.noteId}
-          title={view.title}
-          onClose={onClose}
-        />
-      ) : null}
-
-      {view.kind === "timedOut" ? <TimedOutView onClose={onClose} /> : null}
-
-      {view.kind === "queueGuidance" ? (
-        <QueueGuidanceView error={error} onClose={onClose} />
       ) : null}
     </Dialog>
   );
@@ -610,6 +359,7 @@ export function UploadDialog({ open, onClose }: Props) {
 
 function SelectView({
   inputId,
+  dropzoneRef,
   fileInputRef,
   isDragOver,
   onDragOver,
@@ -625,6 +375,7 @@ function SelectView({
   onAdvancedToggle,
 }: Readonly<{
   inputId: string;
+  dropzoneRef: React.RefObject<HTMLLabelElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   isDragOver: boolean;
   onDragOver: () => void;
@@ -646,7 +397,11 @@ function SelectView({
         画像 / 音声に対応しています。
       </p>
       <label
+        ref={dropzoneRef}
         htmlFor={inputId}
+        // Programmatic focus target only ("続けてアップロード" returns here);
+        // not in the Tab order — the nested file input owns keyboard access.
+        tabIndex={-1}
         className={DROPZONE}
         data-dragover={isDragOver ? "" : undefined}
         onDragOver={(e) => {
@@ -718,7 +473,7 @@ function SelectView({
 // override — the most common standard state), ingestion uses the system
 // default behaviour only (fixed role declaration + output contract, with no
 // additional operator intent). The wording is the SSOT defined in
-// `app/core/domain/adminSettings/defaults.ts` JSDoc (Issue #396 ADR-002).
+// `app/core/domain/adminSettings/defaults.ts` JSDoc.
 const SYSTEM_DEFAULT_PROMPT_COPY = "システム既定の動作を使用";
 
 // Placeholder shows the leading slice of the resolved default so the user
@@ -731,7 +486,7 @@ const PLACEHOLDER_MAX_CHARS = 140;
 // driven by whether the user has typed anything, and a collapsible full
 // default body that also names the source layer (user override vs
 // instance default). Empty resolved text surfaces the system-default copy
-// as the primary hint. See #358.
+// as the primary hint.
 function PromptOverrideField({
   label,
   value,
@@ -852,131 +607,37 @@ function UploadingView({
   );
 }
 
-function WaitingView() {
-  return (
-    <div className="py-8 text-center">
-      <Skeleton
-        bars={UPLOAD_SKELETON_BARS}
-        align="center"
-        label="LLM がタイトルとメタデータを提案中..."
-        sublabel="この処理には数十秒かかることがあります"
-      />
-    </div>
-  );
-}
-
-function FailedView({
-  job,
-  onClose,
-  onRetried,
-}: Readonly<{
-  job: IngestionJobWire;
-  onClose: () => void;
-  onRetried: (jobId: string) => void;
-}>) {
-  const router = useRouter();
-  const discard = useServerFn(discardIngestionPreviewFn);
-  const retry = useServerFn(ownerRetryIngestionJobFn);
-  const [isPending, setIsPending] = useState(false);
-  const [err, setErr] = useState<SerializedError | null>(null);
-  const onDiscard = () => {
-    setIsPending(true);
-    void (async () => {
-      try {
-        await discard({ data: { jobId: job.id } });
-        await routerInvalidate(router);
-        onClose();
-      } catch (e) {
-        setErr(extractSerializedError(e));
-        setIsPending(false);
-      }
-    })();
-  };
-  // Retry returns the job to `pending` and re-drives the LLM. Hand off to
-  // `onRetried` (same handler as regeneration) so the dialog re-enters the
-  // `waiting` view and the polling loop tracks it back to `editing`.
-  const onRetry = () => {
-    setIsPending(true);
-    void (async () => {
-      try {
-        await retry({ data: { jobId: job.id } });
-        onRetried(job.id);
-      } catch (e) {
-        setErr(extractSerializedError(e));
-        setIsPending(false);
-      }
-    })();
-  };
-  return (
-    <div className="py-4">
-      <p className="text-sm text-ink mb-2">
-        取り込みに失敗しました: {job.originalFileName}
-      </p>
-      {(() => {
-        const msg = displayJobErrorCode(job.errorCode);
-        return msg !== null ? (
-          <p className="text-sm text-ink-secondary mb-4" role="alert">
-            {msg}
-          </p>
-        ) : null;
-      })()}
-      {err !== null ? (
-        <p className={FORM_ERROR} role="alert">
-          {displayError(err)}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap justify-end gap-2 mt-4">
-        <button
-          type="button"
-          className={pillBtn}
-          onClick={onRetry}
-          disabled={isPending}
-        >
-          再試行
-        </button>
-        <Link
-          to="/upload"
-          hash={() => ""}
-          className={`${pillBtn} aria-disabled:pointer-events-none`}
-          aria-disabled={isPending || undefined}
-          tabIndex={isPending ? -1 : undefined}
-        >
-          キュー画面で詳細を見る
-        </Link>
-        <button
-          type="button"
-          className={pillBtn}
-          data-danger=""
-          onClick={onDiscard}
-          disabled={isPending}
-        >
-          破棄
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MultiResultView({
+function QueuedView({
   total,
   succeeded,
   failedNames,
+  primaryActionRef,
+  onUploadMore,
   onClose,
 }: Readonly<{
   total: number;
   succeeded: number;
   failedNames: readonly string[];
+  primaryActionRef: React.RefObject<HTMLAnchorElement | null>;
+  onUploadMore: () => void;
   onClose: () => void;
 }>) {
   const failed = failedNames.length;
   return (
     <div className="py-2">
-      <p className="text-sm text-ink mb-2">
-        {total} 件中 {succeeded} 件をキューに追加しました
-        {failed > 0 ? `（${failed} 件失敗）` : ""}。
-      </p>
+      <div className="flex items-center gap-2 mb-2">
+        {failed === 0 ? (
+          <span className="inline-flex text-success">
+            <Icon icon={CheckCircle2} size={20} />
+          </span>
+        ) : null}
+        <p className="text-sm font-medium text-ink">
+          {total} 件中 {succeeded} 件をキューに追加しました
+          {failed > 0 ? `（${failed} 件失敗）` : ""}。
+        </p>
+      </div>
       <p className="text-sm text-ink-secondary">
-        各ジョブのプレビューはキュー画面から順次操作できます。
+        タイトルやタグの編集・ノートとしての保存は、キュー画面から行えます。
       </p>
       {failedNames.length > 0 ? (
         <ul className="mt-3 text-xs text-ink-tertiary list-disc pl-5">
@@ -989,100 +650,16 @@ function MultiResultView({
         <button type="button" className={pillBtn} onClick={onClose}>
           閉じる
         </button>
-        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
-          キュー画面を開く
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function QueueGuidanceView({
-  error,
-  onClose,
-}: Readonly<{
-  error: SerializedError | null;
-  onClose: () => void;
-}>) {
-  return (
-    <div className="py-2">
-      <p className="text-sm text-ink mb-2">待機中にエラーが発生しました。</p>
-      {error !== null ? (
-        <p className={FORM_ERROR} role="alert">
-          {displayError(error)}
-        </p>
-      ) : null}
-      <p className="text-sm text-ink-secondary">
-        ジョブはキューに残っています。キュー画面から続きを操作できます。
-      </p>
-      <div className="flex flex-wrap justify-end gap-2 mt-4">
-        <button type="button" className={pillBtn} onClick={onClose}>
-          閉じる
+        <button type="button" className={pillBtn} onClick={onUploadMore}>
+          続けてアップロード
         </button>
-        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
-          キュー画面を開く
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function CommittedView({
-  noteId,
-  title,
-  onClose,
-}: Readonly<{
-  noteId: string;
-  title: string;
-  onClose: () => void;
-}>) {
-  return (
-    <div className="py-4">
-      <div className="flex items-center gap-2 text-success mb-2">
-        <span className="inline-flex motion-safe:animate-pulse">
-          <Icon icon={CheckCircle2} size={20} />
-        </span>
-        <p className="text-sm font-medium text-ink">ノートを登録しました</p>
-      </div>
-      <p className="text-sm text-ink-secondary break-words">
-        「{title.length > 0 ? title : "無題のノート"}」を作成しました。
-      </p>
-      <div className="flex flex-wrap justify-end gap-2 mt-6">
-        <button type="button" className={pillBtn} onClick={onClose}>
-          閉じる
-        </button>
-        {/* No onClick={onClose} here: onClose runs router.navigate({to:"."})
-            + replaceState, which would race the Link's own navigation to
-            the note. Navigating to /notes/$noteId drops the #upload hash,
-            so `open` flips false and the dialog closes on its own — same
-            convention as the other views' Links. */}
         <Link
-          to="/notes/$noteId"
-          params={{ noteId }}
+          ref={primaryActionRef}
+          to="/upload"
+          hash={() => ""}
           className={pillBtn}
           data-primary=""
         >
-          ノートを開く
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function TimedOutView({ onClose }: Readonly<{ onClose: () => void }>) {
-  return (
-    <div className="py-2">
-      <p className="text-sm text-ink mb-2">
-        推論の完了を待ちきれませんでした。
-      </p>
-      <p className="text-sm text-ink-secondary">
-        ジョブはキューに残っています。キュー画面から続きを操作できます。
-      </p>
-      <div className="flex flex-wrap justify-end gap-2 mt-4">
-        <button type="button" className={pillBtn} onClick={onClose}>
-          閉じる
-        </button>
-        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
           キュー画面を開く
         </Link>
       </div>

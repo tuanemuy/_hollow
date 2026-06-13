@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, gte, lt, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -14,6 +25,7 @@ import { isRehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { IngestionJob } from "@/core/domain/ingestion/entity";
 import type {
+  IngestionJobCountOpts,
   IngestionJobListOpts,
   IngestionJobRepository,
 } from "@/core/domain/ingestion/ports/ingestionJobRepository";
@@ -395,6 +407,23 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
         .limit(opts.limit)
         .offset(opts.offset);
       return rows.map((r) => this.toEntity(r));
+    });
+  }
+
+  countByOwner(ownerId: UserId, opts: IngestionJobCountOpts): Promise<number> {
+    // Port contract: an empty status set is an empty result — skip the DB.
+    if (opts.statuses.length === 0) return Promise.resolve(0);
+    return mapDbError("Failed to count ingestion_jobs by owner", async () => {
+      const rows = await this.db
+        .select({ total: count() })
+        .from(ingestionJobs)
+        .where(
+          and(
+            eq(ingestionJobs.ownerId, ownerId),
+            inArray(ingestionJobs.status, [...opts.statuses]),
+          ),
+        );
+      return rows[0]?.total ?? 0;
     });
   }
 

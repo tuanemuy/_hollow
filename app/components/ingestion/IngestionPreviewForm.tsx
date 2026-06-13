@@ -44,19 +44,20 @@ type Props = Readonly<{
   tree: readonly FlatDirectory[];
   isTreeLoading: boolean;
   /**
-   * Optional ref the parent uses to drive focus on its view transition
-   * (see `UploadDialog`'s view machine effect). When omitted the form
+   * Optional ref the parent uses to drive initial focus (see
+   * `IngestionJobEditDialog`'s `initialFocusRef`). When omitted the form
    * carries no focus side-effect — the parent is responsible for landing
    * focus on the appropriate element.
    */
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
-  onCommitted: (noteId: string, title: string) => void;
+  onCommitted: (noteId: string) => void;
   onDiscarded: () => void;
   /**
    * Notifies the parent that a regeneration was requested for `jobId`.
    * The job has transitioned `previewing → pending` and the LLM pipeline
-   * is being re-driven asynchronously; the parent re-enters its `waiting`
-   * view to poll for the fresh preview (see .issue/253/adr.md ADR-003).
+   * is being re-driven asynchronously; the parent closes the editor and
+   * lets the queue's polling / row progress track the fresh preview
+   * (fire-and-forget model, see .issue/538/adr.md).
    */
   onRegenerated: (jobId: string) => void;
   onCancel: () => void;
@@ -166,11 +167,10 @@ export function IngestionPreviewForm({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
-  // H-2 (Issue #259): each field carries an "AI suggestion" badge while
-  // its current value matches the initial LLM-suggested value. The
-  // moment the user types something different, the badge disappears.
-  // See ADR-003 for why we compare against the initial value instead of
-  // tracking a separate `dirty` flag.
+  // Each field carries an "AI suggestion" badge while its current value
+  // matches the initial LLM-suggested value; it disappears the moment the
+  // user types something different. We compare against the initial value
+  // rather than tracking a separate `dirty` flag.
   const isTitleEdited = title !== initialTitle;
   const isTagsEdited = tagInput !== initialTagInput;
   const isFrontMatterEdited = frontMatterJson !== initialFrontMatter;
@@ -178,10 +178,9 @@ export function IngestionPreviewForm({
     directoryId !== initialDirectoryId ||
     pendingDirectoryName !== initialPendingDirName;
 
-  // W-F-003 + Issue #256: the title input ref is owned by the parent
-  // (`UploadDialog`'s view machine) so the form itself carries no focus
-  // side-effect. A local fallback ref keeps the JSX self-contained when
-  // the prop is omitted.
+  // The title input ref is owned by the parent (`IngestionJobEditDialog`)
+  // so the form itself carries no focus side-effect. A local fallback ref
+  // keeps the JSX self-contained when the prop is omitted.
   const localTitleInputRef = useRef<HTMLInputElement>(null);
   const effectiveTitleInputRef = titleInputRef ?? localTitleInputRef;
 
@@ -211,11 +210,10 @@ export function IngestionPreviewForm({
           },
         });
         if (pendingDirectoryName !== null) {
-          // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も
-          // invalidate（.issue/299/adr.md ADR-003）
+          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate する。
           await router.invalidate();
         }
-        onCommitted(result.noteId, trimmedTitle);
+        onCommitted(result.noteId);
       } catch (e) {
         setError(extractSerializedError(e));
       }
@@ -427,8 +425,8 @@ export function IngestionPreviewForm({
  * Fallback rendered when the upstream job has no preview payload. Owns its
  * own focus side-effect: when mounted, focus is moved to the alert paragraph
  * itself so keyboard users do not lose their focus position. The parent's
- * view-machine effect targets `titleInputRef.current`, which is null in this
- * branch — keeping the focus handoff inside the form keeps `UploadDialog`
+ * initial-focus wiring targets `titleInputRef.current`, which is null in this
+ * branch — keeping the focus handoff inside the form keeps the parent dialog
  * unaware of the fallback shape (W-A11Y-003 in review-001).
  */
 function PreviewMissing() {

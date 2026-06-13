@@ -104,7 +104,7 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
       () => import("@/core/application/ingestion/commitIngestionPreview"),
     );
     // `parseFrontMatterJson` throws `BusinessRuleError("FRONT_MATTER_JSON_INVALID")`
-    // for malformed JSON / non-object shapes — see note-side ADR-008.
+    // for malformed JSON / non-object shapes.
     const frontMatter = parseFrontMatterJson(data.frontMatterJson);
     const result = await module.commitIngestionPreview({
       container,
@@ -157,6 +157,22 @@ export const getEffectiveIngestionPromptsFn = createServerFn({ method: "GET" })
         isUserOverride: result.metadata.isUserOverride,
       },
     };
+  });
+
+// Read-only GET, no transport input (same input-less GET pattern as
+// `getEffectiveIngestionPromptsFn`). Feeds the header queue badge.
+export const getIngestionQueueCountFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .handler(async (): Promise<{ count: number }> => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/ingestion/countActiveIngestionJobs"),
+    );
+    const result = await module.countActiveIngestionJobs({
+      container,
+      input: { actorUserId: user.id },
+    });
+    return { count: result.count };
   });
 
 export const getIngestionJobFn = createServerFn({ method: "GET" })

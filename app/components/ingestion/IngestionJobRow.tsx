@@ -2,7 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Check, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowRight, Check, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
@@ -33,6 +33,8 @@ import {
   ownerRetryIngestionJobFn,
   regenerateIngestionPreviewFn,
 } from "./actions";
+import { IngestionJobEditDialog } from "./IngestionJobEditDialog";
+import { notifyIngestionQueueChanged } from "./queueBadgeBus";
 
 type Props = {
   job: IngestionJobWire;
@@ -80,6 +82,7 @@ export function IngestionJobRow({ job }: Props) {
   // The last mutation attempted, so the inline `RetryableError` can re-run it.
   const [lastAction, setLastAction] = useState<(() => void) | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   // Dim the card the moment discard starts rather than after the loader
   // round-trip. Snaps back to the server-confirmed status on failure.
@@ -112,10 +115,10 @@ export function IngestionJobRow({ job }: Props) {
           },
         });
         if (willCreateDirectory) {
-          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate
-          // する（.issue/299/adr.md ADR-003）。
+          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate する。
           await router.invalidate();
         }
+        notifyIngestionQueueChanged();
         await router.navigate({
           to: "/notes/$noteId",
           params: { noteId: result.noteId },
@@ -133,6 +136,7 @@ export function IngestionJobRow({ job }: Props) {
         setOptimisticDiscarded(true);
         await discard({ data: { jobId } });
         await routerInvalidate(router);
+        notifyIngestionQueueChanged();
         setConfirmDiscardOpen(false);
         setError(null);
       } catch (e) {
@@ -147,6 +151,7 @@ export function IngestionJobRow({ job }: Props) {
       try {
         await regenerate({ data: { jobId } });
         await routerInvalidate(router);
+        notifyIngestionQueueChanged();
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -160,6 +165,7 @@ export function IngestionJobRow({ job }: Props) {
       try {
         await ownerRetry({ data: { jobId } });
         await routerInvalidate(router);
+        notifyIngestionQueueChanged();
         setError(null);
       } catch (e) {
         setError(extractSerializedError(e));
@@ -224,6 +230,15 @@ export function IngestionJobRow({ job }: Props) {
             >
               <Icon icon={Check} />
               ノートとして保存
+            </button>
+            <button
+              type="button"
+              className={pillBtn}
+              onClick={() => setEditOpen(true)}
+              disabled={isPending}
+            >
+              <Icon icon={Pencil} />
+              編集
             </button>
             <button
               type="button"
@@ -293,6 +308,13 @@ export function IngestionJobRow({ job }: Props) {
           error={error}
           onRetry={lastAction ?? undefined}
           isRetrying={isPending}
+        />
+      ) : null}
+      {!optimisticDiscarded && job.status === "previewing" ? (
+        <IngestionJobEditDialog
+          job={job}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
         />
       ) : null}
       <ConfirmDialog
