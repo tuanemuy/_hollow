@@ -113,3 +113,34 @@ Accepted
 ### Consequences
 - 良い点: 不確実性を計画に明記し、実機ゲートで担保する（#670 が確立した検証文化を踏襲）。
 - トレードオフ: 実装に実機検証ステップが必須で、CI だけでは完結しない（focus 挙動は jsdom では忠実に再現できないため、ユニットテストは退避・復元ロジックの単体検証に留め、統合挙動は実機で見る）。
+
+---
+
+## ADR-004: 「直前まで focus を持っていた」フラグは focus イベントだけでなくコミット後の `activeElement` でも arm する
+
+### Status
+Accepted
+
+### Context
+実装当初、復元ゲートの「直前まで当該要素が focus を持っていた」フラグ（`hadFocusRef`）は、ユーザー操作イベント（`onFocus`/`onSelect`/`onKeyUp`/`onMouseUp`/`onInput` + `onBlur` 最終退避）でのみ arm する設計だった。実機ブラウザ検証（plan ステップ7）の異常系 E-1 で、この設計の穴が判明した:
+
+- `/_app/views` の inline rename `<input>` は `autoFocus` で開く。**`autoFocus` による DOM focus は React がイベントハンドラを配線する前に起きるため、React の合成 `onFocus` を発火させない**。
+- よって「rename を開いた直後・一度も操作せずに invalidate が重なる」と、どの capture イベントも走っておらず `hadFocusRef` が false のまま。復元 effect が早期 return し、focus が `<body>` に落ちたまま復元されない。
+- ADR-001 S-001 フォールバックの JSDoc は「`autoFocus`-opened field hit by an invalidate before any interaction → focus is restored（caret は触らない）」と focus 復元を想定していたが、実機ではその focus 復元自体がスキップされていた。
+
+なお happy-dom 上では programmatic `field.focus()` が React 合成 `onFocus` を発火させてしまうため、この穴はユニットテストでは再現せず、実機ゲートで初めて顕在化した（ADR-003 が実機検証を必須化した意義が実証された形）。
+
+### Decision
+復元 effect（毎コミット後・dep なし）の末尾で、`ref.current !== null && document.activeElement === ref.current` なら `hadFocusRef` を arm する処理を追加する。イベント駆動 capture は退避（selection スナップショット）のためにそのまま残し、**held-focus フラグの arm 経路だけをコミット後 `activeElement` 観測でも補う**。これにより:
+
+- `autoFocus` / 任意の programmatic focus で開いた要素も、マウントコミット後の effect で「いま focus を持っている」ことが検知され arm される。次の invalidate コミットで body に落ちれば復元される。
+- 復元で `el.focus()` した直後も `activeElement === el` になるため、連続 invalidate でフラグが立ち続ける。
+
+実機再検証で E-1 は PASS（focus 復元、caret は snapshot 未取得のため強制移動なし）、E-2（別要素へ移動時は復元しない）・通常ケース（focus/caret 保持）も回帰なしを確認。ユニットでは、selection 捕捉ハンドラを spread しない Probe で「snapshot=null だが post-commit `activeElement` 経路で arm → focus のみ復元、`setSelectionRange` 未呼出」を pin し、E-1 修正の回帰防御を成立させた。
+
+### Consequences
+- 良い点: `autoFocus` を含む全 focus 経路で復元が効く。ADR-001 S-001 の「snapshot 未取得時は focus のみ復元」仕様が実機でも成立する。
+- **レビュー Round 1 Frontend W-001 の扱い（受容リスクとして見送り）**: 「`hadFocusRef` が解除されないため、ユーザーが `<body>` へ意図的に blur した後、無関係な invalidate が偶然重なると focus を奪い返しうる」という指摘。見送りの主たる根拠は**実害の小ささ**にある。別要素へ focus を移したケースは `activeElement === body` ガードで既に復元が走らず（実機 E-2 PASS）、残るのは「`<body>` へ意図的 blur ＋ 直後に無関係 invalidate が偶然重なる」稀なケースのみで、実害も小さい（value は保持され、再クリックで継続可能、focus が編集対象に戻るだけ）。
+
+  代替案として `hadFocusRef` を `onBlur` で解除する（ユーザー blur 時に arm を落として復元を抑止する）案も考えられるが、確実とは言えない: RSC detach 由来の focus 落ちも `relatedTarget: null` の `focusout` を発生させる（ADR-001 / フック JSDoc 参照）ため、detach とユーザーの意図的 body blur を `onBlur` だけで分離できるかは未実測で、分離できない場合は本来復元したい detach ケースまで `onBlur` 解除で取りこぼすリスクがある。`useRovingMenu` は明示的な「編集継続中（menu open）」状態ゲートでこの種の区別を回避しているが、常時編集可能なフォーム入力には等価なゲートがない。完全な解決には ADR-001 選択肢1（描画構造見直し）が必要だが、発生条件の狭さと実害の小ささに見合わない。よって**このフックでは追加の解除ロジックを入れず、受容リスクとして記録し見送る**（必要が生じれば onBlur の relatedTarget 観測を実機で裏取りしてから判断する）。
+- トレードオフ: コミットごとに `activeElement` 比較が1回増えるが、参照比較のみでコストは無視できる。

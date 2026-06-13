@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRestoreFieldFocusOnCommit } from "../useRestoreFieldFocusOnCommit";
 
 /**
@@ -12,6 +12,14 @@ import { useRestoreFieldFocusOnCommit } from "../useRestoreFieldFocusOnCommit";
  * simulate it: a re-render is the "commit", and we set
  * `document.activeElement` to `<body>` by hand to stand in for the drop. The
  * integration behaviour is covered by the manual/browser gate (plan step 7).
+ *
+ * happy-dom note: a programmatic `field.focus()` DOES fire React's synthetic
+ * `onFocus` here (unlike a real browser's `autoFocus`, which focuses before
+ * React wires its handlers). So any Probe that spreads `{...handlers}` will
+ * have its `capture()` run on focus and a snapshot will exist. To exercise the
+ * snapshot-less fallback branch we use `ProbeNoHandlers`, which omits the
+ * selection-capturing handlers: focus still arms the "held focus" flag via the
+ * post-commit `activeElement === el` path, but no snapshot is ever taken.
  */
 
 (
@@ -28,6 +36,32 @@ function Probe({ tick, show = true }: { tick: number; show?: boolean }) {
       data-tick={tick}
       defaultValue="hello world"
       {...handlers}
+    />
+  );
+}
+
+/**
+ * Variant that spreads the field's `ref` but NOT the selection-capturing
+ * handlers. Used to drive the snapshot-less fallback: the field can hold focus
+ * (arming `hadFocusRef` from the post-commit `activeElement` path) while
+ * `snapshotRef` stays null because no `onFocus`/`onSelect`/… ever runs
+ * `capture()`. Pins the `if (snapshot !== null)` false branch.
+ */
+function ProbeNoHandlers({
+  tick,
+  show = true,
+}: {
+  tick: number;
+  show?: boolean;
+}) {
+  const { ref } = useRestoreFieldFocusOnCommit<HTMLInputElement>();
+  if (!show) return null;
+  return (
+    <input
+      ref={ref}
+      data-testid="field"
+      data-tick={tick}
+      defaultValue="hello world"
     />
   );
 }
@@ -61,6 +95,12 @@ function getField(): HTMLInputElement {
 function commit(tick: number, show = true) {
   act(() => {
     root.render(<Probe tick={tick} show={show} />);
+  });
+}
+
+function commitNoHandlers(tick: number, show = true) {
+  act(() => {
+    root.render(<ProbeNoHandlers tick={tick} show={show} />);
   });
 }
 
@@ -106,7 +146,7 @@ describe("useRestoreFieldFocusOnCommit", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("does nothing when the field is gone from the tree on the next commit", () => {
+  it("does nothing when the field is removed from the tree on the next commit (null guard)", () => {
     commit(0);
     const field = getField();
     field.focus();
@@ -114,51 +154,81 @@ describe("useRestoreFieldFocusOnCommit", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     expect(document.activeElement).toBe(document.body);
 
-    // The field is removed in the same commit that would restore it; the
-    // null/`isConnected` guards keep the restore pass from crashing.
+    // Rendering with show=false unmounts the input, so React nulls the ref:
+    // `ref.current` becomes null. This exercises the `el !== null` guard
+    // (NOT the `isConnected` guard — that one is pinned separately below).
     expect(() => commit(1, false)).not.toThrow();
     expect(container.querySelector("[data-testid='field']")).toBeNull();
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("restores focus only (no setSelectionRange) when no snapshot was captured", () => {
+  it("does nothing when the field stays mounted but is disconnected from the document (isConnected guard)", () => {
     commit(0);
     const field = getField();
-    // Focus without any selection-capturing event, then drop to body.
     field.focus();
-    field.setSelectionRange(3, 3, "none");
-    // hadFocus flag is set via onFocus capture, but snapshot reflects the
-    // focus-time caret. Move the real caret elsewhere to prove the restore
-    // does NOT force the snapshot when none was meaningfully captured.
+    field.dispatchEvent(new Event("select", { bubbles: true }));
     (document.activeElement as HTMLElement | null)?.blur();
     expect(document.activeElement).toBe(document.body);
-    commit(1);
 
-    // focus is restored; we only assert the element is focused (caret behaviour
-    // when a focus-time snapshot exists is exercised in the first test).
+    // Detach the whole React container from the document. The input stays
+    // mounted (React keeps tracking it, so `ref.current` is still the field —
+    // distinct from the null-guard case above), but `field.isConnected` is now
+    // false. The restore pass must short-circuit on the `el.isConnected` guard.
+    container.remove();
+    expect(field.isConnected).toBe(false);
+    const focusSpy = vi.spyOn(field, "focus");
+
+    expect(() => commit(1)).not.toThrow();
+    expect(focusSpy).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("restores focus only (never calls setSelectionRange) when no snapshot was captured", () => {
+    commitNoHandlers(0);
+    const field = getField();
+    // ProbeNoHandlers spreads no selection-capturing handlers, so focusing the
+    // field never runs `capture()` and `snapshotRef` stays null. The "held
+    // focus" flag is still armed from the post-commit `activeElement === el`
+    // path on the next commit.
+    field.focus();
+    const setSelectionSpy = vi.spyOn(field, "setSelectionRange");
+    commitNoHandlers(1);
+
+    // Drop to <body>, then commit: focus is restored via the activeElement-armed
+    // flag, but with no snapshot the caret is left untouched (setSelectionRange
+    // is never called — the fallback branch).
+    field.blur();
+    expect(document.activeElement).toBe(document.body);
+    commitNoHandlers(2);
+
     expect(document.activeElement).toBe(field);
+    expect(setSelectionSpy).not.toHaveBeenCalled();
   });
 
   it("restores an autoFocus-style field armed only from the post-commit activeElement", () => {
-    commit(0);
+    commitNoHandlers(0);
     const field = getField();
-    // Stand in for autoFocus: the field holds focus across a commit without any
-    // React onFocus / selection event ever firing (autoFocus focuses before
-    // React wires its synthetic handlers, so the event-driven captures miss it).
+    // Stand in for autoFocus: in a real browser autoFocus focuses before React
+    // wires its synthetic handlers, so no `onFocus` fires. ProbeNoHandlers
+    // reproduces that here — focusing fires no React handler that would arm the
+    // flag, so the flag can ONLY be armed from the post-commit `activeElement`
+    // path. This is the load-bearing path fixed for browser gate E-1.
     field.focus();
-    commit(1);
+    const setSelectionSpy = vi.spyOn(field, "setSelectionRange");
+    commitNoHandlers(1);
 
     // invalidate-style drop to <body>.
     field.blur();
     expect(document.activeElement).toBe(document.body);
-    commit(2);
+    commitNoHandlers(2);
 
-    // focus is restored from the activeElement-armed flag (no snapshot was
-    // captured, so the caret is left to the browser default — not force-jumped).
+    // focus is restored purely from the activeElement-armed flag; no snapshot was
+    // captured, so setSelectionRange is never called (caret left to the browser).
     expect(document.activeElement).toBe(field);
+    expect(setSelectionSpy).not.toHaveBeenCalled();
   });
 
-  it("does not restore while an IME composition is in progress", () => {
+  it("suppresses restore during an IME composition and resumes after compositionend", () => {
     commit(0);
     const field = getField();
     field.focus();
@@ -170,12 +240,27 @@ describe("useRestoreFieldFocusOnCommit", () => {
       );
     });
 
+    // During composition the restore is suppressed: focus stays on <body>.
     (document.activeElement as HTMLElement | null)?.blur();
     expect(document.activeElement).toBe(document.body);
     commit(1);
-
-    // composition guard suppresses restore
     expect(document.activeElement).toBe(document.body);
+
+    // compositionend clears the guard and re-captures the snapshot; the next
+    // commit resumes the restore and re-applies the caret. Guards against a
+    // `composingRef` that is never cleared (which would suppress forever).
+    act(() => {
+      field.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+    });
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    commit(2);
+
+    expect(document.activeElement).toBe(field);
+    expect(field.selectionStart).toBe(1);
+    expect(field.selectionEnd).toBe(4);
   });
 
   it("does not restore on window-blur-like state where the field stays activeElement", () => {
