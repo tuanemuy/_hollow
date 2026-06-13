@@ -15,9 +15,9 @@ import {
  * `initial*` props exactly once, on first mount. A loader re-run that
  * delivers fresh props to the SAME component instance must NOT reset
  * in-progress edits. This guards against a future regression where a
- * `useEffect` props-resync sneaks in; it does NOT (and cannot) cover the
- * raw `router.invalidate()` path where the RSC tree swap remounts the
- * editor — see `.issue/669/adr.md` ADR-003 (known residual gap).
+ * `useEffect` props-resync sneaks in; it does NOT (and cannot) cover a
+ * raw `router.invalidate()` path that remounts the editor — see
+ * `.issue/669/adr.md` ADR-003 (known residual gap, corrected by TC-009).
  */
 
 (
