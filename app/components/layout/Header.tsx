@@ -52,10 +52,10 @@ export function Header() {
             mobile header carries search + both CTAs without a bottom CTA bar
             (#628 ADR-001 supersedes #588). The user menu now lives in the
             sidebar foot (#628 ADR-003). */}
+        {/* The accessible name (incl. the unprocessed-job count) is owned by
+            UploadButton itself — see IngestionQueueBadge. */}
         <UploadButton
           className={`${pillBtn} ${pillBtnPrimary} ${HEADER_CTA_COLLAPSE}`}
-          data-primary=""
-          aria-label="アップロード"
         >
           <Icon icon={Upload} />
           <span className="max-sm:hidden">アップロード</span>

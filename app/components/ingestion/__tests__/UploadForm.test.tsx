@@ -30,6 +30,11 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate: invalidateMock }),
 }));
 
+const notifyMock = vi.fn();
+vi.mock("../queueBadgeBus", () => ({
+  notifyIngestionQueueChanged: notifyMock,
+}));
+
 const { UploadForm, validateUploadFiles } = await import("../UploadForm");
 
 let container: HTMLDivElement;
@@ -38,6 +43,7 @@ let root: Root;
 beforeEach(() => {
   uploadMock.mockReset();
   invalidateMock.mockClear();
+  notifyMock.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -192,6 +198,37 @@ describe("UploadForm client validation", () => {
     expect(uploadMock).toHaveBeenCalledTimes(1);
     const sentFormData = uploadMock.mock.calls[0]?.[0]?.data as FormData;
     expect((sentFormData.get("file") as File).name).toBe("ok.md");
+  });
+
+  // Issue #538: the /upload page's own upload path is independent of the
+  // modal, so it must announce the queue change itself for the header badge.
+  it("notifies the queue badge bus after a successful upload", async () => {
+    uploadMock.mockResolvedValue({ jobId: "j1" });
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("photo.png", "image/png", 1 * MB),
+      ]);
+    });
+    await flush();
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify the queue badge bus when the upload fails", async () => {
+    uploadMock.mockRejectedValue(new Error("boom"));
+    act(() => {
+      root.render(<UploadForm />);
+    });
+    act(() => {
+      dispatchFile(findFileInput(), [
+        makeFile("photo.png", "image/png", 1 * MB),
+      ]);
+    });
+    await flush();
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   // Issue #221: a server-side error (for inputs that pass the client guard)

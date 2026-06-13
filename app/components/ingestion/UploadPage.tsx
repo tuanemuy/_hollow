@@ -25,7 +25,7 @@ export function UploadPage({ user, includeDiscarded }: Props) {
     <>
       <h1 className={PAGE_TITLE}>アップロード</h1>
       <p className={PAGE_SUBTITLE}>
-        裏で進行中・失敗・プレビュー保留のアップロードを管理する画面です。新規取り込みはヘッダーの「アップロード」ボタンから開くモーダルで完結します。
+        アップロードはキューに積むだけで完了します。タイトルやタグの編集・ノートとしての保存・失敗の再試行は、この画面のキューから行います。
       </p>
 
       <UploadForm />

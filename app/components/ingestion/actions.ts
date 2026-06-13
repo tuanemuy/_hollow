@@ -159,6 +159,22 @@ export const getEffectiveIngestionPromptsFn = createServerFn({ method: "GET" })
     };
   });
 
+// Read-only GET, no transport input (same input-less GET pattern as
+// `getEffectiveIngestionPromptsFn`). Feeds the header queue badge.
+export const getIngestionQueueCountFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .handler(async (): Promise<{ count: number }> => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/ingestion/countActiveIngestionJobs"),
+    );
+    const result = await module.countActiveIngestionJobs({
+      container,
+      input: { actorUserId: user.id },
+    });
+    return { count: result.count };
+  });
+
 export const getIngestionJobFn = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(getIngestionJobSchema))

@@ -40,6 +40,18 @@ vi.mock("../actions", () => ({
   ownerRetryIngestionJobFn: ownerRetryMock,
 }));
 
+const notifyMock = vi.fn();
+vi.mock("../queueBadgeBus", () => ({
+  notifyIngestionQueueChanged: notifyMock,
+}));
+
+// The edit dialog has its own test file (IngestionJobEditDialog.test.tsx);
+// here a marker stub keeps the row tests free of its server-fn wiring.
+vi.mock("../IngestionJobEditDialog", () => ({
+  IngestionJobEditDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="edit-dialog-stub" /> : null,
+}));
+
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);
 const routerNavigate = vi.fn().mockResolvedValue(undefined);
 vi.mock("@tanstack/react-router", () => ({
@@ -113,6 +125,7 @@ beforeEach(() => {
   ownerRetryMock.mockReset();
   routerInvalidate.mockClear();
   routerNavigate.mockClear();
+  notifyMock.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -141,6 +154,71 @@ async function renderRow(job: IngestionJobWire) {
 }
 
 describe("IngestionJobRow", () => {
+  // Issue #538: previewing rows expose an 編集 action that opens the
+  // queue-side edit dialog (row-local state).
+  it("shows the 編集 button on a previewing row and opens the edit dialog", async () => {
+    await renderRow(previewingJobExistingDir);
+
+    const editBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "編集");
+    expect(editBtn).toBeDefined();
+    expect(
+      document.body.querySelector('[data-testid="edit-dialog-stub"]'),
+    ).toBeNull();
+
+    await act(async () => {
+      editBtn?.click();
+    });
+    expect(
+      document.body.querySelector('[data-testid="edit-dialog-stub"]'),
+    ).not.toBeNull();
+  });
+
+  it("does not show the 編集 button on failed / discarded rows", async () => {
+    await renderRow(failedJob);
+    expect(
+      Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>("button"),
+      ).some((b) => (b.textContent ?? "").trim() === "編集"),
+    ).toBe(false);
+
+    await renderRow(discardedJob);
+    expect(
+      Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>("button"),
+      ).some((b) => (b.textContent ?? "").trim() === "編集"),
+    ).toBe(false);
+  });
+
+  // Issue #538: successful mutations announce the queue change so the
+  // header badge refreshes.
+  it("notifies the queue badge bus after a successful commit", async () => {
+    commitMock.mockResolvedValue({ noteId: "note-1" });
+    await renderRow(previewingJobExistingDir);
+    await act(async () => {
+      getSaveButton().click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify the queue badge bus when commit fails", async () => {
+    commitMock.mockRejectedValue(new Error("commit failed"));
+    await renderRow(previewingJobExistingDir);
+    await act(async () => {
+      getSaveButton().click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
   // commit パスは preview の suggested 値を server function に転送し、
   // 新規ディレクトリ作成時のみ 生 router.invalidate を呼ぶ regression guard。
   it("forwards suggestedDirectoryId as directoryId and does NOT call router.invalidate", async () => {
