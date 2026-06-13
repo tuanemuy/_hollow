@@ -405,11 +405,10 @@
   /*
    * GFM tables (Issue #693). markdown-it (default preset) emits
    * `table/thead/tbody/tr/th/td` and the sanitizer allows them, but no rule
-   * styled them — so cells rendered with no rules at all. Borders use
-   * `--color-hairline` to match the admin table design language (P47).
-   * No outer radius: with `border-collapse: collapse` a wrapper-less table
-   * can't clip collapsed cell borders cleanly, and the dangerouslySetInnerHTML
-   * body offers no element to wrap for that (or for horizontal scroll).
+   * styled them. The visual treatment follows the adopted Apple Calm note-body
+   * mock (draft-4): horizontal rules only — no full cell grid, no header fill.
+   * "GitHub Markdown 互換" in the design spec means feature/semantic parity,
+   * not GitHub's full-grid table chrome; the body's visual SSOT is Apple Calm.
    */
   .note-detail-content table {
     width: 100%;
@@ -420,14 +419,14 @@
   .note-detail-content th,
   .note-detail-content td {
     padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--color-hairline);
+    border-bottom: 1px solid var(--color-hairline);
     text-align: left;
     vertical-align: top;
   }
 
   .note-detail-content thead th {
-    background: var(--color-surface-elevated);
-    color: var(--color-ink-secondary);
-    font-weight: var(--weight-medium);
+    font-weight: var(--weight-semibold);
+    color: var(--color-ink);
+    border-bottom: 1px solid var(--color-hairline-strong);
   }
 }

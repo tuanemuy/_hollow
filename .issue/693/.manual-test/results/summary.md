@@ -31,16 +31,25 @@ GFMテーブルを変換すると、CSSが対象とする構造そのものが�
 
 ### 2. ブラウザ computed style 実測（agent-browser）
 管理者セッションを cookie 注入で確立し、実ノート閲覧画面の本物の
-`.note-detail-content` コンテナ内に上記テーブル構造を置いて computed style を実測:
+`.note-detail-content` コンテナ内に上記テーブル構造を置いて computed style を実測。
+
+**採用デザイン Apple Calm（draft-4）流の最終スタイルでの実測値:**
 
 | 対象 | プロパティ | 実測値 | 判定 |
 |------|-----------|--------|------|
-| `td` | border-top-width / color | 1px / rgba(60,60,67,0.12)（=--color-hairline） | AC-1 PASS |
-| `table th` | border-top-width | 1px | AC-1 PASS |
-| `thead th` | background-color / font-weight | rgb(251,251,253)（=#fbfbfd, --color-surface-elevated）/ 500 | AC-2 PASS |
-| `table` | border-collapse | collapse | - |
+| `td` | border-bottom-width / color | 1px / rgba(60,60,67,0.12)（=--color-hairline） | AC-1 PASS |
+| `td` | border-top/left/right-width | すべて 0px（全周ボーダーなし） | AC-4 PASS |
+| `thead th` | background-color | rgba(0,0,0,0)（透明・ヘッダ背景なし） | AC-2/4 PASS |
+| `thead th` | font-weight | 600（=--weight-semibold） | AC-2 PASS |
+| `thead th` | border-bottom-width / color | 1px / rgba(60,60,67,0.18)（=--color-hairline-strong） | AC-2 PASS |
+| `table` | border-collapse / width | collapse / 760px | - |
 
 レイアウト崩れは観測されず。
+
+**設計判断の経緯:** 初回は admin テーブル（P47）流の「全周ボーダー＋ヘッダ背景グレー」で
+実装したが、これは GitHub の全周グリッド風で採用デザインと不整合だった。ノート本文の
+ビジュアル SSOT は採用デザイン Apple Calm（draft-4）であり、「横罫線のみ・ヘッダ背景なし・
+太字」が正。ADR-001 参照。
 
 ## 受け入れ基準の結果
 
