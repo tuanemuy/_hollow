@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DirectoryTreeNode } from "@/core/application/directory/view";
 import {
+  directoryAncestorSegments,
   excludeSubtree,
+  type FlatDirectory,
   flattenDirectoryTree,
   getDescendantIds,
 } from "../directoryTree";
@@ -148,5 +150,54 @@ describe("flattenDirectoryTree / getDescendantIds across a forest", () => {
   it("resolves ids under the second root (no early break before reaching it)", () => {
     expect(getDescendantIds(forest, "b")).toEqual(new Set(["b", "b1"]));
     expect(getDescendantIds(forest, "b1")).toEqual(new Set(["b1"]));
+  });
+});
+
+describe("directoryAncestorSegments", () => {
+  it("reconstructs root→leaf segments and drops the implicit root", () => {
+    const flat = flattenDirectoryTree(tree);
+    expect(directoryAncestorSegments(flat, "y2024")).toEqual([
+      { id: "work", name: "Work" },
+      { id: "y2024", name: "2024" },
+    ]);
+  });
+
+  it("returns a single segment for a directory directly under root", () => {
+    const flat = flattenDirectoryTree(tree);
+    expect(directoryAncestorSegments(flat, "work")).toEqual([
+      { id: "work", name: "Work" },
+    ]);
+  });
+
+  it("returns an empty array when the directory is the root itself", () => {
+    const flat = flattenDirectoryTree(tree);
+    expect(directoryAncestorSegments(flat, "root")).toEqual([]);
+  });
+
+  it("returns an empty array when the id is absent from the tree", () => {
+    const flat = flattenDirectoryTree(tree);
+    expect(directoryAncestorSegments(flat, "missing")).toEqual([]);
+  });
+
+  it("stops without looping on a cyclic parentId chain", () => {
+    // a → b → a forms a cycle; the visited set must break the walk.
+    const cyclic: FlatDirectory[] = [
+      { id: "a", parentId: "b", name: "A", depth: 0, path: "/A" },
+      { id: "b", parentId: "a", name: "B", depth: 0, path: "/B" },
+    ];
+    expect(directoryAncestorSegments(cyclic, "a")).toEqual([
+      { id: "b", name: "B" },
+      { id: "a", name: "A" },
+    ]);
+  });
+
+  it("stops when an ancestor is missing from the tree", () => {
+    // c's parent "gone" is not present — the walk halts after c.
+    const broken: FlatDirectory[] = [
+      { id: "c", parentId: "gone", name: "C", depth: 2, path: "/C" },
+    ];
+    expect(directoryAncestorSegments(broken, "c")).toEqual([
+      { id: "c", name: "C" },
+    ]);
   });
 });

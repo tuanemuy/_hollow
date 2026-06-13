@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const routerNavigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ navigate: routerNavigate }),
+  // DirectoryBreadcrumb renders <Link to="/" search={{ directoryId }}>. Render
+  // it as an anchor carrying the search payload on a data-attr so tests can
+  // assert each segment's directoryId scope.
+  Link: ({
+    children,
+    search,
+    className,
+  }: {
+    children: ReactNode;
+    search?: { directoryId?: string };
+    className?: string;
+  }) => (
+    <a
+      href="/"
+      className={className}
+      data-directory-id={search?.directoryId ?? ""}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("../NotePickerDialog", () => ({ NotePickerDialog: () => null }));
@@ -99,6 +119,28 @@ function renderBarWith({ visibility, from, to }: BarProps = {}) {
         to={to}
         visibility={visibility}
         directoryId={undefined}
+        referencingNoteId={undefined}
+      />,
+    );
+  });
+}
+
+type Segment = { id: string; name: string };
+
+function renderBarDirectory(
+  directoryId: string | undefined,
+  directorySegments?: readonly Segment[],
+) {
+  act(() => {
+    root.render(
+      <FilterBar
+        tags={[]}
+        selectedTagNames={[]}
+        from={undefined}
+        to={undefined}
+        visibility={undefined}
+        directoryId={directoryId}
+        {...(directorySegments !== undefined ? { directorySegments } : {})}
         referencingNoteId={undefined}
       />,
     );
@@ -656,5 +698,73 @@ describe("FilterBar — + タグ TagPicker", () => {
     openPicker();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(listbox()).not.toBeNull();
+  });
+});
+
+/**
+ * Issue #710: the active directory renders as a breadcrumb (current location)
+ * on its own nav row, not as a filter chip. When the id cannot be resolved to
+ * segments a generic fallback chip is shown instead of an empty nav.
+ */
+describe("FilterBar — directory breadcrumb (Issue #710)", () => {
+  const breadcrumb = () =>
+    container.querySelector<HTMLElement>(
+      'nav[aria-label="現在のディレクトリ"]',
+    );
+  const segmentLinks = () =>
+    Array.from(breadcrumb()?.querySelectorAll<HTMLAnchorElement>("a") ?? []);
+  const clearDirBtn = () =>
+    container.querySelector<HTMLButtonElement>(
+      'button[aria-label="ディレクトリフィルタを解除"]',
+    );
+
+  it("renders a breadcrumb nav with one directoryId-scoped link per segment", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d2", [
+      { id: "d1", name: "Documents" },
+      { id: "d2", name: "Research" },
+    ]);
+    expect(breadcrumb()).not.toBeNull();
+    const links = segmentLinks();
+    expect(links.map((a) => a.textContent)).toEqual(["Documents", "Research"]);
+    expect(links.map((a) => a.getAttribute("data-directory-id"))).toEqual([
+      "d1",
+      "d2",
+    ]);
+  });
+
+  it("is hidden when the optimistic directory id is undefined", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory(undefined, undefined);
+    expect(breadcrumb()).toBeNull();
+    expect(clearDirBtn()).toBeNull();
+  });
+
+  it("shows the fallback chip (no nav) when the id resolves to no segments", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d-deleted", []);
+    expect(breadcrumb()).toBeNull();
+    const fallback = clearDirBtn();
+    expect(fallback).not.toBeNull();
+    expect(fallback?.parentElement?.textContent).toContain("ディレクトリ");
+  });
+
+  it("navigates to clear the directory when the trailing × is clicked", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d2", [
+      { id: "d1", name: "Documents" },
+      { id: "d2", name: "Research" },
+    ]);
+    await act(async () => {
+      clearDirBtn()?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const updater = (
+      routerNavigate.mock.calls[0][0] as {
+        search: (prev: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).search;
+    expect(updater({ directoryId: "d2" }).directoryId).toBeUndefined();
   });
 });
