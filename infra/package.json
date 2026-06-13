@@ -14,8 +14,8 @@
     "render:production": "tsx scripts/renderWrangler.ts production",
     "check-secrets:staging": "tsx scripts/checkSecrets.ts staging",
     "check-secrets:production": "tsx scripts/checkSecrets.ts production",
-    "secrets:edit:staging": "sops infra/secrets/staging.enc.json",
-    "secrets:edit:production": "sops infra/secrets/production.enc.json"
+    "secrets:edit:staging": "sops secrets/staging.enc.json",
+    "secrets:edit:production": "sops secrets/production.enc.json"
   },
   "dependencies": {
     "@pulumi/cloudflare": "^6.15.0",
