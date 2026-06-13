@@ -3,9 +3,11 @@
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { Calendar, LayoutGrid, List, type LucideIcon } from "lucide-react";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
+import { writeDisplayPreference } from "./displayPreference";
 import { homeSearchUpdater } from "./homeSearch";
-import { selectDisplay } from "./listSelectors";
+import { selectDisplayRaw } from "./listSelectors";
 import { DISPLAY_SEGMENTED, DISPLAY_SEGMENTED_BTN } from "./styles";
+import { useEffectiveDisplayMode } from "./useEffectiveDisplayMode";
 
 // アイコンのみ表示（#626 ADR-001）のため `aria-label` / `title` 用のラベル。
 const LABELS: Record<DisplayMode, string> = {
@@ -36,10 +38,23 @@ const homeRoute = getRouteApi("/_app/");
  */
 export function DisplayModeSwitch() {
   const router = useRouter();
-  const current = homeRoute.useSearch({ select: selectDisplay });
+  // Two distinct concerns, deliberately split (Issue #650 ADR-005):
+  // - `urlDisplay` (raw URL value) drives the navigate / write guard: we
+  //   only touch the URL when it actually needs to change.
+  // - `current` (effective mode) drives the segmented active state so it
+  //   matches what `NoteListViews` renders, including the persisted-value
+  //   overlay when the URL carries no `display`.
+  const urlDisplay = homeRoute.useSearch({ select: selectDisplayRaw });
+  const current = useEffectiveDisplayMode();
 
   const select = (mode: DisplayMode) => {
-    if (mode === current) return;
+    // Guard on the raw URL value, not the effective mode: with no
+    // `?display=` but a persisted `calendar`, the effective mode is
+    // `calendar`, yet the URL still needs a real navigate to pin the
+    // choice. Guarding on the effective mode would early-return and leave
+    // the URL out of sync (ADR-005).
+    writeDisplayPreference(mode);
+    if (mode === urlDisplay) return;
     router.navigate({
       to: "/",
       replace: true,

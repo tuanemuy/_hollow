@@ -40,6 +40,21 @@ export const selectDisplay = (s: {
 }): DisplayMode => s.display ?? "list";
 
 /**
+ * `useSearch({ select })` helper returning the RAW URL display value
+ * (`undefined` when `?display=` is absent), without the `?? "list"`
+ * fallback that `selectDisplay` applies.
+ *
+ * Needed by `useEffectiveDisplayMode` (Issue #650): the persisted-value
+ * overlay must distinguish "URL has an explicit display" from "URL has
+ * none" before collapsing to the default, so it cannot use the already
+ * defaulted `selectDisplay`. Kept a plain value return so `useSearch`'s
+ * referential-equality check stays stable.
+ */
+export const selectDisplayRaw = (s: {
+  display?: DisplayMode | undefined;
+}): DisplayMode | undefined => s.display;
+
+/**
  * Pure predicate for the home-route SavedView URL normalisation
  * (Issue #219 ADR-002). The handler should redirect to `/` with
  * `display = view.displayMode` only when all three conditions hold:

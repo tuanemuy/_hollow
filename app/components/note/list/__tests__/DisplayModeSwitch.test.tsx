@@ -19,6 +19,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * The click handler synchronously invokes `router.navigate`, so the
  * test observes the call inside the same `act` tick as the click —
  * no `useTransition` indirection to wait on.
+ *
+ * Issue #650: select now also writes the chosen mode to localStorage
+ * (`hollow3:noteList:display`). `useEffectiveDisplayMode` runs as real
+ * code here; the navigate guard is driven by the raw URL value while the
+ * active-tab state is driven by the effective mode, so the two concerns
+ * are exercised separately (ADR-005). localStorage is the real happy-dom
+ * store, cleared between tests.
  */
 
 (
@@ -26,7 +33,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const navigateMock = vi.fn().mockResolvedValue(undefined);
-let currentDisplay: "list" | "tile" | "calendar" = "list";
+let currentDisplay: "list" | "tile" | "calendar" | undefined = "list";
 
 vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ navigate: navigateMock }),
@@ -44,9 +51,12 @@ const { DisplayModeSwitch } = await import("../DisplayModeSwitch");
 let container: HTMLDivElement;
 let root: Root;
 
+const DISPLAY_KEY = "hollow3:noteList:display";
+
 beforeEach(() => {
   navigateMock.mockClear();
   currentDisplay = "list";
+  window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -128,7 +138,7 @@ describe("DisplayModeSwitch", () => {
     expect(next).toEqual({ page: 1, limit: 30, q: "hello", display: "tile" });
   });
 
-  it("does not navigate when the clicked mode equals the current mode", () => {
+  it("does not navigate when the clicked mode equals the URL display value", () => {
     currentDisplay = "tile";
     act(() => {
       root.render(<DisplayModeSwitch />);
@@ -139,6 +149,36 @@ describe("DisplayModeSwitch", () => {
     });
 
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("writes the selected mode to localStorage on select (Issue #650 AC-1)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    act(() => {
+      tabByLabel("カレンダー").click();
+    });
+
+    expect(window.localStorage.getItem(DISPLAY_KEY)).toBe("calendar");
+  });
+
+  it("navigates when the URL has no display even if a persisted value matches the click (Issue #650 ADR-005)", () => {
+    // URL has no `?display=` (raw value undefined) but localStorage holds
+    // `calendar`. Clicking calendar must still navigate to pin the choice
+    // on the URL — the guard is on the raw URL value, not the effective
+    // (persisted) mode.
+    currentDisplay = undefined;
+    window.localStorage.setItem(DISPLAY_KEY, "calendar");
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    act(() => {
+      tabByLabel("カレンダー").click();
+    });
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the calendar mode through the search function (Issue #215)", () => {
