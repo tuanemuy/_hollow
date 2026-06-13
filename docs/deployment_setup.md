@@ -8,14 +8,38 @@
 
 ### production
 
-```sh
-pnpm version patch     # または minor / major
-git push --follow-tags
-```
+リリースは release-please による自動バージョニングで運用する。手動の `pnpm version` + タグ push は廃止。
 
-タグ push → GitHub UI で承認待ち → `Actions → Deploy (production) → Review deployments → Approve`。
+1. `feat:` / `fix:` 等の conventional commit を含む PR を `main` に **squash merge**。
+2. release-please が常時1本のリリース PR（version bump + CHANGELOG）を自動作成・更新する。
+3. リリース PR をマージ → release-please が `vX.Y.Z` タグ + GitHub Release を自動生成する。
+4. タグ push を契機に `Deploy (production)` が起動し、`production` Environment の承認待ちになる。
+5. GitHub UI で承認 → デプロイ実行（`Actions → Deploy (production) → Review deployments → Approve`）。
+
+GitHub Release / リリースノートの生成元は release-please に一本化されている（deploy ワークフローは Release を作らない）。
+
+### リポジトリ設定の前提
+
+release-please フローを成立させるため、リポジトリ側に以下の設定が必要（コード変更だけでは完結しない operator 作業）。
+
+- **`RELEASE_PLEASE_TOKEN`（PAT）を secret 登録**（最重要）。`GITHUB_TOKEN` で作成したタグは `Deploy (production)` を起動しないのが GitHub の確定仕様のため、release-please が PAT 名義でタグを push する必要がある。classic PAT なら `repo` scope のみ、fine-grained PAT なら contents: write / pull-requests: write のみで十分（release-please は version bump / CHANGELOG の PR 作成・タグ push・Release 作成しか行わず、`.github/workflows/` 配下を改変しないため `workflow` / `workflows` 権限は不要）。未登録だとリリース PR / タグが作られない、またはタグが deploy を起動しない。
+- **merge button は squash merge のみ有効**（merge commit / rebase は無効化）。さらに squash の "Default commit message" を "Pull request title" に設定し、1 PR = 1 conventional commit を担保する（この設定がないと PR 内の中間コミット由来のメッセージが混ざり release-please の解析が乱れる）。
+- **ブランチ保護**（`main` は PR 必須）と release-please は両立する。
+- **production Environment の deployment branch policy が `v*.*.*`** であること（release-please が生成するタグ形式に一致させる）。
+
+release-please は上記 PAT 名義で動くため、`GITHUB_TOKEN` の権限設定（リポジトリ / Organization のデフォルト workflow permissions）は release-please の動作には影響しない。`release-please.yml` 内の `permissions:` ブロックは慣例として最小権限を明示しているだけで、operator が別途設定する必要はない。
+
+### トラブルシュート
+
+`RELEASE_PLEASE_TOKEN`（PAT）が失効・未更新だと、「リリース PR が作られない／更新されない」または「リリース PR はマージできるがタグ push が `Deploy (production)` を起動しない」という症状が現れる。リリースが進まないときはまず PAT の有効期限と scope を確認する。
 
 ### ロールバック
+
+ロールバックは次の優先順で行う。
+
+1. **Cloudflare ダッシュボード**（第一手段）→ 該当 Worker → `Deployments` → 過去版を `Rollback`。
+2. **revert PR を `main` に squash merge**。release-please が通常フローで新バージョンのリリース PR を出すので、manifest と齟齬なく復旧できる。
+3. **手動タグ push**（緊急時の最終手段。バージョンは例）。
 
 ```sh
 git checkout v0.1.0
@@ -23,7 +47,8 @@ git tag v0.1.2
 git push origin v0.1.2
 ```
 
-または Cloudflare ダッシュボード → 該当 Worker → `Deployments` → 過去版を `Rollback`。
+> [!WARNING]
+> 手動タグ push は release-please の管理外。release-please は `.release-please-manifest.json` で次バージョンを管理するため、手動タグを打つと release-please が認識する最新バージョンと実タグがズレ、次回のバージョン計算が狂う（さらに PAT 名義でないタグが混在する）。どうしても手動タグを打った場合は、`.release-please-manifest.json` と `package.json` の version を手動タグに合わせて整合させること。
 
 ---
 
