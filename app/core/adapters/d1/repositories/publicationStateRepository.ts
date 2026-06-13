@@ -344,6 +344,26 @@ export class D1PublicationStateRepository
     };
   }
 
+  countPublicByOwner(ownerId: UserId): Promise<number> {
+    return mapDbError("Failed to count public publication_states", async () => {
+      // Same `active`-note population and WHERE as `listSortedAll`'s count
+      // so the hero count and the listing total stay consistent.
+      const countRows = await this.db
+        .select({ value: count() })
+        .from(publicationStates)
+        .innerJoin(notes, eq(notes.id, publicationStates.noteId))
+        .where(
+          and(
+            eq(publicationStates.ownerId, ownerId),
+            eq(publicationStates.visibility, "public"),
+            isNotNull(publicationStates.publishedAt),
+            eq(notes.status, "active"),
+          ),
+        );
+      return Number(countRows[0]?.value ?? 0);
+    });
+  }
+
   listPublicNoteIdsByOwnerInRange(
     ownerId: UserId,
     publishedRange: DateRange,

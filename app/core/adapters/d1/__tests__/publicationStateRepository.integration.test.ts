@@ -392,3 +392,187 @@ describe("D1PublicationStateRepository.listPublicNoteIdsByOwnerSorted (integrati
     expect(result.noteIds).toEqual([]);
   });
 });
+
+/**
+ * Integration tests for `D1PublicationStateRepository.countPublicByOwner`
+ * (Issue #612). The hero `publicNoteCount` counts over the same `active`-note
+ * population as the listing total, so trashed-but-public (relay-lag) rows,
+ * published_at-NULL rows, and non-public visibilities are excluded, and the
+ * count agrees with `listPublicNoteIdsByOwnerSorted`'s total.
+ */
+describe("D1PublicationStateRepository.countPublicByOwner (integration, #612)", () => {
+  it("counts active + public + published_at rows", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-02-01T00:00:00.000Z",
+    });
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-03-01T00:00:00.000Z",
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(3);
+  });
+
+  it("excludes a trashed-but-public row (relay-lag, AC-1)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-trash");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    // Relay-lag row: visibility still public, published_at present, note trashed.
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-02-01T00:00:00.000Z",
+      status: "trashed",
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(1);
+  });
+
+  it("excludes an active row whose published_at is NULL", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-null");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    // Active + public but published_at NULL: excluded by the NOT NULL condition.
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: null,
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(1);
+  });
+
+  it("excludes private / unlisted rows", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-vis");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    await seedNote(container, owner, dir, {
+      visibility: "private",
+      publishedAt: null,
+    });
+    await seedNote(container, owner, dir, {
+      visibility: "unlisted",
+      publishedAt: null,
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(1);
+  });
+
+  it("returns 0 when the owner has no public notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-zero");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "private",
+      publishedAt: null,
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(0);
+  });
+
+  it("does not count another owner's public notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-self");
+    const other = await seedUser(container, "owner-count-other");
+    const ownerDir = await seedDirectory(container, owner);
+    const otherDir = await seedDirectory(container, other);
+
+    await seedNote(container, owner, ownerDir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    await seedNote(container, other, otherDir, {
+      visibility: "public",
+      publishedAt: "2024-02-01T00:00:00.000Z",
+    });
+    await seedNote(container, other, otherDir, {
+      visibility: "public",
+      publishedAt: "2024-03-01T00:00:00.000Z",
+    });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) =>
+        publicationStateRepository.countPublicByOwner(owner),
+    );
+    expect(result).toBe(1);
+  });
+
+  it("agrees with the listing total under a trashed-but-public row (AC-2)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "owner-count-parity");
+    const dir = await seedDirectory(container, owner);
+
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-01-01T00:00:00.000Z",
+    });
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-02-01T00:00:00.000Z",
+    });
+    // Trashed-but-public must drop out of both the count and the listing total.
+    await seedNote(container, owner, dir, {
+      visibility: "public",
+      publishedAt: "2024-03-01T00:00:00.000Z",
+      status: "trashed",
+    });
+
+    const { count, listingTotal } = await container.unitOfWorkProvider.run(
+      async ({ publicationStateRepository }) => {
+        const count =
+          await publicationStateRepository.countPublicByOwner(owner);
+        const listing =
+          await publicationStateRepository.listPublicNoteIdsByOwnerSorted(
+            owner,
+            { order: "desc", limit: 1000, offset: 0 },
+          );
+        return { count, listingTotal: listing.total };
+      },
+    );
+    expect(count).toBe(2);
+    expect(count).toBe(listingTotal);
+  });
+});

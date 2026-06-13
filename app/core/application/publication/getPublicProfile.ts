@@ -18,9 +18,10 @@ export type GetPublicProfileOutput = Readonly<{
  *
  * The lookup is rejected for deleted / suspended users so the public
  * surface treats them as "no such author". `publicNoteCount` is sourced
- * from `PublicationStateRepository.findPublicByOwner` and is the simple
- * cardinality of public notes — the catalogue size that the public page
- * surfaces in the hero header.
+ * from `PublicationStateRepository.countPublicByOwner`, which counts over
+ * the `active`-note population (excluding the trash → relay lag's
+ * trashed-but-public rows) with no `limit`, so the hero count stays
+ * consistent with the page's listing total.
  */
 export async function getPublicProfile({
   container,
@@ -36,13 +37,11 @@ export async function getPublicProfile({
       if (user.status === "deleted" || user.status === "suspended") {
         throw new NotFoundError("user", `User not available: ${username}`);
       }
-      const publicNotes = await publicationStateRepository.findPublicByOwner(
-        user.id,
-        { limit: 1000 },
-      );
+      const publicNoteCount =
+        await publicationStateRepository.countPublicByOwner(user.id);
       return {
         user: toUserDTO(user),
-        publicNoteCount: publicNotes.length,
+        publicNoteCount,
       };
     },
   );
