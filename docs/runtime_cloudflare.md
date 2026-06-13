@@ -227,6 +227,26 @@ When the consumer's note.* / publication.* dispatch routing changes (or any othe
 
 The reverse ordering is not destructive (indexer deployed late just means a brief delay; rows are picked up on its next cron tick), but the explicit order matches the "producer-then-consumer-then-app" recovery flow and avoids surprising the operator.
 
+### First-deploy custom-domain bootstrap (Issue #700)
+
+`Pulumi up` binds the `WorkersCustomDomain` (`infra/src/dns.ts`) to the web Worker, but it runs **before** `Deploy Workers` creates that Worker. On a brand-new environment the bind 404s with `code 10007 "This Worker does not exist on your account."`, and because the pipeline aborts at `Pulumi up`, the Worker is never created — so a plain re-run fails identically.
+
+The `hollow:manageCustomDomain` Pulumi config (default `true`) gates the binding. Bootstrap a fresh environment once:
+
+1. Set the flag off so Pulumi skips the custom domain:
+   ```sh
+   pulumi -C infra config set manageCustomDomain false --stack <stage>
+   # or add `hollow:manageCustomDomain: "false"` to infra/Pulumi.<stage>.yaml
+   ```
+2. Run the deploy (tag push, or `Actions → Deploy (production) → Run workflow`). Pulumi provisions D1/Queues/R2 and `Deploy Workers` creates the web Worker.
+3. Set the flag back on:
+   ```sh
+   pulumi -C infra config set manageCustomDomain true --stack <stage>
+   ```
+4. Run the deploy again. The Worker now exists, so the custom domain attaches.
+
+Steady-state operation keeps the flag `true`; the binding is a no-op once it exists. Existing environments that already have the domain bound need no action.
+
 ### DLQ rows in `index_jobs`
 
 `consumeIndexJob` marks a row as DLQ when `attempts >= CONSUME_INDEX_JOB_MAX_ATTEMPTS` (3). The queue-less drainer design means dlq rows stay in the `index_jobs` table — they are filtered out of subsequent `nextBatch` calls by the `attempts < maxAttempts` guard (Issue #145 ADR-006), so they never re-enter the dispatch loop on their own.

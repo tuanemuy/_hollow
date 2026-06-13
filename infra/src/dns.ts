@@ -20,15 +20,19 @@ export const createDns = (cfg: Config) => {
   const zone = cloudflare.getZoneOutput({ filter: { name: cfg.zoneName } });
   const names = workerNames(cfg);
 
-  const customDomain = new cloudflare.WorkersCustomDomain(
-    `custom-domain-${cfg.stage}`,
-    {
-      accountId: cfg.accountId,
-      zoneId: zone.id,
-      hostname: cfg.hostname,
-      service: names.web,
-    },
-  );
+  // The bind API 404s (code 10007) when `service` does not yet exist on the
+  // account. On a fresh environment the web Worker is created later in the
+  // pipeline by `Deploy Workers`, so the first deploy must run with
+  // `manageCustomDomain` false to create the Worker, then true to attach the
+  // domain. See Issue #700 / docs/runtime_cloudflare.md for the bootstrap.
+  const customDomain = cfg.manageCustomDomain
+    ? new cloudflare.WorkersCustomDomain(`custom-domain-${cfg.stage}`, {
+        accountId: cfg.accountId,
+        zoneId: zone.id,
+        hostname: cfg.hostname,
+        service: names.web,
+      })
+    : undefined;
 
   return { customDomain, zone };
 };
