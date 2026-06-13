@@ -157,9 +157,13 @@ describe("shouldFlushAutosave", () => {
     expect(shouldFlushAutosave(s, "note-1")).toBe(true);
   });
 
-  it("returns true in FrontMatter mode even when unsupported tags are unacked", () => {
+  // FrontMatter is no longer a body mode (Issue #697) — it is permanently
+  // mounted and always serialized via `snapshotForSubmit`, so the
+  // unsupported-tag ack gate only applies to the `wysiwyg` body mode. Any
+  // non-wysiwyg body mode (here `inline`) flushes regardless of ack.
+  it("returns true in inline mode even when unsupported tags are unacked", () => {
     let s = createInitialEditorState(baseInit);
-    s = editorReducer(s, { type: "setMode", mode: "frontMatter" });
+    s = editorReducer(s, { type: "setMode", mode: "inline" });
     s = withDirtyTitle(s);
     s = editorReducer(s, {
       type: "wysiwygUnsupportedDetected",

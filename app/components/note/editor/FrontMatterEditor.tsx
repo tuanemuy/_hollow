@@ -269,8 +269,8 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
   // would unmount the row and lose the pending buffer. Force the active
   // element to blur first so its commit path runs (including the local
   // duplicate-revert path) before the structured tree disappears.
-  // Mirrors the same handling at `NoteEditor` level when the editor
-  // mode (HTML / WYSIWYG / FrontMatter) is switched.
+  // Mirrors the same handling at `NoteEditor` level when the body
+  // editor mode (HTML / WYSIWYG / inline) is switched.
   const handleToggleMode = () => {
     const active = document.activeElement;
     if (active instanceof HTMLElement) active.blur();

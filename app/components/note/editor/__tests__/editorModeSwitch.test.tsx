@@ -11,6 +11,11 @@ import type { EditorMode, EditorSurface } from "../editorState";
  * `new` surface tab set stays untouched (AC-6). `EditorModeSwitch` is a
  * pure tab control, so the tab inventory is asserted directly here.
  *
+ * Issue #697: the FrontMatter tab is removed from both surfaces — its
+ * editor is now permanently mounted below the body editor rather than
+ * being a body-content mode. The WYSIWYG tab stays (it is #696's, not
+ * #697's). Expected inventories below drop FrontMatter accordingly.
+ *
  * Scope note (review-001 W-002): this file only pins the *tab inventory*.
  * The new-surface *switching flow* (that WYSIWYG selection on the new
  * surface never triggers the decoration-loss dialog) is pinned at the
@@ -58,16 +63,11 @@ describe("EditorModeSwitch tab inventory (Issue #696)", () => {
     renderSwitch("edit", "inline");
     // ビジュアル (inline) stays first so the default edit mode keeps its
     // tab position; WYSIWYG follows it.
-    expect(tabLabels()).toEqual([
-      "ビジュアル",
-      "WYSIWYG",
-      "FrontMatter",
-      "HTML",
-    ]);
+    expect(tabLabels()).toEqual(["ビジュアル", "WYSIWYG", "HTML"]);
   });
 
   it("leaves the new surface tab set unchanged (AC-6)", () => {
     renderSwitch("new", "wysiwyg");
-    expect(tabLabels()).toEqual(["WYSIWYG", "FrontMatter", "HTML"]);
+    expect(tabLabels()).toEqual(["WYSIWYG", "HTML"]);
   });
 });
