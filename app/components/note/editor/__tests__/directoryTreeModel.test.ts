@@ -76,6 +76,35 @@ describe("visibleDirectoryOptions", () => {
     expect(dirIds(options)).toEqual(["projects", "hollow"]);
   });
 
+  it("recomputes expanded / hasChildren from the visible set in search mode", () => {
+    // Search for the leaf `hollow`: only `projects` (ancestor) and `hollow`
+    // surface. `projects` keeps a caret (one visible child) and is forced
+    // open; the leaf match has no visible children so its caret is gone.
+    const options = visibleDirectoryOptions(tree, new Set(), "hollow");
+    const projects = options.find(
+      (o) => o.kind === "directory" && o.id === "projects",
+    );
+    const hollow = options.find(
+      (o) => o.kind === "directory" && o.id === "hollow",
+    );
+    expect(projects?.kind === "directory" && projects.hasChildren).toBe(true);
+    expect(projects?.kind === "directory" && projects.expanded).toBe(true);
+    expect(hollow?.kind === "directory" && hollow.hasChildren).toBe(false);
+    expect(hollow?.kind === "directory" && hollow.expanded).toBe(false);
+  });
+
+  it("falls back to the path when a directory name is empty", () => {
+    const withRoot: FlatDirectory[] = [
+      { id: "root", parentId: null, name: "", depth: 0, path: "/" },
+      ...tree.map((d) =>
+        d.parentId === null ? { ...d, parentId: "root" } : d,
+      ),
+    ];
+    const options = visibleDirectoryOptions(withRoot, new Set(), "");
+    const root = options.find((o) => o.kind === "directory" && o.id === "root");
+    expect(root?.kind === "directory" && root.name).toBe("/");
+  });
+
   it("filters on path as well as name", () => {
     const options = visibleDirectoryOptions(tree, new Set(), "Q2");
     expect(dirIds(options)).toEqual(["projects", "q2"]);
@@ -101,6 +130,21 @@ describe("searchMatchSet", () => {
     expect(result?.visible.has("projects")).toBe(true);
     expect(result?.visible.has("hollow")).toBe(true);
   });
+
+  it("matches multiple nodes whose name or path contains the query", () => {
+    // `Projects` matches the parent by name and both children by path
+    // (`/Projects/...`). The parent is not pulled in as a mere ancestor here
+    // — it matches directly — so all three ids are in `matches`, and nothing
+    // outside that subtree (research) leaks into `visible`.
+    const result = searchMatchSet(tree, "Projects");
+    expect(result).not.toBeNull();
+    expect([...(result?.matches ?? [])].sort()).toEqual([
+      "hollow",
+      "projects",
+      "q2",
+    ]);
+    expect(result?.visible.has("research")).toBe(false);
+  });
 });
 
 describe("clampActiveIndex", () => {
@@ -108,6 +152,13 @@ describe("clampActiveIndex", () => {
     expect(clampActiveIndex(5, 3)).toBe(2);
     expect(clampActiveIndex(-1, 3)).toBe(0);
     expect(clampActiveIndex(1, 0)).toBe(0);
+  });
+
+  it("returns 0 for a negative index on an empty list (guard order)", () => {
+    // `count <= 0` must take precedence over the `index < 0` branch so the
+    // simultaneous boundary collapses to 0 rather than tripping a reordered
+    // guard.
+    expect(clampActiveIndex(-1, 0)).toBe(0);
   });
 });
 

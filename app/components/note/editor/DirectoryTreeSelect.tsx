@@ -241,7 +241,6 @@ export function DirectoryTreeSelect({
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={hasListbox}
-              aria-labelledby={labelId}
               {...(hasListbox ? { "aria-controls": listboxId } : {})}
               {...(activeOptionId !== undefined
                 ? { "aria-activedescendant": activeOptionId }
@@ -250,7 +249,13 @@ export function DirectoryTreeSelect({
               placeholder="ディレクトリ名で検索…"
               aria-label="ディレクトリ検索"
               className={dirDropdownSearch}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                // Re-anchor the active option to the top whenever the filter
+                // changes: the visible set can swap entirely while keeping the
+                // same length, which the length-only clamp effect would miss.
+                setActiveIndex(0);
+              }}
               onKeyDown={(e) => onSearchKeyDown(e, close)}
             />
             {hasListbox ? (
@@ -269,7 +274,7 @@ export function DirectoryTreeSelect({
                           }}
                           type="button"
                           role="option"
-                          aria-selected={isActive}
+                          aria-selected={false}
                           data-active={isActive || undefined}
                           className={dirTreeItemNew}
                           onMouseEnter={() => setActiveIndex(index)}
@@ -319,7 +324,7 @@ export function DirectoryTreeSelect({
                         }}
                         type="button"
                         role="option"
-                        aria-selected={isActive}
+                        aria-selected={isSelected}
                         data-active={isActive || undefined}
                         data-selected={isSelected || undefined}
                         className={dirTreeItem}
