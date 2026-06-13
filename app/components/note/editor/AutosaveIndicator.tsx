@@ -8,13 +8,25 @@ import type { AutosaveStatus } from "./editorState";
  */
 export type AutosaveIndicatorProps = Readonly<{
   status: AutosaveStatus;
+  /**
+   * Whether autosave is actually wired for this surface. New-note mode
+   * gates autosave off entirely (`shouldFlushAutosave` requires
+   * `noteId !== null`), so its resting `idle` genuinely means "off". An
+   * existing note's resting `idle` is armed-but-clean — there is simply
+   * nothing to save yet — so it must NOT claim autosave is off.
+   */
+  enabled: boolean;
 }>;
 
 const BASE = "inline-flex items-center text-xs";
 
-export function AutosaveIndicator({ status }: AutosaveIndicatorProps) {
+export function AutosaveIndicator({ status, enabled }: AutosaveIndicatorProps) {
   switch (status.kind) {
     case "idle":
+      // Existing note, no pending changes: autosave is on standby, so we
+      // render nothing rather than the misleading "off" copy. The copy is
+      // reserved for new-note mode where autosave is truly disabled.
+      if (enabled) return null;
       return (
         <span className={`${BASE} text-ink-tertiary`} aria-live="polite">
           自動保存はオフ

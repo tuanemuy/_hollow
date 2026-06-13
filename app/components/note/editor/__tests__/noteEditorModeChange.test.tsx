@@ -293,9 +293,13 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       });
       expect(confirmMock).toHaveBeenCalledTimes(1);
       expect(signal?.aborted).toBe(true);
-      // AutosaveIndicator should be back in idle (the "自動保存はオフ"
-      // copy from `AutosaveIndicator.tsx:20`).
-      expect(container.textContent ?? "").toContain("自動保存はオフ");
+      // AutosaveIndicator should be back in idle. In edit mode the idle
+      // state renders nothing (autosave is armed-but-clean), so the prior
+      // "保存中…" copy must be gone and the new-note "自動保存はオフ" copy
+      // must NOT appear on an existing-note surface.
+      const indicatorText = container.textContent ?? "";
+      expect(indicatorText).not.toContain("保存中");
+      expect(indicatorText).not.toContain("自動保存はオフ");
 
       // Issue #286 review-001 W-T-003: indirectly assert that the prior
       // in-flight promise's `.finally` cleared `inFlightRef.current`.
