@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2](https://github.com/tuanemuy/hollow/compare/v0.2.1...v0.2.2) (2026-06-13)
+
+
+### Bug Fixes
+
+* **infra:** production の欠落 secret を追加（deploy の Validate secrets 通過） ([#706](https://github.com/tuanemuy/hollow/issues/706)) ([089ff38](https://github.com/tuanemuy/hollow/commit/089ff383047a9acde556b17e2dd8c440b3466819))
+* **infra:** secrets:edit スクリプトのパス修正（--filter で壊れていた） ([#705](https://github.com/tuanemuy/hollow/issues/705)) ([0146888](https://github.com/tuanemuy/hollow/commit/0146888eced3c547803593f4edd9816fffe89bde))
+* ノート詳細でMarkdownテーブルの枠線を表示 ([#699](https://github.com/tuanemuy/hollow/issues/699)) ([9576c8a](https://github.com/tuanemuy/hollow/commit/9576c8a489c8455799550237a38ea77bccdaeb8a))
+
 ## [0.2.1](https://github.com/tuanemuy/hollow/compare/v0.2.0...v0.2.1) (2026-06-13)
 
 
