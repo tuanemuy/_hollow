@@ -2,7 +2,7 @@
 
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Copy } from "lucide-react";
+import { AlertTriangle, Check, Copy } from "lucide-react";
 import {
   useActionState,
   useCallback,
@@ -16,6 +16,12 @@ import { Dialog } from "@/components/common/Dialog";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
+  ALERT,
+  ALERT_BODY,
+  ALERT_CONTENT,
+  ALERT_ICON,
+  ALERT_TITLE,
+  ALERT_WARNING,
   chip,
   dialogActions,
   dialogTitle,
@@ -33,6 +39,7 @@ import {
   CHIP_SUCCESS,
   EMPTY_STATE,
 } from "@/components/layout/styles";
+import { readNoteUnsaved } from "@/components/note/unsavedFlag";
 import type { ShareLinkDTO } from "@/core/application/publication";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -125,6 +132,10 @@ export function PublishSettings({
   const [visibilityError, setVisibilityError] =
     useState<SerializedError | null>(null);
   const [issueError, setIssueError] = useState<SerializedError | null>(null);
+  // Cross-route unsaved-edits flag (Issue #583). Read only on the open
+  // transition (effect below) — `window` is undefined during SSR so it can't
+  // seed `useState`. Reset to false on close so the next open re-reads fresh.
+  const [hasUnsaved, setHasUnsaved] = useState(false);
 
   // Each ShareLinkRow owns a local `useTransition` pending; we lift those into
   // a counter so the dialog stays non-closable while any row mutation is in
@@ -140,13 +151,19 @@ export function PublishSettings({
   // NoteActions, so reset transient state when the modal closes — otherwise the
   // one-time issued URL banner and the optimistic visibility leak across opens.
   useEffect(() => {
-    if (open) return;
-    setIssuedToken(null);
-    setVisibility(data.visibility);
-    setSelected(data.visibility);
-    setVisibilityError(null);
-    setIssueError(null);
-  }, [open, data.visibility]);
+    if (!open) {
+      setIssuedToken(null);
+      setVisibility(data.visibility);
+      setSelected(data.visibility);
+      setVisibilityError(null);
+      setIssueError(null);
+      setHasUnsaved(false);
+      return;
+    }
+    // open (or re-fire on `data.visibility` change while open): re-read the
+    // flag. Reading the same value again while open is harmless.
+    setHasUnsaved(readNoteUnsaved(noteId));
+  }, [open, data.visibility, noteId]);
 
   const [, visibilityAction, visibilityPending] = useActionState<
     FormState,
@@ -245,6 +262,19 @@ export function PublishSettings({
           <div className={`${URL_PREVIEW} mt-6`}>
             <p className={URL_PREVIEW_LABEL}>公開時の URL</p>
             <code className={URL_PREVIEW_URL}>{publicNoteUrl}</code>
+          </div>
+        ) : null}
+        {hasUnsaved ? (
+          <div className={`${ALERT} ${ALERT_WARNING} mt-6`} role="status">
+            <span className={ALERT_ICON} aria-hidden="true">
+              <Icon icon={AlertTriangle} size={20} />
+            </span>
+            <div className={ALERT_CONTENT}>
+              <p className={ALERT_TITLE}>未保存の変更があります</p>
+              <p className={ALERT_BODY}>
+                公開には最後に保存した版が使われます。最新版を反映したい場合は先にノートを保存してください。
+              </p>
+            </div>
           </div>
         ) : null}
         <button

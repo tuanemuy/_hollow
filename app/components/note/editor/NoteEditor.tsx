@@ -29,6 +29,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import type { FlatDirectory } from "../loaders";
+import { clearNoteUnsaved, markNoteUnsaved } from "../unsavedFlag";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { EditLockBanner } from "./EditLockBanner";
@@ -153,6 +154,24 @@ export function NoteEditor(props: NoteEditorProps) {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // Mirror `dirtyKeys` into the cross-route unsaved flag (Issue #583 ADR-002).
+  // Only EDGES drive the flag: rising (0 → >0) marks unsaved, falling (>0 → 0,
+  // i.e. the `autosaveSuccess` reset) clears it. `0 → 0` (unedited open, the
+  // `EMPTY_DIRTY` initial state) and `>0 → >0` (ongoing edits) are no-ops, so
+  // a fresh mount never clobbers a flag left by another route in the same
+  // session. The dep is the Set reference: the reducer only swaps in a new Set
+  // when dirty actually changes, so this fires exactly on transitions.
+  const prevDirtySizeRef = useRef(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: edge detection keys off the `dirtyKeys` Set reference; `noteId` is stable per mount.
+  useEffect(() => {
+    if (noteId === null) return;
+    const curr = state.dirtyKeys.size;
+    const prev = prevDirtySizeRef.current;
+    if (prev === 0 && curr > 0) markNoteUnsaved(noteId);
+    else if (prev > 0 && curr === 0) clearNoteUnsaved(noteId);
+    prevDirtySizeRef.current = curr;
+  }, [state.dirtyKeys]);
 
   const { abortInFlight } = useAutosave({
     noteId,
@@ -325,6 +344,12 @@ export function NoteEditor(props: NoteEditorProps) {
               frontMatterJson,
             },
           });
+          // Manual save does NOT reset `dirtyKeys` (only `autosaveSuccess`
+          // does), so the falling-edge clear never fires here. Clear the
+          // cross-route flag explicitly before navigating to detail, else the
+          // publish modal would warn about a note that was just saved
+          // (Issue #583 ADR-002).
+          clearNoteUnsaved(props.noteId);
           // No invalidate here: the detail route uses `staleTime: 0`, so the
           // navigation below always fresh-loads the saved note.
           await router.navigate({

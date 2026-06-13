@@ -90,6 +90,7 @@ beforeEach(() => {
   revokeMock.mockReset();
   setPasswordMock.mockReset();
   invalidateMock.mockClear();
+  window.sessionStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -309,7 +310,9 @@ describe("ShareLinkRow copy success live region (N-005)", () => {
       );
     });
 
-    // Idle: the live region is empty before any copy.
+    // Idle: the live region is empty before any copy. `sessionStorage` is
+    // cleared per-test so the unsaved-warning `role="status"` never competes
+    // with this copy-status `role="status"` span.
     expect(copyStatus()?.textContent).toBe("");
 
     const copy = copyButton();
@@ -337,5 +340,103 @@ describe("ShareLinkRow copy success live region (N-005)", () => {
     await vi.waitFor(() => {
       expect(copyStatus()?.textContent).toBe("コピーしました");
     });
+  });
+});
+
+/**
+ * Issue #583 (AC-4 / AC-5 / AC-6): the unsaved-edits warning is read from the
+ * cross-route `sessionStorage` flag on the open transition and rendered only
+ * when the flag is set. Closing resets it so the next open re-reads fresh.
+ */
+function unsavedWarning(): HTMLElement | undefined {
+  return Array.from(
+    document.body.querySelectorAll<HTMLElement>('[role="status"]'),
+  ).find((el) => (el.textContent ?? "").includes("未保存の変更があります"));
+}
+
+describe("PublishSettings unsaved-edits warning (Issue #583)", () => {
+  it("renders the warning with role=status when the note's flag is set", () => {
+    window.sessionStorage.setItem("hollow3:note:note-1:dirty", "1");
+    act(() => {
+      root.render(
+        <PublishSettings
+          open={true}
+          onClose={() => {}}
+          noteId="note-1"
+          appUrl="https://example.test"
+          publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
+          initial={baseInitial}
+        />,
+      );
+    });
+    const warning = unsavedWarning();
+    expect(warning).toBeDefined();
+    expect(warning?.textContent).toContain(
+      "公開には最後に保存した版が使われます",
+    );
+  });
+
+  it("does not render the warning when the flag is unset", () => {
+    act(() => {
+      root.render(
+        <PublishSettings
+          open={true}
+          onClose={() => {}}
+          noteId="note-1"
+          appUrl="https://example.test"
+          publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
+          initial={baseInitial}
+        />,
+      );
+    });
+    expect(unsavedWarning()).toBeUndefined();
+  });
+
+  it("does not key off another note's flag", () => {
+    window.sessionStorage.setItem("hollow3:note:other:dirty", "1");
+    act(() => {
+      root.render(
+        <PublishSettings
+          open={true}
+          onClose={() => {}}
+          noteId="note-1"
+          appUrl="https://example.test"
+          publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
+          initial={baseInitial}
+        />,
+      );
+    });
+    expect(unsavedWarning()).toBeUndefined();
+  });
+
+  it("re-reads the flag on the next open (close resets, then re-read)", () => {
+    const Renderer = ({ open }: { open: boolean }) => (
+      <PublishSettings
+        open={open}
+        onClose={() => {}}
+        noteId="note-1"
+        appUrl="https://example.test"
+        publicNoteUrl="https://example.test/u/yk/quiet-interface-memo"
+        initial={baseInitial}
+      />
+    );
+
+    // First open: no flag → no warning.
+    act(() => {
+      root.render(<Renderer open={true} />);
+    });
+    expect(unsavedWarning()).toBeUndefined();
+
+    // Close, then the editor sets the flag while the modal is shut.
+    act(() => {
+      root.render(<Renderer open={false} />);
+    });
+    window.sessionStorage.setItem("hollow3:note:note-1:dirty", "1");
+
+    // Re-open: the open-transition effect re-reads and the warning appears.
+    act(() => {
+      root.render(<Renderer open={true} />);
+    });
+    expect(unsavedWarning()).toBeDefined();
   });
 });
