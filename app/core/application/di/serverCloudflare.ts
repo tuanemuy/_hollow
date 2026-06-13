@@ -280,6 +280,12 @@ export type ServerEnv = Readonly<{
   // object-storage proxy route in the fetch entry. Public information.
   // Never set this in `wrangler.staging.toml` / `wrangler.production.toml`.
   R2_DEV_OBJECT_PROXY?: string;
+  // LOCAL DEV ONLY flag (`"true"` to enable) gating the
+  // `InlineRelayTrigger` injection in the fetch entry so `pnpm start`
+  // (`wrangler dev`) drains the outbox without relay/consumer Workers.
+  // Public information. Never set this in `wrangler.staging.toml` /
+  // `wrangler.production.toml`.
+  DEV_INLINE_RELAY?: string;
   // Worker tuning knobs. Wrangler `[vars]` deliver strings — parse +
   // default via `readRelayTuning` / `readPruneTuning` at the worker
   // entry boundary. Missing values fall back to the application-layer

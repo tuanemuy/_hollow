@@ -1,0 +1,3 @@
+- server: http://localhost:8787 (pnpm start = wrangler dev)
+- PID: 40744
+- log: /tmp/manual-test-server.log

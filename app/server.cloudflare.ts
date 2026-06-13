@@ -8,7 +8,10 @@ import {
   buildDevObjectStorageResponse,
   resolveDevObjectStorageGate,
 } from "@/core/adapters/cloudflare/devObjectStorageHandler";
-import { InlineRelayTrigger } from "@/core/adapters/cloudflare/inlineRelayTrigger";
+import {
+  InlineRelayTrigger,
+  resolveInlineRelayGate,
+} from "@/core/adapters/cloudflare/inlineRelayTrigger";
 import { installContainerStore } from "@/core/application/di/containerStore";
 import {
   createRequestContainer,
@@ -46,17 +49,27 @@ export default {
     env: AppEnv,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    // `import.meta.env.DEV` is inlined to `false` by `vite build`, so the
-    // entire `InlineRelayTrigger` branch — including the import above —
-    // is dead-code-eliminated from staging / production bundles
-    // (Issue #66 / ADR-003). Under `pnpm start` (`wrangler dev` without
-    // Vite) `import.meta.env` itself is `undefined`, so guard with
-    // optional chaining to avoid `TypeError: Cannot read properties of
-    // undefined` at boot.
+    // `vite build` inlines `import.meta.env.MODE` to `"production"`,
+    // making the `&&` left-hand side a constant `false`, so the entire
+    // `InlineRelayTrigger` branch — including the import above — is
+    // dead-code-eliminated from staging / production bundles
+    // (Issue #66 / ADR-003, Issue #663). DCE constraints: the constant
+    // condition must stay on the left of the short-circuit `&&` (Rollup
+    // does not fold constants across call boundaries), and `import.meta`
+    // must be referenced inline (Vite's define replacement does not
+    // apply through an intermediate variable). `pnpm start` runs a Vite
+    // build artifact: `pnpm build:local` inlines `MODE` to
+    // `"development"` and the runtime gate falls back to the local-only
+    // `DEV_INLINE_RELAY` var; plain `pnpm build` removes the path. The
+    // optional chaining is a defence for non-Vite execution (e.g. tests).
     const baseConfig = readRequestServerConfig(env, ctx);
-    const isDev =
-      (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
-    const config: RequestServerConfig = isDev
+    const inlineRelay =
+      (import.meta as { env?: { MODE?: string } }).env?.MODE !== "production" &&
+      resolveInlineRelayGate({
+        viteDev: (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true,
+        flag: env.DEV_INLINE_RELAY,
+      });
+    const config: RequestServerConfig = inlineRelay
       ? {
           ...baseConfig,
           relayTriggerOverride: new InlineRelayTrigger(
