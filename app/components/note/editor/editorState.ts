@@ -26,10 +26,13 @@
  *   `frontMatterJsonError` string and disables the save button at the
  *   UI level instead of failing the action. Duplicate-key errors from
  *   `renameFrontMatterKey` / `addFrontMatterKey` use the same channel.
- * - `setMode` accepts any `EditorMode` literal. All four modes are
- *   fully wired (HTML / FrontMatter / WYSIWYG / inline). The WYSIWYG
- *   tab was previously rendered disabled (Issue #1 ADR-002) and is now
- *   enabled per Issue #9. The `inline` mode (Issue #233) supports
+ * - `setMode` accepts any `EditorMode` literal. The three body-content
+ *   modes (HTML / WYSIWYG / inline) are fully wired; FrontMatter is no
+ *   longer a body mode (Issue #697) — its editor is permanently mounted
+ *   below the body editor and driven by `frontMatterMode` independently
+ *   of `EditorMode`. The WYSIWYG tab was previously rendered disabled
+ *   (Issue #1 ADR-002) and is now enabled per Issue #9. The `inline`
+ *   mode (Issue #233) supports
  *   "edit decorated text in place" by making text-bearing block
  *   elements (`<p>` / `<h1-6>` / `<li>` / `<td>` / `<th>` /
  *   `<blockquote>` / `<figcaption>` / `<caption>` / `<dt>` / `<dd>`)
@@ -45,14 +48,15 @@
 
 import type { SerializedError } from "@/core/presentation/errorResponse";
 
-export type EditorMode = "html" | "frontMatter" | "wysiwyg" | "inline";
+export type EditorMode = "html" | "wysiwyg" | "inline";
 
 /**
  * Render surface the editor is mounted on. Drives the initial mode
- * (Issue #233 ADR-001) and the set of mode tabs the user sees
- * (`EditorModeSwitch`):
- * - `"new"`  → starts in `wysiwyg`; tabs = `wysiwyg / frontMatter / html`
- * - `"edit"` → starts in `inline`;  tabs = `inline / wysiwyg / frontMatter / html`
+ * (Issue #233 ADR-001) and the set of body-content mode tabs the user
+ * sees (`EditorModeSwitch`). FrontMatter is no longer a tab (Issue
+ * #697); its editor is permanently mounted below the body editor:
+ * - `"new"`  → starts in `wysiwyg`; tabs = `wysiwyg / html`
+ * - `"edit"` → starts in `inline`;  tabs = `inline / wysiwyg / html`
  *   (the `wysiwyg` tab on `edit` was added by Issue #696; switching to it
  *   is gated by a decoration-loss confirmation in `NoteEditor`).
  */

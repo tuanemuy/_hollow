@@ -3,13 +3,14 @@ import type { EditorMode, EditorSurface } from "./editorState";
 import { editorModeTabs } from "./styles";
 
 /**
- * Pure tab control for the editor mode. The set of visible tabs is
- * driven by the render `surface` (Issue #233 ADR-001 / spec C2-4):
+ * Pure tab control for the editor body-content mode. The set of visible
+ * tabs is driven by the render `surface` (Issue #233 ADR-001 / spec
+ * C2-4). FrontMatter is no longer a tab (Issue #697); its editor is
+ * permanently mounted below the body editor in `NoteEditor`:
  *
- * - `surface === "new"`  → `wysiwyg` / `frontMatter` / `html` (no
- *   `inline` because a brand-new note has no rendered HTML to keep
- *   structurally intact).
- * - `surface === "edit"` → `inline` / `wysiwyg` / `frontMatter` / `html`
+ * - `surface === "new"`  → `wysiwyg` / `html` (no `inline` because a
+ *   brand-new note has no rendered HTML to keep structurally intact).
+ * - `surface === "edit"` → `inline` / `wysiwyg` / `html`
  *   (Issue #696 / spec P12 "WYSIWYG モード（新規 + 既存）"). The `inline`
  *   tab is labelled "ビジュアル" to mirror spec C2-4's "ビジュアル ⇄ HTML"
  *   toggle nomenclature and stays first so the default `edit` mode keeps
@@ -18,9 +19,9 @@ import { editorModeTabs } from "./styles";
  *   decoration-loss confirmation when the current HTML contains tags
  *   TipTap cannot round-trip.
  *
- * All HTML / FrontMatter / WYSIWYG modes were fully enabled by P12
- * (Issue #9), resolving the placeholder-disabled WYSIWYG state from
- * Issue #1 ADR-002.
+ * All HTML / WYSIWYG modes were fully enabled by P12 (Issue #9),
+ * resolving the placeholder-disabled WYSIWYG state from Issue #1
+ * ADR-002.
  */
 export type EditorModeSwitchProps = Readonly<{
   surface: EditorSurface;
@@ -35,14 +36,12 @@ type Tab = Readonly<{
 
 const TABS_NEW: readonly Tab[] = [
   { mode: "wysiwyg", label: "WYSIWYG" },
-  { mode: "frontMatter", label: "FrontMatter" },
   { mode: "html", label: "HTML" },
 ];
 
 const TABS_EDIT: readonly Tab[] = [
   { mode: "inline", label: "ビジュアル" },
   { mode: "wysiwyg", label: "WYSIWYG" },
-  { mode: "frontMatter", label: "FrontMatter" },
   { mode: "html", label: "HTML" },
 ];
 

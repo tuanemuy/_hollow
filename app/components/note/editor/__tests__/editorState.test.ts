@@ -269,14 +269,6 @@ describe("editorReducer setters", () => {
     expect(s1).toBe(s0);
   });
 
-  it("setMode switches between html and frontMatter", () => {
-    const s = editorReducer(freshState(), {
-      type: "setMode",
-      mode: "frontMatter",
-    });
-    expect(s.mode).toBe("frontMatter");
-  });
-
   // Issue #233: `inline` is a first-class mode reachable from any
   // other mode and back.
   it("setMode transitions inline ⇄ html ⇄ wysiwyg without dirty", () => {

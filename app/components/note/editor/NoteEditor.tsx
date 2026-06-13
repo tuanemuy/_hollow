@@ -57,7 +57,9 @@ import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
  * Phase D coverage:
  * - HTML edit pane + sanitized-on-save preview (`HtmlEditor`)
  * - WYSIWYG pane backed by TipTap (`WysiwygEditor`)
- * - Generic key-value FrontMatter editor + raw-JSON toggle (`FrontMatterEditor`)
+ * - Generic key-value FrontMatter editor + raw-JSON toggle
+ *   (`FrontMatterEditor`), permanently mounted below the body editor so
+ *   metadata is editable alongside any body mode (Issue #697)
  * - Directory pick / inline new-directory creation (`DirectoryPicker`)
  * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`).
  *   In WYSIWYG mode the upload completion targets the current cursor via
@@ -191,15 +193,16 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const onModeChange = useCallback(
     (nextMode: EditorMode) => {
-      // Switching editor modes unmounts the
-      // currently focused FrontMatter input. Force a blur first so any
-      // pending key-rename / add commits run before the row disappears,
-      // instead of being silently dropped. The order is fixed as:
-      // blur → re-evaluate dirty → confirm → dispatch, so any
-      // dirty flag that blur introduces (e.g. a committed rename) is
-      // visible to the confirm step. The latest `dirtyKeys` / `autosave`
-      // is read from `stateRef` rather than the closure to capture any
-      // dispatch that blur produced.
+      // Force a blur on the currently focused field (title / tag draft /
+      // FrontMatter KeyRow buffer) first so its pending commit (e.g. a
+      // key-rename that commits on blur) is flushed before the dirty
+      // re-evaluation, instead of being read stale. The blur is purely for
+      // dirty freshness, not unmount safety — FrontMatter is permanently
+      // mounted (Issue #697). The order is fixed as: blur → re-evaluate
+      // dirty → confirm → dispatch, so any dirty flag that blur introduces
+      // (e.g. a committed rename) is visible to the confirm step. The
+      // latest `dirtyKeys` / `autosave` is read from `stateRef` rather than
+      // the closure to capture any dispatch that blur produced.
       //
       // When the user picks "discard", call
       // `abortInFlight()` BEFORE `setMode` dispatches. The abort cancels
@@ -485,26 +488,27 @@ export function NoteEditor(props: NoteEditorProps) {
         </>
       ) : null}
 
-      {state.mode === "frontMatter" ? (
-        <FrontMatterEditor
-          mode={state.frontMatterMode}
-          parsed={state.frontMatter}
-          rawJson={state.frontMatterRawJson}
-          parseError={state.frontMatterJsonError}
-          onToggleMode={() => dispatch({ type: "toggleFrontMatterMode" })}
-          onSetField={(key, value) =>
-            dispatch({ type: "setFrontMatterField", key, value })
-          }
-          onRenameKey={(oldKey, newKey) =>
-            dispatch({ type: "renameFrontMatterKey", oldKey, newKey })
-          }
-          onAddKey={(key) => dispatch({ type: "addFrontMatterKey", key })}
-          onSetRawJson={(value) =>
-            dispatch({ type: "setFrontMatterRawJson", value })
-          }
-          disabled={isPending}
-        />
-      ) : null}
+      {/* FrontMatter is permanently mounted below the body editor (Issue
+          #697) — metadata is edited in parallel with the body regardless of
+          the active body mode, not as a separate exclusive tab. */}
+      <FrontMatterEditor
+        mode={state.frontMatterMode}
+        parsed={state.frontMatter}
+        rawJson={state.frontMatterRawJson}
+        parseError={state.frontMatterJsonError}
+        onToggleMode={() => dispatch({ type: "toggleFrontMatterMode" })}
+        onSetField={(key, value) =>
+          dispatch({ type: "setFrontMatterField", key, value })
+        }
+        onRenameKey={(oldKey, newKey) =>
+          dispatch({ type: "renameFrontMatterKey", oldKey, newKey })
+        }
+        onAddKey={(key) => dispatch({ type: "addFrontMatterKey", key })}
+        onSetRawJson={(value) =>
+          dispatch({ type: "setFrontMatterRawJson", value })
+        }
+        disabled={isPending}
+      />
 
       {submitError !== null ? (
         <p className={`${formError} mt-4`} role="alert">

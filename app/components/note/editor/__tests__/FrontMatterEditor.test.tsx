@@ -90,6 +90,27 @@ describe("FrontMatterEditor — structured mode arbitrary keys", () => {
     expect(keyInputs.map((i) => i.value)).toEqual(["z", "a", "m"]);
   });
 
+  it("exposes the editor as a region labelled メタデータ (Issue #697)", () => {
+    // Permanently mounted below the body editor, the metadata pane is no
+    // longer named by the old "FrontMatter" tab — pin the landmark label so
+    // a screen-reader regression (back to a bare <div>) fails the suite.
+    const h = makeHandlers();
+    act(() => {
+      root.render(
+        <FrontMatterEditor
+          mode="structured"
+          parsed={{ a: "1" }}
+          rawJson=""
+          parseError={null}
+          {...h}
+        />,
+      );
+    });
+    const region = container.querySelector("section");
+    expect(region).not.toBeNull();
+    expect(region?.getAttribute("aria-label")).toBe("メタデータ");
+  });
+
   it("renders empty-state message when there are no keys", () => {
     const h = makeHandlers();
     act(() => {

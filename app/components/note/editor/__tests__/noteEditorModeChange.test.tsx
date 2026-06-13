@@ -275,6 +275,91 @@ describe("NoteEditor.onModeChange confirm conditions", () => {
 });
 
 /**
+ * Issue #697: FrontMatter is permanently mounted below the body editor
+ * rather than being a body-content tab. These tests pin that (a) the
+ * FrontMatter editor is in the DOM regardless of the active body mode
+ * (AC-2) and (b) FrontMatter edits survive a body-mode switch, including
+ * the dirty → unsaved-confirm path (AC-5).
+ */
+describe("NoteEditor FrontMatter permanent mount (Issue #697)", () => {
+  function frontMatterKeyInput(): HTMLInputElement | null {
+    // The structured FrontMatter editor's "add key" buffer input is
+    // labelled "追加するキー名"; it only exists in the permanently-mounted
+    // FrontMatter editor, so it doubles as a mounted-marker.
+    return container.querySelector<HTMLInputElement>(
+      'input[aria-label="追加するキー名"]',
+    );
+  }
+
+  it("mounts the FrontMatter editor on the default inline body mode (AC-2)", async () => {
+    await renderEditor();
+    expect(frontMatterKeyInput()).not.toBeNull();
+  });
+
+  it("keeps the FrontMatter editor mounted across body-mode switches (AC-2)", async () => {
+    await renderEditor();
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    expect(frontMatterKeyInput()).not.toBeNull();
+    await act(async () => {
+      tabByLabel("ビジュアル").click();
+    });
+    expect(frontMatterKeyInput()).not.toBeNull();
+  });
+
+  function hasFrontMatterKeyRow(key: string): boolean {
+    // A committed structured KeyRow renders the key in an `<input>` labelled
+    // "FrontMatter キー" whose `value` is the key. Match on the value rather
+    // than `textContent` (input values are not part of textContent).
+    return Array.from(
+      container.querySelectorAll<HTMLInputElement>(
+        'input[aria-label="FrontMatter キー"]',
+      ),
+    ).some((i) => i.value === key);
+  }
+
+  it("preserves FrontMatter edits across a body-mode switch via the unsaved-confirm path (AC-5)", async () => {
+    await renderEditor();
+    // Add a FrontMatter key through the structured editor. `commitNewKey`
+    // dispatches `addFrontMatterKey`, which marks the editor dirty.
+    const keyInput = frontMatterKeyInput();
+    expect(keyInput).not.toBeNull();
+    await act(async () => {
+      if (keyInput !== null) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(keyInput, "author");
+        keyInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    const addButton = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent?.trim() === "キーを追加");
+    expect(addButton).toBeDefined();
+    await act(async () => {
+      addButton?.click();
+    });
+    // The new key is rendered as a committed KeyRow in the structured tree.
+    expect(hasFrontMatterKeyRow("author")).toBe(true);
+
+    // Switching the body mode now triggers the unsaved-confirm (dirty via
+    // the FrontMatter edit). Accept it.
+    confirmMock.mockReturnValue(true);
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    // The FrontMatter editor is still mounted and the key it held survives
+    // the body-mode switch (state is not reset).
+    expect(frontMatterKeyInput()).not.toBeNull();
+    expect(hasFrontMatterKeyRow("author")).toBe(true);
+  });
+});
+
+/**
  * Issue #696: switching to WYSIWYG on the edit surface warns before
  * dropping decoration. The gate runs against the latest committed
  * `state.contentHtml` and only opens the decoration-loss `ConfirmDialog`

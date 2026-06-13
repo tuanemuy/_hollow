@@ -269,8 +269,8 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
   // would unmount the row and lose the pending buffer. Force the active
   // element to blur first so its commit path runs (including the local
   // duplicate-revert path) before the structured tree disappears.
-  // Mirrors the same handling at `NoteEditor` level when the editor
-  // mode (HTML / WYSIWYG / FrontMatter) is switched.
+  // Mirrors the same handling at `NoteEditor` level when the body
+  // editor mode (HTML / WYSIWYG / inline) is switched.
   const handleToggleMode = () => {
     const active = document.activeElement;
     if (active instanceof HTMLElement) active.blur();
@@ -278,7 +278,13 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-hairline bg-surface-elevated p-5">
+    // Permanently mounted below the body editor (Issue #697). Labelled as a
+    // landmark so screen-reader users can identify "this is the metadata
+    // editing region" now that the old "FrontMatter" tab no longer names it.
+    <section
+      aria-label="メタデータ"
+      className="mt-4 rounded-lg border border-hairline bg-surface-elevated p-5"
+    >
       <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
@@ -386,6 +392,6 @@ export function FrontMatterEditor(props: FrontMatterEditorProps) {
           ) : null}
         </div>
       )}
-    </div>
+    </section>
   );
 }
