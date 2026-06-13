@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { Home, Search } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
 import { BackLink, ReloadButton } from "./ErrorNavActions";
@@ -17,19 +17,29 @@ import {
   USER_SEARCH_INPUT,
 } from "./styles";
 
-const HomeLink = ({ primary = false }: { primary?: boolean }) => (
+// `icon` is 404-only: the mock shows a home glyph on the 404 CTA but leaves the
+// 403/410/500「ホームへ戻る」icon-less, so it stays opt-in per variant.
+const HomeLink = ({
+  primary = false,
+  icon = false,
+}: {
+  primary?: boolean;
+  icon?: boolean;
+}) => (
   <Link
     to="/"
     search={HOME_SEARCH}
     className={PILL_BTN}
     data-primary={primary ? "" : undefined}
   >
+    {icon ? <Icon icon={Home} size={16} /> : null}
     ホームへ戻る
   </Link>
 );
 
 const SearchLink = () => (
   <Link to="/search" search={{ q: "", limit: 20 }} className={PILL_BTN}>
+    <Icon icon={Search} size={16} />
     検索ページを開く
   </Link>
 );
@@ -108,7 +118,7 @@ export function ErrorPage({ kind, message }: Props) {
           <div className={ERR_ACTIONS}>
             {kind === "notFound" ? (
               <>
-                <HomeLink primary />
+                <HomeLink primary icon />
                 <SearchLink />
               </>
             ) : null}
