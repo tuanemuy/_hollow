@@ -194,6 +194,10 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 
 ## Deployment
 
+**Production releases are driven by release-please → CI, not by these scripts.** Merging the release PR pushes a `vX.Y.Z` tag that triggers `Deploy (production)` (Pulumi up → render → build → D1 migrations → secret validation → Deploy Workers → secret injection), gated by the `production` Environment approval. Staging deploys automatically on every `main` push via `Deploy (staging)`. See [`deployment_setup.md`](deployment_setup.md) for the release flow and the repository prerequisites (`RELEASE_PLEASE_TOKEN`, squash-only merge, `v*.*.*` branch policy).
+
+The `pnpm deploy:*` scripts below are **manual / emergency Worker-code pushes only** — they run `vite build` + `wrangler deploy` and do **not** run Pulumi, D1 migrations, or secret injection (only the CI pipeline does). Reach for them to hot-push a single Worker when CI is unavailable; otherwise use the release flow above.
+
 ```bash
 # staging
 pnpm deploy:staging                  # app only
