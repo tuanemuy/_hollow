@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/tuanemuy/hollow/compare/v0.2.2...v0.2.3) (2026-06-13)
+
+
+### Bug Fixes
+
+* **infra:** production の custom domain を有効化（ブートストラップ完了） ([#708](https://github.com/tuanemuy/hollow/issues/708)) ([159c8df](https://github.com/tuanemuy/hollow/commit/159c8df8bac9d0bd6da29fba3b2f6f76e8afe2b8))
+
 ## [0.2.2](https://github.com/tuanemuy/hollow/compare/v0.2.1...v0.2.2) (2026-06-13)
 
 
