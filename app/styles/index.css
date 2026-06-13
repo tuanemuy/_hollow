@@ -401,4 +401,32 @@
     height: auto;
     border-radius: var(--radius-lg);
   }
+
+  /*
+   * GFM tables (Issue #693). markdown-it (default preset) emits
+   * `table/thead/tbody/tr/th/td` and the sanitizer allows them, but no rule
+   * styled them. The visual treatment follows the adopted Apple Calm note-body
+   * mock (draft-4): horizontal rules only — no full cell grid, no header fill.
+   * "GitHub Markdown 互換" in the design spec means feature/semantic parity,
+   * not GitHub's full-grid table chrome; the body's visual SSOT is Apple Calm.
+   */
+  .note-detail-content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .note-detail-content th,
+  .note-detail-content td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-hairline);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .note-detail-content thead th {
+    font-weight: var(--weight-semibold);
+    color: var(--color-ink);
+    border-bottom: 1px solid var(--color-hairline-strong);
+  }
 }
