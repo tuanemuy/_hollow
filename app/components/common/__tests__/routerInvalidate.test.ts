@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { appShellInvalidate, routerInvalidate } from "../routerInvalidate";
 
 /**
- * Issue #299 / #300: pins the API contracts for the symmetric pair of
+ * Pins the API contracts for the symmetric pair of
  * AppShell invalidate helpers. The `routerInvalidate` path keeps `_app`
  * out of mutation-driven invalidations, while `appShellInvalidate`
  * targets `_app` exclusively for session-failure and errorComponent

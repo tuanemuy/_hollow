@@ -20,13 +20,10 @@ const APP_SHELL_ROUTE_ID = "/_app";
 
 /**
  * Editor routes are excluded from `routerInvalidate` unconditionally
- * (Issue #669, `.issue/669/adr.md` ADR-003): their loaders only seed the
+ * (`.issue/669/adr.md` ADR-003): their loaders only seed the
  * editor's initial values — after mount the source of truth is the
  * editor's local state — so re-running the loader has no benefit and, at
- * worst, may destroy in-progress edits. (TC-009 observed a raw invalidate
- * arriving as a props update on the same instance with edits preserved —
- * see the correction note in `.issue/669/adr.md` ADR-003 — but the
- * exclusion stands regardless: the loader rerun has nothing to offer.)
+ * worst, may destroy in-progress edits.
  * Both routes use `staleTime: 0`, so the next navigation into an
  * editor always fresh-loads; skipping invalidation cannot serve stale data.
  *
@@ -52,8 +49,7 @@ type InvalidateFilter = NonNullable<InvalidateOpts["filter"]>;
  * **常に除外** する。invalidate は「表示系ルートの再評価」であり、
  * エディタールートの loader は初期値 seed 専用（source of truth は
  * ローカル state）かつ `staleTime: 0` で再進入時に必ず fresh load される
- * ため、構造的に invalidate の対象外（Issue #669 / `.issue/669/adr.md`
- * ADR-003）。
+ * ため、構造的に invalidate の対象外（`.issue/669/adr.md` ADR-003）。
  *
  * 追加の `filter` を渡した場合は上記除外と **AND 合成** され、
  * 除外の不変条件はラッパー経由では絶対にすり抜けない。

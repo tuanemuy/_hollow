@@ -10,7 +10,7 @@ import { scrollbarHidden } from "@/components/common/styles";
 /**
  * P12 document-style title input: borderless, large, transparent. Focus
  * visualisation is intentionally left to the global `:focus-visible`
- * (`--shadow-focus`) — focus framing / spacing is out of scope here (#522).
+ * (`--shadow-focus`) — focus framing / spacing is out of scope here.
  */
 export const titleInput =
   "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-regular tracking-tightest leading-tight text-ink placeholder:text-ink-tertiary";

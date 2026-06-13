@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Inline editor (Issue #233 / spec C2). Renders the saved HTML as-is
+ * Inline editor (spec C2). Renders the saved HTML as-is
  * and makes its **text-bearing block elements** (`<p>` / `<h1-6>` /
  * `<li>` / `<td>` / `<th>` / `<blockquote>` / `<figcaption>` /
  * `<caption>` / `<dt>` / `<dd>`) contentEditable so users can edit
@@ -14,16 +14,15 @@ import { useEffect, useRef } from "react";
  * pane based on `state.mode` without touching the surrounding
  * autosave / submit / edit-lock plumbing. The additional
  * `onInitFailed` callback lets the parent fall back to `html` mode
- * when the saved HTML is not parseable (Issue #233 ADR-002 / spec
- * acceptance criterion).
+ * when the saved HTML is not parseable (spec acceptance criterion).
  *
- * Core invariants (Issue #233 ADR-002 / ADR-003):
+ * Core invariants:
  *
  * 1. **Allow-list block contentEditable.** Only the allow-listed block
  *    tags get `contentEditable=true`. Inline children (`<strong>` /
  *    `<em>` / `<a>` / `<code>` …) inherit editability from the parent
  *    so the user can edit decorated text in place. `<pre>` is on the
- *    allow-list (Issue #285): it is decorated even when it has no direct
+ *    allow-list: it is decorated even when it has no direct
  *    text child (the standard `<pre><code>…</code></pre>` shape), so the
  *    nested `<code>` text becomes editable via contentEditable
  *    inheritance. Tags outside the allow-list stay read-only.
@@ -58,14 +57,14 @@ import { useEffect, useRef } from "react";
  *    `onInitFailed` exactly once and exits; the parent should switch
  *    to `html` mode. An **empty input** (`value.trim() === ""`) is
  *    *not* a failure — the host stays an empty container and the user
- *    can keep `inline` mode for a blank note (Issue #233 ADR-002).
+ *    can keep `inline` mode for a blank note.
  *
  * 5. **External `value` sync.** A change to `value` that did not
  *    originate from the editor itself rebuilds the DOM (with a fresh
  *    snapshot) so media inserts and external edits show up.
  *    `lastEmittedHtmlRef` guards the self-emit round-trip.
  *
- * 6. **`<pre>` is an opaque, highlight-on-blur region (Issue #498).**
+ * 6. **`<pre>` is an opaque, highlight-on-blur region.**
  *    Syntax highlighting injects display-only `<span>`s into `<pre>`,
  *    which must never reach the saved HTML. `serializeHostContent`
  *    resets every `<pre>` to its plain text, `structureSignature` stops
@@ -76,7 +75,7 @@ import { useEffect, useRef } from "react";
  *    re-highlighted on focusout (caret offset saved → re-decorate →
  *    restored; suppressed during IME composition).
  *
- * 7. **Tab / Escape inside `<pre>` (Issue #498 ADR-004).** Tab inserts
+ * 7. **Tab / Escape inside `<pre>`.** Tab inserts
  *    two spaces (text-only); Shift+Tab removes up to two leading spaces
  *    from the caret's line; Escape blurs the focused element to leave the
  *    contentEditable focus trap (and triggers focusout re-highlight).
@@ -84,7 +83,7 @@ import { useEffect, useRef } from "react";
  *
  * Styling: the host element wears the existing `.note-detail-content`
  * class so the editing view reuses the read-only view's typographic
- * styles (Issue #233 ADR-007). The class is the lone documented
+ * styles. The class is the lone documented
  * exception under `app/styles/index.css` `@layer components` because
  * descendant elements injected via DOM mutation can't carry Tailwind
  * utilities. See `.issue/70/adr.md` ADR-002.
@@ -184,7 +183,7 @@ function insertTextAtCaret(host: HTMLElement, text: string): void {
 
 /**
  * Remove up to two leading spaces from the start of the caret's current
- * line inside `<pre>` (Shift+Tab dedent, Issue #498 ADR-004). Operates on
+ * line inside `<pre>` (Shift+Tab dedent). Operates on
  * the whole code block's text via document-order offsets, so a prior
  * `Tab`/`Enter` that split the text into several nodes does not hide the
  * line start. Text-only in effect (it rewrites the
@@ -218,7 +217,7 @@ function dedentAtCaret(host: HTMLElement): void {
 }
 
 /** Resolve the `<code>` (if any) else the `<pre>` itself — the element
- * whose text is the source of truth for highlighting (Issue #498). */
+ * whose text is the source of truth for highlighting. */
 function highlightTarget(pre: Element): Element {
   return pre.querySelector("code") ?? pre;
 }
@@ -227,7 +226,7 @@ function highlightTarget(pre: Element): Element {
  * Caret offset within `root`'s text content, counting characters in
  * document order. Returns `null` when the selection is outside `root`.
  * Used to restore the caret after the highlighter rebuilds a `<pre>`'s
- * descendants into spans (Issue #498).
+ * descendants into spans.
  */
 function caretOffsetWithin(root: Element): number | null {
   const selection = root.ownerDocument.getSelection();
@@ -243,7 +242,7 @@ function caretOffsetWithin(root: Element): number | null {
 /**
  * Place the caret at character `offset` within `root` (counting text in
  * document order). Falls back to the end of `root` when the offset cannot
- * be resolved (Issue #498 ADR-002).
+ * be resolved.
  */
 function restoreCaretWithin(root: Element, offset: number): void {
   const doc = root.ownerDocument;
@@ -287,7 +286,7 @@ function applyEditable(host: HTMLElement, enabled: boolean): void {
     // covered by HTML5's contentEditable semantics — both can carry
     // `true` without conflict, and the outer text becomes editable.
     //
-    // `<pre>` is the lone exception (Issue #285 ADR-001): the standard
+    // `<pre>` is the lone exception: the standard
     // `<pre><code>…</code></pre>` shape has no direct text child, so we
     // bypass the gate and always decorate `<pre>` — its nested `<code>`
     // text becomes editable via contentEditable inheritance.
@@ -323,19 +322,19 @@ function clearEditable(host: HTMLElement): void {
  * stripped of `contenteditable` attributes we added at runtime. This
  * is the value that crosses into `state.contentHtml` and ultimately
  * the DB / read-only render — so the editor-only attribute must not
- * leak (W-F-003 from PR #282 review-001).
+ * leak.
  */
 function serializeHostContent(host: HTMLElement): string {
   const clone = host.cloneNode(true) as HTMLElement;
   for (const el of clone.querySelectorAll("[contenteditable]")) {
     el.removeAttribute("contenteditable");
   }
-  // `<pre>` is an opaque region (Issue #498 ADR-002): the highlighter
-  // injects display-only `<span>`s that must never leak into the saved
-  // HTML. Reset each `<pre>` to its plain text so the persisted form is
-  // always a clean `<pre><code>text</code></pre>` / `<pre>text</pre>`.
+  // `<pre>` is an opaque region: the highlighter injects display-only
+  // `<span>`s that must never leak into the saved HTML. Reset each
+  // `<pre>` to its plain text so the persisted form is always a clean
+  // `<pre><code>text</code></pre>` / `<pre>text</pre>`.
   // `querySelectorAll("pre")` (not `pre code`) covers the bare-`<pre>`
-  // shape too (#285 ADR-001).
+  // shape too.
   for (const pre of clone.querySelectorAll("pre")) {
     const code = pre.querySelector("code");
     const target = code ?? pre;
@@ -365,7 +364,7 @@ function structureSignature(root: Element | DocumentFragment): string {
         .sort();
       for (const a of attrs) parts.push(` ${a}`);
       parts.push(">");
-      // `<pre>` is opaque (Issue #498 ADR-002): the highlighter mutates
+      // `<pre>` is opaque: the highlighter mutates
       // its descendants (span add/remove), so do not descend — otherwise
       // the signature would drift purely from decoration and fire a false
       // compositionend rollback.
@@ -387,12 +386,12 @@ function classifyRecords(
   host: HTMLElement,
   isHighlighting: boolean,
 ): Mutability {
-  // While we are re-highlighting a `<pre>` (Issue #498), the span churn
+  // While we are re-highlighting a `<pre>`, the span churn
   // we inject is self-driven and always allowed.
   if (isHighlighting) return { kind: "allowed" };
   for (const r of records) {
     if (r.type === "characterData") continue;
-    // `<pre>` is an opaque region (Issue #498 ADR-002): the highlighter's
+    // `<pre>` is an opaque region: the highlighter's
     // span add/remove inside a `<pre>` is display-only and never reaches
     // the saved HTML (serialize normalizes it), so allow it. The
     // exception is confined to within `<pre>`; structure protection
@@ -433,7 +432,7 @@ export function InlineEditor({
   const observerRef = useRef<MutationObserver | null>(null);
   const isComposingRef = useRef(false);
   // True while we re-decorate a `<pre>` so the observer ignores the
-  // self-driven span churn (Issue #498).
+  // self-driven span churn.
   const isHighlightingRef = useRef(false);
   // `null` until the first build so the resync effect always builds on
   // mount; afterwards it holds the last HTML this editor emitted (or
@@ -463,7 +462,7 @@ export function InlineEditor({
   // is stable across `value` changes, so none of this needs to be torn
   // down when the content is resynced — only the host's *children* are
   // replaced (by `rebuild`, below). Splitting the DOM lifecycle this way
-  // is what keeps focus alive across a self-emit round-trip (Issue #669):
+  // is what keeps focus alive across a self-emit round-trip:
   // a `[value]`-dependent effect would run its cleanup (listener removal
   // + `host.replaceChildren()`) on every keystroke's emit → value change,
   // destroying the focused node. `disabled` is handled in its own effect
@@ -507,11 +506,11 @@ export function InlineEditor({
           attributes: true,
         });
       }
-      // Re-decorate after restoring the plain snapshot (Issue #498).
+      // Re-decorate after restoring the plain snapshot.
       highlightAll();
     };
 
-    // Re-decorate one `<pre>` (Issue #498). Highlighting is display-only;
+    // Re-decorate one `<pre>`. Highlighting is display-only;
     // editing always happens on plain text, so this runs on mount /
     // resync / focusout, never while the block is focused.
     // `isHighlightingRef` suppresses the observer's self-trigger. The
@@ -520,7 +519,7 @@ export function InlineEditor({
     const highlightPre = async (pre: Element) => {
       // Keep shiki out of the Workers (SSR/RSC) bundle — Vite tree-shakes
       // this branch for the SSR targets so the dynamic import and its
-      // chunks never reach `dist/server` (Issue #498 ADR-005).
+      // chunks never reach `dist/server`.
       if (import.meta.env.SSR) return;
       if (disabledRef.current) return;
       if (isComposingRef.current) return;
@@ -617,7 +616,7 @@ export function InlineEditor({
 
       const trimmed = nextValue.trim();
       if (trimmed.length === 0 && body.childNodes.length === 0) {
-        // Empty note: keep an empty host but stay in inline mode (ADR-002).
+        // Empty note: keep an empty host but stay in inline mode.
         lastEmittedHtmlRef.current = nextValue;
         restartObserver();
         return;
@@ -647,7 +646,7 @@ export function InlineEditor({
         // Always prevent the browser default so it cannot grow new
         // blocks (`<br>` / `<div>`) that would be rolled back as
         // structural drift. Inside `<pre>` we substitute a literal `\n`
-        // text node so the change stays text-only (Issue #285 ADR-002).
+        // text node so the change stays text-only.
         e.preventDefault();
         const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
         if (isWithinPre(anchor, host)) {
@@ -659,22 +658,21 @@ export function InlineEditor({
         e.preventDefault();
         const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
         if (!isWithinPre(anchor, host)) {
-          // Outside `<pre>`: keep focus from escaping to the next block
-          // (Issue #285 ADR-003).
+          // Outside `<pre>`: keep focus from escaping to the next block.
           return;
         }
         if (e.shiftKey) {
           dedentAtCaret(host);
         } else {
-          // Indent with two spaces (Issue #498 ADR-004). Text-only so the
+          // Indent with two spaces. Text-only so the
           // structure-rollback invariant holds.
           insertTextAtCaret(host, "  ");
         }
         return;
       }
       if (e.key === "Escape") {
-        // Escape the contentEditable focus trap from inside `<pre>`
-        // (Issue #498 ADR-004). `blur()` fires focusout → re-highlight.
+        // Escape the contentEditable focus trap from inside `<pre>`.
+        // `blur()` fires focusout → re-highlight.
         const anchor = host.ownerDocument.getSelection()?.anchorNode ?? null;
         if (isWithinPre(anchor, host)) {
           e.preventDefault();
@@ -700,7 +698,7 @@ export function InlineEditor({
     };
 
     const onCompositionEnd = () => {
-      // Order matters (ADR-003 / step 4-3): flush observer records,
+      // Order matters: flush observer records,
       // compare structure, rollback if needed, *then* clear the
       // composing flag so the trailing `input` event that fires right
       // after compositionend is still evaluated under "composing=true"
@@ -743,7 +741,7 @@ export function InlineEditor({
       emit();
     };
 
-    // Issue #498: a `<pre>` is plain while focused and highlighted while
+    // A `<pre>` is plain while focused and highlighted while
     // not. On focusin, strip the decoration of the focused block back to
     // plain text so editing happens on a single text node (caret / IME
     // stable). On focusout, re-highlight that block.
@@ -768,7 +766,7 @@ export function InlineEditor({
       if (target.querySelector("span") === null) return;
       // Preserve the click/caret position: stripping the spans destroys
       // the text node the caret sits in, so save its offset and restore
-      // it on the rebuilt single text node (Issue #498).
+      // it on the rebuilt single text node.
       const caretOffset = caretOffsetWithin(target);
       const plain = target.textContent ?? "";
       isHighlightingRef.current = true;
@@ -821,7 +819,7 @@ export function InlineEditor({
   // Value resync: rebuild only when `value` did NOT originate from our
   // own emit. A self-emit round-trip (keystroke → debounce → onChange →
   // parent state → value prop) leaves the live DOM — and the user's
-  // focus / caret — untouched (Issue #669).
+  // focus / caret — untouched.
   useEffect(() => {
     if (value === lastEmittedHtmlRef.current) return;
     rebuildRef.current?.(value);

@@ -58,20 +58,20 @@ import { WysiwygEditor } from "./WysiwygEditor";
  *
  * Phase D coverage:
  * - HTML edit pane + sanitized-on-save preview (`HtmlEditor`)
- * - WYSIWYG pane backed by TipTap (`WysiwygEditor`, Issue #9)
+ * - WYSIWYG pane backed by TipTap (`WysiwygEditor`)
  * - Generic key-value FrontMatter editor + raw-JSON toggle (`FrontMatterEditor`)
  * - Directory pick / inline new-directory creation (`DirectoryPicker`)
  * - Presigned R2 media upload + `/media/<id>` insertion (`MediaUploader`).
  *   In WYSIWYG mode the upload completion targets the current cursor via
  *   the TipTap editor command (`setImage`); in HTML mode the existing
- *   string-tail-append behaviour is preserved (Issue #9 ADR-003).
+ *   string-tail-append behaviour is preserved.
  * - Debounced autosave via `saveNoteDraft` with backoff (`useAutosave`)
  * - Best-effort edit lock with acquire / extend / release (`useEditLock`)
  *
  * Out of scope (separate issues):
  * - History / revision aggregate (spec marks "future")
- * - Real-time collision presence (no SSE/WebSocket infra yet, ADR-006)
- * - Raw YAML edit (ADR-003 — JSON only here)
+ * - Real-time collision presence (no SSE/WebSocket infra yet)
+ * - Raw YAML edit (JSON only here)
  * - Single-note export from this surface (handled at `/notes/$noteId/export`)
  */
 
@@ -106,7 +106,7 @@ export function NoteEditor(props: NoteEditorProps) {
   const noteId = props.mode === "edit" ? props.noteId : null;
 
   // Seed only on first mount (lazy initializer): a loader re-run delivering
-  // fresh `initial*` props must NOT reset in-progress edits (#669).
+  // fresh `initial*` props must NOT reset in-progress edits.
   const [state, dispatch] = useReducer(editorReducer, undefined, () => {
     const base = {
       surface: props.mode === "new" ? ("new" as const) : ("edit" as const),
@@ -128,13 +128,12 @@ export function NoteEditor(props: NoteEditorProps) {
   const [isPending, startTransition] = useTransition();
   // Surfaces the inline directory-creation step that runs at save time when a
   // pending (not-yet-created) directory name is set. Reset in a `finally` so it
-  // clears on both success and failure (plan B-3).
+  // clears on both success and failure.
   const [creatingDirectory, setCreatingDirectory] = useState(false);
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
 
-  // ADR-008 (Issue #233 review-001 W-S-001 / W-F-006): `onModeChange`
-  // needs to read post-blur `dirtyKeys` / `autosave` to decide whether
+  // `onModeChange` needs to read post-blur `dirtyKeys` / `autosave` to decide whether
   // to confirm. React batches the `dispatch` triggered by
   // `active.blur()`, so the `state` closure inside the same event
   // handler is stale. Mirror the latest state into a ref via a commit-
@@ -171,7 +170,7 @@ export function NoteEditor(props: NoteEditorProps) {
         dispatch({ type: "mediaInsertionAdded", insertion });
         return;
       }
-      // `html` and `inline` (Issue #233 ADR-005) share the string-append
+      // `html` and `inline` share the string-append
       // path. For `inline`, the `InlineEditor`'s `useEffect([value])`
       // resync rebuilds the DOM with the newly-appended `<img>` and
       // re-takes the MutationObserver snapshot.
@@ -185,17 +184,17 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const onModeChange = useCallback(
     (nextMode: EditorMode) => {
-      // ADR-003 (Issue #230): switching editor modes unmounts the
+      // Switching editor modes unmounts the
       // currently focused FrontMatter input. Force a blur first so any
       // pending key-rename / add commits run before the row disappears,
-      // instead of being silently dropped. Issue #233 ADR-004 fixes the
-      // order as: blur → re-evaluate dirty → confirm → dispatch, so any
+      // instead of being silently dropped. The order is fixed as:
+      // blur → re-evaluate dirty → confirm → dispatch, so any
       // dirty flag that blur introduces (e.g. a committed rename) is
       // visible to the confirm step. The latest `dirtyKeys` / `autosave`
       // is read from `stateRef` rather than the closure to capture any
-      // dispatch that blur produced (Issue #233 ADR-008).
+      // dispatch that blur produced.
       //
-      // Issue #286: when the user picks "discard", call
+      // When the user picks "discard", call
       // `abortInFlight()` BEFORE `setMode` dispatches. The abort cancels
       // the in-flight `saveDraft` fetch via AbortController and resets
       // the autosave UI to `idle`. Doing it before `setMode` keeps the
@@ -271,7 +270,7 @@ export function NoteEditor(props: NoteEditorProps) {
             },
           });
           // No invalidate here: the detail route uses `staleTime: 0`, so the
-          // navigation below always fresh-loads the saved note (#669).
+          // navigation below always fresh-loads the saved note.
           await router.navigate({
             to: "/notes/$noteId",
             params: { noteId: props.noteId },
@@ -288,7 +287,7 @@ export function NoteEditor(props: NoteEditorProps) {
   return (
     // No form `gap` on purpose: each row carries the mock's own
     // `margin-bottom` (`mb-*`) so values smaller than a uniform gap
-    // (e.g. the directory row's 12px) stay reproducible (#669).
+    // (e.g. the directory row's 12px) stay reproducible.
     <form
       className="flex flex-col max-sm:pb-[env(safe-area-inset-bottom)]"
       onSubmit={onSubmit}

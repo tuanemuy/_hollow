@@ -34,7 +34,7 @@ import { dirRowPillInput } from "./styles";
  * `NoteEditor` opts in; `IngestionPreviewForm` does not — physically
  * deleting an LLM-suggested directory mid-preview would break the
  * preview state contract (commit would NotFoundError, AI badges would
- * desync). See ADR-007.
+ * desync).
  *
  * `allowNestedPath` (default `false`) is an ingestion-only opt-in: when
  * true the new-name input accepts a `/`-delimited nested path (e.g.
@@ -107,7 +107,7 @@ export function DirectoryPicker({
       disabled={disabled === true || usingNew}
       clearable
       // The row variant renders its own visible "ディレクトリ" label, so the
-      // field's label goes sr-only to avoid a double label (PR #676 W-001).
+      // field's label goes sr-only to avoid a double label.
       labelHidden={variant === "row"}
     />
   );

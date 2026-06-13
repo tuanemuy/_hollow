@@ -9,7 +9,7 @@ import {
 } from "@/components/_test-utils/serverFnMock";
 
 /**
- * Issue #669: pins the seed-once contract of `NoteEditor`.
+ * Pins the seed-once contract of `NoteEditor`.
  *
  * The `useReducer` lazy initializer seeds the editor state from the
  * `initial*` props exactly once, on first mount. A loader re-run that
@@ -17,7 +17,7 @@ import {
  * in-progress edits. This guards against a future regression where a
  * `useEffect` props-resync sneaks in; it does NOT (and cannot) cover a
  * raw `router.invalidate()` path that remounts the editor — see
- * `.issue/669/adr.md` ADR-003 (known residual gap, corrected by TC-009).
+ * `.issue/669/adr.md` ADR-003 (known residual gap).
  */
 
 (

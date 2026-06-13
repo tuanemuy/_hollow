@@ -43,7 +43,7 @@ import { editorToolbar } from "./styles";
 import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
- * WYSIWYG pane backed by TipTap (P12 / Issue #9). Mirrors `HtmlEditor`'s
+ * WYSIWYG pane backed by TipTap (P12). Mirrors `HtmlEditor`'s
  * `{ value, onChange, disabled }` I/O contract so `NoteEditor.tsx` can
  * swap the rendered pane based on `state.mode` without touching the
  * surrounding autosave / submit / edit-lock plumbing.
@@ -70,7 +70,7 @@ import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
  *   loop. The `editor.getHTML() !== value` guard skips the round-trip
  *   when the editor is already in sync.
  * - `editorRef` exposes the live `Editor` instance to the parent so
- *   media insertion can target the current selection (ADR-003). The
+ *   media insertion can target the current selection. The
  *   ref is cleared on unmount to prevent stale-pointer dispatch.
  *
  * StarterKit (v3) bundles Link by default; we disable that and add the
@@ -79,12 +79,11 @@ import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
  * editor cannot display URLs that the sanitiser would strip), and the
  * `rel="noopener noreferrer"` attribute. Image lives in a separate
  * package (`@tiptap/extension-image`) and is configured to reject base64
- * payloads so only `/media/<id>` URLs make it into the document
- * (ADR-009 carry-over).
+ * payloads so only `/media/<id>` URLs make it into the document.
  *
  * The four unsupported-tag props (`unsupportedTags`, `unsupportedAck`,
  * `onUnsupportedTagsDetected`, `onAcknowledge`) form one cohesive
- * feature contract (Issue #37). They are individually optional only so
+ * feature contract. They are individually optional only so
  * callers that do not opt into the warning UI can omit the whole set;
  * pass them as a group or not at all. Partial wiring (e.g. omitting
  * `onAcknowledge`) leaves the "了解した" button as a no-op and stalls
@@ -97,7 +96,7 @@ export type WysiwygEditorProps = Readonly<{
   editorRef?: React.RefObject<Editor | null>;
   /**
    * Names of element tags present in `value` that fall outside the
-   * TipTap-supported set (Issue #37). Drives the inline warning banner.
+   * TipTap-supported set. Drives the inline warning banner.
    */
   unsupportedTags?: readonly string[];
   /** Whether the user has acknowledged the unsupported-tag warning. */
@@ -105,12 +104,12 @@ export type WysiwygEditorProps = Readonly<{
   /**
    * Fired once on initial mount with the tags `detectUnsupportedTags`
    * found in the *original* `value`. Detection deliberately runs only
-   * inside `onCreate` — see ADR-005 for why later re-detection (against
-   * a `value` that TipTap may already have flattened) is unsafe.
+   * inside `onCreate` — later re-detection (against a `value` that
+   * TipTap may already have flattened) is unsafe.
    *
    * The reducer compares incoming sets with `setsEqual`, so dispatching
    * the same tag set after an `unsupportedAck` toggle preserves the ack
-   * state (ADR-003). This lets the WYSIWYG editor remount-and-redetect
+   * state. This lets the WYSIWYG editor remount-and-redetect
    * without spuriously resetting acknowledgement.
    */
   onUnsupportedTagsDetected?: (tags: readonly string[]) => void;
@@ -175,9 +174,9 @@ export function WysiwygEditor({
   //    below would freeze on the first `searchSuggestions` reference and
   //    silently miss future server-fn refreshes. We pin the latest fn in
   //    a ref and read it from the items callback so the memoised glue
-  //    keeps working with a stable identity (Issue #36 P-004).
+  //    keeps working with a stable identity.
   // 2. The popup is rendered through `ReactRenderer` + a manual
-  //    `document.body.appendChild` (ADR-003) so we avoid pulling in
+  //    `document.body.appendChild` so we avoid pulling in
   //    `tippy.js` as an extra dependency.
   const searchSuggestions = useServerFn(searchInternalLinkTargetsFn);
   const searchSuggestionsRef = useRef(searchSuggestions);
@@ -190,7 +189,7 @@ export function WysiwygEditor({
     // timer and aborts any in-flight request before scheduling the
     // next one. 100ms keeps perceived latency low while suppressing
     // the high-frequency D1 LIKE queries that naive per-keystroke
-    // dispatch would produce (Issue #36 S-003).
+    // dispatch would produce.
     let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
     let pendingAbort: AbortController | null = null;
     return {
@@ -345,7 +344,7 @@ export function WysiwygEditor({
       // by this closure on mount — `instance.getHTML()` is already the
       // post-parse (lossy) form. Detection runs exactly here so that
       // user keystrokes flowing through `onUpdate` cannot retroactively
-      // erase the warning (ADR-005).
+      // erase the warning.
       const lost = detectUnsupportedTags(value);
       if (lost.length > 0) {
         onUnsupportedTagsDetected?.(lost);

@@ -35,7 +35,7 @@ export function HtmlEditor({ value, onChange, disabled }: HtmlEditorProps) {
           disabled={disabled}
           spellCheck={false}
           // The editor pane uses a 480px floor (mock `.editor`) instead of
-          // the shared `fieldTextarea` (320px), which other forms keep (#669).
+          // the shared `fieldTextarea` (320px), which other forms keep.
           className={`${fieldControl} font-mono text-mono min-h-[480px] resize-y`}
         />
       </div>
