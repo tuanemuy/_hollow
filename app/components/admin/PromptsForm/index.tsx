@@ -11,6 +11,7 @@ import {
   pillBtnGhostDanger,
   pillBtnPrimary,
 } from "@/components/common/styles";
+import { useRestoreFieldFocusOnCommit } from "@/components/common/useRestoreFieldFocusOnCommit";
 import type {
   PromptDefaultDTO,
   PromptDTO,
@@ -101,6 +102,10 @@ function PromptCard({
   const reset = useServerFn(resetPromptTemplateFn);
   const textId = useId();
   const variablesId = useId();
+  // Restore focus + caret if an invalidate commit (e.g. AppShell UploadDialog)
+  // drops focus to <body> while either field is focused (#680).
+  const textFocus = useRestoreFieldFocusOnCommit<HTMLTextAreaElement>();
+  const variablesFocus = useRestoreFieldFocusOnCommit<HTMLInputElement>();
 
   // Only show the user's draft when an override is actively in place;
   // otherwise the textarea starts empty so the operator can confirm
@@ -188,12 +193,14 @@ function PromptCard({
         </label>
         <textarea
           id={textId}
+          ref={textFocus.ref}
           className={TEXTAREA_CLASS}
           value={text}
           spellCheck={false}
           placeholder={descriptor.placeholder}
           onChange={(event) => setText(event.target.value)}
           disabled={isPending}
+          {...textFocus.handlers}
         />
         {current.isOverridden && text.trim().length === 0 ? (
           <p className={FIELD_HINT_CLASS}>
@@ -210,12 +217,14 @@ function PromptCard({
         </label>
         <input
           id={variablesId}
+          ref={variablesFocus.ref}
           type="text"
           className={INPUT_MONO_CLASS}
           value={variables}
           onChange={(event) => setVariables(event.target.value)}
           placeholder="content, existingDirectories"
           disabled={isPending}
+          {...variablesFocus.handlers}
         />
         <p className={FIELD_HINT_CLASS}>
           本文中の <code className={CODE_INLINE_CLASS}>{"{{name}}"}</code>{" "}
