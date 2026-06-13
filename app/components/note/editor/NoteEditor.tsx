@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import type { Editor } from "@tiptap/react";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useReducer,
@@ -11,6 +12,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   fieldControl,
   fieldLabel,
@@ -52,6 +54,7 @@ import { editorActions, editorTopbar, titleInput } from "./styles";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
 import { WysiwygEditor } from "./WysiwygEditor";
+import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
  * Note editor (P12) — orchestrator client component.
@@ -131,6 +134,16 @@ export function NoteEditor(props: NoteEditorProps) {
   // clears on both success and failure.
   const [creatingDirectory, setCreatingDirectory] = useState(false);
   const [submitError, setSubmitError] = useState<SerializedError | null>(null);
+  // Holds a deferred switch to WYSIWYG while the decoration-loss
+  // confirmation dialog is open (Issue #696 ADR-002). This is a transient
+  // view-only UI state — the open/close of a dialog and the tags it must
+  // list — so it lives in orchestrator `useState` rather than the reducer,
+  // which is reserved for model state (content / mode / autosave / dirty).
+  // `null` = no dialog; non-null = dialog open with the tags that would be
+  // lost. The actual `setMode "wysiwyg"` happens on confirm, not here.
+  const [pendingWysiwygSwitch, setPendingWysiwygSwitch] = useState<{
+    lostTags: readonly string[];
+  } | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
 
   // `onModeChange` needs to read post-blur `dirtyKeys` / `autosave` to decide whether
@@ -215,10 +228,51 @@ export function NoteEditor(props: NoteEditorProps) {
         if (!ok) return;
         abortInFlight();
       }
+      // Decoration-loss gate (Issue #696): switching to WYSIWYG flattens
+      // any tag TipTap cannot round-trip. Detect against the latest
+      // committed `contentHtml` (the InlineEditor `onChange` debounce may
+      // not have flushed, but the unsupported-tag *set* does not change on
+      // ordinary text edits, so this is an accepted approximation — see
+      // ADR-002). If anything would be lost, defer the switch and open the
+      // ConfirmDialog instead of dispatching `setMode` now. The order is
+      // fixed: unsaved-confirm (window.confirm) → decoration-warning
+      // (ConfirmDialog), and confirming the latter also acks the in-pane
+      // banner so the user is never asked twice about the same loss.
+      if (nextMode === "wysiwyg") {
+        const lostTags = detectUnsupportedTags(latest.contentHtml);
+        if (lostTags.length > 0) {
+          setPendingWysiwygSwitch({ lostTags });
+          return;
+        }
+      }
       dispatch({ type: "setMode", mode: nextMode });
     },
     [abortInFlight],
   );
+
+  const confirmWysiwygSwitch = useCallback(() => {
+    const pending = pendingWysiwygSwitch;
+    if (pending === null) return;
+    // Switch + acknowledge in one handler so the WysiwygEditor mounts with
+    // the in-pane warning already accepted (Issue #696 ADR-002): the user
+    // just agreed to the same loss in the dialog, so the banner must not
+    // re-prompt. The ordering of these three dispatches matters because
+    // `wysiwygUnsupportedDetected` resets `wysiwygUnsupportedAck` to false
+    // whenever it receives a set DIFFERENT from the current one:
+    //   1. seed `wysiwygUnsupportedTags` with the SAME set the dialog just
+    //      listed, so the WYSIWYG pane's `onCreate` re-detection (which
+    //      finds that identical set) hits the `setsEqual` short-circuit and
+    //      leaves the ack untouched;
+    //   2. set the ack AFTER the tags are seeded, so it is not clobbered by
+    //      step 1's reset-on-change;
+    //   3. switch the mode to mount the pane.
+    // All three run inside one React event handler and batch into a single
+    // render with the final state (tags set, ack=true, mode=wysiwyg).
+    dispatch({ type: "wysiwygUnsupportedDetected", tags: pending.lostTags });
+    dispatch({ type: "wysiwygUnsupportedAck" });
+    dispatch({ type: "setMode", mode: "wysiwyg" });
+    setPendingWysiwygSwitch(null);
+  }, [pendingWysiwygSwitch]);
 
   const resolveDirectoryId = async (): Promise<string | null> => {
     if (state.pendingDirectoryName === null) return state.directoryId;
@@ -466,6 +520,29 @@ export function NoteEditor(props: NoteEditorProps) {
           {displayError(submitError)}
         </p>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingWysiwygSwitch !== null}
+        title="WYSIWYG モードに切り替えますか？"
+        description={
+          pendingWysiwygSwitch !== null ? (
+            <>
+              <p>次の要素は WYSIWYG モードでは保持されません:</p>
+              <p className="mt-2">
+                {pendingWysiwygSwitch.lostTags.map((tag, i) => (
+                  <Fragment key={tag}>
+                    {i > 0 ? ", " : ""}
+                    <code>{`<${tag}>`}</code>
+                  </Fragment>
+                ))}
+              </p>
+            </>
+          ) : undefined
+        }
+        confirmLabel="切り替える"
+        onConfirm={confirmWysiwygSwitch}
+        onClose={() => setPendingWysiwygSwitch(null)}
+      />
     </form>
   );
 }

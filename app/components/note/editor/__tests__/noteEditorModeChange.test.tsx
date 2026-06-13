@@ -36,6 +36,14 @@ const extendLockMock = vi.fn().mockResolvedValue({ expiresAt: null });
 const releaseLockMock = vi.fn().mockResolvedValue(undefined);
 const presignMediaMock = vi.fn();
 const finalizeMediaMock = vi.fn();
+// WysiwygEditor (mounted when switching to the new edit-surface WYSIWYG
+// tab, Issue #696) reads this server fn for the `[[` internal-link
+// suggest plugin. The editor never actually queries it in these tests,
+// but the named export must exist on the mock so its module-level read
+// does not throw.
+const searchInternalLinkTargetsMock = vi.fn().mockResolvedValue({
+  suggestions: [],
+});
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: useServerFnRouter(
@@ -49,6 +57,7 @@ vi.mock("@tanstack/react-start", () => ({
       [releaseLockMock, releaseLockMock],
       [presignMediaMock, presignMediaMock],
       [finalizeMediaMock, finalizeMediaMock],
+      [searchInternalLinkTargetsMock, searchInternalLinkTargetsMock],
     ],
     vi.fn(),
   ),
@@ -63,6 +72,7 @@ vi.mock("@/components/note/actions", () => ({
   acquireEditLockFn: acquireLockMock,
   extendEditLockFn: extendLockMock,
   releaseEditLockFn: releaseLockMock,
+  searchInternalLinkTargetsFn: searchInternalLinkTargetsMock,
 }));
 
 vi.mock("@/components/directory/actions", () => ({
@@ -124,14 +134,14 @@ function tabByLabel(label: string): HTMLButtonElement {
   return found;
 }
 
-async function renderEditor(): Promise<void> {
+async function renderEditor(initialContentHtml = "<p>foo</p>"): Promise<void> {
   await act(async () => {
     root.render(
       <NoteEditor
         mode="edit"
         noteId="n1"
         initialTitle="Hello"
-        initialContentHtml="<p>foo</p>"
+        initialContentHtml={initialContentHtml}
         initialFrontMatter={{}}
         initialTagNames={[]}
         initialDirectoryId={null}
@@ -139,6 +149,36 @@ async function renderEditor(): Promise<void> {
       />,
     );
   });
+}
+
+function alertDialog(): HTMLElement | null {
+  return document.body.querySelector<HTMLElement>('[role="alertdialog"]');
+}
+
+function dialogButtonByLabel(label: string): HTMLButtonElement {
+  const dialog = alertDialog();
+  if (dialog === null) throw new Error("no alertdialog open");
+  const buttons = Array.from(
+    dialog.querySelectorAll<HTMLButtonElement>("button"),
+  );
+  const found = buttons.find((b) => b.textContent?.trim() === label);
+  if (found === undefined) {
+    throw new Error(
+      `dialog button "${label}" not found among [${buttons
+        .map((b) => b.textContent?.trim())
+        .join(", ")}]`,
+    );
+  }
+  return found;
+}
+
+function isWysiwygMounted(): boolean {
+  // The WYSIWYG pane renders a `role="toolbar"` labelled "書式"; no other
+  // pane does, so its presence is a reliable mounted-marker for these
+  // mode-gate assertions.
+  return (
+    document.body.querySelector('[role="toolbar"][aria-label="書式"]') !== null
+  );
 }
 
 describe("NoteEditor.onModeChange confirm conditions", () => {
@@ -201,6 +241,142 @@ describe("NoteEditor.onModeChange confirm conditions", () => {
       tabByLabel("HTML").click();
     });
     expect(confirmMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Issue #696: switching to WYSIWYG on the edit surface warns before
+ * dropping decoration. The gate runs against the latest committed
+ * `state.contentHtml` and only opens the decoration-loss `ConfirmDialog`
+ * when `detectUnsupportedTags` finds at least one unsupported tag. The
+ * confirm path dispatches `setMode "wysiwyg"` AND `wysiwygUnsupportedAck`
+ * together so the in-pane banner mounts already acknowledged — these
+ * tests pin that latch coupling (the dialog's lostTags and the pane's
+ * `onCreate` re-detection are the same set, so the ack survives).
+ */
+describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", () => {
+  it("opens the warning dialog and defers the switch when unsupported tags exist (AC-2/AC-5)", async () => {
+    await renderEditor("<section><p>x</p></section>");
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    // Dialog is open and the switch is deferred (no WYSIWYG pane yet).
+    const dialog = alertDialog();
+    expect(dialog).not.toBeNull();
+    expect(isWysiwygMounted()).toBe(false);
+    // The lost element is listed (AC-5).
+    expect(dialog?.textContent ?? "").toContain("<section>");
+    expect(dialog?.textContent ?? "").toContain(
+      "次の要素は WYSIWYG モードでは保持されません",
+    );
+    // No unsaved changes, so the unsaved `window.confirm` did not fire.
+    expect(confirmMock).not.toHaveBeenCalled();
+  });
+
+  it("switches without a dialog when only supported tags exist (AC-3)", async () => {
+    await renderEditor("<p>x</p>");
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    expect(alertDialog()).toBeNull();
+    expect(isWysiwygMounted()).toBe(true);
+  });
+
+  it("keeps mode and content when the dialog is cancelled (AC-4)", async () => {
+    await renderEditor("<section><p>x</p></section>");
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    expect(alertDialog()).not.toBeNull();
+    await act(async () => {
+      dialogButtonByLabel("キャンセル").click();
+    });
+    expect(alertDialog()).toBeNull();
+    // Still on the default `inline` pane — WYSIWYG never mounted.
+    expect(isWysiwygMounted()).toBe(false);
+  });
+
+  it("switches and acks the in-pane banner when the dialog is confirmed (AC-7)", async () => {
+    await renderEditor("<section><p>x</p></section>");
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    await act(async () => {
+      dialogButtonByLabel("切り替える").click();
+    });
+    // Flush TipTap's onCreate (it runs inside rAF under happy-dom and
+    // re-detects the same `<section>` set against the original `value`).
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    expect(alertDialog()).toBeNull();
+    expect(isWysiwygMounted()).toBe(true);
+    // Latch coupling (Issue #696 ADR-002): the confirm handler seeds
+    // `wysiwygUnsupportedTags` with the SAME set the dialog listed, then
+    // sets the ack. So when the WYSIWYG pane's `onCreate` re-detects
+    // `<section>`, the reducer hits the `setsEqual` short-circuit and the
+    // ack survives. The banner must therefore mount already acknowledged:
+    // it lists the lost element but renders NO "了解した" re-acknowledge
+    // button — the user is never asked twice about the loss they just
+    // approved in the dialog.
+    const banner = document.body.querySelector<HTMLElement>('[role="note"]');
+    expect(banner).not.toBeNull();
+    expect(banner?.textContent ?? "").toContain("<section>");
+    expect(document.body.textContent ?? "").not.toContain("了解した");
+  });
+
+  it("runs unsaved-confirm before the decoration dialog without double-prompting the loss (AC-7)", async () => {
+    await renderEditor("<section><p>x</p></section>");
+    // Make the editor dirty so the unsaved `window.confirm` fires first.
+    const titleInput =
+      container.querySelector<HTMLInputElement>("#note-editor-title");
+    await act(async () => {
+      if (titleInput !== null) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(titleInput, "Hello world");
+        titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    confirmMock.mockReturnValue(true);
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    // Order: window.confirm (unsaved) once, THEN the decoration dialog.
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(alertDialog()).not.toBeNull();
+    // The decoration concern is surfaced exactly once (single dialog).
+    expect(document.body.querySelectorAll('[role="alertdialog"]').length).toBe(
+      1,
+    );
+  });
+
+  it("does not switch to WYSIWYG when the unsaved confirm is cancelled", async () => {
+    await renderEditor("<section><p>x</p></section>");
+    const titleInput =
+      container.querySelector<HTMLInputElement>("#note-editor-title");
+    await act(async () => {
+      if (titleInput !== null) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(titleInput, "Hello world");
+        titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    confirmMock.mockReturnValue(false);
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    // Cancelling the unsaved confirm aborts before the decoration gate.
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(alertDialog()).toBeNull();
+    expect(isWysiwygMounted()).toBe(false);
   });
 });
 
