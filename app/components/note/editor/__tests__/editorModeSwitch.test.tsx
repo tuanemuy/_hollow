@@ -10,6 +10,13 @@ import type { EditorMode, EditorSurface } from "../editorState";
  * Issue #696: the `edit` surface gains a WYSIWYG tab (AC-1) while the
  * `new` surface tab set stays untouched (AC-6). `EditorModeSwitch` is a
  * pure tab control, so the tab inventory is asserted directly here.
+ *
+ * Scope note (review-001 W-002): this file only pins the *tab inventory*.
+ * The new-surface *switching flow* (that WYSIWYG selection on the new
+ * surface never triggers the decoration-loss dialog) is pinned at the
+ * orchestrator level in `noteEditorModeChange.test.tsx`
+ * ("NoteEditor new surface switching is unchanged"), because the gate
+ * lives in `NoteEditor.onModeChange`, not in this pure component.
  */
 
 (

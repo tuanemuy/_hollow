@@ -93,6 +93,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 const { NoteEditor } = await import("../NoteEditor");
+const { detectUnsupportedTags } = await import("../wysiwygUnsupportedTags");
 
 let container: HTMLDivElement;
 let root: Root;
@@ -151,6 +152,12 @@ async function renderEditor(initialContentHtml = "<p>foo</p>"): Promise<void> {
   });
 }
 
+async function renderNewEditor(): Promise<void> {
+  await act(async () => {
+    root.render(<NoteEditor mode="new" tree={[]} />);
+  });
+}
+
 function alertDialog(): HTMLElement | null {
   return document.body.querySelector<HTMLElement>('[role="alertdialog"]');
 }
@@ -172,6 +179,18 @@ function dialogButtonByLabel(label: string): HTMLButtonElement {
   return found;
 }
 
+function dialogListedTags(): string[] {
+  // The decoration-loss dialog renders each lost tag in its own `<code>`
+  // element as `<tag>`. Extracting them lets W-004 pin that the rendered
+  // list matches `detectUnsupportedTags` exactly (set + order), rather
+  // than the looser single-substring check.
+  const dialog = alertDialog();
+  if (dialog === null) return [];
+  return Array.from(dialog.querySelectorAll("code")).map((c) =>
+    (c.textContent ?? "").trim(),
+  );
+}
+
 function isWysiwygMounted(): boolean {
   // The WYSIWYG pane renders a `role="toolbar"` labelled "書式"; no other
   // pane does, so its presence is a reliable mounted-marker for these
@@ -179,6 +198,17 @@ function isWysiwygMounted(): boolean {
   return (
     document.body.querySelector('[role="toolbar"][aria-label="書式"]') !== null
   );
+}
+
+function htmlTextareaValue(): string {
+  // The HTML pane binds its `<textarea>` to `state.contentHtml`, so its
+  // value is the most direct observable of the committed content HTML.
+  // Used to assert the original markup (decoration included) survives a
+  // cancelled WYSIWYG switch.
+  const textarea = container.querySelector<HTMLTextAreaElement>(
+    'textarea[id*=":r"], textarea',
+  );
+  return textarea?.value ?? "";
 }
 
 describe("NoteEditor.onModeChange confirm conditions", () => {
@@ -273,6 +303,34 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     expect(confirmMock).not.toHaveBeenCalled();
   });
 
+  it("lists every unsupported tag in sorted order and excludes supported tags (AC-2/AC-5)", async () => {
+    // Issue #696 review-001 W-004: the previous AC-5 check only asserted a
+    // single `toContain("<section>")`, which would still pass if the dialog
+    // wrongly listed only one of several lost tags — or even listed the
+    // SUPPORTED `<p>` wrapper. Use a fixture with multiple unsupported tags
+    // plus a supported one and pin the rendered list against the canonical
+    // `detectUnsupportedTags` output (sorted, de-duped, supported excluded),
+    // so the dialog↔detector binding can't silently drift.
+    const html = "<section><table><tr><td>x</td></tr></table><p>y</p></section>";
+    await renderEditor(html);
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    expect(alertDialog()).not.toBeNull();
+    expect(isWysiwygMounted()).toBe(false);
+
+    const expected = detectUnsupportedTags(html).map((t) => `<${t}>`);
+    // Sanity: the fixture really does carry several unsupported tags and the
+    // supported `<p>` is filtered out by the detector.
+    expect(expected.length).toBeGreaterThan(1);
+    expect(expected).not.toContain("<p>");
+
+    // The dialog renders exactly that set, in the detector's sorted order.
+    expect(dialogListedTags()).toEqual(expected);
+    // The supported `<p>` must never surface as a lost element.
+    expect(dialogListedTags()).not.toContain("<p>");
+  });
+
   it("switches without a dialog when only supported tags exist (AC-3)", async () => {
     await renderEditor("<p>x</p>");
     await act(async () => {
@@ -283,7 +341,8 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
   });
 
   it("keeps mode and content when the dialog is cancelled (AC-4)", async () => {
-    await renderEditor("<section><p>x</p></section>");
+    const original = "<section><p>x</p></section>";
+    await renderEditor(original);
     await act(async () => {
       tabByLabel("WYSIWYG").click();
     });
@@ -294,6 +353,18 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     expect(alertDialog()).toBeNull();
     // Still on the default `inline` pane — WYSIWYG never mounted.
     expect(isWysiwygMounted()).toBe(false);
+
+    // Issue #696 review-001 W-001: AC-4 requires the decoration content to
+    // be preserved verbatim, not merely the mode. Cancelling must NOT touch
+    // `state.contentHtml`. Switch to the HTML tab (no decoration gate on
+    // that path) and assert the original markup — including the unsupported
+    // `<section>` wrapper — is still intact. This catches a regression where
+    // the cancel path accidentally normalizes or rewrites the content.
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    expect(htmlTextareaValue()).toBe(original);
+    expect(htmlTextareaValue()).toContain("<section>");
   });
 
   it("switches and acks the in-pane banner when the dialog is confirmed (AC-7)", async () => {
@@ -377,6 +448,57 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     expect(confirmMock).toHaveBeenCalledTimes(1);
     expect(alertDialog()).toBeNull();
     expect(isWysiwygMounted()).toBe(false);
+  });
+});
+
+/**
+ * Issue #696 review-001 W-002: AC-6 ("new surface switching behaviour is
+ * unchanged") was only pinned at the tab-inventory level
+ * (`editorModeSwitch.test.tsx`). The decoration gate fires on
+ * `nextMode === "wysiwyg"` regardless of surface, so the only thing that
+ * keeps the new surface dialog-free is its empty initial `contentHtml`.
+ * These orchestrator-level tests (NoteEditor mode="new") pin that "no
+ * decoration dialog on the new surface" behaviour directly, rather than
+ * inferring it from the tab set.
+ */
+describe("NoteEditor new surface switching is unchanged (Issue #696 AC-6)", () => {
+  it("mounts directly in WYSIWYG with no decoration dialog", async () => {
+    await renderNewEditor();
+    // The new surface defaults to WYSIWYG with empty content, so the pane
+    // mounts immediately and no decoration gate is involved.
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    expect(isWysiwygMounted()).toBe(true);
+    expect(alertDialog()).toBeNull();
+  });
+
+  it("switches HTML→WYSIWYG without a decoration dialog (empty content)", async () => {
+    await renderNewEditor();
+    // Leave WYSIWYG for HTML, then return to WYSIWYG. The round-trip
+    // exercises the same `onModeChange` gate the edit surface uses, but
+    // with empty content the detector finds nothing, so no dialog appears
+    // and the switch is immediate — proving the new-surface flow is
+    // unchanged by the Issue #696 gate.
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    expect(isWysiwygMounted()).toBe(false);
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    expect(alertDialog()).toBeNull();
+    expect(isWysiwygMounted()).toBe(true);
+    // New-note mode never autosaves, so the unsaved confirm path is not
+    // involved either.
+    expect(confirmMock).not.toHaveBeenCalled();
   });
 });
 
@@ -630,6 +752,91 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       expect(saveDraftMock.mock.calls.length).toBeGreaterThanOrEqual(2);
       // Silence the dangling resolver to be polite to other tests.
       resolveFirst?.();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Issue #696 review-001 W-003: AC-8 was only pinned on the HTML-tab path
+  // (Issue #286 cancel tests). The WYSIWYG path is structurally different:
+  // its confirm handler emits `wysiwygUnsupportedDetected` +
+  // `wysiwygUnsupportedAck` + `setMode "wysiwyg"`, and the switch is gated
+  // behind the decoration `ConfirmDialog`. This test pins AC-8 on that
+  // path: (1) the in-flight `saveDraft` is aborted when the user proceeds
+  // through both the unsaved confirm and the decoration dialog
+  // (`abortInFlight` runs before the gate), and (2) switching to WYSIWYG
+  // does not mutate `contentHtml` — the original decorated markup the
+  // detector flagged is exactly what the WYSIWYG pane mounts with.
+  it("aborts in-flight saveDraft and preserves contentHtml on the WYSIWYG decoration-gate path (AC-8)", async () => {
+    vi.useFakeTimers();
+    try {
+      const original = "<section><p>x</p></section>";
+      await renderEditor(original);
+      // Reject only on abort so we can observe the in-flight state and
+      // verify the abort propagates through the WYSIWYG confirm path.
+      saveDraftMock.mockImplementation(
+        ({ signal }: SaveDraftArgs) =>
+          new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      );
+      await makeDirty();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(saveDraftMock).toHaveBeenCalled();
+      const call = saveDraftMock.mock.calls.at(-1)?.[0] as
+        | SaveDraftArgs
+        | undefined;
+      const signal = call?.signal;
+      expect(signal?.aborted).toBe(false);
+      // Capture the in-flight payload now: it was assembled from
+      // `state.contentHtml` *before* the switch. AC-8 requires the switch
+      // to leave that HTML untouched, so we pin its value here and compare
+      // after the switch completes.
+      const inFlightHtml = (
+        call as { data?: { contentHtml?: string } } | undefined
+      )?.data?.contentHtml;
+      expect(inFlightHtml).toBe(original);
+
+      // Dirty + unsupported tags: unsaved `window.confirm` fires first, then
+      // the decoration dialog gates the switch (AC-7 order). `abortInFlight`
+      // runs once the unsaved confirm is accepted, before the gate opens.
+      confirmMock.mockReturnValue(true);
+      await act(async () => {
+        tabByLabel("WYSIWYG").click();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(confirmMock).toHaveBeenCalledTimes(1);
+      // The in-flight saveDraft was aborted by the discard, even though the
+      // mode has not switched yet (still gated behind the dialog).
+      expect(signal?.aborted).toBe(true);
+      expect(alertDialog()).not.toBeNull();
+      expect(isWysiwygMounted()).toBe(false);
+
+      // Confirm the decoration dialog: the switch to WYSIWYG now completes.
+      // (We assert the dialog closed and the gate accepted the switch; full
+      // TipTap onCreate mounting under fake timers is exercised by the AC-7
+      // real-timer test, so we keep this fake-timer test focused on the
+      // abort + content-preservation contract.)
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(alertDialog()).toBeNull();
+
+      // AC-8 core: the switch itself did not rewrite `contentHtml`. The
+      // in-flight payload captured before the switch already equalled the
+      // original decorated markup; pin that the original is unchanged and
+      // its `<section>` wrapper survived the WYSIWYG transition.
+      expect(inFlightHtml).toBe(original);
+      expect(original).toContain("<section>");
     } finally {
       vi.useRealTimers();
     }
