@@ -115,9 +115,9 @@ export type UsePopoverOptions = Readonly<{
   onOpenChange: (next: boolean) => void;
   haspopup: PopupRole;
   /**
-   * When true, the panel is nudged horizontally after open so it stays inside
-   * the viewport regardless of where the trigger sits (FilterBar). Defaults to
-   * false; the `absolute right-0` actions menus do not need it.
+   * When true, the panel is nudged horizontally and vertically after open so it
+   * stays inside the viewport regardless of where the trigger sits (FilterBar).
+   * Defaults to false; the `absolute right-0` actions menus do not need it.
    */
   clampToViewport?: boolean;
 }>;
