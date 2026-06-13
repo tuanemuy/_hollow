@@ -279,15 +279,37 @@ describe("SectionErrorBoundary", () => {
     ).toBe(2);
   });
 
-  it("rolls up a re-throw under the same resetKey to one send while count still increments (#647 arch S-002)", () => {
+  it("rolls up a retry-then-rethrow under the same resetKey to one send while count still increments (#647 arch S-002)", async () => {
     shouldThrow = true;
     renderBoundary(undefined, "q=a");
+    // First catch → sent, count 1.
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(
+      (reportMock.mock.calls[0]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(1);
+
+    // Retry resets hasError → the child remounts and throws again under the
+    // SAME resetKey. This exercises the real second `componentDidCatch`
+    // (the bare re-render path keeps the fallback and never re-catches).
+    // The send is deduped (lastReportedKey unchanged) so reportMock stays at
+    // 1, but the internal catch counter still advances to 2.
+    invalidate.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => {
+      getRetryButton().click();
+    });
+    expect(getAlert().textContent).toContain(
+      "ノート一覧を読み込めませんでした",
+    );
     expect(reportMock).toHaveBeenCalledTimes(1);
 
-    // Same resetKey, re-render → boundary catches again but the send is
-    // deduped (count is a catch counter, not a send counter).
-    renderBoundary(undefined, "q=a");
-    expect(reportMock).toHaveBeenCalledTimes(1);
+    // Changing the resetKey breaks dedup and forces a send. Its `count` is 3,
+    // proving the deduped second catch above was still counted (1 → 2 deduped
+    // → 3 sent), i.e. count is a catch counter, not a send counter.
+    renderBoundary(undefined, "q=b");
+    expect(reportMock).toHaveBeenCalledTimes(2);
+    expect(
+      (reportMock.mock.calls[1]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(3);
   });
 
   it("keeps the fallback UI intact when the report send rejects (#647 AC-6)", () => {

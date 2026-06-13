@@ -13,6 +13,28 @@ describe("sectionFailureReportSchema", () => {
     expect(sectionFailureReportSchema.safeParse(valid).success).toBe(true);
   });
 
+  it("accepts the upper boundaries (section 100 / path 2048 / count 1000) and count 1", () => {
+    // Exact-max values must pass — guards against an off-by-one in the caps
+    // (e.g. `.max(100)` mistyped as `.max(99)`) that reject-only tests miss.
+    expect(
+      sectionFailureReportSchema.safeParse({
+        ...valid,
+        section: "x".repeat(100),
+        path: "x".repeat(2048),
+        count: 1000,
+      }).success,
+    ).toBe(true);
+    expect(
+      sectionFailureReportSchema.safeParse({ ...valid, count: 1 }).success,
+    ).toBe(true);
+  });
+
+  it("accepts an empty path (no .min on path is intentional)", () => {
+    expect(
+      sectionFailureReportSchema.safeParse({ ...valid, path: "" }).success,
+    ).toBe(true);
+  });
+
   it("rejects an empty or over-long section", () => {
     expect(
       sectionFailureReportSchema.safeParse({ ...valid, section: "" }).success,

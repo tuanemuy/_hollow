@@ -95,3 +95,41 @@ meta タグのキー名を `event` にする（`logger.warn("Section render fail
 - トレードオフ: なし（純粋な命名の明確化。機能影響なし）。
 
 ---
+
+## ADR-006: 報告 server fn は未認証・無制限の公開ログ書き込み口として受ける — リクポートレート制限は本 Issue では持たない（review-001 W-001）
+
+### Status
+Proposed
+
+### Context
+`reportSectionFailure`（`app/components/common/sectionFailureReport.ts`）は `createServerFn` の handler が `errorResponseMiddleware` のみを通し、認証ミドルウェアを噛ませない。つまり外部から直接叩ける未認証の公開 POST エンドポイントであり、誰でも `{section, scope, path, count}` を投げて `logger.warn("Section render failed", ...)` を発火できる。レビュー（review-001 W-001）は、この攻撃面が ADR で正面から評価されていない点を指摘した。想定される悪用は (a) 連続 POST による Workers Logs 容量・コストの押し上げ、(b) 本物のセクション失敗の埋没（観測ノイズ）、(c) `section`/`path` フィールドへの任意 UTF-8 文字列注入によるログ汚染（改行/制御文字を含みうる）である。
+
+### Decision
+本 Issue では (1) **未認証で受ける**、(2) **1リクエストあたりは schema で bounded**、(3) **リクエストレート制限は持たない**、を採る。
+
+- 未認証で受ける理由: セクション失敗は未認証ページ（公開ノート `u/*`・`notes/public/*`、ログイン前の画面など）でも起きうり、`SectionErrorBoundary` はそれら public ルートからも到達する（B-001 / ADR-006 登録範囲参照）。認証必須にすると未認証ページの失敗を観測できず、Issue の核心目的（本番でセクション失敗を観測可能にする）が未認証経路で達成されない。既存の他の未認証 server fn（`auth/LoginForm/action`・`SignUpForm/action`・`PasswordResetRequestForm/action`・`EmailChangeConfirm/action` 等）と同列の「未認証で受ける公開 POST」であり、この fn が突出して危険なわけではない。それらと違い副作用が「ログ1行の追記」に限られるため、むしろ攻撃価値は低い。
+- 1リクエストの bounded 性: `sectionFailureReportSchema` が `.strict()`（余剰キー拒否）＋ `section≤100` / `path≤2048` / `scope` enum / `count` int positive ≤1000 で、1リクエストあたりのペイロードサイズは上限が効く。注入面は長さと `scope` enum で縛られるが、`section`/`path` の中身は任意 UTF-8 を許容するため、改行/制御文字を含む文字列がログに構造化メタとして出る可能性は残る。この消費側注意点は `docs/runtime_cloudflare.md` の triage 節に注記する（N-004 / W-001(2)）。
+- リクエストレート制限を持たない理由: 実効的なレート制限には KV / Durable Object カウンタ等の新基盤が必要で、本 Issue の最小スコープ（最小情報を構造化ログへ送る）を超える。リクエスト頻度の制御は当面ログ基盤側（Cloudflare の WAF / レート制限ルール、Workers Logs の流量制御・サンプリング）に委ね、アプリ層では持たない。
+
+### Consequences
+- 良い点: 未認証ページのセクション失敗も観測でき、Issue の目的を全経路で満たす。新基盤を増やさず最小スコープに収まる。1リクエストは schema で bounded。
+- トレードオフ: リクエスト頻度は無制限なので、悪意ある相手が連続 POST でログを汚染・膨張させる余地が残る。緩和はログ基盤側の流量制御に依存する。アプリ層でのレート制限・`section` の許可リスト enum 化（注入面・容量面の縮小）が必要になれば、別 Issue で KV/DO ベースのレート制限基盤として検討する。
+
+---
+
+## ADR-007: `path`（`window.location.pathname` 生値）の平文ログ保存を許容する — 動的セグメント実値の redaction はしない（review-001 N-005）
+
+### Status
+Proposed
+
+### Context
+`SectionErrorBoundary` は報告送信時に `window.location.pathname` の生値を `path` として送る（ADR-003）。これは note ID 等の動的セグメント実値を含みうり、サーバーログ（Workers Logs）に平文で残る。レビュー（review-001 N-005）は、最小情報原則・redaction 原則とのわずかな緊張（ADR-003 で既に認識済み）に加え、識別子がサーバーログに平文で長期保存される点を、ログ保持ポリシー次第ではプライバシー観点の留意事項として ADR に記録すべきと指摘した。
+
+### Decision
+`path` の生値を redact せず平文でログ保存することを許容する。理由: (1) URL パスは元々 client 側で可視であり、サーバーが新たに機微情報を生成・露出するわけではない。(2) 含まれうる識別子は主に「自分の note ID 程度」で PII 性は低い。(3) `path` は相関の補助キーであり（ADR-003、主キーは時刻近接＋section 名）、redact すると突き合わせの足がかりとしての価値を失う。動的セグメントのマスキング（例 `/notes/:id` へ正規化）は実装コストに見合わず、本 Issue のスコープ外とする。
+
+### Consequences
+- 良い点: 相関の足がかりとして `path` をそのまま使え、ADR-003 の突き合わせ手順が機能する。実装を増やさない。
+- トレードオフ: note ID 等の識別子がサーバーログに平文で残る。ログ保持期間が長い／外部転送する運用に変わった場合は、保持ポリシー側で対処するか、別 Issue で `path` の動的セグメント正規化（マスキング）を検討する。
+
+---
