@@ -304,7 +304,10 @@ export function NoteEditor(props: NoteEditorProps) {
           onChange={onModeChange}
         />
         <span>
-          <AutosaveIndicator status={state.autosave} />
+          <AutosaveIndicator
+            status={state.autosave}
+            enabled={noteId !== null}
+          />
         </span>
         <div className={editorActions}>
           <button
