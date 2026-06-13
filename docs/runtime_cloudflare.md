@@ -17,6 +17,7 @@ Multi-Worker, edge-distributed runtime. The main app runs in the `app` Worker; o
 - [Cron triggers](#cron-triggers)
 - [Retry budget](#retry-budget)
 - [D1 transactional model](#d1-transactional-model)
+- [Observability: section render failures](#observability-section-render-failures)
 
 ## Quick start
 
@@ -331,3 +332,28 @@ The user-visible attempt count is the **product** of those numbers (max 8 by def
 ## D1 transactional model
 
 D1 cannot run an interactive transaction inside a Worker invocation: the only atomic primitive is `db.batch`. The UoW pre-collects statements into a `PendingBatch` and flushes them in one batch on commit. Driver errors are parsed from message strings into the shared error contracts (OCC violations, FK failures, etc.) at the adapter boundary. The observable semantics — OCC failures, FK enforcement, and the at-least-once outbox dispatch — are produced at the application layer regardless of the driver underneath.
+
+## Observability: section render failures
+
+`SectionErrorBoundary` (client) catches failures that arrive through the RSC flight stream after the initial response — these do **not** pass through the server-fn `errorResponseMiddleware`, so they would otherwise be invisible server-side. On catch, the boundary fires a `reportSectionFailure` server fn that emits a structured log line through the `Logger` port:
+
+```
+logger.warn("Section render failed", { event: "section_failure", section, scope, path, count })
+```
+
+Key points for triage in Workers Logs:
+
+- **Log level is `warn`, not `error`.** A section failure is a local, user-visible degradation, not a fatal server-fn error. `errorResponseMiddleware.logServerError` only logs at `error` (and only for `kind: "system" | "unknown"`). **If you filter on `error` alone you will miss section failures** — query on the `warn` level and the `event: "section_failure"` tag instead. The meta tag is keyed `event` (not `kind`) to keep it distinct from the `SerializedError` `kind` vocabulary that `error` lines carry.
+- **Payload is minimal and redaction-safe.** The report carries only `section`, `scope` (`page` | `shell`), `path`, and `count`. It never carries the error message or stack: in production React redacts those, and sending them would be both noise and an information-leak surface (Issue #647).
+- **`count`** is that boundary instance's cumulative catch count, not a cross-boundary total and not the number of sends. Identical consecutive catches (StrictMode double-mount, retry-then-rethrow under the same `resetKey`) are deduped to one send, but `count` still increments — so a `count` of 3 means the section failed three times even if only the first was logged.
+
+### Correlating with the RSC origin error
+
+The actual error that broke the section is logged separately: the framework's default RSC stream `onError` writes it via `console.error` in the `app` Worker (the app does not customize that handler). To find the cause behind a `section_failure` report, bridge the two log lines manually:
+
+1. Filter Workers Logs to the `warn` line with `event: "section_failure"` — note its **timestamp** and **section** name.
+2. Look for a nearby `console.error` (the RSC origin error) within a few seconds — **time proximity + section name is the primary key**.
+3. Use the report's `path` only as a **secondary** hint. It is captured via `window.location.pathname` at *report-send time*, which can drift from the navigation URL that produced the origin error (SPA transition in flight, retry-then-rethrow). It may also contain dynamic-segment values (note IDs); treat it as a starting point, not an identity.
+4. **Do not use `cf-ray` as the join key.** The client report arrives as a *separate* HTTP POST from the request that streamed the failing RSC, so their `cf-ray` values differ. `cf-ray` is useful only for grouping log lines within a single request, not for linking the report to its origin error.
+
+There is intentionally no automatic correlation (no request-ID / distributed-tracing infrastructure) and no server-side rate limit on reports; per-page report volume is bounded by the number of boundaries on the page. A full APM/correlation layer is out of scope (see `.issue/647/adr.md` ADR-002 / ADR-003).

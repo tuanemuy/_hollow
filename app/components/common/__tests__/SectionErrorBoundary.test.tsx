@@ -3,7 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SectionErrorBoundary } from "../SectionErrorBoundary";
+import {
+  serverFnChainStub,
+  useServerFnRouter,
+} from "@/components/_test-utils/serverFnMock";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -15,12 +18,29 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate }),
 }));
 
+const reportMock = vi.fn(async (_args?: unknown) => ({ ok: true }) as const);
+
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: useServerFnRouter([[reportMock, reportMock]], reportMock),
+  createMiddleware: () => serverFnChainStub(),
+  createServerFn: () => serverFnChainStub(),
+}));
+
+vi.mock("../sectionFailureReport", () => ({
+  reportSectionFailure: reportMock,
+}));
+
+const { SectionErrorBoundary } = await import("../SectionErrorBoundary");
+
 let container: HTMLDivElement;
 let root: Root;
 let consoleError: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   invalidate.mockClear();
+  reportMock.mockClear();
+  reportMock.mockResolvedValue({ ok: true });
+  window.history.replaceState(null, "", "/notes");
   // React logs boundary-caught errors; keep test output clean.
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   container = document.createElement("div");
@@ -202,6 +222,79 @@ describe("SectionErrorBoundary", () => {
     });
 
     // The boundary resets but the child throws again, so the fallback stays.
+    expect(getAlert().textContent).toContain(
+      "ノート一覧を読み込めませんでした",
+    );
+  });
+
+  it("reports a section failure once with only the allowed keys when a child throws (#647 AC-1/AC-2)", () => {
+    shouldThrow = true;
+    window.history.replaceState(null, "", "/notes/abc");
+    renderBoundary();
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (reportMock.mock.calls[0]?.[0] as { data: unknown }).data;
+    // AC-2 negative assertion: only the four allowed keys, no redacted
+    // error detail leaks into the report.
+    expect(payload).toEqual({
+      section: "ノート一覧",
+      scope: "page",
+      path: "/notes/abc",
+      count: 1,
+    });
+    expect(Object.keys(payload as object).sort()).toEqual([
+      "count",
+      "path",
+      "scope",
+      "section",
+    ]);
+    expect(payload).not.toHaveProperty("message");
+    expect(payload).not.toHaveProperty("stack");
+    expect(payload).not.toHaveProperty("error");
+  });
+
+  it('defaults scope to "page" in the report when scope is unspecified (#647 arch S-004)', () => {
+    shouldThrow = true;
+    renderBoundary();
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { scope: string } }
+    ).data;
+    expect(payload.scope).toBe("page");
+  });
+
+  it("increments count on the next catch when the boundary instance catches again (#647 AC-5)", () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(
+      (reportMock.mock.calls[0]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(1);
+
+    // A new resetKey clears the error state, the child throws again →
+    // second catch, second send, count incremented.
+    renderBoundary(undefined, "q=b");
+    expect(reportMock).toHaveBeenCalledTimes(2);
+    expect(
+      (reportMock.mock.calls[1]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(2);
+  });
+
+  it("rolls up a re-throw under the same resetKey to one send while count still increments (#647 arch S-002)", () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+    expect(reportMock).toHaveBeenCalledTimes(1);
+
+    // Same resetKey, re-render → boundary catches again but the send is
+    // deduped (count is a catch counter, not a send counter).
+    renderBoundary(undefined, "q=a");
+    expect(reportMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the fallback UI intact when the report send rejects (#647 AC-6)", () => {
+    shouldThrow = true;
+    reportMock.mockRejectedValueOnce(new Error("report sink down"));
+    renderBoundary();
+
     expect(getAlert().textContent).toContain(
       "ノート一覧を読み込めませんでした",
     );
