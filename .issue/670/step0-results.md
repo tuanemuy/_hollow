@@ -8,7 +8,7 @@
 
 各フォームコンポーネントに一時 mount プローブ（`app/components/_mountProbe.tmp.ts` の `useMountProbe`）を仕込み、コンポーネントの root に `data-mount-probe` を描画。`useState` の lazy initializer は **実マウント時のみ** インクリメントされ、再レンダー（reconcile）では不変・再マウントでは新インスタンスとして増加する。これにより「invalidate が reconcile か remount か」を一次観測する。
 
-invalidate は `window.__TSR_ROUTER__.invalidate({ filter })` で発火。本番の `UploadDialog` 完了が呼ぶ `routerInvalidate(router)`（`app/components/common/routerInvalidate.ts`）と **同一の router API・同一フィルタ**（`_app` とエディタールートを除外）を忠実に再現。focus を動かさない eval 経由のため、フォーカス喪失の有無を交絡なく観測できる。
+invalidate は `window.__TSR_ROUTER__.invalidate({ filter: m => m.routeId !== '/_app' })` で発火。本番の `routerInvalidate(router)`（`app/components/common/routerInvalidate.ts`）は `_app` とエディタールート（`/_app/notes/$noteId/edit`・`/_app/notes/new`）を除外するが、**対象3ルートはいずれもエディタールートに該当しない**ため、エディタールート除外条件は対象3ルートに対して恒等。よって本実測フィルタ（`_app` のみ除外）は対象3ルートに対し本番 `routerInvalidate` と **発火結果が恒等**であり、`UploadDialog` 完了が呼ぶ本番経路を忠実に再現している。focus を動かさない eval 経由のため、フォーカス喪失の有無を交絡なく観測できる。
 
 ## 観測結果
 
