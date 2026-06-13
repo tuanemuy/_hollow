@@ -16,6 +16,12 @@ export type Config = {
   llmProvider: string;
   llmModel: string;
   llmBaseUrl: string;
+  // Gate the WorkersCustomDomain binding (infra/src/dns.ts). On a fresh
+  // environment the web Worker does not exist until `Deploy Workers` runs,
+  // but Pulumi up — which binds the custom domain — runs first, so the
+  // binding 404s with code 10007. Set this false for the first deploy to
+  // create the Worker, then true to attach the domain (Issue #700).
+  manageCustomDomain: boolean;
 };
 
 export const readConfig = (): Config => {
@@ -38,6 +44,7 @@ export const readConfig = (): Config => {
     llmProvider: cfg.get("llmProvider") ?? "",
     llmModel: cfg.get("llmModel") ?? "",
     llmBaseUrl: cfg.get("llmBaseUrl") ?? "",
+    manageCustomDomain: cfg.getBoolean("manageCustomDomain") ?? true,
   };
 };
 
