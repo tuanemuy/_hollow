@@ -22,6 +22,7 @@ import { Icon } from "@/components/common/Icon";
 import { Menu, MenuItem } from "@/components/common/Menu";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { ALERT_ICON, chip } from "@/components/common/styles";
+import { useRestoreFieldFocusOnCommit } from "@/components/common/useRestoreFieldFocusOnCommit";
 import type { FlatDirectory } from "@/components/note/directoryTree";
 import { ViewFormDialog } from "@/components/view/ViewFormDialog";
 import type { SavedViewDTO } from "@/core/application/dto/view";
@@ -261,6 +262,9 @@ function SavedViewRow({
   const viewId = view.id;
 
   const nameId = useId();
+  // Restore focus + caret if an invalidate commit (e.g. AppShell UploadDialog)
+  // drops focus to <body> while the rename input is focused (#680).
+  const renameFocus = useRestoreFieldFocusOnCommit<HTMLInputElement>();
 
   const onToggleDefault = () => {
     startTransition(async () => {
@@ -360,6 +364,7 @@ function SavedViewRow({
             <input
               // biome-ignore lint/a11y/noAutofocus: focus moves into the inline rename editor on open so keyboard users can type immediately
               autoFocus
+              ref={renameFocus.ref}
               id={nameId}
               type="text"
               className={renameInput}
@@ -368,6 +373,7 @@ function SavedViewRow({
               maxLength={SAVED_VIEW_NAME_MAX}
               disabled={isPending}
               aria-invalid={nameFieldErrors !== undefined}
+              {...renameFocus.handlers}
             />
             <button
               type="button"

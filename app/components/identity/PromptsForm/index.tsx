@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, useTransition } from "react";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import { useRestoreFieldFocusOnCommit } from "@/components/common/useRestoreFieldFocusOnCommit";
 import type { PromptDTO } from "@/core/application/dto/adminSettings";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -141,6 +142,10 @@ function PromptRow({
   const [ok, setOk] = useState(false);
 
   const textId = useId();
+  // Restore focus + caret if an invalidate commit drops focus to <body> while
+  // the intent textarea is focused (#680). DEV uses staleTime:0 so the loader
+  // re-runs on invalidate; harmless in prod where the loader does not re-run.
+  const textFocus = useRestoreFieldFocusOnCommit<HTMLTextAreaElement>();
 
   const save = () => {
     const trimmed = text.trim();
@@ -223,6 +228,7 @@ function PromptRow({
         </label>
         <textarea
           id={textId}
+          ref={textFocus.ref}
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
@@ -230,6 +236,7 @@ function PromptRow({
           disabled={isPending}
           placeholder={INTENT_PLACEHOLDER}
           className={PROMPT_TEXTAREA}
+          {...textFocus.handlers}
         />
       </div>
       <div className={PROMPT_ACTION_ROW}>
