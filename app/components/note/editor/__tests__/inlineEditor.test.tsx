@@ -251,6 +251,48 @@ describe("InlineEditor structural preservation", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels a pending debounced emit when an external value change rebuilds into a failure path (Issue #669)", async () => {
+    // A keystroke schedules a debounced emit against the current host DOM.
+    // If `value` then changes externally to something that fails to parse,
+    // `rebuild` empties the host and bails — and it MUST also clear the
+    // pending timer. Otherwise the stale timer fires against the now-empty
+    // host and emits "" over the parent's content (PR #676 Round 1
+    // state-review W-001).
+    const onChange = vi.fn();
+    const onInitFailed = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<p>foo</p>"
+          onChange={onChange}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    const host = findHost();
+    const textNode = host.querySelector("p")?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    // Schedule the debounced emit (do NOT let the 50ms timer fire yet).
+    await act(async () => {
+      (textNode as Text).textContent = "foobar";
+    });
+    // External value change to a non-empty input that parses to an empty
+    // body → rebuild takes the failure path, leaving the host empty.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<!DOCTYPE html>"
+          onChange={onChange}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    expect(onInitFailed).toHaveBeenCalledTimes(1);
+    // Let the (cancelled) debounce window elapse: no "" must be emitted.
+    await flushMutations();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("builds the host content under StrictMode double-invoked effects (Issue #669)", async () => {
     // StrictMode runs mount → cleanup → remount. The cleanup empties the
     // host AND must reset `lastEmittedHtmlRef` to null — otherwise the

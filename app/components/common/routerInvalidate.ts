@@ -22,9 +22,12 @@ const APP_SHELL_ROUTE_ID = "/_app";
  * Editor routes are excluded from `routerInvalidate` unconditionally
  * (Issue #669, `.issue/669/adr.md` ADR-003): their loaders only seed the
  * editor's initial values — after mount the source of truth is the
- * editor's local state — so re-running the loader either does nothing or
- * destroys in-progress edits (RSC tree swap remounts the editor and drops
- * focus). Both routes use `staleTime: 0`, so the next navigation into an
+ * editor's local state — so re-running the loader has no benefit and, at
+ * worst, may destroy in-progress edits. (TC-009 observed a raw invalidate
+ * arriving as a props update on the same instance with edits preserved —
+ * see the correction note in `.issue/669/adr.md` ADR-003 — but the
+ * exclusion stands regardless: the loader rerun has nothing to offer.)
+ * Both routes use `staleTime: 0`, so the next navigation into an
  * editor always fresh-loads; skipping invalidation cannot serve stale data.
  *
  * Note the loaders also supply auxiliary display data (e.g. the directory
