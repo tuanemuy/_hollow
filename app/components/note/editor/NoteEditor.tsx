@@ -196,10 +196,9 @@ export function NoteEditor(props: NoteEditorProps) {
       // Force a blur on the currently focused field (title / tag draft /
       // FrontMatter KeyRow buffer) first so its pending commit (e.g. a
       // key-rename that commits on blur) is flushed before the dirty
-      // re-evaluation, instead of being read stale. FrontMatter is now
-      // permanently mounted (Issue #697) so blur is no longer about an
-      // imminent unmount — it is purely to make the subsequent dirty
-      // freshness accurate. The order is fixed as: blur → re-evaluate
+      // re-evaluation, instead of being read stale. The blur is purely for
+      // dirty freshness, not unmount safety — FrontMatter is permanently
+      // mounted (Issue #697). The order is fixed as: blur → re-evaluate
       // dirty → confirm → dispatch, so any dirty flag that blur introduces
       // (e.g. a committed rename) is visible to the confirm step. The
       // latest `dirtyKeys` / `autosave` is read from `stateRef` rather than
