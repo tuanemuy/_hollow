@@ -126,7 +126,7 @@ When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 databa
 
 Paste the `database_id` printed by each `wrangler d1 create` into every `[[d1_databases]]` block of the matching `wrangler.<stage>.toml`. Replace the `[vars] APP_URL` placeholders in each stage file before the first deploy — leaving `https://example.com` breaks `buildHead()`'s canonical / OG image URLs.
 
-After `pnpm infra:up:<stage>`, also create an R2 API token in the Cloudflare dashboard (Dashboard → R2 → "Manage R2 API Tokens", scope: read/write on the `${prefix}-objects` bucket) and populate `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ACCOUNT_ID` in `infra/secrets/<stage>.enc.json` (via `pnpm --filter @hollow/infra secrets:edit:<stage>`) before the first deploy. The token is the SigV4 credential consumed by `R2ObjectStorage.presign*`; the Worker R2 binding alone is data-plane only and does not cover presign URL minting. Issue a separate token per stage (ADR-005 of Issue #110).
+After `pnpm infra:up:<stage>`, also create an R2 API token in the Cloudflare dashboard (Dashboard → R2 → "Manage R2 API Tokens", scope: read/write on the `${prefix}-objects` bucket) and populate `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_ACCOUNT_ID` in `infra/secrets/<stage>.enc.json` (via `pnpm infra:secrets:edit:<stage>`) before the first deploy. The token is the SigV4 credential consumed by `R2ObjectStorage.presign*`; the Worker R2 binding alone is data-plane only and does not cover presign URL minting. Issue a separate token per stage (ADR-005 of Issue #110).
 
 ## Secrets and vars
 
@@ -180,7 +180,7 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
 `infra/secrets/{stage}.enc.json` is SOPS-encrypted; the CI `Inject secrets` step decrypts it, validates it against `workerSecretSpecs()`, strips `^_`-prefixed documentation keys, and feeds the rest to `wrangler secret bulk` against every Worker. To add or remove a key, follow the canonical procedures in [`infra/secrets/README.md`](../infra/secrets/README.md) (and the Japanese mirror in [`docs/deployment_setup.md`](deployment_setup.md)). The short version:
 
 1. Update `workerSecretSpecs()` in `infra/src/secrets.ts` (single source of truth for what each Worker requires).
-2. Edit both encrypted files: `pnpm --filter @hollow/infra secrets:edit:staging` / `secrets:edit:production`.
+2. Edit both encrypted files: `pnpm infra:secrets:edit:staging` / `pnpm infra:secrets:edit:production`.
 3. Mirror the change in `infra/secrets/{stage}.json.example` and `.dev.vars.example`.
 4. Verify spec ↔ JSON sync locally:
    ```sh

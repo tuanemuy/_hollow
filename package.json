@@ -56,6 +56,8 @@
     "infra:preview:production": "pnpm --filter @hollow/infra preview:production",
     "infra:up:staging": "pnpm --filter @hollow/infra up:staging",
     "infra:up:production": "pnpm --filter @hollow/infra up:production",
+    "infra:secrets:edit:staging": "pnpm --filter @hollow/infra secrets:edit:staging",
+    "infra:secrets:edit:production": "pnpm --filter @hollow/infra secrets:edit:production",
     "db:migrate": "wrangler d1 migrations apply hollow-local-d1 --local",
     "db:generate": "drizzle-kit generate --config=./drizzle.config.ts",
     "db:apply:local": "wrangler d1 migrations apply hollow-local-d1 --local",
