@@ -158,10 +158,9 @@ export const AUTHOR_MINI =
 // Size-less base: gradient fill, round shape, centering, color, weight. Each
 // consumer appends a single `w-/h-/text-` size so the same dimension property
 // is never declared twice (Tailwind decides size collisions by generated-CSS
-// order, not className order — see .issue/671/adr.md ADR-001).
+// order, not className order).
 export const AUTHOR_AVATAR =
   "rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white font-medium inline-flex items-center justify-center";
-// 28px variant for the note-detail author mini (the original AUTHOR_AVATAR size).
 export const AUTHOR_AVATAR_MD = `${AUTHOR_AVATAR} w-7 h-7 text-[11px]`;
 
 // Tags left / 公開・更新 dates right at the end of the article body, above
@@ -273,8 +272,7 @@ export const DRAWER_BACKDROP =
 // sm+: right-anchored slide-in. Mobile: bottom sheet (full-width, bottom-pinned,
 // top-rounded, `max-h` so it stays in the viewport). The `data-[open]` transition
 // mechanism is shared; only the axis swaps — `max-sm:translate-x-0` neutralizes
-// the right-slide axis and `max-sm:data-[open]:translate-y-0` drives the rise-up
-// (.issue/671/adr.md ADR-002).
+// the right-slide axis and `max-sm:data-[open]:translate-y-0` drives the rise-up.
 export const DRAWER =
   "fixed top-0 right-0 bottom-0 w-[min(420px,100vw)] bg-bg shadow-lg z-[100] flex flex-col translate-x-full transition-transform duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:translate-x-0 max-sm:top-auto max-sm:left-0 max-sm:right-0 max-sm:bottom-0 max-sm:w-full max-sm:max-h-[88vh] max-sm:rounded-t-lg max-sm:translate-x-0 max-sm:translate-y-full max-sm:data-[open]:translate-y-0";
 export const DRAWER_HEADER =

@@ -101,9 +101,9 @@ describe("SearchFilterDrawer markup", () => {
     expect(html).not.toContain("すべて解除");
   });
 
-  // AC-5 regression: every non-default period (7d / 30d / 1y) is shown as a
-  // chip, added to the badge count, and checked in the radio group. `all` is
-  // covered separately below as the default (no chip / no badge).
+  // Every non-default period (7d / 30d / 1y) is shown as a chip, added to the
+  // badge count, and checked in the radio group. `all` is covered separately
+  // below as the default (no chip / no badge).
   it.each([
     { period: "7d" as const, label: "過去 7 日" },
     { period: "30d" as const, label: "過去 30 日" },
@@ -197,7 +197,7 @@ describe("SearchFilterDrawer markup", () => {
     expect(clearIdx).toBeGreaterThanOrEqual(0);
     expect(barCloseIdx).toBeGreaterThanOrEqual(0);
 
-    // Containment proof (AC-11): the sort slot is a *descendant* of the filter
+    // Containment proof: the sort slot is a *descendant* of the filter
     // bar (its index is before the bar closes), but the chip row is *not* — its
     // opening tag (and the「すべて解除」button) appear after the bar's closing
     // </div>. Pure document order (clearIdx > sortSlotIdx) could not distinguish

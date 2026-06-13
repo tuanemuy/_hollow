@@ -124,7 +124,7 @@ function reduceFilters(cur: FilterValues, patch: FilterPatch): FilterValues {
  * island owns the filter-bar DOM assembly even though the count value and sort
  * element come from the server. Rendering the chip row inside the island (as a
  * `filter-bar` sibling) keeps the optimistic state in a single island without a
- * portal (.issue/671/adr.md ADR-003).
+ * portal.
  *
  * URL is the single source of truth for *confirmed* values — selecting a
  * user / tag / period writes `username` / `tags` / `period` search params,
