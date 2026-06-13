@@ -2,7 +2,7 @@
 
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock } from "lucide-react";
+import { AlertCircle, Clock } from "lucide-react";
 import { useActionState, useId } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
@@ -20,6 +20,8 @@ import {
 } from "@/core/presentation/errorResponse";
 import {
   GATE_CARD,
+  GATE_ERROR,
+  GATE_FOOT,
   GATE_FORM,
   GATE_ICON,
   GATE_INPUT,
@@ -142,14 +144,19 @@ export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
         ) : null}
 
         {isExpiredOrGone ? (
-          <Link
-            to="/"
-            search={HOME_SEARCH}
-            className={GATE_SUBMIT}
-            data-primary=""
-          >
-            トップへ戻る
-          </Link>
+          <>
+            <Link
+              to="/"
+              search={HOME_SEARCH}
+              className={GATE_SUBMIT}
+              data-primary=""
+            >
+              トップへ戻る
+            </Link>
+            <p className={GATE_FOOT}>
+              共有元に連絡すると、新しいリンクを発行してもらえる場合があります。
+            </p>
+          </>
         ) : null}
 
         {!isExpiredOrGone ? (
@@ -172,11 +179,8 @@ export function ShareLinkGateView({ state, formAction, isPending }: ViewProps) {
               }
             />
             {message !== null && !isLocked ? (
-              <p
-                id={errorId}
-                className="text-sm text-error -mt-1 flex items-center gap-1.5"
-                role="alert"
-              >
+              <p id={errorId} className={GATE_ERROR} role="alert">
+                <Icon icon={AlertCircle} size={16} />
                 {message}
               </p>
             ) : null}

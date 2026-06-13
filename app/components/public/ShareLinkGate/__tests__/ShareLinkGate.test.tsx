@@ -54,14 +54,21 @@ describe("ShareLinkGateView STATE3 (expired / gone)", () => {
     expect(html).toContain('href="/"');
     expect(html).toContain('data-primary=""');
     expect(html).toContain("リンクは無効です");
+    // The mock `.gate-foot` supplementary note sits beneath the CTA.
+    expect(html).toContain(
+      "共有元に連絡すると、新しいリンクを発行してもらえる場合があります。",
+    );
     // The password form must be gone in the expired/gone state.
     expect(html).not.toContain("<form");
   });
 
-  it("renders the「トップへ戻る」CTA for notFound", () => {
+  it("renders the「トップへ戻る」CTA + gate-foot note for notFound", () => {
     const html = render({ kind: "notFound", code: null, message: "missing" });
     expect(html).toContain("トップへ戻る");
     expect(html).toContain('href="/"');
+    expect(html).toContain(
+      "共有元に連絡すると、新しいリンクを発行してもらえる場合があります。",
+    );
     expect(html).not.toContain("<form");
   });
 });
@@ -121,5 +128,7 @@ describe("ShareLinkGateView password mismatch (regression)", () => {
     expect(html).not.toContain('role="status"');
     expect(html).toContain('role="alert"');
     expect(html).toContain("パスワードが正しくありません。");
+    // The inline error leads with an icon (mock `.gate-error` SVG).
+    expect(html).toMatch(/role="alert"[^>]*>\s*<svg/);
   });
 });

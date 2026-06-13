@@ -345,6 +345,10 @@ export const GATE_LABEL = "text-sm text-ink-secondary font-medium";
 export const GATE_INPUT =
   "w-full h-11 border border-hairline-strong bg-white rounded-md px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none focus:border-accent focus:shadow-focus data-[error]:border-error";
 export const GATE_ERROR = "text-sm text-error -mt-1 flex items-center gap-1.5";
+// Mock `.gate-foot`: top-bordered supplementary note under the expired/gone CTA
+// (mt-6/pt-5 = 24/20px, text-xs maxes at 12px to match, ink-tertiary, centered).
+export const GATE_FOOT =
+  "mt-6 pt-5 border-t border-hairline text-xs text-ink-tertiary text-center";
 // Same composition as auth `BTN_PRIMARY`. Requires `data-primary` on the
 // consumer button, else the accent variant never applies and it renders surface.
 export const GATE_SUBMIT = `${pillBtn} ${pillBtnTall} ${pillBtnPrimary} w-full mt-2`;

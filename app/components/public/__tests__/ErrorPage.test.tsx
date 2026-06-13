@@ -100,10 +100,14 @@ describe("ErrorPage variant actions", () => {
     render("notFound");
     const home = links().find((a) => a.textContent?.includes("ホームへ戻る"));
     expect(home?.getAttribute("data-primary")).toBe("");
-    expect(
-      links().some((a) => a.textContent?.includes("検索ページを開く")),
-    ).toBe(true);
+    const search = links().find((a) =>
+      a.textContent?.includes("検索ページを開く"),
+    );
+    expect(search).toBeDefined();
     expect(container.querySelector("search")).not.toBeNull();
+    // 404 is the only variant whose CTAs carry icons (mock P34).
+    expect(home?.querySelector("svg")).not.toBeNull();
+    expect(search?.querySelector("svg")).not.toBeNull();
   });
 
   it("403: primary login + secondary home, no search box", () => {
@@ -115,6 +119,8 @@ describe("ErrorPage variant actions", () => {
     expect(home).toBeDefined();
     expect(home?.getAttribute("data-primary")).toBeNull();
     expect(container.querySelector("search")).toBeNull();
+    // 403「ホームへ戻る」stays icon-less (mock P34).
+    expect(home?.querySelector("svg")).toBeNull();
   });
 
   it("410: primary home only + search box", () => {
@@ -125,6 +131,8 @@ describe("ErrorPage variant actions", () => {
       links().some((a) => a.textContent?.includes("検索ページを開く")),
     ).toBe(false);
     expect(container.querySelector("search")).not.toBeNull();
+    // 410「ホームへ戻る」stays icon-less (mock P34).
+    expect(home?.querySelector("svg")).toBeNull();
   });
 
   it("500: primary reload (client) + secondary home, no search box", () => {
@@ -135,6 +143,9 @@ describe("ErrorPage variant actions", () => {
     const home = links().find((a) => a.textContent?.includes("ホームへ戻る"));
     expect(home?.getAttribute("data-primary")).toBeNull();
     expect(container.querySelector("search")).toBeNull();
+    // 500「ホームへ戻る」stays icon-less (mock P34); the reload button's icon
+    // is unaffected.
+    expect(home?.querySelector("svg")).toBeNull();
   });
 
   // Symmetric to the back-link check: the reload button must actually fire
