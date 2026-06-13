@@ -714,7 +714,7 @@ describe("FilterBar — directory breadcrumb (Issue #710)", () => {
   const segmentLinks = () =>
     Array.from(breadcrumb()?.querySelectorAll<HTMLAnchorElement>("a") ?? []);
   // The clear × inside the breadcrumb nav vs. the one inside the fallback chip
-  // share an aria-label, so scope each lookup by context (W-003): the nav one
+  // share an aria-label, so scope each lookup by context: the nav one
   // must come from the nav, the fallback one must NOT be inside any nav.
   const clearDirBtnInNav = () =>
     breadcrumb()?.querySelector<HTMLButtonElement>(
@@ -756,11 +756,11 @@ describe("FilterBar — directory breadcrumb (Issue #710)", () => {
     expect(fallback?.parentElement?.textContent).toContain("ディレクトリ");
     // The fallback × is a chip-remove button, not a breadcrumb one: it must not
     // live inside any breadcrumb nav, so the same aria-label cannot be confused
-    // for the nav one (W-003).
+    // for the nav one.
     expect(fallback?.closest("nav")).toBeNull();
   });
 
-  it("renders separators between segments only — none before the first (W-001)", () => {
+  it("renders separators between segments only — none before the first", () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBarDirectory("d3", [
       { id: "d1", name: "Documents" },
@@ -808,7 +808,7 @@ describe("FilterBar — directory breadcrumb (Issue #710)", () => {
       { id: "d1", name: "Documents" },
       { id: "d2", name: "Research" },
     ]);
-    // Scope the × to the breadcrumb nav (W-003): it is the breadcrumb's clear
+    // Scope the × to the breadcrumb nav: it is the breadcrumb's clear
     // button that must drive the directory-clear navigation.
     const navClear = clearDirBtnInNav();
     expect(navClear).not.toBeNull();

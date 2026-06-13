@@ -443,7 +443,7 @@ export function FilterBar({
       {optimisticDirectoryId !== undefined ? (
         // Both branches share the same `mb-5` row wrapper so the separate-row
         // spacing lives in one place and only the inner content (breadcrumb nav
-        // vs. fallback chip) differs between them (W-002).
+        // vs. fallback chip) differs between them.
         <div className="mb-5">
           {segments.length > 0 ? (
             <DirectoryBreadcrumb segments={segments} onClear={clearDirectory} />
