@@ -10,10 +10,10 @@ import { scrollbarHidden } from "@/components/common/styles";
 /**
  * P12 document-style title input: borderless, large, transparent. Focus
  * visualisation is intentionally left to the global `:focus-visible`
- * (`--shadow-focus`) — focus framing / spacing is out of scope here (#522).
+ * (`--shadow-focus`) — focus framing / spacing is out of scope here.
  */
 export const titleInput =
-  "w-full bg-transparent border-0 outline-none text-3xl font-regular tracking-tightest leading-tight text-ink placeholder:text-ink-tertiary";
+  "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-regular tracking-tightest leading-tight text-ink placeholder:text-ink-tertiary";
 
 /**
  * P12 editor topbar: mode tabs + autosave status + primary actions in one
@@ -26,7 +26,7 @@ export const titleInput =
  * width. At `sm` and up the original wrapping single row is kept.
  */
 export const editorTopbar =
-  "flex items-center gap-3 flex-wrap max-sm:flex-col max-sm:items-stretch";
+  "mb-4 flex items-center gap-3 flex-wrap max-sm:flex-col max-sm:items-stretch";
 
 /**
  * P12 editor mode-switch tab rail (mock `.mode-tabs`). Below `sm` the pill
@@ -40,14 +40,16 @@ export const editorTopbar =
 export const editorModeTabs = `inline-flex flex-wrap gap-1 min-w-0 max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 /**
- * P12 WYSIWYG format toolbar (mock `.toolbar`). Below `sm` the format buttons
- * become a single horizontally-scrolling rail (`flex-nowrap` +
- * `overflow-x-auto`, scrollbar hidden) so the icon buttons never wrap or push
- * page width — the overflow is isolated inside the rail. `min-w-0` lets the
- * rail shrink inside the form column; `[&>*]:shrink-0` keeps each button at
- * its 36px square. At `sm` and up it keeps the original wrapping cluster.
+ * P12 WYSIWYG format toolbar (mock `.toolbar`): a sticky pill that follows
+ * the scroll just below the app header (`top: header-height + space-2`,
+ * `z-20`), shrink-to-fit (`inline-flex` + `self-start`) with wrapping
+ * allowed when the buttons exceed the column width. Below `sm` it becomes a
+ * full-width horizontally-scrolling rail (`self-stretch` + `flex-nowrap` +
+ * `overflow-x-auto`, scrollbar hidden) so the icon buttons never push page
+ * width — `overflow` on the sticky element itself does not break stickiness.
+ * `[&>*]:shrink-0` keeps each button at its intrinsic square.
  */
-export const editorToolbar = `flex flex-wrap gap-1 rounded-md border border-hairline bg-surface-elevated p-2 min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+export const editorToolbar = `sticky top-[calc(var(--header-height)+var(--space-2))] z-20 mb-4 inline-flex flex-wrap items-center gap-[2px] self-start rounded-pill border border-hairline bg-bg p-1 shadow-xs min-w-0 max-sm:self-stretch max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 /**
  * P12 FrontMatter key/value row (mock structured `.meta-field` rows). At `sm`
@@ -64,3 +66,12 @@ export const frontMatterRow =
  * — so save-status stays left, just after the mode tabs.
  */
 export const editorActions = "ml-auto inline-flex items-center gap-2";
+
+/**
+ * P12 directory-row pill input (mock `.dir-pill`): compact 30px pill on the
+ * surface background that lights up (`bg-bg` + accent border) on focus. Used
+ * by the editor `DirectoryPicker` row variant's new-directory-name input;
+ * reuse this when pill-ifying the tags row or the directory trigger.
+ */
+export const dirRowPillInput =
+  "h-[30px] w-full rounded-pill border border-transparent bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:border-accent focus:bg-bg disabled:cursor-not-allowed disabled:opacity-disabled";

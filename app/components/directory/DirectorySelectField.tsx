@@ -8,8 +8,8 @@ import { nextSuggestionIndex } from "@/components/note/editor/internalLinkSugges
  * One row in the listbox. `depth` drives the visual indent only; the
  * hierarchy is conveyed to screen readers through `path` (e.g.
  * `/Documents/Work`) rendered as the option's accessible text. `role="option"`
- * does NOT support `aria-level`, so it is intentionally omitted (see #388
- * ADR-001) — the path text carries the ancestor chain instead.
+ * does NOT support `aria-level`, so it is intentionally omitted — the
+ * path text carries the ancestor chain instead.
  */
 type DirectoryOption = Readonly<{
   id: string;
@@ -31,15 +31,15 @@ type DirectoryOption = Readonly<{
  * purely client-side, so there is no server call or debounce.
  *
  * The picker owns no domain logic: cyclic exclusion, root-label synthesis,
- * and the existing-vs-new two-mode structure are all handled by callers
- * (see #388 ADR-002). `null` is the canonical "nothing selected" value; no
+ * and the existing-vs-new two-mode structure are all handled by callers.
+ * `null` is the canonical "nothing selected" value; no
  * explicit empty option is rendered.
  *
  * Open/close behaves like a `<select>`: focus / click / typing / Arrow keys
  * open the listbox; committing a row or Escape closes it (committing also
  * clears the query so the next open shows the full list). When `clearable`
  * is set and a value is selected, the summary row exposes a "解除" button
- * that resets the selection to `null` (see #388 ADR-005).
+ * that resets the selection to `null`.
  */
 export type DirectorySelectFieldProps = Readonly<{
   options: readonly DirectoryOption[];
@@ -55,6 +55,13 @@ export type DirectorySelectFieldProps = Readonly<{
   disabled?: boolean;
   /** When true, exposes a "解除" button to reset the selection to `null`. */
   clearable?: boolean;
+  /**
+   * When true, the field's own label is visually hidden (`sr-only`) so a
+   * caller that already renders a visible row label (e.g. the editor's
+   * `DirectoryPicker` row variant) does not show two stacked labels. The
+   * `<label htmlFor>` association is kept for a11y.
+   */
+  labelHidden?: boolean;
 }>;
 
 type Row = Readonly<{
@@ -75,6 +82,7 @@ export function DirectorySelectField({
   emptyLabel = "該当するディレクトリが見つかりません",
   disabled = false,
   clearable = false,
+  labelHidden = false,
 }: DirectorySelectFieldProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -199,7 +207,11 @@ export function DirectorySelectField({
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={inputId} id={labelId} className={fieldLabel}>
+      <label
+        htmlFor={inputId}
+        id={labelId}
+        className={labelHidden ? "sr-only" : fieldLabel}
+      >
         {label}
       </label>
       {selectedRow !== undefined && selectedRow !== null ? (

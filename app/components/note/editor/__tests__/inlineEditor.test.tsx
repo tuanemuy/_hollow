@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineEditor } from "@/components/note/editor/InlineEditor";
 
 // shiki is client-only and heavy; the inline editor loads it via a
-// dynamic import for `<pre>` highlighting (Issue #498). Mock it so these
+// dynamic import for `<pre>` highlighting. Mock it so these
 // structural tests stay deterministic and never pull the real engine.
 vi.mock("@/components/note/content/highlighter", () => ({
   highlightCodeElement: vi.fn(async () => {}),
@@ -17,8 +17,7 @@ vi.mock("@/components/note/content/highlighter", () => ({
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 /**
- * Issue #233: pins the structural-preservation contract of the inline
- * editor.
+ * Pins the structural-preservation contract of the inline editor.
  *
  * - Editable allow-list applied only to text-bearing block elements.
  * - Inline decorations (`<strong>` / `<em>` …) preserved.
@@ -173,7 +172,7 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("script")).toBeNull();
     expect(host.innerHTML).not.toContain("<script>");
     // The pasted text is inserted as a literal text node into the
-    // <p> at the caret (W-T-007 / W-T-012). Pinning the insertion
+    // <p> at the caret. Pinning the insertion
     // point — not just the host-wide textContent — guarantees the
     // paste landed where the caret was, not at an outer fallback.
     expect(host.textContent ?? "").toContain("<script>x</script>");
@@ -216,6 +215,100 @@ describe("InlineEditor structural preservation", () => {
     // No mutation-emit should fire for an external value swap.
     await flushMutations();
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not rebuild the host DOM when the emitted value round-trips back (Issue #669 focus preservation)", async () => {
+    // Controlled-editor wiring: keystroke → emit(onChange) → parent state
+    // update → same HTML comes back as the `value` prop. The live DOM
+    // (and therefore focus / caret) must survive that round-trip.
+    const onChange = vi.fn();
+    await act(async () => {
+      root.render(<InlineEditor value="<p>foo</p>" onChange={onChange} />);
+    });
+    const host = findHost();
+    const p = host.querySelector("p");
+    const textNode = p?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    await act(async () => {
+      (textNode as Text).textContent = "foobar";
+    });
+    await flushMutations();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const emitted = onChange.mock.calls[0][0] as string;
+    expect(emitted).toContain("foobar");
+
+    // Feed the emitted HTML back as the value prop (round-trip).
+    await act(async () => {
+      root.render(<InlineEditor value={emitted} onChange={onChange} />);
+    });
+    await flushMutations();
+    // Same element instances — the host was NOT rebuilt, so focus would
+    // have been preserved in a real browser.
+    expect(host.querySelector("p")).toBe(p);
+    expect(host.querySelector("p")?.firstChild).toBe(textNode);
+    // No echo emit either.
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending debounced emit when an external value change rebuilds into a failure path (Issue #669)", async () => {
+    // A keystroke schedules a debounced emit against the current host DOM.
+    // If `value` then changes externally to something that fails to parse,
+    // `rebuild` empties the host and bails — and it MUST also clear the
+    // pending timer. Otherwise the stale timer fires against the now-empty
+    // host and emits "" over the parent's content.
+    const onChange = vi.fn();
+    const onInitFailed = vi.fn();
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<p>foo</p>"
+          onChange={onChange}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    const host = findHost();
+    const textNode = host.querySelector("p")?.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    // Schedule the debounced emit (do NOT let the 50ms timer fire yet).
+    await act(async () => {
+      (textNode as Text).textContent = "foobar";
+    });
+    // External value change to a non-empty input that parses to an empty
+    // body → rebuild takes the failure path, leaving the host empty.
+    await act(async () => {
+      root.render(
+        <InlineEditor
+          value="<!DOCTYPE html>"
+          onChange={onChange}
+          onInitFailed={onInitFailed}
+        />,
+      );
+    });
+    expect(onInitFailed).toHaveBeenCalledTimes(1);
+    // Let the (cancelled) debounce window elapse: no "" must be emitted.
+    await flushMutations();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("builds the host content under StrictMode double-invoked effects (Issue #669)", async () => {
+    // StrictMode runs mount → cleanup → remount. The cleanup empties the
+    // host AND must reset `lastEmittedHtmlRef` to null — otherwise the
+    // remount's resync effect would treat `value` as a self-emit, skip the
+    // rebuild, and leave the host empty. Pins the cleanup-null-reset
+    // contract.
+    await act(async () => {
+      root.render(
+        <StrictMode>
+          <InlineEditor value="<p>foo</p>" onChange={vi.fn()} />
+        </StrictMode>,
+      );
+    });
+    const host = findHost();
+    expect(host.querySelector("p")?.textContent).toBe("foo");
+    expect(host.querySelector("p")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
   });
 
   it("disables contentEditable when disabled = true", async () => {
@@ -451,7 +544,7 @@ describe("InlineEditor structural preservation", () => {
   });
 
   it("keeps an element inserted inside <pre> in the DOM but strips it from saved HTML (Issue #498)", async () => {
-    // Issue #498 ADR-002 changes the #285 contract: a `<pre>` is now an
+    // A `<pre>` is an
     // opaque region whose decoration spans are allowed in the live DOM
     // (we can't tell highlighter spans from other element churn inside
     // `<pre>`). The saved-HTML guarantee is preserved differently —
@@ -872,7 +965,7 @@ describe("InlineEditor structural preservation", () => {
     expect(typeof lastCallArg).toBe("string");
     expect(lastCallArg).toContain("foobar");
     // The emitted HTML must NOT carry the editor-only contenteditable
-    // attribute (W-F-003).
+    // attribute.
     expect(lastCallArg).not.toContain("contenteditable");
   });
 });
