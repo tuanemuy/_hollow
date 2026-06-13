@@ -266,6 +266,12 @@ RSC 環境へ分離する。re-export 越しに chain を始めると static ana
 で build が落ちる（実機検証済）。多少の重複（`errorResponseMiddleware` を
 毎回 `.middleware([...])` で書く）は受け入れる。
 
+### client からのみ到達する server fn は server グラフに登録する
+
+`"use client"` コンポーネントからのみ import される server fn は RSC グラフを
+辿れず handler が manifest に未登録となり、本番でのみ失敗する。そのモジュールを
+`__root.tsx`（公開）か `_app/route.tsx`（認証済み）で副作用 import して登録する。
+
 ### transport 検証の責務分担（serverData vs serverAction）
 
 `serverData` が **schema を受け取らない** のは設計上の意図で、「呼び出し元が
