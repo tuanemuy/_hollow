@@ -23,8 +23,14 @@
 pnpm db:apply:local   # 初回のみ: ローカル D1 にマイグレーション適用
 pnpm seed:dev-admin   # 初回のみ: 管理者ユーザーのシード
 pnpm build            # 本番ビルド（DEV=false）
-pnpm preview          # ビルド成果物をプレビューサーバーで配信
+pnpm start            # wrangler dev がビルド成果物を配信（http://localhost:8787）
 ```
+
+> [!NOTE]
+> 配信は `pnpm start`（`wrangler dev`）を使う。`@cloudflare/vite-plugin` の
+> `pnpm build` 出力を `wrangler dev` が読み込み、本番モード（DEV=false）で配信する
+> （`docs/runtime_cloudflare.md` 参照）。`pnpm preview`（`vite preview`）ではなく
+> `pnpm start` が Cloudflare Workers ランタイムでの本番ビルド配信の正規手順。
 
 ### 検証環境の起動（機能リグレッション確認用 / dev）
 
@@ -42,7 +48,7 @@ pnpm dev              # 開発サーバー（DEV=true）。mutation 後の最新
 
 - **対応する受け入れ基準:** AC-1
 - **目的:** 一度開いた認証済みコンテンツルートに再訪してもスケルトンフラッシュが起きないこと
-- **前提:** 本番ビルド（`pnpm build && pnpm preview`）／ログイン済み
+- **前提:** 本番ビルド（`pnpm build && pnpm start`, http://localhost:8787）／ログイン済み
 - **手順:**
   1. ホーム（`/`）を開き、Toolbar / FilterBar / NoteList が描画されるまで待つ
   2. ノート詳細（NoteList のいずれかのノート）へ遷移する
