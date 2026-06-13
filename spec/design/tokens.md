@@ -223,7 +223,7 @@ UI の標準パディングは `--space-4`〜`--space-6`、ページ全体の上
 | `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.06)` | ドロップダウン、メニュー |
 | `--shadow-md` | `0 8px 24px rgba(0,0,0,0.08)` | ポップオーバー |
 | `--shadow-lg` | `0 16px 48px rgba(0,0,0,0.1)` | モーダル / ダイアログ（`Dialog` primitive = `shadow-lg`） |
-| `--shadow-focus` | `0 0 0 4px oklch(37.1% 0 0 / 0.28)` | フォーカスリング |
+| `--shadow-focus` | `0 0 0 2px var(--color-accent)` | フォーカスリング |
 
 ベース UI はシャドウなし。区切りはヘアラインで作る。
 
@@ -308,7 +308,7 @@ Apple Calm の象徴的な要素。
 }
 ```
 
-すべてのインタラクティブ要素に共通適用する。クリック / タップ起因では表示しない（`:focus-visible` のみ）。
+すべてのインタラクティブ要素に共通適用する。クリック / タップ起因では表示しない（`:focus-visible` のみ）。ただし書く面（エディタ本文・タイトル）はこの箱リングを適用せず caret + 選択色で示す（caret-only の例外。Issue #692）。
 
 ---
 
@@ -532,7 +532,7 @@ Apple Calm の象徴的な要素。
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
   --shadow-lg: 0 16px 48px rgba(0,0,0,0.1);
-  --shadow-focus: 0 0 0 4px oklch(37.1% 0 0 / 0.28);
+  --shadow-focus: 0 0 0 2px var(--color-accent);
 
   /* Motion */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
