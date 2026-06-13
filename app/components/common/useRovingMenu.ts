@@ -49,9 +49,8 @@ export type UseRovingMenuOptions = Readonly<{
    * Reports whether the item at `index` is non-operable (e.g. an
    * `aria-disabled` option). Such items are skipped by Arrow / Home / End and
    * never receive programmatic focus, so the keyboard never lands on a "focused
-   * but does nothing" item. Defaults to "nothing disabled". The item still
-   * renders (with `aria-disabled`) — this only removes it from the roving
-   * traversal, not from the DOM.
+   * but does nothing" item. This only removes the item from the roving
+   * traversal, not from the DOM. Defaults to "nothing disabled".
    */
   isDisabled?: (index: number) => boolean;
 }>;
@@ -81,9 +80,8 @@ export function useRovingMenu({
   restoreFocusOnCommit = false,
   isDisabled = noneDisabled,
 }: UseRovingMenuOptions): UseRovingMenu {
-  // Resolve a landing index that skips disabled items: prefer the requested
-  // index, else scan forward, else backward. Falls back to the requested index
-  // when every item is disabled (nothing operable to land on).
+  // Nearest enabled landing index: the requested index, else scan forward,
+  // else backward. Falls back to the requested index when all are disabled.
   const enabledFrom = useCallback(
     (index: number): number => {
       if (itemCount === 0) return index;
@@ -170,8 +168,8 @@ export function useRovingMenu({
     items[clamped]?.focus({ preventScroll: true });
   });
 
-  // Step `step` items at a time, wrapping, skipping disabled items. Returns the
-  // current index if no enabled item exists in the direction (full wrap fails).
+  // Step one item in `step`, wrapping, skipping disabled items. Returns `from`
+  // when no enabled item exists (the full wrap finds nothing).
   const stepEnabled = (from: number, step: 1 | -1, count: number): number => {
     let i = from;
     for (let n = 0; n < count; n++) {
@@ -181,7 +179,6 @@ export function useRovingMenu({
     return from;
   };
 
-  // First / last enabled item, for Home / End.
   const firstEnabled = (count: number): number => {
     for (let i = 0; i < count; i++) if (!isDisabled(i)) return i;
     return activeIndex;

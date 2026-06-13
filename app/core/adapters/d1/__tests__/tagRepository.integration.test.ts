@@ -811,7 +811,6 @@ describe("D1TagRepository.listPublicTagNamesByOwner (integration, #654)", () => 
       async ({ tagRepository }) =>
         tagRepository.listPublicTagNamesByOwner(owner, 10),
     );
-    // Only the tag reachable through a public active note surfaces.
     expect(rows).toEqual(["pub"]);
   });
 

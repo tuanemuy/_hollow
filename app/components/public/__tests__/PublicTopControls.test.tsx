@@ -114,7 +114,6 @@ describe("PublicTopControls markup", () => {
     expect(html).toContain("タイル");
     expect(html).toContain("カレンダー");
     expect(html).toContain("公開日順");
-    // The +タグ picker trigger is present in the filter row.
     expect(html).toContain("タグを追加");
   });
 
@@ -151,9 +150,8 @@ describe("PublicTopControls markup", () => {
 
   it("does not merge the master set (allTags) into the chips row", () => {
     // `extra` is only in allTags, never selected → it must NOT surface as a
-    // filter-row chip (#extra). The chips row is `mergeTagChips(tagOptions,
-    // selected)` and stays compact; the master set lives only in the (closed)
-    // +タグ picker panel, which is not rendered in static markup.
+    // filter-row chip. The chips row is `mergeTagChips(tagOptions, selected)`
+    // and stays compact; the master set lives only in the (closed) +タグ picker.
     searchState = {};
     const html = renderToStaticMarkup(
       <PublicTopControls tagOptions={["shown"]} allTags={["shown", "extra"]} />,

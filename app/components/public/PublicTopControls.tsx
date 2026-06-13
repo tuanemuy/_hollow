@@ -88,11 +88,9 @@ export function toggleTagSet(
 }
 
 /**
- * Whether the "+タグ" picker must suppress this option. Once the selected
- * count reaches the transport cap (`tags.max(8)`), unselected options are
- * suppressed so a toggle cannot push the array to 9 and trip the route
- * schema's `.catch(undefined)` silent全消失 (ADR-004). Already-selected
- * options stay enabled so they can be toggled off.
+ * Whether the "+タグ" picker must suppress this option: at the cap, unselected
+ * options are suppressed (already-selected ones stay enabled so they can be
+ * toggled off).
  */
 export function isTagAddSuppressed(
   selectedCount: number,
@@ -103,9 +101,9 @@ export function isTagAddSuppressed(
 
 // Transport cap on the `tags` filter: the route's `validateSearch`
 // (`publicTopSearchSchema`) and the server-fn `renderInputSchema` both carry
-// `tags.max(8)` with `.catch(undefined)`, so a 9th tag drops the whole array
-// silently. The "+タグ" picker disables unselected options at this count so
-// the filter can never overflow into that silent全消失 (ADR-004).
+// `tags.max(8)` with `.catch(undefined)`, so a 9th tag silently drops the whole
+// array. Suppressing unselected options at this count keeps the filter from
+// overflowing into that silent全消失 (ADR-004).
 const TAGS_MAX = 8;
 
 const route = getRouteApi("/u/$username/");
@@ -648,9 +646,8 @@ type TagAddPopoverProps = Readonly<{
   onToggle: (name: string) => void;
 }>;
 
-// Picker panel: scrollable listbox anchored under the +chip. Mirrors the
-// auth SortPopover panel chrome (left-anchored here since the +chip sits at
-// the row's start) with a max-height so a large母集合 scrolls in place.
+// Scrollable listbox anchored under the +chip (left-anchored since the +chip
+// sits at the row's start), with a max-height so a large母集合 scrolls in place.
 const TAG_ADD_PANEL =
   "absolute left-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[220px] max-w-[calc(100vw-2rem)] max-h-[min(60vh,400px)] overflow-y-auto max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
 const TAG_ADD_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium aria-disabled:opacity-40 aria-disabled:cursor-not-allowed [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
@@ -658,18 +655,11 @@ const TAG_ADD_EMPTY = "px-2.5 py-3 text-xs text-ink-tertiary text-center";
 
 /**
  * "+タグを追加" picker. The trigger reuses the public-surface `CHIP` (solid
- * pill) — not the auth-side dashed ghost-chip. The selection behaviour mirrors
- * the auth `TagPickerPopover`: a multi-select listbox whose options enumerate
- * the owner's public-tag master set; each click runs the same optimistic
- * `toggleTag` as the inline chips. Options carry `aria-selected` from the
- * shared optimistic tag state so the chips row and this picker stay in sync.
- *
- * When the selected count reaches `TAGS_MAX`, unselected options are disabled
- * (`aria-disabled`) so the active filter cannot overflow the transport cap and
- * trigger the route schema's `.catch(undefined)` silent全消失 (ADR-004); the
- * already-selected options stay enabled so they can be toggled off. Disabled
- * options also drop out of the roving traversal (`isDisabled`) so the keyboard
- * never lands on a "focused but does nothing" option.
+ * pill) — not the auth-side dashed ghost-chip. A multi-select listbox whose
+ * options enumerate the owner's public-tag master set; each click runs the same
+ * optimistic `toggleTag` as the inline chips, and options carry `aria-selected`
+ * from the shared optimistic tag state so the chips row and this picker stay in
+ * sync. At `TAGS_MAX`, unselected options are disabled (see `isTagAddSuppressed`).
  */
 function TagAddPopover({
   tags,
@@ -696,10 +686,9 @@ function TagAddPopover({
     // The multi-select panel stays open across toggles, so the RSC re-render
     // after each filter navigation can drop focus to <body> — restore it.
     restoreFocusOnCommit: true,
-    // Cap-suppressed (aria-disabled) options stay in the DOM but must drop out
-    // of the roving traversal so the keyboard never lands on a "focused but
-    // does nothing" option (W-001). The suppression itself (no 9th selection)
-    // is preserved by the aria-disabled render + click guard below.
+    // Drop cap-suppressed options from the roving traversal. The suppression
+    // itself (no 9th selection) is enforced by the aria-disabled render + click
+    // guard below, independent of this.
     isDisabled: (index) =>
       isTagAddSuppressed(selected.size, selected.has(tags[index])),
   });
