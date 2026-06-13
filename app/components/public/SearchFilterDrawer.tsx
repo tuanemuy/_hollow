@@ -42,8 +42,12 @@ import {
   FACET_SECTION,
   FACET_SELECTED_COUNT,
   FACET_TITLE,
+  FILTER_BAR,
+  FILTER_BAR_LEFT,
+  FILTER_BAR_RIGHT,
   FILTER_BTN,
   FILTER_BTN_BADGE,
+  RESULTS_COUNT,
   SUGGESTION_AVATAR,
   SUGGESTION_EMPTY,
   SUGGESTION_ITEM,
@@ -76,6 +80,13 @@ type Props = Readonly<{
   // Facet totals computed server-side from the current keyword + filters.
   // The footer "N 件を表示" reflects the count of the selected period.
   facets: readonly PeriodFacet[];
+  // Results count + lower-bound flag are computed server-side and rendered in
+  // the filter-bar left slot the island owns.
+  resultsCount: number;
+  countIsLowerBound: boolean;
+  // The sort toggle (`<SearchSortToggle>`) is supplied by the server and placed
+  // in the filter-bar right slot next to the island's own filter button.
+  children: React.ReactNode;
 }>;
 
 const selectKeyword = (s: { q?: string | undefined }): string => s.q ?? "";
@@ -103,18 +114,32 @@ function reduceFilters(cur: FilterValues, patch: FilterPatch): FilterValues {
 }
 
 /**
- * Client island for the P32 search filter affordances: the「フィルター」
- * button (with active-count badge), the active-filter chip row, and the
- * right-slide filter drawer (user / tag combobox + period radio).
+ * Client island that owns the whole P32 filter-bar region: the results-count
+ * row, the「フィルター」button (with active-count badge), the sort toggle slot
+ * (supplied as `children`), the active-filter chip row (a full-width sibling of
+ * the filter bar), and the right-slide / bottom-sheet filter drawer (user / tag
+ * combobox + period radio).
+ *
+ * The chip row and badge depend on the client `useOptimistic` state, so the
+ * island owns the filter-bar DOM assembly even though the count value and sort
+ * element come from the server. Rendering the chip row inside the island (as a
+ * `filter-bar` sibling) keeps the optimistic state in a single island without a
+ * portal (.issue/671/adr.md ADR-003).
  *
  * URL is the single source of truth for *confirmed* values — selecting a
  * user / tag / period writes `username` / `tags` / `period` search params,
- * which the loader threads into `searchPublicNotes`. Combobox *suggestions*
- * are fetched per-keystroke via `suggest*Fn` (debounced) and never touch the
- * URL. Bound to `getRouteApi("/search")`; the auth-side islands
- * (`/_app/`, `/u/$username/`) are not reusable here.
+ * which the loader threads into `searchPublicNotes`. `period` "all" is the
+ * default and is dropped from the URL (mirrors `SearchSortToggle`'s relevance
+ * handling). Combobox *suggestions* are fetched per-keystroke via `suggest*Fn`
+ * (debounced) and never touch the URL. Bound to `getRouteApi("/search")`; the
+ * auth-side islands (`/_app/`, `/u/$username/`) are not reusable here.
  */
-export function SearchFilterDrawer({ facets }: Props) {
+export function SearchFilterDrawer({
+  facets,
+  resultsCount,
+  countIsLowerBound,
+  children,
+}: Props) {
   const router = useRouter();
   const keyword = route.useSearch({ select: selectKeyword });
   const username = route.useSearch({ select: selectUsername });
@@ -138,16 +163,20 @@ export function SearchFilterDrawer({ facets }: Props) {
   // The footer count follows the optimistic period; the facet totals
   // themselves refresh only after the loader confirms, so the number can be
   // momentarily stale (accepted trade-off).
+  // `all` (and `null`) is the default period: not counted as an active filter,
+  // not shown as a chip, not written to the URL.
+  const periodIsActive =
+    optimistic.period !== null && optimistic.period !== "all";
   const activeCount =
     (optimistic.username !== null ? 1 : 0) +
     optimistic.tags.length +
-    (optimistic.period !== null ? 1 : 0);
+    (periodIsActive ? 1 : 0);
 
   const facetByPeriod = new Map(facets.map((f) => [f.period, f.count]));
+  // The `all` facet is always present (countPublicSearchFacets returns 4 rows);
+  // `?? 0` is a defensive fallback only.
   const selectedPeriodCount =
-    optimistic.period !== null
-      ? (facetByPeriod.get(optimistic.period) ?? 0)
-      : (facetByPeriod.get("all") ?? 0);
+    facetByPeriod.get(optimistic.period ?? "all") ?? 0;
 
   // Mutate the URL search params, preserving the keyword + pagination reset.
   // The optimistic patch and the navigation share one async transition, and
@@ -182,7 +211,11 @@ export function SearchFilterDrawer({ facets }: Props) {
                   patch.tags && patch.tags.length > 0 ? patch.tags : undefined;
               }
               if ("period" in patch) {
-                next.period = patch.period === null ? undefined : patch.period;
+                // `all` is the default: drop it from the URL like `null`.
+                next.period =
+                  patch.period === null || patch.period === "all"
+                    ? undefined
+                    : patch.period;
               }
               return next as never;
             },
@@ -259,24 +292,38 @@ export function SearchFilterDrawer({ facets }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        className={FILTER_BTN}
-        data-active={activeCount > 0 || undefined}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
-      >
-        <SlidersHorizontal
-          className="size-[var(--icon-sm)]"
-          strokeWidth={1.8}
-          aria-hidden="true"
-        />
-        フィルター
-        {activeCount > 0 ? (
-          <span className={FILTER_BTN_BADGE}>{activeCount}</span>
-        ) : null}
-      </button>
+      <div className={FILTER_BAR}>
+        <div className={FILTER_BAR_LEFT}>
+          <div className={RESULTS_COUNT}>
+            <strong className="text-ink font-semibold">
+              {resultsCount}
+              {countIsLowerBound ? "+" : ""} 件
+            </strong>
+            のノート
+          </div>
+        </div>
+        <div className={FILTER_BAR_RIGHT}>
+          <button
+            type="button"
+            className={FILTER_BTN}
+            data-active={activeCount > 0 || undefined}
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
+          >
+            <SlidersHorizontal
+              className="size-[var(--icon-sm)]"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+            フィルター
+            {activeCount > 0 ? (
+              <span className={FILTER_BTN_BADGE}>{activeCount}</span>
+            ) : null}
+          </button>
+          {children}
+        </div>
+      </div>
 
       {activeCount > 0 ? (
         <div className={ACTIVE_CHIPS}>
@@ -309,7 +356,7 @@ export function SearchFilterDrawer({ facets }: Props) {
               </button>
             </span>
           ))}
-          {optimistic.period !== null ? (
+          {periodIsActive && optimistic.period !== null ? (
             <span className={ACTIVE_CHIP}>
               {PERIOD_LABELS[optimistic.period]}
               <button
@@ -654,8 +701,10 @@ function PeriodFacetSection({
             <input
               type="radio"
               name="search-period"
+              value={p}
               className={FACET_RADIO}
-              checked={selected === p}
+              // `null` (period unset) means the default「すべて」is checked.
+              checked={(selected ?? "all") === p}
               onChange={() => onSelect(p)}
             />
             <span className={FACET_LABEL}>{PERIOD_LABELS[p]}</span>

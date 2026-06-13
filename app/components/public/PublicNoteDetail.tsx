@@ -5,7 +5,7 @@ import { serverData } from "@/core/presentation/serverAction";
 import { CodeHighlight } from "../note/content/CodeHighlight";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
-  AUTHOR_AVATAR,
+  AUTHOR_AVATAR_MD,
   AUTHOR_MINI,
   BACKLINK_ICON,
   BACKLINK_ITEM,
@@ -109,7 +109,7 @@ export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
           search={{}}
           className={AUTHOR_MINI}
         >
-          <span className={AUTHOR_AVATAR} aria-hidden="true">
+          <span className={AUTHOR_AVATAR_MD} aria-hidden="true">
             {avatarInitials(owner.displayName || owner.username)}
           </span>
           <span>

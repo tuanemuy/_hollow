@@ -155,8 +155,14 @@ export const PUB_PILL =
 export const PUB_PILL_DOT = "w-1.5 h-1.5 rounded-full bg-success";
 export const AUTHOR_MINI =
   "inline-flex items-center gap-2.5 py-1.5 pr-3 pl-1.5 rounded-pill bg-surface mb-4.5 transition-colors motion-reduce:transition-none hover:bg-surface-hover";
+// Size-less base: gradient fill, round shape, centering, color, weight. Each
+// consumer appends a single `w-/h-/text-` size so the same dimension property
+// is never declared twice (Tailwind decides size collisions by generated-CSS
+// order, not className order — see .issue/671/adr.md ADR-001).
 export const AUTHOR_AVATAR =
-  "w-7 h-7 rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white text-[11px] font-medium inline-flex items-center justify-center";
+  "rounded-full bg-gradient-to-br from-[#c9d3df] to-[#8e99a8] text-white font-medium inline-flex items-center justify-center";
+// 28px variant for the note-detail author mini (the original AUTHOR_AVATAR size).
+export const AUTHOR_AVATAR_MD = `${AUTHOR_AVATAR} w-7 h-7 text-[11px]`;
 
 // Tags left / 公開・更新 dates right at the end of the article body, above
 // the backlink / related sections.
@@ -247,22 +253,30 @@ export const SEARCH_SORT_BTN =
 
 // Row hides itself when empty via the caller (no `:empty` selector in
 // Tailwind — the caller omits the row).
+// Mobile: chips do not wrap; the row scrolls horizontally (scrollbar hidden)
+// and each chip / the clear button keeps its width (`shrink-0`) at a 32px tap
+// height. sm+ keeps the wrapping layout.
 export const ACTIVE_CHIPS =
-  "flex flex-wrap gap-1.5 pb-3 border-b border-hairline mb-1";
+  "flex flex-wrap gap-1.5 pb-3 border-b border-hairline mb-1 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden";
 export const ACTIVE_CHIP =
-  "inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium transition-colors motion-reduce:transition-none hover:bg-accent-surface-hover";
+  "inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-pill bg-accent-surface text-accent-ink text-xs font-medium transition-colors motion-reduce:transition-none hover:bg-accent-surface-hover max-sm:h-8 max-sm:shrink-0 max-sm:whitespace-nowrap";
 export const ACTIVE_CHIP_AVATAR = `${AUTHOR_AVATAR} w-4 h-4 text-[8px]`;
 export const ACTIVE_CHIP_REMOVE =
-  "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06]";
+  "w-[18px] h-[18px] inline-flex items-center justify-center rounded-full text-accent-ink opacity-60 transition-[opacity,background-color] motion-reduce:transition-none hover:opacity-100 hover:bg-ink/[0.06] max-sm:w-[22px] max-sm:h-[22px]";
 export const ACTIVE_CHIPS_CLEAR =
-  "text-xs text-ink-tertiary px-2 h-7 inline-flex items-center rounded-pill transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
+  "text-xs text-ink-tertiary px-2 h-7 inline-flex items-center rounded-pill transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink max-sm:h-8 max-sm:shrink-0 max-sm:whitespace-nowrap";
 
 // Right-anchored slide-in at every viewport. Open state is driven by
 // `data-open` so the transition runs; `pointer-events` flips with it.
 export const DRAWER_BACKDROP =
   "fixed inset-0 bg-black/[0.32] opacity-0 pointer-events-none z-[90] transition-opacity duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:opacity-100 data-[open]:pointer-events-auto";
+// sm+: right-anchored slide-in. Mobile: bottom sheet (full-width, bottom-pinned,
+// top-rounded, `max-h` so it stays in the viewport). The `data-[open]` transition
+// mechanism is shared; only the axis swaps — `max-sm:translate-x-0` neutralizes
+// the right-slide axis and `max-sm:data-[open]:translate-y-0` drives the rise-up
+// (.issue/671/adr.md ADR-002).
 export const DRAWER =
-  "fixed top-0 right-0 bottom-0 w-[min(420px,100vw)] bg-bg shadow-lg z-[100] flex flex-col translate-x-full transition-transform duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:translate-x-0";
+  "fixed top-0 right-0 bottom-0 w-[min(420px,100vw)] bg-bg shadow-lg z-[100] flex flex-col translate-x-full transition-transform duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[open]:translate-x-0 max-sm:top-auto max-sm:left-0 max-sm:right-0 max-sm:bottom-0 max-sm:w-full max-sm:max-h-[88vh] max-sm:rounded-t-lg max-sm:translate-x-0 max-sm:translate-y-full max-sm:data-[open]:translate-y-0";
 export const DRAWER_HEADER =
   "flex items-center justify-between px-5 py-4 border-b border-hairline shrink-0";
 export const DRAWER_TITLE = "text-base font-semibold tracking-tight text-ink";
@@ -270,11 +284,11 @@ export const DRAWER_CLOSE =
   "w-9 h-9 inline-flex items-center justify-center rounded-md text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
 export const DRAWER_BODY = "flex-1 overflow-y-auto pt-2 pb-4";
 export const DRAWER_FOOTER =
-  "flex items-center justify-between gap-3 px-5 py-3.5 border-t border-hairline shrink-0 bg-bg";
+  "flex items-center justify-between gap-3 px-5 py-3.5 border-t border-hairline shrink-0 bg-bg max-sm:pb-[calc(var(--space-3)+env(safe-area-inset-bottom))]";
 export const DRAWER_RESET =
-  "text-[13px] text-ink-secondary px-1 py-2 transition-colors motion-reduce:transition-none hover:text-ink";
+  "text-[13px] text-ink-secondary px-1 py-2 transition-colors motion-reduce:transition-none hover:text-ink max-sm:min-h-[44px] max-sm:inline-flex max-sm:items-center";
 export const DRAWER_APPLY =
-  "h-10 px-5 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover";
+  "h-10 px-5 rounded-pill bg-accent text-white text-sm font-medium transition-colors motion-reduce:transition-none hover:bg-accent-hover max-sm:flex-1 max-sm:min-h-[48px]";
 
 export const FACET_SECTION =
   "px-5 pt-4 pb-2 border-b border-hairline last:border-b-0";

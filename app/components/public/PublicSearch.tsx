@@ -11,13 +11,9 @@ import { SearchSortToggle } from "./SearchSortToggle";
 import { periodToDateRange, type SearchPeriod } from "./searchPeriod";
 import {
   AUTHOR_AVATAR,
-  FILTER_BAR,
-  FILTER_BAR_LEFT,
-  FILTER_BAR_RIGHT,
   PAGINATION,
   PILL_BTN,
   PUBLIC_MAIN,
-  RESULTS_COUNT,
   SEARCH_EMPTY,
   SEARCH_FORM,
   SEARCH_FORM_BUTTON,
@@ -173,21 +169,13 @@ export async function PublicSearch({
         </section>
 
         {hasKeyword ? (
-          <div className={FILTER_BAR}>
-            <div className={FILTER_BAR_LEFT}>
-              <div className={RESULTS_COUNT}>
-                <strong className="text-ink font-semibold">
-                  {resultsCount}
-                  {countIsLowerBound ? "+" : ""} 件
-                </strong>
-                のノート
-              </div>
-            </div>
-            <div className={FILTER_BAR_RIGHT}>
-              <SearchFilterDrawer facets={facets} />
-              <SearchSortToggle sort={sort} />
-            </div>
-          </div>
+          <SearchFilterDrawer
+            facets={facets}
+            resultsCount={resultsCount}
+            countIsLowerBound={countIsLowerBound}
+          >
+            <SearchSortToggle sort={sort} />
+          </SearchFilterDrawer>
         ) : null}
 
         <section className={SEARCH_HIT_LIST} aria-label="検索結果">
