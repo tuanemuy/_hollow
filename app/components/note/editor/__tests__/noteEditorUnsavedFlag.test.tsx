@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { AUTOSAVE_DEBOUNCE_MS } from "@/components/note/constants";
 
 /**
  * Issue #583 ADR-002: `NoteEditor` mirrors `dirtyKeys` into the cross-route
@@ -182,6 +183,37 @@ describe("NoteEditor → unsaved flag sync (Issue #583)", () => {
     expect(window.sessionStorage.getItem(KEY)).toBe("1");
   });
 
+  it("clears the flag via the autosaveSuccess falling edge (>0 → 0)", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderEdit();
+      await typeTitle("Edited");
+      // Rising edge already marked it; the falling edge must clear it.
+      expect(window.sessionStorage.getItem(KEY)).toBe("1");
+
+      // Advance past the autosave debounce so the scheduled flush fires,
+      // then drain the `saveDraft` resolution + the `autosaveSuccess`
+      // dispatch it queues. `autosaveSuccess` resets `dirtyKeys` to the
+      // empty set, which is the >0 → 0 transition that NoteEditor's edge
+      // effect translates into `clearNoteUnsaved` (NoteEditor.tsx:172).
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(saveDraftMock).toHaveBeenCalledTimes(1);
+      // Manual save never ran: this clear is purely the falling edge.
+      expect(saveNoteMock).not.toHaveBeenCalled();
+      expect(navigateMock).not.toHaveBeenCalled();
+      expect(window.sessionStorage.getItem(KEY)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("explicitly clears the flag on manual save success", async () => {
     await renderEdit();
     await typeTitle("Edited");
@@ -197,6 +229,12 @@ describe("NoteEditor → unsaved flag sync (Issue #583)", () => {
 
     expect(saveNoteMock).toHaveBeenCalledTimes(1);
     expect(navigateMock).toHaveBeenCalledTimes(1);
+    // `saveNote` has no reducer action that empties `dirtyKeys` (only
+    // `autosaveSuccess` does), so no falling edge fires on manual save — the
+    // flag reaching `null` here can ONLY come from the explicit
+    // `clearNoteUnsaved` at NoteEditor.tsx:352. This is what distinguishes
+    // this case from the autosave falling-edge case above; were the explicit
+    // clear removed, this test would fail (the flag would stay `"1"`).
     expect(window.sessionStorage.getItem(KEY)).toBeNull();
   });
 

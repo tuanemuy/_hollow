@@ -265,6 +265,9 @@ export function PublishSettings({
           </div>
         ) : null}
         {hasUnsaved ? (
+          // `role="status"` here is a STATIC advisory rendered on modal open
+          // (not a live update), so no `aria-live` — it is announced once when
+          // discovered, unlike the dynamic copy-success status below.
           <div className={`${ALERT} ${ALERT_WARNING} mt-6`} role="status">
             <span className={ALERT_ICON} aria-hidden="true">
               <Icon icon={AlertTriangle} size={20} />
@@ -492,6 +495,9 @@ function ShareLinkRow({
         >
           <Icon icon={copied ? Check : Copy} />
         </button>
+        {/* `role="status"` + `aria-live="polite"`: this is a DYNAMIC update
+            (text flips to "コピーしました" on copy), so it must be announced
+            on change — unlike the static unsaved-warning status above. */}
         <span
           id={copyStatusId}
           className="sr-only"
