@@ -51,6 +51,12 @@ function nextMediaId(): string {
   return `019d3000-0000-7000-8000-${mediaSeq.toString(16).padStart(12, "0")}`;
 }
 
+let tagSeq = 0;
+function nextTagId(): string {
+  tagSeq += 1;
+  return `019d4000-0000-7000-8000-${tagSeq.toString(16).padStart(12, "0")}`;
+}
+
 async function seedUser(container: TestContainer): Promise<string> {
   const suffix = nextUserSuffix();
   const id = `019d0001-0000-7000-8000-${suffix}`;
@@ -1450,6 +1456,68 @@ describe("commitIngestionPreview", () => {
     });
 
     expect(await tagNamesOnNote(container, noteId)).toEqual(["alpha", "gamma"]);
+  });
+
+  it("replaces the overwritten note's tags with the supplied tagNames, dropping a removed suggested tag (Issue #679)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const dirId = await seedDirectory(container, owner);
+    // Pre-existing note carrying a tag that must not survive the overwrite
+    // unless the form still lists it.
+    const oldTagId = nextTagId();
+    await container.db.insert(schema.tags).values({
+      id: oldTagId,
+      ownerId: owner,
+      name: "old",
+      nameNormalized: "old",
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+    });
+    const existingNoteId = nextNoteId();
+    await container.db.insert(schema.notes).values({
+      id: existingNoteId,
+      ownerId: owner,
+      directoryId: dirId,
+      slug: `slug-${existingNoteId.slice(-6)}`,
+      title: "Original",
+      contentHtml: "<p>original</p>",
+      frontMatterJson: "{}",
+      status: "active",
+      trashedAt: null,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      editLockUserId: null,
+      editLockAcquiredAt: null,
+      editLockExpiresAt: null,
+      version: 0,
+    });
+    await container.db
+      .insert(schema.noteTags)
+      .values({ noteId: existingNoteId, tagId: oldTagId });
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      previewJson: previewWithSuggestedTags(["alpha", "beta"]),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId,
+        modifications: {
+          overwriteNoteId: existingNoteId,
+          // Form kept only "alpha"; "beta" suggestion and the note's
+          // prior "old" tag must both be gone.
+          tagNames: ["alpha"],
+        },
+      },
+    });
+
+    expect(noteId).toBe(existingNoteId);
+    expect(await tagNamesOnNote(container, existingNoteId)).toEqual(["alpha"]);
   });
 });
 
