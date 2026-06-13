@@ -136,13 +136,14 @@ Cloudflare infrastructure (D1 / Queues / DNS / Worker Routes) is managed by Pulu
 
 ### Release flow
 
-```sh
-# bump version, create a tag, push it
-pnpm version patch         # or minor / major
-git push --follow-tags
-```
+Releases are driven by [release-please](https://github.com/googleapis/release-please). There is no manual `pnpm version` + tag push.
 
-The tag push triggers `deploy-production.yml`. GitHub waits for required-reviewer approval, then deploys and creates a GitHub Release with auto-generated notes.
+1. Squash-merge a PR containing conventional commits (`feat:` / `fix:` / …) into `main`.
+2. release-please keeps a single open release PR up to date (version bump + CHANGELOG).
+3. Merge that release PR — release-please creates the `vX.Y.Z` tag and the GitHub Release with auto-generated notes.
+4. The tag push triggers `deploy-production.yml`. GitHub waits for required-reviewer approval, then deploys.
+
+release-please is the sole owner of the GitHub Release; the deploy workflow only deploys and does not create a Release. Repository prerequisites (the `RELEASE_PLEASE_TOKEN` PAT, squash-only merge button, `v*.*.*` deployment branch policy) are documented in [`docs/deployment_setup.md`](docs/deployment_setup.md).
 
 ### Local infra commands
 

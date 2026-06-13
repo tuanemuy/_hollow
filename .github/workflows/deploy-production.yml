@@ -149,12 +149,3 @@ jobs:
             # shellcheck disable=SC2086
             pnpm exec wrangler secret bulk "$DECRYPTED_FILTERED" --config wrangler.production.toml $env_flag
           done
-
-      - name: Generate release notes
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
