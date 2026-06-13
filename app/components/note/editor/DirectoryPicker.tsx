@@ -13,7 +13,7 @@ import { DirectorySelectField } from "@/components/directory/DirectorySelectFiel
 import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
 import { MAX_DIRECTORY_DEPTH } from "@/core/domain/directory/valueObject";
 import type { FlatDirectory } from "../loaders";
-import { dirRowPillInput } from "./styles";
+import { DirectoryTreeSelect } from "./DirectoryTreeSelect";
 
 /**
  * Directory selector for the editor.
@@ -43,12 +43,15 @@ import { dirRowPillInput } from "./styles";
  * rejects `/` as a forbidden char, so a single name is the only valid
  * input there. See .issue/363/adr.md ADR-004.
  *
- * `variant` (default `"fieldset"`) switches the container styling only —
- * behaviour, controls and a11y structure are identical. `"fieldset"` keeps
- * the bordered fieldset used by `IngestionPreviewForm`; `"row"` is the
- * compact editor presentation matching the P12 mock's `.dir-row` (small
- * uppercase label + one wrap-allowed row, `mb-3`). See `.issue/669/adr.md`
- * ADR-002.
+ * `variant` (default `"fieldset"`) picks the presentation. `"fieldset"`
+ * keeps the bordered two-field fieldset used by `IngestionPreviewForm`
+ * (searchable `DirectorySelectField` + new-name input). `"row"` delegates
+ * entirely to {@link DirectoryTreeSelect}: the P12 mock's single `.dir-pill`
+ * trigger + tree dropdown (search, collapsible tree, selection highlight,
+ * inline "新規ディレクトリを作成…"). The `"row"` and `"fieldset"` branches do
+ * not share controls — only the props contract (`onSelectExisting` /
+ * `onSetPendingName` / `pendingDirectoryName` / `directoryId` / `tree` /
+ * `allowExistingActions`).
  */
 export type DirectoryPickerProps = Readonly<{
   tree: readonly FlatDirectory[];
@@ -87,6 +90,23 @@ export function DirectoryPicker({
     [tree, directoryId],
   );
 
+  // Row variant is self-contained — owns its own search / tree / dialogs — so
+  // it returns before the fieldset-only `DirectorySelectField` setup below.
+  // (Hooks above run unconditionally so hook order stays stable.)
+  if (variant === "row") {
+    return (
+      <DirectoryTreeSelect
+        tree={tree}
+        directoryId={directoryId}
+        pendingDirectoryName={pendingDirectoryName}
+        onSelectExisting={onSelectExisting}
+        onSetPendingName={onSetPendingName}
+        disabled={disabled === true}
+        allowExistingActions={allowExistingActions}
+      />
+    );
+  }
+
   const canShowActions =
     allowExistingActions === true &&
     directoryId !== null &&
@@ -106,9 +126,6 @@ export function DirectoryPicker({
       onChange={onSelectExisting}
       disabled={disabled === true || usingNew}
       clearable
-      // The row variant renders its own visible "ディレクトリ" label, so the
-      // field's label goes sr-only to avoid a double label.
-      labelHidden={variant === "row"}
     />
   );
 
@@ -169,26 +186,6 @@ export function DirectoryPicker({
       />
     </>
   ) : null;
-
-  if (variant === "row") {
-    return (
-      <div className="mb-3 flex flex-wrap items-start gap-x-3 gap-y-2">
-        <span className="inline-flex items-center gap-2 pt-1 text-xs uppercase tracking-[0.06em] text-ink-tertiary">
-          ディレクトリ
-          {legendSlot}
-        </span>
-        <div className="min-w-0 flex-1 basis-56">{selectField}</div>
-        {actionButtons}
-        <div className="min-w-0 flex-1 basis-56">
-          <label htmlFor={newId} className="sr-only">
-            {newNameLabel}
-          </label>
-          {newNameInput({ className: dirRowPillInput })}
-        </div>
-        {dialogs}
-      </div>
-    );
-  }
 
   return (
     <fieldset className="mb-4 rounded-lg border border-hairline p-4">

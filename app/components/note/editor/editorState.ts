@@ -112,7 +112,13 @@ export type EditorState = Readonly<{
   frontMatterJsonError: FrontMatterError | null;
   directoryId: string | null;
   pendingDirectoryName: string | null;
-  tagInput: string;
+  // Tags are stored two-layer: `tagNames` is the
+  // ordered, de-duplicated list of committed chips; `tagDraft` is the
+  // in-progress text in the trailing borderless input. `resolveTagNames`
+  // merges a non-empty draft into the committed list at submit / autosave
+  // time so a tag typed but not yet Enter-committed is never dropped.
+  tagNames: readonly string[];
+  tagDraft: string;
   mediaInsertions: ReadonlyArray<MediaInsertion>;
   autosave: AutosaveStatus;
   dirtyKeys: ReadonlySet<DirtyKey>;
@@ -137,7 +143,9 @@ export type EditorAction =
   | Readonly<{ type: "setDirectory"; directoryId: string | null }>
   | Readonly<{ type: "setPendingDirectoryName"; value: string | null }>
   | Readonly<{ type: "setMode"; mode: EditorMode }>
-  | Readonly<{ type: "setTagInput"; value: string }>
+  | Readonly<{ type: "addTag"; value: string }>
+  | Readonly<{ type: "removeTag"; name: string }>
+  | Readonly<{ type: "setTagDraft"; value: string }>
   | Readonly<{ type: "autosaveStart" }>
   | Readonly<{ type: "autosaveSuccess"; at: number }>
   | Readonly<{ type: "autosaveError"; error: SerializedError }>
@@ -198,7 +206,8 @@ export function createInitialEditorState(init: EditorInit): EditorState {
     frontMatterJsonError: null,
     directoryId: init.directoryId,
     pendingDirectoryName: null,
-    tagInput: init.tagNames.join(", "),
+    tagNames: [...init.tagNames],
+    tagDraft: "",
     mediaInsertions: [],
     autosave: { kind: "idle" },
     dirtyKeys: EMPTY_DIRTY,
@@ -442,9 +451,39 @@ export function editorReducer(
       if (state.mode === action.mode) return state;
       return { ...state, mode: action.mode };
     }
-    case "setTagInput": {
-      if (state.tagInput === action.value) return state;
-      return withDirty(state, "tags", { tagInput: action.value });
+    case "addTag": {
+      // Tokenise the committed chunk (Enter / comma / paste) and merge it
+      // into the existing chips, preserving order and de-duplicating
+      // against what is already present. The trailing draft is always
+      // cleared so the input empties on commit.
+      const additions = parseTagInput(action.value);
+      const existing = new Set(state.tagNames);
+      const merged: string[] = [...state.tagNames];
+      for (const name of additions) {
+        if (existing.has(name)) continue;
+        existing.add(name);
+        merged.push(name);
+      }
+      if (merged.length === state.tagNames.length) {
+        // Nothing new committed (empty / all duplicates) — only clear the
+        // draft, leaving the chip list (and dirty state) untouched.
+        if (state.tagDraft === "") return state;
+        return { ...state, tagDraft: "" };
+      }
+      return withDirty(state, "tags", { tagNames: merged, tagDraft: "" });
+    }
+    case "removeTag": {
+      if (!state.tagNames.includes(action.name)) return state;
+      return withDirty(state, "tags", {
+        tagNames: state.tagNames.filter((t) => t !== action.name),
+      });
+    }
+    case "setTagDraft": {
+      if (state.tagDraft === action.value) return state;
+      // Editing the draft alone does not mark tags dirty: an unsubmitted
+      // draft is not yet part of the saved tag set. `resolveTagNames`
+      // still rescues a non-empty draft at submit / autosave time.
+      return { ...state, tagDraft: action.value };
     }
     case "autosaveStart": {
       return { ...state, autosave: { kind: "saving" } };
@@ -549,6 +588,31 @@ export function parseTagInput(raw: string): readonly string[] {
 }
 
 /**
+ * Resolve the committed tag list a submit / autosave should send,
+ * folding in any non-empty in-progress `tagDraft`.
+ *
+ * The single source of truth for "which tags cross the wire": both
+ * `NoteEditor.onSubmit` and `useAutosave`'s snapshot run through this so
+ * a tag typed but not yet Enter-committed is never silently dropped, and
+ * submit / autosave can never disagree (lockstep). Order is preserved and
+ * the draft tokens are de-duplicated against the committed chips.
+ */
+export function resolveTagNames(
+  input: Pick<EditorState, "tagNames" | "tagDraft">,
+): readonly string[] {
+  const draft = input.tagDraft.trim();
+  if (draft.length === 0) return input.tagNames;
+  const seen = new Set(input.tagNames);
+  const out: string[] = [...input.tagNames];
+  for (const name of parseTagInput(input.tagDraft)) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
+}
+
+/**
  * Snapshot the slice of state that autosave / explicit save send over
  * the wire. Computed in one place so the autosave hook and submit
  * handler stay in lockstep on which fields cross the boundary.
@@ -569,7 +633,12 @@ export type EditorSubmitSnapshot = Readonly<{
  */
 export type EditorSnapshotInput = Pick<
   EditorState,
-  "title" | "contentHtml" | "frontMatter" | "tagInput" | "directoryId"
+  | "title"
+  | "contentHtml"
+  | "frontMatter"
+  | "tagNames"
+  | "tagDraft"
+  | "directoryId"
 >;
 
 export function snapshotForSubmit(
@@ -579,7 +648,7 @@ export function snapshotForSubmit(
     title: input.title,
     contentHtml: input.contentHtml,
     frontMatterJson: JSON.stringify(input.frontMatter),
-    tagNames: parseTagInput(input.tagInput),
+    tagNames: resolveTagNames(input),
     directoryId: input.directoryId,
   };
 }
