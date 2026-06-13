@@ -5,6 +5,7 @@ import {
   type EditorState,
   editorReducer,
   parseTagInput,
+  resolveTagNames,
   snapshotForSubmit,
   stringifyFrontMatter,
 } from "../editorState";
@@ -27,7 +28,8 @@ describe("createInitialEditorState", () => {
     const s = freshState();
     expect(s.title).toBe("Hello");
     expect(s.contentHtml).toBe("<p>hi</p>");
-    expect(s.tagInput).toBe("draft");
+    expect(s.tagNames).toEqual(["draft"]);
+    expect(s.tagDraft).toBe("");
     expect(s.frontMatterRawJson).toBe("{}");
     expect(s.dirtyKeys.size).toBe(0);
     expect(s.autosave.kind).toBe("idle");
@@ -322,13 +324,54 @@ describe("editorReducer setters", () => {
     expect(next.dirtyKeys.has("title")).toBe(true);
   });
 
-  it("setTagInput updates the raw tag string and marks tags dirty", () => {
+  it("addTag commits a draft, trims, de-dupes and marks tags dirty", () => {
     const s = editorReducer(freshState(), {
-      type: "setTagInput",
-      value: "a, b",
+      type: "addTag",
+      value: "  alpha  ",
     });
-    expect(s.tagInput).toBe("a, b");
+    expect(s.tagNames).toEqual(["draft", "alpha"]);
+    expect(s.tagDraft).toBe("");
     expect(s.dirtyKeys.has("tags")).toBe(true);
+  });
+
+  it("addTag splits a comma-separated chunk and de-dupes against existing", () => {
+    const s = editorReducer(freshState(), {
+      type: "addTag",
+      value: "x, draft, y, x",
+    });
+    expect(s.tagNames).toEqual(["draft", "x", "y"]);
+  });
+
+  it("addTag of an empty / all-duplicate value only clears the draft", () => {
+    const s0 = editorReducer(freshState(), {
+      type: "setTagDraft",
+      value: "draft",
+    });
+    const s1 = editorReducer(s0, { type: "addTag", value: "draft" });
+    expect(s1.tagNames).toEqual(["draft"]);
+    expect(s1.tagDraft).toBe("");
+    expect(s1.dirtyKeys.has("tags")).toBe(false);
+  });
+
+  it("removeTag drops a chip by name and marks tags dirty", () => {
+    const s0 = editorReducer(freshState(), { type: "addTag", value: "alpha" });
+    const s1 = editorReducer(s0, { type: "removeTag", name: "draft" });
+    expect(s1.tagNames).toEqual(["alpha"]);
+    expect(s1.dirtyKeys.has("tags")).toBe(true);
+  });
+
+  it("removeTag of an absent name is a no-op (same reference)", () => {
+    const s = freshState();
+    expect(editorReducer(s, { type: "removeTag", name: "nope" })).toBe(s);
+  });
+
+  it("setTagDraft updates the buffer without marking tags dirty", () => {
+    const s = editorReducer(freshState(), {
+      type: "setTagDraft",
+      value: "wip",
+    });
+    expect(s.tagDraft).toBe("wip");
+    expect(s.dirtyKeys.has("tags")).toBe(false);
   });
 });
 
@@ -446,8 +489,8 @@ describe("editorReducer autosave actions", () => {
       } as const,
     },
     {
-      label: "setTagInput",
-      action: { type: "setTagInput", value: "a, b" } as const,
+      label: "addTag",
+      action: { type: "addTag", value: "a, b" } as const,
     },
     {
       label: "setDirectory",
@@ -693,11 +736,8 @@ describe("editorReducer media insertions", () => {
 });
 
 describe("snapshotForSubmit", () => {
-  it("serialises frontMatter to a JSON string and de-duplicates tag input", () => {
-    const s0 = editorReducer(freshState(), {
-      type: "setTagInput",
-      value: " a, b , a",
-    });
+  it("serialises frontMatter to a JSON string and resolves committed tags", () => {
+    const s0 = createInitialEditorState({ ...baseInit, tagNames: ["a", "b"] });
     const s1 = editorReducer(s0, {
       type: "setFrontMatterField",
       key: "title",
@@ -706,6 +746,28 @@ describe("snapshotForSubmit", () => {
     const snap = snapshotForSubmit(s1);
     expect(snap.tagNames).toEqual(["a", "b"]);
     expect(JSON.parse(snap.frontMatterJson)).toEqual({ title: "x" });
+  });
+
+  it("folds a non-empty draft into the snapshot tag list (lockstep)", () => {
+    const s = editorReducer(freshState(), {
+      type: "setTagDraft",
+      value: "uncommitted",
+    });
+    const snap = snapshotForSubmit(s);
+    expect(snap.tagNames).toEqual(["draft", "uncommitted"]);
+  });
+});
+
+describe("resolveTagNames", () => {
+  it("returns the committed list unchanged when the draft is empty", () => {
+    const names = ["a", "b"];
+    expect(resolveTagNames({ tagNames: names, tagDraft: "  " })).toBe(names);
+  });
+
+  it("merges a non-empty draft, preserving order and de-duplicating", () => {
+    expect(
+      resolveTagNames({ tagNames: ["a", "b"], tagDraft: " c, a , d" }),
+    ).toEqual(["a", "b", "c", "d"]);
   });
 });
 

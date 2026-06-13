@@ -11,13 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import {
-  fieldControl,
-  fieldLabel,
-  formError,
-  pillBtn,
-  pillBtnPrimary,
-} from "@/components/common/styles";
+import { formError, pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { createDirectoryFn } from "@/components/directory/actions";
 import {
   acquireEditLockFn,
@@ -42,13 +36,14 @@ import {
   type EditLockState,
   type EditorMode,
   editorReducer,
-  parseTagInput,
+  resolveTagNames,
 } from "./editorState";
 import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
 import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
 import { editorActions, editorTopbar, titleInput } from "./styles";
+import { TagsInput } from "./TagsInput";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
 import { WysiwygEditor } from "./WysiwygEditor";
@@ -237,7 +232,7 @@ export function NoteEditor(props: NoteEditorProps) {
     event.preventDefault();
     setSubmitError(null);
     const frontMatterJson = JSON.stringify(state.frontMatter);
-    const tagNames = parseTagInput(state.tagInput);
+    const tagNames = resolveTagNames(state);
     // Set outside the transition so the「ディレクトリ作成中...」label paints
     // at high priority before the save round-trip begins.
     if (state.pendingDirectoryName !== null) setCreatingDirectory(true);
@@ -370,22 +365,14 @@ export function NoteEditor(props: NoteEditorProps) {
         variant="row"
       />
 
-      <div className="mb-5 flex flex-col gap-2">
-        <label htmlFor="note-editor-tags" className={fieldLabel}>
-          タグ（カンマ区切り）
-        </label>
-        <input
-          id="note-editor-tags"
-          type="text"
-          value={state.tagInput}
-          onChange={(e) =>
-            dispatch({ type: "setTagInput", value: e.target.value })
-          }
-          placeholder="例: idea, draft"
-          disabled={isPending}
-          className={fieldControl}
-        />
-      </div>
+      <TagsInput
+        tagNames={state.tagNames}
+        draft={state.tagDraft}
+        onAddTag={(value) => dispatch({ type: "addTag", value })}
+        onRemoveTag={(name) => dispatch({ type: "removeTag", name })}
+        onSetDraft={(value) => dispatch({ type: "setTagDraft", value })}
+        disabled={isPending}
+      />
 
       {state.mode === "html" ? (
         <>

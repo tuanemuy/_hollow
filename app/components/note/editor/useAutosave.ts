@@ -179,18 +179,26 @@ export function useAutosave({
   // (e.g. `inline → html` while dirty) would leave the previous effect
   // with an aborted controller and the user's dirty content would not
   // resume autosaving until the next keystroke changed `snapshot`.
-  const { title, contentHtml, frontMatter, tagInput, directoryId, mode } =
-    state;
+  const {
+    title,
+    contentHtml,
+    frontMatter,
+    tagNames,
+    tagDraft,
+    directoryId,
+    mode,
+  } = state;
   const snapshot = useMemo(
     () =>
       snapshotForSubmit({
         title,
         contentHtml,
         frontMatter,
-        tagInput,
+        tagNames,
+        tagDraft,
         directoryId,
       }),
-    [title, contentHtml, frontMatter, tagInput, directoryId],
+    [title, contentHtml, frontMatter, tagNames, tagDraft, directoryId],
   );
 
   // Hoist the flush gate to the hook body so the effect's dep list does
