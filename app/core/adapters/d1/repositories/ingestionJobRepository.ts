@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   gte,
@@ -414,7 +415,7 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
     if (opts.statuses.length === 0) return Promise.resolve(0);
     return mapDbError("Failed to count ingestion_jobs by owner", async () => {
       const rows = await this.db
-        .select({ total: sql<number>`count(*)` })
+        .select({ total: count() })
         .from(ingestionJobs)
         .where(
           and(

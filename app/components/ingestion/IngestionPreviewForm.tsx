@@ -50,7 +50,7 @@ type Props = Readonly<{
    * focus on the appropriate element.
    */
   titleInputRef?: React.RefObject<HTMLInputElement | null>;
-  onCommitted: (noteId: string, title: string) => void;
+  onCommitted: (noteId: string) => void;
   onDiscarded: () => void;
   /**
    * Notifies the parent that a regeneration was requested for `jobId`.
@@ -216,7 +216,7 @@ export function IngestionPreviewForm({
           // invalidate（.issue/299/adr.md ADR-003）
           await router.invalidate();
         }
-        onCommitted(result.noteId, trimmedTitle);
+        onCommitted(result.noteId);
       } catch (e) {
         setError(extractSerializedError(e));
       }

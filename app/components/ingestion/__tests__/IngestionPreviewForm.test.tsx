@@ -234,9 +234,8 @@ describe("IngestionPreviewForm", () => {
         tagNames: ["alpha", "beta"],
       }),
     });
-    // onCommitted receives the edited title alongside the noteId so the
-    // parent's `committed` view can show it.
-    expect(onCommitted).toHaveBeenCalledWith("note-1", "My Title");
+    // onCommitted receives the new note id so the parent can navigate to it.
+    expect(onCommitted).toHaveBeenCalledWith("note-1");
   });
 
   it("surfaces a server-returned error (e.g. FRONT_MATTER_JSON_INVALID) in the inline alert region without dismissing the form", async () => {

@@ -216,6 +216,58 @@ describe("IngestionQueueBadge", () => {
     expect(chip()).toBeNull();
   });
 
+  // Generation guard (seq/mySeq): when an earlier request resolves *after* a
+  // later one, the stale earlier response must not overwrite the newer count.
+  it("discards a stale earlier response that resolves after a newer one", async () => {
+    type Deferred = {
+      promise: Promise<{ count: number }>;
+      resolve: (count: number) => void;
+    };
+    const defer = (): Deferred => {
+      let resolve!: (count: number) => void;
+      const promise = new Promise<{ count: number }>((res) => {
+        resolve = (count: number) => res({ count });
+      });
+      return { promise, resolve };
+    };
+
+    // 1st fetch (mount) resolves immediately to 0 so the harness settles.
+    // 2nd fetch = the "old" request (count 1), 3rd = the "new" request
+    // (count 4). We resolve the new one first, then the old one.
+    const oldReq = defer();
+    const newReq = defer();
+    getCountMock
+      .mockResolvedValueOnce({ count: 0 })
+      .mockReturnValueOnce(oldReq.promise)
+      .mockReturnValueOnce(newReq.promise);
+
+    act(() => {
+      root.render(<BadgeHarness />);
+    });
+    await flush();
+    expect(chip()).toBeNull();
+
+    // Fire two notifies back to back — two in-flight requests, newer wins seq.
+    await act(async () => {
+      notifyIngestionQueueChanged();
+      notifyIngestionQueueChanged();
+    });
+
+    // Newer request resolves first.
+    await act(async () => {
+      newReq.resolve(4);
+    });
+    await flush();
+    expect(chip()?.textContent).toBe("4");
+
+    // Older request resolves later — must be discarded, count stays 4.
+    await act(async () => {
+      oldReq.resolve(1);
+    });
+    await flush();
+    expect(chip()?.textContent).toBe("4");
+  });
+
   it("caps the visible count at 99+", async () => {
     getCountMock.mockResolvedValue({ count: 120 });
     act(() => {

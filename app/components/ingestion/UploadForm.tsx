@@ -182,15 +182,23 @@ export function UploadForm() {
           formData.append("file", file);
           await upload({ data: formData });
         }
-        await routerInvalidate(router);
-        // Independent upload path (not via the modal) — announce here too so
-        // the header queue badge refreshes (.issue/538/adr.md ADR-002).
+        // Enqueue is confirmed — announce first so the header queue badge
+        // refreshes, and reset the input, before the (best-effort) router
+        // invalidate. A failed invalidate must not mask a successful upload
+        // (.issue/538/adr.md ADR-002 / ADR-006).
         notifyIngestionQueueChanged();
         if (fileInputRef.current !== null) {
           fileInputRef.current.value = "";
         }
       } catch (e) {
         setError(extractSerializedError(e));
+        return;
+      }
+      try {
+        await routerInvalidate(router);
+      } catch {
+        // Isolated: the upload already landed; a stale router view self-heals
+        // on the next navigation / queue poll (ADR-006).
       }
     });
   };
