@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/tuanemuy/hollow/compare/v0.2.0...v0.2.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **infra:** 初回デプロイの custom-domain ブートストラップ（manageCustomDomain フラグ） ([#702](https://github.com/tuanemuy/hollow/issues/702)) ([8be56e1](https://github.com/tuanemuy/hollow/commit/8be56e18c229c254d3fc24c2981d5d59fffcfa57))
+
 ## [0.2.0](https://github.com/tuanemuy/hollow/compare/v0.1.0...v0.2.0) (2026-06-13)
 
 
