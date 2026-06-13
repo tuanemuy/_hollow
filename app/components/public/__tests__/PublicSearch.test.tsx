@@ -36,6 +36,7 @@ describe("PublicSearch hero", () => {
       username: null,
       tags: null,
       period: null,
+      sort: null,
       cursor: null,
       limit: 20,
     });
@@ -44,8 +45,8 @@ describe("PublicSearch hero", () => {
     expect(html).toContain(
       "このインスタンス全体の公開ノートから横断検索できます",
     );
-    // The duplicated empty-state line is gone; the empty state is now
-    // "まだ検索していません" guidance.
+    // The un-searched empty state shows the「まだ検索していません」guidance
+    // and must not duplicate the hero-sub copy.
     expect(html).not.toContain(
       "同じインスタンスの公開ノートを横断検索できます。",
     );
@@ -54,13 +55,14 @@ describe("PublicSearch hero", () => {
 
   it("does not resurrect the old empty-state copy on a no-hit search", async () => {
     // keyword present + zero hits (serverData mock always returns []), so the
-    // SEARCH_EMPTY no-results branch renders. The hero-sub stays; the old
+    // SEARCH_EMPTY no-results branch renders. The hero-sub stays; the
     // duplicated empty-state copy must not reappear there either.
     const element = await PublicSearch({
       keyword: "存在しない語",
       username: null,
       tags: null,
       period: null,
+      sort: null,
       cursor: null,
       limit: 20,
     });

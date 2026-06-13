@@ -88,7 +88,7 @@ NoteSnapshot は event payload には含まれない（payload は `noteId` を�
 ## SearchPublicNotes（全インスタンス公開検索）
 
 ### 入力DTO
-- `viewerUserId: UserId | null`, `keyword: string`, `tagNames?: string[]`, `dateRange?: DateRange`, `username?: string`, `cursor?`, `limit`
+- `viewerUserId: UserId | null`, `keyword: string`, `tagNames?: string[]`, `dateRange?: DateRange`, `username?: string`, `sort?: SearchSort`（省略時 `relevance`）, `cursor?`, `limit`
 
 ### 出力DTO
 - `hits: SearchHitDTO[]`, `nextCursor`

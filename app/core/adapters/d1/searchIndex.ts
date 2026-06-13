@@ -17,6 +17,7 @@ import {
   type SearchQuery,
   SearchScore,
   SearchSnippet,
+  type SearchSort,
   SearchTitle,
   Visibility,
 } from "@/core/domain/search/valueObject";
@@ -76,6 +77,11 @@ type SearchRow = Readonly<{
  * The fallback cannot use `snippet()` / `bm25()`, so it returns a
  * body_plain head excerpt, a fixed score of 0, and a stable `note_id ASC`
  * order instead of relevance ranking and highlighted snippets.
+ *
+ * `SearchQuery.sort` selects the ORDER BY: `'relevance'` keeps the orders
+ * above; `'newest'` sorts both paths by `sd.updated_at DESC` with
+ * `sd.note_id ASC` as a stable tie-breaker so offset pagination stays
+ * deterministic.
  *
  * Cursor encoding is opaque: the adapter stores a base64 offset because
  * BM25 ranks ties cannot be split deterministically by `rowid` without
@@ -146,8 +152,8 @@ export class D1SearchIndex implements SearchIndex {
       const sharedFilters = buildSharedFilters(q);
       // A date window on the public surface (`dateBasis === 'published_at'`)
       // is evaluated against the publication aggregate's `published_at`, so
-      // the query joins `publication_states` to expose `ps.published_at`
-      // (ADR-003 / ADR-006). The own-notes surface uses
+      // the query joins `publication_states` to expose `ps.published_at`.
+      // The own-notes surface uses
       // `dateBasis === 'date_for_calendar'`, which lives on `sd` and needs no
       // join — joining would drop private / unlisted notes that lack a public
       // publication row.
@@ -162,6 +168,7 @@ export class D1SearchIndex implements SearchIndex {
               peekLimit,
               offset,
               joinPublication,
+              q.sort,
             )
           : await this.runLikeQuery(
               q.keyword,
@@ -169,6 +176,7 @@ export class D1SearchIndex implements SearchIndex {
               peekLimit,
               offset,
               joinPublication,
+              q.sort,
             );
 
       const hasMore = rows.length > limit;
@@ -187,6 +195,7 @@ export class D1SearchIndex implements SearchIndex {
     peekLimit: number,
     offset: number,
     joinPublication: boolean,
+    sort: SearchSort,
   ): Promise<SearchRow[]> {
     // FTS contentless table joins back to the host via the implicit
     // `rowid` column (configured `content_rowid='rowid'` in the migration's
@@ -217,7 +226,7 @@ export class D1SearchIndex implements SearchIndex {
       JOIN users AS u ON u.id = sd.owner_id
       ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
-      ORDER BY bm25(fts.search_documents_fts) ASC, sd.note_id ASC
+      ORDER BY ${buildOrderBy(sort, sql`bm25(fts.search_documents_fts) ASC, sd.note_id ASC`)}
       LIMIT ${peekLimit} OFFSET ${offset}
     `);
   }
@@ -228,6 +237,7 @@ export class D1SearchIndex implements SearchIndex {
     peekLimit: number,
     offset: number,
     joinPublication: boolean,
+    sort: SearchSort,
   ): Promise<SearchRow[]> {
     // Fallback for keywords whose every token is shorter than the trigram
     // minimum (3 codepoints). Searches the host table directly with a
@@ -254,7 +264,7 @@ export class D1SearchIndex implements SearchIndex {
       JOIN users AS u ON u.id = sd.owner_id
       ${publicationJoin(joinPublication)}
       WHERE ${whereClause}
-      ORDER BY sd.note_id ASC
+      ORDER BY ${buildOrderBy(sort, sql`sd.note_id ASC`)}
       LIMIT ${peekLimit} OFFSET ${offset}
     `);
   }
@@ -286,7 +296,7 @@ export class D1SearchIndex implements SearchIndex {
         const extraFilters = dateClause === null ? [] : [dateClause];
         // A `published_at`-based window joins `publication_states` to expose
         // `ps.published_at`; a `date_for_calendar`-based window stays on `sd`
-        // and needs no join. Mirrors the `query` path gate (ADR-006).
+        // and needs no join. Mirrors the `query` path gate.
         const joinPublication =
           dateClause !== null && q.dateBasis === "published_at";
         const count =
@@ -541,8 +551,7 @@ function buildNonDateFilters(q: SearchQuery): ReturnType<typeof sql>[] {
   return filterClauses;
 }
 
-// Date window clause, evaluated against the column selected by `basis`
-// (ADR-006):
+// Date window clause, evaluated against the column selected by `basis`:
 //   - `'published_at'`  → the publication aggregate's `ps.published_at`
 //     (公開日). The public surfaces use this; callers must pair it with
 //     {@link publicationJoin} so `ps` resolves.
@@ -574,6 +583,21 @@ function publicationJoin(joinPublication: boolean): ReturnType<typeof sql> {
   return joinPublication
     ? sql`JOIN publication_states AS ps ON ps.note_id = sd.note_id`
     : sql``;
+}
+
+// ORDER BY body selected by `SearchQuery.sort`. `'newest'` is shared by the
+// MATCH and LIKE paths (`updated_at` is an ISO8601 string, so lexical DESC is
+// reverse-chronological; `note_id` keeps offset pagination stable across
+// ties). `'relevance'` keeps each path's own order, passed in as
+// `relevanceOrder` (bm25 on MATCH; stable `note_id` on LIKE, which has no
+// score).
+function buildOrderBy(
+  sort: SearchSort,
+  relevanceOrder: ReturnType<typeof sql>,
+): ReturnType<typeof sql> {
+  return sort === "newest"
+    ? sql`sd.updated_at DESC, sd.note_id ASC`
+    : relevanceOrder;
 }
 
 // The LIKE-fallback free-text clause, factored out of `runLikeQuery` so the

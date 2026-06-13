@@ -333,7 +333,8 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
 - 機能:
   - キーワード入力 + ハイライト
   - ファセット（ユーザー / タグ / 期間）
-  - 全トークンが 3 codepoint 未満の場合は LIKE 部分一致（title / body_plain / tag_names_json 対象）で代替検索（bm25 ランキング・ハイライトなし、note_id 安定ソート・body 先頭抜粋）
+  - ソート選択肢（関連度順 = bm25 / 新着順 = `updated_at` 降順）。URL パラメータ `sort` で保持し、省略時は関連度順。ソート切替時は `cursor` をリセットして1ページ目に戻る。期間ファセットは公開日（`published_at`）基準・新着順は更新日時（`updated_at`）基準のため、併用時は「公開日で絞り込み、更新日時で並べる」挙動になる
+  - 全トークンが 3 codepoint 未満の場合は LIKE 部分一致（title / body_plain / tag_names_json 対象）で代替検索（bm25 ランキング・ハイライトなし、関連度順時は note_id 安定ソート・新着順選択時は LIKE 経路でも `updated_at` 降順・body 先頭抜粋）
   - レート制限の案内
 - 配信: `/sitemap.xml` に全公開ノート URL を列挙する（件数上限 1000）。RSS は MVP スコープ外
 - 関連シナリオ: F4

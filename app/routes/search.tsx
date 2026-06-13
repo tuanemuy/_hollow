@@ -15,12 +15,16 @@ import { validateInput } from "@/core/presentation/validator";
 // `.catch(...)` keeps hand-typed junk from erroring the route; omission
 // keeps the URL clean.
 const SEARCH_PERIODS = ["7d", "30d", "1y", "all"] as const;
+// Sort axis for the result list. Omission means relevance order (the
+// default), so the URL stays clean until the user opts into `newest`.
+const SEARCH_SORTS = ["relevance", "newest"] as const;
 
 const searchSchema = z.object({
   q: z.string().max(200).catch(""),
   username: z.string().min(1).max(64).optional(),
   tags: z.array(z.string().min(1).max(64)).max(8).optional().catch(undefined),
   period: z.enum(SEARCH_PERIODS).optional().catch(undefined),
+  sort: z.enum(SEARCH_SORTS).optional().catch(undefined),
   cursor: z.string().max(1024).optional(),
   limit: z.coerce.number().int().min(1).max(50).catch(20),
 });
@@ -30,6 +34,7 @@ const renderInputSchema = z.object({
   username: z.string().min(1).max(64).optional(),
   tags: z.array(z.string().min(1).max(64)).max(8).optional(),
   period: z.enum(SEARCH_PERIODS).optional(),
+  sort: z.enum(SEARCH_SORTS).optional(),
   cursor: z.string().max(1024).optional(),
   limit: z.number().int().min(1).max(50),
 });
@@ -45,6 +50,7 @@ const renderPublicSearch = createServerFn({ method: "GET" })
         username={data.username ?? null}
         tags={data.tags ?? null}
         period={data.period ?? null}
+        sort={data.sort ?? null}
         cursor={data.cursor ?? null}
         limit={data.limit}
       />,
@@ -62,6 +68,7 @@ export const Route = createFileRoute("/search")({
         ...(deps.username !== undefined ? { username: deps.username } : {}),
         ...(deps.tags !== undefined ? { tags: deps.tags } : {}),
         ...(deps.period !== undefined ? { period: deps.period } : {}),
+        ...(deps.sort !== undefined ? { sort: deps.sort } : {}),
         ...(deps.cursor !== undefined ? { cursor: deps.cursor } : {}),
         limit: deps.limit,
       },
