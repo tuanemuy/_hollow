@@ -65,8 +65,11 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  * same "pill chip + ×" language so the chips stay visually identical; only
  * the trigger differs. The ghost trigger (`filterChipGhost`) is used by 期間 /
  * 公開状態 / 内部リンク参照 — each shows a dashed ghost chip when unset.
- * Directory has no in-bar trigger (it is set from the directory tree) and shows
- * just the active chip (#497 ADR-001).
+ * Directory is the exception: it renders as a breadcrumb (`DirectoryBreadcrumb`,
+ * its own nav row) rather than a chip, since it reads as "current location"
+ * not a filter (#710 ADR-002, superseding the chip-only display of #497
+ * ADR-001). `filterChip` is reused only for the fallback when the active
+ * directory id cannot be resolved to breadcrumb segments.
  *
  * - `filterChip`: base pill. `data-[active]` flips it to the dark
  *   (ink / white) applied state, matching the existing tag-toggle look.

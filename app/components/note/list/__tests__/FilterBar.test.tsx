@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const routerNavigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ navigate: routerNavigate }),
+  // DirectoryBreadcrumb renders <Link to="/" search={{ directoryId }}>. Render
+  // it as an anchor carrying the search payload on a data-attr so tests can
+  // assert each segment's directoryId scope.
+  Link: ({
+    children,
+    search,
+    className,
+  }: {
+    children: ReactNode;
+    search?: { directoryId?: string };
+    className?: string;
+  }) => (
+    <a
+      href="/"
+      className={className}
+      data-directory-id={search?.directoryId ?? ""}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("../NotePickerDialog", () => ({ NotePickerDialog: () => null }));
@@ -99,6 +119,28 @@ function renderBarWith({ visibility, from, to }: BarProps = {}) {
         to={to}
         visibility={visibility}
         directoryId={undefined}
+        referencingNoteId={undefined}
+      />,
+    );
+  });
+}
+
+type Segment = { id: string; name: string };
+
+function renderBarDirectory(
+  directoryId: string | undefined,
+  directorySegments?: readonly Segment[],
+) {
+  act(() => {
+    root.render(
+      <FilterBar
+        tags={[]}
+        selectedTagNames={[]}
+        from={undefined}
+        to={undefined}
+        visibility={undefined}
+        directoryId={directoryId}
+        {...(directorySegments !== undefined ? { directorySegments } : {})}
         referencingNoteId={undefined}
       />,
     );
@@ -656,5 +698,130 @@ describe("FilterBar — + タグ TagPicker", () => {
     openPicker();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(listbox()).not.toBeNull();
+  });
+});
+
+/**
+ * Issue #710: the active directory renders as a breadcrumb (current location)
+ * on its own nav row, not as a filter chip. When the id cannot be resolved to
+ * segments a generic fallback chip is shown instead of an empty nav.
+ */
+describe("FilterBar — directory breadcrumb (Issue #710)", () => {
+  const breadcrumb = () =>
+    container.querySelector<HTMLElement>(
+      'nav[aria-label="現在のディレクトリ"]',
+    );
+  const segmentLinks = () =>
+    Array.from(breadcrumb()?.querySelectorAll<HTMLAnchorElement>("a") ?? []);
+  // The clear × inside the breadcrumb nav vs. the one inside the fallback chip
+  // share an aria-label, so scope each lookup by context: the nav one
+  // must come from the nav, the fallback one must NOT be inside any nav.
+  const clearDirBtnInNav = () =>
+    breadcrumb()?.querySelector<HTMLButtonElement>(
+      'button[aria-label="ディレクトリフィルタを解除"]',
+    ) ?? null;
+  const clearDirBtn = () =>
+    container.querySelector<HTMLButtonElement>(
+      'button[aria-label="ディレクトリフィルタを解除"]',
+    );
+
+  it("renders a breadcrumb nav with one directoryId-scoped link per segment", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d2", [
+      { id: "d1", name: "Documents" },
+      { id: "d2", name: "Research" },
+    ]);
+    expect(breadcrumb()).not.toBeNull();
+    const links = segmentLinks();
+    expect(links.map((a) => a.textContent)).toEqual(["Documents", "Research"]);
+    expect(links.map((a) => a.getAttribute("data-directory-id"))).toEqual([
+      "d1",
+      "d2",
+    ]);
+  });
+
+  it("is hidden when the optimistic directory id is undefined", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory(undefined, undefined);
+    expect(breadcrumb()).toBeNull();
+    expect(clearDirBtn()).toBeNull();
+  });
+
+  it("shows the fallback chip (no nav) when the id resolves to no segments", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d-deleted", []);
+    expect(breadcrumb()).toBeNull();
+    const fallback = clearDirBtn();
+    expect(fallback).not.toBeNull();
+    expect(fallback?.parentElement?.textContent).toContain("ディレクトリ");
+    // The fallback × is a chip-remove button, not a breadcrumb one: it must not
+    // live inside any breadcrumb nav, so the same aria-label cannot be confused
+    // for the nav one.
+    expect(fallback?.closest("nav")).toBeNull();
+  });
+
+  it("renders separators between segments only — none before the first", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d3", [
+      { id: "d1", name: "Documents" },
+      { id: "d2", name: "Research" },
+      { id: "d3", name: "Drafts" },
+    ]);
+    const nav = breadcrumb();
+    expect(nav).not.toBeNull();
+    // ChevronRight separators carry the weakest `text-hairline-strong` tone;
+    // the leading Folder icon does not, so it is excluded from the count. For N
+    // segments there must be exactly N-1 separators (between elements only).
+    const separators = Array.from(
+      nav?.querySelectorAll<HTMLElement>("span.text-hairline-strong") ?? [],
+    );
+    expect(separators).toHaveLength(2);
+    // No separator precedes the first link: the first segment link must come
+    // before every separator in document order.
+    const firstLink = segmentLinks()[0];
+    for (const sep of separators) {
+      expect(
+        firstLink.compareDocumentPosition(sep) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("places the breadcrumb on its own row, a sibling of the chip cloud (AC-7, W-002)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d1", [{ id: "d1", name: "Documents" }]);
+    const nav = breadcrumb();
+    expect(nav).not.toBeNull();
+    // The chip cloud is the `aria-busy` container; the breadcrumb must not be
+    // nested inside it (it would otherwise merge into the chip row).
+    const chipCloud = container.querySelector<HTMLElement>("div[aria-busy]");
+    expect(chipCloud).not.toBeNull();
+    expect(nav?.closest("div[aria-busy]")).toBeNull();
+    // Breadcrumb row and chip cloud share the same parent (siblings = separate
+    // rows), so they cannot drift into the same line.
+    expect(nav?.parentElement?.parentElement).toBe(chipCloud?.parentElement);
+  });
+
+  it("navigates to clear the directory when the trailing × is clicked", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarDirectory("d2", [
+      { id: "d1", name: "Documents" },
+      { id: "d2", name: "Research" },
+    ]);
+    // Scope the × to the breadcrumb nav: it is the breadcrumb's clear
+    // button that must drive the directory-clear navigation.
+    const navClear = clearDirBtnInNav();
+    expect(navClear).not.toBeNull();
+    await act(async () => {
+      navClear?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const updater = (
+      routerNavigate.mock.calls[0][0] as {
+        search: (prev: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).search;
+    expect(updater({ directoryId: "d2" }).directoryId).toBeUndefined();
   });
 });

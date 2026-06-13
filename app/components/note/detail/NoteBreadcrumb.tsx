@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { Icon } from "@/components/common/Icon";
+import type { BreadcrumbSegment } from "../directoryTree";
 
 /**
  * Pure breadcrumb for the note detail page (P11).
@@ -17,7 +18,7 @@ import { Icon } from "@/components/common/Icon";
  * intentionally avoided (see Issue #356 ADR-002).
  */
 export type NoteBreadcrumbProps = Readonly<{
-  segments: readonly { id: string; name: string }[];
+  segments: readonly BreadcrumbSegment[];
   noteTitle: string;
 }>;
 
