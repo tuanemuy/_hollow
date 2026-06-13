@@ -737,3 +737,170 @@ describe("D1TagRepository.searchPublicByNamePrefix (integration, #568)", () => {
     expect(empty).toEqual([]);
   });
 });
+
+describe("D1TagRepository.listPublicTagNamesByOwner (integration, #654)", () => {
+  // Links a freshly-seeded note (with the given visibility + status) to a
+  // tag so the public母集合 query has a (tag → public/active note) edge.
+  async function linkTagToNote(
+    container: TestContainer,
+    owner: UserId,
+    dir: string,
+    tagId: string,
+    opts: {
+      visibility: "private" | "unlisted" | "public";
+      status?: "active" | "trashed";
+    },
+  ): Promise<void> {
+    const note = await seedNote(container, owner, dir, opts.status ?? "active");
+    await linkNoteTag(container, note, tagId);
+    await seedPublication(container, note, owner, opts.visibility);
+  }
+
+  it("returns distinct tag names linked to a public active note, ordered by name asc", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const cloud = await seedTagRow(container, owner, "Cloud");
+    const design = await seedTagRow(container, owner, "design");
+    const apple = await seedTagRow(container, owner, "apple");
+
+    // `apple` linked to two public notes — must appear once (distinct).
+    await linkTagToNote(container, owner, dir, apple, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, apple, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, cloud, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, design, {
+      visibility: "public",
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 10),
+    );
+    // `orderBy(asc(tags.name))` uses the display column's binary collation
+    // (same as `searchPublicByNamePrefix`), so uppercase sorts before
+    // lowercase: "Cloud" (C=67) precedes "apple" (a=97).
+    expect(rows).toEqual(["Cloud", "apple", "design"]);
+  });
+
+  it("excludes tags linked only to private / unlisted / trashed notes (public gate)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const privateTag = await seedTagRow(container, owner, "priv-only");
+    const unlistedTag = await seedTagRow(container, owner, "unl-only");
+    const trashedTag = await seedTagRow(container, owner, "trash-only");
+    const orphanTag = await seedTagRow(container, owner, "orphan-only");
+    const publicTag = await seedTagRow(container, owner, "pub");
+
+    await linkTagToNote(container, owner, dir, privateTag, {
+      visibility: "private",
+    });
+    await linkTagToNote(container, owner, dir, unlistedTag, {
+      visibility: "unlisted",
+    });
+    await linkTagToNote(container, owner, dir, trashedTag, {
+      visibility: "public",
+      status: "trashed",
+    });
+    void orphanTag; // never linked to any note
+    await linkTagToNote(container, owner, dir, publicTag, {
+      visibility: "public",
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 10),
+    );
+    // Only the tag reachable through a public active note surfaces.
+    expect(rows).toEqual(["pub"]);
+  });
+
+  it("isolates owners — another owner's public tags never mix in", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const ownerDir = await seedDirectory(container, owner);
+    const strangerDir = await seedDirectory(container, stranger);
+    const mine = await seedTagRow(container, owner, "mine");
+    const theirs = await seedTagRow(container, stranger, "theirs");
+    await linkTagToNote(container, owner, ownerDir, mine, {
+      visibility: "public",
+    });
+    await linkTagToNote(container, stranger, strangerDir, theirs, {
+      visibility: "public",
+    });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 10),
+    );
+    expect(rows).toEqual(["mine"]);
+  });
+
+  it("does not surface a tag linked only to a cross-owner public note (owner-scoped JOIN)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const stranger = await seedUser(container);
+    const ownerDir = await seedDirectory(container, owner);
+    const strangerDir = await seedDirectory(container, stranger);
+    const ownerTag = await seedTagRow(container, owner, "owner-tag");
+    // FK on note_tags only checks note/tag existence, not owner, so a
+    // stranger's public note can be linked to this owner's tag at the row
+    // level. The owner-scope predicate (`notes.owner_id = ownerId`) must
+    // exclude it — the tag has no public note of its own owner.
+    const strangerNote = await seedNote(container, stranger, strangerDir);
+    await linkNoteTag(container, strangerNote, ownerTag);
+    await seedPublication(container, strangerNote, stranger, "public");
+    void ownerDir;
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 10),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("applies the limit (cap) to the distinct tag rows", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const a = await seedTagRow(container, owner, "aaa");
+    const b = await seedTagRow(container, owner, "bbb");
+    const c = await seedTagRow(container, owner, "ccc");
+    await linkTagToNote(container, owner, dir, a, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, b, { visibility: "public" });
+    await linkTagToNote(container, owner, dir, c, { visibility: "public" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 2),
+    );
+    expect(rows).toEqual(["aaa", "bbb"]);
+  });
+
+  it("returns [] when limit <= 0", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const dir = await seedDirectory(container, owner);
+    const tag = await seedTagRow(container, owner, "anything");
+    await linkTagToNote(container, owner, dir, tag, { visibility: "public" });
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 0),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("returns [] for an owner with no public notes", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    await seedTagRow(container, owner, "lonely");
+
+    const rows = await container.unitOfWorkProvider.run(
+      async ({ tagRepository }) =>
+        tagRepository.listPublicTagNamesByOwner(owner, 10),
+    );
+    expect(rows).toEqual([]);
+  });
+});

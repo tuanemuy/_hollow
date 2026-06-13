@@ -87,4 +87,19 @@ export interface TagRepository extends TransactionalRepository<Tag> {
     prefix: string,
     limit: number,
   ): Promise<readonly string[]>;
+
+  /**
+   * Owner-scoped distinct tag names linked to at least one public + active
+   * note (`note_tags` × `notes(active)` × `publication_states(public)`).
+   * The public gate is the enumeration guard: a tag attached only to
+   * private/trashed notes never surfaces. Ordered by name asc. Capped at
+   * `limit` (the master-set bound for the public filter-row's "+タグ" picker).
+   *
+   * Unlike `searchPublicByNamePrefix` (cross-owner, prefix, owner秘匿) this is
+   * owner-scoped with no prefix — the public profile page's tag母集合.
+   */
+  listPublicTagNamesByOwner(
+    ownerId: UserId,
+    limit: number,
+  ): Promise<readonly string[]>;
 }
