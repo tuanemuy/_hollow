@@ -160,5 +160,12 @@ describe("NoteEditor seed-once contract (Issue #669)", () => {
     });
 
     expect(titleInput().value).toBe("Edited while loader re-ran");
+    // The body must not be re-seeded either: `state.contentHtml` (rendered
+    // into the inline editor host) keeps the originally seeded content and
+    // the fresh `initialContentHtml` never appears anywhere.
+    const host = container.querySelector(".note-detail-content");
+    expect(host).not.toBeNull();
+    expect(host?.textContent ?? "").toContain("foo");
+    expect(container.innerHTML).not.toContain("server");
   });
 });

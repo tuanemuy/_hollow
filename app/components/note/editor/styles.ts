@@ -66,3 +66,12 @@ export const frontMatterRow =
  * — so save-status stays left, just after the mode tabs.
  */
 export const editorActions = "ml-auto inline-flex items-center gap-2";
+
+/**
+ * P12 directory-row pill input (mock `.dir-pill`): compact 30px pill on the
+ * surface background that lights up (`bg-bg` + accent border) on focus. Used
+ * by the editor `DirectoryPicker` row variant's new-directory-name input;
+ * reuse this when pill-ifying the tags row or the directory trigger.
+ */
+export const dirRowPillInput =
+  "h-[30px] w-full rounded-pill border border-transparent bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:border-accent focus:bg-bg disabled:cursor-not-allowed disabled:opacity-disabled";

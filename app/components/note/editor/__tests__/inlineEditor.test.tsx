@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineEditor } from "@/components/note/editor/InlineEditor";
@@ -249,6 +249,26 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelector("p")?.firstChild).toBe(textNode);
     // No echo emit either.
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("builds the host content under StrictMode double-invoked effects (Issue #669)", async () => {
+    // StrictMode runs mount → cleanup → remount. The cleanup empties the
+    // host AND must reset `lastEmittedHtmlRef` to null — otherwise the
+    // remount's resync effect would treat `value` as a self-emit, skip the
+    // rebuild, and leave the host empty. Pins the cleanup-null-reset
+    // contract (ADR-007).
+    await act(async () => {
+      root.render(
+        <StrictMode>
+          <InlineEditor value="<p>foo</p>" onChange={vi.fn()} />
+        </StrictMode>,
+      );
+    });
+    const host = findHost();
+    expect(host.querySelector("p")?.textContent).toBe("foo");
+    expect(host.querySelector("p")?.getAttribute("contenteditable")).toBe(
+      "true",
+    );
   });
 
   it("disables contentEditable when disabled = true", async () => {

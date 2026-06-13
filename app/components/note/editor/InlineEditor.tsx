@@ -578,6 +578,14 @@ export function InlineEditor({
     // Replace the host's children from `nextValue` (mount and external
     // value changes). Parse failure → onInitFailed exactly once.
     const rebuild = (nextValue: string) => {
+      // A rebuild discards the DOM a pending debounced emit would
+      // serialize, so the timer must die with it — otherwise a failure
+      // path (parse error / empty body) leaves the host empty while the
+      // stale timer fires and emits "" over the parent's content.
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       observer.disconnect();
       observer.takeRecords();
       host.replaceChildren();

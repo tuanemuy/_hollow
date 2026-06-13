@@ -55,6 +55,13 @@ export type DirectorySelectFieldProps = Readonly<{
   disabled?: boolean;
   /** When true, exposes a "解除" button to reset the selection to `null`. */
   clearable?: boolean;
+  /**
+   * When true, the field's own label is visually hidden (`sr-only`) so a
+   * caller that already renders a visible row label (e.g. the editor's
+   * `DirectoryPicker` row variant) does not show two stacked labels. The
+   * `<label htmlFor>` association is kept for a11y.
+   */
+  labelHidden?: boolean;
 }>;
 
 type Row = Readonly<{
@@ -75,6 +82,7 @@ export function DirectorySelectField({
   emptyLabel = "該当するディレクトリが見つかりません",
   disabled = false,
   clearable = false,
+  labelHidden = false,
 }: DirectorySelectFieldProps) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -199,7 +207,11 @@ export function DirectorySelectField({
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={inputId} id={labelId} className={fieldLabel}>
+      <label
+        htmlFor={inputId}
+        id={labelId}
+        className={labelHidden ? "sr-only" : fieldLabel}
+      >
         {label}
       </label>
       {selectedRow !== undefined && selectedRow !== null ? (

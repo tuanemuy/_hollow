@@ -26,6 +26,14 @@ const APP_SHELL_ROUTE_ID = "/_app";
  * destroys in-progress edits (RSC tree swap remounts the editor and drops
  * focus). Both routes use `staleTime: 0`, so the next navigation into an
  * editor always fresh-loads; skipping invalidation cannot serve stale data.
+ *
+ * Note the loaders also supply auxiliary display data (e.g. the directory
+ * `tree` fed to `DirectoryPicker`), which is therefore frozen while the
+ * editor stays mounted — `routerInvalidate`-driven mutations elsewhere
+ * (e.g. UploadDialog ingestion) won't refresh the picker's options until
+ * the next navigation into the editor. Directory mutations launched from
+ * inside the editor use the raw `router.invalidate()` (rule 2) and do
+ * refresh. Keep this freeze in mind before growing the editor loaders.
  */
 const EDITOR_ROUTE_IDS: readonly string[] = [
   "/_app/notes/$noteId/edit",

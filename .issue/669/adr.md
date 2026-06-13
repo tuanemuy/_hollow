@@ -71,6 +71,10 @@ Proposed（Issue #669 コメントで方針合意済み — 本 ADR はその記
 ### Consequences
 - 良い点: 全 mutation 経路（約25ファイル）を変更せずに本命経路を断てる。routeId のリネーム追従が1ファイルで済む。「invalidate = 表示系ルートの再評価」という意味論が明文化される
 - トレードオフ: ラッパーがエディタールートの routeId 文字列を知る（ルートファイル移動時に追従が必要 — テストで pin する）。生の `router.invalidate()`（auth / directory / displayName の3ルール例外）はラッパーを通らないため、rule 2 経由の編集内容喪失経路が残る（上記・既知の残課題）
+- ラッパーはエディター loader が供給する補助表示データ（`DirectoryPicker` の `tree` 等）も併せて凍結する。エディター滞在中は他経路の mutation でディレクトリが増減してもピッカーの選択肢は再進入まで更新されない（エディター内の rename/delete ダイアログは rule 2 の生 invalidate なので追従する）。loader を「seed 専用」前提で拡張する際はこの凍結に注意
+
+### 実測による前提の補正（TC-009, PR #676 Round 1 N-001）
+本 ADR と plan は「生の `router.invalidate()` → RSC ツリー差し替え = エディター再マウント → 未保存編集の喪失」を前提としたが、TC-009 の実測では rule 2 の生 invalidate（編集中のディレクトリ rename）後も未保存の編集内容が維持された。loader 再実行が同一コンポーネントインスタンスへの props 更新で済み、seed-once（lazy `useReducer` initializer）が実際に効いたためと考えられる。前提より良い方向の乖離であり、「既知の残課題」（rule 2 経由の編集内容喪失）は実測上は再現していない。後続 Issue の要否はこの実測を踏まえて判断すること（現時点では起票不要と判断）。
 
 ---
 

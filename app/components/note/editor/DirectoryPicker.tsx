@@ -13,6 +13,7 @@ import { DirectorySelectField } from "@/components/directory/DirectorySelectFiel
 import { RenameDirectoryDialog } from "@/components/directory/RenameDirectoryDialog";
 import { MAX_DIRECTORY_DEPTH } from "@/core/domain/directory/valueObject";
 import type { FlatDirectory } from "../loaders";
+import { dirRowPillInput } from "./styles";
 
 /**
  * Directory selector for the editor.
@@ -105,6 +106,9 @@ export function DirectoryPicker({
       onChange={onSelectExisting}
       disabled={disabled === true || usingNew}
       clearable
+      // The row variant renders its own visible "ディレクトリ" label, so the
+      // field's label goes sr-only to avoid a double label (PR #676 W-001).
+      labelHidden={variant === "row"}
     />
   );
 
@@ -179,10 +183,7 @@ export function DirectoryPicker({
           <label htmlFor={newId} className="sr-only">
             {newNameLabel}
           </label>
-          {newNameInput({
-            className:
-              "h-[30px] w-full rounded-pill border border-transparent bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:border-accent focus:bg-bg disabled:cursor-not-allowed disabled:opacity-disabled",
-          })}
+          {newNameInput({ className: dirRowPillInput })}
         </div>
         {dialogs}
       </div>
