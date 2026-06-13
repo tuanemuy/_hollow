@@ -115,8 +115,7 @@ export function IngestionJobRow({ job }: Props) {
           },
         });
         if (willCreateDirectory) {
-          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate
-          // する（.issue/299/adr.md ADR-003）。
+          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate する。
           await router.invalidate();
         }
         notifyIngestionQueueChanged();

@@ -167,11 +167,10 @@ export function IngestionPreviewForm({
   const [error, setError] = useState<SerializedError | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
-  // H-2 (Issue #259): each field carries an "AI suggestion" badge while
-  // its current value matches the initial LLM-suggested value. The
-  // moment the user types something different, the badge disappears.
-  // See ADR-003 for why we compare against the initial value instead of
-  // tracking a separate `dirty` flag.
+  // Each field carries an "AI suggestion" badge while its current value
+  // matches the initial LLM-suggested value; it disappears the moment the
+  // user types something different. We compare against the initial value
+  // rather than tracking a separate `dirty` flag.
   const isTitleEdited = title !== initialTitle;
   const isTagsEdited = tagInput !== initialTagInput;
   const isFrontMatterEdited = frontMatterJson !== initialFrontMatter;
@@ -179,10 +178,9 @@ export function IngestionPreviewForm({
     directoryId !== initialDirectoryId ||
     pendingDirectoryName !== initialPendingDirName;
 
-  // W-F-003 + Issue #256: the title input ref is owned by the parent
-  // (`IngestionJobEditDialog`) so the form itself carries no focus
-  // side-effect. A local fallback ref keeps the JSX self-contained when
-  // the prop is omitted.
+  // The title input ref is owned by the parent (`IngestionJobEditDialog`)
+  // so the form itself carries no focus side-effect. A local fallback ref
+  // keeps the JSX self-contained when the prop is omitted.
   const localTitleInputRef = useRef<HTMLInputElement>(null);
   const effectiveTitleInputRef = titleInputRef ?? localTitleInputRef;
 
@@ -212,8 +210,7 @@ export function IngestionPreviewForm({
           },
         });
         if (pendingDirectoryName !== null) {
-          // rule 2: 新規ディレクトリ作成で Sidebar tree が変わるため _app も
-          // invalidate（.issue/299/adr.md ADR-003）
+          // 新規ディレクトリ作成で Sidebar tree が変わるため _app も invalidate する。
           await router.invalidate();
         }
         onCommitted(result.noteId);

@@ -104,7 +104,7 @@ export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
       () => import("@/core/application/ingestion/commitIngestionPreview"),
     );
     // `parseFrontMatterJson` throws `BusinessRuleError("FRONT_MATTER_JSON_INVALID")`
-    // for malformed JSON / non-object shapes — see note-side ADR-008.
+    // for malformed JSON / non-object shapes.
     const frontMatter = parseFrontMatterJson(data.frontMatterJson);
     const result = await module.commitIngestionPreview({
       container,

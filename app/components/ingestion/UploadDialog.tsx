@@ -101,7 +101,7 @@ export function UploadDialog({ open, onClose }: Props) {
 
   // Per-upload custom prompts entered in the `select` view's "advanced
   // options" accordion. Applied to every file of the current submission
-  // (single or batch) and reset when the dialog re-opens. See #228.
+  // (single or batch) and reset when the dialog re-opens.
   const [structurePrompt, setStructurePrompt] = useState("");
   const [metadataPrompt, setMetadataPrompt] = useState("");
 
@@ -110,7 +110,7 @@ export function UploadDialog({ open, onClose }: Props) {
   // opens the custom-prompt accordion (see `onAdvancedToggle`) — most
   // uploads never open it, so we avoid a request until it is needed.
   // A fetch failure leaves this `null`, which simply suppresses the
-  // default hints; the upload itself is never blocked. See #358.
+  // default hints; the upload itself is never blocked.
   const [resolvedDefaults, setResolvedDefaults] =
     useState<EffectiveIngestionPromptsWire | null>(null);
   const promptsFetchedRef = useRef(false);
@@ -118,8 +118,8 @@ export function UploadDialog({ open, onClose }: Props) {
   const inputId = useId();
   const titleId = useId();
 
-  // Focus management across view transitions (Issue #256 lineage): when a
-  // view swap unmounts the focused element, focus falls to document.body
+  // Focus management across view transitions: when a view swap unmounts
+  // the focused element, focus falls to document.body
   // and keyboard users lose their place in the dialog. Land focus on the
   // primary action of the `queued` result, and back on the dropzone when
   // returning to `select` ("続けてアップロード"). The initial `select` on
@@ -276,7 +276,7 @@ export function UploadDialog({ open, onClose }: Props) {
   // custom-prompt accordion is opened. Fired from the `details` `onToggle`
   // (open only). A failure is swallowed — the default hints simply stay
   // hidden and the upload flow is unaffected (same philosophy as the
-  // directory-tree lazy load). See #358.
+  // directory-tree lazy load).
   const onAdvancedToggle = useCallback(
     (open: boolean) => {
       if (!open || promptsFetchedRef.current) return;
@@ -473,7 +473,7 @@ function SelectView({
 // override — the most common standard state), ingestion uses the system
 // default behaviour only (fixed role declaration + output contract, with no
 // additional operator intent). The wording is the SSOT defined in
-// `app/core/domain/adminSettings/defaults.ts` JSDoc (Issue #396 ADR-002).
+// `app/core/domain/adminSettings/defaults.ts` JSDoc.
 const SYSTEM_DEFAULT_PROMPT_COPY = "システム既定の動作を使用";
 
 // Placeholder shows the leading slice of the resolved default so the user
@@ -486,7 +486,7 @@ const PLACEHOLDER_MAX_CHARS = 140;
 // driven by whether the user has typed anything, and a collapsible full
 // default body that also names the source layer (user override vs
 // instance default). Empty resolved text surfaces the system-default copy
-// as the primary hint. See #358.
+// as the primary hint.
 function PromptOverrideField({
   label,
   value,

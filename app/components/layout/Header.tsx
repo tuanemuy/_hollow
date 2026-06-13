@@ -46,12 +46,11 @@ export function Header() {
         </form>
       </div>
       <div className={APP_HEADER_RIGHT}>
-        {/* Upload is the primary action (#628 ADR-003, 案2-B): accent fill,
-            placed first. New-note is demoted to a desktop text button. Both
-            collapse to a 36px icon-only circle below `sm` (label hidden), so the
-            mobile header carries search + both CTAs without a bottom CTA bar
-            (#628 ADR-001 supersedes #588). The user menu now lives in the
-            sidebar foot (#628 ADR-003). */}
+        {/* Upload is the primary action: accent fill, placed first. New-note
+            is demoted to a desktop text button. Both collapse to a 36px
+            icon-only circle below `sm` (label hidden), so the mobile header
+            carries search + both CTAs without a bottom CTA bar. The user menu
+            lives in the sidebar foot. */}
         {/* The accessible name (incl. the unprocessed-job count) is owned by
             UploadButton itself — see IngestionQueueBadge. */}
         <UploadButton

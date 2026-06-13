@@ -184,8 +184,7 @@ export function UploadForm() {
         }
         // Enqueue is confirmed — announce first so the header queue badge
         // refreshes, and reset the input, before the (best-effort) router
-        // invalidate. A failed invalidate must not mask a successful upload
-        // (.issue/538/adr.md ADR-002 / ADR-006).
+        // invalidate. A failed invalidate must not mask a successful upload.
         notifyIngestionQueueChanged();
         if (fileInputRef.current !== null) {
           fileInputRef.current.value = "";
@@ -198,7 +197,7 @@ export function UploadForm() {
         await routerInvalidate(router);
       } catch {
         // Isolated: the upload already landed; a stale router view self-heals
-        // on the next navigation / queue poll (ADR-006).
+        // on the next navigation / queue poll.
       }
     });
   };

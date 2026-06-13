@@ -33,8 +33,7 @@ export function UploadButton({ className, children }: Props) {
       hash={UPLOAD_HASH}
       className={`${className ?? ""} relative`}
       // Upload is the primary header action — statically-on so the
-      // `data-[primary]:` accent-fill variants in `pillBtnPrimary` apply
-      // (#628 ADR-003).
+      // `data-[primary]:` accent-fill variants in `pillBtnPrimary` apply.
       data-primary=""
       data-active={active || undefined}
       aria-current={active ? "page" : undefined}
