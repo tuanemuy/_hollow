@@ -50,8 +50,6 @@ git push origin v0.1.2
 > [!WARNING]
 > 手動タグ push は release-please の管理外。release-please は `.release-please-manifest.json` で次バージョンを管理するため、手動タグを打つと release-please が認識する最新バージョンと実タグがズレ、次回のバージョン計算が狂う（さらに PAT 名義でないタグが混在する）。どうしても手動タグを打った場合は、`.release-please-manifest.json` と `package.json` の version を手動タグに合わせて整合させること。
 
----
-
 ## Secret 運用
 
 ### 値を更新する
@@ -74,7 +72,7 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
    pnpm infra:check-secrets:staging -- /tmp/d.json
    rm /tmp/d.json
    ```
-   production も `hollow-production.txt` で同様に。CI も deploy 前に同じチェックを走らせて missing / extra のいずれも fail-loud に検出する（Issue #203）。
+production も `hollow-production.txt` で同様に。CI も deploy 前に同じチェックを走らせて missing / extra のいずれも fail-loud に検出する（Issue #203）。
 
 ### secret を削除する
 
@@ -89,7 +87,8 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
    pnpm infra:check-secrets:staging -- /tmp/d.json
    rm /tmp/d.json
    ```
-   production も同様に。
+production も同様に。
+
 6. **次回 CI deploy 後**、Cloudflare 側に残る古い secret を全 Worker から手動削除する（`wrangler secret bulk` は追加・更新のみ、削除はしないため）:
    ```sh
    for env_flag in "" "--env relay" "--env consumer" "--env indexer" "--env pruner" "--env dlq"; do
@@ -97,7 +96,7 @@ git add infra/secrets/staging.enc.json && git commit -m "chore(secrets): rotate 
      pnpm exec wrangler secret delete <REMOVED_KEY> --config wrangler.staging.toml $env_flag
    done
    ```
-   production も同様に。
+production も同様に。
 
 ### `^_` プレフィックスのドキュメント用キー
 
@@ -126,8 +125,6 @@ sops updatekeys infra/secrets/staging.enc.json
 sops updatekeys infra/secrets/production.enc.json
 ```
 
----
-
 ## Pulumi 運用
 
 ### リソースを変更する
@@ -154,8 +151,6 @@ sops updatekeys infra/secrets/production.enc.json
 ### D1 マイグレーション
 
 通常は CI が `pnpm db:apply:{stage}` で適用するので意識不要。
-
----
 
 ## ローカルコマンド
 
