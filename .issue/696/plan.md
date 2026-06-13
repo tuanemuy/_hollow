@@ -19,7 +19,7 @@
 | AC-3 | 非対応タグが無い場合は警告ダイアログ無しでそのまま WYSIWYG へ切り替わる | Issue 本文「受け入れ条件」 | 3 |
 | AC-4 | ダイアログでキャンセルした場合、元のモード・コンテンツが維持される（装飾が破壊されない） | Issue 本文「受け入れ条件」 | 3 |
 | AC-5 | 警告ダイアログで失われる要素（タグ名）が一覧で確認できる | Issue 本文「受け入れ条件」 | 1, 3 |
-| AC-6 | 新規作成画面（`mode="new"`）のタブ構成・切り替え挙動は変わらない | Issue 本文「受け入れ条件」 | 2, 3 |
+| AC-6 | 新規作成画面（`mode="new"`）のタブ構成・切り替え挙動は変わらない。装飾消失ゲートは `surface === "edit"` 限定で、新規作成画面では HTML タブで非対応タグを入力してから WYSIWYG へ切り替えても**事前ダイアログを出さず**（従来どおりペイン内バナーのみが警告を担う） | Issue 本文「受け入れ条件」 | 2, 3 |
 | AC-7 | 未保存 + 非対応タグの両方がある場合、`window.confirm`（未保存）→ `ConfirmDialog`（装飾）の順で発火し、装飾喪失について二重に同意を求めない（`wysiwygUnsupportedAck` 併発でペイン内バナーが再同意を要求しない） | Issue 本文「実装方針（案）」 | 3 |
 | AC-8 | WYSIWYG への切り替え自体は `contentHtml` を変更せず、既存の in-flight `saveDraft` cancel テストが green のまま（自動保存と齟齬が出ない） | Issue 本文「実装方針（案）」 | 3, 4 |
 
@@ -79,7 +79,7 @@
 
 3. **`NoteEditor.onModeChange` の分岐拡張**:
    - 既存の「未保存確認（`window.confirm`）→ `abortInFlight` → `dispatch(setMode)`」の順序は維持する。
-   - `nextMode === "wysiwyg"` のときのみ、未保存確認を通過した**後**に `detectUnsupportedTags(stateRef.current.contentHtml)` を実行する。判定対象は「最後にコミットされた `state.contentHtml`（= `stateRef.current.contentHtml`）」であり、InlineEditor の `onChange` debounce（`ONCHANGE_DEBOUNCE_MS = 50`）が未フラッシュの分は含まれ得ない。`blur()`（focusout）は emit を同期フラッシュしないため、blur で stateRef の鮮度を担保することはできない（P-001 参照）。非対応タグ集合は通常のテキスト編集では変化しないため、debounce 未フラッシュによる判定ズレは実用上無視できると割り切る。InlineEditor への同期 flush 追加はスコープ外。なお `detectUnsupportedTags` はサニタイズ済み HTML 前提（regex ベースで `<script>` 等を素通し）であり、「HTML タブで生入力した直後に WYSIWYG へ切替」というパスでは未サニタイズ HTML が判定対象になりうるが、実害は警告精度のみ（保存時にサーバーで再サニタイズされるため XSS にはならない）。
+   - `surface === "edit" && nextMode === "wysiwyg"` のときのみ、未保存確認を通過した**後**に `detectUnsupportedTags(stateRef.current.contentHtml)` を実行する。装飾消失ゲートは編集画面限定とし、新規作成画面（`surface === "new"`）は従来どおりゲートを通さない（AC-6 厳守、ADR-005）。判定対象は「最後にコミットされた `state.contentHtml`（= `stateRef.current.contentHtml`）」であり、InlineEditor の `onChange` debounce（`ONCHANGE_DEBOUNCE_MS = 50`）が未フラッシュの分は含まれ得ない。`blur()`（focusout）は emit を同期フラッシュしないため、blur で stateRef の鮮度を担保することはできない（P-001 参照）。非対応タグ集合は通常のテキスト編集では変化しないため、debounce 未フラッシュによる判定ズレは実用上無視できると割り切る。InlineEditor への同期 flush 追加はスコープ外。なお `detectUnsupportedTags` はサニタイズ済み HTML 前提（regex ベースで `<script>` 等を素通し）であり、「HTML タブで生入力した直後に WYSIWYG へ切替」というパスでは未サニタイズ HTML が判定対象になりうるが、実害は警告精度のみ（保存時にサーバーで再サニタイズされるため XSS にはならない）。
      - 非対応タグが 0 件: そのまま `dispatch(setMode "wysiwyg")`（AC-3）。
      - 非対応タグが 1 件以上: `setMode` を**まだ dispatch せず**、`pendingWysiwygSwitch` に lostTags をセットして `ConfirmDialog` を開く（AC-2）。実際の `setMode` は確認ダイアログの `onConfirm` で行う。
    - 確認ダイアログの `onConfirm`: `dispatch(setMode "wysiwyg")` し、保留状態をクリアする。WysiwygEditor 側の重複警告を避けるため、切り替え直後に `dispatch({ type: "wysiwygUnsupportedAck" })` を併せて発行する（ADR-002：ペイン内バナーで二重に同意させない）。
@@ -115,7 +115,7 @@ UI のみのため依存方向の制約は薄い。reducer → 純粋コンポ�
 - **対象ファイル:** `app/components/note/editor/NoteEditor.tsx`
 - **変更内容:**
   - `pendingWysiwygSwitch` の `useState` を追加。
-  - `onModeChange` を拡張: 未保存確認通過後、`nextMode === "wysiwyg"` かつ `detectUnsupportedTags(stateRef.current.contentHtml).length > 0` のときはダイアログを開く（`setMode` を保留）。それ以外は従来どおり即 `setMode`。
+  - `onModeChange` を拡張: 未保存確認通過後、`surface === "edit"` かつ `nextMode === "wysiwyg"` かつ `detectUnsupportedTags(stateRef.current.contentHtml).length > 0` のときはダイアログを開く（`setMode` を保留）。それ以外（新規作成画面を含む）は従来どおり即 `setMode`。`useCallback` の依存配列に `surface` を含める。
   - `ConfirmDialog` を `<form>` 内にレンダリング（`ConfirmDialog` は内部 `<form>` の submit を `stopPropagation` するため外側フォーム送信は誘発しない＝既存契約）。`onConfirm` で `setMode "wysiwyg"` + `wysiwygUnsupportedAck` dispatch + 保留クリア、`onClose` で保留クリアのみ。
 - **理由:** AC-2/AC-3/AC-4/AC-5/AC-7/AC-8。状態の置き場所（reducer ではなく orchestrator local state）は ADR-002 の判断による。
 
@@ -177,3 +177,12 @@ UI のみのため依存方向の制約は薄い。reducer → 純粋コンポ�
 ### 2周目
 
 2周目: 両視点とも問題点ゼロで終了。1周目の P-001 訂正・S-001〜S-004 反映がいずれも実コードと整合し、新たな矛盾・漏れ・スコープ膨張なしと確認された（arch-risk の S-001 は「latch 依存の暗黙結合を実装時にテストで確実に pin する」念押しで、計画修正は不要）。
+
+## レビュー履歴（PR #715 Round 2）
+
+### Frontend W-001 / Test W-001 対応（2 周目）
+
+**修正した点**:
+- frontend **W-001**（装飾消失ゲートが surface 非依存で AC-6 と食い違う）: ユーザー判断により、ゲート条件を `surface === "edit" && nextMode === "wysiwyg"` に限定（`NoteEditor.tsx`）。`useCallback` の依存配列に `surface` を追加。新規作成画面（`mode="new"`）では HTML タブで非対応タグを入力 → WYSIWYG 切替でも事前ダイアログを出さず、従来どおりペイン内バナーのみで警告する（AC-6 厳守）。ゲートの why コメントも edit 限定である旨に整合。AC-6 の受け入れ基準文言・設計記述（設計3 / 実装ステップ3）を edit 限定に訂正し、ADR-005 を追記。
+- test（新規画面 AC-6 の pin）: `noteEditorModeChange.test.tsx` の new-surface describe に「HTML タブで `<section>` を生入力 → WYSIWYG 切替でも装飾消失ダイアログ（`role="alertdialog"`）が出ずにそのまま WYSIWYG へ切り替わる」回帰テストを追加。
+- test **W-001**（AC-8 確認経路の tautology 解消）: WYSIWYG 同意切替後にいったん HTML タブへ戻し、`htmlTextareaValue()`（= live `state.contentHtml`）が原文 `<section>` markup から不変であることを実観測する assertion に置き換え。in-flight `saveDraft` の abort 契約 pin は維持。

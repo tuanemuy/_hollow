@@ -238,7 +238,12 @@ export function NoteEditor(props: NoteEditorProps) {
       // fixed: unsaved-confirm (window.confirm) → decoration-warning
       // (ConfirmDialog), and confirming the latter also acks the in-pane
       // banner so the user is never asked twice about the same loss.
-      if (nextMode === "wysiwyg") {
+      //
+      // Scoped to `surface === "edit"` only: the new-note surface keeps its
+      // pre-#696 behaviour (AC-6) where the in-pane WYSIWYG banner is the
+      // sole decoration-loss warning, so a "HTML tab → raw <section> → WYSIWYG
+      // tab" path on a new note must NOT pop this dialog.
+      if (surface === "edit" && nextMode === "wysiwyg") {
         const lostTags = detectUnsupportedTags(latest.contentHtml);
         if (lostTags.length > 0) {
           setPendingWysiwygSwitch({ lostTags });
@@ -247,7 +252,7 @@ export function NoteEditor(props: NoteEditorProps) {
       }
       dispatch({ type: "setMode", mode: nextMode });
     },
-    [abortInFlight],
+    [abortInFlight, surface],
   );
 
   const confirmWysiwygSwitch = useCallback(() => {

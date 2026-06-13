@@ -311,7 +311,8 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     // plus a supported one and pin the rendered list against the canonical
     // `detectUnsupportedTags` output (sorted, de-duped, supported excluded),
     // so the dialog↔detector binding can't silently drift.
-    const html = "<section><table><tr><td>x</td></tr></table><p>y</p></section>";
+    const html =
+      "<section><table><tr><td>x</td></tr></table><p>y</p></section>";
     await renderEditor(html);
     await act(async () => {
       tabByLabel("WYSIWYG").click();
@@ -499,6 +500,49 @@ describe("NoteEditor new surface switching is unchanged (Issue #696 AC-6)", () =
     // New-note mode never autosaves, so the unsaved confirm path is not
     // involved either.
     expect(confirmMock).not.toHaveBeenCalled();
+  });
+
+  it("does NOT open the decoration dialog when HTML carries unsupported tags (AC-6)", async () => {
+    // Issue #696 PR #715 review-002 W-001: the decoration gate is scoped to
+    // `surface === "edit"`. On the new surface the in-pane WYSIWYG banner is
+    // the sole decoration-loss warning, so even when the user types raw
+    // `<section>` into the HTML tab and then switches to WYSIWYG, NO pre-switch
+    // `ConfirmDialog` may appear — the pre-#696 new-note behaviour must hold
+    // verbatim (AC-6). The edit surface still opens the dialog (pinned by the
+    // decoration-gate describe above); this case is the new-surface regression
+    // guard for the non-empty / unsupported-tag path.
+    await renderNewEditor();
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea");
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      if (textarea !== null) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(textarea, "<section><p>x</p></section>");
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    expect(htmlTextareaValue()).toContain("<section>");
+    await act(async () => {
+      tabByLabel("WYSIWYG").click();
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    // No pre-switch *decoration* dialog on the new surface — the switch goes
+    // straight to the WYSIWYG pane (where the in-pane banner takes over the
+    // warning). The unsaved-change `window.confirm` is a separate, pre-#696
+    // concern (typing into the textarea marks content dirty) and is not part
+    // of this AC-6 assertion.
+    expect(alertDialog()).toBeNull();
+    expect(isWysiwygMounted()).toBe(true);
   });
 });
 
@@ -818,11 +862,15 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       expect(alertDialog()).not.toBeNull();
       expect(isWysiwygMounted()).toBe(false);
 
+      // The captured in-flight payload was assembled from `state.contentHtml`
+      // before the switch; keep this as a sanity anchor that it started equal
+      // to the original markup.
+      expect(inFlightHtml).toBe(original);
+
       // Confirm the decoration dialog: the switch to WYSIWYG now completes.
-      // (We assert the dialog closed and the gate accepted the switch; full
-      // TipTap onCreate mounting under fake timers is exercised by the AC-7
-      // real-timer test, so we keep this fake-timer test focused on the
-      // abort + content-preservation contract.)
+      // (Full TipTap onCreate mounting under fake timers is exercised by the
+      // AC-7 real-timer test; here we keep the focus on the abort + content-
+      // preservation contract.)
       await act(async () => {
         dialogButtonByLabel("切り替える").click();
       });
@@ -831,12 +879,19 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       });
       expect(alertDialog()).toBeNull();
 
-      // AC-8 core: the switch itself did not rewrite `contentHtml`. The
-      // in-flight payload captured before the switch already equalled the
-      // original decorated markup; pin that the original is unchanged and
-      // its `<section>` wrapper survived the WYSIWYG transition.
-      expect(inFlightHtml).toBe(original);
-      expect(original).toContain("<section>");
+      // AC-8 core (review-002 W-001): observe the *post-switch* state directly
+      // instead of re-asserting the captured const. Switch back to the HTML
+      // tab — which unmounts WYSIWYG and re-binds the textarea to the live
+      // `state.contentHtml` — and read the actual committed content. The
+      // confirm handler dispatches only `wysiwygUnsupportedDetected` / `Ack` /
+      // `setMode` (never `setContent`), so the original decorated markup,
+      // including its `<section>` wrapper, must be intact.
+      await act(async () => {
+        tabByLabel("HTML").click();
+      });
+      expect(isWysiwygMounted()).toBe(false);
+      expect(htmlTextareaValue()).toBe(original);
+      expect(htmlTextareaValue()).toContain("<section>");
     } finally {
       vi.useRealTimers();
     }
