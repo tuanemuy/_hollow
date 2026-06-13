@@ -85,6 +85,18 @@ export interface PublicationStateRepository
   ): Promise<PublicNoteSortedResult>;
 
   /**
+   * Owner-scoped count of public notes. Like
+   * {@link listPublicNoteIdsByOwnerSorted} / {@link listPublicNoteIdsByOwnerInRange},
+   * it INNER JOINs `notes` on `status = 'active'`, so the trash → outbox-relay
+   * lag's trashed-but-still-public rows are excluded. Unlike
+   * {@link findPublicByOwner}`.length`, it counts over the `active` population
+   * with no `limit`, so the value cannot be capped and stays consistent with
+   * the listing `total` (same WHERE: owner + visibility=public +
+   * published_at NOT NULL + active).
+   */
+  countPublicByOwner(ownerId: UserId): Promise<number>;
+
+  /**
    * Owner-scoped public-note ids whose `published_at` falls in `publishedRange`
    * (half-open `[from, to)`). Capped at `limit` ids. The `active`-note JOIN
    * keeps trashed-but-still-public rows out of the set.

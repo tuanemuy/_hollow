@@ -8,12 +8,13 @@
 import { scrollbarHidden } from "@/components/common/styles";
 
 /**
- * P12 document-style title input: borderless, large, transparent. Focus
+ * P12 document-style title input: borderless, large, transparent. Uses the
+ * heading font and the mock's tight 1.12 line-height (`.title-input`). Focus
  * visualisation is intentionally left to the global `:focus-visible`
  * (`--shadow-focus`) — focus framing / spacing is out of scope here.
  */
 export const titleInput =
-  "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-regular tracking-tightest leading-tight text-ink placeholder:text-ink-tertiary";
+  "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-heading font-regular tracking-tightest leading-[1.12] text-ink placeholder:text-ink-tertiary";
 
 /**
  * P12 editor topbar: mode tabs + autosave status + primary actions in one
@@ -75,3 +76,68 @@ export const editorActions = "ml-auto inline-flex items-center gap-2";
  */
 export const dirRowPillInput =
   "h-[30px] w-full rounded-pill border border-transparent bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:border-accent focus:bg-bg disabled:cursor-not-allowed disabled:opacity-disabled";
+
+/**
+ * P12 tags row (mock `.tags-row`): flex-wrap chip rail with the trailing
+ * borderless input on the same line, `mb-5` to match the mock's bottom gap.
+ */
+export const tagsRow = "mb-5 flex flex-wrap items-center gap-1.5";
+
+/**
+ * P12 tag chip (mock `.tag-chip`): 26px pill on the surface background with
+ * the accent-ink label text. Hover lifts to `surface-hover`.
+ */
+export const tagChip =
+  "inline-flex h-[26px] items-center gap-1.5 rounded-pill bg-surface px-2.5 text-[12.5px] text-accent-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover";
+
+/**
+ * P12 tag chip remove button (mock `.tag-chip .x`): muted `×` that the chip's
+ * `aria-label` describes per-tag.
+ */
+export const tagChipRemove =
+  "leading-none text-[13px] text-ink-tertiary outline-none hover:text-ink focus-visible:text-ink disabled:cursor-not-allowed disabled:opacity-disabled";
+
+/**
+ * P12 trailing tag input (mock `.tag-input`): borderless, transparent, grows
+ * to fill the row remainder while keeping a 140px minimum so it never
+ * collapses behind the chips.
+ */
+export const tagInputControl =
+  "min-w-[140px] flex-1 border-0 bg-transparent px-1.5 py-1 text-[13px] text-ink outline-none placeholder:text-ink-tertiary disabled:cursor-not-allowed disabled:opacity-disabled";
+
+/**
+ * P12 directory trigger pill (mock `.dir-pill`): 30px surface pill carrying
+ * the folder icon, current selection label and a caret. Hover lifts to
+ * `surface-hover`.
+ */
+export const dirPillTrigger =
+  "inline-flex h-[30px] max-w-full items-center gap-1.5 rounded-pill bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-disabled";
+
+/**
+ * P12 directory dropdown panel (mock `.dir-dropdown`): 280px elevated card
+ * anchored under the trigger; below `sm` it spans the row full-width.
+ */
+export const dirDropdownPanel =
+  "absolute left-0 top-[calc(100%+6px)] z-30 w-[280px] rounded-lg border border-hairline bg-bg p-2 shadow-md max-sm:left-0 max-sm:right-0 max-sm:w-auto";
+
+/**
+ * P12 directory dropdown search field (mock `.dir-dropdown-search`): 30px
+ * surface input on the soft-radius background.
+ */
+export const dirDropdownSearch =
+  "mb-1.5 h-[30px] w-full rounded-sm border-0 bg-surface px-2.5 text-[13px] text-ink outline-none placeholder:text-ink-tertiary";
+
+/**
+ * P12 directory tree option row (mock `.dir-tree-item`): caret + folder icon
+ * + name. `data-selected` paints the accent surface (mock `.selected`);
+ * `data-active` reflects the `aria-activedescendant` highlight.
+ */
+export const dirTreeItem =
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-surface data-[selected]:bg-accent-surface data-[selected]:text-accent-ink";
+
+/**
+ * P12 "create new directory" option (mock `.dir-tree-item` accent variant):
+ * accent-coloured row with a leading plus glyph.
+ */
+export const dirTreeItemNew =
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-accent outline-none transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-surface";

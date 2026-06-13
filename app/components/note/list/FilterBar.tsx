@@ -6,7 +6,9 @@ import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
 import { popoverSheetPanel, TOUCH_TARGET } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
+import type { BreadcrumbSegment } from "../directoryTree";
 import type { NoteListSearch } from "../schema";
+import { DirectoryBreadcrumb } from "./DirectoryBreadcrumb";
 import { homeSearchUpdater } from "./homeSearch";
 import {
   DATE_RANGE_PRESETS,
@@ -53,7 +55,7 @@ type Props = {
   to: string | undefined;
   visibility: Visibility;
   directoryId: string | undefined;
-  directoryName?: string;
+  directorySegments?: readonly BreadcrumbSegment[];
   referencingNoteId: string | undefined;
   referencingNoteTitle?: string | null;
 };
@@ -131,7 +133,7 @@ export function FilterBar({
   to,
   visibility,
   directoryId,
-  directoryName,
+  directorySegments,
   referencingNoteId,
   referencingNoteTitle,
 }: Props) {
@@ -303,145 +305,164 @@ export function FilterBar({
   const visibleTags = showAllTags ? tags : tags.slice(0, VISIBLE_TAG_LIMIT);
   const hiddenTagCount = tags.length - visibleTags.length;
 
+  // Normalize `undefined` (directory not selected) and `[]` (selected but
+  // unresolved — id absent from the tree / just deleted) to one shape so the
+  // breadcrumb-vs-fallback branch below cannot diverge between the two.
+  const segments = directorySegments ?? [];
+
   return (
-    <div className={filterBar} aria-busy={isPending}>
-      {tags.length > 0 ? (
-        <div className="inline-flex gap-1.5 flex-wrap max-sm:flex-nowrap max-sm:shrink-0">
-          {visibleTags.map((tag) => {
-            const active = selected.has(tag.name);
-            return (
+    <>
+      <div className={filterBar} aria-busy={isPending}>
+        {tags.length > 0 ? (
+          <div className="inline-flex gap-1.5 flex-wrap max-sm:flex-nowrap max-sm:shrink-0">
+            {visibleTags.map((tag) => {
+              const active = selected.has(tag.name);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  data-active={active || undefined}
+                  className={filterChip}
+                  aria-pressed={active}
+                  onClick={() => toggleTag(tag.name)}
+                >
+                  #{tag.name}
+                  <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
+                    {tag.noteCount}
+                  </span>
+                </button>
+              );
+            })}
+            {tags.length > VISIBLE_TAG_LIMIT ? (
               <button
-                key={tag.id}
                 type="button"
-                data-active={active || undefined}
-                className={filterChip}
-                aria-pressed={active}
-                onClick={() => toggleTag(tag.name)}
+                className={filterChipGhost}
+                aria-expanded={showAllTags}
+                onClick={() => setShowAllTags((v) => !v)}
               >
-                #{tag.name}
-                <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
-                  {tag.noteCount}
-                </span>
+                {showAllTags ? "閉じる" : `もっと見る (+${hiddenTagCount})`}
               </button>
-            );
-          })}
-          {tags.length > VISIBLE_TAG_LIMIT ? (
+            ) : null}
+          </div>
+        ) : null}
+
+        {tags.length > 0 ? (
+          <TagPickerPopover
+            tags={tags}
+            selected={selected}
+            open={openPopover === "tag"}
+            onOpenChange={(next) => setOpenPopover(next ? "tag" : null)}
+            onToggle={toggleTag}
+          />
+        ) : null}
+
+        <DatePopover
+          fromId={fromId}
+          toId={toId}
+          from={optimisticFrom}
+          to={optimisticTo}
+          chipLabel={dateChipLabel}
+          selectedPreset={selectedPreset}
+          open={openPopover === "date"}
+          onOpenChange={(next) => setOpenPopover(next ? "date" : null)}
+          onSelectPreset={selectPreset}
+          onChangeDate={updateDate}
+          onClear={clearDateRange}
+        />
+
+        <VisibilityPopover
+          value={optimisticVisibility}
+          open={openPopover === "visibility"}
+          onOpenChange={(next) => setOpenPopover(next ? "visibility" : null)}
+          onSelect={selectVisibility}
+          onClear={clearVisibility}
+        />
+
+        {optimisticReferencingNoteId !== undefined ? (
+          <span data-active className={filterChip}>
+            参照中:{" "}
+            {formatReferencingNoteChipLabel(
+              optimisticReferencingNoteId,
+              optimisticReferencingNoteId === referencingNoteId
+                ? (referencingNoteTitle ?? null)
+                : null,
+            )}
             <button
               type="button"
-              className={filterChipGhost}
-              aria-expanded={showAllTags}
-              onClick={() => setShowAllTags((v) => !v)}
+              aria-label="内部リンク参照フィルタを解除"
+              onClick={clearReferencingNoteId}
+              className={filterChipRemove}
             >
-              {showAllTags ? "閉じる" : `もっと見る (+${hiddenTagCount})`}
+              ×
             </button>
-          ) : null}
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={filterChipGhost}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen(true)}
+          >
+            内部リンク参照
+            <span className={filterChipCaret} aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        )}
+
+        {hasAnyFilter ? (
+          <button
+            type="button"
+            className={filterClearX}
+            aria-label="フィルタをすべてクリア"
+            title="フィルタをすべてクリア"
+            onClick={clearAll}
+          >
+            <X
+              className="size-[var(--icon-xs)]"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+          </button>
+        ) : null}
+
+        <NotePickerDialog
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={handlePick}
+          isPending={isPending}
+        />
+      </div>
+
+      {/* Directory shows as a breadcrumb (current location) on its own row,
+        kept out of the chip cloud so its nav language and the chips' filter
+        language do not mix (#710 ADR-002 / AC-7). When the active directory id
+        cannot be resolved to segments (absent from the tree / just deleted) a
+        generic fallback chip is shown instead of an empty nav (AC-5). */}
+      {optimisticDirectoryId !== undefined ? (
+        // Both branches share the same `mb-5` row wrapper so the separate-row
+        // spacing lives in one place and only the inner content (breadcrumb nav
+        // vs. fallback chip) differs between them.
+        <div className="mb-5">
+          {segments.length > 0 ? (
+            <DirectoryBreadcrumb segments={segments} onClear={clearDirectory} />
+          ) : (
+            <span data-active className={filterChip}>
+              ディレクトリ
+              <button
+                type="button"
+                aria-label="ディレクトリフィルタを解除"
+                onClick={clearDirectory}
+                className={filterChipRemove}
+              >
+                ×
+              </button>
+            </span>
+          )}
         </div>
       ) : null}
-
-      {tags.length > 0 ? (
-        <TagPickerPopover
-          tags={tags}
-          selected={selected}
-          open={openPopover === "tag"}
-          onOpenChange={(next) => setOpenPopover(next ? "tag" : null)}
-          onToggle={toggleTag}
-        />
-      ) : null}
-
-      <DatePopover
-        fromId={fromId}
-        toId={toId}
-        from={optimisticFrom}
-        to={optimisticTo}
-        chipLabel={dateChipLabel}
-        selectedPreset={selectedPreset}
-        open={openPopover === "date"}
-        onOpenChange={(next) => setOpenPopover(next ? "date" : null)}
-        onSelectPreset={selectPreset}
-        onChangeDate={updateDate}
-        onClear={clearDateRange}
-      />
-
-      <VisibilityPopover
-        value={optimisticVisibility}
-        open={openPopover === "visibility"}
-        onOpenChange={(next) => setOpenPopover(next ? "visibility" : null)}
-        onSelect={selectVisibility}
-        onClear={clearVisibility}
-      />
-
-      {optimisticDirectoryId !== undefined ? (
-        <span data-active className={filterChip}>
-          {optimisticDirectoryId === directoryId
-            ? directoryName || "ディレクトリ"
-            : "ディレクトリ"}
-          <button
-            type="button"
-            aria-label="ディレクトリフィルタを解除"
-            onClick={clearDirectory}
-            className={filterChipRemove}
-          >
-            ×
-          </button>
-        </span>
-      ) : null}
-
-      {optimisticReferencingNoteId !== undefined ? (
-        <span data-active className={filterChip}>
-          参照中:{" "}
-          {formatReferencingNoteChipLabel(
-            optimisticReferencingNoteId,
-            optimisticReferencingNoteId === referencingNoteId
-              ? (referencingNoteTitle ?? null)
-              : null,
-          )}
-          <button
-            type="button"
-            aria-label="内部リンク参照フィルタを解除"
-            onClick={clearReferencingNoteId}
-            className={filterChipRemove}
-          >
-            ×
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className={filterChipGhost}
-          aria-haspopup="dialog"
-          aria-expanded={pickerOpen}
-          onClick={() => setPickerOpen(true)}
-        >
-          内部リンク参照
-          <span className={filterChipCaret} aria-hidden="true">
-            ▾
-          </span>
-        </button>
-      )}
-
-      {hasAnyFilter ? (
-        <button
-          type="button"
-          className={filterClearX}
-          aria-label="フィルタをすべてクリア"
-          title="フィルタをすべてクリア"
-          onClick={clearAll}
-        >
-          <X
-            className="size-[var(--icon-xs)]"
-            strokeWidth={1.8}
-            aria-hidden="true"
-          />
-        </button>
-      ) : null}
-
-      <NotePickerDialog
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={handlePick}
-        isPending={isPending}
-      />
-    </div>
+    </>
   );
 }
 

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
 import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import { directoryAncestorSegments } from "./directoryTree";
 import { BulkActionBar } from "./list/BulkActionBar";
 import { FilterBar } from "./list/FilterBar";
 import {
@@ -173,13 +174,14 @@ async function FilterSection({
       : Promise.resolve({ title: null as string | null }),
   ]);
 
-  // Resolve the selected directory's display name from the already-loaded
-  // tree (no extra I/O). An id not present in the tree (e.g. just deleted)
-  // leaves this undefined; FilterBar falls back to a generic label.
-  const directoryName =
+  // Reconstruct the root→current breadcrumb path for the selected directory
+  // from the already-loaded tree (no extra I/O). An id not present in the
+  // tree (e.g. just deleted) yields an empty array; FilterBar falls back to a
+  // generic chip.
+  const directorySegments =
     search.directoryId === undefined
       ? undefined
-      : flat.find((d) => d.id === search.directoryId)?.name;
+      : directoryAncestorSegments(flat, search.directoryId);
 
   return (
     <>
@@ -190,7 +192,7 @@ async function FilterSection({
         to={search.to}
         visibility={search.visibility}
         directoryId={search.directoryId}
-        {...(directoryName !== undefined ? { directoryName } : {})}
+        {...(directorySegments !== undefined ? { directorySegments } : {})}
         referencingNoteId={search.referencingNoteId}
         referencingNoteTitle={referencing.title}
       />
