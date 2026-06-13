@@ -5,10 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Issue #219: the home view dispatches list/tile/calendar purely from
- * the URL `?display=` value via `getRouteApi("/").useSearch`. This test
- * pins the dispatch contract so a regression in the conditional ladder
- * (or a wrong fallback for `undefined`) gets caught immediately.
+ * Issue #219 / #650: the home view dispatches list/tile/calendar from the
+ * effective display mode (`useEffectiveDisplayMode`). With no persisted
+ * value the effective mode equals the raw URL `?display=` value, so the
+ * mock drives it through `useSearch` exactly as before. This test pins the
+ * dispatch contract so a regression in the conditional ladder (or a wrong
+ * fallback for `undefined`) gets caught immediately.
  */
 
 (
@@ -63,6 +65,8 @@ let root: Root;
 beforeEach(() => {
   currentDisplay = undefined;
   currentIsLoading = false;
+  // No persisted value, so the effective mode reduces to the URL value.
+  window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);

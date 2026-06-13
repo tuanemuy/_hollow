@@ -1,17 +1,15 @@
 "use client";
 
-import { getRouteApi, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import type { DisplayedNote } from "../loaders";
 import { CalendarView } from "./CalendarView";
 import { ListView } from "./ListView";
-import { selectDisplay } from "./listSelectors";
 import { TileView } from "./TileView";
+import { useEffectiveDisplayMode } from "./useEffectiveDisplayMode";
 
 type Props = Readonly<{
   notes: readonly DisplayedNote[];
 }>;
-
-const homeRoute = getRouteApi("/_app/");
 
 /**
  * Client-side render-mode switcher (Issue #219). Home-route only — the
@@ -28,7 +26,7 @@ const homeRoute = getRouteApi("/_app/");
  * every view variant.
  */
 export function NoteListViews({ notes }: Props) {
-  const display = homeRoute.useSearch({ select: selectDisplay });
+  const display = useEffectiveDisplayMode();
   // While a filter navigation re-runs the loader, the FilterBar reflects the
   // new selection optimistically; dim the still-stale result list so the
   // pending state reads as "results updating" (Issue #354).
