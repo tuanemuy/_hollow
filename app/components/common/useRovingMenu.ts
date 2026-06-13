@@ -1,6 +1,12 @@
 "use client";
 
-import { type RefObject, useEffect, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 /**
  * Second-layer roving-tabindex primitive (Issue #467 ADR-001) — menu-mode
@@ -39,6 +45,14 @@ export type UseRovingMenuOptions = Readonly<{
    * re-renders while `<body>` happens to hold focus.
    */
   restoreFocusOnCommit?: boolean;
+  /**
+   * Reports whether the item at `index` is non-operable (e.g. an
+   * `aria-disabled` option). Such items are skipped by Arrow / Home / End and
+   * never receive programmatic focus, so the keyboard never lands on a "focused
+   * but does nothing" item. This only removes the item from the roving
+   * traversal, not from the DOM. Defaults to "nothing disabled".
+   */
+  isDisabled?: (index: number) => boolean;
 }>;
 
 export type UseRovingMenu = Readonly<{
@@ -55,6 +69,8 @@ export type UseRovingMenu = Readonly<{
   setActiveIndex: (index: number) => void;
 }>;
 
+const noneDisabled = () => false;
+
 export function useRovingMenu({
   open,
   itemCount,
@@ -62,8 +78,28 @@ export function useRovingMenu({
   itemRole = "menuitem",
   initialIndex = 0,
   restoreFocusOnCommit = false,
+  isDisabled = noneDisabled,
 }: UseRovingMenuOptions): UseRovingMenu {
-  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  // Nearest enabled landing index: the requested index, else scan forward,
+  // else backward. Falls back to the requested index when all are disabled.
+  const enabledFrom = useCallback(
+    (index: number): number => {
+      if (itemCount === 0) return index;
+      if (!isDisabled(index)) return index;
+      for (let i = index + 1; i < itemCount; i++) {
+        if (!isDisabled(i)) return i;
+      }
+      for (let i = index - 1; i >= 0; i--) {
+        if (!isDisabled(i)) return i;
+      }
+      return index;
+    },
+    [itemCount, isDisabled],
+  );
+
+  const [activeIndex, setActiveIndex] = useState(() =>
+    enabledFrom(initialIndex),
+  );
   // Tracks the last seen `open` so the reset below only fires on a real
   // closed → open transition. Effects can re-fire WITHOUT a dep change when
   // the subtree is suspended and resumed (e.g. the RSC re-render after a
@@ -71,13 +107,25 @@ export function useRovingMenu({
   // there would clobber the roving position mid-interaction.
   const prevOpenRef = useRef(false);
 
-  // On (re)open, reset the active index to the desired landing item.
+  // On (re)open, reset the active index to the desired landing item (skipping
+  // disabled items so focus never opens onto a non-operable option).
   useEffect(() => {
     const wasOpen = prevOpenRef.current;
     prevOpenRef.current = open;
     if (!open || wasOpen) return;
-    setActiveIndex(initialIndex);
-  }, [open, initialIndex]);
+    setActiveIndex(enabledFrom(initialIndex));
+  }, [open, initialIndex, enabledFrom]);
+
+  // If the active item became disabled mid-interaction (e.g. the cap was
+  // reached on a different option, disabling the currently-focused unselected
+  // one), redirect to the nearest enabled item so the roving focus never rests
+  // on a non-operable option.
+  useEffect(() => {
+    if (!open) return;
+    if (!isDisabled(activeIndex)) return;
+    const target = enabledFrom(activeIndex);
+    if (target !== activeIndex) setActiveIndex(target);
+  }, [open, activeIndex, isDisabled, enabledFrom]);
 
   // Roving tabindex: mirror `activeIndex` into real DOM focus while open.
   // querySelectorAll is the focus executor only — counting/indexing is the
@@ -120,14 +168,35 @@ export function useRovingMenu({
     items[clamped]?.focus({ preventScroll: true });
   });
 
+  // Step one item in `step`, wrapping, skipping disabled items. Returns `from`
+  // when no enabled item exists (the full wrap finds nothing).
+  const stepEnabled = (from: number, step: 1 | -1, count: number): number => {
+    let i = from;
+    for (let n = 0; n < count; n++) {
+      i = (i + step + count) % count;
+      if (!isDisabled(i)) return i;
+    }
+    return from;
+  };
+
+  const firstEnabled = (count: number): number => {
+    for (let i = 0; i < count; i++) if (!isDisabled(i)) return i;
+    return activeIndex;
+  };
+  const lastEnabled = (count: number): number => {
+    for (let i = count - 1; i >= 0; i--) if (!isDisabled(i)) return i;
+    return activeIndex;
+  };
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     const count = itemCount;
     if (count === 0) return;
     let next: number | null = null;
-    if (event.key === "ArrowDown") next = (activeIndex + 1) % count;
-    else if (event.key === "ArrowUp") next = (activeIndex - 1 + count) % count;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = count - 1;
+    if (event.key === "ArrowDown") next = stepEnabled(activeIndex, 1, count);
+    else if (event.key === "ArrowUp")
+      next = stepEnabled(activeIndex, -1, count);
+    else if (event.key === "Home") next = firstEnabled(count);
+    else if (event.key === "End") next = lastEnabled(count);
     if (next === null) return;
     event.preventDefault();
     setActiveIndex(next);

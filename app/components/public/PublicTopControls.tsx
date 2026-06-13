@@ -7,10 +7,12 @@ import {
   LayoutGrid,
   List,
   type LucideIcon,
+  Plus,
   X,
 } from "lucide-react";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
+import { TOUCH_TARGET } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import {
   DATE_RANGE_PRESETS,
@@ -84,6 +86,25 @@ export function toggleTagSet(
     ? active.filter((t) => t !== tag)
     : [...active, tag];
 }
+
+/**
+ * Whether the "+タグ" picker must suppress this option: at the cap, unselected
+ * options are suppressed (already-selected ones stay enabled so they can be
+ * toggled off).
+ */
+export function isTagAddSuppressed(
+  selectedCount: number,
+  isSelected: boolean,
+): boolean {
+  return selectedCount >= TAGS_MAX && !isSelected;
+}
+
+// Transport cap on the `tags` filter: the route's `validateSearch`
+// (`publicTopSearchSchema`) and the server-fn `renderInputSchema` both carry
+// `tags.max(8)` with `.catch(undefined)`, so a 9th tag silently drops the whole
+// array. Suppressing unselected options at this count keeps the filter from
+// overflowing into that silent全消失 (ADR-004).
+const TAGS_MAX = 8;
 
 const route = getRouteApi("/u/$username/");
 
@@ -171,10 +192,15 @@ function reduceFilters(
  * `tagOptions` are the chip candidates the server discovered in the current
  * listing; selected tags are merged in so a chip with its remove (×) affordance
  * stays visible even when the active filter narrows the page away from it.
+ *
+ * `allTags` is the owner-scoped public-tag master set (publication-gated),
+ * surfaced only through the "+タグ" picker — it is intentionally NOT merged
+ * into the chips row so the filter-row stays compact (ADR-003).
  */
 export function PublicTopControls({
   tagOptions,
-}: Readonly<{ tagOptions: readonly string[] }>) {
+  allTags,
+}: Readonly<{ tagOptions: readonly string[]; allTags: readonly string[] }>) {
   const router = useRouter();
   const username = route.useParams().username;
   const display = route.useSearch({ select: selectDisplay });
@@ -184,7 +210,9 @@ export function PublicTopControls({
   const to = route.useSearch({ select: selectTo });
 
   const [isPending, startTransition] = useTransition();
-  const [openPopover, setOpenPopover] = useState<"sort" | "date" | null>(null);
+  const [openPopover, setOpenPopover] = useState<
+    "sort" | "date" | "tag" | null
+  >(null);
   const fromId = useId();
   const toId = useId();
 
@@ -314,6 +342,14 @@ export function PublicTopControls({
             </button>
           );
         })}
+
+        <TagAddPopover
+          tags={allTags}
+          selected={optimisticTags}
+          open={openPopover === "tag"}
+          onOpenChange={(next) => setOpenPopover(next ? "tag" : null)}
+          onToggle={toggleTag}
+        />
 
         <DatePopover
           fromId={fromId}
@@ -598,6 +634,123 @@ function SortPopover({
           </button>
         );
       })}
+    </Popover>
+  );
+}
+
+type TagAddPopoverProps = Readonly<{
+  tags: readonly string[];
+  selected: ReadonlySet<string>;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  onToggle: (name: string) => void;
+}>;
+
+// Scrollable listbox anchored under the +chip (left-anchored since the +chip
+// sits at the row's start), with a max-height so a large母集合 scrolls in place.
+const TAG_ADD_PANEL =
+  "absolute left-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[220px] max-w-[calc(100vw-2rem)] max-h-[min(60vh,400px)] overflow-y-auto max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
+const TAG_ADD_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium aria-disabled:opacity-40 aria-disabled:cursor-not-allowed [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
+const TAG_ADD_EMPTY = "px-2.5 py-3 text-xs text-ink-tertiary text-center";
+
+/**
+ * "+タグを追加" picker. The trigger reuses the public-surface `CHIP` (solid
+ * pill) — not the auth-side dashed ghost-chip. A multi-select listbox whose
+ * options enumerate the owner's public-tag master set; each click runs the same
+ * optimistic `toggleTag` as the inline chips, and options carry `aria-selected`
+ * from the shared optimistic tag state so the chips row and this picker stay in
+ * sync. At `TAGS_MAX`, unselected options are disabled (see `isTagAddSuppressed`).
+ */
+function TagAddPopover({
+  tags,
+  selected,
+  open,
+  onOpenChange,
+  onToggle,
+}: TagAddPopoverProps) {
+  const listRef = useRef<HTMLElement | null>(null);
+
+  // Land roving focus on the first selected option when the picker opens
+  // (fall back to the first option), matching the auth TagPickerPopover.
+  const initialIndex = (() => {
+    const i = tags.findIndex((t) => selected.has(t));
+    return i < 0 ? 0 : i;
+  })();
+
+  const roving = useRovingMenu({
+    open,
+    itemCount: tags.length,
+    panelRef: listRef,
+    itemRole: "option",
+    initialIndex,
+    // The multi-select panel stays open across toggles, so the RSC re-render
+    // after each filter navigation can drop focus to <body> — restore it.
+    restoreFocusOnCommit: true,
+    // Drop cap-suppressed options from the roving traversal. The suppression
+    // itself (no 9th selection) is enforced by the aria-disabled render + click
+    // guard below, independent of this.
+    isDisabled: (index) =>
+      isTagAddSuppressed(selected.size, selected.has(tags[index])),
+  });
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={onOpenChange}
+      haspopup="listbox"
+      multiselectable
+      label="タグを追加"
+      panelClassName={TAG_ADD_PANEL}
+      clampToViewport
+      panelRef={(node) => {
+        listRef.current = node;
+      }}
+      onMenuKeyDown={roving.onKeyDown}
+      trigger={(triggerProps) => (
+        <button {...triggerProps} type="button" className={CHIP}>
+          <Plus
+            className="size-[11px] shrink-0"
+            strokeWidth={2.2}
+            aria-hidden="true"
+          />
+          タグを追加
+        </button>
+      )}
+    >
+      {tags.length === 0 ? (
+        <div className={TAG_ADD_EMPTY}>公開タグはまだありません。</div>
+      ) : (
+        tags.map((tag, index) => {
+          const active = selected.has(tag);
+          const disabled = isTagAddSuppressed(selected.size, active);
+          return (
+            <button
+              key={tag}
+              type="button"
+              role="option"
+              aria-selected={active}
+              aria-disabled={disabled || undefined}
+              data-active={active || undefined}
+              tabIndex={roving.getTabIndex(index)}
+              onClick={() => {
+                // Keep the roving index in sync with the click (the listbox
+                // panel's mousedown preventDefault keeps focus put).
+                roving.setActiveIndex(index);
+                if (disabled) return;
+                onToggle(tag);
+              }}
+              className={TAG_ADD_OPTION_ITEM}
+            >
+              #{tag}
+              {active ? (
+                <span aria-hidden="true" className="ml-auto text-success">
+                  ✓
+                </span>
+              ) : null}
+            </button>
+          );
+        })
+      )}
     </Popover>
   );
 }

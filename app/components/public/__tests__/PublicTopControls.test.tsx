@@ -24,9 +24,12 @@ vi.mock("@tanstack/react-router", () => ({
   }),
 }));
 
-const { PublicTopControls, nextFilterSearch, toggleTagSet } = await import(
-  "../PublicTopControls"
-);
+const {
+  PublicTopControls,
+  nextFilterSearch,
+  toggleTagSet,
+  isTagAddSuppressed,
+} = await import("../PublicTopControls");
 
 describe("PublicTopControls URL updaters", () => {
   // Period bounds are tested here for shape/presence, not validation. Invalid
@@ -99,7 +102,10 @@ describe("PublicTopControls markup", () => {
   it("renders すべて + a chip per option and the segmented / sort controls", () => {
     searchState = {};
     const html = renderToStaticMarkup(
-      <PublicTopControls tagOptions={["cloudflare", "design"]} />,
+      <PublicTopControls
+        tagOptions={["cloudflare", "design"]}
+        allTags={["cloudflare", "design"]}
+      />,
     );
     expect(html).toContain("すべて");
     expect(html).toContain("#cloudflare");
@@ -108,12 +114,16 @@ describe("PublicTopControls markup", () => {
     expect(html).toContain("タイル");
     expect(html).toContain("カレンダー");
     expect(html).toContain("公開日順");
+    expect(html).toContain("タグを追加");
   });
 
   it("marks the active tag chip and renders its remove affordance", () => {
     searchState = { tags: ["cloudflare"] };
     const html = renderToStaticMarkup(
-      <PublicTopControls tagOptions={["cloudflare", "design"]} />,
+      <PublicTopControls
+        tagOptions={["cloudflare", "design"]}
+        allTags={["cloudflare", "design"]}
+      />,
     );
     // The active chip carries data-active (ink fill) and an svg (× icon).
     expect(html).toContain("data-active");
@@ -124,15 +134,60 @@ describe("PublicTopControls markup", () => {
   it("keeps a selected tag visible even when it is not in the options", () => {
     searchState = { tags: ["only-selected"] };
     const html = renderToStaticMarkup(
-      <PublicTopControls tagOptions={["other"]} />,
+      <PublicTopControls tagOptions={["other"]} allTags={["other"]} />,
     );
     expect(html).toContain("#only-selected");
   });
 
   it("marks the active display mode in the segmented control", () => {
     searchState = { display: "tile" };
-    const html = renderToStaticMarkup(<PublicTopControls tagOptions={[]} />);
+    const html = renderToStaticMarkup(
+      <PublicTopControls tagOptions={[]} allTags={[]} />,
+    );
     // role=tab with aria-selected reflects the active tile mode.
     expect(html).toContain('aria-selected="true"');
+  });
+
+  it("does not merge the master set (allTags) into the chips row", () => {
+    // `extra` is only in allTags, never selected → it must NOT surface as a
+    // filter-row chip. The chips row is `mergeTagChips(tagOptions, selected)`
+    // and stays compact; the master set lives only in the (closed) +タグ picker.
+    searchState = {};
+    const html = renderToStaticMarkup(
+      <PublicTopControls tagOptions={["shown"]} allTags={["shown", "extra"]} />,
+    );
+    expect(html).toContain("#shown");
+    expect(html).not.toContain("#extra");
+  });
+});
+
+describe("PublicTopControls — +タグ cap suppression (ADR-004)", () => {
+  it("suppresses an unselected option once the selected count hits the cap (8)", () => {
+    // 8 selected = transport cap; a 9th unselected tag must be suppressed so a
+    // toggle cannot push `tags` past `.max(8)` and trip `.catch(undefined)`.
+    expect(isTagAddSuppressed(8, false)).toBe(true);
+  });
+
+  it("keeps suppressing once the selected count exceeds the cap (9)", () => {
+    // Pins the `>=` (not `==`) boundary: suppression must persist above the cap,
+    // not only at the exact cap value.
+    expect(isTagAddSuppressed(9, false)).toBe(true);
+  });
+
+  it("keeps an already-selected option enabled at the cap (toggle-off)", () => {
+    expect(isTagAddSuppressed(8, true)).toBe(false);
+  });
+
+  it("keeps an already-selected option enabled above the cap (toggle-off)", () => {
+    expect(isTagAddSuppressed(9, true)).toBe(false);
+  });
+
+  it("does not suppress any option below the cap", () => {
+    expect(isTagAddSuppressed(7, false)).toBe(false);
+    expect(isTagAddSuppressed(0, false)).toBe(false);
+  });
+
+  it("does not suppress a selected option below the cap", () => {
+    expect(isTagAddSuppressed(7, true)).toBe(false);
   });
 });

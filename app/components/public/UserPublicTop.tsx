@@ -78,6 +78,26 @@ const loadNotes = cache(
   ),
 );
 
+// Master set of the user's public tag names (publication-gated, owner-scoped,
+// capped). Independent of the listing's loader deps (sort/period/page), so it
+// loads in parallel and is not re-fetched on URL filter changes.
+const loadPublicTags = cache(
+  serverData(
+    () => import("@/core/application/publication/listUserPublicTags"),
+    async ({ container }, { listUserPublicTags }, username: string) => {
+      try {
+        return await listUserPublicTags({
+          container,
+          input: { username },
+        });
+      } catch (error) {
+        if (isNotFoundError(error)) throw notFound();
+        throw error;
+      }
+    },
+  ),
+);
+
 type Props = {
   username: string;
   page: number;
@@ -99,17 +119,19 @@ export async function UserPublicTop({
 }: Props) {
   // String→Date conversion at the presentation boundary; usecases work with DateRange VO.
   const publishedRange = normalizePublicDateRange(from, to);
-  const [{ user, publicNoteCount }, { notes, total }] = await Promise.all([
-    loadProfile(username),
-    loadNotes({
-      username,
-      page,
-      limit,
-      ...(tags !== undefined && tags.length > 0 ? { tagNames: tags } : {}),
-      ...(sort !== undefined ? { sort } : {}),
-      ...(publishedRange !== undefined ? { publishedRange } : {}),
-    }),
-  ]);
+  const [{ user, publicNoteCount }, { notes, total }, { tagNames: allTags }] =
+    await Promise.all([
+      loadProfile(username),
+      loadNotes({
+        username,
+        page,
+        limit,
+        ...(tags !== undefined && tags.length > 0 ? { tagNames: tags } : {}),
+        ...(sort !== undefined ? { sort } : {}),
+        ...(publishedRange !== undefined ? { publishedRange } : {}),
+      }),
+      loadPublicTags(username),
+    ]);
 
   const initials = avatarInitials(user.displayName || user.username);
   const joinedAt = new Date(user.createdAt);
@@ -179,7 +201,7 @@ export async function UserPublicTop({
             </form>
           </search>
 
-          <PublicTopControls tagOptions={tagOptions} />
+          <PublicTopControls tagOptions={tagOptions} allTags={allTags} />
         </section>
 
         <section className={NOTE_LIST} aria-label="公開ノート一覧">

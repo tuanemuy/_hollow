@@ -281,6 +281,40 @@ export class D1TagRepository implements TagRepository {
     );
   }
 
+  listPublicTagNamesByOwner(
+    ownerId: UserId,
+    limit: number,
+  ): Promise<readonly string[]> {
+    return mapDbError("Failed to list public tags by owner", async () => {
+      if (limit <= 0) return [];
+      // Same public gate as `searchPublicByNamePrefix`, minus the prefix LIKE
+      // and plus an owner-scope predicate on the notes join. Distinct on
+      // `tags.name` (display form) so two casings collapse to one option.
+      const rows = await this.db
+        .selectDistinct({ name: tags.name })
+        .from(tags)
+        .innerJoin(noteTags, eq(noteTags.tagId, tags.id))
+        .innerJoin(
+          notes,
+          and(
+            eq(notes.id, noteTags.noteId),
+            eq(notes.ownerId, ownerId),
+            eq(notes.status, "active"),
+          ),
+        )
+        .innerJoin(
+          publicationStates,
+          and(
+            eq(publicationStates.noteId, notes.id),
+            eq(publicationStates.visibility, "public"),
+          ),
+        )
+        .orderBy(asc(tags.name))
+        .limit(limit);
+      return rows.map((row) => row.name);
+    });
+  }
+
   findByIds(ids: readonly TagId[]): Promise<readonly Tag[]> {
     return mapDbError("Failed to find tags by ids", async () => {
       if (ids.length === 0) return [];

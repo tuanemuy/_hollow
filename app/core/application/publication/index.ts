@@ -16,6 +16,7 @@ export * from "./listRelatedPublicNotes";
 export * from "./listShareLinks";
 export * from "./listSitemapEntries";
 export * from "./listUserPublicNotes";
+export * from "./listUserPublicTags";
 export * from "./resolveShareLink";
 export * from "./revokeShareLink";
 export * from "./setShareLinkPassword";
