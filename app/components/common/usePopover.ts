@@ -15,7 +15,7 @@ import {
  * behaviour shared by every WAI-ARIA Menu / Popover in the app — outside
  * `mousedown`, `Escape`, and focus-out — plus focus restoration to the
  * trigger, the `aria-haspopup`/`aria-expanded`/`aria-controls` wiring, and an
- * opt-in horizontal viewport clamp (`shiftX`).
+ * opt-in viewport clamp (`shiftX` horizontal + `shiftY` vertical).
  *
  * Dismiss paths: outside `mousedown` (document listener), `Escape` (document
  * listener, restores trigger focus), Tab-out (focus-out with a non-null
@@ -41,11 +41,12 @@ export const VIEWPORT_MARGIN = 8;
 
 /**
  * `sm` breakpoint (px). Below this width the `popoverSheetPanel` consumers
- * (FilterBar, #588 ADR-003) render the panel as a full-width `max-sm:` sheet,
- * for which the horizontal `clampToViewport` shiftX is meaningless and actively
- * interferes — so the clamp is skipped under this width. This mirrors the
- * `--breakpoint-sm` / `--bp-sm` value (640px) that CLAUDE.md keeps duplicated on
- * purpose; keep it in sync if that token ever changes.
+ * (FilterBar, #588 ADR-003) render the panel as a full-width `max-sm:` sheet
+ * pinned to `max-sm:bottom-0`, for which both the horizontal `shiftX` and the
+ * vertical `shiftY` of `clampToViewport` are meaningless and actively interfere
+ * with the bottom-sheet layout — so the whole clamp is skipped under this width.
+ * This mirrors the `--breakpoint-sm` / `--bp-sm` value (640px) that CLAUDE.md
+ * keeps duplicated on purpose; keep it in sync if that token ever changes.
  */
 export const POPOVER_SHEET_BREAKPOINT = 640;
 
@@ -72,6 +73,33 @@ export function computeShiftX(
   return shift;
 }
 
+/**
+ * Pure vertical-clamp computation — the symmetric counterpart of
+ * `computeShiftX`. happy-dom has no layout, so `getBoundingClientRect()` returns
+ * all-zero and the clamp cannot be exercised through the DOM. Given the panel's
+ * natural (unshifted) rect and the viewport height, returns the px offset that
+ * nudges the panel back inside `[margin, viewportHeight - margin]`. Bottom-edge
+ * overflow is corrected first, then top-edge — so when the panel is taller than
+ * the viewport (both edges overflow) the top-edge correction wins and the panel
+ * head stays visible (its tail remains out of reach, mirroring how
+ * `computeShiftX` keeps the left edge / head when the panel is wider than the
+ * viewport).
+ */
+export function computeShiftY(
+  rect: Readonly<{ top: number; bottom: number }>,
+  viewportHeight: number,
+  margin: number = VIEWPORT_MARGIN,
+): number {
+  let shift = 0;
+  if (rect.bottom > viewportHeight - margin) {
+    shift = viewportHeight - margin - rect.bottom;
+  }
+  if (rect.top + shift < margin) {
+    shift = margin - rect.top;
+  }
+  return shift;
+}
+
 export type PopupRole = "dialog" | "menu" | "listbox";
 
 export type PopoverTriggerProps = Readonly<{
@@ -87,9 +115,9 @@ export type UsePopoverOptions = Readonly<{
   onOpenChange: (next: boolean) => void;
   haspopup: PopupRole;
   /**
-   * When true, the panel is nudged horizontally after open so it stays inside
-   * the viewport regardless of where the trigger sits (FilterBar). Defaults to
-   * false; the `absolute right-0` actions menus do not need it.
+   * When true, the panel is nudged horizontally and vertically after open so it
+   * stays inside the viewport regardless of where the trigger sits (FilterBar).
+   * Defaults to false; the `absolute right-0` actions menus do not need it.
    */
   clampToViewport?: boolean;
 }>;
@@ -124,34 +152,43 @@ export function usePopover({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const panelId = useId();
   const [shiftX, setShiftX] = useState(0);
+  const [shiftY, setShiftY] = useState(0);
 
   const setPanelRef = useCallback((node: HTMLDivElement | null) => {
     panelRef.current = node;
   }, []);
 
-  // Measure once per open transition and clamp horizontally. `shiftX` is 0
-  // here (reset on the previous close), so the measured rect is the natural,
-  // unshifted position and the correction is an absolute value. Runs in a
-  // layout effect so the correction is applied before paint (no flicker).
+  // Measure once per open transition and clamp both axes. `shiftX`/`shiftY` are
+  // 0 here (reset on the previous close), so the measured rect is the natural,
+  // unshifted position and each correction is an absolute value. The two axes
+  // are independent, so a single `getBoundingClientRect()` feeds both
+  // `computeShiftX` and `computeShiftY` (ADR-002 — no separate effect). Runs in
+  // a layout effect so the correction is applied before paint (no flicker).
   useLayoutEffect(() => {
     if (!clampToViewport) return;
     if (!open) {
       setShiftX(0);
+      setShiftY(0);
       return;
     }
-    // Below `sm` the sheet consumers render a full-width `max-sm:` panel, so the
-    // horizontal shift is both unnecessary and harmful (#588 ADR-003): skip it
-    // and leave shiftX at its reset 0.
+    // Below `sm` the sheet consumers render a full-width `max-sm:bottom-0` panel,
+    // so both the horizontal and vertical shift are unnecessary and harmful to
+    // the bottom-sheet layout (#588 ADR-003 / AC-4): skip the clamp entirely and
+    // leave shiftX/shiftY at their reset 0.
     if (window.innerWidth < POPOVER_SHEET_BREAKPOINT) return;
     const el = panelRef.current;
     if (el === null) return;
     const rect = el.getBoundingClientRect();
-    const shift = computeShiftX(rect, window.innerWidth);
-    if (shift !== 0) setShiftX(shift);
+    const nextShiftX = computeShiftX(rect, window.innerWidth);
+    const nextShiftY = computeShiftY(rect, window.innerHeight);
+    if (nextShiftX !== 0) setShiftX(nextShiftX);
+    if (nextShiftY !== 0) setShiftY(nextShiftY);
   }, [open, clampToViewport]);
 
   const panelStyle =
-    shiftX !== 0 ? { transform: `translateX(${shiftX}px)` } : undefined;
+    shiftX !== 0 || shiftY !== 0
+      ? { transform: `translate(${shiftX}px, ${shiftY}px)` }
+      : undefined;
 
   useEffect(() => {
     if (!open) return;

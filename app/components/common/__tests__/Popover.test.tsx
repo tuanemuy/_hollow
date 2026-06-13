@@ -4,14 +4,14 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Popover } from "../Popover";
-import { computeShiftX, VIEWPORT_MARGIN } from "../usePopover";
+import { computeShiftX, computeShiftY, VIEWPORT_MARGIN } from "../usePopover";
 
 /**
- * Issue #467: locks the first-layer `<Popover>` dual-mode primitive — dialog
- * role / ARIA wiring, dismiss (Escape / outside / focus-out), the `close`
- * render-prop callback that restores focus to the trigger, and the horizontal
- * viewport clamp (`shiftX`, exercised as a pure function + one DOM stub case
- * because happy-dom has no layout).
+ * Issue #467 / #652: locks the first-layer `<Popover>` dual-mode primitive —
+ * dialog role / ARIA wiring, dismiss (Escape / outside / focus-out), the `close`
+ * render-prop callback that restores focus to the trigger, and the viewport
+ * clamp (`shiftX` horizontal + `shiftY` vertical, exercised as pure functions +
+ * DOM stub cases because happy-dom has no layout).
  */
 
 (
@@ -34,6 +34,36 @@ describe("computeShiftX", () => {
     // left -20 → must move to margin 8 → shift +28.
     expect(computeShiftX({ left: -20, right: 260 }, 1000)).toBe(
       VIEWPORT_MARGIN - -20,
+    );
+  });
+});
+
+describe("computeShiftY", () => {
+  it("returns 0 when the panel fits inside the viewport", () => {
+    expect(computeShiftY({ top: 100, bottom: 380 }, 1000)).toBe(0);
+  });
+
+  it("shifts up when the panel overflows the bottom edge", () => {
+    // bottom 1000 in a 1000-tall viewport with margin 8 → shift -8.
+    expect(computeShiftY({ top: 720, bottom: 1000 }, 1000)).toBe(
+      -VIEWPORT_MARGIN,
+    );
+  });
+
+  it("shifts down when the panel overflows the top edge", () => {
+    // top -20 → must move to margin 8 → shift +28.
+    expect(computeShiftY({ top: -20, bottom: 260 }, 1000)).toBe(
+      VIEWPORT_MARGIN - -20,
+    );
+  });
+
+  it("prefers the top edge when the panel is taller than the viewport", () => {
+    // Panel 700px tall in a 600px viewport (margin 8): bottom-edge correction
+    // would move it to -208, pushing top to -208; the top-edge correction then
+    // wins and pins top to margin 8 (head visible, tail out of reach). #652
+    // S-002 — locks the boundary against the future max-height path.
+    expect(computeShiftY({ top: 200, bottom: 900 }, 600)).toBe(
+      VIEWPORT_MARGIN - 200,
     );
   });
 });
@@ -280,33 +310,212 @@ describe("Popover (dialog mode)", () => {
     expect(listbox?.getAttribute("aria-multiselectable")).toBe(expected);
   });
 
-  it("applies a translateX clamp when the panel overflows the viewport", () => {
+  it("applies a horizontal clamp only (shiftX) when the panel overflows the right edge", () => {
+    // happy-dom has no layout, so getBoundingClientRect returns all-zero; we
+    // stub it on Element.prototype (the only knob available — happy-dom can't
+    // set a layout rect per element), which makes every element (trigger /
+    // container / panel) report the same rect. The clamp only reads the panel
+    // rect, so a single shared rect is sufficient here.
+    //
+    // Axis isolation: vertical is inside [8, 760] (viewport 768, margin 8) so
+    // computeShiftY === 0, while horizontal overflows the right edge.
+    // computeShiftX({left:800,right:1080}, 1000): right 1080 > 992 →
+    // shift = 1000 - 8 - 1080 = -88; left+shift = 712 ≥ 8 → shiftX = -88.
     const rectStub = vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockReturnValue({
         left: 800,
         right: 1080,
-        top: 0,
-        bottom: 0,
+        top: 100,
+        bottom: 380,
         width: 280,
-        height: 0,
+        height: 280,
         x: 800,
-        y: 0,
+        y: 100,
         toJSON: () => ({}),
       } as DOMRect);
     const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
     Object.defineProperty(window, "innerWidth", {
       value: 1000,
       configurable: true,
       writable: true,
     });
+    Object.defineProperty(window, "innerHeight", {
+      value: 768,
+      configurable: true,
+      writable: true,
+    });
     try {
       render({ clampToViewport: true, initialOpen: true });
-      expect(panel()?.style.transform).toContain("translateX(");
+      // #652 (C): two-arg `translate(x, y)`. y must be exactly 0 here — if
+      // computeShiftX is broken the x changes; if computeShiftY leaks the y
+      // becomes non-zero. Full-value equality fails on either regression.
+      expect(panel()?.style.transform).toBe("translate(-88px, 0px)");
     } finally {
       rectStub.mockRestore();
       Object.defineProperty(window, "innerWidth", {
         value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("applies a vertical clamp only (shiftY) when the panel overflows the bottom edge", () => {
+    // Same Element.prototype stub rationale as above (shared rect, panel-only
+    // read). Axis isolation: horizontal is inside [8, 992] (viewport 1000,
+    // margin 8) so computeShiftX === 0, while vertical overflows the bottom.
+    // computeShiftY({top:500,bottom:760}, 633): bottom 760 > 625 →
+    // shift = 633 - 8 - 760 = -135; top+shift = 365 ≥ 8 → shiftY = -135.
+    const rectStub = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left: 100,
+        right: 380,
+        top: 500,
+        bottom: 760,
+        width: 280,
+        height: 260,
+        x: 100,
+        y: 500,
+        toJSON: () => ({}),
+      } as DOMRect);
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      value: 1000,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 633,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      render({ clampToViewport: true, initialOpen: true });
+      // x must be exactly 0 here (no horizontal overflow); y is the negative
+      // bottom-edge correction. Full-value equality fails if computeShiftY is
+      // broken or if the translate args are swapped.
+      expect(panel()?.style.transform).toBe("translate(0px, -135px)");
+    } finally {
+      rectStub.mockRestore();
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("composes both axes into a single translate(x, y) when the panel overflows both edges", () => {
+    // Same Element.prototype stub rationale (shared rect, panel-only read).
+    // Both axes overflow with distinct absolute values (|x|=88, |y|=135) so an
+    // argument-order swap (translate(y, x)) is also caught.
+    // computeShiftX({left:800,right:1080}, 1000) = -88;
+    // computeShiftY({top:500,bottom:760}, 633) = -135.
+    const rectStub = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left: 800,
+        right: 1080,
+        top: 500,
+        bottom: 760,
+        width: 280,
+        height: 260,
+        x: 800,
+        y: 500,
+        toJSON: () => ({}),
+      } as DOMRect);
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      value: 1000,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 633,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      render({ clampToViewport: true, initialOpen: true });
+      expect(panel()?.style.transform).toBe("translate(-88px, -135px)");
+    } finally {
+      rectStub.mockRestore();
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("skips the clamp below the sheet breakpoint (AC-4)", () => {
+    // A rect that overflows both edges, but at < 640px width the sheet panel is
+    // a bottom-pinned `max-sm:` sheet — the clamp must be skipped entirely so
+    // neither shiftX nor shiftY lands on the transform. Same Element.prototype
+    // stub rationale as the clamp tests (shared rect, panel-only read); here we
+    // also assert it is never called, which is what proves the *computation*
+    // (not just the result) was skipped — the essence of AC-4's early return.
+    const rectStub = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left: 0,
+        right: 480,
+        top: 500,
+        bottom: 760,
+        width: 480,
+        height: 260,
+        x: 0,
+        y: 500,
+        toJSON: () => ({}),
+      } as DOMRect);
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      value: 500,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 633,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      render({ clampToViewport: true, initialOpen: true });
+      // panelStyle is undefined when both shifts are 0, so style.transform is
+      // the empty string — assert it strictly (not toBeFalsy) and confirm the
+      // overflow rect was never measured.
+      expect(panel()?.style.transform).toBe("");
+      expect(rectStub).not.toHaveBeenCalled();
+    } finally {
+      rectStub.mockRestore();
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
         configurable: true,
         writable: true,
       });

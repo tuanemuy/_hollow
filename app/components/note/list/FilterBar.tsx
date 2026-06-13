@@ -578,11 +578,11 @@ type DatePopoverProps = Readonly<{
 // Built on the shared `popoverSheetPanel` (#588 ADR-003): below `sm` it
 // becomes a full-width bottom-anchored sheet (`max-sm:left-0 max-sm:right-0
 // max-sm:w-auto`, supplied by the shared constant), so the panel never overflows
-// the narrow viewport and the `clampToViewport` shiftX is unnecessary.
+// the narrow viewport and the `clampToViewport` shift (both axes) is unnecessary.
 //
 // At `sm` and up it is a floating card: `left-0` anchors the panel to the
 // trigger's left edge and `<Popover>`'s `clampToViewport` nudges it into the
-// viewport (#476). The fixed `sm:w-[280px]` (rather than `w-max`) keeps the
+// viewport on both axes (#476). The fixed `sm:w-[280px]` (rather than `w-max`) keeps the
 // native `<input type="date">` children from ballooning the panel to their
 // huge intrinsic `max-content` width; `sm:max-w` still caps it.
 //

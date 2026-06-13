@@ -369,7 +369,7 @@ export const menuPanel =
  * collapses to the trigger's width.
  * Stays non-modal (no backdrop) — `usePopover` keeps its dismiss-on-outside
  * behaviour unchanged. When a consumer goes full-width the `clampToViewport`
- * horizontal shift is unnecessary.
+ * shift (both axes) is unnecessary.
  *
  * This is the common base for the narrow-sheet treatment; the domain-owned
  * `FILTER_POPOVER_PANEL` (FilterBar) replacement onto this constant is #588.

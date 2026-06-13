@@ -16,7 +16,7 @@ import {
  *
  * Below `sm` the panel is intended to become a full-width bottom-anchored
  * sheet (see `popoverSheetPanel` in `common/styles.ts`); when full-width the
- * `clampToViewport` horizontal shift is unnecessary.
+ * `clampToViewport` shift (both axes) is unnecessary.
  *
  * Non-modal by design: no focus trap. The trigger is rendered by the caller
  * via the `trigger` render prop (it receives the `ref`, the
@@ -32,7 +32,7 @@ export type PopoverProps = Readonly<{
   label: string;
   /** Panel chrome / position / width utilities (caller-owned). */
   panelClassName: string;
-  /** Opt-in horizontal viewport clamp (FilterBar). */
+  /** Opt-in horizontal and vertical viewport clamp (FilterBar). */
   clampToViewport?: boolean | undefined;
   /**
    * Key handler for the `role="menu"` / `role="listbox"` panel
