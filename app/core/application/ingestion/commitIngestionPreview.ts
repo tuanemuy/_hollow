@@ -170,10 +170,17 @@ export async function commitIngestionPreview({
               mods.frontMatter as Parameters<typeof FrontMatterVO.create>[0],
             );
 
-      const mergedTagNames = [
-        ...explicitTagNames,
-        ...preview.suggestedTagNames,
-      ];
+      // The form's tag list is authoritative: it is seeded from
+      // `preview.suggestedTagNames` on the client, so a submitted
+      // `tagNames` (empty array included) already reflects every add /
+      // removal the user made. Only fall back to the preview's suggestion
+      // when no `tagNames` was supplied at all (mirrors how `title` /
+      // `frontMatter` / `directoryId` fall back above). Re-merging the
+      // suggestions here would resurrect tags the user deleted (#679).
+      const declaredTagNames =
+        mods.tagNames === undefined
+          ? preview.suggestedTagNames
+          : explicitTagNames;
 
       // Determine the destination note id up front so it can be excluded
       // from internal-link title resolution (self-link, ADR-005). The
@@ -209,7 +216,7 @@ export async function commitIngestionPreview({
         {
           ownerId: actor,
           rawContent: preview.contentHtml as string,
-          declaredTagNames: mergedTagNames,
+          declaredTagNames,
           declaredInternalLinkRefs: [
             ...declaredLinks,
             ...preview.internalLinkRefs,
