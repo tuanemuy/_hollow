@@ -12,9 +12,18 @@
  */
 
 import { useRouter } from "@tanstack/react-router";
-import { Component, type ReactNode, useTransition } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useRef,
+  useTransition,
+} from "react";
 import { appShellInvalidate, routerInvalidate } from "./routerInvalidate";
 import { Spinner } from "./Spinner";
+import { reportSectionFailure } from "./sectionFailureReport";
 import { pillBtn } from "./styles";
 
 type Scope = "page" | "shell";
@@ -46,6 +55,13 @@ type Props = Readonly<{
 type BoundaryProps = Readonly<{
   fallback: (reset: () => void) => ReactNode;
   resetKey?: string | number;
+  /**
+   * Side-effect-only callback invoked from `componentDidCatch`. Kept
+   * observation-agnostic so the class never knows about section / scope /
+   * path / reporting; the function component injects the fire-and-forget
+   * reporter.
+   */
+  onCatch?: () => void;
   children: ReactNode;
 }>;
 
@@ -69,6 +85,14 @@ class Boundary extends Component<BoundaryProps, BoundaryState> {
       return { hasError: false, prevResetKey: props.resetKey };
     }
     return null;
+  }
+
+  // `error` / `info` are received but deliberately NOT forwarded: in
+  // production they are redacted by React, and sending them would leak
+  // detail. Reporting is fire-and-forget inside `onCatch` and never blocks
+  // render.
+  override componentDidCatch(_error: Error, _info: ErrorInfo): void {
+    this.props.onCatch?.();
   }
 
   reset = (): void => {
@@ -131,9 +155,42 @@ export function SectionErrorBoundary({
   fallbackHeading,
   children,
 }: Props) {
+  const report = useServerFn(reportSectionFailure);
+  // `count` is the boundary instance's cumulative catch count (incremented
+  // on every catch, even when the send is deduped) — NOT the number of
+  // actual sends.
+  const catchCount = useRef(0);
+  // The last reported `section` + `resetKey` pair; identical consecutive
+  // catches (StrictMode double-mount, retry-then-rethrow) are rolled up to
+  // a single send. Independent of the `count` increment above.
+  const lastReportedKey = useRef<string | undefined>(undefined);
+
+  const onCatch = useCallback(() => {
+    catchCount.current += 1;
+    // `JSON.stringify` over the tuple avoids cross-type / delimiter
+    // collisions a plain string join would have (e.g. resetKey `12` vs
+    // `"12"`, or a `section` containing the separator).
+    const dedupeKey = JSON.stringify([section, resetKey ?? null]);
+    if (lastReportedKey.current === dedupeKey) return;
+    lastReportedKey.current = dedupeKey;
+    // `scope` is default-resolved here so undefined never reaches the
+    // `z.enum` validator through the injection path. `section` / `path` are
+    // clamped to the schema's max length so an over-long input is reported
+    // (truncated) rather than silently dropped by the `validateInput` reject
+    // in this fire-and-forget path.
+    const payload = {
+      section: section.slice(0, 100),
+      scope,
+      path: window.location.pathname.slice(0, 2048),
+      count: catchCount.current,
+    };
+    void report({ data: payload }).catch(() => {});
+  }, [section, scope, resetKey, report]);
+
   return (
     <Boundary
       {...(resetKey !== undefined ? { resetKey } : {})}
+      onCatch={onCatch}
       fallback={(reset) => (
         <>
           {fallbackHeading}

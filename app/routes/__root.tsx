@@ -24,6 +24,14 @@ import "@/components/auth/PasswordResetRequestForm/action";
 import "@/components/auth/SignUpForm/action";
 import "@/components/auth/VerifyEmail/action";
 import "@/components/public/ShareLinkGate/action";
+// `reportSectionFailure` (Issue #647) is reached only through the
+// `"use client"` `SectionErrorBoundary` chain, which the RSC build does not
+// traverse statically (same #718 trap as `logOutAction`). `SectionErrorBoundary`
+// is rendered from authenticated (`_app/*`), admin (`admin/*`) and public note
+// (`u/*`, `notes/public/*`) routes alike, so it is registered here in the
+// all-routes root server graph to cover every reachable route without leaving
+// a gap that would 500 only on the unregistered route.
+import "@/components/common/sectionFailureReport";
 
 export const loadAppContext = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])

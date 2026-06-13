@@ -3,7 +3,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SectionErrorBoundary } from "../SectionErrorBoundary";
+import {
+  serverFnChainStub,
+  useServerFnRouter,
+} from "@/components/_test-utils/serverFnMock";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -15,12 +18,29 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate }),
 }));
 
+const reportMock = vi.fn(async (_args?: unknown) => ({ ok: true }) as const);
+
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: useServerFnRouter([[reportMock, reportMock]], reportMock),
+  createMiddleware: () => serverFnChainStub(),
+  createServerFn: () => serverFnChainStub(),
+}));
+
+vi.mock("../sectionFailureReport", () => ({
+  reportSectionFailure: reportMock,
+}));
+
+const { SectionErrorBoundary } = await import("../SectionErrorBoundary");
+
 let container: HTMLDivElement;
 let root: Root;
 let consoleError: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   invalidate.mockClear();
+  reportMock.mockClear();
+  reportMock.mockResolvedValue({ ok: true });
+  window.history.replaceState(null, "", "/notes");
   // React logs boundary-caught errors; keep test output clean.
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   container = document.createElement("div");
@@ -142,7 +162,7 @@ describe("SectionErrorBoundary", () => {
     expect(opts.filter({ routeId: "/_app/" })).toBe(false);
   });
 
-  it("clears the error state when resetKey changes (#636 FE-W-001)", () => {
+  it("clears the error state when resetKey changes", () => {
     shouldThrow = true;
     renderBoundary(undefined, "q=a");
     expect(getAlert()).toBeTruthy();
@@ -166,7 +186,7 @@ describe("SectionErrorBoundary", () => {
     );
   });
 
-  it("renders the pending spinner as decorative during retry (#636 TS-W-003)", async () => {
+  it("renders the pending spinner as decorative during retry", async () => {
     shouldThrow = true;
     let resolveInvalidate: (() => void) | undefined;
     invalidate.mockImplementationOnce(
@@ -202,6 +222,138 @@ describe("SectionErrorBoundary", () => {
     });
 
     // The boundary resets but the child throws again, so the fallback stays.
+    expect(getAlert().textContent).toContain(
+      "ノート一覧を読み込めませんでした",
+    );
+  });
+
+  it("reports a section failure once with only the allowed keys when a child throws", () => {
+    shouldThrow = true;
+    window.history.replaceState(null, "", "/notes/abc");
+    renderBoundary();
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (reportMock.mock.calls[0]?.[0] as { data: unknown }).data;
+    // Negative assertion: only the four allowed keys, no redacted error
+    // detail leaks into the report.
+    expect(payload).toEqual({
+      section: "ノート一覧",
+      scope: "page",
+      path: "/notes/abc",
+      count: 1,
+    });
+    expect(Object.keys(payload as object).sort()).toEqual([
+      "count",
+      "path",
+      "scope",
+      "section",
+    ]);
+    expect(payload).not.toHaveProperty("message");
+    expect(payload).not.toHaveProperty("stack");
+    expect(payload).not.toHaveProperty("error");
+  });
+
+  it('defaults scope to "page" in the report when scope is unspecified', () => {
+    shouldThrow = true;
+    renderBoundary();
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { scope: string } }
+    ).data;
+    expect(payload.scope).toBe("page");
+  });
+
+  it("increments count on the next catch when the boundary instance catches again", () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(
+      (reportMock.mock.calls[0]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(1);
+
+    // A new resetKey clears the error state, the child throws again →
+    // second catch, second send, count incremented.
+    renderBoundary(undefined, "q=b");
+    expect(reportMock).toHaveBeenCalledTimes(2);
+    expect(
+      (reportMock.mock.calls[1]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(2);
+  });
+
+  it("rolls up a retry-then-rethrow under the same resetKey to one send while count still increments", async () => {
+    shouldThrow = true;
+    renderBoundary(undefined, "q=a");
+    // First catch → sent, count 1.
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    expect(
+      (reportMock.mock.calls[0]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(1);
+
+    // Retry resets hasError → the child remounts and throws again under the
+    // SAME resetKey. This exercises the real second `componentDidCatch`
+    // (the bare re-render path keeps the fallback and never re-catches).
+    // The send is deduped (lastReportedKey unchanged) so reportMock stays at
+    // 1, but the internal catch counter still advances to 2.
+    invalidate.mockRejectedValueOnce(new Error("offline"));
+    await act(async () => {
+      getRetryButton().click();
+    });
+    expect(getAlert().textContent).toContain(
+      "ノート一覧を読み込めませんでした",
+    );
+    expect(reportMock).toHaveBeenCalledTimes(1);
+
+    // Changing the resetKey breaks dedup and forces a send. Its `count` is 3,
+    // proving the deduped second catch above was still counted (1 → 2 deduped
+    // → 3 sent), i.e. count is a catch counter, not a send counter.
+    renderBoundary(undefined, "q=b");
+    expect(reportMock).toHaveBeenCalledTimes(2);
+    expect(
+      (reportMock.mock.calls[1]?.[0] as { data: { count: number } }).data.count,
+    ).toBe(3);
+  });
+
+  it("clamps an over-long section to exactly the schema max (100) in the report payload", () => {
+    shouldThrow = true;
+    const longSection = "あ".repeat(150);
+    act(() => {
+      root.render(
+        <SectionErrorBoundary section={longSection}>
+          <Child />
+        </SectionErrorBoundary>,
+      );
+    });
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { section: string } }
+    ).data;
+    // Exactly 100, not 99 or 101: a `.slice(0, 99)` / off-by-one mutation
+    // must fail here, and the truncated prefix must match the input.
+    expect(payload.section).toHaveLength(100);
+    expect(payload.section).toBe(longSection.slice(0, 100));
+  });
+
+  it("clamps an over-long path to exactly the schema max (2048) in the report payload", () => {
+    shouldThrow = true;
+    const longPath = `/${"a".repeat(3000)}`;
+    window.history.replaceState(null, "", longPath);
+    renderBoundary();
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { path: string } }
+    ).data;
+    // Exactly 2048: a `.slice(0, 2047)` / off-by-one mutation must fail here,
+    // and the truncated prefix must match the actual pathname.
+    expect(payload.path).toHaveLength(2048);
+    expect(payload.path).toBe(window.location.pathname.slice(0, 2048));
+  });
+
+  it("keeps the fallback UI intact when the report send rejects", () => {
+    shouldThrow = true;
+    reportMock.mockRejectedValueOnce(new Error("report sink down"));
+    renderBoundary();
+
     expect(getAlert().textContent).toContain(
       "ノート一覧を読み込めませんでした",
     );
