@@ -33,7 +33,7 @@ export function SavedViewsListPage({
   userId: string;
 }) {
   return (
-    <main className="px-6 py-8 pb-20 mx-auto w-full max-w-[1100px] lg:px-10 lg:py-12 xl:px-16 xl:py-16 max-sm:px-4 max-sm:py-6 max-sm:pb-16">
+    <main className="px-6 py-8 pb-20 mx-auto w-full max-w-[var(--container-max)] lg:px-10 lg:py-12 xl:px-16 xl:py-16 max-sm:px-4 max-sm:py-6 max-sm:pb-16">
       <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
         <div>
           <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-2">

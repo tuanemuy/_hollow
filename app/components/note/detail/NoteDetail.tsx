@@ -122,7 +122,7 @@ export async function NoteDetailContent({
   const publicNoteUrl = `${appUrl.replace(/\/$/, "")}/u/${user.username}/${note.slug}`;
 
   return (
-    <article className="max-w-[760px] mx-auto">
+    <article>
       <header>
         <NoteBreadcrumb segments={directorySegments} noteTitle={note.title} />
         <h1 className="text-3xl font-regular tracking-tightest leading-tight text-ink mb-[10px] [overflow-wrap:anywhere]">

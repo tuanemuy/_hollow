@@ -38,7 +38,7 @@ export async function NoteRevisionDetail({
   } catch (e) {
     if (isNotFoundError(e)) {
       return (
-        <article className="max-w-[760px] mx-auto" role="alert">
+        <article className="max-w-[var(--content-max)] mx-auto" role="alert">
           <h1 className="text-2xl font-regular tracking-tightest leading-tight text-ink mb-2">
             過去版が見つかりません
           </h1>
@@ -54,7 +54,7 @@ export async function NoteRevisionDetail({
   const { revision, renderedContentHtml, note } = result;
 
   return (
-    <article className="max-w-[760px] mx-auto">
+    <article className="max-w-[var(--content-max)] mx-auto">
       <header className="mb-6">
         <p className="text-sm text-ink-secondary mb-2">過去版</p>
         <h1 className="text-2xl font-regular tracking-tightest leading-tight text-ink mb-2 [overflow-wrap:anywhere]">
