@@ -4,14 +4,14 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Popover } from "../Popover";
-import { computeShiftX, VIEWPORT_MARGIN } from "../usePopover";
+import { computeShiftX, computeShiftY, VIEWPORT_MARGIN } from "../usePopover";
 
 /**
- * Issue #467: locks the first-layer `<Popover>` dual-mode primitive — dialog
- * role / ARIA wiring, dismiss (Escape / outside / focus-out), the `close`
- * render-prop callback that restores focus to the trigger, and the horizontal
- * viewport clamp (`shiftX`, exercised as a pure function + one DOM stub case
- * because happy-dom has no layout).
+ * Issue #467 / #652: locks the first-layer `<Popover>` dual-mode primitive —
+ * dialog role / ARIA wiring, dismiss (Escape / outside / focus-out), the `close`
+ * render-prop callback that restores focus to the trigger, and the viewport
+ * clamp (`shiftX` horizontal + `shiftY` vertical, exercised as pure functions +
+ * DOM stub cases because happy-dom has no layout).
  */
 
 (
@@ -34,6 +34,36 @@ describe("computeShiftX", () => {
     // left -20 → must move to margin 8 → shift +28.
     expect(computeShiftX({ left: -20, right: 260 }, 1000)).toBe(
       VIEWPORT_MARGIN - -20,
+    );
+  });
+});
+
+describe("computeShiftY", () => {
+  it("returns 0 when the panel fits inside the viewport", () => {
+    expect(computeShiftY({ top: 100, bottom: 380 }, 1000)).toBe(0);
+  });
+
+  it("shifts up when the panel overflows the bottom edge", () => {
+    // bottom 1000 in a 1000-tall viewport with margin 8 → shift -8.
+    expect(computeShiftY({ top: 720, bottom: 1000 }, 1000)).toBe(
+      -VIEWPORT_MARGIN,
+    );
+  });
+
+  it("shifts down when the panel overflows the top edge", () => {
+    // top -20 → must move to margin 8 → shift +28.
+    expect(computeShiftY({ top: -20, bottom: 260 }, 1000)).toBe(
+      VIEWPORT_MARGIN - -20,
+    );
+  });
+
+  it("prefers the top edge when the panel is taller than the viewport", () => {
+    // Panel 700px tall in a 600px viewport (margin 8): bottom-edge correction
+    // would move it to -208, pushing top to -208; the top-edge correction then
+    // wins and pins top to margin 8 (head visible, tail out of reach). #652
+    // S-002 — locks the boundary against the future max-height path.
+    expect(computeShiftY({ top: 200, bottom: 900 }, 600)).toBe(
+      VIEWPORT_MARGIN - 200,
     );
   });
 });
@@ -280,7 +310,7 @@ describe("Popover (dialog mode)", () => {
     expect(listbox?.getAttribute("aria-multiselectable")).toBe(expected);
   });
 
-  it("applies a translateX clamp when the panel overflows the viewport", () => {
+  it("applies a horizontal clamp when the panel overflows the viewport", () => {
     const rectStub = vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockReturnValue({
@@ -302,11 +332,104 @@ describe("Popover (dialog mode)", () => {
     });
     try {
       render({ clampToViewport: true, initialOpen: true });
-      expect(panel()?.style.transform).toContain("translateX(");
+      // #652 (C): the transform is now the two-arg `translate(x, y)` (here y=0),
+      // so the assertion matches the combined form rather than `translateX(`.
+      expect(panel()?.style.transform).toContain("translate(");
     } finally {
       rectStub.mockRestore();
       Object.defineProperty(window, "innerWidth", {
         value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("applies a vertical clamp when the panel overflows the bottom edge", () => {
+    const rectStub = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left: 0,
+        right: 280,
+        top: 500,
+        bottom: 760,
+        width: 280,
+        height: 260,
+        x: 0,
+        y: 500,
+        toJSON: () => ({}),
+      } as DOMRect);
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      value: 1000,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 633,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      render({ clampToViewport: true, initialOpen: true });
+      expect(panel()?.style.transform).toContain("translate(");
+    } finally {
+      rectStub.mockRestore();
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it("skips the clamp below the sheet breakpoint (AC-4)", () => {
+    // A rect that overflows both edges, but at < 640px width the sheet panel is
+    // a bottom-pinned `max-sm:` sheet — the clamp must be skipped entirely so
+    // neither shiftX nor shiftY lands on the transform.
+    const rectStub = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left: 0,
+        right: 480,
+        top: 500,
+        bottom: 760,
+        width: 480,
+        height: 260,
+        x: 0,
+        y: 500,
+        toJSON: () => ({}),
+      } as DOMRect);
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", {
+      value: 500,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 633,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      render({ clampToViewport: true, initialOpen: true });
+      expect(panel()?.style.transform).toBeFalsy();
+    } finally {
+      rectStub.mockRestore();
+      Object.defineProperty(window, "innerWidth", {
+        value: innerWidth,
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        value: innerHeight,
         configurable: true,
         writable: true,
       });
