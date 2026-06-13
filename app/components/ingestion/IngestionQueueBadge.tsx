@@ -12,9 +12,11 @@ const BADGE_CHIP =
  * Live count of the actor's unprocessed (pending / processing / previewing)
  * ingestion jobs for the header badge. Re-fetches on mount, on visibility
  * restore, and on `notifyIngestionQueueChanged()` — no standing poll
- * (`.issue/538/adr.md` ADR-002). A fetch failure resolves to 0 — even when a
- * previous fetch succeeded — so the badge silently disappears instead of
- * blocking the CTA or showing a stale count.
+ * (`.issue/538/adr.md` ADR-002). A fetch failure leaves the current count
+ * untouched: a transient error (network blip, server restart) during a
+ * notify / visibility refresh must not flash the badge away from a count
+ * that was correct. The initial state is 0, so a first-mount failure keeps
+ * the badge hidden until the first successful fetch.
  */
 export function useIngestionQueueCount(): number {
   const getCount = useServerFn(getIngestionQueueCountFn);
@@ -35,7 +37,8 @@ export function useIngestionQueueCount(): number {
           const { count: next } = await getCount();
           if (!cancelled && mySeq === seq) setCount(next);
         } catch {
-          if (!cancelled && mySeq === seq) setCount(0);
+          // Hold the previous count: a transient failure must not flash away
+          // an already-correct badge (initial state 0 keeps first-mount hidden).
         }
       })();
     };

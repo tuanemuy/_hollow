@@ -194,10 +194,10 @@ describe("IngestionQueueBadge", () => {
     expect(chip()).toBeNull();
   });
 
-  // Spec pin: a refresh failure after a prior success resets the count to 0
-  // (chip hidden) rather than keeping the stale value — "fetch failure
-  // silently disappears" applies to every fetch, not only the first.
-  it("resets the count to 0 when a refresh fails after a prior success", async () => {
+  // Spec pin: a refresh failure after a prior success holds the previous
+  // count rather than flashing the badge to 0 — a transient error must not
+  // wipe an already-correct count. Only first-mount failures stay hidden.
+  it("holds the previous count when a refresh fails after a prior success", async () => {
     getCountMock
       .mockResolvedValueOnce({ count: 3 })
       .mockRejectedValueOnce(new Error("boom"));
@@ -213,7 +213,7 @@ describe("IngestionQueueBadge", () => {
     await flush();
 
     expect(getCountMock).toHaveBeenCalledTimes(2);
-    expect(chip()).toBeNull();
+    expect(chip()?.textContent).toBe("3");
   });
 
   // Generation guard (seq/mySeq): when an earlier request resolves *after* a

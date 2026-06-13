@@ -4,6 +4,16 @@ import type { IngestionJob } from "../entity";
 import type { IngestionJobId, IngestionStatus } from "../valueObject";
 
 /**
+ * Counting options for owner-scoped status counts. See
+ * {@link IngestionJobRepository.countByOwner} for the contract, including
+ * why this speaks a multi-include `statuses` while the listing opts speak
+ * `status` / `excludeStatuses`.
+ */
+export type IngestionJobCountOpts = Readonly<{
+  statuses: readonly IngestionStatus[];
+}>;
+
+/**
  * Listing options for owner-scoped queries.
  *
  * Offset/limit-style; ingestion lists are bounded per user. Filtering by
@@ -25,16 +35,6 @@ import type { IngestionJobId, IngestionStatus } from "../valueObject";
  * - If both are omitted (or `excludeStatuses` is empty), no status
  *   filtering is applied.
  */
-/**
- * Counting options for owner-scoped status counts. See
- * {@link IngestionJobRepository.countByOwner} for the contract, including
- * why this speaks a multi-include `statuses` while the listing opts speak
- * `status` / `excludeStatuses`.
- */
-export type IngestionJobCountOpts = Readonly<{
-  statuses: readonly IngestionStatus[];
-}>;
-
 export type IngestionJobListOpts = Readonly<{
   limit: number;
   offset: number;
