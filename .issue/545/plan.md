@@ -35,7 +35,7 @@
 
 ### 含まれないもの（Phase 4 で別 Issue 化 — 新規 backend が必要）
 
-**P40 ダッシュボード情報設計（チャート / アクティビティ / 履歴 / プレビュー）**
+**P40 ダッシュボード情報設計（チャート / アクティビティ / 履歴 / プレビュー）** → Phase 4 で **#595** 起票済み
 
 - **24h チャート（アップロード数 / LLM 呼び出しの時系列 sparkline）** — 時系列メトリクス provider（hourly bucket 集計）が必要。`UsageMetricsProvider` は scalar snapshot のみ（`uploadsToday` / `llmCallsToday` は当日累計の単一値、時系列フィールドは無い。`usageMetricsProvider.ts:20-33` で確認）。
 - **「最近のアクティビティ」フィード（新規ユーザー / 大量UL / ジョブ失敗 / 設定変更 / バックアップ）** — アクティビティ / 監査ログ subsystem（イベント記録 + 取得 usecase + DTO + adapter）が必要。`app/core` 全体に `activityLog` / `auditLog` / `recentActivity` 等の provider/repository が皆無（grep で確認）。
