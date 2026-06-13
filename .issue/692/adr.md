@@ -137,3 +137,22 @@ arch-risk レビューで2点の確認が求められた。(1) InlineEditor が�
 ### Consequences
 - 良い点: 例外 CSS とトークン変更の干渉リスクを着手前に否定。レビュー視点（ダークモード）の網羅を明示。
 - トレードオフ: なし（確認結果の記録）。
+
+---
+
+## ADR-006: `spec/design/drafts/` の配色探索モックは `--shadow-focus` 同期対象外とする
+
+### Status
+Accepted
+
+### Context
+PR #719 の Frontend レビュー（W-001）で、`spec/design/drafts/draft-color-4-neutral.html` が canonical な旧値 `0 0 0 4px oklch(37.1% 0 0 / 0.28)` を define+consume しているのに新値へ同期されていない、と指摘された。AC-5 の「乖離ゼロ」趣旨に照らすと同期すべきか判断が必要になった。
+
+調査の結果、`spec/design/drafts/draft-color-*.html` は配色探索（accent の色相違い）の凍結スナップショットで、9 色（slate/gray/zinc/neutral/stone/taupe/mauve/mist/olive）それぞれが**別の accent 色** + **探索当時の `4px / alpha 0.28` フォーミュラ**を共有していることが分かった。`draft-color-4-neutral` は accent が無彩（`oklch(37.1% 0 0)`）で production と一致するため canonical 値に見えるだけで、本質は「探索当時の見た目を保持したアーカイブ」。
+
+### Decision
+`spec/design/drafts/` 配下の配色探索モックは `--shadow-focus` 細線化の同期対象に**含めない**。本Issueの同期スコープは plan AC-5 のとおり `spec/design/pages/**`（生きているデザインシステムのページモック）+ `tokens.css` SSOT + `tokens.md` に限定する。
+
+### Consequences
+- 良い点: 探索セット内の一貫性（9 色とも探索当時のリング表現）が保たれる。生きているデザインシステム（`pages/**`）の同期は完全で乖離ゼロ。
+- トレードオフ: `draft-color-4-neutral.html` の focus リングだけは旧 4px のまま残るが、これは配色探索アーカイブであり実装・出荷物の参照元ではないため実害なし。
