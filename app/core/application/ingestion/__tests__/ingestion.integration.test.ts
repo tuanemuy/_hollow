@@ -1329,6 +1329,128 @@ describe("commitIngestionPreview", () => {
       expect(error.code).toBe(IngestionErrorCode.InvalidStateForCommit);
     }
   });
+
+  // Issue #679: the form's tag list is authoritative. When the user
+  // removes a suggested tag in the edit form and commits, the supplied
+  // `tagNames` must NOT be re-merged with `preview.suggestedTagNames`,
+  // or the deleted tag resurfaces on the saved note.
+  async function tagNamesOnNote(
+    container: TestContainer,
+    noteId: string,
+  ): Promise<string[]> {
+    const rows = await container.db
+      .select({ name: schema.tags.name })
+      .from(schema.noteTags)
+      .innerJoin(schema.tags, eq(schema.noteTags.tagId, schema.tags.id))
+      .where(eq(schema.noteTags.noteId, noteId));
+    return rows.map((r) => r.name).sort();
+  }
+
+  function previewWithSuggestedTags(tagNames: readonly string[]): string {
+    return JSON.stringify({
+      title: "Preview Title",
+      contentHtml: "<p>preview body</p>",
+      suggestedDirectoryId: null,
+      suggestedDirectoryName: null,
+      frontMatter: {},
+      suggestedTagNames: tagNames,
+      internalLinkRefs: [],
+      mediaRefs: [],
+    });
+  }
+
+  it("drops a removed suggested tag: the committed note keeps only the supplied tagNames (Issue #679)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      previewJson: previewWithSuggestedTags(["alpha", "beta"]),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId,
+        // User deleted "beta" in the form; only "alpha" survives.
+        modifications: { tagNames: ["alpha"] },
+      },
+    });
+
+    expect(await tagNamesOnNote(container, noteId)).toEqual(["alpha"]);
+  });
+
+  it("commits no tags when the form clears the tag list (empty tagNames, Issue #679)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      previewJson: previewWithSuggestedTags(["alpha", "beta"]),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId,
+        modifications: { tagNames: [] },
+      },
+    });
+
+    expect(await tagNamesOnNote(container, noteId)).toEqual([]);
+  });
+
+  it("falls back to preview.suggestedTagNames when tagNames is omitted (Issue #679)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      previewJson: previewWithSuggestedTags(["alpha", "beta"]),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId,
+        modifications: {},
+      },
+    });
+
+    expect(await tagNamesOnNote(container, noteId)).toEqual(["alpha", "beta"]);
+  });
+
+  it("adds a user-supplied tag that was not in the suggestions (Issue #679)", async () => {
+    const container = getContainer();
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    await seedDirectory(container, owner);
+    const jobId = await seedIngestionJob(container, {
+      ownerId: owner,
+      status: "previewing",
+      previewJson: previewWithSuggestedTags(["alpha"]),
+    });
+
+    const { noteId } = await commitIngestionPreview({
+      container,
+      input: {
+        actorUserId: owner,
+        jobId,
+        modifications: { tagNames: ["alpha", "gamma"] },
+      },
+    });
+
+    expect(await tagNamesOnNote(container, noteId)).toEqual(["alpha", "gamma"]);
+  });
 });
 
 describe("discardIngestionPreview", () => {
