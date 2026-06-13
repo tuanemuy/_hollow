@@ -312,6 +312,43 @@ describe("SectionErrorBoundary", () => {
     ).toBe(3);
   });
 
+  it("clamps an over-long section to exactly the schema max (100) in the report payload (#647 N-004)", () => {
+    shouldThrow = true;
+    const longSection = "あ".repeat(150);
+    act(() => {
+      root.render(
+        <SectionErrorBoundary section={longSection}>
+          <Child />
+        </SectionErrorBoundary>,
+      );
+    });
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { section: string } }
+    ).data;
+    // Exactly 100, not 99 or 101: a `.slice(0, 99)` / off-by-one mutation
+    // must fail here, and the truncated prefix must match the input.
+    expect(payload.section).toHaveLength(100);
+    expect(payload.section).toBe(longSection.slice(0, 100));
+  });
+
+  it("clamps an over-long path to exactly the schema max (2048) in the report payload (#647 N-004)", () => {
+    shouldThrow = true;
+    const longPath = `/${"a".repeat(3000)}`;
+    window.history.replaceState(null, "", longPath);
+    renderBoundary();
+
+    expect(reportMock).toHaveBeenCalledTimes(1);
+    const payload = (
+      reportMock.mock.calls[0]?.[0] as { data: { path: string } }
+    ).data;
+    // Exactly 2048: a `.slice(0, 2047)` / off-by-one mutation must fail here,
+    // and the truncated prefix must match the actual pathname.
+    expect(payload.path).toHaveLength(2048);
+    expect(payload.path).toBe(window.location.pathname.slice(0, 2048));
+  });
+
   it("keeps the fallback UI intact when the report send rejects (#647 AC-6)", () => {
     shouldThrow = true;
     reportMock.mockRejectedValueOnce(new Error("report sink down"));
