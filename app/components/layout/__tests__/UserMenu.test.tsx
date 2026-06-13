@@ -30,9 +30,8 @@ vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => serverFnChainStub(),
 }));
 
-vi.mock("../action", () => ({
+vi.mock("../logOutAction", () => ({
   logOutFn: logOutMock,
-  loadDirectoryTree: vi.fn(),
 }));
 
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);

@@ -189,7 +189,8 @@ In addition to the dispatch-side secrets above, the **web** worker needs:
    pnpm infra:check-secrets:staging -- /tmp/d.json
    rm /tmp/d.json
    ```
-   Repeat for production. CI runs the same check before bulk-push and fails the deploy if missing / extra keys are detected (Issue #203).
+Repeat for production. CI runs the same check before bulk-push and fails the deploy if missing / extra keys are detected (Issue #203).
+
 5. Commit only `infra/src/secrets.ts`, the two `.json.example` updates, the two `.enc.json` updates, and any `.dev.vars.example` change. Never commit decrypted plaintext.
 
 ## Deployment

@@ -12,7 +12,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
-import { logOutFn } from "./action";
+import { logOutFn } from "./logOutAction";
 import {
   AVATAR,
   SIDEBAR_USER_CARET,
