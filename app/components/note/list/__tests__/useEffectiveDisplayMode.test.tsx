@@ -101,4 +101,23 @@ describe("useEffectiveDisplayMode", () => {
     });
     expect(currentMode()).toBe("list");
   });
+
+  // AC-3 (localStorage 不変): when the display comes from the URL, the hook
+  // must not write the URL-derived value back into localStorage. The hook is
+  // read-only — the only write point is `DisplayModeSwitch`. This guards
+  // against a future "write the effective value back" misimplementation that
+  // would persist URL-derived modes and break ADR-002.
+  it("does not write to localStorage when the URL carries a display (AC-3, read-only)", () => {
+    currentDisplay = "tile";
+    window.localStorage.setItem(KEY, "calendar");
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+    act(() => {
+      root.render(<Probe />);
+    });
+    expect(currentMode()).toBe("tile");
+    expect(setItemSpy).not.toHaveBeenCalled();
+    // The persisted value is untouched.
+    expect(window.localStorage.getItem(KEY)).toBe("calendar");
+    setItemSpy.mockRestore();
+  });
 });

@@ -15,6 +15,7 @@ import {
   resolveViewName,
   searchToViewQuery,
   selectDisplay,
+  selectDisplayRaw,
   selectionReducer,
   shouldRedirectForSavedView,
   viewQueryEquals,
@@ -628,6 +629,27 @@ describe("selectDisplay", () => {
   it("falls back to 'list' when display is undefined", () => {
     expect(selectDisplay({})).toBe("list");
     expect(selectDisplay({ display: undefined })).toBe("list");
+  });
+});
+
+// Issue #650: `selectDisplayRaw` is the counterpart of `selectDisplay`
+// without the `?? "list"` defaulting. It must return the RAW URL display
+// value and pass `undefined` through unchanged, because
+// `useEffectiveDisplayMode` and the `DisplayModeSwitch` navigate guard
+// distinguish "URL has an explicit display" from "URL has none". Pinning
+// the undefined-passthrough directly guards against accidentally adding
+// the same defaulting as `selectDisplay`, which would silently break the
+// AC-2 / AC-3 / ADR-005 separation.
+describe("selectDisplayRaw", () => {
+  it("returns the raw display mode when set", () => {
+    expect(selectDisplayRaw({ display: "tile" })).toBe("tile");
+    expect(selectDisplayRaw({ display: "calendar" })).toBe("calendar");
+    expect(selectDisplayRaw({ display: "list" })).toBe("list");
+  });
+
+  it("passes undefined through when display is absent", () => {
+    expect(selectDisplayRaw({})).toBeUndefined();
+    expect(selectDisplayRaw({ display: undefined })).toBeUndefined();
   });
 });
 

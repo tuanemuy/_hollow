@@ -151,6 +151,25 @@ describe("DisplayModeSwitch", () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
+  it("still writes to localStorage on the early-return path (Issue #650 ADR-005)", () => {
+    // The clicked mode equals the raw URL display value, so the navigate
+    // guard early-returns. `writeDisplayPreference(mode)` runs BEFORE that
+    // guard, so re-clicking the current mode still re-persists it. This pins
+    // the write-before-guard ordering against a refactor that moves the
+    // guard ahead of the write (which would drop the write on re-click).
+    currentDisplay = "tile";
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    act(() => {
+      tabByLabel("タイル").click();
+    });
+
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(DISPLAY_KEY)).toBe("tile");
+  });
+
   it("writes the selected mode to localStorage on select (Issue #650 AC-1)", () => {
     act(() => {
       root.render(<DisplayModeSwitch />);
@@ -179,6 +198,32 @@ describe("DisplayModeSwitch", () => {
     });
 
     expect(navigateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks the active tab from the effective mode: URL has no display but persisted calendar makes the calendar tab aria-selected after mount (Issue #650 ADR-005)", () => {
+    // Concern (B): the active tab follows the EFFECTIVE mode (persisted-value
+    // overlay), not the raw URL value. With no `?display=` (raw URL value
+    // undefined) but localStorage holding `calendar`, the segmented control's
+    // active tab must end up on calendar — matching what `NoteListViews`
+    // renders — so the user is not shown "list active" while the page renders
+    // calendar. This is the pair to the navigate-guard test above, which pins
+    // concern (A) on the raw URL value. A regression that wired `current` to
+    // the raw URL value (or re-added `?? "list"`) would leave list active
+    // here and this test would catch it.
+    currentDisplay = undefined;
+    window.localStorage.setItem(DISPLAY_KEY, "calendar");
+    // A single `act(render)` flushes both the commit and the mount
+    // `useEffect`, so by the time it returns `useEffectiveDisplayMode` has
+    // already applied the persisted `calendar` (the first-render `"list"`
+    // that keeps hydration parity is internal to the hook and not separately
+    // observable through the DOM after the effect runs — it is pinned by
+    // `useEffectiveDisplayMode.test.tsx` via a per-render probe).
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    expect(tabByLabel("カレンダー").getAttribute("aria-selected")).toBe("true");
+    expect(tabByLabel("リスト").getAttribute("aria-selected")).toBe("false");
   });
 
   it("forwards the calendar mode through the search function (Issue #215)", () => {

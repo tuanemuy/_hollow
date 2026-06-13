@@ -30,6 +30,10 @@ export function useEffectiveDisplayMode(): DisplayMode {
   const [persisted, setPersisted] = useState<DisplayMode | undefined>(
     undefined,
   );
+  // Read a one-time snapshot of the persisted value at mount (empty deps).
+  // Not live-synced to changes in other tabs by design: the display mode is
+  // a low-frequency, device-local preference, so a `storage` event
+  // subscription is not worth the cost.
   useEffect(() => {
     setPersisted(readDisplayPreference());
   }, []);
