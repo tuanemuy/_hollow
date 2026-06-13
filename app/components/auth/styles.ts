@@ -37,7 +37,7 @@ export const FIELD_HINT = "text-xs text-ink-tertiary";
 export const FIELD_HINT_ERROR = "text-xs text-error";
 
 export const INPUT =
-  "w-full h-11 border-0 bg-surface rounded-md px-4 text-md text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus-visible:bg-bg data-[error]:bg-error-surface data-[error]:shadow-[inset_0_0_0_1px_var(--color-error)] data-[error]:focus-visible:shadow-[inset_0_0_0_1px_var(--color-error),0_0_0_4px_oklch(37.1%_0_0_/_0.28)]";
+  "w-full h-11 border-0 bg-surface rounded-md px-4 text-md text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary hover:bg-surface-hover focus-visible:bg-bg data-[error]:bg-error-surface data-[error]:shadow-[inset_0_0_0_1px_var(--color-error)] data-[error]:focus-visible:shadow-[inset_0_0_0_1px_var(--color-error),0_0_0_2px_var(--color-error)]";
 
 export const INPUT_MONO = "font-mono";
 

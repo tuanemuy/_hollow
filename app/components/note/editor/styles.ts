@@ -9,12 +9,13 @@ import { scrollbarHidden } from "@/components/common/styles";
 
 /**
  * P12 document-style title input: borderless, large, transparent. Uses the
- * heading font and the mock's tight 1.12 line-height (`.title-input`). Focus
- * visualisation is intentionally left to the global `:focus-visible`
- * (`--shadow-focus`) — focus framing / spacing is out of scope here.
+ * heading font and the mock's tight 1.12 line-height (`.title-input`). As a
+ * "writing surface" it is caret-only: the global `:focus-visible`
+ * box ring is cancelled with `focus-visible:shadow-none` and focus is shown by
+ * the accent caret (`caret-accent`), consistent with the editor body.
  */
 export const titleInput =
-  "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-heading font-regular tracking-tightest leading-[1.12] text-ink placeholder:text-ink-tertiary";
+  "w-full bg-transparent border-0 outline-none py-1 mb-5 text-3xl font-heading font-regular tracking-tightest leading-[1.12] text-ink caret-accent placeholder:text-ink-tertiary focus-visible:shadow-none";
 
 /**
  * P12 editor topbar: mode tabs + autosave status + primary actions in one
