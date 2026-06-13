@@ -16,7 +16,7 @@ const renderRegistrationPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/admin/registration")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   head: ({ match }) =>
     internalRouteHead(match.context?.config, "登録制御", "/admin/registration"),
   loader: () => renderRegistrationPage(),

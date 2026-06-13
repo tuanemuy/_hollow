@@ -46,7 +46,7 @@ const renderHistory = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/notes/$noteId/history/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   validateSearch: (search) => noteHistorySearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   head: ({ match, params }) => {

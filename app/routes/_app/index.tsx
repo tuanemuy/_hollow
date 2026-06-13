@@ -116,7 +116,7 @@ const renderHome = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   // Unified with the rest of the routes via `schema.parse(search)`
   // (Issue #13 ADR-001 supersedes Issue #1 ADR-026). Callers using
   // `<Link to="/">` / `redirect({ to: "/" })` must pass

@@ -34,7 +34,7 @@ const renderTags = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/tags/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   validateSearch: (search) => tagListSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   head: ({ match }) => {

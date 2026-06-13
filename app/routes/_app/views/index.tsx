@@ -27,7 +27,7 @@ const viewsSearchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_app/views/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   validateSearch: (search) => viewsSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   head: ({ match }) =>

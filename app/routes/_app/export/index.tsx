@@ -16,7 +16,7 @@ const renderBulkExportPage = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/export/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   head: ({ match }) =>
     internalRouteHead(match.context?.config, "一括エクスポート", "/export"),
   loader: () => renderBulkExportPage(),

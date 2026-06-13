@@ -20,7 +20,7 @@ const renderPrivacy = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/privacy")({
-  staleTime: 60_000,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   loader: () => renderPrivacy(),
   head: ({ match }) => {
     const config = match.context?.config;

@@ -30,7 +30,7 @@ const renderUpload = createServerFn({ method: "GET" })
   });
 
 export const Route = createFileRoute("/_app/upload/")({
-  staleTime: 0,
+  staleTime: import.meta.env.DEV ? 0 : Number.POSITIVE_INFINITY,
   validateSearch: (search) => uploadSearchSchema.parse(search),
   loaderDeps: ({ search }) => search,
   head: ({ match }) => {
