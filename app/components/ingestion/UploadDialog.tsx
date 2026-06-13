@@ -118,6 +118,23 @@ export function UploadDialog({ open, onClose }: Props) {
   const inputId = useId();
   const titleId = useId();
 
+  // Focus management across view transitions (Issue #256 lineage): when a
+  // view swap unmounts the focused element, focus falls to document.body
+  // and keyboard users lose their place in the dialog. Land focus on the
+  // primary action of the `queued` result, and back on the dropzone when
+  // returning to `select` ("続けてアップロード"). The initial `select` on
+  // open is excluded — the Dialog's own initial-focus handling owns that.
+  const dropzoneRef = useRef<HTMLLabelElement>(null);
+  const queuedPrimaryRef = useRef<HTMLAnchorElement>(null);
+  const prevViewKindRef = useRef<View["kind"]>("select");
+  useEffect(() => {
+    const prev = prevViewKindRef.current;
+    prevViewKindRef.current = view.kind;
+    if (view.kind === prev) return;
+    if (view.kind === "queued") queuedPrimaryRef.current?.focus();
+    else if (view.kind === "select") dropzoneRef.current?.focus();
+  }, [view.kind]);
+
   // Flag flipped by the `open` cleanup so in-flight `submitFiles`
   // callbacks know to skip their post-await `setView`. Without this
   // a slow upload that resolves after the modal has been dismissed
@@ -140,6 +157,7 @@ export function UploadDialog({ open, onClose }: Props) {
       setMetadataPrompt("");
       setResolvedDefaults(null);
       promptsFetchedRef.current = false;
+      prevViewKindRef.current = "select";
       if (fileInputRef.current !== null) fileInputRef.current.value = "";
     }
     return () => {
@@ -182,18 +200,25 @@ export function UploadDialog({ open, onClose }: Props) {
             formData.append("file", file);
             appendOverride(formData);
             await upload({ data: formData });
-            // Refresh the `/upload` loader and the header badge even when
-            // the dialog was dismissed mid-flight — the job is enqueued
-            // either way.
-            await routerInvalidate(router);
+            // The job is enqueued at this point — notify the badge and land
+            // on the `queued` view even when the dialog was dismissed
+            // mid-flight, and never let a loader failure during invalidate
+            // masquerade as an upload failure.
             notifyIngestionQueueChanged();
-            if (cancelledRef.current) return;
-            setView({
-              kind: "queued",
-              total: 1,
-              succeeded: 1,
-              failedNames: [],
-            });
+            if (!cancelledRef.current) {
+              setView({
+                kind: "queued",
+                total: 1,
+                succeeded: 1,
+                failedNames: [],
+              });
+            }
+            try {
+              await routerInvalidate(router);
+            } catch {
+              // A leaf-loader failure must not regress the (already
+              // truthful) queued result view.
+            }
           } catch (e) {
             if (cancelledRef.current) return;
             setError(extractSerializedError(e));
@@ -227,15 +252,21 @@ export function UploadDialog({ open, onClose }: Props) {
           if (cancelledRef.current) return;
           setView({ kind: "uploading", total: list.length, done });
         }
-        await routerInvalidate(router);
         notifyIngestionQueueChanged();
-        if (cancelledRef.current) return;
-        setView({
-          kind: "queued",
-          total: list.length,
-          succeeded,
-          failedNames,
-        });
+        if (!cancelledRef.current) {
+          setView({
+            kind: "queued",
+            total: list.length,
+            succeeded,
+            failedNames,
+          });
+        }
+        try {
+          await routerInvalidate(router);
+        } catch {
+          // A leaf-loader failure must not regress the (already truthful)
+          // queued result view, nor become an unhandled rejection.
+        }
       })();
     },
     [upload, router, structurePrompt, metadataPrompt],
@@ -291,6 +322,7 @@ export function UploadDialog({ open, onClose }: Props) {
       {view.kind === "select" ? (
         <SelectView
           inputId={inputId}
+          dropzoneRef={dropzoneRef}
           fileInputRef={fileInputRef}
           isDragOver={isDragOver}
           onDragOver={() => setIsDragOver(true)}
@@ -316,6 +348,7 @@ export function UploadDialog({ open, onClose }: Props) {
           total={view.total}
           succeeded={view.succeeded}
           failedNames={view.failedNames}
+          primaryActionRef={queuedPrimaryRef}
           onUploadMore={onUploadMore}
           onClose={onClose}
         />
@@ -326,6 +359,7 @@ export function UploadDialog({ open, onClose }: Props) {
 
 function SelectView({
   inputId,
+  dropzoneRef,
   fileInputRef,
   isDragOver,
   onDragOver,
@@ -341,6 +375,7 @@ function SelectView({
   onAdvancedToggle,
 }: Readonly<{
   inputId: string;
+  dropzoneRef: React.RefObject<HTMLLabelElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   isDragOver: boolean;
   onDragOver: () => void;
@@ -362,7 +397,11 @@ function SelectView({
         画像 / 音声に対応しています。
       </p>
       <label
+        ref={dropzoneRef}
         htmlFor={inputId}
+        // Programmatic focus target only ("続けてアップロード" returns here);
+        // not in the Tab order — the nested file input owns keyboard access.
+        tabIndex={-1}
         className={DROPZONE}
         data-dragover={isDragOver ? "" : undefined}
         onDragOver={(e) => {
@@ -572,12 +611,14 @@ function QueuedView({
   total,
   succeeded,
   failedNames,
+  primaryActionRef,
   onUploadMore,
   onClose,
 }: Readonly<{
   total: number;
   succeeded: number;
   failedNames: readonly string[];
+  primaryActionRef: React.RefObject<HTMLAnchorElement | null>;
   onUploadMore: () => void;
   onClose: () => void;
 }>) {
@@ -612,7 +653,13 @@ function QueuedView({
         <button type="button" className={pillBtn} onClick={onUploadMore}>
           続けてアップロード
         </button>
-        <Link to="/upload" hash={() => ""} className={pillBtn} data-primary="">
+        <Link
+          ref={primaryActionRef}
+          to="/upload"
+          hash={() => ""}
+          className={pillBtn}
+          data-primary=""
+        >
           キュー画面を開く
         </Link>
       </div>

@@ -95,3 +95,15 @@ Accepted（実装時追記）
 ### Consequences
 - 良い点: Header は server のまま、a11y のネーム計算とチップが単一ソース。フォーム改修ゼロで編集ダイアログが成立。テストは既存インフラに乗る。
 - トレードオフ: backdrop クリックで閉じられない分、閉じる操作は明示的な UI に限られる（誤操作防止を優先）。
+
+## ADR-006: アップロード成功の提示を `routerInvalidate` から独立させる（Review 001 対応）
+
+### Context
+Review 001 [W-001] の指摘: 単一ファイル経路では upload と `routerInvalidate` が同じ `try` に入っており、invalidate 中の leaf loader 失敗が「アップロード失敗」として誤提示されていた（複数ファイル経路では逆に未処理 rejection になり `queued` ビューへ到達しない）。
+
+### Decision
+両経路とも、enqueue 成功が確定した時点で `notifyIngestionQueueChanged()` と `queued` ビュー遷移を先に行い、`routerInvalidate` は独立した `try/catch` に隔離して失敗を黙殺する。loader の再取得失敗は結果提示の真実性に影響しないため。
+
+### Consequences
+- ジョブが enqueue 済みである限り、ユーザーには常に正しい結果（queued）が提示される。
+- invalidate が失敗した場合 `/upload` のリストが古いままになり得るが、バッジ通知（notify）は発火済みで、ページ遷移時の loader 再実行で回復する。

@@ -12,8 +12,9 @@ const BADGE_CHIP =
  * Live count of the actor's unprocessed (pending / processing / previewing)
  * ingestion jobs for the header badge. Re-fetches on mount, on visibility
  * restore, and on `notifyIngestionQueueChanged()` — no standing poll
- * (`.issue/538/adr.md` ADR-002). A fetch failure resolves to 0 so the badge
- * silently disappears instead of blocking the CTA.
+ * (`.issue/538/adr.md` ADR-002). A fetch failure resolves to 0 — even when a
+ * previous fetch succeeded — so the badge silently disappears instead of
+ * blocking the CTA or showing a stale count.
  */
 export function useIngestionQueueCount(): number {
   const getCount = useServerFn(getIngestionQueueCountFn);
@@ -21,13 +22,20 @@ export function useIngestionQueueCount(): number {
 
   useEffect(() => {
     let cancelled = false;
+    // Monotonic generation counter: rapid notifies (batch upload, queue-row
+    // actions) can make an earlier response arrive after a later one — only
+    // the latest in-flight request may write, or a stale count would stick
+    // until the next notify / visibility restore.
+    let seq = 0;
     const refresh = () => {
+      seq += 1;
+      const mySeq = seq;
       void (async () => {
         try {
           const { count: next } = await getCount();
-          if (!cancelled) setCount(next);
+          if (!cancelled && mySeq === seq) setCount(next);
         } catch {
-          if (!cancelled) setCount(0);
+          if (!cancelled && mySeq === seq) setCount(0);
         }
       })();
     };

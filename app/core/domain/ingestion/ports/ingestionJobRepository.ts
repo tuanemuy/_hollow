@@ -25,6 +25,16 @@ import type { IngestionJobId, IngestionStatus } from "../valueObject";
  * - If both are omitted (or `excludeStatuses` is empty), no status
  *   filtering is applied.
  */
+/**
+ * Counting options for owner-scoped status counts. See
+ * {@link IngestionJobRepository.countByOwner} for the contract, including
+ * why this speaks a multi-include `statuses` while the listing opts speak
+ * `status` / `excludeStatuses`.
+ */
+export type IngestionJobCountOpts = Readonly<{
+  statuses: readonly IngestionStatus[];
+}>;
+
 export type IngestionJobListOpts = Readonly<{
   limit: number;
   offset: number;
@@ -73,10 +83,7 @@ export interface IngestionJobRepository
    * An empty `statuses` array means an empty status set and MUST resolve
    * to 0 without touching the database.
    */
-  countByOwner(
-    ownerId: UserId,
-    opts: { statuses: readonly IngestionStatus[] },
-  ): Promise<number>;
+  countByOwner(ownerId: UserId, opts: IngestionJobCountOpts): Promise<number>;
 
   /**
    * Admin-only read-only listing across all owners, most-recent-first.

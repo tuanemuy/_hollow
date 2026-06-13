@@ -24,6 +24,7 @@ import { isRehydrationError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { IngestionJob } from "@/core/domain/ingestion/entity";
 import type {
+  IngestionJobCountOpts,
   IngestionJobListOpts,
   IngestionJobRepository,
 } from "@/core/domain/ingestion/ports/ingestionJobRepository";
@@ -408,10 +409,7 @@ export class D1IngestionJobRepository implements IngestionJobRepository {
     });
   }
 
-  countByOwner(
-    ownerId: UserId,
-    opts: { statuses: readonly IngestionStatus[] },
-  ): Promise<number> {
+  countByOwner(ownerId: UserId, opts: IngestionJobCountOpts): Promise<number> {
     // Port contract: an empty status set is an empty result — skip the DB.
     if (opts.statuses.length === 0) return Promise.resolve(0);
     return mapDbError("Failed to count ingestion_jobs by owner", async () => {

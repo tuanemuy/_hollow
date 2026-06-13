@@ -219,6 +219,51 @@ describe("IngestionJobRow", () => {
     expect(notifyMock).not.toHaveBeenCalled();
   });
 
+  it("notifies the queue badge bus after a successful discard", async () => {
+    discardMock.mockResolvedValue(undefined);
+    await renderRow(previewingJobExistingDir);
+
+    const discardBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "破棄");
+    await act(async () => {
+      discardBtn?.click();
+    });
+    const confirmBtn = document.body
+      .querySelector<HTMLElement>('[role="alertdialog"]')
+      ?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    await act(async () => {
+      confirmBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(discardMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("notifies the queue badge bus after a successful regenerate", async () => {
+    regenerateMock.mockResolvedValue(undefined);
+    await renderRow(previewingJobExistingDir);
+
+    const regenBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "再生成");
+    expect(regenBtn).toBeDefined();
+    await act(async () => {
+      regenBtn?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(regenerateMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
   // commit パスは preview の suggested 値を server function に転送し、
   // 新規ディレクトリ作成時のみ 生 router.invalidate を呼ぶ regression guard。
   it("forwards suggestedDirectoryId as directoryId and does NOT call router.invalidate", async () => {
@@ -297,6 +342,7 @@ describe("IngestionJobRow", () => {
       data: { jobId: "job-1" },
     });
     expect(routerInvalidate).toHaveBeenCalledTimes(1);
+    expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
   // When 再試行 fails, the card does NOT invalidate the router and surfaces

@@ -56,6 +56,7 @@ afterEach(() => {
   });
   container.remove();
   resetIngestionQueueBusForTest();
+  setVisibility("visible");
 });
 
 async function flush() {
@@ -67,6 +68,20 @@ async function flush() {
 }
 
 const chip = () => document.body.querySelector("[data-queue-badge]");
+
+function setVisibility(state: "visible" | "hidden") {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => state,
+  });
+}
+
+async function dispatchVisibility(state: "visible" | "hidden") {
+  setVisibility(state);
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
 
 describe("IngestionQueueBadge", () => {
   it("shows the chip and a count-aware label when the count is positive", async () => {
@@ -114,12 +129,90 @@ describe("IngestionQueueBadge", () => {
     expect(chip()?.textContent).toBe("4");
   });
 
+  // ADR-002: visibility restore is the only background catch-up path in
+  // lieu of a standing poll, so the hidden→visible transition must re-fetch.
+  it("re-fetches and updates on visibilitychange back to visible", async () => {
+    getCountMock
+      .mockResolvedValueOnce({ count: 2 })
+      .mockResolvedValueOnce({ count: 5 });
+    act(() => {
+      root.render(<BadgeHarness />);
+    });
+    await flush();
+    expect(chip()?.textContent).toBe("2");
+
+    await dispatchVisibility("visible");
+    await flush();
+
+    expect(getCountMock).toHaveBeenCalledTimes(2);
+    expect(chip()?.textContent).toBe("5");
+  });
+
+  it("does not re-fetch on visibilitychange while hidden", async () => {
+    getCountMock.mockResolvedValue({ count: 2 });
+    act(() => {
+      root.render(<BadgeHarness />);
+    });
+    await flush();
+    expect(getCountMock).toHaveBeenCalledTimes(1);
+
+    await dispatchVisibility("hidden");
+    await flush();
+
+    expect(getCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-fetch on visibilitychange or notify after unmount", async () => {
+    getCountMock.mockResolvedValue({ count: 2 });
+    act(() => {
+      root.render(<BadgeHarness />);
+    });
+    await flush();
+    expect(getCountMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      root.unmount();
+    });
+    // Re-arm `root` so the shared afterEach unmount targets a live root.
+    root = createRoot(container);
+
+    await dispatchVisibility("visible");
+    await act(async () => {
+      notifyIngestionQueueChanged();
+    });
+    await flush();
+
+    expect(getCountMock).toHaveBeenCalledTimes(1);
+  });
+
   it("silently hides the chip when the fetch fails", async () => {
     getCountMock.mockRejectedValue(new Error("boom"));
     act(() => {
       root.render(<BadgeHarness />);
     });
     await flush();
+    expect(chip()).toBeNull();
+  });
+
+  // Spec pin: a refresh failure after a prior success resets the count to 0
+  // (chip hidden) rather than keeping the stale value — "fetch failure
+  // silently disappears" applies to every fetch, not only the first.
+  it("resets the count to 0 when a refresh fails after a prior success", async () => {
+    getCountMock
+      .mockResolvedValueOnce({ count: 3 })
+      .mockRejectedValueOnce(new Error("boom"));
+    act(() => {
+      root.render(<BadgeHarness />);
+    });
+    await flush();
+    expect(chip()?.textContent).toBe("3");
+
+    await act(async () => {
+      notifyIngestionQueueChanged();
+    });
+    await flush();
+
+    expect(getCountMock).toHaveBeenCalledTimes(2);
     expect(chip()).toBeNull();
   });
 
