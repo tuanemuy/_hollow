@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0](https://github.com/tuanemuy/hollow/compare/v0.2.3...v0.3.0) (2026-06-13)
+
+
+### Features
+
+* [#689](https://github.com/tuanemuy/hollow/issues/689) P12エディターをデザインモックに揃える（タグ行/タイトル/ディレクトリ行/本文枠線） ([#712](https://github.com/tuanemuy/hollow/issues/712)) ([03b52c8](https://github.com/tuanemuy/hollow/commit/03b52c85819c68b703d979885c834df361da2caa))
+* **editor:** [#696](https://github.com/tuanemuy/hollow/issues/696) ノート編集画面に WYSIWYG モードを追加（切替時に装飾消失の警告ダイアログ） ([#715](https://github.com/tuanemuy/hollow/issues/715)) ([c4ec365](https://github.com/tuanemuy/hollow/commit/c4ec36521d5a9a461a93c54a68c8ecd3846d8cfc))
+* **editor:** [#697](https://github.com/tuanemuy/hollow/issues/697) FrontMatterモードを廃止しメタデータを下部に常設 ([#722](https://github.com/tuanemuy/hollow/issues/722)) ([1a53a62](https://github.com/tuanemuy/hollow/commit/1a53a62eb4c0177fc73851e2d7e952b909b31a1b))
+* **ui:** 表示モードの前回値を localStorage に永続化し P10 初期表示に適用 ([#650](https://github.com/tuanemuy/hollow/issues/650)) ([#721](https://github.com/tuanemuy/hollow/issues/721)) ([4808ee3](https://github.com/tuanemuy/hollow/commit/4808ee361dae05e1f10d30d99428a69326ca1ee0))
+* ノート一覧のディレクトリ表示をチップからパンくず（現在地ナビ）に変更 ([#713](https://github.com/tuanemuy/hollow/issues/713)) ([f26d5e9](https://github.com/tuanemuy/hollow/commit/f26d5e9bbd4956acbbed88892b68dfdc8d6b1fa2))
+
+
+### Bug Fixes
+
+* **auth:** [#718](https://github.com/tuanemuy/hollow/issues/718) 本番でログアウトが500になる問題を修正（server-fn未登録） ([#720](https://github.com/tuanemuy/hollow/issues/720)) ([04ac5e1](https://github.com/tuanemuy/hollow/commit/04ac5e166d6a49003fc52988dfdd9ebc8dd9d482))
+* **ui:** フォーカス表現を caret-only 化 + グローバルリングを 2px に細線化 ([#692](https://github.com/tuanemuy/hollow/issues/692)) ([#719](https://github.com/tuanemuy/hollow/issues/719)) ([3f81c19](https://github.com/tuanemuy/hollow/commit/3f81c19a7fb0736617e1d787bd549908bfe06c98))
+* ノート詳細パンくずの起点「すべてのノート」を廃止 ([#672](https://github.com/tuanemuy/hollow/issues/672)) ([#709](https://github.com/tuanemuy/hollow/issues/709)) ([e8c9547](https://github.com/tuanemuy/hollow/commit/e8c9547ddfe0bfc2f3bc678e797e0096e9e4deac))
+* 公開プロフィールの publicNoteCount を active 母集合で算出（trashed-but-public 過大カウント解消） ([#714](https://github.com/tuanemuy/hollow/issues/714)) ([3a23ac2](https://github.com/tuanemuy/hollow/commit/3a23ac27c97ab4ff0ee8fd2e37f1c331b0c36315))
+
 ## [0.2.3](https://github.com/tuanemuy/hollow/compare/v0.2.2...v0.2.3) (2026-06-13)
 
 
