@@ -401,4 +401,33 @@
     height: auto;
     border-radius: var(--radius-lg);
   }
+
+  /*
+   * GFM tables (Issue #693). markdown-it (default preset) emits
+   * `table/thead/tbody/tr/th/td` and the sanitizer allows them, but no rule
+   * styled them — so cells rendered with no rules at all. Borders use
+   * `--color-hairline` to match the admin table design language (P47).
+   * No outer radius: with `border-collapse: collapse` a wrapper-less table
+   * can't clip collapsed cell borders cleanly, and the dangerouslySetInnerHTML
+   * body offers no element to wrap for that (or for horizontal scroll).
+   */
+  .note-detail-content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .note-detail-content th,
+  .note-detail-content td {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-hairline);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .note-detail-content thead th {
+    background: var(--color-surface-elevated);
+    color: var(--color-ink-secondary);
+    font-weight: var(--weight-medium);
+  }
 }
