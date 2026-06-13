@@ -112,7 +112,7 @@ export type EditorState = Readonly<{
   frontMatterJsonError: FrontMatterError | null;
   directoryId: string | null;
   pendingDirectoryName: string | null;
-  // Tags are stored two-layer (Issue #689 ADR-001): `tagNames` is the
+  // Tags are stored two-layer: `tagNames` is the
   // ordered, de-duplicated list of committed chips; `tagDraft` is the
   // in-progress text in the trailing borderless input. `resolveTagNames`
   // merges a non-empty draft into the committed list at submit / autosave
@@ -589,7 +589,7 @@ export function parseTagInput(raw: string): readonly string[] {
 
 /**
  * Resolve the committed tag list a submit / autosave should send,
- * folding in any non-empty in-progress `tagDraft` (Issue #689 ADR-001).
+ * folding in any non-empty in-progress `tagDraft`.
  *
  * The single source of truth for "which tags cross the wire": both
  * `NoteEditor.onSubmit` and `useAutosave`'s snapshot run through this so

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TagsInput } from "../TagsInput";
 
 /**
- * Issue #689 (#712 review W-002): the chip editor carries keyboard / IME /
+ * The chip editor carries keyboard / IME /
  * blur logic the reducer cannot exercise on its own. Locks:
  *
  * 1. Enter / comma commit a non-empty draft via `onAddTag`; an empty draft

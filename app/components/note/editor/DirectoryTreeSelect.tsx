@@ -22,8 +22,7 @@ import {
 } from "./styles";
 
 /**
- * Single-pill directory selector for the editor row (P12, Issue #689
- * ADR-003). Replaces the old two-field `variant="row"` with the mock's
+ * Single-pill directory selector for the editor row (P12): the mock's
  * `.dir-pill` trigger + `.dir-dropdown` tree.
  *
  * a11y model: WAI-ARIA combobox (search input) + sibling popup listbox.
@@ -33,7 +32,7 @@ import {
  * active option; Escape / outside-click / Tab-out close via `Popover`.
  * `useRovingMenu` (real-focus roving) is intentionally not used.
  *
- * Selection contract is unchanged: existing pick → `onSelectExisting(id)`,
+ * Selection contract: existing pick → `onSelectExisting(id)`,
  * inline new directory → `onSetPendingName(name)`. The orchestrator keeps
  * the `directoryId` XOR `pendingDirectoryName` exclusivity.
  */

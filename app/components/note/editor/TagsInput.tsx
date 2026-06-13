@@ -3,7 +3,7 @@
 import { tagChip, tagChipRemove, tagInputControl, tagsRow } from "./styles";
 
 /**
- * Tags editor for P12 (mock `.tags-row`, Issue #689 ADR-002).
+ * Tags editor for P12 (mock `.tags-row`).
  *
  * Renders the committed tags as individually-removable chips followed by
  * a trailing borderless input. The two-layer state (`tagNames` committed

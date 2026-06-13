@@ -48,11 +48,10 @@ import { DirectoryTreeSelect } from "./DirectoryTreeSelect";
  * (searchable `DirectorySelectField` + new-name input). `"row"` delegates
  * entirely to {@link DirectoryTreeSelect}: the P12 mock's single `.dir-pill`
  * trigger + tree dropdown (search, collapsible tree, selection highlight,
- * inline "新規ディレクトリを作成…"). The `"row"` and `"fieldset"` branches no
- * longer share controls — only the props contract (`onSelectExisting` /
+ * inline "新規ディレクトリを作成…"). The `"row"` and `"fieldset"` branches do
+ * not share controls — only the props contract (`onSelectExisting` /
  * `onSetPendingName` / `pendingDirectoryName` / `directoryId` / `tree` /
- * `allowExistingActions`). See `.issue/689/adr.md` ADR-003 (supersedes
- * `.issue/669/adr.md` ADR-002 for the row variant).
+ * `allowExistingActions`).
  */
 export type DirectoryPickerProps = Readonly<{
   tree: readonly FlatDirectory[];
@@ -91,10 +90,9 @@ export function DirectoryPicker({
     [tree, directoryId],
   );
 
-  // Row variant: single-pill trigger + tree dropdown (Issue #689 ADR-003).
-  // Self-contained — owns its own search / tree / dialogs — so it returns
-  // before the fieldset-only `DirectorySelectField` setup below. (Hooks
-  // above run unconditionally so hook order stays stable.)
+  // Row variant is self-contained — owns its own search / tree / dialogs — so
+  // it returns before the fieldset-only `DirectorySelectField` setup below.
+  // (Hooks above run unconditionally so hook order stays stable.)
   if (variant === "row") {
     return (
       <DirectoryTreeSelect

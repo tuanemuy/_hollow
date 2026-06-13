@@ -20,7 +20,7 @@ vi.mock("@/components/directory/DeleteDirectoryDialog", () => ({
 }));
 
 /**
- * Issue #689 (#712 review W-001): the single-pill directory selector wires
+ * The single-pill directory selector wires
  * the pure `directoryTreeModel` into a combobox + listbox. The pure model is
  * unit-tested separately; these tests lock the *wiring* the model cannot
  * reach:
@@ -40,7 +40,7 @@ vi.mock("@/components/directory/DeleteDirectoryDialog", () => ({
  * 8. Escape closes; changing the query re-anchors activeIndex to the top;
  *    `disabled` keeps the trigger inert.
  * 9. Rename action closes the popover (listbox + aria-expanded=false) before
- *    the RenameDirectoryDialog opens (arch S-004, focus-capture avoidance).
+ *    the RenameDirectoryDialog opens (focus-capture avoidance).
  * 10. A zero-match query keeps only the create option and aria-activedescendant
  *     points at it (no dangling reference / crash).
  */

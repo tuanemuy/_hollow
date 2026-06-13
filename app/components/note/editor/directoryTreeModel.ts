@@ -1,6 +1,6 @@
 /**
  * Pure tree / visibility logic for the editor's directory dropdown
- * (`DirectoryTreeSelect`, Issue #689 ADR-003).
+ * (`DirectoryTreeSelect`).
  *
  * Split out from the component so the combobox + listbox driving model
  * (the `aria-activedescendant` index must track the *visible* option
@@ -16,7 +16,7 @@ import type { FlatDirectory } from "../loaders";
  * One row the listbox renders. `kind: "directory"` rows mirror a
  * `FlatDirectory`; the synthetic `kind: "create"` row is the trailing
  * "新規ディレクトリを作成…" option, kept in the same flat list so keyboard
- * navigation reaches it and the visible count stays consistent (ADR-003).
+ * navigation reaches it and the visible count stays consistent.
  */
 export type DirectoryVisibleOption =
   | Readonly<{
