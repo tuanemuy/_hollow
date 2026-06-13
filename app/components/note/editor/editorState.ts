@@ -52,7 +52,9 @@ export type EditorMode = "html" | "frontMatter" | "wysiwyg" | "inline";
  * (Issue #233 ADR-001) and the set of mode tabs the user sees
  * (`EditorModeSwitch`):
  * - `"new"`  → starts in `wysiwyg`; tabs = `wysiwyg / frontMatter / html`
- * - `"edit"` → starts in `inline`;  tabs = `inline / frontMatter / html`
+ * - `"edit"` → starts in `inline`;  tabs = `inline / wysiwyg / frontMatter / html`
+ *   (the `wysiwyg` tab on `edit` was added by Issue #696; switching to it
+ *   is gated by a decoration-loss confirmation in `NoteEditor`).
  */
 export type EditorSurface = "new" | "edit";
 

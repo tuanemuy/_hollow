@@ -9,10 +9,14 @@ import { editorModeTabs } from "./styles";
  * - `surface === "new"`  → `wysiwyg` / `frontMatter` / `html` (no
  *   `inline` because a brand-new note has no rendered HTML to keep
  *   structurally intact).
- * - `surface === "edit"` → `inline` / `frontMatter` / `html`. The
- *   `inline` tab is labelled "ビジュアル" to mirror spec C2-4's
- *   "ビジュアル ⇄ HTML" toggle nomenclature; `wysiwyg` is reserved for
- *   the new-note surface.
+ * - `surface === "edit"` → `inline` / `wysiwyg` / `frontMatter` / `html`
+ *   (Issue #696 / spec P12 "WYSIWYG モード（新規 + 既存）"). The `inline`
+ *   tab is labelled "ビジュアル" to mirror spec C2-4's "ビジュアル ⇄ HTML"
+ *   toggle nomenclature and stays first so the default `edit` mode keeps
+ *   its tab position; `wysiwyg` follows it (Issue #696 ADR-003). The
+ *   actual switch to `wysiwyg` is gated in `NoteEditor` by a
+ *   decoration-loss confirmation when the current HTML contains tags
+ *   TipTap cannot round-trip.
  *
  * All HTML / FrontMatter / WYSIWYG modes were fully enabled by P12
  * (Issue #9), resolving the placeholder-disabled WYSIWYG state from
@@ -37,6 +41,7 @@ const TABS_NEW: readonly Tab[] = [
 
 const TABS_EDIT: readonly Tab[] = [
   { mode: "inline", label: "ビジュアル" },
+  { mode: "wysiwyg", label: "WYSIWYG" },
   { mode: "frontMatter", label: "FrontMatter" },
   { mode: "html", label: "HTML" },
 ];
