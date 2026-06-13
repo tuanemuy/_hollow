@@ -170,12 +170,26 @@ describe("PublicTopControls — +タグ cap suppression (ADR-004)", () => {
     expect(isTagAddSuppressed(8, false)).toBe(true);
   });
 
+  it("keeps suppressing once the selected count exceeds the cap (9)", () => {
+    // Pins the `>=` (not `==`) boundary: suppression must persist above the cap,
+    // not only at the exact cap value.
+    expect(isTagAddSuppressed(9, false)).toBe(true);
+  });
+
   it("keeps an already-selected option enabled at the cap (toggle-off)", () => {
     expect(isTagAddSuppressed(8, true)).toBe(false);
+  });
+
+  it("keeps an already-selected option enabled above the cap (toggle-off)", () => {
+    expect(isTagAddSuppressed(9, true)).toBe(false);
   });
 
   it("does not suppress any option below the cap", () => {
     expect(isTagAddSuppressed(7, false)).toBe(false);
     expect(isTagAddSuppressed(0, false)).toBe(false);
+  });
+
+  it("does not suppress a selected option below the cap", () => {
+    expect(isTagAddSuppressed(7, true)).toBe(false);
   });
 });

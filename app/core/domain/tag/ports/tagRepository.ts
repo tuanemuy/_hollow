@@ -97,6 +97,19 @@ export interface TagRepository extends TransactionalRepository<Tag> {
    *
    * Unlike `searchPublicByNamePrefix` (cross-owner, prefix, owner秘匿) this is
    * owner-scoped with no prefix — the public profile page's tag母集合.
+   *
+   * Owner-scope gates on `notes.owner_id`, not the tag's owner: the result is
+   * "tag names attached to *this owner's* public notes", not "tags this owner
+   * owns". `note_tags` does not constrain owner, so the predicate must live on
+   * the notes join.
+   *
+   * The public gate is intentionally visibility+status only (no
+   * `published_at IS NOT NULL`), matching `searchPublicByNamePrefix` /
+   * `getPublicNote`. `public ⇒ published_at != null` always holds structurally
+   * (every visibility transition stamps `published_at` on going public), so the
+   * extra gate would be redundant here. If a future write path can produce a
+   * `public` row with null `published_at`, add the gate to *all* visibility-only
+   * read paths together.
    */
   listPublicTagNamesByOwner(
     ownerId: UserId,

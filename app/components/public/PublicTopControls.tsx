@@ -667,7 +667,9 @@ const TAG_ADD_EMPTY = "px-2.5 py-3 text-xs text-ink-tertiary text-center";
  * When the selected count reaches `TAGS_MAX`, unselected options are disabled
  * (`aria-disabled`) so the active filter cannot overflow the transport cap and
  * trigger the route schema's `.catch(undefined)` silent全消失 (ADR-004); the
- * already-selected options stay enabled so they can be toggled off.
+ * already-selected options stay enabled so they can be toggled off. Disabled
+ * options also drop out of the roving traversal (`isDisabled`) so the keyboard
+ * never lands on a "focused but does nothing" option.
  */
 function TagAddPopover({
   tags,
@@ -694,6 +696,12 @@ function TagAddPopover({
     // The multi-select panel stays open across toggles, so the RSC re-render
     // after each filter navigation can drop focus to <body> — restore it.
     restoreFocusOnCommit: true,
+    // Cap-suppressed (aria-disabled) options stay in the DOM but must drop out
+    // of the roving traversal so the keyboard never lands on a "focused but
+    // does nothing" option (W-001). The suppression itself (no 9th selection)
+    // is preserved by the aria-disabled render + click guard below.
+    isDisabled: (index) =>
+      isTagAddSuppressed(selected.size, selected.has(tags[index])),
   });
 
   return (
@@ -710,12 +718,7 @@ function TagAddPopover({
       }}
       onMenuKeyDown={roving.onKeyDown}
       trigger={(triggerProps) => (
-        <button
-          {...triggerProps}
-          type="button"
-          aria-label="タグを追加"
-          className={CHIP}
-        >
+        <button {...triggerProps} type="button" className={CHIP}>
           <Plus
             className="size-[11px] shrink-0"
             strokeWidth={2.2}
