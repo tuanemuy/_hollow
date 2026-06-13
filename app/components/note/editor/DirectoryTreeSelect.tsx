@@ -274,7 +274,8 @@ export function DirectoryTreeSelect({
                           }}
                           type="button"
                           role="option"
-                          aria-selected={false}
+                          tabIndex={-1}
+                          aria-selected={isActive}
                           data-active={isActive || undefined}
                           className={dirTreeItemNew}
                           onMouseEnter={() => setActiveIndex(index)}
@@ -300,6 +301,7 @@ export function DirectoryTreeSelect({
                         // affordance for browsing.
                         <button
                           type="button"
+                          tabIndex={-1}
                           aria-label={
                             option.expanded
                               ? `${option.name} を折りたたむ`
@@ -324,7 +326,8 @@ export function DirectoryTreeSelect({
                         }}
                         type="button"
                         role="option"
-                        aria-selected={isSelected}
+                        tabIndex={-1}
+                        aria-selected={isActive}
                         data-active={isActive || undefined}
                         data-selected={isSelected || undefined}
                         className={dirTreeItem}
@@ -383,6 +386,7 @@ export function DirectoryTreeSelect({
                 <div className="flex gap-2 px-1 pb-1">
                   <button
                     type="button"
+                    tabIndex={-1}
                     className={pillBtn}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => openRename(close)}
@@ -391,6 +395,7 @@ export function DirectoryTreeSelect({
                   </button>
                   <button
                     type="button"
+                    tabIndex={-1}
                     className={pillBtn}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => openDelete(close)}
