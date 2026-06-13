@@ -43,7 +43,11 @@ export type BreadcrumbSegment = Readonly<{ id: string; name: string }>;
  * Returns an empty array when `directoryId` is not present in the tree (e.g.
  * just deleted) — the caller (`FilterBar`) then renders a generic fallback
  * instead of a breadcrumb. A `visited` set guards against cyclic `parentId`
- * links, and the walk stops if an ancestor is missing from the tree.
+ * links, and the walk stops if an ancestor is missing from the tree. In both
+ * of those broken-data cases the chain never reaches the root, so the whole
+ * result is discarded (empty array) rather than rendering a partial chain that
+ * dangles off no root — keeping behavior symmetric with the absent-id case and
+ * routing the caller to the same fallback (see #710 ADR-003).
  */
 export function directoryAncestorSegments(
   flat: ReadonlyArray<FlatDirectory>,
@@ -53,12 +57,20 @@ export function directoryAncestorSegments(
   const chain: FlatDirectory[] = [];
   const visited = new Set<string>();
   let current: FlatDirectory | undefined = byId.get(directoryId);
+  let reachedRoot = false;
   while (current !== undefined && !visited.has(current.id)) {
     visited.add(current.id);
     chain.push(current);
-    current =
-      current.parentId === null ? undefined : byId.get(current.parentId);
+    if (current.parentId === null) {
+      reachedRoot = true;
+      break;
+    }
+    current = byId.get(current.parentId);
   }
+  // Broken chain (cycle / missing ancestor / unknown id) never reaches the
+  // root: degrade safely to empty so the caller falls back instead of drawing
+  // a rootless partial breadcrumb.
+  if (!reachedRoot) return [];
   return chain
     .reverse()
     .filter((d) => d.name !== "")

@@ -18,6 +18,10 @@ import type { BreadcrumbSegment } from "../directoryTree";
  * `segments` must be non-empty and root-free (the implicit `name === ""` root
  * is dropped by `directoryAncestorSegments`); the caller renders a generic
  * fallback when it cannot resolve any segment.
+ *
+ * The separate-row spacing (`mb-*`) is owned by the caller's row wrapper, not
+ * this `nav`, so the breadcrumb and the fallback chip share one spacing source
+ * and cannot drift apart (W-002).
  */
 export type DirectoryBreadcrumbProps = Readonly<{
   segments: readonly BreadcrumbSegment[];
@@ -25,7 +29,16 @@ export type DirectoryBreadcrumbProps = Readonly<{
 }>;
 
 const SEP = "inline-flex text-hairline-strong";
+// The leading folder icon signals "this is a directory location", so it carries
+// the nav's own ink tone rather than the separators' weakest hairline tone (W-003).
+const LEADING_ICON = "inline-flex text-ink-tertiary";
 const CRUMB_LINK = "text-ink-tertiary hover:text-ink transition-colors";
+// Inline clear × in the breadcrumb row. The pseudo-element extends the effective
+// tap target to ~44px below `sm` without altering layout — mirrors `filterClearX`
+// (list/styles.ts) so the breadcrumb's × meets the same mobile touch floor as the
+// chips' remove buttons (W-001).
+const CLEAR_BUTTON =
+  "ml-1 relative inline-flex items-center justify-center w-4 h-4 rounded-full text-ink-tertiary hover:text-ink hover:bg-surface max-sm:after:absolute max-sm:after:content-[''] max-sm:after:-inset-y-[14px] max-sm:after:-inset-x-[14px]";
 
 export function DirectoryBreadcrumb({
   segments,
@@ -34,9 +47,9 @@ export function DirectoryBreadcrumb({
   return (
     <nav
       aria-label="現在のディレクトリ"
-      className="flex items-center gap-1.5 text-sm text-ink-tertiary flex-wrap mb-5 [overflow-wrap:anywhere]"
+      className="flex items-center gap-1.5 text-sm text-ink-tertiary flex-wrap [overflow-wrap:anywhere]"
     >
-      <span className={SEP} aria-hidden="true">
+      <span className={LEADING_ICON} aria-hidden="true">
         <Icon icon={Folder} size={16} />
       </span>
       {segments.map((segment, index) => {
@@ -66,7 +79,7 @@ export function DirectoryBreadcrumb({
         type="button"
         aria-label="ディレクトリフィルタを解除"
         onClick={onClear}
-        className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-ink-tertiary hover:text-ink hover:bg-surface"
+        className={CLEAR_BUTTON}
       >
         ×
       </button>

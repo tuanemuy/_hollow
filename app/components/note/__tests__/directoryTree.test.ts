@@ -179,25 +179,23 @@ describe("directoryAncestorSegments", () => {
     expect(directoryAncestorSegments(flat, "missing")).toEqual([]);
   });
 
-  it("stops without looping on a cyclic parentId chain", () => {
-    // a → b → a forms a cycle; the visited set must break the walk.
+  it("degrades to empty (no rootless partial chain) on a cyclic parentId chain", () => {
+    // a → b → a forms a cycle that never reaches a root; the visited set must
+    // break the walk and the broken chain is discarded entirely (see #710
+    // ADR-003), symmetric with the absent-id case.
     const cyclic: FlatDirectory[] = [
       { id: "a", parentId: "b", name: "A", depth: 0, path: "/A" },
       { id: "b", parentId: "a", name: "B", depth: 0, path: "/B" },
     ];
-    expect(directoryAncestorSegments(cyclic, "a")).toEqual([
-      { id: "b", name: "B" },
-      { id: "a", name: "A" },
-    ]);
+    expect(directoryAncestorSegments(cyclic, "a")).toEqual([]);
   });
 
-  it("stops when an ancestor is missing from the tree", () => {
-    // c's parent "gone" is not present — the walk halts after c.
+  it("degrades to empty when an ancestor is missing from the tree", () => {
+    // c's parent "gone" is not present, so the chain never reaches a root —
+    // the partial chain is discarded rather than rendered as a breadcrumb.
     const broken: FlatDirectory[] = [
       { id: "c", parentId: "gone", name: "C", depth: 2, path: "/C" },
     ];
-    expect(directoryAncestorSegments(broken, "c")).toEqual([
-      { id: "c", name: "C" },
-    ]);
+    expect(directoryAncestorSegments(broken, "c")).toEqual([]);
   });
 });

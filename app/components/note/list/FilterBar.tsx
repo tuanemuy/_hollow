@@ -441,10 +441,13 @@ export function FilterBar({
         cannot be resolved to segments (absent from the tree / just deleted) a
         generic fallback chip is shown instead of an empty nav (AC-5). */}
       {optimisticDirectoryId !== undefined ? (
-        segments.length > 0 ? (
-          <DirectoryBreadcrumb segments={segments} onClear={clearDirectory} />
-        ) : (
-          <div className="mb-5">
+        // Both branches share the same `mb-5` row wrapper so the separate-row
+        // spacing lives in one place and only the inner content (breadcrumb nav
+        // vs. fallback chip) differs between them (W-002).
+        <div className="mb-5">
+          {segments.length > 0 ? (
+            <DirectoryBreadcrumb segments={segments} onClear={clearDirectory} />
+          ) : (
             <span data-active className={filterChip}>
               ディレクトリ
               <button
@@ -456,8 +459,8 @@ export function FilterBar({
                 ×
               </button>
             </span>
-          </div>
-        )
+          )}
+        </div>
       ) : null}
     </>
   );
