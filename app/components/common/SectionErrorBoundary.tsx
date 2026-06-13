@@ -58,8 +58,8 @@ type BoundaryProps = Readonly<{
   /**
    * Side-effect-only callback invoked from `componentDidCatch`. Kept
    * observation-agnostic so the class never knows about section / scope /
-   * path / reporting (Issue #647 arch P-001). The function component injects
-   * the fire-and-forget reporter.
+   * path / reporting; the function component injects the fire-and-forget
+   * reporter.
    */
   onCatch?: () => void;
   children: ReactNode;
@@ -89,8 +89,8 @@ class Boundary extends Component<BoundaryProps, BoundaryState> {
 
   // `error` / `info` are received but deliberately NOT forwarded: in
   // production they are redacted by React, and sending them would leak
-  // detail (Issue #647 AC-2). Reporting is fire-and-forget inside `onCatch`
-  // and never blocks render.
+  // detail. Reporting is fire-and-forget inside `onCatch` and never blocks
+  // render.
   override componentDidCatch(_error: Error, _info: ErrorInfo): void {
     this.props.onCatch?.();
   }
@@ -158,26 +158,26 @@ export function SectionErrorBoundary({
   const report = useServerFn(reportSectionFailure);
   // `count` is the boundary instance's cumulative catch count (incremented
   // on every catch, even when the send is deduped) — NOT the number of
-  // actual sends (Issue #647 arch S-002 / AC-5).
+  // actual sends.
   const catchCount = useRef(0);
   // The last reported `section` + `resetKey` pair; identical consecutive
   // catches (StrictMode double-mount, retry-then-rethrow) are rolled up to
-  // a single send (AC-5). Independent of the `count` increment above.
+  // a single send. Independent of the `count` increment above.
   const lastReportedKey = useRef<string | undefined>(undefined);
 
   const onCatch = useCallback(() => {
     catchCount.current += 1;
     // `JSON.stringify` over the tuple avoids cross-type / delimiter
     // collisions a plain string join would have (e.g. resetKey `12` vs
-    // `"12"`, or a `section` containing the separator) — Issue #647 N-002.
+    // `"12"`, or a `section` containing the separator).
     const dedupeKey = JSON.stringify([section, resetKey ?? null]);
     if (lastReportedKey.current === dedupeKey) return;
     lastReportedKey.current = dedupeKey;
     // `scope` is default-resolved here so undefined never reaches the
-    // `z.enum` validator through the injection path (arch S-004).
-    // `section` / `path` are clamped to the schema's max length so an
-    // over-long input is reported (truncated) rather than silently dropped
-    // by the `validateInput` reject in this fire-and-forget path (N-004).
+    // `z.enum` validator through the injection path. `section` / `path` are
+    // clamped to the schema's max length so an over-long input is reported
+    // (truncated) rather than silently dropped by the `validateInput` reject
+    // in this fire-and-forget path.
     const payload = {
       section: section.slice(0, 100),
       scope,

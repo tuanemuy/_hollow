@@ -162,7 +162,7 @@ describe("SectionErrorBoundary", () => {
     expect(opts.filter({ routeId: "/_app/" })).toBe(false);
   });
 
-  it("clears the error state when resetKey changes (#636 FE-W-001)", () => {
+  it("clears the error state when resetKey changes", () => {
     shouldThrow = true;
     renderBoundary(undefined, "q=a");
     expect(getAlert()).toBeTruthy();
@@ -186,7 +186,7 @@ describe("SectionErrorBoundary", () => {
     );
   });
 
-  it("renders the pending spinner as decorative during retry (#636 TS-W-003)", async () => {
+  it("renders the pending spinner as decorative during retry", async () => {
     shouldThrow = true;
     let resolveInvalidate: (() => void) | undefined;
     invalidate.mockImplementationOnce(
@@ -227,15 +227,15 @@ describe("SectionErrorBoundary", () => {
     );
   });
 
-  it("reports a section failure once with only the allowed keys when a child throws (#647 AC-1/AC-2)", () => {
+  it("reports a section failure once with only the allowed keys when a child throws", () => {
     shouldThrow = true;
     window.history.replaceState(null, "", "/notes/abc");
     renderBoundary();
 
     expect(reportMock).toHaveBeenCalledTimes(1);
     const payload = (reportMock.mock.calls[0]?.[0] as { data: unknown }).data;
-    // AC-2 negative assertion: only the four allowed keys, no redacted
-    // error detail leaks into the report.
+    // Negative assertion: only the four allowed keys, no redacted error
+    // detail leaks into the report.
     expect(payload).toEqual({
       section: "ノート一覧",
       scope: "page",
@@ -253,7 +253,7 @@ describe("SectionErrorBoundary", () => {
     expect(payload).not.toHaveProperty("error");
   });
 
-  it('defaults scope to "page" in the report when scope is unspecified (#647 arch S-004)', () => {
+  it('defaults scope to "page" in the report when scope is unspecified', () => {
     shouldThrow = true;
     renderBoundary();
     const payload = (
@@ -262,7 +262,7 @@ describe("SectionErrorBoundary", () => {
     expect(payload.scope).toBe("page");
   });
 
-  it("increments count on the next catch when the boundary instance catches again (#647 AC-5)", () => {
+  it("increments count on the next catch when the boundary instance catches again", () => {
     shouldThrow = true;
     renderBoundary(undefined, "q=a");
     expect(reportMock).toHaveBeenCalledTimes(1);
@@ -279,7 +279,7 @@ describe("SectionErrorBoundary", () => {
     ).toBe(2);
   });
 
-  it("rolls up a retry-then-rethrow under the same resetKey to one send while count still increments (#647 arch S-002)", async () => {
+  it("rolls up a retry-then-rethrow under the same resetKey to one send while count still increments", async () => {
     shouldThrow = true;
     renderBoundary(undefined, "q=a");
     // First catch → sent, count 1.
@@ -312,7 +312,7 @@ describe("SectionErrorBoundary", () => {
     ).toBe(3);
   });
 
-  it("clamps an over-long section to exactly the schema max (100) in the report payload (#647 N-004)", () => {
+  it("clamps an over-long section to exactly the schema max (100) in the report payload", () => {
     shouldThrow = true;
     const longSection = "あ".repeat(150);
     act(() => {
@@ -333,7 +333,7 @@ describe("SectionErrorBoundary", () => {
     expect(payload.section).toBe(longSection.slice(0, 100));
   });
 
-  it("clamps an over-long path to exactly the schema max (2048) in the report payload (#647 N-004)", () => {
+  it("clamps an over-long path to exactly the schema max (2048) in the report payload", () => {
     shouldThrow = true;
     const longPath = `/${"a".repeat(3000)}`;
     window.history.replaceState(null, "", longPath);
@@ -349,7 +349,7 @@ describe("SectionErrorBoundary", () => {
     expect(payload.path).toBe(window.location.pathname.slice(0, 2048));
   });
 
-  it("keeps the fallback UI intact when the report send rejects (#647 AC-6)", () => {
+  it("keeps the fallback UI intact when the report send rejects", () => {
     shouldThrow = true;
     reportMock.mockRejectedValueOnce(new Error("report sink down"));
     renderBoundary();
