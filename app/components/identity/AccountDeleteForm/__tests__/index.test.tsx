@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { UserDTO } from "@/core/application/dto/identity";
 
 /**
@@ -154,6 +155,32 @@ describe("AccountDeleteForm validation error (Issue #421 — regression guard)",
     expect(nearInputErrors[0]?.textContent).toContain(
       "ユーザー名が一致しません",
     );
+  });
+});
+
+describe("AccountDeleteForm success navigation (Issue #728)", () => {
+  it("clears the AppShell cache before navigating to / on delete success", async () => {
+    deleteAccount.mockResolvedValue(undefined);
+    render();
+    openDialog();
+    typeConfirmation("alice");
+
+    await act(async () => {
+      submit();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    // race 回避の核心: clearCache（AppShell 破棄）が navigate より先に呼ばれる。
+    expect(clearCache).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(clearCache.mock.invocationCallOrder[0]).toBeLessThan(
+      navigate.mock.invocationCallOrder[0],
+    );
+    expect(navigate).toHaveBeenCalledWith({ to: "/", search: HOME_SEARCH });
+    // 退会は未認証ランディング行きで、成功時はダイアログが閉じエラーが残らない。
+    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(0);
   });
 });
 
