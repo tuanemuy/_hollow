@@ -10,6 +10,7 @@ import {
   InstanceLimits,
   LLMConfig,
   PromptTemplate,
+  SpeechRecognitionConfig,
 } from "../valueObject";
 
 const T0 = new Date(0);
@@ -40,6 +41,14 @@ describe("InstanceSettings.default", () => {
     expect(settings.llm.apiKeySource).toBe("env");
     expect(settings.llm.apiKeyCiphertext).toBeNull();
   });
+
+  it("seeds default speech config (env-sourced, openai gpt-4o-transcribe)", () => {
+    const settings = InstanceSettings.default(T0);
+    expect(settings.speech.provider).toBe("openai");
+    expect(settings.speech.model).toBe("gpt-4o-transcribe");
+    expect(settings.speech.apiKeySource).toBe("env");
+    expect(settings.speech.apiKeyCiphertext).toBeNull();
+  });
 });
 
 describe("InstanceSettings transitions advance version and updatedAt", () => {
@@ -57,6 +66,22 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     expect(next.version).toBe(current.version + 1);
     expect(next.updatedAt.getTime()).toBe(at(5).getTime());
     expect(next.llm).toBe(llm);
+  });
+
+  it("updateSpeech bumps version by 1 and stamps updatedAt", () => {
+    const current = seed();
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "ENCRYPTED",
+    });
+    const next = InstanceSettings.updateSpeech(current, speech, at(5));
+    expect(next.version).toBe(current.version + 1);
+    expect(next.updatedAt.getTime()).toBe(at(5).getTime());
+    expect(next.speech).toBe(speech);
+    // The llm config is preserved unchanged across a speech-only update.
+    expect(next.llm).toBe(current.llm);
   });
 
   it("updatePrompt installs a per-purpose override and bumps version", () => {
@@ -407,6 +432,76 @@ describe("InstanceSettings.reconstruct", () => {
       InstanceSettings.reconstruct({
         ...row,
         llm: { ...row.llm, provider: "unknown-provider" },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isRehydrationError(error)).toBe(true);
+      expect(isBusinessRuleError(error)).toBe(false);
+    }
+  });
+
+  it("coerces an absent speech block to defaultSpeech (backward-compat for pre-speech rows)", () => {
+    // `validRow()` omits `speech` entirely — legacy rows predate the columns.
+    const settings = InstanceSettings.reconstruct(validRow());
+    expect(settings.speech.provider).toBe("openai");
+    expect(settings.speech.model).toBe("gpt-4o-transcribe");
+    expect(settings.speech.apiKeySource).toBe("env");
+    expect(settings.speech.apiKeyCiphertext).toBeNull();
+  });
+
+  it("coerces a speech block with NULL columns to defaultSpeech values", () => {
+    const settings = InstanceSettings.reconstruct({
+      ...validRow(),
+      speech: {
+        provider: null,
+        model: null,
+        apiKeySource: null,
+        apiKeyCiphertext: null,
+      },
+    });
+    expect(settings.speech.provider).toBe("openai");
+    expect(settings.speech.model).toBe("gpt-4o-transcribe");
+    expect(settings.speech.apiKeySource).toBe("env");
+    expect(settings.speech.apiKeyCiphertext).toBeNull();
+  });
+
+  it("rebuilds a fully-populated db-sourced speech block verbatim", () => {
+    const settings = InstanceSettings.reconstruct({
+      ...validRow(),
+      speech: {
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "db",
+        apiKeyCiphertext: "ENCRYPTED",
+      },
+    });
+    expect(settings.speech.apiKeySource).toBe("db");
+    expect(settings.speech.apiKeyCiphertext).toBe("ENCRYPTED");
+  });
+
+  it("falls back to the default model when speech.model is an empty string", () => {
+    const settings = InstanceSettings.reconstruct({
+      ...validRow(),
+      speech: {
+        provider: "openai",
+        model: "",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      },
+    });
+    expect(settings.speech.model).toBe("gpt-4o-transcribe");
+  });
+
+  it("translates an invalid speech provider into RehydrationError", () => {
+    try {
+      InstanceSettings.reconstruct({
+        ...validRow(),
+        speech: {
+          provider: "deepgram",
+          model: "nova-3",
+          apiKeySource: "env",
+          apiKeyCiphertext: null,
+        },
       });
       expect.fail("should have thrown");
     } catch (error) {

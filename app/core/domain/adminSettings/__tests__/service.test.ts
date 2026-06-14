@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isBusinessRuleError } from "@/core/domain/error";
 import type { SecretBox } from "../ports/secretBox";
 import { AdminSettingsService } from "../service";
-import { LLMConfig } from "../valueObject";
+import { LLMConfig, SpeechRecognitionConfig } from "../valueObject";
 
 class FakeSecretBox implements SecretBox {
   async encrypt(plain: string): Promise<string> {
@@ -152,5 +152,94 @@ describe("AdminSettingsService.assertEnvOverride", () => {
     expect(next.apiKeySource).toBe("env");
     expect(next.apiKeyCiphertext).toBeNull();
     expect(next.baseURL).toBe("https://api.groq.com/openai/v1");
+  });
+});
+
+const speechCfg = (
+  apiKeySource: "env" | "db",
+  apiKeyCiphertext: string | null,
+): SpeechRecognitionConfig =>
+  SpeechRecognitionConfig.create({
+    provider: "openai",
+    model: "gpt-4o-transcribe",
+    apiKeySource,
+    apiKeyCiphertext,
+  });
+
+describe("AdminSettingsService.decryptSpeechApiKey", () => {
+  it("returns null when apiKeySource === 'env'", async () => {
+    const cfg = speechCfg("env", null);
+    expect(
+      await AdminSettingsService.decryptSpeechApiKey(cfg, new FakeSecretBox()),
+    ).toBeNull();
+  });
+
+  it("delegates to SecretBox.decrypt when apiKeySource === 'db'", async () => {
+    const cfg = speechCfg("db", "enc(sk-speech-1)");
+    const plain = await AdminSettingsService.decryptSpeechApiKey(
+      cfg,
+      new FakeSecretBox(),
+    );
+    expect(plain).toBe("sk-speech-1");
+  });
+});
+
+describe("AdminSettingsService.assertSpeechEnvOverride", () => {
+  it("forces apiKeySource = 'env' and drops ciphertext when env.apiKey is set", () => {
+    const cfg = speechCfg("db", "ENCRYPTED");
+    const next = AdminSettingsService.assertSpeechEnvOverride(cfg, {
+      apiKey: "sk-env",
+    });
+    expect(next.apiKeySource).toBe("env");
+    expect(next.apiKeyCiphertext).toBeNull();
+    // provider / model are carried over verbatim.
+    expect(next.provider).toBe("openai");
+    expect(next.model).toBe("gpt-4o-transcribe");
+  });
+
+  it("returns the config unchanged when env.apiKey is missing and source is 'db'", () => {
+    const cfg = speechCfg("db", "ENCRYPTED");
+    const next = AdminSettingsService.assertSpeechEnvOverride(cfg, {
+      apiKey: null,
+    });
+    expect(next).toBe(cfg);
+  });
+
+  it("throws SpeechEnvOverrideMissingKey when source is 'env' but env.apiKey is missing", () => {
+    const cfg = speechCfg("env", null);
+    try {
+      AdminSettingsService.assertSpeechEnvOverride(cfg, { apiKey: null });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(
+          "admin_settings_speech_env_override_missing_key",
+        );
+      }
+    }
+  });
+
+  it("throws SpeechEnvOverrideMissingKey when source is 'env' and env.apiKey is empty string", () => {
+    const cfg = speechCfg("env", null);
+    try {
+      AdminSettingsService.assertSpeechEnvOverride(cfg, { apiKey: "" });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(
+          "admin_settings_speech_env_override_missing_key",
+        );
+      }
+    }
+  });
+
+  it("returns the config verbatim when source is already 'env' and env.apiKey is present", () => {
+    const cfg = speechCfg("env", null);
+    const next = AdminSettingsService.assertSpeechEnvOverride(cfg, {
+      apiKey: "sk-env",
+    });
+    expect(next).toBe(cfg);
   });
 });

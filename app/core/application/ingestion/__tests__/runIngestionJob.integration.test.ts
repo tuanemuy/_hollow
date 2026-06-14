@@ -34,9 +34,10 @@ import type {
   IngestionPromptPurpose,
   PromptResolver,
 } from "@/core/domain/ingestion/ports/promptResolver";
-import type {
-  SpeechRecognitionProvider,
-  SpeechTranscribeInput,
+import {
+  SpeechFailureError,
+  type SpeechRecognitionProvider,
+  type SpeechTranscribeInput,
 } from "@/core/domain/ingestion/ports/speechRecognitionProvider";
 import type {
   HtmlSanitizer,
@@ -285,6 +286,35 @@ class StubOCROk implements OCRProvider {
 class StubSpeechOk implements SpeechRecognitionProvider {
   async transcribe(_input: SpeechTranscribeInput): Promise<string> {
     return "transcribed audio";
+  }
+}
+
+// Real-provider role: catastrophic transcription failure (Issue #701 AC-6 /
+// ADR-005). `runIngestionJob` swallows `SpeechFailureError` into an empty
+// transcript and builds a degraded preview.
+class FailingSpeech implements SpeechRecognitionProvider {
+  async transcribe(_input: SpeechTranscribeInput): Promise<string> {
+    throw new SpeechFailureError("upstream transcription failed");
+  }
+}
+
+// Real-provider role: genuine silence / no detected speech — returns the
+// empty string per the port contract. Lands in the same degraded branch.
+class SilentSpeech implements SpeechRecognitionProvider {
+  async transcribe(_input: SpeechTranscribeInput): Promise<string> {
+    return "";
+  }
+}
+
+// Speech-unconfigured role: the Stub throws `BusinessRuleError(
+// 'unsupported_format')`, NOT `SpeechFailureError`, so it is NOT degraded —
+// it falls through to `markFailed` (Round 2 arch P-001 boundary).
+class UnsupportedFormatSpeech implements SpeechRecognitionProvider {
+  async transcribe(_input: SpeechTranscribeInput): Promise<string> {
+    throw new BusinessRuleError(
+      IngestionErrorCode.UnsupportedFormat,
+      "speech_recognition_not_implemented_in_mvp",
+    );
   }
 }
 
@@ -578,6 +608,108 @@ describe("runIngestionJob", () => {
       contentHtml: string;
     };
     expect(preview.contentHtml).toContain("fake structured");
+  });
+
+  it("degrades to a previewing preview with a failure note when the real provider throws SpeechFailureError (AC-6), skipping the LLM", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      llmProvider: llm,
+      speechRecognitionProvider: new FailingSpeech(),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "audio",
+      mimeType: "audio/webm",
+      originalFileName: "recording.webm",
+      bodyBytes: utf8("webm-bytes"),
+    });
+
+    await runIngestionJob({ container, input: { jobId } });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    // Reaches previewing (NOT markFailed) so the user can append + commit.
+    expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    // The degraded body carries the stable failure-note marker (ADR-005).
+    expect(preview.contentHtml).toContain('class="ingestion-failure-note"');
+    expect(preview.contentHtml).not.toContain("fake structured");
+    // The LLM must NOT be invoked with empty input — both calls bypassed,
+    // including suggestMetadata which sits on the common path (arch S-002).
+    expect(llm.structureCalls).toHaveLength(0);
+    expect(llm.metadataCalls).toHaveLength(0);
+  });
+
+  it("degrades a genuine no-speech (empty transcript) recording into the same previewing preview, skipping the LLM", async () => {
+    const baseContainer = getContainer();
+    const llm = new FakeLLMProvider();
+    const container: TestContainer = {
+      ...baseContainer,
+      llmProvider: llm,
+      speechRecognitionProvider: new SilentSpeech(),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "audio",
+      mimeType: "audio/webm",
+      originalFileName: "silence.webm",
+      bodyBytes: utf8("webm-bytes"),
+    });
+
+    await runIngestionJob({ container, input: { jobId } });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(rows[0]?.status).toBe("previewing");
+    expect(rows[0]?.errorCode).toBeNull();
+    const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      contentHtml: string;
+    };
+    expect(preview.contentHtml).toContain('class="ingestion-failure-note"');
+    expect(llm.structureCalls).toHaveLength(0);
+    expect(llm.metadataCalls).toHaveLength(0);
+  });
+
+  it("does NOT degrade when speech is unconfigured (Stub throws unsupported_format): markFailed, no previewing (boundary)", async () => {
+    const baseContainer = getContainer();
+    const container: TestContainer = {
+      ...baseContainer,
+      speechRecognitionProvider: new UnsupportedFormatSpeech(),
+    };
+    await seedInstanceSettings(container);
+    const owner = await seedUser(container);
+    const jobId = await seedPendingJob(container, {
+      ownerId: owner,
+      kind: "audio",
+      mimeType: "audio/webm",
+      originalFileName: "recording.webm",
+      bodyBytes: utf8("webm-bytes"),
+    });
+
+    await runIngestionJob({ container, input: { jobId } });
+
+    const rows = await container.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    // BusinessRuleError('unsupported_format') is NOT a SpeechFailureError, so
+    // it bypasses the degraded branch and lands in markFailed.
+    expect(rows[0]?.status).toBe("failed");
+    expect(rows[0]?.errorCode).toBe(IngestionErrorCode.UnsupportedFormat);
+    expect(rows[0]?.previewJson).toBeNull();
   });
 
   it("marks the job failed with code 'llm_failure' when the LLM throws an unavailable error", async () => {

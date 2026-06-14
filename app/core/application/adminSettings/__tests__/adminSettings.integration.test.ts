@@ -13,7 +13,14 @@ import type {
   LLMConnectionPingResult,
   LLMConnectionTester,
 } from "@/core/domain/adminSettings/ports/llmConnectionTester";
-import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
+import type {
+  SpeechConnectionPingResult,
+  SpeechConnectionTester,
+} from "@/core/domain/adminSettings/ports/speechConnectionTester";
+import type {
+  LLMConfig,
+  SpeechRecognitionConfig,
+} from "@/core/domain/adminSettings/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { User } from "@/core/domain/identity/entity";
 import {
@@ -29,11 +36,13 @@ import { resetAllPromptTemplates } from "../resetAllPromptTemplates";
 import { resetDesignTokens } from "../resetDesignTokens";
 import { resetPromptTemplate } from "../resetPromptTemplate";
 import { testLLMConnection } from "../testLLMConnection";
+import { testSpeechConnection } from "../testSpeechConnection";
 import { toggleRegistrationPolicy } from "../toggleRegistrationPolicy";
 import { updateDesignTokens } from "../updateDesignTokens";
 import { updateInstanceLimits } from "../updateInstanceLimits";
 import { updateLLMConfig } from "../updateLLMConfig";
 import { updatePromptTemplate } from "../updatePromptTemplate";
+import { updateSpeechConfig } from "../updateSpeechConfig";
 import { updateUserPromptOverride } from "../updateUserPromptOverride";
 
 // AdminSettings tables are not covered by the global `setup.ts` truncate
@@ -107,6 +116,18 @@ class StubLLMConnectionTester implements LLMConnectionTester {
   readonly calls: Array<{ cfg: LLMConfig; apiKey: string }> = [];
   constructor(private readonly result: LLMConnectionPingResult) {}
   async ping(cfg: LLMConfig, apiKey: string): Promise<LLMConnectionPingResult> {
+    this.calls.push({ cfg, apiKey });
+    return this.result;
+  }
+}
+
+class StubSpeechConnectionTester implements SpeechConnectionTester {
+  readonly calls: Array<{ cfg: SpeechRecognitionConfig; apiKey: string }> = [];
+  constructor(private readonly result: SpeechConnectionPingResult) {}
+  async ping(
+    cfg: SpeechRecognitionConfig,
+    apiKey: string,
+  ): Promise<SpeechConnectionPingResult> {
     this.calls.push({ cfg, apiKey });
     return this.result;
   }
@@ -876,6 +897,383 @@ describe("testLLMConnection", () => {
       "No api key available for the configured LLM provider",
     );
     expect(stub.calls).toHaveLength(0);
+  });
+});
+
+// ---------- UpdateSpeechConfig ----------
+
+describe("updateSpeechConfig", () => {
+  it("admin storing a new api key encrypts it and persists apiKeySource='db'", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: "sk-speech-secret",
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.speechProvider).toBe("openai");
+    expect(rows[0]?.speechModel).toBe("gpt-4o-transcribe");
+    expect(rows[0]?.speechApiKeySource).toBe("db");
+    expect(rows[0]?.speechApiKeyCiphertext).not.toBeNull();
+    expect(rows[0]?.speechApiKeyCiphertext).not.toBe("sk-speech-secret");
+  });
+
+  it("forces apiKeySource='env' when adminSpeechEnv.apiKey is configured (silent-skip the freshly-encrypted ciphertext)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-from-env", provider: null, model: null },
+    };
+
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: "sk-ignored",
+      },
+    });
+
+    const rows = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.speechApiKeySource).toBe("env");
+    expect(rows[0]?.speechApiKeyCiphertext).toBeNull();
+  });
+
+  it("logger.warn is invoked with { fields } when provider/model are env-pinned (silent-skip)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    // Seed a db-sourced config first so the later env-pinned write preserves it.
+    await updateSpeechConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: "sk-speech-original",
+      },
+    });
+    const before = await baseContainer.db
+      .select()
+      .from(schema.instanceSettings);
+    const beforeCiphertext = before[0]?.speechApiKeyCiphertext;
+
+    const warnSpy = vi.fn();
+    const container = {
+      ...baseContainer,
+      logger: { info: () => {}, warn: warnSpy, error: () => {} },
+      adminSpeechEnv: {
+        apiKey: null,
+        provider: "openai",
+        model: "whisper-1",
+      },
+    };
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: null,
+      },
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith("admin_speech_env_override_skip", {
+      fields: ["provider", "model"],
+    });
+    // env-pinned provider/model leave the persisted model untouched.
+    const after = await baseContainer.db.select().from(schema.instanceSettings);
+    expect(after[0]?.speechModel).toBe("gpt-4o-transcribe");
+    expect(after[0]?.speechApiKeyCiphertext).toBe(beforeCiphertext);
+  });
+
+  it("member is rejected with ForbiddenError", async () => {
+    await seedUser({
+      id: MEMBER_ID,
+      username: "bob",
+      email: "bob@example.com",
+      role: "member",
+    });
+    const container = createTestContainer();
+    let caught: unknown;
+    try {
+      await updateSpeechConfig({
+        container,
+        input: {
+          actorUserId: MEMBER_ID,
+          provider: "openai",
+          model: "gpt-4o-transcribe",
+          apiKeyPlain: "sk-speech",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isForbiddenError(caught)).toBe(true);
+  });
+
+  it("rejects an empty model string with BusinessRuleError", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    let caught: unknown;
+    try {
+      await updateSpeechConfig({
+        container,
+        input: {
+          actorUserId: ADMIN_ID,
+          provider: "openai",
+          model: "   ",
+          apiKeyPlain: "sk-speech",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isBusinessRuleError(caught)).toBe(true);
+  });
+});
+
+// ---------- TestSpeechConnection ----------
+
+describe("testSpeechConnection", () => {
+  it("returns ok=true with latencyMs >= 0 on a successful probe (env apiKey)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-env", provider: null, model: null },
+      speechConnectionTester: new StubSpeechConnectionTester({
+        ok: true,
+        latencyMs: 42,
+      }),
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: false, draftConfig: null },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.latencyMs).toBe(42);
+    expect(result.error).toBeNull();
+  });
+
+  it("returns ok=false with an error message when the probe reports failure", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-env", provider: null, model: null },
+      speechConnectionTester: new StubSpeechConnectionTester({
+        ok: false,
+        latencyMs: 12,
+        error: "invalid_request_error: no such model",
+      }),
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: false, draftConfig: null },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("invalid_request_error: no such model");
+  });
+
+  it("useDraft=true forwards the draftConfig to the probe and resolves the env apiKey (env > db)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubSpeechConnectionTester({ ok: true, latencyMs: 7 });
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-env", provider: null, model: null },
+      speechConnectionTester: stub,
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        useDraft: true,
+        draftConfig: {
+          provider: "openai",
+          model: "gpt-4o-transcribe",
+          apiKeySource: "env",
+          apiKeyCiphertext: null,
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+
+    expect(stub.calls).toHaveLength(1);
+    const captured = stub.calls[0];
+    expect(captured?.cfg.provider).toBe("openai");
+    expect(captured?.cfg.model).toBe("gpt-4o-transcribe");
+    // env apiKey wins over the (absent) draft db key.
+    expect(captured?.apiKey).toBe("sk-env");
+  });
+
+  it("useDraft=true with draftConfig=null returns ok=false with an explanatory error (no probe dispatch)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubSpeechConnectionTester({ ok: true, latencyMs: 0 });
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-env", provider: null, model: null },
+      speechConnectionTester: stub,
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: true, draftConfig: null },
+    });
+    expect(result).toEqual({
+      ok: false,
+      latencyMs: 0,
+      error: "Draft configuration is required when useDraft is true",
+    });
+    expect(stub.calls).toHaveLength(0);
+  });
+
+  it("returns ok=false without dispatching when no api key is available (env unset, persisted source=env)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubSpeechConnectionTester({ ok: true, latencyMs: 5 });
+    // Default persisted config (no row yet) is env-sourced; with env apiKey
+    // unset there is no key to resolve.
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: null, provider: null, model: null },
+      speechConnectionTester: stub,
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: false, draftConfig: null },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe(
+      "No api key available for the configured speech provider",
+    );
+    expect(stub.calls).toHaveLength(0);
+  });
+
+  it("decrypts the persisted db api key and pings when env apiKey is unset", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    // Persist a db-sourced speech api key (no env override during the write).
+    await updateSpeechConfig({
+      container: baseContainer,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: "sk-db-speech",
+      },
+    });
+
+    const stub = new StubSpeechConnectionTester({ ok: true, latencyMs: 9 });
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: null, provider: null, model: null },
+      speechConnectionTester: stub,
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: { actorUserId: ADMIN_ID, useDraft: false, draftConfig: null },
+    });
+    expect(result.ok).toBe(true);
+    expect(stub.calls).toHaveLength(1);
+    // The decrypted db key (not a ciphertext) reaches the probe.
+    expect(stub.calls[0]?.apiKey).toBe("sk-db-speech");
+  });
+
+  it("member is rejected with ForbiddenError", async () => {
+    await seedUser({
+      id: MEMBER_ID,
+      username: "bob",
+      email: "bob@example.com",
+      role: "member",
+    });
+    const baseContainer = createTestContainer();
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: "sk-env", provider: null, model: null },
+      speechConnectionTester: new StubSpeechConnectionTester({
+        ok: true,
+        latencyMs: 1,
+      }),
+    };
+    let caught: unknown;
+    try {
+      await testSpeechConnection({
+        container,
+        input: { actorUserId: MEMBER_ID, useDraft: false, draftConfig: null },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(isForbiddenError(caught)).toBe(true);
   });
 });
 

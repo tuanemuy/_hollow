@@ -35,6 +35,7 @@ import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
 import { StubPDFExtractor } from "@/core/adapters/stub/pdfExtractor";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { HttpLLMConnectionTester } from "@/core/application/di/llmConnectionTester";
+import { HttpSpeechConnectionTester } from "@/core/application/di/speechConnectionTester";
 import type {
   RequestContainer,
   WorkerContainer,
@@ -134,12 +135,18 @@ export function createTestContainer(): TestContainer {
     secretBox: new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
     secretBoxPrevious: null,
     llmConnectionTester: new HttpLLMConnectionTester(),
+    speechConnectionTester: new HttpSpeechConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
     adminSettingsEnv: {
       apiKey: null,
       provider: null,
       model: null,
       baseURL: null,
+    },
+    adminSpeechEnv: {
+      apiKey: null,
+      provider: null,
+      model: null,
     },
     objectStorage: new InMemoryObjectStorage(),
     htmlRenderer: new TemplateHtmlRenderer(),
