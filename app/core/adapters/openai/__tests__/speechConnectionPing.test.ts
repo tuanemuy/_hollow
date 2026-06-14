@@ -111,7 +111,12 @@ describe("pingOpenAISpeech", () => {
       expect(result).toEqual({ ok: false, reason: "HTTP 502" });
     });
 
-    it("reports timeout reason when fetch is aborted", async () => {
+    it("reports timeout reason when fetch is aborted with a DOMException AbortError", async () => {
+      // workerd aborts a fetch with a `DOMException` (name="AbortError") that
+      // does NOT extend `Error`. Asserting the `timed out` wording (not just
+      // `ok: false`) is what catches the W-002 regression: an
+      // `instanceof Error`-only guard would let the abort fall through to the
+      // generic `sanitizeErrorReason` reason on Workers.
       setFetch(
         vi.fn(
           (_url: unknown, init: RequestInit) =>

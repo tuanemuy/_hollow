@@ -41,6 +41,25 @@ type OpenAIErrorBody = Readonly<{
 type OpenAITranscriptionResponse = Readonly<{ text?: unknown }>;
 
 /**
+ * True when `error` is an `AbortError` from the timeout `AbortController`.
+ * Checks `DOMException` and `Error` separately: on Cloudflare Workers
+ * (workerd) `fetch` aborts reject with a `DOMException` that does NOT
+ * extend `Error`, so an `instanceof Error`-only guard misclassifies the
+ * timeout. Symmetric with `messagesClient.ts` `isAbortError`.
+ */
+function isAbortError(error: unknown): boolean {
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
+    return true;
+  }
+  if (error instanceof Error && error.name === "AbortError") return true;
+  return false;
+}
+
+/**
  * Builds the transcription URL by appending `/audio/transcriptions` to the
  * base URL while preserving any query string. Symmetric with
  * `buildChatCompletionsURL` in `messagesClient.ts`.
@@ -127,7 +146,12 @@ export class OpenAISpeechRecognitionProvider
         body: form,
       });
     } catch (cause) {
-      if (cause instanceof Error && cause.name === "AbortError") {
+      // Cloudflare Workers (workerd) rejects the aborted fetch with a
+      // `DOMException` whose `name === "AbortError"`, and workerd's
+      // `DOMException` does NOT extend `Error`. An `instanceof Error`-only
+      // guard would let the Workers timeout fall through to the generic
+      // transport branch below. Mirror `messagesClient.ts` `isAbortError`.
+      if (isAbortError(cause)) {
         throw new SpeechFailureError(
           `OpenAI transcription timed out after ${this.timeoutMs}ms`,
           cause,
@@ -147,6 +171,13 @@ export class OpenAISpeechRecognitionProvider
         const body = (await response.json()) as OpenAIErrorBody;
         const message = body.error?.message;
         if (typeof message === "string" && message.length > 0) {
+          // Non-2xx detail is run through the full `sanitizeErrorReason`
+          // (category + masking), unlike `speechConnectionPing.ts` which
+          // uses `maskSecrets` only. This asymmetry is intentional and
+          // mirrors `messagesClient.ts` (sanitize) vs `connectionPing.ts`
+          // (mask-only): the transcribe failure surfaces as a categorized
+          // `SpeechFailureError`, the ping is a probe that already labels
+          // its own category. Both mask secrets, so no key leaks either way.
           detail = toReasonString(sanitizeErrorReason(message));
         }
       } catch {
@@ -157,6 +188,15 @@ export class OpenAISpeechRecognitionProvider
       );
     }
 
+    // Success path: the 2xx JSON body is NOT run through secret masking
+    // because `body.text` is the user's transcript (not secret-bearing) and
+    // the rest of the body is discarded. This is safe ONLY while callers
+    // never surface `SpeechFailureError.message` / `.cause` to the UI or
+    // logs: the `cause` retained on the catch branches above holds the raw
+    // `fetch` exception (which can carry the request URL) and OpenAI's error
+    // object. `runIngestionJob` swallows `SpeechFailureError` (collapses to
+    // `""`) and never logs its `message`/`cause`. A future change that logs
+    // or displays them must re-introduce masking — see security review W-003.
     let body: OpenAITranscriptionResponse;
     try {
       body = (await response.json()) as OpenAITranscriptionResponse;

@@ -106,6 +106,29 @@ describe("OpenAISpeechRecognitionProvider", () => {
       expect(url).toBe("https://example.com/v1/audio/transcriptions");
     });
 
+    it("names the file field with a MIME-derived extension so OpenAI can detect the format", async () => {
+      // OpenAI keys format detection off the `file` field's filename
+      // extension (ADR-008). A default `blob` name would be rejected, so the
+      // adapter derives `audio.<subtype>` from the MIME type.
+      const mock = vi.fn(async () => jsonResponse(200, { text: "ok" }));
+      setFetch(mock);
+      await makeProvider().transcribe({ ...INPUT, mime: "audio/webm" });
+      const [, init] = mock.mock.calls[0] as unknown as [string, RequestInit];
+      const file = (init.body as FormData).get("file");
+      expect(file).toBeInstanceOf(File);
+      expect((file as File).name).toBe("audio.webm");
+    });
+
+    it("strips the `x-` prefix from the MIME subtype when deriving the filename", async () => {
+      // `audio/x-m4a` → `audio.m4a` (the `x-` experimental prefix is dropped).
+      const mock = vi.fn(async () => jsonResponse(200, { text: "ok" }));
+      setFetch(mock);
+      await makeProvider().transcribe({ ...INPUT, mime: "audio/x-m4a" });
+      const [, init] = mock.mock.calls[0] as unknown as [string, RequestInit];
+      const file = (init.body as FormData).get("file");
+      expect((file as File).name).toBe("audio.m4a");
+    });
+
     it("omits the language field for an empty locale", async () => {
       const mock = vi.fn(async () => jsonResponse(200, { text: "ok" }));
       setFetch(mock);
@@ -153,17 +176,31 @@ describe("OpenAISpeechRecognitionProvider", () => {
   });
 
   describe("error mapping", () => {
-    it("maps HTTP 401 to SpeechFailureError", async () => {
+    it("maps HTTP 401 to a SpeechFailureError carrying the status and sanitized detail", async () => {
       setFetch(
         vi.fn(async () =>
           jsonResponse(401, {
-            error: { type: "invalid_api_key", message: "bad key" },
+            error: {
+              type: "invalid_api_key",
+              message: "Invalid API key provided",
+            },
           }),
         ),
       );
-      await expect(makeProvider().transcribe(INPUT)).rejects.toBeInstanceOf(
-        SpeechFailureError,
-      );
+      try {
+        await makeProvider().transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        const message = (error as Error).message;
+        // The HTTP status must survive into the message...
+        expect(message).toContain("HTTP 401");
+        // ...and the provider detail is run through `sanitizeErrorReason`,
+        // which classifies an `invalid api key` message under the
+        // `auth_failed` category (a bare `toBeInstanceOf` would not catch a
+        // regression that drops the sanitized detail entirely).
+        expect(message).toContain("auth_failed");
+      }
     });
 
     it("maps HTTP 429 to SpeechFailureError", async () => {
@@ -175,15 +212,23 @@ describe("OpenAISpeechRecognitionProvider", () => {
       );
     });
 
-    it("maps HTTP 500 to SpeechFailureError", async () => {
+    it("maps HTTP 500 to a SpeechFailureError carrying the status", async () => {
       setFetch(
         vi.fn(async () =>
-          jsonResponse(500, { error: { type: "server_error" } }),
+          jsonResponse(500, {
+            error: { type: "server_error", message: "upstream exploded" },
+          }),
         ),
       );
-      await expect(makeProvider().transcribe(INPUT)).rejects.toBeInstanceOf(
-        SpeechFailureError,
-      );
+      try {
+        await makeProvider().transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        // 5xx must surface the status (symmetric with the ping side, which
+        // asserts the reason wording rather than just the error type).
+        expect((error as Error).message).toContain("HTTP 500");
+      }
     });
 
     it("maps fetch TypeError (transport) to SpeechFailureError", async () => {
@@ -197,7 +242,15 @@ describe("OpenAISpeechRecognitionProvider", () => {
       );
     });
 
-    it("maps abort/timeout to SpeechFailureError", async () => {
+    it("maps a DOMException AbortError (timeout) to a timeout-worded SpeechFailureError", async () => {
+      // The fetch rejects with a `DOMException` (name="AbortError"), which is
+      // how Cloudflare Workers' workerd aborts a fetch. On workerd
+      // `DOMException` does NOT extend `Error`, so asserting only the type
+      // (`toBeInstanceOf(SpeechFailureError)`) would pass even if the adapter
+      // misclassified the abort into the generic transport branch. Asserting
+      // the timeout wording is what catches the W-001 Workers regression — in
+      // Node, vitest's `DOMException` happens to extend `Error`, so the type
+      // check cannot distinguish the two branches.
       setFetch(
         vi.fn(
           (_url: unknown, init: RequestInit) =>
@@ -209,9 +262,15 @@ describe("OpenAISpeechRecognitionProvider", () => {
             }),
         ),
       );
-      await expect(
-        makeProvider({ timeoutMs: 5 }).transcribe(INPUT),
-      ).rejects.toBeInstanceOf(SpeechFailureError);
+      try {
+        await makeProvider({ timeoutMs: 5 }).transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        // Must be the timeout branch, not the generic `sanitizeErrorReason`
+        // transport reason (which would read `timeout: aborted` / `unknown:`).
+        expect((error as Error).message).toMatch(/timed out/);
+      }
     });
 
     it("maps a malformed (non-JSON) 2xx body to SpeechFailureError", async () => {

@@ -638,11 +638,22 @@ describe("runIngestionJob", () => {
     expect(rows[0]?.status).toBe("previewing");
     expect(rows[0]?.errorCode).toBeNull();
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      title: string;
       contentHtml: string;
     };
     // The degraded body carries the stable failure-note marker (ADR-005).
     expect(preview.contentHtml).toContain('class="ingestion-failure-note"');
+    // The fixed note copy (not just the class marker) must survive so a
+    // regression that empties the note body is caught (W-004).
+    expect(preview.contentHtml).toContain(
+      "文字起こしに失敗しました。録音は保存されています。本文を手動で追記して保存できます。",
+    );
     expect(preview.contentHtml).not.toContain("fake structured");
+    // `fallbackTitle(originalFileName)` keeps the preview title non-empty so
+    // `NoteTitle.create` never fails the degraded branch back to markFailed
+    // (ADR-005 prerequisite). "recording.webm" → "recording" (W-004).
+    expect(preview.title.length).toBeGreaterThan(0);
+    expect(preview.title).toBe("recording");
     // The LLM must NOT be invoked with empty input — both calls bypassed,
     // including suggestMetadata which sits on the common path (arch S-002).
     expect(llm.structureCalls).toHaveLength(0);
@@ -676,9 +687,15 @@ describe("runIngestionJob", () => {
     expect(rows[0]?.status).toBe("previewing");
     expect(rows[0]?.errorCode).toBeNull();
     const preview = JSON.parse(rows[0]?.previewJson ?? "{}") as {
+      title: string;
       contentHtml: string;
     };
     expect(preview.contentHtml).toContain('class="ingestion-failure-note"');
+    expect(preview.contentHtml).toContain(
+      "文字起こしに失敗しました。録音は保存されています。本文を手動で追記して保存できます。",
+    );
+    // "silence.webm" → "silence" fallback keeps the preview title non-empty.
+    expect(preview.title).toBe("silence");
     expect(llm.structureCalls).toHaveLength(0);
     expect(llm.metadataCalls).toHaveLength(0);
   });

@@ -375,7 +375,10 @@ function recorderStatusText(state: RecorderState): string {
     case "requesting-permission":
       return "マイクの使用許可を待っています";
     case "recording":
-      return `録音中 ${formatDuration(state.seconds)}`;
+      // Stable text on purpose: the elapsed seconds change every tick, so
+      // including them here would make the polite region re-announce every
+      // second. The running duration is shown visually in `RecordingView`.
+      return "録音中";
     case "stopped":
       return "録音を停止しました。プレビューを確認できます";
     case "uploading":
@@ -429,7 +432,12 @@ function RecordingView({
         </span>
       </div>
       {nearLimit ? (
-        <div className={`${ALERT} ${ALERT_WARNING} mb-3`} role="alert">
+        // Polite, not assertive: this is a forward-looking heads-up that stays
+        // mounted for the rest of the recording, so it must not interrupt the
+        // user (or compete with the always-mounted polite status region). The
+        // after-the-fact `autoStopped` notice in `StoppedView` keeps
+        // `role="alert"` because the user needs to act on it.
+        <div className={`${ALERT} ${ALERT_WARNING} mb-3`} role="status">
           <span className={ALERT_ICON}>
             <Icon icon={MicOff} size={20} />
           </span>

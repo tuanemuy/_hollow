@@ -4,6 +4,7 @@ import {
   LLMConfig,
   PromptPurpose,
   PromptTemplate,
+  SpeechRecognitionConfig,
 } from "@/core/domain/adminSettings/valueObject";
 import { maskApiKey, toInstanceSettingsView } from "../view";
 
@@ -41,6 +42,25 @@ describe("maskApiKey", () => {
       apiKeyCiphertext: "ab",
     });
     expect(maskApiKey(cfg)).toBe("••••ab");
+  });
+
+  it("masks a speech-shaped structural config the same way (ADR-003 generalization)", () => {
+    // `maskApiKey` takes the structural `{ apiKeySource, apiKeyCiphertext }`
+    // so the SpeechRecognitionConfig path flows through the same helper.
+    const env = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(maskApiKey(env)).toBeNull();
+    const db = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "speechCipherWXYZ",
+    });
+    expect(maskApiKey(db)).toBe("••••WXYZ");
   });
 });
 
@@ -317,5 +337,128 @@ describe("toInstanceSettingsView", () => {
     // env override → apiKeyMasked collapses to null even though the
     // persisted config carries a ciphertext.
     expect(dto.llm.apiKeyMasked).toBeNull();
+  });
+
+  // --- Speech projection (Issue #701, B-002): symmetric to the LLM cases ---
+
+  it("speech env-sourced default → dto.speech.apiKeyMasked is null", () => {
+    const base = InstanceSettings.default(T0);
+    const dto = toInstanceSettingsView(base);
+    expect(dto.speech.apiKeySource).toBe("env");
+    expect(dto.speech.apiKeyMasked).toBeNull();
+    expect(dto.speech.provider).toBe(base.speech.provider);
+    expect(dto.speech.model).toBe(base.speech.model);
+    expect(dto.speech.envOverrides).toEqual({
+      provider: false,
+      model: false,
+      apiKey: false,
+    });
+  });
+
+  it("speech db-sourced → apiKeyMasked is `••••XXXX` and ciphertext never leaks", () => {
+    const base = InstanceSettings.default(T0);
+    const ciphertext = "SPEECHsecretWXYZ7788";
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: ciphertext,
+    });
+    const next = InstanceSettings.updateSpeech(base, speech, T0);
+    const dto = toInstanceSettingsView(next);
+    expect(dto.speech.apiKeyMasked).toBe(`••••${ciphertext.slice(-4)}`);
+    expect(JSON.stringify(dto)).not.toContain(ciphertext);
+  });
+
+  it("speechEnv.apiKey set → apiKeyMasked collapses to null and envOverrides.apiKey flips", () => {
+    const base = InstanceSettings.default(T0);
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "SPEECHciphertextABCD",
+    });
+    const next = InstanceSettings.updateSpeech(base, speech, T0);
+    const dto = toInstanceSettingsView(next, null, {
+      apiKey: "sk-speech-env",
+      provider: null,
+      model: null,
+    });
+    expect(dto.speech.envOverrides.apiKey).toBe(true);
+    expect(dto.speech.envOverrides.provider).toBe(false);
+    expect(dto.speech.envOverrides.model).toBe(false);
+    // env override wins → mask must not claim a stored ciphertext is in effect.
+    expect(dto.speech.apiKeyMasked).toBeNull();
+  });
+
+  it("speechEnv.model single-set: only model overlaid, provider/apiKeyMasked retain DB values", () => {
+    const base = InstanceSettings.default(T0);
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "SPEECHciphertextABCD",
+    });
+    const next = InstanceSettings.updateSpeech(base, speech, T0);
+    const dto = toInstanceSettingsView(next, null, {
+      apiKey: null,
+      provider: null,
+      model: "whisper-1",
+    });
+    expect(dto.speech.envOverrides).toEqual({
+      provider: false,
+      model: true,
+      apiKey: false,
+    });
+    expect(dto.speech.provider).toBe("openai");
+    expect(dto.speech.model).toBe("whisper-1");
+    // apiKey not env-pinned → the db mask still surfaces.
+    expect(dto.speech.apiKeyMasked).toBe("••••ABCD");
+  });
+
+  it("speechEnv.provider single-set: only provider overlaid, model retains DB value", () => {
+    const base = InstanceSettings.default(T0);
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "SPEECHciphertextABCD",
+    });
+    const next = InstanceSettings.updateSpeech(base, speech, T0);
+    const dto = toInstanceSettingsView(next, null, {
+      apiKey: null,
+      provider: "openai",
+      model: null,
+    });
+    expect(dto.speech.envOverrides).toEqual({
+      provider: true,
+      model: false,
+      apiKey: false,
+    });
+    expect(dto.speech.provider).toBe("openai");
+    expect(dto.speech.model).toBe("gpt-4o-transcribe");
+  });
+
+  it("all speech env fields set → every envOverrides flips and apiKeyMasked collapses to null", () => {
+    const base = InstanceSettings.default(T0);
+    const speech = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "SPEECHciphertextABCD",
+    });
+    const next = InstanceSettings.updateSpeech(base, speech, T0);
+    const dto = toInstanceSettingsView(next, null, {
+      apiKey: "sk-speech-env",
+      provider: "openai",
+      model: "whisper-1",
+    });
+    expect(dto.speech.envOverrides).toEqual({
+      provider: true,
+      model: true,
+      apiKey: true,
+    });
+    expect(dto.speech.model).toBe("whisper-1");
+    expect(dto.speech.apiKeyMasked).toBeNull();
   });
 });

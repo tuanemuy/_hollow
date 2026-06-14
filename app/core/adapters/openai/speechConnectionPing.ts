@@ -33,6 +33,26 @@ type OpenAIErrorBody = Readonly<{
   error?: Readonly<{ type?: string; message?: string; code?: string }>;
 }>;
 
+/**
+ * True when `error` is an `AbortError` from the timeout `AbortController`.
+ * Checks `DOMException` and `Error` separately: on Cloudflare Workers
+ * (workerd) `fetch` aborts reject with a `DOMException` that does NOT
+ * extend `Error`, so an `instanceof Error`-only guard would surface the
+ * timeout as a generic transport reason in the admin connection-test UI.
+ * Symmetric with `messagesClient.ts` `isAbortError`.
+ */
+function isAbortError(error: unknown): boolean {
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
+    return true;
+  }
+  if (error instanceof Error && error.name === "AbortError") return true;
+  return false;
+}
+
 function buildModelURL(baseURL: string | undefined, model: string): string {
   const u = new URL(baseURL ?? DEFAULT_BASE_URL);
   u.pathname = `${u.pathname.replace(/\/$/, "")}/models/${encodeURIComponent(model)}`;
@@ -72,6 +92,12 @@ export async function pingOpenAISpeech(
       const message = body.error?.message;
       const type = body.error?.type;
       if (typeof message === "string" && message.length > 0) {
+        // Probe-path non-2xx detail uses `maskSecrets` only (no category
+        // normalization), unlike `speechRecognitionProvider.ts` which runs
+        // the full `sanitizeErrorReason`. Intentional asymmetry mirroring
+        // `connectionPing.ts` (mask-only) vs `messagesClient.ts` (sanitize):
+        // the probe reports the provider's own `type` prefix verbatim.
+        // Masking still applies, so no key leaks.
         const masked = maskSecrets(message);
         detail = type ? `${type}: ${masked}` : masked;
       }
@@ -80,7 +106,7 @@ export async function pingOpenAISpeech(
     }
     return { ok: false, reason: detail };
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
+    if (isAbortError(error)) {
       return { ok: false, reason: `Request timed out after ${timeoutMs}ms` };
     }
     return { ok: false, reason: toReasonString(sanitizeErrorReason(error)) };
