@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "@/core/application/errors";
 
 /**
- * P31 backlink + related-note sections. Each `serverData` loader is keyed
- * by the runtime argument it receives: the note lookup gets a `LookupArgs`
- * object (`kind`), backlinks get a `noteId` string, related notes get
- * `{ ownerId, excludeNoteId }`. The mock branches on that shape so all
- * three cached loaders resolve from a single `serverData` stub.
+ * P31 backlink + related-note sections. Each `serverData` loader is keyed by
+ * the usecase module it imports (the `loadModule` first argument of
+ * `serverData(loadModule, run)`), identified via its named export, so the note
+ * lookup / backlinks / related-notes branches cannot be confused even if a
+ * loader's runtime argument shape changes (W-001).
  */
 
 const note = {
@@ -94,18 +94,20 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@/core/presentation/serverAction", () => ({
+  // `serverData(loadModule, run)`: identify the loader by the usecase module it
+  // imports (the named export it carries), so the note lookup / backlinks /
+  // related-notes branches stay distinct regardless of argument shape (W-001).
   serverData:
-    () =>
-    async (arg: unknown): Promise<unknown> => {
-      if (typeof arg === "string") {
-        // listPublicBacklinks(noteId)
+    (loadModule: () => Promise<Record<string, unknown>>) =>
+    async (): Promise<unknown> => {
+      const module = await loadModule();
+      if ("listPublicBacklinks" in module) {
         return { backlinks };
       }
-      if (arg && typeof arg === "object" && "ownerId" in arg) {
-        // listRelatedPublicNotes({ ownerId, excludeNoteId })
+      if ("listRelatedPublicNotes" in module) {
         return { notes: relatedNotes };
       }
-      // getPublicNote(args): args is a LookupArgs object carrying `kind`.
+      // getPublicNote
       if (noteError !== null) throw noteError;
       return {
         note,
