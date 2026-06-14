@@ -17,7 +17,8 @@ type UseAuthGuardEffectInput = {
  * に必ず配置すること**。現状の対象 leaf は `_app/index.tsx` の
  * `HomeRoute` のみ。`_app` 配下に「leaf で direct unauthenticated state
  * を表示する別 route」を追加する場合、その leaf にも本 hook を配置し、
- * **同時にこの JSDoc にも対象 leaf を追記すること**。
+ * **同時にこの JSDoc にも対象 leaf を追記すること**。配置した leaf は
+ * **戻り値（不整合中フラグ）で未認証 UI をガードすること**（下記参照）。
  *
  * `_app.loader` の `staleTime: Infinity` により、SPA 遷移では親 loader
  * は再評価されず cached `userDto` が残り続ける。leaf 側 server fn が
@@ -35,6 +36,16 @@ type UseAuthGuardEffectInput = {
  * `useEffect` 内では await できないため `appShellInvalidate(router)` は
  * fire-and-forget で呼ぶ。背景は `.issue/300/adr.md` ADR-001。
  *
+ * 戻り値（`boolean`）は **不整合中フラグ**: `true` = 不整合観測中
+ * （invalidate を fire 済み・AppShell 再評価待ち）。呼び出し側は
+ * `true` の間、未認証 UI ではなく中立 UI を描画して 1 フレームの
+ * ちらつきを防ぐべき（Issue #732）。`useEffect` は中立 UI が描かれて
+ * いる間に invalidate を解決し、AppShell 再評価（`userDto: null`）で
+ * 正規 UI（未認証なら LandingPage）に収束する。不整合判定の SSOT は
+ * 本 hook 内（`isAuthMismatch`）に置き、発火条件と戻り値を同一定数から
+ * 導出して呼び出し側にロジックを二重化させない（背景は
+ * `.issue/732/adr.md` ADR-002）。
+ *
  * 実装注:
  *   - user identity の判定は `shellUserDto.id` のみで行う（属性差異では
  *     再発火しない）。`displayName` 等の更新は rule 3 mutation 側で
@@ -45,12 +56,19 @@ type UseAuthGuardEffectInput = {
 export function useAuthGuardEffect({
   leafAuthenticated,
   shellUserDto,
-}: UseAuthGuardEffectInput): void {
+}: UseAuthGuardEffectInput): boolean {
   const router = useRouter();
   const shellUserId = shellUserDto?.id ?? null;
+  const isAuthMismatch = shellUserId !== null && leafAuthenticated === false;
   useEffect(() => {
+    // Recompute from the dep-array inputs rather than closing over
+    // `isAuthMismatch` so the dep array stays keyed on the raw values: a
+    // mismatch→mismatch user switch (u1→u2) must still re-fire invalidate,
+    // which keying on the derived boolean (stuck `true`) would skip (#732
+    // preserves #300's per-id re-fire contract).
     if (shellUserId !== null && leafAuthenticated === false) {
       void appShellInvalidate(router);
     }
   }, [shellUserId, leafAuthenticated, router]);
+  return isAuthMismatch;
 }
