@@ -103,7 +103,6 @@ describe("LoginForm submit failure summary", () => {
     expect(navigate).toHaveBeenCalledWith({ to: "/", search: HOME_SEARCH });
     // Invariant: cache is discarded BEFORE navigation (break → go order).
     expect(order).toEqual(["clearCache", "navigate"]);
-    // Success path surfaces no error summary.
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 

@@ -176,13 +176,12 @@ describe("UserMenu", () => {
     const items = menuitems();
     const settings = items[0];
     const logoutItem = items[1];
-    // Only the danger item is disabled.
     expect(logoutItem.getAttribute("aria-disabled")).toBe("true");
     expect(settings.getAttribute("aria-disabled")).toBeNull();
     // aria-disabled (not native disabled): stays focusable in the roving cycle.
     expect(logoutItem.hasAttribute("disabled")).toBe(false);
 
-    // A click on the disabled logout item is a no-op (still one call).
+    // A click on the disabled logout item must be a no-op (#467 ADR-003).
     act(() => {
       (logoutItem as HTMLButtonElement).click();
     });

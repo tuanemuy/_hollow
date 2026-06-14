@@ -209,7 +209,7 @@ describe("AccountDeleteForm server error (Issue #421)", () => {
       dialog?.querySelectorAll('[role="alert"]') ?? [],
     ).filter((el) => (el.textContent ?? "").length > 0);
     expect(alerts.length).toBeGreaterThanOrEqual(1);
-    // No outer summary leaks into the section body (it was removed).
+    // No outer summary leaks into the section body.
     const outsideAlert = Array.from(
       container.querySelectorAll('[role="alert"]'),
     );
