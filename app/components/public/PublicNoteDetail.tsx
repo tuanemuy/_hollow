@@ -1,8 +1,9 @@
-import { Link, notFound } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { cache } from "react";
 import { isNotFoundError } from "@/core/application/errors";
 import { serverData } from "@/core/presentation/serverAction";
 import { CodeHighlight } from "../note/content/CodeHighlight";
+import { ErrorPage } from "./ErrorPage";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import {
   AUTHOR_AVATAR_MD,
@@ -35,14 +36,8 @@ type LookupArgs =
 const loadPublicNote = cache(
   serverData(
     () => import("@/core/application/publication/getPublicNote"),
-    async ({ container }, { getPublicNote }, args: LookupArgs) => {
-      try {
-        return await getPublicNote({ container, input: args });
-      } catch (error) {
-        if (isNotFoundError(error)) throw notFound();
-        throw error;
-      }
-    },
+    async ({ container }, { getPublicNote }, args: LookupArgs) =>
+      getPublicNote({ container, input: args }),
   ),
 );
 
@@ -77,8 +72,15 @@ const loadRelatedPublicNotes = cache(
 );
 
 export async function PublicNoteDetail({ args }: { args: LookupArgs }) {
-  const { note, renderedContentHtml, owner, tagNames, publishedAt } =
-    await loadPublicNote(args);
+  let loaded: Awaited<ReturnType<typeof loadPublicNote>>;
+  try {
+    loaded = await loadPublicNote(args);
+  } catch (error) {
+    // RSC 内 notFound() は notFoundComponent に届かないため、ルート意図の ErrorPage を直接返す。ADR-004 / Issue #599
+    if (isNotFoundError(error)) return <ErrorPage kind="gone" />;
+    throw error;
+  }
+  const { note, renderedContentHtml, owner, tagNames, publishedAt } = loaded;
 
   const [{ backlinks }, { notes: relatedNotes }] = await Promise.all([
     loadPublicBacklinks(note.id),
