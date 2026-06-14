@@ -48,6 +48,8 @@ Hollow の UI で使用する CSS カスタムプロパティの正準定義。
 | Warning surface | `--color-warning-surface` | `#fdf3e7` |
 | Error | `--color-error` | `#c43e3e` |
 | Error surface | `--color-error-surface` | `#fbebeb` |
+| Error hover | `--color-error-hover` | `#b03535` |
+| Error pressed | `--color-error-pressed` | `#9a2e2e` |
 | Info | `--color-info` | `var(--color-accent)` |
 
 セマンティックカラーも淡色を使い、強い赤・黄を多用しない。
@@ -444,6 +446,8 @@ Apple Calm の象徴的な要素。
   --color-warning-surface: #fdf3e7;
   --color-error: #c43e3e;
   --color-error-surface: #fbebeb;
+  --color-error-hover: #b03535;
+  --color-error-pressed: #9a2e2e;
   --color-info: var(--color-accent);
 
   /* Color: publish status */

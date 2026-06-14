@@ -4,13 +4,15 @@ import { User } from "@/core/domain/identity/entity";
 import { IdentityService } from "@/core/domain/identity/services/identityService";
 import { UserId } from "@/core/domain/identity/valueObject";
 import { PublicationState } from "@/core/domain/publication/entity";
-import { NotFoundError } from "../errors";
+import { AuthenticationError, NotFoundError } from "../errors";
 import type { ServiceArgs } from "../types";
 
 export type DeleteAccountInput = {
   actorUserId: string;
   /** Must equal the actor's username (case-sensitive). */
   confirmation: string;
+  /** Current password, re-verified for this sensitive operation. */
+  currentPassword: string;
 };
 
 // Page size used while iterating owner-scoped projections (public
@@ -44,6 +46,21 @@ export async function deleteAccount({
           "Confirmation does not match username",
         );
       }
+
+      // Sensitive-operation re-authentication (mirrors RequestEmailChange):
+      // verified after the username check so `confirmation_mismatch` keeps
+      // precedence over `invalid_credentials` (AC-1).
+      const verified = await credentialStore.verifyPasswordForUser(
+        actor,
+        input.currentPassword,
+      );
+      if (!verified) {
+        throw new AuthenticationError(
+          "invalid_credentials",
+          "Current password is incorrect",
+        );
+      }
+
       if (user.role === "admin") {
         const adminCount = await userRepository.countAdmins();
         IdentityService.assertNotLastAdmin(actor, adminCount);

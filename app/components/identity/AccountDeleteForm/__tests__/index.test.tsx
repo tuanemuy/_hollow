@@ -8,14 +8,17 @@ import {
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
 import { HOME_SEARCH } from "@/components/auth/links";
-import type { UserDTO } from "@/core/application/dto/identity";
+import type {
+  AccountDeletionImpactDTO,
+  UserDTO,
+} from "@/core/application/dto/identity";
 
 /**
- * Issue #421: server (non-validation) errors must keep the confirm dialog
- * open and surface in-dialog, instead of closing it and showing an outer
- * summary (the "modal disappeared = success" anti-pattern #98/#420 removed
- * everywhere else). Validation errors (username mismatch) stay adjacent to
- * the input as before (#98 ADR-003).
+ * P24 multi-step confirm (#573). The destructive button stays disabled
+ * until every step is satisfied (agree + DELETE + username + password).
+ * Server (non-validation) errors surface in a form-level role=alert
+ * without navigating away; success clears the AppShell cache before
+ * navigating home (#728).
  */
 
 (
@@ -54,6 +57,14 @@ const USER: UserDTO = {
   lastUsernameChangedAt: null,
 };
 
+const IMPACT: AccountDeletionImpactDTO = {
+  noteCount: 12,
+  mediaCount: 3,
+  mediaTotalBytes: 1024 * 1024,
+  publicNoteCount: 4,
+  activeShareLinkCount: 2,
+};
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -75,28 +86,11 @@ afterEach(() => {
 
 function render() {
   act(() => {
-    root.render(<AccountDeleteForm user={USER} />);
+    root.render(<AccountDeleteForm user={USER} impact={IMPACT} />);
   });
 }
 
-function getDialog(): HTMLElement | null {
-  return document.body.querySelector<HTMLElement>('[role="alertdialog"]');
-}
-
-function openDialog() {
-  const trigger = Array.from(container.querySelectorAll("button")).find((b) =>
-    b.textContent?.includes("続けて削除する"),
-  );
-  act(() => {
-    trigger?.click();
-  });
-}
-
-function typeConfirmation(value: string) {
-  const input = getDialog()?.querySelector<HTMLInputElement>(
-    'input[name="confirmation"]',
-  );
-  if (input === null || input === undefined) throw new Error("input missing");
+function setNativeValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     "value",
@@ -107,54 +101,84 @@ function typeConfirmation(value: string) {
   });
 }
 
-function submit() {
-  const confirmBtn = getDialog()?.querySelector<HTMLButtonElement>(
-    'button[type="submit"]',
+function input(name: string): HTMLInputElement {
+  const el = container.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+  if (el === null) throw new Error(`input ${name} missing`);
+  return el;
+}
+
+function checkAgree() {
+  const checkbox = container.querySelector<HTMLInputElement>(
+    'input[type="checkbox"]',
   );
+  if (checkbox === null) throw new Error("checkbox missing");
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "checked",
+  )?.set;
   act(() => {
-    confirmBtn?.click();
+    setter?.call(checkbox, true);
+    checkbox.dispatchEvent(new Event("click", { bubbles: true }));
   });
 }
 
-describe("AccountDeleteForm section description", () => {
-  it("emphasizes 「取り消せません」 in a <strong> (not plain text)", () => {
+function typeConfirmWord(value: string) {
+  // The confirm-word input is the only text input that is neither
+  // `confirmation` nor `currentPassword`.
+  const el = Array.from(
+    container.querySelectorAll<HTMLInputElement>('input[type="text"]'),
+  ).find((i) => i.getAttribute("name") === null);
+  if (el === undefined) throw new Error("confirm-word input missing");
+  setNativeValue(el, value);
+}
+
+function deleteButton(): HTMLButtonElement {
+  const btn = Array.from(container.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("アカウントを完全に削除する"),
+  );
+  if (btn === undefined) throw new Error("delete button missing");
+  return btn as HTMLButtonElement;
+}
+
+function fillAll() {
+  checkAgree();
+  typeConfirmWord("DELETE");
+  setNativeValue(input("confirmation"), "alice");
+  setNativeValue(input("currentPassword"), "secret123");
+}
+
+describe("AccountDeleteForm impact list", () => {
+  it("renders the aggregated impact counts and emphasizes 取り消せません", () => {
     render();
-    const strongs = Array.from(container.querySelectorAll("strong"));
-    const emphasized = strongs.some((el) =>
-      (el.textContent ?? "").includes("取り消せません"),
+    expect(container.textContent).toContain("12 件");
+    expect(container.textContent).toContain("2 本");
+    const emphasized = Array.from(container.querySelectorAll("strong")).some(
+      (el) => (el.textContent ?? "").includes("取り消せません"),
     );
     expect(emphasized).toBe(true);
   });
 });
 
-describe("AccountDeleteForm validation error (Issue #421 — regression guard)", () => {
-  it("keeps the dialog open and shows the mismatch error next to the input, without calling the server", () => {
+describe("AccountDeleteForm disabled gate", () => {
+  it("keeps the delete button disabled until all steps are satisfied", () => {
     render();
-    openDialog();
-    typeConfirmation("not-alice");
-    submit();
+    expect(deleteButton().disabled).toBe(true);
 
-    const dialog = getDialog();
-    expect(dialog).not.toBeNull();
-    // Validation never reaches the server.
-    expect(deleteAccount).not.toHaveBeenCalled();
-    // The mismatch message is rendered adjacent to the input (its own
-    // role=alert wired through the input's aria-describedby), and the input
-    // is flagged invalid.
-    const input = dialog?.querySelector<HTMLInputElement>(
-      'input[name="confirmation"]',
-    );
-    expect(input?.getAttribute("aria-invalid")).toBe("true");
-    const describedBy = input?.getAttribute("aria-describedby") ?? "";
-    const nearInputErrors = describedBy
-      .split(" ")
-      .filter(Boolean)
-      .map((id) => dialog?.querySelector(`#${CSS.escape(id)}`))
-      .filter((el) => el?.getAttribute("role") === "alert");
-    expect(nearInputErrors).toHaveLength(1);
-    expect(nearInputErrors[0]?.textContent).toContain(
-      "ユーザー名が一致しません",
-    );
+    checkAgree();
+    expect(deleteButton().disabled).toBe(true);
+
+    typeConfirmWord("delete"); // wrong case
+    expect(deleteButton().disabled).toBe(true);
+    typeConfirmWord("DELETE");
+    expect(deleteButton().disabled).toBe(true);
+
+    setNativeValue(input("confirmation"), "bob"); // wrong username
+    expect(deleteButton().disabled).toBe(true);
+    setNativeValue(input("confirmation"), "alice");
+    expect(deleteButton().disabled).toBe(true); // password still empty
+
+    setNativeValue(input("currentPassword"), "secret123");
+    expect(deleteButton().disabled).toBe(false);
   });
 });
 
@@ -162,83 +186,61 @@ describe("AccountDeleteForm success navigation (Issue #728)", () => {
   it("clears the AppShell cache before navigating to / on delete success", async () => {
     deleteAccount.mockResolvedValue(undefined);
     render();
-    openDialog();
-    typeConfirmation("alice");
+    fillAll();
 
     await act(async () => {
-      submit();
+      deleteButton().click();
       await Promise.resolve();
       await Promise.resolve();
     });
 
     expect(deleteAccount).toHaveBeenCalledTimes(1);
-    // race 回避の核心: clearCache（AppShell 破棄）が navigate より先に呼ばれる。
     expect(clearCache).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(clearCache.mock.invocationCallOrder[0]).toBeLessThan(
       navigate.mock.invocationCallOrder[0],
     );
     expect(navigate).toHaveBeenCalledWith({ to: "/", search: HOME_SEARCH });
-    // 退会は未認証ランディング行きで、成功時はダイアログが閉じエラーが残らない。
-    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(1); // only the impact alert
+  });
+
+  it("forwards only confirmation + currentPassword + confirmWord to the server fn", async () => {
+    deleteAccount.mockResolvedValue(undefined);
+    render();
+    fillAll();
+    await act(async () => {
+      deleteButton().click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(deleteAccount).toHaveBeenCalledWith({
+      data: {
+        confirmation: "alice",
+        currentPassword: "secret123",
+        confirmWord: "DELETE",
+      },
+    });
   });
 });
 
-describe("AccountDeleteForm server error (Issue #421)", () => {
-  it("keeps the dialog open and surfaces the error in-dialog when the server rejects", async () => {
-    deleteAccount.mockRejectedValue(
-      new Error("boom"), // extractSerializedError maps unknowns to a system error
-    );
+describe("AccountDeleteForm server error", () => {
+  it("surfaces a form-level error without navigating away", async () => {
+    deleteAccount.mockRejectedValue(new Error("boom"));
     render();
-    openDialog();
-    typeConfirmation("alice");
+    fillAll();
 
     await act(async () => {
-      submit();
-      // Let the rejected transition settle.
+      deleteButton().click();
       await Promise.resolve();
       await Promise.resolve();
     });
 
     expect(deleteAccount).toHaveBeenCalledTimes(1);
-    // Dialog stays open (no "modal disappeared = success").
-    const dialog = getDialog();
-    expect(dialog).not.toBeNull();
-    // The server error renders inside the dialog as a role=alert region.
-    const alerts = Array.from(
-      dialog?.querySelectorAll('[role="alert"]') ?? [],
-    ).filter((el) => (el.textContent ?? "").length > 0);
-    expect(alerts.length).toBeGreaterThanOrEqual(1);
-    // No outer summary leaks into the section body.
-    const outsideAlert = Array.from(
-      container.querySelectorAll('[role="alert"]'),
-    );
-    expect(outsideAlert).toHaveLength(0);
-    // Did not navigate away on failure.
     expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it("discards the error when the dialog is cancelled", async () => {
-    deleteAccount.mockRejectedValue(new Error("boom"));
-    render();
-    openDialog();
-    typeConfirmation("alice");
-    await act(async () => {
-      submit();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(getDialog()).not.toBeNull();
-
-    const cancelBtn = Array.from(
-      getDialog()?.querySelectorAll("button") ?? [],
-    ).find((b) => b.textContent?.includes("キャンセル"));
-    act(() => {
-      cancelBtn?.click();
-    });
-
-    // Dialog closed and no error survives anywhere on the page.
-    expect(getDialog()).toBeNull();
-    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    // Impact alert (1) + the form-level server error (1).
+    const alerts = Array.from(
+      container.querySelectorAll('[role="alert"]'),
+    ).filter((el) => (el.textContent ?? "").length > 0);
+    expect(alerts.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -29,6 +29,20 @@ export interface MediaAssetRepository {
     opts: MediaListOpts,
   ): Promise<readonly MediaAsset[]>;
   /**
+   * Read-only owner-scoped aggregation of `attached` media assets: the
+   * count and the sum of their `byteSize`. Only `attached` is counted —
+   * `pending` / `orphan` / `deleting` are purge-lifecycle transients and
+   * do not represent user-accessible media. Returns `{ count: 0,
+   * totalBytes: 0 }` when the owner has no attached assets.
+   *
+   * Computed in a single aggregate query (no row enumeration) for
+   * O(1) reads on large libraries. Used by `summarizeAccountDeletion`
+   * (P24). See `.issue/573/adr.md` ADR-002.
+   */
+  aggregateByOwner(
+    ownerId: UserId,
+  ): Promise<Readonly<{ count: number; totalBytes: number }>>;
+  /**
    * Purge candidates whose `updatedAt` predates `before`: `orphan` rows
    * awaiting their first purge, plus `deleting` rows whose earlier purge
    * was interrupted (e.g. a transient R2 delete failure) and must be

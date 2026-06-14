@@ -1,4 +1,5 @@
 import type { TransactionalRepository } from "@/core/domain/common/transactionalRepository";
+import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { ShareLink } from "../entity";
 import type { ShareLinkId, ShareLinkTokenHash } from "../valueObject";
@@ -38,4 +39,20 @@ export interface ShareLinkRepository
    * revoking a link frees one quota slot.
    */
   countByNoteId(noteId: NoteId, includeRevoked: boolean): Promise<number>;
+
+  /**
+   * Read-only count of currently-active (non-revoked) links across **all**
+   * notes owned by `ownerId`, including links on trashed notes. Joins
+   * `share_links` to the owner's notes on ownership alone — `notes.status`
+   * is intentionally not filtered — so the value matches the account-delete
+   * cascade, which revokes every active link on every owned note
+   * regardless of note status (`PublicationService.revokeAllLinks` via
+   * `handleUserDeletedEvent`). Active is `revoked_at IS NULL`, consistent
+   * with the `status='active' ⟺ revokedAt=null` invariant.
+   *
+   * A read-only projection (no OCC token); must not be the basis for a
+   * subsequent write. Used by `summarizeAccountDeletion` (P24). See
+   * `.issue/573/adr.md` ADR-001.
+   */
+  countActiveByOwner(ownerId: UserId): Promise<number>;
 }
