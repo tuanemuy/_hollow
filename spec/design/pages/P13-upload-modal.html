@@ -661,11 +661,12 @@
     flex-wrap: wrap;
     gap: var(--space-2);
   }
-  /* 録音 UI のボタン: モーダル基底の .pill-btn に danger / ghost-danger を補う。 */
-  .recorder-card .pill-btn.danger { background: transparent; color: var(--color-error); }
+  /* 録音 UI のボタン: モーダル基底の .pill-btn に danger / ghost-danger を補う。
+     実装（pillBtnDanger / pillBtnGhostDanger）どおり、停止=塗り danger / 取り消す=中立 ghost。 */
+  .recorder-card .pill-btn.danger { background: var(--color-error-surface); color: var(--color-error); }
   .recorder-card .pill-btn.danger:hover { background: var(--color-error-surface); }
-  .recorder-card .pill-btn.ghost-danger { background: transparent; color: var(--color-error); }
-  .recorder-card .pill-btn.ghost-danger:hover { background: var(--color-error-surface); }
+  .recorder-card .pill-btn.ghost-danger { background: transparent; color: var(--color-ink-secondary); }
+  .recorder-card .pill-btn.ghost-danger:hover { background: var(--color-error-surface); color: var(--color-error); }
 
   /* sr-only: 視覚的非表示（aria-live ステータス用） */
   .sr-only {

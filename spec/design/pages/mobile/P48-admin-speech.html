@@ -269,6 +269,19 @@
   .alert-body strong { color: var(--color-ink); font-weight: var(--weight-medium); }
   .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
   .field .alert { margin-top: var(--space-3); margin-bottom: 0; }
+  /* 接続テスト結果 = 実装（BANNER_BASE）どおりの塗りバナー（単一行・アイコン/見出しなし） */
+  .test-result {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+  }
+  .test-result.ok { background: var(--color-success-surface); }
+  .test-result.err { background: var(--color-error-surface); }
+  .field .test-result { margin-top: var(--space-3); }
 
   /* form-footer: 下部固定 + 縦積み（フルワイド primary CTA） */
   .form-footer {
@@ -409,26 +422,10 @@
       <!-- 変種: envOverrides.apiKey → 「環境変数 ADMIN_SPEECH_API_KEY で固定されているため変更できません。」
            変種: apiKeyRequired → 「プロバイダを変更したため、新しい API キーの入力が必要です。」 -->
 
-      <!-- 接続テスト結果。既定として成功を表示、失敗はコメントで併記。 -->
-      <div class="alert alert-success" role="status">
-        <span class="alert-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 12.5l2.5 2.5 4.5-5"></path></svg>
-        </span>
-        <div class="alert-content">
-          <p class="alert-title">接続成功</p>
-          <p class="alert-body">応答 682ms</p>
-        </div>
-      </div>
+      <!-- 接続テスト結果は実装どおり塗りバナーの単一行で表示。既定は成功、失敗はコメントで併記。 -->
+      <div class="test-result ok" role="status">接続成功 · 応答 682ms</div>
       <!-- 変種: 接続失敗時（testResult.ok === false）
-      <div class="alert alert-error" role="status">
-        <span class="alert-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        </span>
-        <div class="alert-content">
-          <p class="alert-title">接続失敗</p>
-          <p class="alert-body">認証に失敗しました。API キーを確認してください。</p>
-        </div>
-      </div>
+      <div class="test-result err" role="status">接続失敗 · 認証に失敗しました。API キーを確認してください。</div>
       -->
     </div>
   </section>

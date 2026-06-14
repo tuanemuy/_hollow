@@ -446,9 +446,10 @@
     flex-wrap: wrap;
     gap: var(--space-2);
   }
-  /* P13a は .pill 系を使う。録音 UI のボタンも .pill に揃え、ghost-danger を補う。 */
-  .pill.ghost-danger { background: transparent; color: var(--color-error); }
-  .pill.ghost-danger:hover { background: var(--color-error-surface); }
+  /* P13a は .pill 系を使う。録音 UI のボタンも .pill に揃え、ghost-danger を補う。
+     実装（pillBtnGhostDanger）どおり rest は ink-secondary、hover で error-surface + error。 */
+  .pill.ghost-danger { background: transparent; color: var(--color-ink-secondary); }
+  .pill.ghost-danger:hover { background: var(--color-error-surface); color: var(--color-error); }
 
   /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（録音 UI 用） */
   .alert {

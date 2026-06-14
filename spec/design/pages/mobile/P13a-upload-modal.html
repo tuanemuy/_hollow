@@ -477,8 +477,9 @@
     flex-direction: column;
     gap: var(--space-2);
   }
-  .pill.ghost-danger { background: transparent; color: var(--color-error); }
-  .pill.ghost-danger:hover { background: var(--color-error-surface); }
+  /* 取り消す = ghost-danger（実装どおり rest は ink-secondary、hover で error-surface + error） */
+  .pill.ghost-danger { background: transparent; color: var(--color-ink-secondary); }
+  .pill.ghost-danger:hover { background: var(--color-error-surface); color: var(--color-error); }
 
   /* Alert — 案D: 白地 + セマンティック枠 + アイコン + 見出し + 本文（録音 UI 用） */
   .alert {
