@@ -34,11 +34,14 @@ vi.mock("../logOutAction", () => ({
   logOutFn: logOutMock,
 }));
 
-const routerInvalidate = vi.fn().mockResolvedValue(undefined);
+// #728: logout clears the cached `_app` match (clearCache) before navigating,
+// mirroring AccountDeleteForm. clearCache is synchronous void; navigate is
+// awaited. The order (clearCache → navigate) is asserted below.
+const routerClearCache = vi.fn();
 const routerNavigate = vi.fn().mockResolvedValue(undefined);
 vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({
-    invalidate: routerInvalidate,
+    clearCache: routerClearCache,
     navigate: routerNavigate,
   }),
 }));
@@ -64,7 +67,7 @@ let root: Root;
 
 beforeEach(() => {
   logOutMock.mockReset();
-  routerInvalidate.mockClear();
+  routerClearCache.mockClear();
   routerNavigate.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -123,6 +126,32 @@ describe("UserMenu", () => {
     expect(panel?.textContent ?? "").not.toContain("alice@example.com");
   });
 
+  it("clears the AppShell cache before navigating to /login on logout (#728)", async () => {
+    logOutMock.mockResolvedValue(undefined);
+    const order: string[] = [];
+    routerClearCache.mockImplementation(() => {
+      order.push("clearCache");
+    });
+    routerNavigate.mockImplementation(async () => {
+      order.push("navigate");
+    });
+
+    render();
+    open();
+    await act(async () => {
+      (menuitems()[1] as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(logOutMock).toHaveBeenCalledTimes(1);
+    expect(routerClearCache).toHaveBeenCalledTimes(1);
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    expect(routerNavigate).toHaveBeenCalledWith({ to: "/login" });
+    // Invariant: cache is discarded BEFORE navigation (break → go order).
+    expect(order).toEqual(["clearCache", "navigate"]);
+  });
+
   it("disables only the logout (danger) item while logout is pending and ignores its click", async () => {
     // Hold the logout open so the transition stays pending.
     let resolve: (() => void) | undefined;
@@ -147,13 +176,12 @@ describe("UserMenu", () => {
     const items = menuitems();
     const settings = items[0];
     const logoutItem = items[1];
-    // Only the danger item is disabled.
     expect(logoutItem.getAttribute("aria-disabled")).toBe("true");
     expect(settings.getAttribute("aria-disabled")).toBeNull();
     // aria-disabled (not native disabled): stays focusable in the roving cycle.
     expect(logoutItem.hasAttribute("disabled")).toBe(false);
 
-    // A click on the disabled logout item is a no-op (still one call).
+    // A click on the disabled logout item must be a no-op (#467 ADR-003).
     act(() => {
       (logoutItem as HTMLButtonElement).click();
     });

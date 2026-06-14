@@ -1,18 +1,23 @@
 /**
- * `_app` AppShell に対する `router.invalidate()` 制御を集約するモジュール。
+ * `_app` AppShell のキャッシュ制御（invalidate / clearCache）を集約するモジュール。
  *
- * 公開 API は 2 つあり、補完関係にある:
+ * 公開 API は 3 つあり、補完関係にある:
  *   - `routerInvalidate(router, filter?)`: `_app` とエディター系ルートを
  *     **常に除外** して invalidate
  *   - `appShellInvalidate(router)`: `_app` のみを **狙って** invalidate
+ *     （navigate を伴わず AppShell を in-place 再評価したい場面）
+ *   - `clearAppShellCache(router)`: `_app` の cached match を **clearCache で
+ *     破棄** する（navigate を伴う auth 遷移の直前。in-place 再評価を起こさない）
  *
  * AppShell loader (`_app.loader`) の `staleTime: Infinity` を mutation 後にも
- * 維持しつつ、セッション失効・errorComponent retry など「明示的に AppShell を
- * 再評価したい」場面では `appShellInvalidate` を使う、という意味分担で
+ * 維持しつつ、セッション失効・errorComponent retry など「navigate を伴わず
+ * AppShell を再評価したい」場面では `appShellInvalidate` を、
+ * ログイン/ログアウト/リセット確認/退会など「navigate を伴う auth 遷移の直前に
+ * AppShell を破棄したい」場面では `clearAppShellCache` を使う、という意味分担で
  * routeId のリネームにも 1 ファイル / 1 定数で追従できる。
  *
  * `.issue/293/adr.md` ADR-010 / `.issue/299/adr.md` / `.issue/300/adr.md`
- * ADR-005 を参照。
+ * ADR-005 / `.issue/728/adr.md` ADR-001 を参照。
  */
 import type { AnyRouter } from "@tanstack/react-router";
 
@@ -55,10 +60,18 @@ type InvalidateFilter = NonNullable<InvalidateOpts["filter"]>;
  * 除外の不変条件はラッパー経由では絶対にすり抜けない。
  *
  * 以下のいずれかに該当する mutation でのみ生の `router.invalidate()`
- * を直接呼ぶこと（AppShell を再評価させたいケース）:
+ * を直接呼ぶこと（navigate を伴わず AppShell を in-place 再評価させたいケース）:
  *   rule 1. 認証状態が変わる（未認証 ⇄ 認証）
  *   rule 2. Sidebar の directory tree を改変する
  *   rule 3. Header の `displayName` を改変する
+ *
+ * ただし rule 1 のうち **navigate を伴う auth 遷移**（ログイン/ログアウト/
+ * リセット確認/退会）は `clearAppShellCache(router)` + navigate を使う
+ * （navigate 直前に AppShell を破棄し、in-place 再評価で未認証 UI を
+ * 1 フレーム描画する race を避ける。`.issue/728/adr.md` ADR-001）。
+ * 生 invalidate を直接呼ぶのは navigate を伴わずに AppShell を再評価したい
+ * ケース（rule 2/3、および認証状態を変えない invalidate-only フローの
+ * `_app` 再評価）に限る。rule 2/3 は引き続き生 invalidate で正しい。
  *
  * `sync` / `forcePending` を必要とする場合はラッパーを拡張するか
  * 生の `router.invalidate()` を使う。経緯は `.issue/293/adr.md`
@@ -89,13 +102,38 @@ export function routerInvalidate(
  *   - `routerInvalidate(router)` = `_app` 除外（mutation 後の通常経路）
  *   - `appShellInvalidate(router)` = `_app` 専用（AppShell 再評価専用）
  *
- * 3 rule 例外（auth / directory / displayName mutation）は **AppShell の
- * 依存データ自体が変わる** ため、引き続き生の `router.invalidate()` を
- * 使う（leaf も併せて再評価される必要があるため）。経緯は
- * `.issue/300/adr.md` ADR-005 を参照。
+ * rule 2/3（directory / displayName mutation）は **AppShell の依存データ
+ * 自体が変わる** ため、引き続き生の `router.invalidate()` を使う
+ * （現在ルートに留まったまま leaf も併せて再評価される必要があるため）。
+ * rule 1（認証状態変化）のうち **navigate を伴う auth 遷移は
+ * `clearAppShellCache` を使い**、ここ（`appShellInvalidate`）を使うのは
+ * navigate を伴わない `_app` 再評価（session 失効観測・errorComponent retry）
+ * のみ。navigate で別ルートへ遷移するフローは現在 leaf を破棄して遷移するため
+ * in-place 再評価が不要で、破棄のみで足りる（`.issue/728/adr.md` ADR-001）。
+ * 経緯は `.issue/300/adr.md` ADR-005 を参照。
  */
 export function appShellInvalidate(router: AnyRouter): Promise<void> {
   return router.invalidate({
+    filter: (match) => match.routeId === APP_SHELL_ROUTE_ID,
+  });
+}
+
+/**
+ * 認証状態が変わる mutation 直後、navigate 前に呼ぶ。
+ * cached `_app` match を clearCache で破棄する（in-place 再評価を起こさない）。
+ * これにより直後の `router.navigate` が完了する前に、新しい認証状態で
+ * 現在ルートが再描画される race を避けられる。`appShellInvalidate`
+ * （invalidate ベース）と違い同期 `void` で、await 対象ではない。
+ *
+ * navigate はこのヘルパーに含めず、呼び出し側に
+ * `clearAppShellCache(router); await router.navigate({ to, search? });` の形で
+ * 残す（`router.navigate` は per-call で `TTo`/`TFrom`/search スキーマを推論する
+ * generic なので、単一インスタンス型に落とすと search 付き navigate が型エラーに
+ * なる。`.issue/728/adr.md` ADR-001 P-001）。`appShellInvalidate` と同じ
+ * `APP_SHELL_ROUTE_ID` 厳密一致 filter を使う。
+ */
+export function clearAppShellCache(router: AnyRouter): void {
+  router.clearCache({
     filter: (match) => match.routeId === APP_SHELL_ROUTE_ID,
   });
 }

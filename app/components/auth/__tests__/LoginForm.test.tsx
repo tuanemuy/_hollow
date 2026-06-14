@@ -8,6 +8,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { HOME_SEARCH } from "../links";
 
 /**
  * The Login form-error summary follows the `.alert alert-error` 案D structure.
@@ -19,18 +20,22 @@ import {
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { login, resend, invalidate, navigate } = vi.hoisted(() => ({
+const { login, resend, clearCache, navigate } = vi.hoisted(() => ({
   login: vi.fn(),
   resend: vi.fn(),
-  invalidate: vi.fn(),
+  clearCache: vi.fn(),
   navigate: vi.fn(),
 }));
 
+// #728: login success clears the cached `_app` match (clearCache) before
+// navigating to `/`, mirroring UserMenu / AccountDeleteForm. clearCache is
+// synchronous void; navigate is awaited. The order (clearCache → navigate) is
+// asserted in the success test below.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children }: { to: string; children: ReactNode }) => (
     <a href={to}>{children}</a>
   ),
-  useRouter: () => ({ invalidate, navigate }),
+  useRouter: () => ({ clearCache, navigate }),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -50,7 +55,7 @@ beforeEach(() => {
   root = createRoot(container);
   login.mockReset();
   resend.mockReset();
-  invalidate.mockReset().mockResolvedValue(undefined);
+  clearCache.mockReset();
   navigate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -75,6 +80,32 @@ function submit() {
 }
 
 describe("LoginForm submit failure summary", () => {
+  it("clears the AppShell cache before navigating to / on login success (#728)", async () => {
+    login.mockResolvedValue(undefined);
+    const order: string[] = [];
+    clearCache.mockImplementation(() => {
+      order.push("clearCache");
+    });
+    navigate.mockImplementation(async () => {
+      order.push("navigate");
+    });
+
+    render();
+    await act(async () => {
+      submit();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(login).toHaveBeenCalledTimes(1);
+    expect(clearCache).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith({ to: "/", search: HOME_SEARCH });
+    // Invariant: cache is discarded BEFORE navigation (break → go order).
+    expect(order).toEqual(["clearCache", "navigate"]);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it("renders the failure summary as a `.alert alert-error` 案D block", async () => {
     login.mockRejectedValue({
       kind: "unauthorized",

@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { HOME_SEARCH } from "@/components/auth/links";
 import type { UserDTO } from "@/core/application/dto/identity";
 
 /**
@@ -157,6 +158,32 @@ describe("AccountDeleteForm validation error (Issue #421 — regression guard)",
   });
 });
 
+describe("AccountDeleteForm success navigation (Issue #728)", () => {
+  it("clears the AppShell cache before navigating to / on delete success", async () => {
+    deleteAccount.mockResolvedValue(undefined);
+    render();
+    openDialog();
+    typeConfirmation("alice");
+
+    await act(async () => {
+      submit();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    // race 回避の核心: clearCache（AppShell 破棄）が navigate より先に呼ばれる。
+    expect(clearCache).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(clearCache.mock.invocationCallOrder[0]).toBeLessThan(
+      navigate.mock.invocationCallOrder[0],
+    );
+    expect(navigate).toHaveBeenCalledWith({ to: "/", search: HOME_SEARCH });
+    // 退会は未認証ランディング行きで、成功時はダイアログが閉じエラーが残らない。
+    expect(document.body.querySelectorAll('[role="alert"]')).toHaveLength(0);
+  });
+});
+
 describe("AccountDeleteForm server error (Issue #421)", () => {
   it("keeps the dialog open and surfaces the error in-dialog when the server rejects", async () => {
     deleteAccount.mockRejectedValue(
@@ -182,7 +209,7 @@ describe("AccountDeleteForm server error (Issue #421)", () => {
       dialog?.querySelectorAll('[role="alert"]') ?? [],
     ).filter((el) => (el.textContent ?? "").length > 0);
     expect(alerts.length).toBeGreaterThanOrEqual(1);
-    // No outer summary leaks into the section body (it was removed).
+    // No outer summary leaks into the section body.
     const outsideAlert = Array.from(
       container.querySelectorAll('[role="alert"]'),
     );
