@@ -49,44 +49,65 @@ const MAX_RECORDING_SECONDS = 30 * 60;
  * `audio/` MIME prefix still classifies as `audio`. The plain fallbacks
  * cover engines that report support without the codec suffix.
  */
-const MIME_CANDIDATES: ReadonlyArray<{ mimeType: string; extension: string }> =
-  [
-    { mimeType: "audio/webm;codecs=opus", extension: "webm" },
-    { mimeType: "audio/webm", extension: "webm" },
-    { mimeType: "audio/mp4", extension: "m4a" },
-    { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
-    { mimeType: "audio/ogg", extension: "ogg" },
-  ];
+export const MIME_CANDIDATES: ReadonlyArray<{
+  mimeType: string;
+  extension: string;
+}> = [
+  { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+  { mimeType: "audio/webm", extension: "webm" },
+  { mimeType: "audio/mp4", extension: "m4a" },
+  { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
+  { mimeType: "audio/ogg", extension: "ogg" },
+];
 
 type PickedMime = { mimeType: string; extension: string };
 
 /**
- * Resolves the first supported recording MIME via `isTypeSupported`. Returns
- * `null` when none of the candidates are supported (caller falls back to the
- * browser default and a generic `.webm` name).
+ * Predicate deciding whether a recording MIME is usable. The default reads the
+ * platform `MediaRecorder.isTypeSupported`; injecting one lets unit tests
+ * exercise the candidate-preference logic without a DOM `MediaRecorder`.
  */
-function pickSupportedMime(): PickedMime | null {
+export type IsTypeSupported = (mimeType: string) => boolean;
+
+/**
+ * Default `IsTypeSupported`: defers to `MediaRecorder.isTypeSupported`, and
+ * reports nothing supported when `MediaRecorder` is unavailable so the caller
+ * falls back to the browser default and a generic `.webm` name.
+ */
+const defaultIsTypeSupported: IsTypeSupported = (mimeType) => {
   if (
     typeof MediaRecorder === "undefined" ||
     typeof MediaRecorder.isTypeSupported !== "function"
   ) {
-    return null;
+    return false;
   }
+  return MediaRecorder.isTypeSupported(mimeType);
+};
+
+/**
+ * Resolves the first supported recording MIME in preference order. Returns
+ * `null` when none of the candidates are supported (caller falls back to the
+ * browser default and a generic `.webm` name). The `isSupported` predicate is
+ * injectable for testing; production always uses `defaultIsTypeSupported`.
+ */
+export function pickSupportedMime(
+  isSupported: IsTypeSupported = defaultIsTypeSupported,
+): PickedMime | null {
   for (const candidate of MIME_CANDIDATES) {
-    if (MediaRecorder.isTypeSupported(candidate.mimeType)) {
+    if (isSupported(candidate.mimeType)) {
       return candidate;
     }
   }
   return null;
 }
 
-function formatDuration(totalSeconds: number): string {
+export function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-type RecorderState =
+export type RecorderState =
   | { kind: "idle" }
   | { kind: "requesting-permission" }
   | { kind: "recording"; seconds: number; bytes: number }
@@ -368,7 +389,7 @@ export function AudioRecorder() {
   );
 }
 
-function recorderStatusText(state: RecorderState): string {
+export function recorderStatusText(state: RecorderState): string {
   switch (state.kind) {
     case "idle":
       return "";
