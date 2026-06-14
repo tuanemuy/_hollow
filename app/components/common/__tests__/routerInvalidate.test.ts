@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { appShellInvalidate, routerInvalidate } from "../routerInvalidate";
+import {
+  appShellInvalidate,
+  clearAppShellCache,
+  routerInvalidate,
+} from "../routerInvalidate";
 
 /**
  * Pins the API contracts for the symmetric pair of
@@ -34,6 +38,28 @@ function takeFilter(
 ): (m: FakeMatch) => boolean {
   const call = invalidate.mock.calls.at(-1);
   if (call === undefined) throw new Error("invalidate was not called");
+  const filter = call[0]?.filter;
+  if (filter === undefined) throw new Error("filter was not passed");
+  return filter as unknown as (m: FakeMatch) => boolean;
+}
+
+function makeClearCacheRouter() {
+  // `clearCache` is synchronous `void`, unlike the `invalidate` helpers.
+  const clearCache =
+    vi.fn<(opts: { filter?: (m: FakeMatch) => boolean }) => void>();
+  return {
+    router: {
+      clearCache,
+    } as unknown as Parameters<typeof clearAppShellCache>[0],
+    clearCache,
+  };
+}
+
+function takeClearCacheFilter(
+  clearCache: ReturnType<typeof makeClearCacheRouter>["clearCache"],
+): (m: FakeMatch) => boolean {
+  const call = clearCache.mock.calls.at(-1);
+  if (call === undefined) throw new Error("clearCache was not called");
   const filter = call[0]?.filter;
   if (filter === undefined) throw new Error("filter was not passed");
   return filter as unknown as (m: FakeMatch) => boolean;
@@ -120,6 +146,39 @@ describe("appShellInvalidate", () => {
     const { router, invalidate } = makeRouter();
     await appShellInvalidate(router);
     const filter = takeFilter(invalidate);
+    expect(filter({ routeId: "__root__" })).toBe(false);
+    expect(filter({ routeId: "/login" })).toBe(false);
+    expect(filter({ routeId: "/" })).toBe(false);
+  });
+});
+
+describe("clearAppShellCache", () => {
+  it("drives `clearCache` (not invalidate) with a filter matching only the exact `/_app` routeId", () => {
+    const { router, clearCache } = makeClearCacheRouter();
+    const result = clearAppShellCache(router);
+    // clearCache is synchronous void — no awaitable returned.
+    expect(result).toBeUndefined();
+    expect(clearCache).toHaveBeenCalledTimes(1);
+    const filter = takeClearCacheFilter(clearCache);
+    expect(filter({ routeId: "/_app" })).toBe(true);
+  });
+
+  it("rejects leaf routes whose routeId is a prefix-extension of `/_app`", () => {
+    const { router, clearCache } = makeClearCacheRouter();
+    clearAppShellCache(router);
+    const filter = takeClearCacheFilter(clearCache);
+    // Strict equality — `startsWith` would erroneously include leaves.
+    expect(filter({ routeId: "/_app/notes" })).toBe(false);
+    expect(filter({ routeId: "/_app/notes/$noteId" })).toBe(false);
+    expect(filter({ routeId: "/_app/notes/$noteId/edit" })).toBe(false);
+    expect(filter({ routeId: "/_app/tags" })).toBe(false);
+    expect(filter({ routeId: "/_app/trash" })).toBe(false);
+  });
+
+  it("rejects unrelated routes such as the root or auth pages", () => {
+    const { router, clearCache } = makeClearCacheRouter();
+    clearAppShellCache(router);
+    const filter = takeClearCacheFilter(clearCache);
     expect(filter({ routeId: "__root__" })).toBe(false);
     expect(filter({ routeId: "/login" })).toBe(false);
     expect(filter({ routeId: "/" })).toBe(false);

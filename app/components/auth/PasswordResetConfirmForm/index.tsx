@@ -3,6 +3,7 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useMemo, useState } from "react";
+import { clearAppShellCache } from "@/components/common/routerInvalidate";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -93,8 +94,10 @@ export function PasswordResetConfirmForm({ token }: { token: string }) {
             confirmPassword: String(formData.get("confirmPassword") ?? ""),
           },
         });
-        // 認証状態確立後の AppShell 再評価のため _app も invalidate（rule 1）
-        await router.invalidate();
+        // リセット確認はセッションを確立する。cached _app match を clearCache で
+        // 破棄してから / へ遷移する。invalidate と違い in-place 再評価を起こさないので、
+        // navigate 前にランディングが 1 フレーム描画される race を避けられる（#728 ADR-001）。
+        clearAppShellCache(router);
         await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null };
       } catch (error) {

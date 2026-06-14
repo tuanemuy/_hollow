@@ -7,6 +7,7 @@ import { useId, useState, useTransition } from "react";
 import { HOME_SEARCH } from "@/components/auth/links";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Icon } from "@/components/common/Icon";
+import { clearAppShellCache } from "@/components/common/routerInvalidate";
 import { pillBtn, pillBtnDanger } from "@/components/common/styles";
 import type { UserDTO } from "@/core/application/dto/identity";
 import {
@@ -46,8 +47,8 @@ export function AccountDeleteForm({ user }: { user: UserDTO }) {
     startTransition(async () => {
       try {
         await deleteAccount({ data: { confirmation: draft } });
-        // 過去訪問で cached された _app match に残る旧 userDto を破棄する（navigate との race 回避）
-        router.clearCache({ filter: (match) => match.routeId === "/_app" });
+        // 過去訪問で cached された _app match に残る旧 userDto を破棄する（navigate との race 回避。#728 ADR-001）
+        clearAppShellCache(router);
         await router.navigate({ to: "/", search: HOME_SEARCH });
         setError(null);
       } catch (e) {

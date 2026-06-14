@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, ChevronRight, MailWarning } from "lucide-react";
 import { useActionState, useId, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
+import { clearAppShellCache } from "@/components/common/routerInvalidate";
 import {
   ALERT,
   ALERT_ACTION,
@@ -78,8 +79,11 @@ export function LoginForm() {
             password: String(formData.get("password") ?? ""),
           },
         });
-        // cached _app match の userDto: null を破棄し、/ 遷移後に AppShell を再評価させるため（rule 1）
-        await router.invalidate();
+        // cached _app match の userDto: null を clearCache で破棄してから / へ遷移する。
+        // invalidate と違い in-place 再評価を起こさないので、navigate 前にランディングが
+        // 1 フレーム描画される race を避けられる（#728 ADR-001）。navigate 先で _app.loader が
+        // 新しい認証状態で fresh load される。
+        clearAppShellCache(router);
         await router.navigate({ to: "/", search: HOME_SEARCH });
         return { error: null, email };
       } catch (error) {

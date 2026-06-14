@@ -6,6 +6,7 @@ import { ChevronsUpDown } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { Menu, MenuItem } from "@/components/common/Menu";
+import { clearAppShellCache } from "@/components/common/routerInvalidate";
 import type { UserDTO } from "@/core/application/dto";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -63,9 +64,11 @@ export function UserMenu({ user }: Props) {
     startTransition(async () => {
       try {
         await logOut({ data: undefined });
-        // 認証状態が変わるため _app loader の userDto キャッシュを破棄し、
-        // /login へ遷移させる（LoginForm と対称。ADR-001）。
-        await router.invalidate();
+        // 認証状態が変わるため _app loader の userDto キャッシュを clearCache で
+        // 破棄してから /login へ遷移させる。invalidate と違い in-place 再評価を
+        // 起こさないので navigate 前にランディングが 1 フレーム描画される race を
+        // 避けられる（LoginForm と対称。#728 ADR-001）。
+        clearAppShellCache(router);
         await router.navigate({ to: "/login" });
       } catch (error) {
         setLogoutError(extractSerializedError(error));
