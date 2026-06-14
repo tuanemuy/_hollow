@@ -64,6 +64,38 @@ export const testLLMConnectionSchema = z.object({
     .nullable(),
 });
 
+// Provider enumeration duplicated from `SPEECH_PROVIDERS` in
+// `app/core/domain/adminSettings/valueObject.ts` (Issue #701). Same
+// dual-list pattern as `LLM_PROVIDERS_TRANSPORT` above — kept separate
+// so this file stays free of `@/core/domain/*` imports. VO construction
+// throws `InvalidSpeechProvider` if the two lists drift. When adding a
+// provider, update both lists.
+export const SPEECH_PROVIDERS_TRANSPORT = ["openai"] as const;
+
+export const updateSpeechConfigSchema = z.object({
+  provider: z.enum(SPEECH_PROVIDERS_TRANSPORT),
+  model: z.string().trim().min(1).max(200),
+  apiKeyPlain: z.string().min(1).max(4096).nullable(),
+});
+
+// Draft test always sources the api key from the env override
+// (`ADMIN_SPEECH_API_KEY`). The client must never submit a ciphertext on
+// this path — DB-stored ciphertext lives server-side only. Locking the
+// schema to `apiKeySource: "env" + apiKeyCiphertext: null` closes the
+// transport hole so a malicious client cannot probe arbitrary ciphertexts
+// (symmetric with `testLLMConnectionSchema`).
+export const testSpeechConnectionSchema = z.object({
+  useDraft: z.boolean(),
+  draftConfig: z
+    .object({
+      provider: z.enum(SPEECH_PROVIDERS_TRANSPORT),
+      model: z.string().trim().min(1).max(200),
+      apiKeySource: z.literal("env"),
+      apiKeyCiphertext: z.null(),
+    })
+    .nullable(),
+});
+
 // Purpose enumeration duplicated from `PROMPT_PURPOSES` in
 // `app/core/domain/adminSettings/valueObject.ts` (Issue #218 ADR-005).
 // Same dual-list pattern as `LLM_PROVIDERS_TRANSPORT` above — when adding

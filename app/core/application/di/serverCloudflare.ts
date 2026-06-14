@@ -32,6 +32,7 @@ import {
   selectPreviousSecretBox,
   selectSecretBox,
 } from "@/core/adapters/security/secretBox";
+import { lookupSpeechAdapter } from "@/core/adapters/speech/registry";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
 import { StubOCRProvider } from "@/core/adapters/stub/ocrProvider";
 import { StubOfficeExtractor } from "@/core/adapters/stub/officeExtractor";
@@ -46,6 +47,7 @@ import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
 import type { PDFExtractor } from "@/core/domain/ingestion/ports/pdfExtractor";
+import type { SpeechRecognitionProvider } from "@/core/domain/ingestion/ports/speechRecognitionProvider";
 import {
   type TempFileStorage,
   TempFileStorageUnavailableError,
@@ -75,6 +77,7 @@ import {
   createOCRProvider,
   createPDFExtractor,
 } from "./llmProviderFactory";
+import { HttpSpeechConnectionTester } from "./speechConnectionTester";
 import type {
   AppConfig,
   ConsumerContainer,
@@ -166,6 +169,18 @@ export type RequestServerConfig = AppConfig &
     // reads `ADMIN_LLM_BASE_URL` directly from `env` (no threading) —
     // see `resolveConsumerLlmConfig`.
     adminLlmBaseUrl?: string;
+    // Optional `ADMIN_SPEECH_API_KEY` env override (Issue #701). When set,
+    // speech settings resolution prefers this over any DB-stored ciphertext
+    // (`AdminSettingsService.assertSpeechEnvOverride`); also wires the real
+    // OpenAI speech adapter on the request path.
+    adminSpeechApiKey?: string;
+    // Optional `ADMIN_SPEECH_MODEL` var. Paired with `adminSpeechApiKey`,
+    // both truthy → DI wires `OpenAISpeechRecognitionProvider`; either
+    // missing → DI keeps `StubSpeechRecognitionProvider`.
+    adminSpeechModel?: string;
+    // Optional `ADMIN_SPEECH_PROVIDER` var. Selects which speech adapter the
+    // factory instantiates. Unset → defaults to `"openai"`.
+    adminSpeechProvider?: string;
     // R2 binding for ingestion-temp storage. When present DI wires
     // `R2TempFileStorage`; absent → DI installs an inline unavailable
     // adapter that rejects every call with
@@ -248,6 +263,17 @@ export type ServerEnv = Readonly<{
   // value. Wrangler `[vars]` entry — empty string → use the provider's
   // default endpoint. Public information delivered via vars.
   ADMIN_LLM_BASE_URL?: string;
+  // Optional speech-side api key override (Issue #701). Absent → no env
+  // override; admin DB-stored ciphertext (or Stub) is used instead.
+  ADMIN_SPEECH_API_KEY?: string;
+  // Optional transcription model id. Wrangler `[vars]` — paired with
+  // `ADMIN_SPEECH_API_KEY`, both truthy → DI wires the real OpenAI speech
+  // adapter; either missing → DI keeps `StubSpeechRecognitionProvider`.
+  // Public information so it ships via vars.
+  ADMIN_SPEECH_MODEL?: string;
+  // Optional speech provider id for the speech registry factory. Wrangler
+  // `[vars]` — unset → defaults to `"openai"`. Public information.
+  ADMIN_SPEECH_PROVIDER?: string;
   // R2 binding for ingestion-temp storage. Optional so the DI fallback
   // (inline unavailable adapter that rejects with
   // `TempFileStorageUnavailableError`) covers worker entries that do not
@@ -364,6 +390,15 @@ export function readRequestServerConfig(
     // に揃える必要はなく、threading 漏れさえ起きなければ semantics は一致。
     ...(env.ADMIN_LLM_BASE_URL
       ? { adminLlmBaseUrl: env.ADMIN_LLM_BASE_URL }
+      : {}),
+    ...(env.ADMIN_SPEECH_API_KEY
+      ? { adminSpeechApiKey: env.ADMIN_SPEECH_API_KEY }
+      : {}),
+    ...(env.ADMIN_SPEECH_MODEL
+      ? { adminSpeechModel: env.ADMIN_SPEECH_MODEL }
+      : {}),
+    ...(env.ADMIN_SPEECH_PROVIDER
+      ? { adminSpeechProvider: env.ADMIN_SPEECH_PROVIDER }
       : {}),
     ...(env.TEMP_FILES ? { tempFilesBucket: env.TEMP_FILES } : {}),
     ...(r2PresignReady
@@ -555,6 +590,35 @@ export function buildLlmProvider(
 }
 
 /**
+ * Build the {@link SpeechRecognitionProvider} (Issue #701). Delegates to
+ * the speech registry factory when both `ADMIN_SPEECH_API_KEY` (secret) and
+ * `ADMIN_SPEECH_MODEL` (var) are present; either missing → fall back to
+ * `StubSpeechRecognitionProvider`. `provider` defaults to `"openai"` when
+ * `ADMIN_SPEECH_PROVIDER` is unset.
+ *
+ * An unregistered provider string (operator typo) falls back to the Stub so
+ * the container still builds — the queued audio job then fails with the
+ * Stub's `unsupported_format` rather than crashing container construction.
+ */
+export function buildSpeechRecognitionProvider(
+  provider: string | undefined,
+  adminSpeechApiKey: string | undefined,
+  adminSpeechModel: string | undefined,
+): SpeechRecognitionProvider {
+  if (!adminSpeechApiKey || !adminSpeechModel) {
+    return new StubSpeechRecognitionProvider();
+  }
+  const adapter = lookupSpeechAdapter(provider ?? "openai");
+  if (adapter === undefined) {
+    return new StubSpeechRecognitionProvider();
+  }
+  return adapter.create({
+    apiKey: adminSpeechApiKey,
+    model: adminSpeechModel,
+  });
+}
+
+/**
  * Build the request-scoped container. Wires the unit-of-work
  * provider with a relay trigger (Service Binding when available,
  * no-op otherwise), and exposes `config` for SSR head/meta.
@@ -587,6 +651,9 @@ export function createRequestContainer(
     adminLlmModel,
     adminLlmProvider,
     adminLlmBaseUrl,
+    adminSpeechApiKey,
+    adminSpeechModel,
+    adminSpeechProvider,
     tempFilesBucket,
     objectStorageBucket,
     r2PresignConfig,
@@ -642,7 +709,11 @@ export function createRequestContainer(
       adminLlmApiKey,
       adminLlmModel,
     ),
-    speechRecognitionProvider: new StubSpeechRecognitionProvider(),
+    speechRecognitionProvider: buildSpeechRecognitionProvider(
+      adminSpeechProvider,
+      adminSpeechApiKey,
+      adminSpeechModel,
+    ),
     officeExtractor: new StubOfficeExtractor(),
     pdfExtractor: buildPdfExtractor(
       adminLlmProvider,
@@ -665,6 +736,7 @@ export function createRequestContainer(
       SECRET_BOX_MASTER_KEY_PREVIOUS: secretBoxMasterKeyPrevious,
     }),
     llmConnectionTester: new HttpLLMConnectionTester(),
+    speechConnectionTester: new HttpSpeechConnectionTester(),
     usageMetricsProvider: NullUsageMetricsProvider,
     adminSettingsEnv: {
       apiKey:
@@ -682,6 +754,20 @@ export function createRequestContainer(
       baseURL:
         adminLlmBaseUrl !== undefined && adminLlmBaseUrl.length > 0
           ? adminLlmBaseUrl
+          : null,
+    },
+    adminSpeechEnv: {
+      apiKey:
+        adminSpeechApiKey !== undefined && adminSpeechApiKey.length > 0
+          ? adminSpeechApiKey
+          : null,
+      provider:
+        adminSpeechProvider !== undefined && adminSpeechProvider.length > 0
+          ? adminSpeechProvider
+          : null,
+      model:
+        adminSpeechModel !== undefined && adminSpeechModel.length > 0
+          ? adminSpeechModel
           : null,
     },
   } satisfies RequestContainer;
@@ -820,9 +906,27 @@ export async function createConsumerContainer(
         ),
       }
     : {};
+  // Issue #701: same env > DB > Stub resolution for the speech provider.
+  const resolvedSpeech = await resolveConsumerSpeechConfig(
+    env,
+    requestContainer.secretBox,
+    requestContainer.secretBoxPrevious,
+  );
+  const speechOverrides: Partial<{
+    speechRecognitionProvider: SpeechRecognitionProvider;
+  }> = resolvedSpeech
+    ? {
+        speechRecognitionProvider: buildSpeechRecognitionProvider(
+          resolvedSpeech.provider,
+          resolvedSpeech.apiKey,
+          resolvedSpeech.model,
+        ),
+      }
+    : {};
   return {
     ...requestContainer,
     ...llmOverrides,
+    ...speechOverrides,
     outboxRepository: workerContainer.outboxRepository,
     idempotencyStore: workerContainer.idempotencyStore,
     indexJobRepository: workerContainer.indexJobRepository,
@@ -967,6 +1071,106 @@ async function readInstanceSettingsLlmRow(
       llmModel: instanceSettingsTable.llmModel,
       llmBaseUrl: instanceSettingsTable.llmBaseUrl,
       llmApiKeyCiphertext: instanceSettingsTable.llmApiKeyCiphertext,
+    })
+    .from(instanceSettingsTable)
+    .where(eq(instanceSettingsTable.id, "singleton"))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Shape of `(provider, model, apiKey)` resolved for the consumer-worker
+ * speech factory (Issue #701). Returned by {@link resolveConsumerSpeechConfig}
+ * only when all three are usable; otherwise `null` and the consumer keeps
+ * the request-side Stub fallback. No `baseURL` axis (ADR-003).
+ */
+export type ResolvedConsumerSpeechConfig = Readonly<{
+  provider: string;
+  model: string;
+  apiKey: string;
+}>;
+
+/**
+ * Resolve the speech config for the consumer worker, mirroring
+ * {@link resolveConsumerLlmConfig}: **env override > DB resolution > Stub
+ * fallback**. `ADMIN_SPEECH_*` env wins; else the persisted `speech_*` row
+ * is used and the ciphertext decrypted (with previous-key fallback during a
+ * master-key rotation). A decrypt failure returns `null` (Stub fallback)
+ * instead of crashing the queue handler.
+ */
+export async function resolveConsumerSpeechConfig(
+  env: ServerEnv,
+  secretBox: SecretBox,
+  secretBoxPrevious: SecretBox | null,
+): Promise<ResolvedConsumerSpeechConfig | null> {
+  const dbRow = await readInstanceSettingsSpeechRow(env).catch(() => null);
+
+  const envProvider = env.ADMIN_SPEECH_PROVIDER;
+  const provider =
+    envProvider !== undefined && envProvider.length > 0
+      ? envProvider
+      : (dbRow?.speechProvider ?? null);
+
+  const envModel = env.ADMIN_SPEECH_MODEL;
+  const model =
+    envModel !== undefined && envModel.length > 0
+      ? envModel
+      : (dbRow?.speechModel ?? null);
+
+  let apiKey: string | null = null;
+  const envApiKey = env.ADMIN_SPEECH_API_KEY;
+  if (envApiKey !== undefined && envApiKey.length > 0) {
+    apiKey = envApiKey;
+  } else if (dbRow?.speechApiKeyCiphertext) {
+    try {
+      apiKey = await decryptWithFallback(
+        secretBox,
+        secretBoxPrevious,
+        dbRow.speechApiKeyCiphertext,
+      );
+    } catch (cause) {
+      if (isSecretBoxError(cause)) {
+        ConsoleLogger.warn(
+          "[di] consumer speech apiKey decrypt failed; falling back to Stub adapter",
+          { code: cause.code },
+        );
+      } else {
+        ConsoleLogger.warn(
+          "[di] consumer speech apiKey resolution threw; falling back to Stub adapter",
+          { cause },
+        );
+      }
+      return null;
+    }
+  }
+
+  if (provider === null || model === null || apiKey === null) {
+    return null;
+  }
+
+  return { provider, model, apiKey };
+}
+
+type InstanceSettingsSpeechRow = Readonly<{
+  speechProvider: string;
+  speechModel: string | null;
+  speechApiKeyCiphertext: string | null;
+}>;
+
+/**
+ * Read the singleton `instance_settings` row's speech-relevant columns.
+ * Returns `null` when the row is missing. Throws on a driver-level read
+ * failure; the caller swallows it via `.catch(() => null)`.
+ */
+async function readInstanceSettingsSpeechRow(
+  env: ServerEnv,
+): Promise<InstanceSettingsSpeechRow | null> {
+  const db = getDatabase(env.DB);
+  const rows = await db
+    .select({
+      speechProvider: instanceSettingsTable.speechProvider,
+      speechModel: instanceSettingsTable.speechModel,
+      speechApiKeyCiphertext: instanceSettingsTable.speechApiKeyCiphertext,
     })
     .from(instanceSettingsTable)
     .where(eq(instanceSettingsTable.id, "singleton"))

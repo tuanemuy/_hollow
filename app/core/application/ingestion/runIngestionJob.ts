@@ -258,9 +258,44 @@ type PipelineDeps = Readonly<{
   originalFileName: string;
 }>;
 
+/**
+ * Fixed degraded-preview body for a failed (or silent / no-speech) audio
+ * transcription (Issue #701 AC-6 / ADR-005). This is a trusted constant, so
+ * it is handed to `ContentHtml.create` *without* passing through the HTML
+ * sanitizer (the sanitizer's contract targets untrusted input and would
+ * strip unknown `data-*` markers anyway — the `class` survives and is what
+ * the UI keys off). The `ingestion-failure-note` class is the stable marker
+ * the preview UI / tests assert on.
+ */
+const INGESTION_SPEECH_FAILURE_NOTE_HTML =
+  '<p class="ingestion-failure-note">文字起こしに失敗しました。録音は保存されています。本文を手動で追記して保存できます。</p>';
+
 async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
   const { kind } = deps;
   const text = await extractText(deps);
+
+  // AC-6 (Issue #701 ADR-005): audio whose transcript came back empty —
+  // either degraded from a `SpeechFailureError` in `extractText` or a
+  // genuine no-speech recording — skips ALL LLM structuring. `suggestMetadata`
+  // sits on the common path below (outside the kind if/else), so the only
+  // way to avoid invoking the LLM with empty input is to assemble the
+  // degraded preview here and return early, bypassing the metadata / tag /
+  // directory-resolution block entirely. The body carries a failure note so
+  // the user sees what happened and can append their own content before
+  // committing.
+  if (kind === "audio" && text.trim().length === 0) {
+    return IngestionPreview.create({
+      title: NoteTitle.create(fallbackTitle(deps.originalFileName)),
+      contentHtml: ContentHtml.create(INGESTION_SPEECH_FAILURE_NOTE_HTML),
+      suggestedDirectoryId: null,
+      suggestedDirectoryName: null,
+      frontMatter: FrontMatter.empty(),
+      suggestedTagNames: [],
+      internalLinkRefs: [] as readonly InternalLinkRef[],
+      mediaRefs: [],
+    });
+  }
+
   // Prefer the per-upload override; only hit the resolver when none was
   // supplied for this purpose (#228). `structurePrompt` is consumed only
   // by the LLM-structuring branch below.
@@ -511,11 +546,24 @@ async function extractText(deps: PipelineDeps): Promise<string> {
         mime: deps.mimeType,
       });
     case "audio":
-      return deps.speech.transcribe({
-        audioBytes: deps.bytes,
-        mime: deps.mimeType,
-        locale: "ja",
-      });
+      try {
+        return await deps.speech.transcribe({
+          audioBytes: deps.bytes,
+          mime: deps.mimeType,
+          locale: "ja",
+        });
+      } catch (error) {
+        // AC-6 (Issue #701 ADR-005): a *configured* provider's transcribe
+        // failure (catastrophic / no-speech) degrades to an empty
+        // transcript so `runPipeline` can build a degraded preview the
+        // user can still commit. Only `SpeechFailureError` is swallowed
+        // here — the unconfigured-provider stub throws
+        // `BusinessRuleError('unsupported_format')`, which is intentionally
+        // left to propagate so `classifyPipelineError` marks the job
+        // `failed` ("feature not configured" ≠ "transcription failed").
+        if (isSpeechFailureError(error)) return "";
+        throw error;
+      }
   }
 }
 

@@ -6,6 +6,7 @@ import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import {
   type LLMProvider as LLMProviderName,
   PromptPurpose,
+  type SpeechProvider as SpeechProviderName,
 } from "@/core/domain/adminSettings/valueObject";
 import { type Instant, toInstant } from "./common";
 
@@ -84,6 +85,27 @@ export type InstanceSettingsDTO = Readonly<{
       model: boolean;
       apiKey: boolean;
       baseURL: boolean;
+    }>;
+  }>;
+  /**
+   * Speech-recognition (transcription) provider projection (Issue #701).
+   * Symmetric with `llm` but without a `baseURL` axis (ADR-003).
+   */
+  speech: Readonly<{
+    provider: SpeechProviderName;
+    model: string;
+    apiKeySource: "env" | "db";
+    /** Masked api key (e.g. `••••abc1`); `null` when source is `env`. */
+    apiKeyMasked: string | null;
+    /**
+     * Per-field `ADMIN_SPEECH_*` env-override flags. `true` means the UI
+     * MUST render the field locked (env value wins). `provider` / `model`
+     * surface the env-supplied current value when their flag is `true`.
+     */
+    envOverrides: Readonly<{
+      provider: boolean;
+      model: boolean;
+      apiKey: boolean;
     }>;
   }>;
   /**
@@ -219,6 +241,12 @@ export function toInstanceSettingsDTO(
     model: string | null;
     baseURL: string | null;
   }> | null,
+  speechApiKeyMasked: string | null = null,
+  speechEnv: Readonly<{
+    apiKey: string | null;
+    provider: string | null;
+    model: string | null;
+  }> | null = null,
 ): InstanceSettingsDTO {
   const prompts: Record<string, PromptDTO> = {};
   const promptDefaults: Record<string, PromptDefaultDTO> = {};
@@ -279,6 +307,22 @@ export function toInstanceSettingsDTO(
     envOverrides.baseURL && llmEnv !== null && llmEnv.baseURL !== null
       ? llmEnv.baseURL
       : settings.llm.baseURL;
+  const speechEnvOverrides = {
+    provider: speechEnv !== null && speechEnv.provider !== null,
+    model: speechEnv !== null && speechEnv.model !== null,
+    apiKey: speechEnv !== null && speechEnv.apiKey !== null,
+  };
+  const speechProvider = (
+    speechEnvOverrides.provider &&
+    speechEnv !== null &&
+    speechEnv.provider !== null
+      ? speechEnv.provider
+      : settings.speech.provider
+  ) as SpeechProviderName;
+  const speechModel =
+    speechEnvOverrides.model && speechEnv !== null && speechEnv.model !== null
+      ? speechEnv.model
+      : settings.speech.model;
   return {
     llm: {
       provider,
@@ -287,6 +331,13 @@ export function toInstanceSettingsDTO(
       apiKeySource: settings.llm.apiKeySource,
       apiKeyMasked: envOverrides.apiKey ? null : apiKeyMasked,
       envOverrides,
+    },
+    speech: {
+      provider: speechProvider,
+      model: speechModel,
+      apiKeySource: settings.speech.apiKeySource,
+      apiKeyMasked: speechEnvOverrides.apiKey ? null : speechApiKeyMasked,
+      envOverrides: speechEnvOverrides,
     },
     prompts,
     promptDefaults,

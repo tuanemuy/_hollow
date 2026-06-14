@@ -22,6 +22,7 @@ import {
   type SerializedError,
 } from "@/core/presentation/errorResponse";
 import { FORM_ERROR } from "../layout/styles";
+import { AudioRecorder } from "./AudioRecorder";
 import {
   type EffectiveIngestionPromptsWire,
   getEffectiveIngestionPromptsFn,
@@ -428,6 +429,9 @@ function SelectView({
           onChange={(e) => onFiles(e.target.files)}
         />
       </label>
+      <div className="mt-4">
+        <AudioRecorder />
+      </div>
       <details
         className="mt-4 rounded-md border border-hairline bg-surface-elevated"
         onToggle={(e) => onAdvancedToggle(e.currentTarget.open)}

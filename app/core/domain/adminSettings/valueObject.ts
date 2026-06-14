@@ -252,6 +252,108 @@ export const LLMConfig = {
   },
 };
 
+// ---------- SpeechRecognitionConfig ----------
+
+const SPEECH_MODEL_MAX_LENGTH = 120;
+// INVARIANT: every value here must have a matching entry in
+// `speechProviderRegistry` (`app/core/adapters/speech/registry.ts`). Its
+// `Record<SpeechProvider, SpeechAdapter>` annotation enforces this at
+// compile time. Each provider also has a canonical default `model` used by
+// `defaultSpeech()` / DI bootstrap — keep that mapping in sync when adding a
+// provider:
+//   - `openai` → `gpt-4o-transcribe`
+// Add new providers (e.g. "deepgram") atomically: export a `SpeechAdapter`
+// from `app/core/adapters/<provider>/index.ts`, register it in
+// `speechProviderRegistry`, and extend the default-model mapping above.
+const SPEECH_PROVIDERS = ["openai"] as const;
+const SPEECH_API_KEY_SOURCES = ["env", "db"] as const;
+
+export type SpeechProvider = (typeof SPEECH_PROVIDERS)[number];
+export type SpeechApiKeySource = (typeof SPEECH_API_KEY_SOURCES)[number];
+
+declare const speechRecognitionConfigBrand: unique symbol;
+
+export type SpeechRecognitionConfig = Readonly<{
+  provider: SpeechProvider;
+  model: string;
+  apiKeySource: SpeechApiKeySource;
+  apiKeyCiphertext: string | null;
+}> & { readonly [speechRecognitionConfigBrand]: true };
+
+export const SpeechRecognitionConfig = {
+  providers: SPEECH_PROVIDERS,
+  apiKeySources: SPEECH_API_KEY_SOURCES,
+  create: (params: {
+    provider: string;
+    model: string;
+    apiKeySource: string;
+    apiKeyCiphertext: string | null;
+  }): SpeechRecognitionConfig => {
+    if (!(SPEECH_PROVIDERS as readonly string[]).includes(params.provider)) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidSpeechProvider,
+        `Invalid speech provider: ${params.provider}`,
+      );
+    }
+    const model = params.model.trim();
+    if (model.length === 0) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidSpeechModel,
+        "Speech model cannot be empty",
+      );
+    }
+    if (model.length > SPEECH_MODEL_MAX_LENGTH) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidSpeechModelTooLong,
+        `Speech model exceeds maximum length (${SPEECH_MODEL_MAX_LENGTH})`,
+      );
+    }
+    const provider = params.provider as SpeechProvider;
+    if (
+      !(SPEECH_API_KEY_SOURCES as readonly string[]).includes(
+        params.apiKeySource,
+      )
+    ) {
+      throw new BusinessRuleError(
+        AdminSettingsErrorCode.InvalidSpeechApiKeySource,
+        `Invalid api key source: ${params.apiKeySource}`,
+      );
+    }
+    const source = params.apiKeySource as SpeechApiKeySource;
+    let ciphertext: string | null;
+    if (source === "db") {
+      if (
+        params.apiKeyCiphertext === null ||
+        params.apiKeyCiphertext.trim().length === 0
+      ) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+          "apiKeyCiphertext is required when apiKeySource is 'db'",
+        );
+      }
+      ciphertext = params.apiKeyCiphertext;
+    } else {
+      // Symmetric with the db branch and with `LLMConfig.create`: any
+      // non-null value — including the empty / whitespace-only string —
+      // violates the env invariant. Reject loudly so a form bug that sends
+      // an unset ciphertext as `""` does not silently mask itself.
+      if (params.apiKeyCiphertext !== null) {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+          "apiKeyCiphertext must be null when apiKeySource is 'env'",
+        );
+      }
+      ciphertext = null;
+    }
+    return {
+      provider,
+      model,
+      apiKeySource: source,
+      apiKeyCiphertext: ciphertext,
+    } as unknown as SpeechRecognitionConfig;
+  },
+};
+
 // ---------- DesignTokens ----------
 
 const DESIGN_TOKEN_KEY_REGEX = /^--[a-z0-9-]+$/;

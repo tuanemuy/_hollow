@@ -23,6 +23,7 @@ import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import { AudioRecorder } from "./AudioRecorder";
 import { uploadFileFn } from "./actions";
 import { notifyIngestionQueueChanged } from "./queueBadgeBus";
 
@@ -252,6 +253,9 @@ export function UploadForm() {
           isRetrying={isPending}
         />
       ) : null}
+      <div className="mt-4">
+        <AudioRecorder />
+      </div>
     </>
   );
 }

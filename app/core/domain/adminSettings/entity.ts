@@ -9,6 +9,7 @@ import {
   PromptPurpose,
   PromptTemplate,
   RegistrationPolicy,
+  SpeechRecognitionConfig,
   UserId,
 } from "./valueObject";
 
@@ -33,6 +34,7 @@ export type Prompts = Readonly<Partial<Record<PromptPurpose, PromptTemplate>>>;
 export type InstanceSettings = Readonly<{
   id: InstanceSettingsId;
   llm: LLMConfig;
+  speech: SpeechRecognitionConfig;
   prompts: Prompts;
   designTokens: DesignTokens;
   registration: RegistrationPolicy;
@@ -46,6 +48,15 @@ function defaultLLM(): LLMConfig {
     provider: "anthropic",
     model: "claude-3-5-sonnet-latest",
     baseURL: null,
+    apiKeySource: "env",
+    apiKeyCiphertext: null,
+  });
+}
+
+function defaultSpeech(): SpeechRecognitionConfig {
+  return SpeechRecognitionConfig.create({
+    provider: "openai",
+    model: "gpt-4o-transcribe",
     apiKeySource: "env",
     apiKeyCiphertext: null,
   });
@@ -76,6 +87,15 @@ type InstanceSettingsReconstructInput = Readonly<{
     baseURL?: string | null;
     apiKeySource: string;
     apiKeyCiphertext: string | null;
+  };
+  // Issue #701: optional on the rehydrate input so DB rows written before
+  // the speech columns existed (`speech_*` NULL) still parse. `coerceSpeech`
+  // falls back to `defaultSpeech()` below.
+  speech?: {
+    provider?: string | null;
+    model?: string | null;
+    apiKeySource?: string | null;
+    apiKeyCiphertext?: string | null;
   };
   prompts: Readonly<
     Record<string, { text: string; expectedVariables: readonly string[] }>
@@ -113,6 +133,32 @@ function coerceLimits(
     maxNoteRevisionsPerNote:
       input.maxNoteRevisionsPerNote ?? DEFAULT_MAX_NOTE_REVISIONS_PER_NOTE,
   };
+}
+
+/**
+ * Rehydrate `SpeechRecognitionConfig` from a (possibly absent / NULL)
+ * persistence row. Issue #701 ADR-004: existing singleton rows predate the
+ * `speech_*` columns, so any missing field falls back to `defaultSpeech()`.
+ * When the row carries a full speech config it is reconstructed verbatim.
+ */
+function coerceSpeech(
+  input: InstanceSettingsReconstructInput["speech"],
+): SpeechRecognitionConfig {
+  const fallback = defaultSpeech();
+  if (input === undefined) return fallback;
+  const provider = input.provider ?? fallback.provider;
+  const model =
+    input.model !== null && input.model !== undefined && input.model.length > 0
+      ? input.model
+      : fallback.model;
+  const apiKeySource = input.apiKeySource ?? fallback.apiKeySource;
+  const apiKeyCiphertext = input.apiKeyCiphertext ?? null;
+  return SpeechRecognitionConfig.create({
+    provider,
+    model,
+    apiKeySource,
+    apiKeyCiphertext,
+  });
 }
 
 /**
@@ -184,6 +230,7 @@ export const InstanceSettings = {
   default: (now: Date): InstanceSettings => ({
     id: INSTANCE_SETTINGS_ID,
     llm: defaultLLM(),
+    speech: defaultSpeech(),
     prompts: {},
     designTokens: DesignTokens.empty(),
     registration: defaultRegistration(),
@@ -199,6 +246,17 @@ export const InstanceSettings = {
   ): InstanceSettings => ({
     ...settings,
     llm,
+    version: Version.next(settings.version),
+    updatedAt: now,
+  }),
+
+  updateSpeech: (
+    settings: InstanceSettings,
+    speech: SpeechRecognitionConfig,
+    now: Date,
+  ): InstanceSettings => ({
+    ...settings,
+    speech,
     version: Version.next(settings.version),
     updatedAt: now,
   }),
@@ -341,6 +399,7 @@ export const InstanceSettings = {
       return {
         id: INSTANCE_SETTINGS_ID,
         llm: LLMConfig.create(input.llm),
+        speech: coerceSpeech(input.speech),
         prompts: rehydratePrompts(input.prompts),
         designTokens: DesignTokens.create(input.designTokens),
         registration: RegistrationPolicy.create(input.registration),

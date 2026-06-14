@@ -13,6 +13,7 @@ import { buildHead } from "@/core/presentation/head";
 // Side-effect imports so admin server-fn handlers register with the RSC
 // manifest before the client-side bundle freezes it.
 import "@/components/admin/LLMSettingsForm/action";
+import "@/components/admin/SpeechSettingsForm/action";
 import "@/components/admin/PromptsForm/action";
 import "@/components/admin/DesignTokensForm/action";
 import "@/components/admin/RegistrationForm/action";
@@ -93,6 +94,7 @@ type AdminNavItem = {
   to:
     | "/admin"
     | "/admin/llm"
+    | "/admin/speech"
     | "/admin/prompts"
     | "/admin/design"
     | "/admin/registration"
@@ -105,6 +107,7 @@ type AdminNavItem = {
 const ADMIN_NAV: readonly AdminNavItem[] = [
   { to: "/admin", label: "ダッシュボード" },
   { to: "/admin/llm", label: "LLM 設定" },
+  { to: "/admin/speech", label: "文字起こし設定" },
   { to: "/admin/prompts", label: "プロンプト" },
   { to: "/admin/design", label: "デザイントークン" },
   { to: "/admin/registration", label: "登録制御" },

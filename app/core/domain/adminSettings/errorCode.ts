@@ -23,6 +23,15 @@ export const AdminSettingsErrorCode = {
   InvalidLLMBaseURL: "admin_settings_invalid_llm_base_url",
   ProviderChangedRequiresApiKey:
     "admin_settings_provider_changed_requires_api_key",
+  InvalidSpeechProvider: "admin_settings_invalid_speech_provider",
+  InvalidSpeechModel: "admin_settings_invalid_speech_model",
+  InvalidSpeechModelTooLong: "admin_settings_invalid_speech_model_too_long",
+  InvalidSpeechApiKeySource: "admin_settings_invalid_speech_api_key_source",
+  InvalidSpeechApiKeyCiphertext:
+    "admin_settings_invalid_speech_api_key_ciphertext",
+  SpeechProviderChangedRequiresApiKey:
+    "admin_settings_speech_provider_changed_requires_api_key",
+  SpeechEnvOverrideMissingKey: "admin_settings_speech_env_override_missing_key",
 } as const;
 
 export type AdminSettingsErrorCode =

@@ -1,7 +1,7 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import { AdminSettingsErrorCode } from "./errorCode";
 import type { SecretBox } from "./ports/secretBox";
-import { LLMConfig } from "./valueObject";
+import { LLMConfig, SpeechRecognitionConfig } from "./valueObject";
 
 /**
  * Stateless domain operations on `LLMConfig` that need access to the
@@ -61,6 +61,53 @@ export const AdminSettingsService = {
       provider: cfg.provider,
       model: cfg.model,
       baseURL: cfg.baseURL,
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+  },
+
+  /**
+   * Decrypt the api key for the given speech config. Symmetric with
+   * {@link AdminSettingsService.decryptApiKey} but typed against
+   * `SpeechRecognitionConfig` (ADR-003 — the two VOs evolve independently
+   * so the service functions are kept separate rather than generalized).
+   * - `apiKeySource === 'env'`: domain returns `null`; the caller sources
+   *   the key from `env.speechApiKey` directly.
+   * - `apiKeySource === 'db'`: decrypt the stored ciphertext.
+   */
+  decryptSpeechApiKey: async (
+    cfg: SpeechRecognitionConfig,
+    secrets: SecretBox,
+  ): Promise<string | null> => {
+    if (cfg.apiKeySource === "env") return null;
+    if (cfg.apiKeyCiphertext === null) return null;
+    return await secrets.decrypt(cfg.apiKeyCiphertext);
+  },
+
+  /**
+   * Force `apiKeySource = 'env'` on a speech config when an env-provided
+   * api key exists, so runtime resolution always prefers the
+   * operator-controlled value. When the env is absent and the config
+   * already declares `env`, raises `SpeechEnvOverrideMissingKey`. Symmetric
+   * with {@link AdminSettingsService.assertEnvOverride}.
+   */
+  assertSpeechEnvOverride: (
+    cfg: SpeechRecognitionConfig,
+    env: Readonly<{ apiKey: string | null }>,
+  ): SpeechRecognitionConfig => {
+    if (env.apiKey === null || env.apiKey.length === 0) {
+      if (cfg.apiKeySource === "env") {
+        throw new BusinessRuleError(
+          AdminSettingsErrorCode.SpeechEnvOverrideMissingKey,
+          "Speech apiKeySource is 'env' but no env-provided api key is available",
+        );
+      }
+      return cfg;
+    }
+    if (cfg.apiKeySource === "env") return cfg;
+    return SpeechRecognitionConfig.create({
+      provider: cfg.provider,
+      model: cfg.model,
       apiKeySource: "env",
       apiKeyCiphertext: null,
     });

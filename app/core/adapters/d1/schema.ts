@@ -763,6 +763,10 @@ export const instanceSettings = sqliteTable(
     llmBaseUrl: text("llm_base_url"),
     llmApiKeySource: text("llm_api_key_source").notNull(),
     llmApiKeyCiphertext: text("llm_api_key_ciphertext"),
+    speechProvider: text("speech_provider").notNull().default("openai"),
+    speechModel: text("speech_model"),
+    speechApiKeySource: text("speech_api_key_source").notNull().default("env"),
+    speechApiKeyCiphertext: text("speech_api_key_ciphertext"),
     promptsJson: text("prompts_json").notNull().default("{}"),
     designTokensJson: text("design_tokens_json").notNull().default("{}"),
     registrationOpen: integer("registration_open").notNull().default(1),
@@ -776,6 +780,10 @@ export const instanceSettings = sqliteTable(
     check(
       "instance_settings_key_source_enum",
       sql`${table.llmApiKeySource} IN ('env', 'db')`,
+    ),
+    check(
+      "instance_settings_speech_key_source_enum",
+      sql`${table.speechApiKeySource} IN ('env', 'db')`,
     ),
     check(
       "instance_settings_registration_open_bool",
