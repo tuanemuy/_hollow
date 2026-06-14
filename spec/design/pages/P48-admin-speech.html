@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hollow Admin — LLM 設定</title>
+<title>Hollow Admin — 文字起こし設定</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -86,6 +86,7 @@
     --header-bg: rgba(255,255,255,0.85);
     --header-blur: saturate(180%) blur(20px);
     --bp-sm: 640px; --bp-md: 768px; --bp-lg: 1024px; --bp-xl: 1280px; --bp-2xl: 1536px;
+    --opacity-disabled: 0.55;
   }
 
   html, body {
@@ -190,6 +191,7 @@
   .btn.primary:active { background: var(--color-accent-pressed); }
   .btn.ghost { background: transparent; }
   .btn.ghost:hover { background: var(--color-surface); }
+  .btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
   /* ===== Form sections ===== */
   .form-section {
@@ -221,7 +223,10 @@
 
   /* Env-lock badge (環境変数で固定中) */
   .lock-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-ink-secondary); font-size: 11px; font-weight: var(--weight-semibold); }
+  /* Required badge (必須) — provider 変更時のみ API キー label に出る排他バッジ */
+  .required-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--color-error-surface); color: var(--color-error); font-size: 11px; font-weight: var(--weight-semibold); }
   .field-label { display: inline-flex; align-items: center; gap: 8px; }
+  .lock-hint { font-size: var(--text-xs); color: var(--color-ink-tertiary); margin-top: var(--space-2); }
 
   .row { display: flex; gap: var(--space-3); align-items: stretch; flex-wrap: wrap; }
   .row > .input { flex: 1; min-width: 200px; }
@@ -283,25 +288,22 @@
   .alert-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
   /* 接続テストボタン直下のインライン結果表示用の余白調整 */
   .field .alert { margin-top: var(--space-3); margin-bottom: 0; }
-
-  /* Cost table */
-  .cost-table {
-    border: 1px solid var(--color-hairline);
+  /* 接続テスト結果 = 実装（BANNER_BASE）どおりの塗りバナー（単一行・アイコン/見出しなし） */
+  .test-result {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
     border-radius: var(--radius-lg);
-    overflow: hidden;
-    margin-top: var(--space-4);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
   }
-  .cost-table table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-  .cost-table th, .cost-table td { padding: var(--space-3) var(--space-4); text-align: left; }
-  .cost-table thead th { background: var(--color-surface-elevated); border-bottom: 1px solid var(--color-hairline); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; font-weight: var(--weight-medium); color: var(--color-ink-secondary); }
-  .cost-table tbody tr + tr { border-top: 1px solid var(--color-hairline); }
-  .cost-table .mono { font-family: var(--font-mono); font-size: var(--text-mono); color: var(--color-ink-secondary); }
-
-  .quota-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
-  @media (min-width: 640px) { .quota-grid { grid-template-columns: 1fr 1fr; } }
+  .test-result.ok { background: var(--color-success-surface); }
+  .test-result.err { background: var(--color-error-surface); }
+  .field .test-result { margin-top: var(--space-3); }
 
   .form-footer {
-    display: flex; gap: var(--space-3); justify-content: flex-end;
+    display: flex; gap: var(--space-3); justify-content: flex-end; align-items: center;
     padding-top: var(--space-6);
     border-top: 1px solid var(--color-hairline);
     margin-top: var(--space-10);
@@ -334,8 +336,8 @@
 <nav class="admin-nav" aria-label="管理ナビゲーション">
   <div class="admin-nav-inner">
     <a href="P40-admin-dashboard.html">ダッシュボード</a>
-    <a href="P41-admin-llm.html" class="active">LLM 設定</a>
-    <a href="P48-admin-speech.html">文字起こし設定</a>
+    <a href="P41-admin-llm.html">LLM 設定</a>
+    <a href="P48-admin-speech.html" class="active">文字起こし設定</a>
     <a href="P42-admin-prompts.html">プロンプト</a>
     <a href="P43-admin-tokens.html">デザイントークン</a>
     <a href="P44-admin-registration.html">登録制御</a>
@@ -346,72 +348,120 @@
 </nav>
 
 <main class="main">
-  <h1 class="page-title">LLM 設定</h1>
-  <p class="page-subtitle">API キー・モデル・クォータの設定。設定の変更は即時に反映されます。</p>
+  <h1 class="page-title">文字起こし設定</h1>
+  <p class="page-subtitle">音声の文字起こしに使うプロバイダ・モデル・API キーの設定。設定の変更は即時に反映されます。</p>
 
-  <section class="form-section">
-    <h2 class="form-section-title">LLM プロバイダ</h2>
-    <p class="form-section-desc">対応プロバイダ: Anthropic / OpenAI-compatible / Google Gemini。切り替えると API キーの再入力が必要です。</p>
-    <div class="field">
-      <label class="field-label" for="provider">プロバイダ</label>
-      <select class="select" id="provider">
-        <option>Anthropic Claude</option>
-        <option>OpenAI-compatible</option>
-        <option>Google Gemini</option>
-      </select>
-      <p class="field-hint">現在の保存値: Anthropic Claude</p>
+  <!-- ===== 変種: 全固定時の上部バナー（envOverrides.provider && model && apiKey のとき表示）。
+       下の編集可能フィールドとは排他。全固定時は各フィールドが disabled + lock-badge になり、保存ボタンも disabled。
+  <div class="alert" role="status" data-all-env-locked style="--alert-accent: var(--color-accent)">
+    <span class="alert-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </span>
+    <div class="alert-content">
+      <p class="alert-title">すべての文字起こし設定が環境変数で固定中</p>
+      <p class="alert-body">プロバイダ・モデル・API キーのすべてが環境変数で設定されています。このページからの変更は反映されません。設定を変更するには <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_SPEECH_*</code> 環境変数を更新してください。</p>
     </div>
-    <!-- OpenAI-compatible 選択時、または ADMIN_LLM_BASE_URL が設定されているときのみ表示 -->
-    <!-- <div class="field">
-      <label class="field-label" for="base-url">Base URL（任意）</label>
-      <input class="input mono" id="base-url" type="url" placeholder="https://api.openai.com/v1">
-    </div> -->
+  </div>
+  -->
+
+  <!-- ===== セクション 1: 文字起こしプロバイダ ===== -->
+  <section class="form-section">
+    <h2 class="form-section-title">文字起こしプロバイダ</h2>
+    <p class="form-section-desc">対応プロバイダ: OpenAI。 切り替えると API キーの再入力が必要です。</p>
+    <div class="field">
+      <label class="field-label" for="provider">
+        プロバイダ
+        <!-- 変種: envOverrides.provider のとき表示（select は disabled + ADMIN_SPEECH_PROVIDER ロックヒント）
+        <span class="lock-badge">環境変数で固定中</span>
+        -->
+      </label>
+      <!-- 通常時: 編集可能。option は OpenAI の 1 つだけだが select 構造は将来 #738 に備えて維持 -->
+      <select class="select" id="provider" name="provider">
+        <option value="openai">OpenAI</option>
+      </select>
+      <p class="field-hint">現在の保存値: OpenAI</p>
+      <!-- 変種: envOverrides.provider のとき表示
+      <p class="lock-hint">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_SPEECH_PROVIDER</code> で固定されているため変更できません。</p>
+      -->
+    </div>
+    <!-- 変種: provider 変更時のみ表示（providerChanged === true）。下の「API キー」現在状態バナーとは排他。
+    <div class="alert alert-warning" role="alert" data-provider-changed>
+      <span class="alert-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </span>
+      <div class="alert-content">
+        <p class="alert-title">プロバイダの変更</p>
+        <p class="alert-body">プロバイダを変更すると API キーの再入力が必要です。 下の「新しい API キー」欄に新しい鍵を入力してください。</p>
+      </div>
+    </div>
+    -->
   </section>
 
+  <!-- ===== セクション 2: API キー ===== -->
   <section class="form-section">
     <h2 class="form-section-title">API キー</h2>
-    <p class="form-section-desc">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_LLM_API_KEY</code> が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。</p>
+    <p class="form-section-desc">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_SPEECH_API_KEY</code> が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。</p>
 
+    <!-- 現在の状態バナー（!providerChanged のとき表示）。実装の 3 分岐のうち既定 1 つを表示し、残りはコメントで併記。 -->
     <div class="note-card">
       <div>
         <div class="note-card-title">現在の状態</div>
-        <div class="note-card-body">環境変数から読み込み中。</div>
+        <!-- 分岐 A: apiKeySource === "env" -->
+        <div class="note-card-body">環境変数から読み込み中</div>
+        <!-- 分岐 B: apiKeyMasked !== null
+        <div class="note-card-body">DB に保管されたキーを使用中 (sk-…••••)</div>
+        -->
+        <!-- 分岐 C: 未設定
+        <div class="note-card-body">API キーは未設定です</div>
+        -->
       </div>
     </div>
 
     <div class="field">
-      <label class="field-label" for="api-key">新しい API キー</label>
+      <label class="field-label" for="api-key">
+        新しい API キー
+        <!-- 変種: apiKeyRequired（provider 変更時 && !envOverrides.apiKey）のとき表示
+        <span class="required-badge">必須</span>
+        -->
+        <!-- 変種: envOverrides.apiKey のとき表示
+        <span class="lock-badge">環境変数で固定中</span>
+        -->
+      </label>
       <div class="row">
-        <input class="input mono" id="api-key" type="password" placeholder="sk-ant-...">
-        <button class="btn">接続テスト</button>
+        <input class="input mono" id="api-key" type="password" placeholder="sk-..." autocomplete="off">
+        <button type="button" class="btn">接続テスト</button>
       </div>
       <p class="field-hint">未入力で保存すると現在のキーが維持されます。</p>
-      <!-- 接続テスト結果は alert で表示（success / error） -->
-      <div class="alert alert-success" role="status">
-        <span class="alert-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8.5 12.5l2.5 2.5 4.5-5"></path></svg>
-        </span>
-        <div class="alert-content">
-          <p class="alert-title">接続成功</p>
-          <p class="alert-body">応答 682ms</p>
-        </div>
-      </div>
+      <!-- 変種: envOverrides.apiKey のとき hint は「環境変数 ADMIN_SPEECH_API_KEY で固定されているため変更できません。」
+           変種: apiKeyRequired のとき hint は「プロバイダを変更したため、新しい API キーの入力が必要です。」 -->
+
+      <!-- 接続テスト結果は実装どおり塗りバナーの単一行で表示。既定は成功、失敗はコメントで併記。 -->
+      <div class="test-result ok" role="status">接続成功 · 応答 682ms</div>
+      <!-- 変種: 接続失敗時（testResult.ok === false）
+      <div class="test-result err" role="status">接続失敗 · 認証に失敗しました。API キーを確認してください。</div>
+      -->
     </div>
   </section>
 
+  <!-- ===== セクション 3: モデル（env 固定状態の可視レンダリング例） ===== -->
   <section class="form-section">
     <h2 class="form-section-title">モデル</h2>
-    <p class="form-section-desc">取り込み・タイトル生成・ディレクトリ提案で使用するモデル。</p>
+    <p class="form-section-desc">音声の文字起こしで使用するモデル。</p>
     <div class="field">
-      <label class="field-label" for="model">既定モデル</label>
-      <input class="input" id="model" type="text" value="claude-sonnet-4-6">
-      <p class="field-hint">例: claude-sonnet-4-6</p>
+      <label class="field-label" for="model">
+        既定モデル
+        <span class="lock-badge">環境変数で固定中</span>
+      </label>
+      <input class="input" id="model" type="text" value="gpt-4o-transcribe" disabled aria-describedby="model-lock-hint">
+      <p class="field-hint">例: gpt-4o-transcribe</p>
+      <p class="lock-hint" id="model-lock-hint">環境変数 <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:1px 5px;background:var(--color-surface);border-radius:var(--radius-xs)">ADMIN_SPEECH_MODEL</code> で固定されているため変更できません。</p>
     </div>
   </section>
 
   <div class="form-footer">
-    <span style="color:var(--color-success);font-size:var(--text-sm);align-self:center">保存しました</span>
-    <button class="btn primary">変更を保存</button>
+    <span style="color:var(--color-success);font-size:var(--text-sm)">保存しました</span>
+    <!-- 全固定時（allLocked）は保存ボタンが disabled になる: <button class="btn primary" disabled>変更を保存</button> -->
+    <button type="submit" class="btn primary">変更を保存</button>
   </div>
 </main>
 
