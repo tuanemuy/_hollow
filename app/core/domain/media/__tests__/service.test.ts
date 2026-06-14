@@ -56,6 +56,18 @@ class InMemoryRepo implements MediaAssetRepository {
     return Array.from(this.store.values()).filter((a) => a.ownerId === ownerId);
   }
 
+  async aggregateByOwner(
+    ownerId: UserId,
+  ): Promise<Readonly<{ count: number; totalBytes: number }>> {
+    const attached = Array.from(this.store.values()).filter(
+      (a) => a.ownerId === ownerId && a.status === "attached",
+    );
+    return {
+      count: attached.length,
+      totalBytes: attached.reduce((sum, a) => sum + a.byteSize, 0),
+    };
+  }
+
   async findPurgeableOlderThan(
     before: Date,
     limit: number,

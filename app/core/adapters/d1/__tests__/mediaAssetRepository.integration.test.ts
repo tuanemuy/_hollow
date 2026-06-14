@@ -90,3 +90,63 @@ describe("D1MediaAssetRepository.findByIds — D1 bind limit regression (Issue #
     expect(rows).toEqual([]);
   });
 });
+
+describe("D1MediaAssetRepository.aggregateByOwner (integration, #573)", () => {
+  async function insertMedia(
+    container: TestContainer,
+    ownerId: UserId,
+    opts: { byteSize: number; status: string },
+  ): Promise<void> {
+    const id = nextId(0x05);
+    await container.db.insert(schema.mediaAssets).values({
+      id,
+      ownerId,
+      kind: "image",
+      mimeType: "image/png",
+      byteSize: opts.byteSize,
+      backend: "r2",
+      storageKey: `agg/${id}`,
+      originalFileName: "f.png",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 0,
+      status: opts.status,
+      createdAt: TZ,
+      updatedAt: TZ,
+    });
+  }
+
+  it("sums byteSize and counts only attached assets, excluding other owners", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    const other = await seedUser(container);
+
+    await insertMedia(container, owner, { byteSize: 100, status: "attached" });
+    await insertMedia(container, owner, { byteSize: 250, status: "attached" });
+    // Excluded: non-attached transients.
+    await insertMedia(container, owner, { byteSize: 999, status: "pending" });
+    await insertMedia(container, owner, { byteSize: 999, status: "orphan" });
+    await insertMedia(container, owner, { byteSize: 999, status: "deleting" });
+    // Excluded: another owner's attached asset.
+    await insertMedia(container, other, { byteSize: 500, status: "attached" });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.aggregateByOwner(owner),
+    );
+    expect(result).toEqual({ count: 2, totalBytes: 350 });
+  });
+
+  it("returns { count: 0, totalBytes: 0 } when the owner has no attached media", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    await insertMedia(container, owner, { byteSize: 42, status: "pending" });
+
+    const result = await container.unitOfWorkProvider.run(
+      async ({ mediaAssetRepository }) =>
+        mediaAssetRepository.aggregateByOwner(owner),
+    );
+    expect(result).toEqual({ count: 0, totalBytes: 0 });
+  });
+});

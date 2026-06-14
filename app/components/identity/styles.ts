@@ -213,3 +213,57 @@ export const PREVIEW_ARROW =
   "text-ink-tertiary text-center text-[11px] md:flex md:items-center md:justify-center";
 
 export const PREVIEW_UNAVAILABLE = "text-xs text-ink-tertiary leading-normal";
+
+// ===== Account delete (P24 multi-step confirm) =====
+// Maps the mock's `.confirm-steps` / `.step` / `.step-num` / `.danger-action`
+// CSS onto token-derived utilities. The alert (影響リスト) reuses the shared
+// `ALERT` / `ALERT_*` primitives from `common/styles.ts` at the call site.
+
+// `<ul>` inside the impact alert (mock `.alert-content ul`): the shared
+// ALERT_BODY covers `<strong>` styling; this adds the list framing.
+export const ALERT_LIST = "mt-1 pl-[1.2em] flex flex-col gap-1 list-disc";
+
+export const ALERT_LIST_ITEM =
+  "text-sm text-ink-secondary leading-snug [&_strong]:text-ink [&_strong]:font-medium";
+
+// Vertical stack of confirm steps (mock `.confirm-steps`, gap 22px).
+export const CONFIRM_STEPS = "flex flex-col gap-[22px]";
+
+// One step: 24px number column + body (mock `.step`).
+export const STEP = "grid grid-cols-[28px_1fr] gap-3.5 items-start";
+
+// Numbered badge (mock `.step-num`). `data-done` turns it success-filled
+// once the step is satisfied.
+export const STEP_NUM =
+  "w-6 h-6 mt-0.5 rounded-full bg-surface text-ink-secondary text-xs font-medium inline-flex items-center justify-center data-[done]:bg-success data-[done]:text-white";
+
+export const STEP_BODY = "min-w-0";
+
+// Field label inside a step (mock `.step-label`).
+export const STEP_LABEL = "block text-sm font-medium text-ink mb-1.5";
+
+// Help line beneath a step's fields (mock `.step-help`), with inline
+// `<code>` styling for the DELETE token.
+export const STEP_HELP =
+  "text-xs text-ink-tertiary mt-1.5 [&_code]:font-mono [&_code]:bg-surface [&_code]:px-1.5 [&_code]:py-px [&_code]:rounded-xs [&_code]:text-ink";
+
+// Agree checkbox row (mock `.checkbox-row`). Reuses the shared `checkboxRow`
+// primitive but pins the label text to primary ink per the mock.
+export const STEP_CHECKBOX_ROW =
+  "flex items-start gap-2.5 cursor-pointer select-none text-[13px] text-ink leading-normal [&_input]:w-4 [&_input]:h-4 [&_input]:mt-0.5 [&_input]:accent-accent [&_input]:cursor-pointer [&_input]:shrink-0 [&_strong]:font-medium";
+
+// Destructive action footer (mock `.danger-action`).
+export const DANGER_ACTION =
+  "mt-10 pt-6 border-t border-hairline flex flex-col gap-2.5";
+
+// Solid-error destructive button (mock `.pill-btn.destructive`). Unlike the
+// filled-chip `pillBtnDanger`, this is a solid error-background CTA. Disabled
+// falls back to surface + tertiary ink.
+export const BTN_DESTRUCTIVE =
+  "inline-flex items-center gap-1.5 self-start h-11 px-6 rounded-pill bg-error text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:bg-[#b03535] active:not-disabled:bg-[#9a2e2e] disabled:bg-surface disabled:text-ink-tertiary disabled:cursor-not-allowed";
+
+export const DANGER_NOTE = "text-xs text-ink-tertiary";
+
+// A second field within step 3 (password) needs top spacing (mock inline
+// `margin-top: var(--space-4)` on the password label).
+export const STEP_LABEL_SPACED = `${STEP_LABEL} mt-4`;

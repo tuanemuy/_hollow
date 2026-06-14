@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import type { IdGenerator } from "@/core/application/ports/idGenerator";
 import { isRehydrationError } from "@/core/domain/error";
@@ -122,6 +122,33 @@ export class D1MediaAssetRepository implements MediaAssetRepository {
         .orderBy(desc(mediaAssets.createdAt), desc(mediaAssets.id))
         .limit(opts.limit);
       return rows.map((row) => this.toMediaAsset(row));
+    });
+  }
+
+  aggregateByOwner(
+    ownerId: UserId,
+  ): Promise<Readonly<{ count: number; totalBytes: number }>> {
+    return mapDbError("Failed to aggregate media assets by owner", async () => {
+      // Only `attached` assets are user-accessible media; pending / orphan /
+      // deleting are purge-lifecycle transients (ADR-002). COALESCE guards
+      // the SUM against NULL when no rows match.
+      const rows = await this.db
+        .select({
+          count: count(),
+          totalBytes: sql<number>`COALESCE(SUM(${mediaAssets.byteSize}), 0)`,
+        })
+        .from(mediaAssets)
+        .where(
+          and(
+            eq(mediaAssets.ownerId, ownerId),
+            eq(mediaAssets.status, "attached"),
+          ),
+        );
+      const row = rows[0];
+      return {
+        count: Number(row?.count ?? 0),
+        totalBytes: Number(row?.totalBytes ?? 0),
+      };
     });
   }
 

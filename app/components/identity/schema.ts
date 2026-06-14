@@ -34,4 +34,9 @@ export const revokeSessionSchema = z.object({
 
 export const deleteAccountSchema = z.object({
   confirmation: z.string().min(1).max(USERNAME_MAX),
+  currentPassword: z.string().min(1).max(PASSWORD_MAX),
+  // Confirm word is a transport/frontend-only safeguard; the backend
+  // usecase never receives it (#573 AC-3). The literal keeps the shape
+  // honest, though client-side gating rejects wrong values first.
+  confirmWord: z.literal("DELETE"),
 });

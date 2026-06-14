@@ -261,6 +261,9 @@ function buildAssemblyDeps(
       async findByOwner() {
         return [];
       },
+      async aggregateByOwner() {
+        return { count: 0, totalBytes: 0 };
+      },
       async findPurgeableOlderThan() {
         return [];
       },

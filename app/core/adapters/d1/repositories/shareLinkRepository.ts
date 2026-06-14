@@ -1,4 +1,4 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import {
   ConflictError,
   SystemError,
@@ -10,6 +10,7 @@ import type {
   Versioned,
 } from "@/core/domain/common/transactionalRepository";
 import { isRehydrationError } from "@/core/domain/error";
+import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { ShareLink } from "@/core/domain/publication/entity";
 import type { ShareLinkRepository } from "@/core/domain/publication/ports/shareLinkRepository";
@@ -19,7 +20,7 @@ import type {
 } from "@/core/domain/publication/valueObject";
 import type { Database } from "../client";
 import type { PendingBatch } from "../pendingBatch";
-import { shareLinks } from "../schema";
+import { notes, shareLinks } from "../schema";
 import { mapDbError } from "./helpers";
 
 type ShareLinkRow = typeof shareLinks.$inferSelect;
@@ -209,5 +210,23 @@ export class D1ShareLinkRepository implements ShareLinkRepository {
         .where(and(...conditions));
       return Number(rows[0]?.count ?? 0);
     });
+  }
+
+  countActiveByOwner(ownerId: UserId): Promise<number> {
+    return mapDbError(
+      "Failed to count active share_links by owner",
+      async () => {
+        // JOIN on ownership only — `notes.status` is intentionally not
+        // filtered so trashed notes' active links are counted (they are
+        // revoked by the delete cascade). `revoked_at IS NULL` mirrors the
+        // `status='active'` invariant. See `.issue/573/adr.md` ADR-001.
+        const rows = await this.db
+          .select({ count: count() })
+          .from(shareLinks)
+          .innerJoin(notes, eq(shareLinks.noteId, notes.id))
+          .where(and(eq(notes.ownerId, ownerId), isNull(shareLinks.revokedAt)));
+        return Number(rows[0]?.count ?? 0);
+      },
+    );
   }
 }

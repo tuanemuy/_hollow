@@ -29,6 +29,7 @@ import { resetPassword } from "../resetPassword";
 import { revokeAllOtherSessions } from "../revokeAllOtherSessions";
 import { revokeUserSession } from "../revokeUserSession";
 import { type SignUpInput, signUp } from "../signUp";
+import { summarizeAccountDeletion } from "../summarizeAccountDeletion";
 import { suspendUser } from "../suspendUser";
 import { updateProfile } from "../updateProfile";
 import { verifyEmail } from "../verifyEmail";
@@ -2117,10 +2118,80 @@ describe("DeleteAccount", () => {
     try {
       await deleteAccount({
         container,
-        input: { actorUserId: userId as never, confirmation: "wrong" },
+        input: {
+          actorUserId: userId as never,
+          confirmation: "wrong",
+          currentPassword: strongPassword("vic012"),
+        },
       });
       expect.fail("should have thrown");
     } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe("confirmation_mismatch");
+      }
+    }
+  });
+
+  it("rejects when the current password is incorrect (after username matches)", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("pwd012") });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+
+    try {
+      await deleteAccount({
+        container,
+        input: {
+          actorUserId: userId as never,
+          confirmation: "upwd012",
+          currentPassword: "wrong-password",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isAuthenticationError(error)).toBe(true);
+      if (isAuthenticationError(error)) {
+        expect(error.code).toBe("invalid_credentials");
+      }
+    }
+
+    // No side effects: the user is not soft-deleted.
+    const userRow = await container.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId));
+    const u = userRow[0];
+    expect(u).toBeDefined();
+    if (u) expect(deriveStatus(u)).not.toBe("deleted");
+  });
+
+  it("checks username before password (confirmation_mismatch wins)", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("ord012") });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    await verifyEmail({ container, input: { token: verifyToken } });
+
+    try {
+      await deleteAccount({
+        container,
+        input: {
+          actorUserId: userId as never,
+          confirmation: "wrong-username",
+          currentPassword: "also-wrong",
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      // Username is checked first, so the wrong password is never reached.
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
         expect(error.code).toBe("confirmation_mismatch");
@@ -2149,7 +2220,11 @@ describe("DeleteAccount", () => {
     try {
       await deleteAccount({
         container,
-        input: { actorUserId: userId as never, confirmation: "uadmon20" },
+        input: {
+          actorUserId: userId as never,
+          confirmation: "uadmon20",
+          currentPassword: strongPassword("admon20"),
+        },
       });
       expect.fail("should have thrown");
     } catch (error) {
@@ -2172,7 +2247,11 @@ describe("DeleteAccount", () => {
 
     await deleteAccount({
       container,
-      input: { actorUserId: userId as never, confirmation: "uwes012" },
+      input: {
+        actorUserId: userId as never,
+        confirmation: "uwes012",
+        currentPassword: strongPassword("wes012"),
+      },
     });
 
     const userRow = await container.db
@@ -2225,7 +2304,11 @@ describe("DeleteAccount", () => {
     await verifyEmail({ container, input: { token: verifyToken } });
     await deleteAccount({
       container,
-      input: { actorUserId: userId as never, confirmation: "uxan012" },
+      input: {
+        actorUserId: userId as never,
+        confirmation: "uxan012",
+        currentPassword: strongPassword("xan012"),
+      },
     });
 
     try {
@@ -2246,5 +2329,185 @@ describe("DeleteAccount", () => {
         expect(error.fieldErrors.username).toBeDefined();
       }
     }
+  });
+});
+
+describe("SummarizeAccountDeletion", () => {
+  const getContainer = setupTestContainer();
+  beforeEach(async () => {
+    await truncateIdentityTables(getContainer());
+  });
+
+  // signUp already provisions the owner's root directory (one per owner,
+  // enforced by a partial unique index), so reuse it rather than insert.
+  async function rootDirectoryId(
+    container: TestContainer,
+    ownerId: string,
+  ): Promise<string> {
+    const rows = await container.db
+      .select()
+      .from(schema.directories)
+      .where(eq(schema.directories.ownerId, ownerId));
+    const dir = rows[0];
+    if (!dir) throw new Error("root directory not found");
+    return dir.id;
+  }
+
+  let noteSeq = 0;
+  async function seedNote(
+    container: TestContainer,
+    ownerId: string,
+    directoryId: string,
+    opts: {
+      status: "active" | "trashed";
+      visibility: "private" | "unlisted" | "public";
+      published: boolean;
+    },
+  ): Promise<string> {
+    noteSeq += 1;
+    const id = `0193e7fc-${noteSeq.toString(16).padStart(4, "0")}-7000-8000-000000000010`;
+    const TZ = "2026-03-01T00:00:00.000Z";
+    await container.db.insert(schema.notes).values({
+      id,
+      ownerId,
+      directoryId,
+      slug: `note-${id.slice(9, 13)}`,
+      title: "seeded",
+      contentHtml: "<p>body</p>",
+      frontMatterJson: "{}",
+      status: opts.status,
+      trashedAt: opts.status === "trashed" ? TZ : null,
+      createdAt: TZ,
+      updatedAt: TZ,
+      version: 0,
+    });
+    await container.db.insert(schema.publicationStates).values({
+      noteId: id,
+      ownerId,
+      visibility: opts.visibility,
+      publishedAt: opts.published ? TZ : null,
+      updatedAt: TZ,
+      version: 0,
+    });
+    return id;
+  }
+
+  let mediaSeq = 0;
+  async function seedMedia(
+    container: TestContainer,
+    ownerId: string,
+    byteSize: number,
+    status: string,
+  ): Promise<void> {
+    mediaSeq += 1;
+    const id = `0193e7fc-${mediaSeq.toString(16).padStart(4, "0")}-7000-8000-000000000020`;
+    const TZ = "2026-03-01T00:00:00.000Z";
+    await container.db.insert(schema.mediaAssets).values({
+      id,
+      ownerId,
+      kind: "image",
+      mimeType: "image/png",
+      byteSize,
+      backend: "r2",
+      storageKey: `sum/${id}`,
+      originalFileName: "f.png",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 0,
+      status,
+      createdAt: TZ,
+      updatedAt: TZ,
+    });
+  }
+
+  let linkSeq = 0;
+  async function seedShareLink(
+    container: TestContainer,
+    ownerId: string,
+    noteId: string,
+    revoked: boolean,
+  ): Promise<void> {
+    linkSeq += 1;
+    const id = `0193e7fc-${linkSeq.toString(16).padStart(4, "0")}-7000-8000-000000000030`;
+    const TZ = "2026-03-01T00:00:00.000Z";
+    await container.db.insert(schema.shareLinks).values({
+      id,
+      noteId,
+      ownerId,
+      tokenHash: `hash-${id}`,
+      passwordHash: null,
+      status: revoked ? "revoked" : "active",
+      failedAttempts: 0,
+      lockedUntil: null,
+      createdAt: TZ,
+      revokedAt: revoked ? TZ : null,
+      lastAccessedAt: null,
+      updatedAt: TZ,
+      version: 0,
+    });
+  }
+
+  it("aggregates the real delete-impact data into the DTO", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("sum012") });
+    const dir = await rootDirectoryId(container, userId);
+
+    // 2 active notes (1 public/published), 1 trashed note.
+    const activePublic = await seedNote(container, userId, dir, {
+      status: "active",
+      visibility: "public",
+      published: true,
+    });
+    await seedNote(container, userId, dir, {
+      status: "active",
+      visibility: "private",
+      published: false,
+    });
+    const trashed = await seedNote(container, userId, dir, {
+      status: "trashed",
+      visibility: "private",
+      published: false,
+    });
+
+    // Media: 2 attached (100 + 250), plus excluded transients.
+    await seedMedia(container, userId, 100, "attached");
+    await seedMedia(container, userId, 250, "attached");
+    await seedMedia(container, userId, 999, "pending");
+
+    // Share links: active on active note, active on trashed note, 1 revoked.
+    await seedShareLink(container, userId, activePublic, false);
+    await seedShareLink(container, userId, trashed, false);
+    await seedShareLink(container, userId, activePublic, true);
+
+    const impact = await summarizeAccountDeletion({
+      container,
+      input: { actorUserId: userId },
+    });
+
+    expect(impact).toEqual({
+      noteCount: 2, // active only
+      mediaCount: 2, // attached only
+      mediaTotalBytes: 350,
+      publicNoteCount: 1, // active + public + published
+      activeShareLinkCount: 2, // active links (incl. trashed-note link), revoked excluded
+    });
+  });
+
+  it("returns all-zero impact for a user with no content", async () => {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp("emp012") });
+
+    const impact = await summarizeAccountDeletion({
+      container,
+      input: { actorUserId: userId },
+    });
+    expect(impact).toEqual({
+      noteCount: 0,
+      mediaCount: 0,
+      mediaTotalBytes: 0,
+      publicNoteCount: 0,
+      activeShareLinkCount: 0,
+    });
   });
 });

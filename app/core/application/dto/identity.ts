@@ -77,6 +77,57 @@ export type SessionDTO = Readonly<{
   expiresAt: Instant;
 }>;
 
+/**
+ * Read-only projection of the data that an account deletion affects,
+ * surfaced by `summarizeAccountDeletion` for the P24 multi-step confirm
+ * UI. Every field is a raw count / byte total — humanization (e.g.
+ * bytes → GB) is the presentation layer's job.
+ *
+ * The values must stay faithful to the **actual** delete cascade
+ * (`deleteAccount` + the `user.deleted` reaction handlers), because the
+ * UI must not misrepresent what is destroyed (#543 虚偽表示禁止). The
+ * cascade soft-deletes the user, purges credentials, makes every note
+ * private (revoking all active share links) and cancels in-progress
+ * export jobs. It does **not** physically purge note bodies or media
+ * blobs — there is no `user.deleted` reaction for notes/media — so the
+ * note/media counts describe data that becomes inaccessible, not data
+ * that is immediately erased. See `.issue/573/adr.md` ADR-003.
+ */
+export type AccountDeletionImpactDTO = Readonly<{
+  /**
+   * Owned active notes. After deletion they become inaccessible (login
+   * is revoked and public access is stopped), but the rows are not
+   * physically purged — do not present this as "immediately erased".
+   */
+  noteCount: number;
+  /**
+   * Count of `attached` media assets only (`pending` / `orphan` /
+   * `deleting` are purge-lifecycle transients and excluded). Like
+   * `noteCount`, these blobs are not immediately purged on deletion.
+   */
+  mediaCount: number;
+  /**
+   * Raw byte total of the `attached` media assets above. Formatting is
+   * the presentation layer's responsibility.
+   */
+  mediaTotalBytes: number;
+  /**
+   * Active public notes. On deletion they are made private, so their
+   * public URLs start returning 410 Gone. Counted via
+   * `countPublicByOwner` (active-only INNER JOIN), which can diverge
+   * slightly from the cascade (which privatizes every note, trashed
+   * included) during the trash → outbox-relay lag window — hence the UI
+   * softens this to an approximation rather than an exact SSOT.
+   */
+  publicNoteCount: number;
+  /**
+   * Active (non-revoked) share links across all owned notes — trashed
+   * notes included — which the cascade revokes. Matches the cascade's
+   * revocation set exactly.
+   */
+  activeShareLinkCount: number;
+}>;
+
 export function toSessionDTO(
   record: SessionRecord,
   currentSessionToken: string | null,
