@@ -122,7 +122,18 @@ type IngestionCommitDeps = {
 
 ### SpeechRecognitionProvider（ポート）
 - メソッド: `transcribe(input: { audioBytes: ArrayBuffer; mime: string; locale: string }): Promise<string>`
+- 契約: 発話なし（無音）は空文字を返す。catastrophic な失敗のみ `SpeechFailureError` を throw する。
 - エラーケース: `SpeechFailureError`
+- 実装（Issue #701）: 第一段は OpenAI `gpt-4o-transcribe`（`POST /v1/audio/transcriptions`, multipart, Bearer）。設定駆動で DI 注入され、未設定時は `StubSpeechRecognitionProvider`（常に `BusinessRuleError('unsupported_format')` を throw）にフォールバックする。`locale` は当面 `ja-JP` 由来の固定値を素通しする（可変化は後続 Issue）。詳細は `spec/adr/013-speech-provider.md`。
+
+### 文字起こし失敗時の空テキスト縮退（Issue #701 ADR-005）
+
+`spec/scenario/ingest.md` の「OCR / 音声認識失敗: 失敗箇所を明示。テキストが空でも、利用者が手動で内容を追記して保存可能」を満たすための縮退挙動。
+
+- **設定済みプロバイダ**の `transcribe` が `SpeechFailureError` を throw した場合（または正常に空文字＝無音が返った場合）、`RunIngestionJob` は空テキストに縮退し、`markFailed` せず `previewing` に到達させる。
+- 空 transcript のときは LLM 構造化（`structureToHtml` / `suggestMetadata`）を**スキップ**する（空入力で LLM を叩かない＝課金回避・二次失敗回避）。`fallbackTitle(originalFileName)` ＋ 失敗注記の固定 HTML（先頭に `<p class="ingestion-failure-note">…</p>` を持つ段落。信頼済み定数のためサニタイザ非経由で `ContentHtml.create` へ直接）で縮退 preview を生成する。`IngestionPreview` VO には変更を加えない（波及回避）。
+- 録音元ファイルは commit 時に従来どおり `MediaAsset(kind='source')` として保存される（#452）。
+- **境界**: 縮退対象は実プロバイダの `SpeechFailureError` のみ。**Speech 未設定時（`StubSpeechRecognitionProvider` フォールバック）は従来どおり fail**（Stub の `BusinessRuleError('unsupported_format')` は `SpeechFailureError` ではないため縮退対象外で、`classifyPipelineError` → `markFailed` に落ちる）。未設定を縮退で隠さない（設定忘れに気づける / 空ノート量産を防ぐ）意図的挙動（ADR-005 で確定）。
 
 ### OfficeExtractor（ポート）
 - メソッド: `extractText(input: { bytes: ArrayBuffer; mime: string }): Promise<{ text: string; structureHints: string[] }>`

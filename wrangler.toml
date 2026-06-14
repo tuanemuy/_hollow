@@ -67,6 +67,15 @@ ADMIN_LLM_PROVIDER = "anthropic"
 # default endpoint. Anthropic / Gemini providers ignore this value
 # (ADR-001). Public information so it ships via `[vars]`.
 ADMIN_LLM_BASE_URL = ""
+# Model id consumed by the OpenAI speech (transcription) adapter. Public
+# information. DI wires the real speech adapter only when this AND
+# `ADMIN_SPEECH_API_KEY` (secret — never put in `[vars]`) are both present;
+# either missing → `StubSpeechRecognitionProvider`.
+ADMIN_SPEECH_MODEL = "gpt-4o-transcribe"
+# Provider id consumed by the speech registry factory. "openai" is the only
+# supported provider for now. There is no `ADMIN_SPEECH_BASE_URL` — the
+# speech config carries no base URL override.
+ADMIN_SPEECH_PROVIDER = "openai"
 
 # D1: read/write for the request path. Outbox writes happen here
 # transactionally with aggregate writes — see app/core/adapters/d1/.
@@ -149,6 +158,10 @@ R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 ADMIN_LLM_MODEL = "claude-3-5-sonnet-latest"
 ADMIN_LLM_PROVIDER = "anthropic"
 ADMIN_LLM_BASE_URL = ""
+# Speech (transcription) provider config — `ADMIN_SPEECH_API_KEY` is a
+# secret and is never placed in `[vars]` (no base URL override exists).
+ADMIN_SPEECH_MODEL = "gpt-4o-transcribe"
+ADMIN_SPEECH_PROVIDER = "openai"
 
 # D1 is bound for subscribers that write projections / idempotency
 # stamps. Drop if your consumers are stateless.

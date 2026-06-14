@@ -20,7 +20,10 @@
 | PDF textual | Run | PDFExtractor → LLM → previewing |
 | PDF scanned | Run | PDFExtractor → OCR → LLM → previewing |
 | 画像 | Run | OCR → LLM → previewing |
-| 音声 | Run | SpeechRecognition → LLM → previewing |
+| 音声（文字起こし成功） | Run | SpeechRecognition → LLM → previewing |
+| 音声（設定済みプロバイダで `SpeechFailureError`） | Run | 空テキストに縮退。`structureToHtml` / `suggestMetadata` を**呼ばず**、`ingestion-failure-note` 注記入りの縮退 preview で previewing に到達（`markFailed` しない、Issue #701 ADR-005） |
+| 音声（無音で transcribe が空文字） | Run | 上と同じ縮退分岐で previewing（LLM スキップ） |
+| 音声（未設定 / Stub の `unsupported_format`） | Run | 縮退対象外。`job.markFailed`（previewing に到達しない。縮退は `SpeechFailureError` のみ） |
 | LLM 失敗 | Run | `job.markFailed('llm_failure')` |
 | OCR 失敗 | Run | `job.markFailed('ocr_failure')` |
 | sanitize 失敗 | Run | `job.markFailed('sanitize_failure')` |
