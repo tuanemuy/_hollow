@@ -1,6 +1,7 @@
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
+import type { ReactNode } from "react";
 import { useAuthGuardEffect } from "@/components/common/useAuthGuardEffect";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { RouteErrorFallback } from "@/components/layout/RouteErrorFallback";
@@ -153,16 +154,38 @@ export const Route = createFileRoute("/_app/")({
 
 const appLayoutRoute = getRouteApi("/_app");
 
+/**
+ * Picks the unauthenticated-branch view from the auth-mismatch flag
+ * returned by `useAuthGuardEffect`. Extracted as a pure function so the
+ * branch direction (fresh-unauthenticated → `LandingPage`, never
+ * suppressed) is unit-pinnable without rendering the full server
+ * component (Issue #732 AC-2).
+ *
+ * - `isResolvingAuthMismatch === true`: mismatch observed, `_app` is
+ *   being re-evaluated. Render a neutral placeholder (`null`) — drawing
+ *   `LandingPage` would expose the unauthenticated UI for one frame.
+ * - `isResolvingAuthMismatch === false`: a genuine fresh unauthenticated
+ *   visitor → render `LandingPage` (must not be suppressed).
+ */
+export function selectUnauthenticatedView(
+  isResolvingAuthMismatch: boolean,
+): ReactNode {
+  if (isResolvingAuthMismatch) return null;
+  return <LandingPage />;
+}
+
 function HomeRoute() {
   const data = Route.useLoaderData();
   const { userDto: shellUserDto } = appLayoutRoute.useLoaderData();
   // Call the hook unconditionally above the conditional return to comply
   // with the rules of hooks. The hook itself is no-op unless the
   // `shell cached user × leaf observed unauthenticated` mismatch holds.
-  useAuthGuardEffect({
+  const isResolvingAuthMismatch = useAuthGuardEffect({
     leafAuthenticated: data.authenticated,
     shellUserDto,
   });
-  if (!data.authenticated) return <LandingPage />;
+  if (!data.authenticated) {
+    return selectUnauthenticatedView(isResolvingAuthMismatch);
+  }
   return data.Home;
 }

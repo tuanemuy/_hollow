@@ -58,6 +58,25 @@ function Probe(props: {
   return null;
 }
 
+/**
+ * Issue #732: a thin harness that reflects the hook's boolean return
+ * (the auth-mismatch flag) into the DOM so the return-value contract
+ * can be asserted independently of the existing invalidate-contract
+ * `Probe` (kept unmodified). `HomeRoute` uses this flag to render a
+ * neutral placeholder instead of `LandingPage` during the one frame a
+ * stale shell session is being re-evaluated.
+ */
+function BoolProbe(props: {
+  leafAuthenticated: boolean;
+  shellUserDto: UserDTO | null;
+}) {
+  const isResolvingAuthMismatch = useAuthGuardEffect({
+    leafAuthenticated: props.leafAuthenticated,
+    shellUserDto: props.shellUserDto,
+  });
+  return <span data-testid="flag">{String(isResolvingAuthMismatch)}</span>;
+}
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -153,5 +172,61 @@ describe("useAuthGuardEffect", () => {
       );
     });
     expect(invalidateMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * Issue #732: pins the boolean return contract (auth-mismatch flag).
+ * The flag drives `HomeRoute`'s render guard, so its truthiness must
+ * track the hook's own fire condition exactly — otherwise a fresh
+ * unauthenticated visitor could be wrongly suppressed (AC-2).
+ */
+describe("useAuthGuardEffect return value (auth-mismatch flag)", () => {
+  function flag(): string | null {
+    return container.querySelector('[data-testid="flag"]')?.textContent ?? null;
+  }
+
+  it("returns true when shell cached a user but leaf observed unauthenticated", () => {
+    act(() => {
+      root.render(
+        <BoolProbe leafAuthenticated={false} shellUserDto={makeUser("u1")} />,
+      );
+    });
+    expect(flag()).toBe("true");
+  });
+
+  it("returns false for a fresh unauthenticated visitor (shell null × leaf false)", () => {
+    act(() => {
+      root.render(<BoolProbe leafAuthenticated={false} shellUserDto={null} />);
+    });
+    expect(flag()).toBe("false");
+  });
+
+  it("returns false on the normal authenticated case (shell user × leaf true)", () => {
+    act(() => {
+      root.render(
+        <BoolProbe leafAuthenticated={true} shellUserDto={makeUser("u1")} />,
+      );
+    });
+    expect(flag()).toBe("false");
+  });
+
+  it("transitions true → false when the shell user is cleared (convergence, AC-5)", () => {
+    // Mismatch observed: shell still holds the prior user, leaf is false.
+    act(() => {
+      root.render(
+        <BoolProbe leafAuthenticated={false} shellUserDto={makeUser("u1")} />,
+      );
+    });
+    expect(flag()).toBe("true");
+
+    // `appShellInvalidate` resolves → `_app` re-evaluates → `userDto: null`.
+    // The leaf loader (`renderHome`) is NOT re-run, so `leafAuthenticated`
+    // stays false. The re-render now matches the fresh-unauthenticated shape
+    // and the flag must fall to false so `LandingPage` is rendered.
+    act(() => {
+      root.render(<BoolProbe leafAuthenticated={false} shellUserDto={null} />);
+    });
+    expect(flag()).toBe("false");
   });
 });
