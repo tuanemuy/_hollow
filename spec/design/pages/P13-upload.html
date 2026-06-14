@@ -908,6 +908,112 @@
     border-radius: var(--radius-pill);
     font-size: var(--text-xs);
   }
+
+  /* ===== Recorder card (実装 AudioRecorder) =====
+     実装は単一カード内で idle / requesting-permission / recording / stopped /
+     permission-denied を 1 状態ずつ排他表示する。モックは慣行どおり各状態を
+     並べて見せ、コメントで状態名を明示する。枠は実装の
+     `rounded-xl border border-hairline bg-surface-elevated p-4` をトークンで再現。 */
+  .recorder-card {
+    border: 1px solid var(--color-hairline);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+  .recorder-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .recorder-head .mic { color: var(--color-ink-secondary); display: inline-flex; }
+  .recorder-head .title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+  }
+  .recorder-state { padding-top: var(--space-2); }
+  .recorder-state + .recorder-state { border-top: 1px dashed var(--color-hairline); margin-top: var(--space-4); padding-top: var(--space-4); }
+  .recorder-state-label {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-3);
+    font-family: var(--font-mono);
+  }
+  .recorder-lead {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    margin-bottom: var(--space-3);
+  }
+  .recorder-hint {
+    font-size: var(--text-sm);
+    color: var(--color-ink-secondary);
+    padding: var(--space-2) 0;
+  }
+  /* 録音中の経過時間 / サイズ行 */
+  .recorder-meter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+  .recorder-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--color-error);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .recorder-time {
+    font-size: var(--text-lg);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+  .recorder-size {
+    font-size: var(--text-xs);
+    color: var(--color-ink-tertiary);
+  }
+  .recorder-audio {
+    width: 100%;
+    margin-bottom: var(--space-3);
+  }
+  .recorder-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  /* 録音 UI のボタンは .pill-btn を踏襲。録音カード内に scoped で配色を上書きし、
+     実装（pillBtnDanger / pillBtnGhostDanger）の塗り stop / 中立 ghost discard を再現する。 */
+  /* 録音を停止 = filled danger（rest で塗り背景 + error 文字） */
+  .recorder-card .pill-btn.danger {
+    background: var(--color-error-surface);
+    color: var(--color-error);
+  }
+  .recorder-card .pill-btn.danger:hover { background: var(--color-error-surface); }
+  /* 取り消す = ghost-danger（rest は ink-secondary、hover で error-surface + error） */
+  .recorder-card .pill-btn.ghost-danger {
+    background: transparent;
+    color: var(--color-ink-secondary);
+  }
+  .recorder-card .pill-btn.ghost-danger:hover {
+    background: var(--color-error-surface);
+    color: var(--color-error);
+  }
+
+  /* sr-only: 視覚的非表示（aria-live ステータス用） */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 </style>
 </head>
 <body>
@@ -1011,6 +1117,95 @@
     <div class="dropzone" id="dropzone">
       <div class="dropzone-title"><strong>ファイルをドラッグ&ドロップ</strong> またはクリックして選択</div>
       <div class="dropzone-sub">複数選択にも対応</div>
+    </div>
+
+    <!-- Recorder card (実装 AudioRecorder; DropZone 直後にレンダリング = UploadForm L257)。
+         実装は 1 状態ずつ排他表示するが、ここでは全状態を並べて見本にする。
+         alert の role は実装に忠実: 上限間近=role="status"、自動停止/権限拒否=role="alert"。 -->
+    <div class="recorder-card">
+      <div class="recorder-head">
+        <span class="mic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+        <p class="title">マイクで録音して取り込む</p>
+      </div>
+
+      <!-- 実装の recorderStatusText を流す sr-only ライブ領域（aria-live=polite） -->
+      <div class="sr-only" role="status" aria-live="polite">録音中</div>
+
+      <!-- state: idle -->
+      <div class="recorder-state">
+        <div class="recorder-state-label">state: idle</div>
+        <p class="recorder-lead">録音した音声は文字起こしして新規ノートにします。最大 30 分・24 MB まで。</p>
+        <button type="button" class="pill-btn primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          録音を開始
+        </button>
+      </div>
+
+      <!-- state: requesting-permission -->
+      <div class="recorder-state">
+        <div class="recorder-state-label">state: requesting-permission</div>
+        <p class="recorder-hint">マイクの使用を許可してください…</p>
+      </div>
+
+      <!-- state: recording（上限間近 = warning, role="status"） -->
+      <div class="recorder-state">
+        <div class="recorder-state-label">state: recording</div>
+        <div class="recorder-meter">
+          <span class="recorder-dot" aria-hidden="true"></span>
+          <span class="recorder-time">12:34</span>
+          <span class="recorder-size">12.3 MB</span>
+        </div>
+        <div class="alert alert-warning" role="status">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">まもなく上限に達します</p>
+            <p class="alert-body">上限（30 分 / 24 MB）に達すると自動的に停止します。</p>
+          </div>
+        </div>
+        <button type="button" class="pill-btn danger">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          録音を停止
+        </button>
+      </div>
+
+      <!-- state: stopped（自動停止 = warning, role="alert"） -->
+      <div class="recorder-state">
+        <div class="recorder-state-label">state: stopped</div>
+        <div class="alert alert-warning" role="alert">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">上限に達したため録音を停止しました</p>
+            <p class="alert-body">録音は上限（30 分 / 24 MB）に達したため自動的に停止しました。ここまでの録音を取り込めます。</p>
+          </div>
+        </div>
+        <audio class="recorder-audio" controls></audio>
+        <div class="recorder-actions">
+          <button type="button" class="pill-btn primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            この録音を取り込む
+          </button>
+          <button type="button" class="pill-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            録り直す
+          </button>
+          <button type="button" class="pill-btn ghost-danger">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            取り消す
+          </button>
+        </div>
+      </div>
+
+      <!-- state: permission-denied（権限拒否 = warning, role="alert"） -->
+      <div class="recorder-state">
+        <div class="recorder-state-label">state: permission-denied</div>
+        <div class="alert alert-warning" role="alert">
+          <span class="alert-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+          <div class="alert-content">
+            <p class="alert-title">マイクを使用できませんでした</p>
+            <p class="alert-body">マイクの使用が許可されていないか、利用できる録音デバイスがありません。ブラウザの権限設定を確認するか、上のファイルアップロードから音声ファイルを取り込んでください。</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Format chips -->

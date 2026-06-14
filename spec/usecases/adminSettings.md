@@ -8,7 +8,7 @@
 - `actorUserId: UserId`
 
 ### 出力DTO
-- `settings: InstanceSettingsDTO`（apiKeyCiphertext は返さず、`apiKeyMasked: string` のみ）
+- `settings: InstanceSettingsDTO`（apiKeyCiphertext は返さず、`apiKeyMasked: string` のみ）。`llm` と並列に `speech`（provider / model / apiKeyMasked + env override フラグ）も射影する（Issue #701）
 
 ### 処理フロー
 1. actor の role 確認
@@ -56,6 +56,50 @@
 
 ### エラーケース
 - `LLMUnavailableError`
+
+---
+
+## UpdateSpeechConfig
+
+Issue #701。`UpdateLLMConfig` と対称。文字起こしプロバイダ・モデル・API キーを設定する。
+
+### 入力DTO
+- `actorUserId`, `provider: SpeechProvider`, `model: string`, `apiKeyPlain: string | null`
+
+### 出力DTO
+- なし
+
+### 処理フロー
+1. admin チェック
+2. 既存設定取得
+3. provider 変更時に API キーが必要なら必須チェック（未指定なら `SpeechProviderChangedRequiresApiKey`）
+4. `apiKeyPlain !== null` のとき `SecretBox.encrypt`、`apiKeySource = 'db'`
+5. env 経由のキーがある場合、`AdminSettingsService.assertSpeechEnvOverride` を呼ぶと `apiKeySource = 'env'` に強制（env override の silent-skip ログも `UpdateLLMConfig` と対称）
+6. `SpeechRecognitionConfig.create` → `settings.updateSpeech(cfg, now)` → save
+
+### エラーケース
+- `ValidationError`
+- `SecretBoxError`
+
+---
+
+## TestSpeechConnection
+
+Issue #701。`TestLLMConnection` と対称。**transcribe を呼ばず軽量 probe（`GET /models/{model}` 系）で疎通確認する**（ADR-006）。合格境界は provider のモデル存在/認証の確認まで（transcribe 実音声疎通は AC-3 / 手動テストで担保）。
+
+### 入力DTO
+- `actorUserId`, `useDraft: boolean`, `draftConfig?: SpeechRecognitionConfigDTO`
+
+### 出力DTO
+- `ok: boolean`, `latencyMs: number`, `error: string | null`
+
+### 処理フロー
+1. admin チェック
+2. cfg を解決（保存済み or draft）、apiKey を解決（env > db）
+3. `SpeechConnectionTester.ping`（throw せず `{ ok, latencyMs, error }` を返す。apiKey 欠如時は `ok: false`）
+
+### エラーケース
+- なし（疎通不可は `ok: false` で返す）
 
 ---
 

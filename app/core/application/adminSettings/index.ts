@@ -50,6 +50,12 @@ export {
   testLLMConnection,
 } from "./testLLMConnection";
 export {
+  type TestSpeechConnectionDraft,
+  type TestSpeechConnectionInput,
+  type TestSpeechConnectionOutput,
+  testSpeechConnection,
+} from "./testSpeechConnection";
+export {
   type ToggleRegistrationPolicyInput,
   type ToggleRegistrationPolicyOutput,
   toggleRegistrationPolicy,
@@ -74,6 +80,11 @@ export {
   type UpdatePromptTemplateOutput,
   updatePromptTemplate,
 } from "./updatePromptTemplate";
+export {
+  type UpdateSpeechConfigInput,
+  type UpdateSpeechConfigOutput,
+  updateSpeechConfig,
+} from "./updateSpeechConfig";
 export {
   type UpdateUserPromptOverrideInput,
   type UpdateUserPromptOverrideOutput,

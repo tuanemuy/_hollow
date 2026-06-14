@@ -7,6 +7,7 @@ import {
   InstanceLimits,
   PromptTemplate,
   RegistrationPolicy,
+  SpeechRecognitionConfig,
 } from "../valueObject";
 
 /**
@@ -168,6 +169,82 @@ describe("InstanceLimits.create (property)", () => {
           }
         },
       ),
+    );
+  });
+});
+
+describe("SpeechRecognitionConfig.create (property)", () => {
+  const SPEECH_MODEL_MAX_LENGTH = 120;
+
+  it("accepts any non-empty trimmed model up to 120 chars for an env-sourced config", () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 200 }).filter((s) => {
+          const trimmed = s.trim();
+          return (
+            trimmed.length >= 1 && trimmed.length <= SPEECH_MODEL_MAX_LENGTH
+          );
+        }),
+        (model) => {
+          const cfg = SpeechRecognitionConfig.create({
+            provider: "openai",
+            model,
+            apiKeySource: "env",
+            apiKeyCiphertext: null,
+          });
+          expect(cfg.model).toBe(model.trim());
+          expect(cfg.apiKeyCiphertext).toBeNull();
+        },
+      ),
+    );
+  });
+
+  it("rejects any model whose trimmed length exceeds 120 chars with InvalidSpeechModelTooLong", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: SPEECH_MODEL_MAX_LENGTH + 1, max: 400 }),
+        (len) => {
+          try {
+            SpeechRecognitionConfig.create({
+              provider: "openai",
+              model: "a".repeat(len),
+              apiKeySource: "env",
+              apiKeyCiphertext: null,
+            });
+            expect.fail("should have thrown");
+          } catch (error) {
+            expect(isBusinessRuleError(error)).toBe(true);
+            if (isBusinessRuleError(error)) {
+              expect(error.code).toBe(
+                AdminSettingsErrorCode.InvalidSpeechModelTooLong,
+              );
+            }
+          }
+        },
+      ),
+    );
+  });
+
+  it("rejects env-sourced config with any non-null ciphertext (invariant: env ↔ null)", () => {
+    fc.assert(
+      fc.property(fc.string({ minLength: 0, maxLength: 40 }), (ciphertext) => {
+        try {
+          SpeechRecognitionConfig.create({
+            provider: "openai",
+            model: "gpt-4o-transcribe",
+            apiKeySource: "env",
+            apiKeyCiphertext: ciphertext,
+          });
+          expect.fail("should have thrown");
+        } catch (error) {
+          expect(isBusinessRuleError(error)).toBe(true);
+          if (isBusinessRuleError(error)) {
+            expect(error.code).toBe(
+              AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+            );
+          }
+        }
+      }),
     );
   });
 });

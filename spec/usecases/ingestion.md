@@ -42,7 +42,7 @@
    - pdfTextual: `PDFExtractor.extract` → `LLMProvider.structureToHtml` → sanitize
    - pdfScanned: `PDFExtractor.extract`（pageImages） → `OCRProvider.extractText`（または `LLMProvider`）→ `LLMProvider.structureToHtml`
    - image: `OCRProvider.extractText` → `LLMProvider.structureToHtml`
-   - audio: `SpeechRecognitionProvider.transcribe` → `LLMProvider.structureToHtml`
+   - audio: `SpeechRecognitionProvider.transcribe` → `LLMProvider.structureToHtml`。**transcript が空のとき（`SpeechFailureError` を空文字に縮退、または無音で空文字）は LLM 構造化をスキップし、失敗注記入りの縮退 preview を生成する**（後述「文字起こし失敗時の縮退」、Issue #701 ADR-005）
    - plain: テキストをそのまま `LLMProvider.structureToHtml`
    - 加えて、`LLMProvider.suggestMetadata` でタグ・aliases 取得
    - LLM 構造化分岐では、事前に `DirectoryRepository.findTree(ownerId)` で取得した既存ディレクトリのパス列（正準形）を `structureToHtml` の `existingDirectories` に渡す。`findTree` 失敗時は空配列にフォールバックして取り込みを継続する。
@@ -50,10 +50,21 @@
    - `LLMProvider.structureToHtml` の `directorySuggestion`（パス）を既存ディレクトリ列と正規化（大小無視・スラッシュ正規化）して突き合わせる。一致した場合は `suggestedDirectoryId` に解決し `suggestedDirectoryName=null`、不一致の場合は末尾セグメントを新規の単一ディレクトリ名として `suggestedDirectoryName` に採用する（深いネスト新規作成はコミット経路の制約によりスコープ外）。
 6. 失敗時は `job.markFailed(code, reason, now)` → save。失敗もユーザーに通知できる状態にする
 
+### 文字起こし失敗時の縮退（audio、Issue #701 ADR-005）
+
+`extractText` の `case "audio"` で `SpeechRecognitionProvider.transcribe` を呼び、**`SpeechFailureError` のみ**を catch して空文字に縮退する（`SpeechFailureError` 以外、特に未設定時 Stub の `BusinessRuleError('unsupported_format')` は catch せず素通し）。`runPipeline` で `kind === 'audio'` かつ transcript が空のとき、LLM 分岐（`structureToHtml` / `suggestMetadata`）の前で early-return 相当の縮退分岐に入り、以下で preview を組み立てて `previewing` に到達させる:
+
+- `title = fallbackTitle(originalFileName)`（`NoteTitle` は空文字を弾くため fallback で保護）
+- `contentHtml` = 失敗注記の固定 HTML（先頭に `<p class="ingestion-failure-note">…</p>`。信頼済み定数のためサニタイザ非経由で `ContentHtml.create` へ。`ContentHtml.create("")` 相当は許容される）
+- `suggestedDirectoryId = null` / `suggestedTagNames: []`（`suggestMetadata` も呼ばない）
+
+これにより利用者は注記の下に本文を追記して commit できる（AC-6）。録音元ファイルは commit 時に `MediaAsset(kind='source')` として保存される。**Speech 未設定時（Stub フォールバック）は縮退対象外で従来どおり `markFailed`**（縮退は設定済みプロバイダの transcribe 失敗時のみ）。
+
 ### エラーケース
 - `LLMRateLimitError` → 再試行 (worker レベル)
 - `LLMUnavailableError` / `LLMTimeoutError` → `job.markFailed('llm_failure')`
-- `OCRFailureError` / `SpeechFailureError` / `PDFParseError` / `OfficeParseError` → `job.markFailed`
+- `OCRFailureError` / `PDFParseError` / `OfficeParseError` → `job.markFailed`
+- `SpeechFailureError`（設定済みプロバイダ）→ 上記「文字起こし失敗時の縮退」で空テキスト縮退し `previewing` に到達（`markFailed` しない）。Stub の `unsupported_format`（未設定時）は従来どおり `job.markFailed`
 - `SanitizerError` → `job.markFailed('sanitize_failure')`
 
 ---

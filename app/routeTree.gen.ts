@@ -29,6 +29,7 @@ import { Route as PasswordResetConfirmRouteImport } from './routes/password-rese
 import { Route as MediaMediaIdRouteImport } from './routes/media/$mediaId'
 import { Route as EmailChangeConfirmRouteImport } from './routes/email-change/confirm'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSpeechRouteImport } from './routes/admin/speech'
 import { Route as AdminRegistrationRouteImport } from './routes/admin/registration'
 import { Route as AdminPromptsRouteImport } from './routes/admin/prompts'
 import { Route as AdminMetricsRouteImport } from './routes/admin/metrics'
@@ -158,6 +159,11 @@ const EmailChangeConfirmRoute = EmailChangeConfirmRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSpeechRoute = AdminSpeechRouteImport.update({
+  id: '/speech',
+  path: '/speech',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminRegistrationRoute = AdminRegistrationRouteImport.update({
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
   '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/speech': typeof AdminSpeechRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
@@ -389,6 +396,7 @@ export interface FileRoutesByTo {
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
   '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/speech': typeof AdminSpeechRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
@@ -442,6 +450,7 @@ export interface FileRoutesById {
   '/admin/metrics': typeof AdminMetricsRoute
   '/admin/prompts': typeof AdminPromptsRoute
   '/admin/registration': typeof AdminRegistrationRoute
+  '/admin/speech': typeof AdminSpeechRoute
   '/admin/users': typeof AdminUsersRoute
   '/email-change/confirm': typeof EmailChangeConfirmRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
@@ -497,6 +506,7 @@ export interface FileRouteTypes {
     | '/admin/metrics'
     | '/admin/prompts'
     | '/admin/registration'
+    | '/admin/speech'
     | '/admin/users'
     | '/email-change/confirm'
     | '/media/$mediaId'
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/admin/metrics'
     | '/admin/prompts'
     | '/admin/registration'
+    | '/admin/speech'
     | '/admin/users'
     | '/email-change/confirm'
     | '/media/$mediaId'
@@ -596,6 +607,7 @@ export interface FileRouteTypes {
     | '/admin/metrics'
     | '/admin/prompts'
     | '/admin/registration'
+    | '/admin/speech'
     | '/admin/users'
     | '/email-change/confirm'
     | '/media/$mediaId'
@@ -789,6 +801,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/speech': {
+      id: '/admin/speech'
+      path: '/speech'
+      fullPath: '/admin/speech'
+      preLoaderRoute: typeof AdminSpeechRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/registration': {
@@ -1115,6 +1134,7 @@ interface AdminRouteRouteChildren {
   AdminMetricsRoute: typeof AdminMetricsRoute
   AdminPromptsRoute: typeof AdminPromptsRoute
   AdminRegistrationRoute: typeof AdminRegistrationRoute
+  AdminSpeechRoute: typeof AdminSpeechRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -1126,6 +1146,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminMetricsRoute: AdminMetricsRoute,
   AdminPromptsRoute: AdminPromptsRoute,
   AdminRegistrationRoute: AdminRegistrationRoute,
+  AdminSpeechRoute: AdminSpeechRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

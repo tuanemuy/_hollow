@@ -1,6 +1,5 @@
 import type { InstanceSettings } from "@/core/domain/adminSettings/entity";
-import type { LLMConfig } from "@/core/domain/adminSettings/valueObject";
-import type { AdminSettingsEnv } from "../di/types";
+import type { AdminSettingsEnv, AdminSpeechEnv } from "../di/types";
 import {
   type InstanceSettingsDTO,
   toInstanceSettingsDTO,
@@ -19,10 +18,19 @@ import {
  *   chars are stable across reads but carry negligible entropy.
  * - `apiKeySource === 'db'` but `apiKeyCiphertext === null`: returns
  *   `null` so the UI does not falsely suggest a stored key. This shape
- *   is normally rejected by `LLMConfig.create` but the function tolerates
+ *   is normally rejected by `*Config.create` but the function tolerates
  *   it defensively.
+ *
+ * Accepts the structural `{ apiKeySource, apiKeyCiphertext }` shape rather
+ * than a concrete VO so both `LLMConfig` and `SpeechRecognitionConfig`
+ * masking flow through one helper.
  */
-export function maskApiKey(cfg: LLMConfig): string | null {
+export function maskApiKey(
+  cfg: Readonly<{
+    apiKeySource: "env" | "db";
+    apiKeyCiphertext: string | null;
+  }>,
+): string | null {
   if (cfg.apiKeySource === "env") return null;
   const cipher = cfg.apiKeyCiphertext;
   if (cipher === null) return null;
@@ -44,6 +52,7 @@ export function maskApiKey(cfg: LLMConfig): string | null {
 export function toInstanceSettingsView(
   settings: InstanceSettings,
   env: AdminSettingsEnv | null = null,
+  speechEnv: AdminSpeechEnv | null = null,
 ): InstanceSettingsDTO {
   // Defense-in-depth: when env.apiKey is set, the env value wins at runtime
   // and the persisted ciphertext is irrelevant to the UI. Skip masking
@@ -51,5 +60,14 @@ export function toInstanceSettingsView(
   // (`toInstanceSettingsDTO` also nulls `apiKeyMasked` when envOverrides.apiKey,
   // this is the upstream belt to that suspenders).
   const apiKeyMasked = env?.apiKey ? null : maskApiKey(settings.llm);
-  return toInstanceSettingsDTO(settings, apiKeyMasked, env);
+  const speechApiKeyMasked = speechEnv?.apiKey
+    ? null
+    : maskApiKey(settings.speech);
+  return toInstanceSettingsDTO(
+    settings,
+    apiKeyMasked,
+    env,
+    speechApiKeyMasked,
+    speechEnv,
+  );
 }

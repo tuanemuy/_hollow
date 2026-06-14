@@ -1,0 +1,51 @@
+# ADR 013: 文字起こしプロバイダは OpenAI gpt-4o-transcribe を第一段固定とする
+
+## ステータス
+
+承認済み（2026-06-14, Issue #701）
+
+## コンテキスト
+
+取り込みパイプラインの `audio` 分岐は `SpeechRecognitionProvider.transcribe` を呼ぶよう既に配線されていたが、実アダプタが無く `StubSpeechRecognitionProvider` が常に `BusinessRuleError('unsupported_format')` を投げる状態だった。録音 UI（Issue #701）でブラウザ録音をノート化するには、実プロバイダの選定と、その設定を LLM 設定（[ADR 004](./004-llm-provider-single-fixed.md)）とは別枠で管理する仕組みが必要になった。
+
+候補ごとのトレードオフは Issue の調査（deep-research、複数ソースを敵対的検証）で整理した。
+
+- **OpenAI gpt-4o-transcribe**: REST `/v1/audio/transcriptions`・Bearer 認証・SDK 不要。webm/m4a/mp3 明示対応・25MB 上限でブラウザ録音をそのまま流せる。日本語精度の評判が良い。
+- **Deepgram Nova-3**: 最安だが付加機能・日本語評価の情報が薄い。
+- **Gemini audio**: 構造化（`structureToHtml`）と API 統一できる魅力があるが、webm/m4a ネイティブ対応が不確実。
+- **Google Cloud STT v2**: 60 秒超で非同期バッチ + GCS 必須で Cloudflare Workers と相性が悪い。
+
+文字起こしと LLM 構造化はポートの集合（`transcribe` のみ vs `llm`/`ocr`/`pdf`）もプロバイダの集合も異なるため、LLM 設定とは別枠で管理する判断が要る。
+
+## 決定
+
+文字起こしプロバイダは第一段として **OpenAI `gpt-4o-transcribe`** を単一固定する。LLM プロバイダ（ADR 004）と対称の方針を取る。
+
+- プロバイダは `SpeechRecognitionProvider` ポートの背後に置き、OpenAI 実装を REST `/v1/audio/transcriptions`（multipart/form-data, Bearer 認証）で提供する。LLM の OpenAI アダプタ（URL 合成・secret masking）と対称に組む。
+- registry パターン（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅、`app/core/adapters/speech/registry.ts`）を採り、後から Deepgram 等を差し替えられる構造にする。LLM registry とは責務・キー集合が異なるため**分離した専用 registry**とする。
+- 設定（`SpeechRecognitionConfig`）は `LLMConfig` と並列の独立 VO とし、管理者は `/admin/speech`（`P48`）でプロバイダ・モデル・API キーを設定する。`baseURL` は持たない（OpenAI 固定エンドポイント。YAGNI）。
+- API キーは **環境変数を優先し（`env > db`）、未設定時のみ DB に `SecretBox` 暗号化保管する**。いずれも未設定のときは `StubSpeechRecognitionProvider` にフォールバックする。
+- 接続テストは transcribe を呼ばず、`GET /models/{model}` 系の**軽量 probe** でモデル存在 / 認証まで確認する（実音声不要・低コスト。Issue #701 ADR-006）。
+- `locale` は当面 `ja-JP` 固定で開始する。ユーザー指定・インスタンス設定での可変化は後続 Issue とし、ポートの `locale` は無視せず素通しする。
+
+## 検討した代替案
+
+### Gemini audio に統一する（文字起こしも構造化も同一プロバイダ）
+- 利点: API が 1 系統に揃い、registry を分けずに済む。
+- 不採用理由: ブラウザ録音の中心フォーマット（webm/opus）のネイティブ対応が不確実。録音 UI 側にフォーマット変換を強いるリスクがある。
+
+### LLM registry に文字起こしポートを相乗りさせる
+- 利点: registry コードが 1 系統で済む。
+- 不採用理由: `SpeechProvider` の集合とポート（`transcribe` のみ）が `LLMProvider`（llm/ocr/pdf をバンドル、anthropic/openai/gemini）と異なり、責務が混ざる。`SpeechProvider` が独立して進化できなくなる。
+
+### Cloudflare Workers AI（`env.AI` バインディング）経由で呼ぶ
+- 利点: 外部 HTTP 依存が減る可能性。
+- 不採用理由: 第一段は LLM アダプタと対称の素の REST（multipart + Bearer）で疎通させる方が実装コストが低く対称性も高い。Workers AI 経由は後続最適化に回す。
+
+## 影響
+
+- `SpeechRecognitionProvider` ポートは差し替え可能な抽象として設計し、将来のプロバイダ追加余地（Deepgram 等）を残す。
+- 録音長 → ファイルサイズが OpenAI 25MB / `maxIngestionBytes`（既定 32MiB）に抵触しうるため、録音 UI 側で時間 / サイズの上限・警告を設ける。
+- 文字起こしと LLM 構造化でプロバイダが分かれる（API 統一の単純さは失うが、フォーマット対応の確実性を優先）。
+- Cloudflare Workers 上での multipart `fetch` body 構築は実装前に PoC で確認する（`messagesClient` は Chat Completions の JSON 専用で multipart には流用不可）。
+- 文字起こし失敗時の縮退挙動（空テキストで `previewing` に到達、本文追記して保存可能）は Issue #701 ADR-005 に従う。未設定（Stub フォールバック）時は縮退対象外で従来どおり失敗扱いとする。

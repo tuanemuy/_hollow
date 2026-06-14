@@ -177,8 +177,9 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
 - 本画面の役割: 取り込みキュー（裏で進行中・失敗・プレビュー保留）の閲覧と編集・保存・後追い操作、直リンク／ブックマーク用フォールバック
 - 機能:
   - 単一 / 複数ファイルのドラッグ&ドロップ、ファイル選択（モーダル・本画面共通）
+  - 録音 UI（Issue #701）: ファイルアップロード導線に並ぶ「録音」導線。`MediaRecorder` でマイク録音 → 停止で Blob を File 化 → 既存アップロード経路（`uploadFileFn`）に合流。状態（idle / 権限要求中 / 録音中〔経過時間表示〕/ 停止後〔プレビュー・取り消し・録り直し・取り込み〕/ 権限拒否〔フォールバック文言 + ファイルアップロード誘導〕）。録音長 / サイズ上限の警告。`"use client"` 境界（`MediaRecorder` はブラウザ専用）
   - 取り込みキュー（待機 / 処理中 / 完了 / 失敗）— 本画面で全件表示。discarded はデフォルト除外
-  - 形式別の処理結果プレビュー（HTML / Markdown / Office / PDF / 画像 / 音声）
+  - 形式別の処理結果プレビュー（HTML / Markdown / Office / PDF / 画像 / 音声）。文字起こし失敗時は失敗注記（`class="ingestion-failure-note"`）入りの縮退プレビューを表示し、本文を追記して保存できる（Issue #701 ADR-005）
   - LLM 提案（タイトル / 保存先ディレクトリ / メタデータ）の採用・修正
   - 個別保存・破棄。再生成ボタンは本画面の `IngestionJobRow` 上のみ（フォローアップ Issue で実装と spec を一致させる）
   - 対応外形式 / サイズ超過 / LLM 失敗のフィードバック
@@ -188,7 +189,7 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
     - すべての完了・失敗・対応外通知は `aria-live="polite"` 領域でスクリーンリーダーに伝える
     - サーバーから返る `BusinessRuleError.code`（`unsupported_format` / `daily_upload_quota_exceeded` / `regeneration_limit_exceeded` 等）は `app/core/presentation/errorDisplay.ts` のマッピングテーブルを経由してユーザー向け文言に変換する
     - 内部の stack / 原文 message / 内部 errorCode は UI には出さない（`redactForClient` と `displayJobErrorCode` の二重防御）
-- 関連シナリオ: B1, B2, B3, B4, B5
+- 関連シナリオ: B1, B2, B3, B4, B5, B6
 
 ### P14 公開設定モーダル / 画面 (auth)
 - 目的: ノートの公開ステータス管理
@@ -398,6 +399,7 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
   - 接続テスト
   - クォータしきい値設定
 - 関連シナリオ: I1
+- 補足: 文字起こしプロバイダの設定は別枠の `P48 管理: 文字起こし設定画面` で行う（Issue #701。LLM 設定と並列）
 
 ### P42 管理: プロンプト設定画面 (admin)
 - 目的: インスタンスデフォルトのカスタムプロンプト管理（上書きモデル）
@@ -452,3 +454,12 @@ Hollow がシナリオを実現するために必要な画面を一覧化する�
   - 登録ポリシー現況（公開 / 停止バッジ。変更は P44 登録制御へ）
 - 関連シナリオ: I5（詳細。概況は P40 ダッシュボード）
 - 補足: P40 と利用量 4 指標を共有する重複は粒度違いの意図的設計（`spec/design/index.md` §2.4）。デザインモックは `spec/design/pages/P47-admin-metrics.html`
+
+### P48 管理: 文字起こし設定画面 (admin)
+- 目的: 文字起こし（音声認識）プロバイダ API キー / モデルの設定（Issue #701。LLM 設定〔P41〕と並列・別枠）
+- ルート: `/admin/speech`（`/admin/llm` と対称）
+- 機能:
+  - プロバイダ選択（当面 OpenAI 固定だが、registry 拡張に備え select で提供）・モデル名入力（既定 `gpt-4o-transcribe`）
+  - 環境変数優先 + DB 暗号化保管（`env > db`、`SecretBox` 暗号化。`baseURL` は持たない）
+  - 接続テスト（**transcribe を呼ばず軽量 probe で provider のモデル存在 / 認証まで確認**。実音声疎通は取り込み経路 / 手動テストで担保 — ADR-006）
+- 関連シナリオ: I1（LLM 設定と同枠の管理 UX）

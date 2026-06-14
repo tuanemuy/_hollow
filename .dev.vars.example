@@ -46,14 +46,15 @@ ADMIN_SETUP_TOKEN=""
 
 # --- SecretBox master key (at-rest encryption) ----------------------------
 # AES-256 master key for encrypting at-rest secrets such as DB-sourced LLM
-# api keys (e.g. saving `apiKeySource = 'db'` from `/admin/llm`). MUST be a
+# api keys (e.g. saving `apiKeySource = 'db'` from `/admin/llm`) and
+# DB-sourced speech api keys (saving from `/admin/speech`). MUST be a
 # base64-encoded 32-byte value — the worker rejects malformed keys at boot.
 # See `app/core/adapters/security/secretBox.ts` for the wire format.
 #
-# Required for the admin UI to round-trip a saved LLM api key through the
-# encrypted DB row. When empty, DI falls back to `NullSecretBox` and every
-# encrypt/decrypt surfaces `SecretBoxError(KeyUnavailable)` — the admin UI
-# still renders, but saving a DB-sourced api key fails at call time.
+# Required for the admin UI to round-trip a saved LLM / speech api key
+# through the encrypted DB row. When empty, DI falls back to `NullSecretBox`
+# and every encrypt/decrypt surfaces `SecretBoxError(KeyUnavailable)` — the
+# admin UI still renders, but saving a DB-sourced api key fails at call time.
 #
 # Generate a fresh value with:
 #   openssl rand -base64 32
@@ -116,6 +117,37 @@ SECRET_BOX_MASTER_KEY="ZGV2LW9ubHktZG8tbm90LXVzZS1pbi1wcm9kLWRvLTE="
 # ADMIN_LLM_BASE_URL=""
 # ADMIN_LLM_API_KEY="AIza..."
 ADMIN_LLM_API_KEY=""
+
+# --- Speech (transcription) provider env override ------------------------
+# 3 paired vars selecting the audio transcription provider:
+#   ADMIN_SPEECH_PROVIDER : "openai" (the only supported provider for now)
+#   ADMIN_SPEECH_MODEL    : provider-specific model id (e.g. gpt-4o-transcribe)
+#   ADMIN_SPEECH_API_KEY  : OpenAI api key
+#
+# Unlike the LLM block there is no ADMIN_SPEECH_BASE_URL — the speech
+# config carries no base URL override.
+#
+# DI wires the real OpenAI speech adapter only when ADMIN_SPEECH_API_KEY
+# *and* ADMIN_SPEECH_MODEL are both present and non-empty. Either missing →
+# falls back to `StubSpeechRecognitionProvider` (under
+# `app/core/adapters/stub/`), which rejects every call with
+# `BusinessRuleError("unsupported_format")`.
+# Leave empty for purely local dev; calls to OpenAI are billed.
+#
+# When any of these env vars is set, the `/admin/speech` UI surfaces the
+# corresponding field as "環境変数で固定中" (env-locked) and silently
+# preserves the persisted DB value on save — env > DB at runtime. When the
+# env vars are unset, the `/admin/speech` DB save value (SecretBox-encrypted)
+# is used instead (env > db > stub).
+#
+# API key format:
+#   OpenAI : sk-...
+#
+# --- Example: OpenAI ----------------------------------------------------
+# ADMIN_SPEECH_PROVIDER="openai"
+# ADMIN_SPEECH_MODEL="gpt-4o-transcribe"
+# ADMIN_SPEECH_API_KEY="sk-..."
+ADMIN_SPEECH_API_KEY=""
 
 # --- R2 SigV4 presign credentials ---------------------------------------
 # Required by `R2ObjectStorage` to mint short-lived presigned URLs for

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   LLM_PROVIDERS_TRANSPORT,
+  SPEECH_PROVIDERS_TRANSPORT,
   testLLMConnectionSchema,
+  testSpeechConnectionSchema,
   updateLLMConfigSchema,
+  updateSpeechConfigSchema,
 } from "../schema";
 
 describe("LLM_PROVIDERS_TRANSPORT", () => {
@@ -182,6 +185,174 @@ describe("testLLMConnectionSchema.draftConfig", () => {
 
   it("accepts a null draftConfig (preview no-op)", () => {
     const parsed = testLLMConnectionSchema.parse({
+      useDraft: false,
+      draftConfig: null,
+    });
+    expect(parsed.draftConfig).toBeNull();
+  });
+});
+
+describe("SPEECH_PROVIDERS_TRANSPORT", () => {
+  it("enumerates the transport-known speech providers (kept in sync with the VO list)", () => {
+    expect([...SPEECH_PROVIDERS_TRANSPORT]).toEqual(["openai"]);
+  });
+});
+
+describe("updateSpeechConfigSchema.provider", () => {
+  it("accepts the known provider literal", () => {
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: "whisper-1",
+      apiKeyPlain: "sk-test",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown provider literal", () => {
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "anthropic",
+      model: "whisper-1",
+      apiKeyPlain: "sk-test",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateSpeechConfigSchema.model", () => {
+  it("trims surrounding whitespace", () => {
+    const parsed = updateSpeechConfigSchema.parse({
+      provider: "openai",
+      model: "  whisper-1  ",
+      apiKeyPlain: "sk-test",
+    });
+    expect(parsed.model).toBe("whisper-1");
+  });
+
+  it("rejects empty / whitespace-only model (min 1 after trim)", () => {
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: "   ",
+      apiKeyPlain: "sk-test",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a 200-character model (cap boundary)", () => {
+    const max = "a".repeat(200);
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: max,
+      apiKeyPlain: "sk-test",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a 201-character model (over cap)", () => {
+    const over = "a".repeat(201);
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: over,
+      apiKeyPlain: "sk-test",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateSpeechConfigSchema.apiKeyPlain", () => {
+  it("accepts an explicit null (env-locked / unchanged key)", () => {
+    const parsed = updateSpeechConfigSchema.parse({
+      provider: "openai",
+      model: "whisper-1",
+      apiKeyPlain: null,
+    });
+    expect(parsed.apiKeyPlain).toBeNull();
+  });
+
+  it("rejects an empty-string apiKeyPlain (min 1)", () => {
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: "whisper-1",
+      apiKeyPlain: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a 4096-character apiKeyPlain (cap boundary)", () => {
+    const max = "k".repeat(4096);
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: "whisper-1",
+      apiKeyPlain: max,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a 4097-character apiKeyPlain (over cap)", () => {
+    const over = "k".repeat(4097);
+    const result = updateSpeechConfigSchema.safeParse({
+      provider: "openai",
+      model: "whisper-1",
+      apiKeyPlain: over,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("testSpeechConnectionSchema.draftConfig", () => {
+  it("accepts an env-sourced draft for the known provider", () => {
+    const parsed = testSpeechConnectionSchema.parse({
+      useDraft: true,
+      draftConfig: {
+        provider: "openai",
+        model: "whisper-1",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      },
+    });
+    expect(parsed.draftConfig?.provider).toBe("openai");
+  });
+
+  it("rejects an unknown provider on the draft path", () => {
+    const result = testSpeechConnectionSchema.safeParse({
+      useDraft: true,
+      draftConfig: {
+        provider: "anthropic",
+        model: "whisper-1",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects apiKeySource = 'db' on the draft path (env-only narrowing)", () => {
+    const result = testSpeechConnectionSchema.safeParse({
+      useDraft: true,
+      draftConfig: {
+        provider: "openai",
+        model: "whisper-1",
+        apiKeySource: "db",
+        apiKeyCiphertext: null,
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a non-null apiKeyCiphertext on the draft path (no ciphertext probing)", () => {
+    const result = testSpeechConnectionSchema.safeParse({
+      useDraft: true,
+      draftConfig: {
+        provider: "openai",
+        model: "whisper-1",
+        apiKeySource: "env",
+        apiKeyCiphertext: "ENCRYPTED",
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a null draftConfig (preview no-op)", () => {
+    const parsed = testSpeechConnectionSchema.parse({
       useDraft: false,
       draftConfig: null,
     });

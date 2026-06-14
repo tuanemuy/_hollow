@@ -1,9 +1,14 @@
 import type { ProviderAdapter, ProviderAdapterConfig } from "../llm/registry";
+// Type-only import: no value import, so the
+// `speech/registry → openai/index → speech/registry` graph stays acyclic.
+import type { SpeechAdapter } from "../speech/registry";
 import { pingOpenAI } from "./connectionPing";
 import { OpenAILLMProvider } from "./llmProvider";
 import type { OpenAISharedConfig } from "./messagesClient";
 import { OpenAIOCRProvider } from "./ocrProvider";
 import { OpenAIPDFExtractor } from "./pdfExtractor";
+import { pingOpenAISpeech } from "./speechConnectionPing";
+import { OpenAISpeechRecognitionProvider } from "./speechRecognitionProvider";
 
 /**
  * Normalize the registry config into an {@link OpenAISharedConfig}. A null or
@@ -37,3 +42,26 @@ export const openaiAdapter = {
     return result.ok ? { ok: true } : { ok: false, error: result.reason };
   },
 } satisfies ProviderAdapter;
+
+/**
+ * OpenAI speech-to-text adapter. Speech has its own VO / registry distinct
+ * from the LLM/OCR/PDF triple, so this is a separate `SpeechAdapter` value
+ * rather than a member of `openaiAdapter`. `create` builds the transcription
+ * provider; `ping` is the lightweight `GET /models/{model}` probe. The speech
+ * config has no `baseURL`, so the OpenAI default endpoint is always used.
+ */
+export const openaiSpeechAdapter = {
+  create: (cfg) =>
+    new OpenAISpeechRecognitionProvider({
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+    }),
+  ping: async (cfg, apiKey, timeoutMs) => {
+    const result = await pingOpenAISpeech({
+      apiKey,
+      model: cfg.model,
+      timeoutMs,
+    });
+    return result.ok ? { ok: true } : { ok: false, error: result.reason };
+  },
+} satisfies SpeechAdapter;

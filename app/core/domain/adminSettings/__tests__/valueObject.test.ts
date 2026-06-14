@@ -8,6 +8,7 @@ import {
   PromptPurpose,
   PromptTemplate,
   RegistrationPolicy,
+  SpeechRecognitionConfig,
   UserId,
 } from "../valueObject";
 
@@ -397,6 +398,197 @@ describe("LLMConfig", () => {
       expectBusinessRule(
         error,
         AdminSettingsErrorCode.InvalidLLMApiKeyCiphertext,
+      );
+    }
+  });
+});
+
+describe("SpeechRecognitionConfig", () => {
+  it("exposes the static providers / apiKeySources option lists", () => {
+    expect([...SpeechRecognitionConfig.providers]).toEqual(["openai"]);
+    expect([...SpeechRecognitionConfig.apiKeySources]).toEqual(["env", "db"]);
+  });
+
+  it("creates an env-sourced config with apiKeyCiphertext = null", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.provider).toBe("openai");
+    expect(cfg.model).toBe("gpt-4o-transcribe");
+    expect(cfg.apiKeySource).toBe("env");
+    expect(cfg.apiKeyCiphertext).toBeNull();
+  });
+
+  it("creates a db-sourced config with a non-empty ciphertext", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "gpt-4o-transcribe",
+      apiKeySource: "db",
+      apiKeyCiphertext: "ENCRYPTED",
+    });
+    expect(cfg.apiKeySource).toBe("db");
+    expect(cfg.apiKeyCiphertext).toBe("ENCRYPTED");
+  });
+
+  it("trims surrounding whitespace from the model", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "  gpt-4o-transcribe  ",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.model).toBe("gpt-4o-transcribe");
+  });
+
+  it("rejects an unknown provider with InvalidSpeechProvider", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "deepgram",
+        model: "nova-3",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidSpeechProvider);
+    }
+  });
+
+  it("rejects an empty / whitespace-only model with InvalidSpeechModel", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "   ",
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(error, AdminSettingsErrorCode.InvalidSpeechModel);
+    }
+  });
+
+  it("accepts a model exactly at the 120-character boundary", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "a".repeat(120),
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.model.length).toBe(120);
+  });
+
+  it("accepts a model of length 1 (lower boundary)", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "openai",
+      model: "x",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.model).toBe("x");
+  });
+
+  it("rejects a model of length 121 with InvalidSpeechModelTooLong", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "a".repeat(121),
+        apiKeySource: "env",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechModelTooLong,
+      );
+    }
+  });
+
+  it("rejects an unknown apiKeySource with InvalidSpeechApiKeySource", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "vault",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechApiKeySource,
+      );
+    }
+  });
+
+  it("rejects db-sourced config with null ciphertext", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "db",
+        apiKeyCiphertext: null,
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects db-sourced config with whitespace-only ciphertext", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "db",
+        apiKeyCiphertext: "   ",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects env-sourced config with a non-null ciphertext", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "env",
+        apiKeyCiphertext: "leftover",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
+      );
+    }
+  });
+
+  it("rejects env-sourced config with an empty-string ciphertext (symmetric with db branch)", () => {
+    try {
+      SpeechRecognitionConfig.create({
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeySource: "env",
+        apiKeyCiphertext: "",
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expectBusinessRule(
+        error,
+        AdminSettingsErrorCode.InvalidSpeechApiKeyCiphertext,
       );
     }
   });

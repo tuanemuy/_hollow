@@ -1,5 +1,6 @@
 import type { LLMConnectionTester } from "@/core/domain/adminSettings/ports/llmConnectionTester";
 import type { SecretBox } from "@/core/domain/adminSettings/ports/secretBox";
+import type { SpeechConnectionTester } from "@/core/domain/adminSettings/ports/speechConnectionTester";
 import type { ArchiveBuilder } from "@/core/domain/export/ports/archiveBuilder";
 import type { HtmlRenderer } from "@/core/domain/export/ports/htmlRenderer";
 import type { MarkdownRenderer } from "@/core/domain/export/ports/markdownRenderer";
@@ -55,6 +56,25 @@ export type AdminSettingsEnv = Readonly<{
   provider: string | null;
   model: string | null;
   baseURL: string | null;
+}>;
+
+/**
+ * Operator-controlled env values for the speech-recognition (transcription)
+ * provider. Mirrors {@link AdminSettingsEnv} but for the `ADMIN_SPEECH_*` env
+ * vars. There is no `baseURL` axis — the OpenAI transcription endpoint is
+ * fixed.
+ *
+ * - `apiKey`: forces `apiKeySource = 'env'` via
+ *   `AdminSettingsService.assertSpeechEnvOverride` so runtime always
+ *   prefers the env value. The raw string never crosses into the DTO.
+ * - `provider` / `model`: silent-skip targets in `updateSpeechConfig` —
+ *   when set, the corresponding saved-draft fields revert to the persisted
+ *   DB value so env > DB resolution stays consistent across read and write.
+ */
+export type AdminSpeechEnv = Readonly<{
+  apiKey: string | null;
+  provider: string | null;
+  model: string | null;
 }>;
 
 export type AppConfig = Readonly<{
@@ -213,6 +233,14 @@ export type RequestContainer = SharedDeps &
      */
     llmConnectionTester: LLMConnectionTester;
     /**
+     * Provider liveness probe used by `TestSpeechConnection`.
+     * Symmetric with {@link llmConnectionTester}: folds transport / 4xx /
+     * 5xx outcomes into the `SpeechConnectionPingResult` struct so the admin
+     * UI renders the verdict uniformly without the usecase translating
+     * errors.
+     */
+    speechConnectionTester: SpeechConnectionTester;
+    /**
      * Best-effort runtime metrics aggregator backing `GetUsageMetrics`.
      * Implementations must not throw — failed metrics surface as `null`
      * fields so the admin page degrades gracefully.
@@ -224,6 +252,11 @@ export type RequestContainer = SharedDeps &
      * contract shared with the consumer-side resolver.
      */
     adminSettingsEnv: AdminSettingsEnv;
+    /**
+     * Operator-controlled speech env values consulted by `updateSpeechConfig`
+     * / `testSpeechConnection`. See {@link AdminSpeechEnv}.
+     */
+    adminSpeechEnv: AdminSpeechEnv;
   }>;
 
 /**

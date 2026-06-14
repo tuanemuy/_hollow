@@ -33,6 +33,10 @@ export async function getInstanceSettings({
     },
   );
   return {
-    settings: toInstanceSettingsView(settings, container.adminSettingsEnv),
+    settings: toInstanceSettingsView(
+      settings,
+      container.adminSettingsEnv,
+      container.adminSpeechEnv,
+    ),
   };
 }
