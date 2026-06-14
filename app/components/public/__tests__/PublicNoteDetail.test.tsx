@@ -1,12 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { NotFoundError } from "@/core/application/errors";
 
 /**
- * P31 backlink + related-note sections. Each `serverData` loader is keyed
- * by the runtime argument it receives: the note lookup gets a `LookupArgs`
- * object (`kind`), backlinks get a `noteId` string, related notes get
- * `{ ownerId, excludeNoteId }`. The mock branches on that shape so all
- * three cached loaders resolve from a single `serverData` stub.
+ * P31 backlink + related-note sections. Each `serverData` loader is keyed by
+ * the usecase module it imports (the `loadModule` first argument of
+ * `serverData(loadModule, run)`), identified via its named export, so the note
+ * lookup / backlinks / related-notes branches cannot be confused even if a
+ * loader's runtime argument shape changes.
  */
 
 const note = {
@@ -35,6 +36,9 @@ let relatedNotes: Array<{
   publishedAt: string | null;
 }> = [];
 let tagNames: string[] = [];
+// When set, the getPublicNote branch of the serverData stub rejects with it,
+// exercising PublicNoteDetail's NotFound → ErrorPage / re-throw behaviour.
+let noteError: unknown = null;
 
 // renderToStaticMarkup output in a node environment has no DOM to query,
 // so anchors are extracted structurally (attribute order / class strings /
@@ -86,22 +90,25 @@ vi.mock("@tanstack/react-router", () => ({
       </a>
     );
   },
-  notFound: () => new Error("notFound"),
+  useRouter: () => ({ history: { back: () => {} } }),
 }));
 
 vi.mock("@/core/presentation/serverAction", () => ({
+  // `serverData(loadModule, run)`: identify the loader by the usecase module it
+  // imports (the named export it carries), so the note lookup / backlinks /
+  // related-notes branches stay distinct regardless of argument shape.
   serverData:
-    () =>
-    async (arg: unknown): Promise<unknown> => {
-      if (typeof arg === "string") {
-        // listPublicBacklinks(noteId)
+    (loadModule: () => Promise<Record<string, unknown>>) =>
+    async (): Promise<unknown> => {
+      const module = await loadModule();
+      if ("listPublicBacklinks" in module) {
         return { backlinks };
       }
-      if (arg && typeof arg === "object" && "ownerId" in arg) {
-        // listRelatedPublicNotes({ ownerId, excludeNoteId })
+      if ("listRelatedPublicNotes" in module) {
         return { notes: relatedNotes };
       }
-      // getPublicNote(args)
+      // getPublicNote
+      if (noteError !== null) throw noteError;
       return {
         note,
         renderedContentHtml: "<p>body</p>",
@@ -127,6 +134,7 @@ const { PublicNoteDetail } = await import("../PublicNoteDetail");
 
 describe("PublicNoteDetail backlink / related sections", () => {
   it("renders both sections with links to the public note route", async () => {
+    noteError = null;
     tagNames = ["cloudflare"];
     backlinks = [
       {
@@ -168,6 +176,7 @@ describe("PublicNoteDetail backlink / related sections", () => {
   });
 
   it("links inline meta tags to the author's tag-filtered page, keeps bottom-meta tags as spans", async () => {
+    noteError = null;
     tagNames = ["cloudflare", "workers"];
     backlinks = [];
     relatedNotes = [];
@@ -201,6 +210,7 @@ describe("PublicNoteDetail backlink / related sections", () => {
   });
 
   it("hides each section when its data is empty", async () => {
+    noteError = null;
     tagNames = ["cloudflare"];
     backlinks = [];
     relatedNotes = [];
@@ -212,5 +222,33 @@ describe("PublicNoteDetail backlink / related sections", () => {
 
     expect(html).not.toContain("バックリンク（公開ノート）");
     expect(html).not.toContain("同じ著者の他のノート");
+  });
+});
+
+/**
+ * Issue #599: `PublicNoteDetail` is rendered as an RSC via `renderServerComponent`,
+ * where `throw notFound()` does not reach the route's `notFoundComponent`. Lock
+ * that a missing / unpublished note resolves to `<ErrorPage kind="gone" />`
+ * directly (not the generic error boundary), and that unrelated errors re-throw.
+ */
+describe("PublicNoteDetail notFound handling", () => {
+  it("returns ErrorPage kind=gone (not a throw) when the note is NotFound", async () => {
+    noteError = new NotFoundError("note_not_published", "Note not published");
+
+    const element = await PublicNoteDetail({
+      args: { kind: "byId", noteId: note.id },
+    });
+    const html = renderToStaticMarkup(element);
+
+    expect(html).toContain("このノートは公開されていません");
+    expect(html).toContain("Error code: 410 Gone");
+  });
+
+  it("re-throws errors that are not NotFoundError", async () => {
+    noteError = new Error("boom");
+
+    await expect(
+      PublicNoteDetail({ args: { kind: "byId", noteId: note.id } }),
+    ).rejects.toThrow("boom");
   });
 });

@@ -1,4 +1,4 @@
-import { Link, notFound } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { cache } from "react";
 import { Icon } from "@/components/common/Icon";
@@ -9,6 +9,7 @@ import {
   PAGINATION_DEFAULT_PAGE,
 } from "@/core/presentation/pagination";
 import { serverData } from "@/core/presentation/serverAction";
+import { ErrorPage } from "./ErrorPage";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import { type PublicNoteItem, PublicNoteViews } from "./PublicNoteViews";
 import { PublicTopControls } from "./PublicTopControls";
@@ -36,17 +37,11 @@ import {
 const loadProfile = cache(
   serverData(
     () => import("@/core/application/publication/getPublicProfile"),
-    async ({ container }, { getPublicProfile }, username: string) => {
-      try {
-        return await getPublicProfile({
-          container,
-          input: { username },
-        });
-      } catch (error) {
-        if (isNotFoundError(error)) throw notFound();
-        throw error;
-      }
-    },
+    async ({ container }, { getPublicProfile }, username: string) =>
+      getPublicProfile({
+        container,
+        input: { username },
+      }),
   ),
 );
 
@@ -64,17 +59,11 @@ const loadNotes = cache(
         sort?: "publishedAt" | "updatedAt" | "createdAt" | "title";
         publishedRange?: DateRange;
       },
-    ) => {
-      try {
-        return await listUserPublicNotes({
-          container,
-          input: args,
-        });
-      } catch (error) {
-        if (isNotFoundError(error)) throw notFound();
-        throw error;
-      }
-    },
+    ) =>
+      listUserPublicNotes({
+        container,
+        input: args,
+      }),
   ),
 );
 
@@ -84,17 +73,11 @@ const loadNotes = cache(
 const loadPublicTags = cache(
   serverData(
     () => import("@/core/application/publication/listUserPublicTags"),
-    async ({ container }, { listUserPublicTags }, username: string) => {
-      try {
-        return await listUserPublicTags({
-          container,
-          input: { username },
-        });
-      } catch (error) {
-        if (isNotFoundError(error)) throw notFound();
-        throw error;
-      }
-    },
+    async ({ container }, { listUserPublicTags }, username: string) =>
+      listUserPublicTags({
+        container,
+        input: { username },
+      }),
   ),
 );
 
@@ -119,8 +102,13 @@ export async function UserPublicTop({
 }: Props) {
   // String→Date conversion at the presentation boundary; usecases work with DateRange VO.
   const publishedRange = normalizePublicDateRange(from, to);
-  const [{ user, publicNoteCount }, { notes, total }, { tagNames: allTags }] =
-    await Promise.all([
+  let loaded: [
+    Awaited<ReturnType<typeof loadProfile>>,
+    Awaited<ReturnType<typeof loadNotes>>,
+    Awaited<ReturnType<typeof loadPublicTags>>,
+  ];
+  try {
+    loaded = await Promise.all([
       loadProfile(username),
       loadNotes({
         username,
@@ -132,6 +120,13 @@ export async function UserPublicTop({
       }),
       loadPublicTags(username),
     ]);
+  } catch (error) {
+    // RSC 内 notFound() は notFoundComponent に届かないため、ルート意図の ErrorPage を直接返す。ADR-004 / Issue #599
+    if (isNotFoundError(error)) return <ErrorPage kind="notFound" />;
+    throw error;
+  }
+  const [{ user, publicNoteCount }, { notes, total }, { tagNames: allTags }] =
+    loaded;
 
   const initials = avatarInitials(user.displayName || user.username);
   const joinedAt = new Date(user.createdAt);
