@@ -170,8 +170,6 @@ const appLayoutRoute = getRouteApi("/_app");
 export function selectUnauthenticatedView(
   isResolvingAuthMismatch: boolean,
 ): ReactNode {
-  // Mismatch in flight: waiting on invalidate to resolve. Rendering
-  // LandingPage here would flash unauthenticated UI for one frame — #732.
   if (isResolvingAuthMismatch) return null;
   return <LandingPage />;
 }
