@@ -25,6 +25,8 @@
   --color-warning-surface: #fdf3e7;
   --color-error: #c43e3e;
   --color-error-surface: #fbebeb;
+  --color-error-hover: #b03535;
+  --color-error-pressed: #9a2e2e;
   --color-info: var(--color-accent);
 
   /* Color: publish status */

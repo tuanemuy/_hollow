@@ -260,7 +260,7 @@ export const DANGER_ACTION =
 // filled-chip `pillBtnDanger`, this is a solid error-background CTA. Disabled
 // falls back to surface + tertiary ink.
 export const BTN_DESTRUCTIVE =
-  "inline-flex items-center gap-1.5 self-start h-11 px-6 rounded-pill bg-error text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:bg-[#b03535] active:not-disabled:bg-[#9a2e2e] disabled:bg-surface disabled:text-ink-tertiary disabled:cursor-not-allowed";
+  "inline-flex items-center gap-1.5 self-start h-11 px-6 rounded-pill bg-error text-white text-sm font-medium whitespace-nowrap transition-colors motion-reduce:transition-none hover:not-disabled:bg-error-hover active:not-disabled:bg-error-pressed disabled:bg-surface disabled:text-ink-tertiary disabled:cursor-not-allowed";
 
 export const DANGER_NOTE = "text-xs text-ink-tertiary";
 

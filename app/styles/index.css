@@ -28,6 +28,8 @@
   --color-warning-surface: var(--color-warning-surface);
   --color-error: var(--color-error);
   --color-error-surface: var(--color-error-surface);
+  --color-error-hover: var(--color-error-hover);
+  --color-error-pressed: var(--color-error-pressed);
   --color-info: var(--color-info);
 
   /* Colors — publish status */
