@@ -69,8 +69,8 @@ export const AdminSettingsService = {
   /**
    * Decrypt the api key for the given speech config. Symmetric with
    * {@link AdminSettingsService.decryptApiKey} but typed against
-   * `SpeechRecognitionConfig` (ADR-003 — the two VOs evolve independently
-   * so the service functions are kept separate rather than generalized).
+   * `SpeechRecognitionConfig` — the two VOs evolve independently, so the
+   * service functions are kept separate rather than generalized.
    * - `apiKeySource === 'env'`: domain returns `null`; the caller sources
    *   the key from `env.speechApiKey` directly.
    * - `apiKeySource === 'db'`: decrypt the stored ciphertext.

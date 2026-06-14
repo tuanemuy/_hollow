@@ -65,11 +65,10 @@ export const testLLMConnectionSchema = z.object({
 });
 
 // Provider enumeration duplicated from `SPEECH_PROVIDERS` in
-// `app/core/domain/adminSettings/valueObject.ts` (Issue #701). Same
-// dual-list pattern as `LLM_PROVIDERS_TRANSPORT` above — kept separate
-// so this file stays free of `@/core/domain/*` imports. VO construction
-// throws `InvalidSpeechProvider` if the two lists drift. When adding a
-// provider, update both lists.
+// `app/core/domain/adminSettings/valueObject.ts`. Same dual-list pattern as
+// `LLM_PROVIDERS_TRANSPORT` above — kept separate so this file stays free of
+// `@/core/domain/*` imports. VO construction throws `InvalidSpeechProvider`
+// if the two lists drift. When adding a provider, update both lists.
 export const SPEECH_PROVIDERS_TRANSPORT = ["openai"] as const;
 
 export const updateSpeechConfigSchema = z.object({

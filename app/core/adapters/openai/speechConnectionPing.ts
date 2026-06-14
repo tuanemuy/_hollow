@@ -6,13 +6,13 @@ import {
 import { DEFAULT_BASE_URL } from "./messagesClient";
 
 /**
- * Liveness probe for OpenAI's transcription configuration (Issue #701
- * ADR-006). Rather than sending real audio to `/audio/transcriptions`
- * (which requires a payload and burns cost), this probe confirms the
- * api key + model by hitting `GET {baseURL}/models/{model}` and reporting
- * `ok: true` on any 2xx. The model-retrieve endpoint authenticates with the
- * same Bearer token and 404s for an unknown model, so a 2xx confirms both
- * "key valid" and "model exists" — the AC-1 acceptance boundary.
+ * Liveness probe for OpenAI's transcription configuration. Rather than
+ * sending real audio to `/audio/transcriptions` (which requires a payload and
+ * burns cost), this probe confirms the api key + model by hitting
+ * `GET {baseURL}/models/{model}` and reporting `ok: true` on any 2xx. The
+ * model-retrieve endpoint authenticates with the same Bearer token and 404s
+ * for an unknown model, so a 2xx confirms both "key valid" and "model
+ * exists".
  *
  * The probe never throws — the admin UI surfaces the discriminated result.
  */

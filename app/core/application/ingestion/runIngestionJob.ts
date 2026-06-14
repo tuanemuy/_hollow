@@ -260,7 +260,7 @@ type PipelineDeps = Readonly<{
 
 /**
  * Fixed degraded-preview body for a failed (or silent / no-speech) audio
- * transcription (Issue #701 AC-6 / ADR-005). This is a trusted constant, so
+ * transcription. This is a trusted constant, so
  * it is handed to `ContentHtml.create` *without* passing through the HTML
  * sanitizer (the sanitizer's contract targets untrusted input and would
  * strip unknown `data-*` markers anyway — the `class` survives and is what
@@ -274,7 +274,7 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
   const { kind } = deps;
   const text = await extractText(deps);
 
-  // AC-6 (Issue #701 ADR-005): audio whose transcript came back empty —
+  // Audio whose transcript came back empty —
   // either degraded from a `SpeechFailureError` in `extractText` or a
   // genuine no-speech recording — skips ALL LLM structuring. `suggestMetadata`
   // sits on the common path below (outside the kind if/else), so the only
@@ -553,7 +553,7 @@ async function extractText(deps: PipelineDeps): Promise<string> {
           locale: "ja",
         });
       } catch (error) {
-        // AC-6 (Issue #701 ADR-005): a *configured* provider's transcribe
+        // A *configured* provider's transcribe
         // failure (catastrophic / no-speech) degrades to an empty
         // transcript so `runPipeline` can build a degraded preview the
         // user can still commit. Only `SpeechFailureError` is swallowed

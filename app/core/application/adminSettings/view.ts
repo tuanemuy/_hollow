@@ -23,7 +23,7 @@ import {
  *
  * Accepts the structural `{ apiKeySource, apiKeyCiphertext }` shape rather
  * than a concrete VO so both `LLMConfig` and `SpeechRecognitionConfig`
- * masking flow through one helper (Issue #701 ADR-003).
+ * masking flow through one helper.
  */
 export function maskApiKey(
   cfg: Readonly<{

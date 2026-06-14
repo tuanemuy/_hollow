@@ -36,8 +36,8 @@ import {
 } from "./UploadForm";
 
 /**
- * Fire-and-forget upload modal (Issue #538): files are enqueued and the
- * dialog lands on the `queued` confirmation immediately — preview editing
+ * Fire-and-forget upload modal: files are enqueued and the dialog lands on
+ * the `queued` confirmation immediately — preview editing
  * and saving happen on the `/upload` queue page (`IngestionJobEditDialog`).
  */
 type View =

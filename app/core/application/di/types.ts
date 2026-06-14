@@ -60,9 +60,9 @@ export type AdminSettingsEnv = Readonly<{
 
 /**
  * Operator-controlled env values for the speech-recognition (transcription)
- * provider (Issue #701). Mirrors {@link AdminSettingsEnv} but for the
- * `ADMIN_SPEECH_*` env vars. There is no `baseURL` axis — the OpenAI
- * transcription endpoint is fixed (ADR-003).
+ * provider. Mirrors {@link AdminSettingsEnv} but for the `ADMIN_SPEECH_*` env
+ * vars. There is no `baseURL` axis — the OpenAI transcription endpoint is
+ * fixed.
  *
  * - `apiKey`: forces `apiKeySource = 'env'` via
  *   `AdminSettingsService.assertSpeechEnvOverride` so runtime always
@@ -233,7 +233,7 @@ export type RequestContainer = SharedDeps &
      */
     llmConnectionTester: LLMConnectionTester;
     /**
-     * Provider liveness probe used by `TestSpeechConnection` (Issue #701).
+     * Provider liveness probe used by `TestSpeechConnection`.
      * Symmetric with {@link llmConnectionTester}: folds transport / 4xx /
      * 5xx outcomes into the `SpeechConnectionPingResult` struct so the admin
      * UI renders the verdict uniformly without the usecase translating
@@ -254,7 +254,7 @@ export type RequestContainer = SharedDeps &
     adminSettingsEnv: AdminSettingsEnv;
     /**
      * Operator-controlled speech env values consulted by `updateSpeechConfig`
-     * / `testSpeechConnection` (Issue #701). See {@link AdminSpeechEnv}.
+     * / `testSpeechConnection`. See {@link AdminSpeechEnv}.
      */
     adminSpeechEnv: AdminSpeechEnv;
   }>;

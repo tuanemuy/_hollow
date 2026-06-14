@@ -94,8 +94,8 @@ export function SpeechSettingsForm({
 
   const envOverrides = settings.speech.envOverrides;
   // env-locked fields: HTML `disabled` removes them from the submitted
-  // FormData per spec, so the usecase silent-skip is a defensive net
-  // rather than the primary mechanism (Issue #143 ADR-006).
+  // FormData, so the usecase silent-skip is a defensive net rather than the
+  // primary mechanism.
   const allLocked =
     envOverrides.provider && envOverrides.model && envOverrides.apiKey;
   // env-pinned provider cannot be changed by the operator. Without this

@@ -15,7 +15,7 @@ export type UpdateSpeechConfigInput = {
    * Target speech provider. The usecase replaces the persisted provider
    * outright. When the provider changes, the previous ciphertext is no
    * longer valid, so a fresh `apiKeyPlain` is required (symmetric with
-   * `updateLLMConfig` / ADR-008).
+   * `updateLLMConfig`).
    */
   provider: SpeechProvider;
   model: string;
@@ -32,7 +32,7 @@ export type UpdateSpeechConfigOutput = Record<string, never>;
 
 /**
  * Persists a new `SpeechRecognitionConfig` after admin authorization.
- * Symmetric with {@link updateLLMConfig} (no `baseURL` axis — ADR-003).
+ * Symmetric with {@link updateLLMConfig} (no `baseURL` axis).
  */
 export async function updateSpeechConfig({
   container,

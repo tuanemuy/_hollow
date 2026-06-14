@@ -88,8 +88,8 @@ export type InstanceSettingsDTO = Readonly<{
     }>;
   }>;
   /**
-   * Speech-recognition (transcription) provider projection (Issue #701).
-   * Symmetric with `llm` but without a `baseURL` axis (ADR-003).
+   * Speech-recognition (transcription) provider projection. Symmetric with
+   * `llm` but without a `baseURL` axis.
    */
   speech: Readonly<{
     provider: SpeechProviderName;

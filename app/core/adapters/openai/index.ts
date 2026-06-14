@@ -1,6 +1,5 @@
 import type { ProviderAdapter, ProviderAdapterConfig } from "../llm/registry";
-// Type-only dependency on the speech registry (mirrors the `import type
-// { ProviderAdapter }` above). No value import, so the
+// Type-only import: no value import, so the
 // `speech/registry → openai/index → speech/registry` graph stays acyclic.
 import type { SpeechAdapter } from "../speech/registry";
 import { pingOpenAI } from "./connectionPing";
@@ -45,15 +44,11 @@ export const openaiAdapter = {
 } satisfies ProviderAdapter;
 
 /**
- * OpenAI speech-to-text adapter (Issue #701). Speech has its own VO /
- * registry distinct from the LLM/OCR/PDF triple (ADR-002), so this is a
- * separate `SpeechAdapter` value rather than a member of `openaiAdapter`.
- * `create` builds the transcription provider; `ping` is the lightweight
- * `GET /models/{model}` probe (ADR-006). The speech config has no
- * `baseURL` (ADR-003), so the OpenAI default endpoint is always used.
- *
- * Dependency direction: this barrel imports only the `SpeechAdapter` *type*
- * from `speech/registry`; the registry imports this *value*. No value cycle.
+ * OpenAI speech-to-text adapter. Speech has its own VO / registry distinct
+ * from the LLM/OCR/PDF triple, so this is a separate `SpeechAdapter` value
+ * rather than a member of `openaiAdapter`. `create` builds the transcription
+ * provider; `ping` is the lightweight `GET /models/{model}` probe. The speech
+ * config has no `baseURL`, so the OpenAI default endpoint is always used.
  */
 export const openaiSpeechAdapter = {
   create: (cfg) =>

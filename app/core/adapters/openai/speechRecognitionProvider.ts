@@ -81,8 +81,8 @@ function localeToLanguage(locale: string): string {
 }
 
 /**
- * OpenAI `/audio/transcriptions` adapter (Issue #701 ADR-001). Sends the
- * raw audio bytes as multipart/form-data (`file` + `model` + `language`).
+ * OpenAI `/audio/transcriptions` adapter. Sends the raw audio bytes as
+ * multipart/form-data (`file` + `model` + `language`).
  *
  * Contract (per `SpeechRecognitionProvider`):
  * - Returns the transcript string; an empty / whitespace-only transcript
@@ -196,7 +196,7 @@ export class OpenAISpeechRecognitionProvider
     // `fetch` exception (which can carry the request URL) and OpenAI's error
     // object. `runIngestionJob` swallows `SpeechFailureError` (collapses to
     // `""`) and never logs its `message`/`cause`. A future change that logs
-    // or displays them must re-introduce masking — see security review W-003.
+    // or displays them must re-introduce masking.
     let body: OpenAITranscriptionResponse;
     try {
       body = (await response.json()) as OpenAITranscriptionResponse;

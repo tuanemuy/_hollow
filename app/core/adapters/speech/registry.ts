@@ -10,9 +10,9 @@ import type { SpeechRecognitionProvider } from "@/core/domain/ingestion/ports/sp
 import { openaiSpeechAdapter } from "../openai";
 
 /**
- * Normalized configuration handed to a speech adapter factory. Speech has
- * no `baseURL` axis (Issue #701 ADR-003 — OpenAI's transcription endpoint is
- * fixed), so the config is just the api key + model.
+ * Normalized configuration handed to a speech adapter factory. Speech has no
+ * `baseURL` axis (OpenAI's transcription endpoint is fixed), so the config is
+ * just the api key + model.
  */
 export type SpeechAdapterConfig = Readonly<{
   apiKey: string;

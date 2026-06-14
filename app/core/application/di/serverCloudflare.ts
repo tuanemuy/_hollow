@@ -169,7 +169,7 @@ export type RequestServerConfig = AppConfig &
     // reads `ADMIN_LLM_BASE_URL` directly from `env` (no threading) —
     // see `resolveConsumerLlmConfig`.
     adminLlmBaseUrl?: string;
-    // Optional `ADMIN_SPEECH_API_KEY` env override (Issue #701). When set,
+    // Optional `ADMIN_SPEECH_API_KEY` env override. When set,
     // speech settings resolution prefers this over any DB-stored ciphertext
     // (`AdminSettingsService.assertSpeechEnvOverride`); also wires the real
     // OpenAI speech adapter on the request path.
@@ -263,7 +263,7 @@ export type ServerEnv = Readonly<{
   // value. Wrangler `[vars]` entry — empty string → use the provider's
   // default endpoint. Public information delivered via vars.
   ADMIN_LLM_BASE_URL?: string;
-  // Optional speech-side api key override (Issue #701). Absent → no env
+  // Optional speech-side api key override. Absent → no env
   // override; admin DB-stored ciphertext (or Stub) is used instead.
   ADMIN_SPEECH_API_KEY?: string;
   // Optional transcription model id. Wrangler `[vars]` — paired with
@@ -590,7 +590,7 @@ export function buildLlmProvider(
 }
 
 /**
- * Build the {@link SpeechRecognitionProvider} (Issue #701). Delegates to
+ * Build the {@link SpeechRecognitionProvider}. Delegates to
  * the speech registry factory when both `ADMIN_SPEECH_API_KEY` (secret) and
  * `ADMIN_SPEECH_MODEL` (var) are present; either missing → fall back to
  * `StubSpeechRecognitionProvider`. `provider` defaults to `"openai"` when
@@ -906,7 +906,7 @@ export async function createConsumerContainer(
         ),
       }
     : {};
-  // Issue #701: same env > DB > Stub resolution for the speech provider.
+  // Same env > DB > Stub resolution for the speech provider.
   const resolvedSpeech = await resolveConsumerSpeechConfig(
     env,
     requestContainer.secretBox,
@@ -1080,9 +1080,9 @@ async function readInstanceSettingsLlmRow(
 
 /**
  * Shape of `(provider, model, apiKey)` resolved for the consumer-worker
- * speech factory (Issue #701). Returned by {@link resolveConsumerSpeechConfig}
+ * speech factory. Returned by {@link resolveConsumerSpeechConfig}
  * only when all three are usable; otherwise `null` and the consumer keeps
- * the request-side Stub fallback. No `baseURL` axis (ADR-003).
+ * the request-side Stub fallback. No `baseURL` axis.
  */
 export type ResolvedConsumerSpeechConfig = Readonly<{
   provider: string;

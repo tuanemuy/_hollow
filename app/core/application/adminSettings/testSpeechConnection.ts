@@ -28,9 +28,9 @@ export type TestSpeechConnectionOutput = {
 
 /**
  * Pings the upstream speech provider with either the persisted config or
- * the draft preview (Issue #701). Symmetric with {@link testLLMConnection}.
- * The probe is a lightweight model-existence / auth check, NOT a real
- * transcription (ADR-006). The tester contract is "always returns a struct"
+ * the draft preview. Symmetric with {@link testLLMConnection}. The probe is
+ * a lightweight model-existence / auth check, NOT a real transcription. The
+ * tester contract is "always returns a struct"
  * (no throws), so this usecase folds every outcome into
  * `{ ok, latencyMs, error }`.
  *

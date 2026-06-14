@@ -88,9 +88,9 @@ type InstanceSettingsReconstructInput = Readonly<{
     apiKeySource: string;
     apiKeyCiphertext: string | null;
   };
-  // Issue #701: optional on the rehydrate input so DB rows written before
-  // the speech columns existed (`speech_*` NULL) still parse. `coerceSpeech`
-  // falls back to `defaultSpeech()` below.
+  // Optional on the rehydrate input so DB rows written before the speech
+  // columns existed (`speech_*` NULL) still parse — `coerceSpeech` falls
+  // back to `defaultSpeech()` below.
   speech?: {
     provider?: string | null;
     model?: string | null;
@@ -137,9 +137,9 @@ function coerceLimits(
 
 /**
  * Rehydrate `SpeechRecognitionConfig` from a (possibly absent / NULL)
- * persistence row. Issue #701 ADR-004: existing singleton rows predate the
- * `speech_*` columns, so any missing field falls back to `defaultSpeech()`.
- * When the row carries a full speech config it is reconstructed verbatim.
+ * persistence row. Existing singleton rows predate the `speech_*` columns,
+ * so any missing field falls back to `defaultSpeech()`. When the row carries
+ * a full speech config it is reconstructed verbatim.
  */
 function coerceSpeech(
   input: InstanceSettingsReconstructInput["speech"],

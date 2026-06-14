@@ -33,7 +33,7 @@ const DROPZONE =
 /**
  * Human-readable enumeration of the supported formats for the unsupported-format
  * alert body. Kept inline (not derived from `format-chips`) so the alert is
- * self-contained — see `.issue/541/plan.md` scope note.
+ * self-contained.
  */
 export const SUPPORTED_FORMATS_LABEL =
   "HTML / Markdown / Word / Excel / PowerPoint / PDF / 画像 / 音声 / テキスト";

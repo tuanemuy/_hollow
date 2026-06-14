@@ -120,7 +120,7 @@ export type RecorderState =
  * **same** ingestion path as file upload: the recording `Blob` is turned into
  * a `File` and posted through `uploadFileFn` (multipart). No recording-only
  * backend route exists — recording joins the existing upload → ingest →
- * commit flow (Issue #701 ADR-007).
+ * commit flow.
  *
  * State machine: idle → requesting-permission → recording (elapsed time, live
  * size) → stopped (preview / discard / re-record / ingest) and a
