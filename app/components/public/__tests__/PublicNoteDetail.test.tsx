@@ -7,7 +7,7 @@ import { NotFoundError } from "@/core/application/errors";
  * the usecase module it imports (the `loadModule` first argument of
  * `serverData(loadModule, run)`), identified via its named export, so the note
  * lookup / backlinks / related-notes branches cannot be confused even if a
- * loader's runtime argument shape changes (W-001).
+ * loader's runtime argument shape changes.
  */
 
 const note = {
@@ -96,7 +96,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/core/presentation/serverAction", () => ({
   // `serverData(loadModule, run)`: identify the loader by the usecase module it
   // imports (the named export it carries), so the note lookup / backlinks /
-  // related-notes branches stay distinct regardless of argument shape (W-001).
+  // related-notes branches stay distinct regardless of argument shape.
   serverData:
     (loadModule: () => Promise<Record<string, unknown>>) =>
     async (): Promise<unknown> => {

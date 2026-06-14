@@ -13,8 +13,9 @@ import { NotFoundError } from "@/core/application/errors";
  * identified by the usecase module it imports (the `loadModule` first argument
  * of `serverData(loadModule, run)`), not by the runtime argument shape. Each
  * `loadProfile` / `loadNotes` / `loadPublicTags` is keyed by its module's named
- * export, so a per-loader error can be injected without ambiguity and AC-4 can
- * be verified as a distinct "profile resolves, notes empty, tags resolve" state.
+ * export, so a per-loader error can be injected without ambiguity and a real,
+ * note-less user can be verified as a distinct "profile resolves, notes empty,
+ * tags resolve" state.
  */
 
 const user = {
@@ -27,7 +28,7 @@ const user = {
 
 // When set, the matching loader branch of the stub rejects with it. Keyed per
 // loader so NotFound from `loadProfile` and a non-NotFound from `loadNotes` can
-// be exercised independently (W-001 / W-002).
+// be exercised independently.
 let profileError: unknown = null;
 let notesError: unknown = null;
 let tagsError: unknown = null;
@@ -72,7 +73,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/core/presentation/serverAction", () => ({
   // `serverData(loadModule, run)`: identify the loader by the usecase module it
   // imports (the named export it carries), so each loader resolves/rejects
-  // independently instead of guessing from the runtime argument shape (W-001).
+  // independently instead of guessing from the runtime argument shape.
   serverData:
     (loadModule: () => Promise<Record<string, unknown>>) =>
     async (): Promise<unknown> => {
@@ -113,8 +114,8 @@ const props = {
 
 describe("UserPublicTop notFound handling", () => {
   it("returns ErrorPage kind=notFound (not a throw) when loadProfile is NotFound", async () => {
-    // NotFound originates specifically from loadProfile (the user lookup) —
-    // the AC-4 论拠 that 404 is sourced from the profile loader, not notes/tags.
+    // NotFound originates specifically from loadProfile (the user lookup),
+    // not from notes/tags.
     profileError = new NotFoundError("user_not_found", "User not found");
     notesError = null;
     tagsError = null;
@@ -137,7 +138,7 @@ describe("UserPublicTop notFound handling", () => {
   it("re-throws non-NotFound errors that originate from loadNotes", async () => {
     // listUserPublicNotes can reject with a non-NotFound (e.g. BusinessRuleError
     // for an invalid sort/period) even for a real user. The merged Promise.all
-    // catch must re-throw it from the object-arg loader too (W-002).
+    // catch must re-throw it from the object-arg loader too.
     profileError = null;
     notesError = new Error("invalid sort");
     tagsError = null;
@@ -146,9 +147,9 @@ describe("UserPublicTop notFound handling", () => {
   });
 
   it("does not render the notFound page for a real user with zero notes", async () => {
-    // Distinct state: profile resolves, notes is empty, tags resolves — so AC-4
-    // (a real, note-less user is not mistaken for a 404) is verified without any
-    // loader sharing a branch (W-001 / N-001).
+    // Distinct state: profile resolves, notes is empty, tags resolves — so that
+    // a real, note-less user is not mistaken for a 404, verified without any
+    // loader sharing a branch.
     profileError = null;
     notesError = null;
     tagsError = null;
