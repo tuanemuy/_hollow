@@ -67,11 +67,10 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  * 公開状態 / 内部リンク参照 — each shows a dashed ghost chip when unset.
  * Directory is the exception: when its id resolves to a path it renders as a
  * breadcrumb (`DirectoryBreadcrumb`) in the page header, above the heading,
- * since it reads as "current location" not a filter (#743 ADR-002, moving the
- * breadcrumb out of this filter row; supersedes the chip-only display of #497
- * ADR-001 and the in-filter-row placement of #710 ADR-002). What remains in
- * this filter row is only the fallback chip: `filterChip` is reused solely when
- * the active directory id cannot be resolved to breadcrumb segments.
+ * since it reads as "current location" not a filter (#743 ADR-002, superseding
+ * #497 ADR-001 / #710 ADR-002). What remains in this filter row is only the
+ * fallback chip: `filterChip` is reused solely when the active directory id
+ * cannot be resolved to breadcrumb segments.
  *
  * - `filterChip`: base pill. `data-[active]` flips it to the dark
  *   (ink / white) applied state, matching the existing tag-toggle look.

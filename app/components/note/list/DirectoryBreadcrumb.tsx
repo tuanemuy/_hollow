@@ -19,14 +19,11 @@ import type { BreadcrumbSegment } from "../directoryTree";
  * is dropped by `directoryAncestorSegments`); the caller renders a generic
  * fallback when it cannot resolve any segment.
  *
- * Issue #743 supersedes the #710 ADR-001 / ADR-002 premises that this
- * breadcrumb carried a trailing "clear directory filter" `×`, linked every
- * segment, showed a leading Folder icon, and let the caller own its `mb-*`
- * spacing: the tail is now a non-link `aria-current` span (full-reset is left
- * to the global clear-all), there is no root crumb, no leading icon, and the
- * `nav` owns its own `mb-6` so it sits above the heading symmetrically with
- * the detail page. With `onClear` gone this is a pure display component (no
- * client state).
+ * The tail is a non-link `aria-current` span (full-reset is left to the global
+ * clear-all), there is no root crumb or leading icon, and the `nav` owns its
+ * own `mb-6` so it sits above the heading symmetrically with the detail page.
+ * This is a pure display component with no client state (#743 ADR-002,
+ * superseding #710 ADR-001 / ADR-002).
  */
 export type DirectoryBreadcrumbProps = Readonly<{
   segments: readonly BreadcrumbSegment[];
