@@ -4,6 +4,7 @@ import { SectionErrorBoundary } from "@/components/common/SectionErrorBoundary";
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { directoryAncestorSegments } from "./directoryTree";
 import { BulkActionBar } from "./list/BulkActionBar";
+import { DirectoryBreadcrumb } from "./list/DirectoryBreadcrumb";
 import { FilterBar } from "./list/FilterBar";
 import {
   hasAnyHomeFilter,
@@ -52,11 +53,21 @@ type Props = {
  * *reference identity*, so the query object is built exactly once here and
  * the same reference is passed to both sections (a structurally-equal
  * literal per section would double the query).
+ *
+ * `treeQuery` follows the same one-build / shared-reference rule: the
+ * directory tree is awaited by both `HeaderSection` (to render the location
+ * breadcrumb above the heading) and `FilterSection` (segments + bulk-action
+ * bar), so the query object is built once here and passed by reference to
+ * keep `loadDirectoryTreeFlat` deduped to a single fetch (#743).
  */
 export function HomePage({ userId, page, limit, search }: Props) {
   const hasAnyFilter = hasAnyHomeFilter(search);
   // Clears sticky section errors when navigation changes loader inputs.
   const resetKey = homeSectionResetKey(search);
+
+  // Built once and shared by reference with both sections so `cache()` dedups
+  // the tree fetch (reference identity, not structural equality — see above).
+  const treeQuery = { actorUserId: userId };
 
   const notesQuery: OwnedNotesQuery = {
     actorUserId: userId,
@@ -105,6 +116,7 @@ export function HomePage({ userId, page, limit, search }: Props) {
             userId={userId}
             search={search}
             notesQuery={notesQuery}
+            treeQuery={treeQuery}
             hasAnyFilter={hasAnyFilter || search.q !== undefined}
           />
         </Suspense>
@@ -112,7 +124,11 @@ export function HomePage({ userId, page, limit, search }: Props) {
 
       <SectionErrorBoundary section="フィルタ" resetKey={resetKey}>
         <Suspense fallback={<FilterBarSkeleton />}>
-          <FilterSection userId={userId} search={search} />
+          <FilterSection
+            userId={userId}
+            search={search}
+            treeQuery={treeQuery}
+          />
         </Suspense>
       </SectionErrorBoundary>
 
@@ -134,22 +150,40 @@ async function HeaderSection({
   userId,
   search,
   notesQuery,
+  treeQuery,
   hasAnyFilter,
 }: Readonly<{
   userId: string;
   search: NoteListSearch;
   notesQuery: OwnedNotesQuery;
+  treeQuery: { actorUserId: string };
   hasAnyFilter: boolean;
 }>) {
-  const [{ views }, owned] = await Promise.all([
+  const [{ views }, owned, { flat }] = await Promise.all([
     loadSavedViewsByKind({
       actorUserId: userId,
       kind: "personal",
     }),
     loadOwnedNotes(notesQuery),
+    // Shared `treeQuery` reference dedups with FilterSection's await
+    // (`cache()` keys by reference identity). The tree is used here purely to
+    // derive the location breadcrumb segments — it must not influence the
+    // ViewSwitcher / count / toolbar logic.
+    loadDirectoryTreeFlat(treeQuery),
   ]);
+  // Reconstruct the root→current breadcrumb path for the active directory so
+  // the current location renders above the heading (symmetric with the detail
+  // page's `<NoteBreadcrumb/>` above its `<h1>`). An unresolved id (absent /
+  // just deleted) yields an empty array and renders nothing.
+  const directorySegments =
+    search.directoryId === undefined
+      ? undefined
+      : directoryAncestorSegments(flat, search.directoryId);
   return (
     <>
+      {directorySegments !== undefined && directorySegments.length > 0 ? (
+        <DirectoryBreadcrumb segments={directorySegments} />
+      ) : null}
       <ViewSwitcher search={search} savedViews={views} />
       <div className="flex justify-between items-center flex-wrap gap-x-3 gap-y-2 mb-5">
         <p className="text-md text-ink-secondary">{owned.count} 件のノート</p>
@@ -162,10 +196,17 @@ async function HeaderSection({
 async function FilterSection({
   userId,
   search,
-}: Readonly<{ userId: string; search: NoteListSearch }>) {
+  treeQuery,
+}: Readonly<{
+  userId: string;
+  search: NoteListSearch;
+  treeQuery: { actorUserId: string };
+}>) {
   const [{ tags }, { flat }, referencing] = await Promise.all([
     loadAllTags({ actorUserId: userId }),
-    loadDirectoryTreeFlat({ actorUserId: userId }),
+    // Same shared `treeQuery` reference as HeaderSection so `cache()` dedups
+    // the tree fetch to a single I/O.
+    loadDirectoryTreeFlat(treeQuery),
     search.referencingNoteId !== undefined
       ? loadReferencingNoteTitle({
           actorUserId: userId,

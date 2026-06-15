@@ -8,7 +8,6 @@ import { popoverSheetPanel, TOUCH_TARGET } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { BreadcrumbSegment } from "../directoryTree";
 import type { NoteListSearch } from "../schema";
-import { DirectoryBreadcrumb } from "./DirectoryBreadcrumb";
 import { homeSearchUpdater } from "./homeSearch";
 import {
   DATE_RANGE_PRESETS,
@@ -307,7 +306,7 @@ export function FilterBar({
 
   // Normalize `undefined` (directory not selected) and `[]` (selected but
   // unresolved — id absent from the tree / just deleted) to one shape so the
-  // breadcrumb-vs-fallback branch below cannot diverge between the two.
+  // fallback-chip gating below cannot diverge between the two.
   const segments = directorySegments ?? [];
 
   return (
@@ -435,31 +434,26 @@ export function FilterBar({
         />
       </div>
 
-      {/* Directory shows as a breadcrumb (current location) on its own row,
-        kept out of the chip cloud so its nav language and the chips' filter
-        language do not mix (#710 ADR-002 / AC-7). When the active directory id
-        cannot be resolved to segments (absent from the tree / just deleted) a
-        generic fallback chip is shown instead of an empty nav (AC-5). */}
-      {optimisticDirectoryId !== undefined ? (
-        // Both branches share the same `mb-5` row wrapper so the separate-row
-        // spacing lives in one place and only the inner content (breadcrumb nav
-        // vs. fallback chip) differs between them.
+      {/* The resolvable directory location renders as a breadcrumb in the
+        header (above the heading); only the unresolvable case stays here.
+        Location language (breadcrumb) lives in the header, filter language
+        (the fallback chip) lives in this filter row (#743 ADR-002). When the
+        active directory id cannot be resolved to segments (absent from the
+        tree / just deleted) a generic ×-removable chip is shown so the user
+        can still clear the dangling filter. */}
+      {optimisticDirectoryId !== undefined && segments.length === 0 ? (
         <div className="mb-5">
-          {segments.length > 0 ? (
-            <DirectoryBreadcrumb segments={segments} onClear={clearDirectory} />
-          ) : (
-            <span data-active className={filterChip}>
-              ディレクトリ
-              <button
-                type="button"
-                aria-label="ディレクトリフィルタを解除"
-                onClick={clearDirectory}
-                className={filterChipRemove}
-              >
-                ×
-              </button>
-            </span>
-          )}
+          <span data-active className={filterChip}>
+            ディレクトリ
+            <button
+              type="button"
+              aria-label="ディレクトリフィルタを解除"
+              onClick={clearDirectory}
+              className={filterChipRemove}
+            >
+              ×
+            </button>
+          </span>
         </div>
       ) : null}
     </>
