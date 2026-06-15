@@ -61,6 +61,7 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.restoreAllMocks();
 });
 
 function render(segments: readonly Segment[]) {
@@ -168,9 +169,11 @@ describe("DirectoryBreadcrumb (Issue #743)", () => {
   });
 
   it("uses cumulative-id keys so repeated names render distinctly without warnings", () => {
-    // Sibling/ancestor name repetition must not collapse keys; a stable render
-    // of all four labels confirms each segment is keyed by its cumulative id
-    // path rather than its (duplicated) name.
+    // Sibling/ancestor name repetition must not collapse keys: every segment
+    // shares the name "Notes", so a name-based key would emit React's duplicate
+    // -key warning. Spying on console.error catches that regression directly —
+    // a cumulative id path (`a`, `a/b`, ...) keeps each key unique and silent.
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     render([
       { id: "a", name: "Notes" },
       { id: "b", name: "Notes" },
@@ -183,5 +186,11 @@ describe("DirectoryBreadcrumb (Issue #743)", () => {
     expect(labels).toEqual(["Notes", "Notes", "Notes", "Notes"]);
     expect(links()).toHaveLength(3);
     expect(nav().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    // A name-based key would log "Encountered two children with the same key".
+    expect(errorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("the same key"),
+      expect.anything(),
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
