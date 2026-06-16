@@ -7,7 +7,7 @@ import { INSTANCE_SETTINGS_ID } from "./entity";
  * `instance_settings.updated` event carries this so the activity-log
  * projection can render a concrete "対象" without one event type per setting
  * (ADR-003). The union mirrors the inventory of emitting adminSettings
- * usecases (see adr.md B-6).
+ * usecases.
  */
 export type InstanceSettingKind =
   | "registration_policy"

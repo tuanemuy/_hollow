@@ -12,13 +12,14 @@ import { updatePromptTemplate } from "../updatePromptTemplate";
 import { updateSpeechConfig } from "../updateSpeechConfig";
 
 /**
- * Issue #595 (B-6 / AC-6): verify that every emitting adminSettings usecase
- * collects an `instance_settings.updated` domain event with the correct
- * `settingKind`, and that the no-op-guarded usecases do NOT emit when the
- * change is a logical no-op. The event is written transactionally to the
- * outbox inside the UoW. Covering all six settingKinds — not just a couple —
- * is what structurally prevents "one usecase emits but another silently
- * stops" regressions (W-002 / N-001 / N-002).
+/**
+ * Verify that every emitting adminSettings usecase collects an
+ * `instance_settings.updated` domain event with the correct `settingKind`,
+ * and that the no-op-guarded usecases do NOT emit when the change is a
+ * logical no-op. The event is written transactionally to the outbox inside
+ * the UoW. Covering all six settingKinds — not just a couple — is what
+ * structurally prevents "one usecase emits but another silently stops"
+ * regressions.
  */
 
 const ADMIN_ID = "01950000-0000-7000-8000-00000000ad01";
@@ -229,7 +230,7 @@ describe("adminSettings no-op guards do not emit", () => {
     // Fresh settings hold no design-token overrides, so resetting to empty is
     // a logical no-op — the domain `resetDesignTokens` short-circuits
     // (`next === current`) and the usecase guard must suppress the event
-    // (W-001, symmetric with resetAllPromptTemplates).
+    // (symmetric with resetAllPromptTemplates).
     await resetDesignTokens({
       container,
       input: { actorUserId: ADMIN_ID },

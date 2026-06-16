@@ -6,15 +6,14 @@ export type HandleExportJobCompletedEventInput = Readonly<{
 }>;
 
 /**
- * Project an `export.job.completed` event into the activity log
- * (Issue #595, ADR-003).
+ * Project an `export.job.completed` event into the activity log (ADR-003).
  *
  * This is the only "バックアップ"-adjacent activity the codebase actually
  * emits — a **per-owner** export completion. The mock's "D1 / nightly"
  * system backup has no real subsystem, so it is NOT written (虚偽表示禁止).
  * The label is the real semantic ("エクスポート完了"). Looks up the job
  * through a read-only UoW to resolve the owner handle and the artifact
- * format for the "対象" / "詳細" columns (AC-5).
+ * format for the "対象" / "詳細" columns.
  */
 export async function handleExportJobCompletedEvent({
   container,

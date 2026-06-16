@@ -10,7 +10,7 @@ import { FakeLogger } from "../../__tests__/fakes";
 import { pruneActivityLog } from "../pruneActivityLog";
 
 /**
- * Unit tests for `pruneActivityLog` (Issue #595, N-005).
+ * Unit tests for `pruneActivityLog`.
  *
  * The worker is a thin orchestrator that computes two cutoffs (activity log =
  * N days, burst log = N hours) and forwards each to the matching repository

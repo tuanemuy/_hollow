@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * Prune the activity-log read-model tables (Issue #595, ADR-007).
+ * Prune the activity-log read-model tables (ADR-007).
  *
  * Both tables accumulate one row per event and are NOT swept by the outbox
  * pruner (which only touches `outbox_events`). The burst table is high

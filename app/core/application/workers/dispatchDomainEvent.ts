@@ -94,14 +94,14 @@ export type DispatchOutcome =
  * - `user.deleted` → fan-out to `publication.handleUserDeletedEvent` then
  *   `export.handleUserDeletedEvent` (Issue #159 ADR-004)
  * - `ingestion.created` → additionally fan-out to the activity-log burst
- *   recorder for the "大量アップロード" row (Issue #595 / ADR-005), alongside
+ *   recorder for the "大量アップロード" row (ADR-005), alongside
  *   `runIngestionJob`. Only `created` feeds the burst (retry / regenerate
  *   are re-drives). The burst insert is keyed on `event.id`, so a later
  *   `runIngestionJob` retry + redelivery does not double-count.
  * - `user.created` / `ingestion.failed` / `export.job.completed` /
- *   `instance_settings.updated` → activity-log projection handlers
- *   (Issue #595 — were `default: skipped` before). Each decodes its payload
- *   via the domain decoder before writing one `event_id`-keyed row.
+ *   `instance_settings.updated` → activity-log projection handlers. Each
+ *   decodes its payload via the domain decoder before writing one
+ *   `event_id`-keyed row.
  * - Everything else → `skipped` (`share_link.*`, `media.*`,
  *   `ingestion.previewAttached`, ...). `media.uploaded` remains skipped
  *   because its physical event is never emitted (Issue #159 ADR-003 —
@@ -170,8 +170,8 @@ export async function dispatchDomainEvent(
         // `string` jobId (the domain brand is a structural subtype).
         const jobId = IngestionJobIdVO.create(payload.jobId);
         await runIngestionJob({ container, input: { jobId } });
-        // Issue #595: fan-out — record the new upload in the burst log for
-        // the "大量アップロード" activity row (ADR-005). Only `ingestion.created`
+        // Fan-out — record the new upload in the burst log for the
+        // "大量アップロード" activity row (ADR-005). Only `ingestion.created`
         // (a genuinely new upload) feeds the burst; retry / regenerate are
         // re-drives of an existing job. The burst insert is keyed on
         // `event.id` (`ON CONFLICT DO NOTHING`), so even when `runIngestionJob`
@@ -190,8 +190,7 @@ export async function dispatchDomainEvent(
         return { kind: "handled" };
       }
       case "ingestion.failed": {
-        // Issue #595: new case (was `default: skipped`). Project the failure
-        // into the activity log "ジョブ失敗" row.
+        // Project the failure into the activity log "ジョブ失敗" row.
         const decoded = ingestionEventDecoders["ingestion.failed"](
           event.payload,
           event,
@@ -203,8 +202,7 @@ export async function dispatchDomainEvent(
         return { kind: "handled" };
       }
       case "user.created": {
-        // Issue #595: new case (was `default: skipped`). Project the new
-        // user into the activity log "新規ユーザー" row.
+        // Project the new user into the activity log "新規ユーザー" row.
         const decoded = identityEventDecoders["user.created"](
           event.payload,
           event,
@@ -216,9 +214,9 @@ export async function dispatchDomainEvent(
         return { kind: "handled" };
       }
       case "export.job.completed": {
-        // Issue #595: new case (was `default: skipped`). Project the
-        // per-owner export completion into the activity log (ADR-003 — this
-        // is the only real "バックアップ"-adjacent activity; no D1 nightly).
+        // Project the per-owner export completion into the activity log
+        // (ADR-003 — this is the only real "バックアップ"-adjacent activity;
+        // no D1 nightly).
         const decoded = exportEventDecoders["export.job.completed"](
           event.payload,
           event,
@@ -230,8 +228,7 @@ export async function dispatchDomainEvent(
         return { kind: "handled" };
       }
       case "instance_settings.updated": {
-        // Issue #595: new case (was `default: skipped`). Project a settings
-        // change into the activity log "設定変更" row (AC-6).
+        // Project a settings change into the activity log "設定変更" row.
         const decoded = adminSettingsEventDecoders["instance_settings.updated"](
           event.payload,
           event,

@@ -1,4 +1,4 @@
--- Issue #595: bound the dashboard 24h hourly upload aggregation.
+-- Bound the dashboard 24h hourly upload aggregation.
 --
 -- `D1UsageMetricsProvider.collectUploadsHourly` filters `ingestion_jobs`
 -- with `created_at >= windowStart`. None of the existing indices

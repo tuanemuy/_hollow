@@ -1,4 +1,4 @@
--- Issue #595: admin dashboard "最近のアクティビティ" read-model.
+-- Admin dashboard "最近のアクティビティ" read-model.
 --
 -- `activity_log` is an event-sourced projection built by the queue consumer
 -- (ADR-001). Each row is a single activity entry derived 1:1 from a domain

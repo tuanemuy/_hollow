@@ -6,10 +6,10 @@ export type HandleUserCreatedEventInput = Readonly<{
 }>;
 
 /**
- * Project a `user.created` event into the activity log (Issue #595).
+ * Project a `user.created` event into the activity log.
  *
  * Resolves the new user's handle through a read-only UoW lookup so the
- * "対象" column carries a human handle rather than a raw id (AC-5), then
+ * "対象" column carries a human handle rather than a raw id, then
  * writes one row keyed on `eventId` (`insertIfAbsent`) — at-least-once
  * redelivery is a no-op (ADR-001). Opens no write UoW: the activity log is
  * a derived read-model written outside any aggregate transaction (ADR-006).

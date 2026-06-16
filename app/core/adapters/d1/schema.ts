@@ -536,7 +536,7 @@ export const ingestionJobs = sqliteTable(
     // query drops the leading owner predicate, so a dedicated index on
     // `(updated_at DESC, id DESC)` keeps the all-owners scan bounded.
     index("idx_ij_updated_at").on(desc(table.updatedAt), desc(table.id)),
-    // Dashboard 24h hourly aggregation (#595, D1UsageMetricsProvider). The
+    // Dashboard 24h hourly aggregation (D1UsageMetricsProvider). The
     // `created_at >= windowStart` range predicate cannot use any of the
     // indices above (all lead with `owner`/`status`, not `created_at`), so
     // a dedicated index on `created_at` keeps the hourly scan bounded to
@@ -799,7 +799,7 @@ export const instanceSettings = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
-// Activity log (Issue #595 — admin dashboard "最近のアクティビティ" read-model)
+// Activity log (admin dashboard "最近のアクティビティ" read-model)
 // ---------------------------------------------------------------------------
 //
 // Event-sourced projection built by the queue consumer (ADR-001). Each row

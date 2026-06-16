@@ -248,7 +248,7 @@ export type RequestContainer = SharedDeps &
      */
     usageMetricsProvider: UsageMetricsProvider;
     /**
-     * Activity-log read-model repository (Issue #595). Present on the
+     * Activity-log read-model repository. Present on the
      * request path for the **read** usecase (`getRecentActivity`, admin
      * dashboard). The projection **writes** run on the worker side via the
      * same port on {@link WorkerContainer}. The repository is stateless and
@@ -297,7 +297,7 @@ export type WorkerContainer = SharedDeps &
      */
     indexJobRepository: IndexJobRepository;
     /**
-     * Activity-log projection repository (Issue #595). Written by the
+     * Activity-log projection repository. Written by the
      * activity-log handlers inside the queue consumer outside any UoW (the
      * activity log is a derived read-model — no aggregate is mutated
      * transactionally), so it lives here on the worker container and is

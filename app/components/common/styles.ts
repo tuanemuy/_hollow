@@ -264,9 +264,7 @@ export const scrollbarHidden =
  * (or a per-call neutral default), so the base intentionally omits color.
  *
  * Hoisted here (single source of truth) so the two admin surfaces render the
- * same chip shape — previously the Dashboard chip diverged (`px-2` /
- * `rounded-full`) from the Jobs chip (`px-[9px]` / `rounded-pill`). See
- * `.issue/595/review/review-001-frontend.md` N-003.
+ * same chip shape.
  */
 export const tagBadge =
   "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium whitespace-nowrap";

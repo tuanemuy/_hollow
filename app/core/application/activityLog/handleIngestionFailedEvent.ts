@@ -6,10 +6,10 @@ export type HandleIngestionFailedEventInput = Readonly<{
 }>;
 
 /**
- * Project an `ingestion.failed` event into the activity log (Issue #595).
+ * Project an `ingestion.failed` event into the activity log.
  *
  * Looks up the job through a read-only UoW so the "対象" column carries the
- * original file name and the actor handle (AC-5), then writes one row keyed
+ * original file name and the actor handle, then writes one row keyed
  * on `eventId`. The job may already be gone (purged) — in that case the row
  * still surfaces with the error summary and the raw id as the fallback
  * target, which is honest (the failure really happened).

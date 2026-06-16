@@ -82,7 +82,7 @@ export async function runRelayTick(
  * Quarantined rows (`failed_at IS NOT NULL`) are intentionally
  * preserved for operator inspection.
  *
- * The daily tick also sweeps the Issue #595 activity-log read-model tables
+ * The daily tick also sweeps the activity-log read-model tables
  * (`activity_log` / `ingestion_burst_log`), which the outbox pruner does not
  * touch (ADR-007). A failure there must not block the outbox prune, so the
  * activity prune runs after and its outcome is folded into the result only

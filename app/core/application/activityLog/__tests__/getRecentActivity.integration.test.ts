@@ -7,11 +7,10 @@ import { isForbiddenError } from "../../errors";
 import { getRecentActivity } from "../getRecentActivity";
 
 /**
- * Integration tests for `getRecentActivity` (Issue #595): admin gate, empty
+ * Integration tests for `getRecentActivity`: admin gate, empty
  * state (freshly-deployed table → honest empty `rows`, which is what lets the
  * dashboard render the "アクティビティはまだありません" filler while the
- * "すべて見る" link stays omitted — AC-8 / S-002-coverage), and recent-first
- * projection.
+ * "すべて見る" link stays omitted), and recent-first projection.
  */
 
 const ADMIN_ID = "01950000-0000-7000-8000-00000000ad01";

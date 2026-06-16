@@ -53,7 +53,7 @@ export function sumCounts(points: readonly HourlyMetricPointDTO[]): number {
  * 非描画の)「すべて見る」導線 are mutually exclusive by construction: when
  * there are no rows the empty message shows and the table — the only place a
  * row-scoped link could live — is not rendered, so the two never co-appear
- * (AC-8 / 二重表示回避). This predicate pins that single branch condition so a
+ * (二重表示回避). This predicate pins that single branch condition so a
  * regression that renders both at once is caught.
  */
 export function hasActivityRows(rowCount: number): boolean {
@@ -67,8 +67,7 @@ export function hasActivityRows(rowCount: number): boolean {
  *
  * The tone is a display concern derived from the kind here rather than from the
  * row's backend `severity` (a projection-time field), so the table colours can
- * follow the mock without altering the application-layer severity contract. See
- * `.issue/595/review/review-001-frontend.md` N-002.
+ * follow the mock without altering the application-layer severity contract.
  */
 export type ActivityTagTone =
   | "info"

@@ -20,7 +20,7 @@ import { handleInstanceSettingsUpdatedEvent } from "../handleInstanceSettingsUpd
 import { handleUserCreatedEvent } from "../handleUserCreatedEvent";
 
 /**
- * Unit tests for the activity-log projection (Issue #595, AC-7). Covers the
+ * Unit tests for the activity-log projection. Covers the
  * `markProcessed`-before-crash double-defence: even a duplicate dispatch of
  * the same `eventId` produces no second row, because `insertIfAbsent` keys
  * on the natural event id (ADR-001).
@@ -159,7 +159,7 @@ describe("handleIngestionCreatedEvent owner resolution", () => {
 });
 
 /**
- * AC-5 fallback coverage for the three handlers whose `target` / `detail`
+ * Fallback coverage for the three handlers whose `target` / `detail`
  * resolution is otherwise only exercised indirectly via `dispatchDomainEvent`
  * (where they are `vi.mock`ed out). Each asserts both the resolved-entity path
  * (human target) and the entity-absent fallback (raw id target, non-empty

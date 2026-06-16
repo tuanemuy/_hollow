@@ -366,7 +366,7 @@ export const InstanceSettings = {
    * No-op when the map is already empty — same instance is returned so
    * callers can detect "nothing changed" by reference equality and avoid
    * emitting a settings-changed event for a reset that changed nothing
-   * (Issue #595, symmetric with `resetAllPrompts`).
+   * (symmetric with `resetAllPrompts`).
    */
   resetDesignTokens: (
     settings: InstanceSettings,

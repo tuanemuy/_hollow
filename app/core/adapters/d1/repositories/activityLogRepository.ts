@@ -143,10 +143,9 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
    * `limit * threshold`) could starve a qualifying owner: when many owners
    * each contribute a few sub-threshold rows, the newest rows fill the scan
    * budget before a deeper owner's qualifying window is reached, and the
-   * burst row goes missing (W-003). The aggregation is also a true sliding
+   * burst row goes missing. The aggregation is also a true sliding
    * window rather than a fixed floor bucket, so a burst straddling a bucket
-   * boundary (e.g. 12:04–12:06 with a 5-minute window) is still detected
-   * (W-002).
+   * boundary (e.g. 12:04–12:06 with a 5-minute window) is still detected.
    *
    * Strategy: a `GROUP BY owner_id HAVING COUNT(*) >= threshold` pre-filter
    * narrows the table to owners that *could* hold a qualifying window
@@ -185,7 +184,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     if (bursts.length === 0) return [];
 
     // Resolve owner display names so the "対象" column carries a human
-    // handle rather than a raw id (AC-5).
+    // handle rather than a raw id.
     const ownerIds = [...new Set(bursts.map((b) => b.ownerId))];
     const ownerRows = await this.db
       .select({ id: users.id, username: users.username, name: users.name })
@@ -198,7 +197,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     return bursts.map((burst) => ({
       // Deterministic list key: owner + the qualifying window's start. The
       // same data always yields the same key, so React list identity is
-      // stable across re-renders (N-005).
+      // stable across re-renders.
       key: `large_upload:${burst.ownerId}:${burst.windowStart.toISOString()}`,
       kind: "large_upload" as const,
       actorId: burst.ownerId,

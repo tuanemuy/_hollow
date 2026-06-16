@@ -13,10 +13,10 @@ export const DEFAULT_RECENT_ACTIVITY_LIMIT = 20;
 /**
  * One activity-table row projected for the admin dashboard. `occurredAt` is
  * serialized as an ISO8601 string for the transport boundary; the UI formats
- * the time-of-day. `target` / `detail` are pre-rendered human strings (AC-5).
+ * the time-of-day. `target` / `detail` are pre-rendered human strings.
  */
 export type RecentActivityRowDTO = Readonly<{
-  /** Stable identity for the React list key (AC-5 support). */
+  /** Stable identity for the React list key. */
   key: string;
   kind: ActivityKind;
   occurredAt: string;
@@ -25,8 +25,8 @@ export type RecentActivityRowDTO = Readonly<{
   /**
    * Projection-recorded severity, kept as a record/audit field on the DTO
    * contract. **Not consumed for display** — the UI derives tag tone from
-   * `kind` (Issue #595 N-002), so this stays as the value projection records,
-   * not a rendering input (N-101).
+   * `kind`, so this stays as the value projection records, not a rendering
+   * input.
    */
   severity: ActivitySeverity;
 }>;

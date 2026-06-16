@@ -6,10 +6,10 @@ import * as schema from "../schema";
 import { createTestContainer, type TestContainer } from "./helpers";
 
 /**
- * Integration tests for `D1UsageMetricsProvider` (Issue #595, PR-A):
+ * Integration tests for `D1UsageMetricsProvider`:
  * hourly upload aggregation over the last 24h, zero-filling of empty
  * buckets, the partial-failure `null` degrade, and the invariant that
- * scalar fields stay `null` (existing four metric-card behaviour, #545).
+ * scalar fields stay `null` (existing four metric-card behaviour).
  */
 
 const NOW = new Date("2026-06-10T12:30:00.000Z");

@@ -12,7 +12,7 @@ function hourBucketOf(date: Date): string {
 
 /**
  * Project an `ingestion.created` event into the burst intermediate table
- * (Issue #595, ADR-005 方式A).
+ * (ADR-005 方式A).
  *
  * Each upload is inserted 1:1 keyed on `eventId` (`recordBurst` =
  * `ON CONFLICT(event_id) DO NOTHING`) — no count aggregation, so

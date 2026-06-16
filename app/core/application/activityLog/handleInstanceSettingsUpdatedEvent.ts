@@ -19,10 +19,10 @@ const SETTING_KIND_LABEL: Record<
 };
 
 /**
- * Project an `instance_settings.updated` event into the activity log
- * (Issue #595, AC-6). The payload already carries `settingKind`, `actorId`
- * and a `summary`, so no lookup is needed — the row is written directly,
- * keyed on `eventId` for idempotency (ADR-001).
+ * Project an `instance_settings.updated` event into the activity log. The
+ * payload already carries `settingKind`, `actorId` and a `summary`, so no
+ * lookup is needed — the row is written directly, keyed on `eventId` for
+ * idempotency (ADR-001).
  */
 export async function handleInstanceSettingsUpdatedEvent({
   container,

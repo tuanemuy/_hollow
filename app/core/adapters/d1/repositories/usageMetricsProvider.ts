@@ -15,10 +15,10 @@ const HOUR_MS = 3_600_000;
 /**
  * D1-backed {@link UsageMetricsProvider}.
  *
- * Only the hourly time series is sourced from D1 (Issue #595, PR-A); the
+ * Only the hourly time series is sourced from D1; the
  * scalar fields (`userCount` / `storage*` / `uploadsToday` /
  * `llmCallsToday`) stay `null` so the existing four metric cards keep
- * their #545 behaviour ("取得失敗"). Populating those scalars from D1 is a
+ * their "取得失敗" behaviour. Populating those scalars from D1 is a
  * separate Issue.
  *
  * `uploadsHourly` is derived directly from `ingestion_jobs.created_at`
@@ -26,7 +26,7 @@ const HOUR_MS = 3_600_000;
  * `created_at >= windowStart` range predicate is served by the
  * `idx_ij_created_at` index (ADR-002), which bounds the scan to the 24h
  * window rather than scanning the (unpruned, ever-growing) table. LLM calls
- * have no persistent record source (A-1), so no LLM series is produced.
+ * have no persistent record source, so no LLM series is produced.
  *
  * Partial-failure contract: the provider never throws. A failure while
  * computing the series degrades that series to `null` (logged), matching

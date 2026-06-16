@@ -8,7 +8,7 @@ import * as schema from "../schema";
 import { createTestContainer, type TestContainer } from "./helpers";
 
 /**
- * Integration tests for `D1ActivityLogRepository` (Issue #595):
+ * Integration tests for `D1ActivityLogRepository`:
  * projection idempotency, recent-first read ordering, the burst read-time
  * aggregation boundary, and retention pruning.
  */

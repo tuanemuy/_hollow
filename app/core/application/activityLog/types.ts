@@ -1,5 +1,5 @@
 /**
- * Activity-log read-model types (Issue #595).
+ * Activity-log read-model types.
  *
  * The activity log is an event-sourced projection for the admin dashboard's
  * "最近のアクティビティ" table, not a domain concept (ADR-001 / ADR-006). The

@@ -90,9 +90,9 @@ vi.mock("../../note/handleLinkTargetResolution", () => ({
 vi.mock("../../note/handleLinkTargetTrashed", () => ({
   handleLinkTargetTrashed: vi.fn(async () => undefined),
 }));
-// Issue #595: activity-log projection handlers. Mocked so the dispatcher
-// fan-out routing (which case calls which handler) is asserted in isolation
-// from the handlers' own UoW lookups (W-001).
+// Activity-log projection handlers. Mocked so the dispatcher fan-out routing
+// (which case calls which handler) is asserted in isolation from the handlers'
+// own UoW lookups.
 vi.mock("../../activityLog/handleIngestionCreatedEvent", () => ({
   handleIngestionCreatedEvent: vi.fn(async () => undefined),
 }));
@@ -202,9 +202,9 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
   const uowFindById = vi.fn(async () =>
     opts.findByIdResult === undefined ? null : opts.findByIdResult,
   );
-  // Issue #595: the activity-log fan-out for ingestion.created /
-  // ingestion.failed / export.job.completed / user.created opens a
-  // read-only UoW to resolve owner / file metadata. The stub returns `null`
+  // The activity-log fan-out for ingestion.created / ingestion.failed /
+  // export.job.completed / user.created opens a read-only UoW to resolve
+  // owner / file metadata. The stub returns `null`
   // from those repositories (job/user absent), which the handlers tolerate
   // (they fall back to the raw id and still write/skip), so the dispatch
   // routing assertions stay focused on `runIngestionJob` etc.
@@ -249,7 +249,7 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
       toPlainText: vi.fn(),
     },
     unitOfWorkProvider,
-    // Issue #595: activity-log projection target for the fan-out cases.
+    // Activity-log projection target for the fan-out cases.
     idGenerator: {
       next: () => "ffffffff-ffff-7fff-8fff-000000000001",
       validate: () => true,
@@ -560,7 +560,7 @@ function userDeletedEvent(): DomainEvent {
   };
 }
 
-// Issue #595: activity-log projection event fixtures.
+// Activity-log projection event fixtures.
 function ingestionFailedEvent(): DomainEvent {
   return {
     id: EVENT_ID,

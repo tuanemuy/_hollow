@@ -80,7 +80,7 @@ function UploadsSparkline({
       aria-label="アップロード数の直近 24 時間の推移"
     >
       {/* `role="img"` + `aria-label` already names the chart; a duplicate
-          `<title>` would double-announce on some screen readers (N-004). */}
+          `<title>` would double-announce on some screen readers. */}
       <defs>
         <linearGradient id="uploads-spark-fill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
@@ -113,7 +113,7 @@ const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
 // Tag tone per ActivityKind, matching the P40 mock's `.tag` variants. The tone
 // is derived from the kind (display concern) rather than the row's backend
 // `severity`, so the table colours follow the mock without touching the
-// application-layer severity contract (N-002). `neutral` reuses the shared
+// application-layer severity contract. `neutral` reuses the shared
 // neutral chip; the rest reuse the common `tagTone` palette.
 const ACTIVITY_TAG_TONE: Record<ActivityTagTone, string> = {
   info: tagTone.info,
@@ -288,11 +288,11 @@ export async function AdminDashboard() {
           <h2 className="text-xl font-semibold tracking-tight m-0">
             直近 24 時間
           </h2>
-          {/* 「期間を変更」導線は遷移先が未実装のため描かない (AC-8 / ADR-004) */}
+          {/* 「期間を変更」導線は遷移先が未実装のため描かない (ADR-004) */}
         </div>
         {/* モックはアップロード/LLM の 2 枚構成だが、LLM 系列はデータ源が無く
-            正しく非描画 (AC-2 / 虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
-            空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す (N-001)。 */}
+            正しく非描画 (虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
+            空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す。 */}
         <div className="grid grid-cols-1 gap-4">
           <div className="border border-hairline rounded-lg p-5 bg-bg">
             <div className="flex items-baseline justify-between gap-3 mb-3">
@@ -323,7 +323,7 @@ export async function AdminDashboard() {
             最近のアクティビティ
           </h2>
           {/* 「すべて見る」導線は全件一覧ルートが未実装のため描かない
-              (AC-8 / ADR-004)。空状態メッセージと二重表示にもならない。 */}
+              (ADR-004)。空状態メッセージと二重表示にもならない。 */}
         </div>
         {!hasActivityRows(activity.rows.length) ? (
           <div className="border border-hairline rounded-lg p-8 bg-bg text-center text-sm text-ink-secondary">

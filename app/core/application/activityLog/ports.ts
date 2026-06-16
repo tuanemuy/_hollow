@@ -6,7 +6,7 @@ import type {
 
 /**
  * An {@link ActivityLogRow} carrying a stable, deterministic `key` for React
- * list identity (N-005). Directly-projected rows use their `activity_log.id`;
+ * list identity. Directly-projected rows use their `activity_log.id`;
  * "大量アップロード" rows — which have no persisted id (they are derived at read
  * time) — use a deterministic `large_upload:{owner}:{windowStart}` key so the
  * same underlying data always yields the same key across re-renders.
@@ -14,7 +14,7 @@ import type {
 export type RecentActivityRow = ActivityLogRow & Readonly<{ key: string }>;
 
 /**
- * Persistence port for the activity-log read-model (Issue #595).
+ * Persistence port for the activity-log read-model.
  *
  * Lives on the {@link WorkerContainer} (ADR-006): the projection handlers
  * run inside the queue consumer outside any aggregate UoW, and read-time
