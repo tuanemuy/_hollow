@@ -97,7 +97,17 @@ export async function runPruneTick(
     ...readPruneTuning(env),
     ...override,
   });
-  await pruneActivityLog(container);
+  // Activity-log prune must not block the (already-committed) outbox prune.
+  // A transient D1 failure here is swallowed and logged so the tick still
+  // returns the outbox count — the same per-row tolerance the worker uses
+  // elsewhere (CLAUDE.md "worker → root").
+  try {
+    await pruneActivityLog(container);
+  } catch (error) {
+    container.logger.error("[prune] activity-log prune failed", {
+      cause: error,
+    });
+  }
   return result;
 }
 

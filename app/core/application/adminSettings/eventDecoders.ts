@@ -4,6 +4,7 @@ import type {
   InstanceSettingKind,
 } from "@/core/domain/adminSettings/events";
 import type { EventDecoder } from "@/core/domain/common/event";
+import { UserId } from "@/core/domain/identity/valueObject";
 import { buildEventDecoder } from "../events/buildDecoder";
 
 const settingKindSchema = z.enum([
@@ -35,7 +36,7 @@ export const adminSettingsEventDecoders: AdminSettingsEventDecoders = {
     updatedSchema,
     (p) => ({
       settingKind: p.settingKind,
-      actorId: p.actorId,
+      actorId: UserId.create(p.actorId),
       summary: p.summary,
     }),
   ),

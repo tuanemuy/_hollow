@@ -25,7 +25,7 @@ export async function toggleRegistrationPolicy({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.setRegistrationOpen(
@@ -38,7 +38,7 @@ export async function toggleRegistrationPolicy({
       collectEvents([
         AdminSettingsEvents.updated(
           "registration_policy",
-          input.actorUserId,
+          actor.id,
           input.open ? "登録を開放" : "登録を停止",
           now,
         ),

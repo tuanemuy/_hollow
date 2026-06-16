@@ -1,4 +1,5 @@
 import type { DomainEventBase, EventDraft } from "@/core/domain/common/event";
+import type { UserId } from "@/core/domain/identity/valueObject";
 import { INSTANCE_SETTINGS_ID } from "./entity";
 
 /**
@@ -21,7 +22,7 @@ export type InstanceSettingsUpdatedEvent = DomainEventBase<
   Readonly<{
     settingKind: InstanceSettingKind;
     /** User id of the admin who performed the change (the "対象"/actor). */
-    actorId: string;
+    actorId: UserId;
     /** Short human summary for the "詳細" column. */
     summary: string;
   }>
@@ -40,7 +41,7 @@ export type AdminSettingsEvent = InstanceSettingsUpdatedEvent;
 export const AdminSettingsEvents = {
   updated: (
     settingKind: InstanceSettingKind,
-    actorId: string,
+    actorId: UserId,
     summary: string,
     occurredAt: Date,
   ): EventDraft<InstanceSettingsUpdatedEvent> => ({

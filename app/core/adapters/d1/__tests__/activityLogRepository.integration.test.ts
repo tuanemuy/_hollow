@@ -213,6 +213,134 @@ describe("D1ActivityLogRepository burst aggregation (大量アップロード)",
     // (half < THRESHOLD for THRESHOLD >= 2).
     expect(rows.filter((row) => row.kind === "large_upload")).toHaveLength(0);
   });
+
+  it("detects a burst straddling a fixed-bucket boundary (sliding window, W-002)", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, "k_okada");
+    // THRESHOLD events evenly spread across a single WINDOW_MS-wide span that
+    // is positioned to straddle a floor(occurredAt / WINDOW) bucket boundary.
+    // A fixed tumbling window would split these into two sub-threshold
+    // buckets and miss the burst; a sliding window must still detect it.
+    const windowMs = LARGE_UPLOAD_WINDOW_MINUTES * 60_000;
+    // Pick a base so the span crosses an epoch-aligned bucket edge: start
+    // half a window before the next boundary above 2026-06-17T12:00Z.
+    const anchor = new Date("2026-06-17T12:00:00.000Z").getTime();
+    const boundary = (Math.floor(anchor / windowMs) + 1) * windowMs;
+    const base = boundary - windowMs / 2;
+    // Spread events across slightly less than one full window so they all
+    // fall inside a single sliding window but span two fixed buckets.
+    const span = windowMs - 1000;
+    const step = Math.floor(span / (LARGE_UPLOAD_THRESHOLD - 1));
+    for (let i = 0; i < LARGE_UPLOAD_THRESHOLD; i += 1) {
+      const occurredAt = new Date(base + i * step);
+      await repo(container).recordBurst({
+        id: nextId(),
+        eventId: nextId(),
+        ownerId: owner,
+        hourBucket: occurredAt.toISOString().slice(0, 13),
+        occurredAt,
+      });
+    }
+
+    const rows = await repo(container).findRecent(10);
+    const bursts = rows.filter((row) => row.kind === "large_upload");
+    expect(bursts).toHaveLength(1);
+    expect(bursts[0]?.target).toBe("k_okada");
+    expect(bursts[0]?.detail).toContain(String(LARGE_UPLOAD_THRESHOLD));
+  });
+
+  it("isolates owners and surfaces a deep qualifying window past many sparse owners (W-003)", async () => {
+    const container = createTestContainer();
+    // Many owners each contribute a single (sub-threshold) sparse upload at
+    // the newest timestamps, which would fill a naive `limit * threshold`
+    // global scan budget and starve the deeper qualifying window.
+    const sparseBase = new Date("2026-06-17T13:00:00.000Z").getTime();
+    for (let i = 0; i < LARGE_UPLOAD_THRESHOLD * 3; i += 1) {
+      const sparseOwner = await seedUser(container, `sparse_${i}`);
+      const occurredAt = new Date(sparseBase + i * 1000);
+      await repo(container).recordBurst({
+        id: nextId(),
+        eventId: nextId(),
+        ownerId: sparseOwner,
+        hourBucket: occurredAt.toISOString().slice(0, 13),
+        occurredAt,
+      });
+    }
+    // One real burst, older than all the sparse rows.
+    const burstOwner = await seedUser(container, "k_okada");
+    await seedBurst(
+      container,
+      burstOwner,
+      LARGE_UPLOAD_THRESHOLD,
+      "2026-06-17T12:00:00.000Z",
+    );
+
+    const rows = await repo(container).findRecent(10);
+    const bursts = rows.filter((row) => row.kind === "large_upload");
+    // Despite the burst being deeper than the sparse rows, the per-owner
+    // aggregation surfaces it rather than starving on the newest rows.
+    expect(bursts).toHaveLength(1);
+    expect(bursts[0]?.target).toBe("k_okada");
+  });
+
+  it("aggregates each owner's burst independently when several owners qualify", async () => {
+    const container = createTestContainer();
+    const a = await seedUser(container, "owner_a");
+    const b = await seedUser(container, "owner_b");
+    await seedBurst(
+      container,
+      a,
+      LARGE_UPLOAD_THRESHOLD,
+      "2026-06-17T12:00:00.000Z",
+    );
+    await seedBurst(
+      container,
+      b,
+      LARGE_UPLOAD_THRESHOLD,
+      "2026-06-17T12:30:00.000Z",
+    );
+
+    const rows = await repo(container).findRecent(10);
+    const bursts = rows.filter((row) => row.kind === "large_upload");
+    expect(bursts).toHaveLength(2);
+    expect(new Set(bursts.map((r) => r.target))).toEqual(
+      new Set(["owner_a", "owner_b"]),
+    );
+  });
+
+  it("gives every row a stable, distinct list key (N-005)", async () => {
+    const container = createTestContainer();
+    const r = repo(container);
+    // One directly-projected row and one burst row.
+    await r.insertIfAbsent({
+      id: nextId(),
+      eventId: nextId(),
+      kind: "user_created",
+      actorId: null,
+      target: "@alice",
+      detail: "新規ユーザー",
+      severity: "success",
+      occurredAt: new Date("2026-06-17T11:00:00.000Z"),
+      createdAt: new Date("2026-06-17T11:00:00.000Z"),
+    });
+    const owner = await seedUser(container, "k_okada");
+    await seedBurst(
+      container,
+      owner,
+      LARGE_UPLOAD_THRESHOLD,
+      "2026-06-17T12:00:00.000Z",
+    );
+
+    const rows = await r.findRecent(10);
+    const keys = rows.map((row) => row.key);
+    // Every row carries a key, and all keys are distinct.
+    expect(keys.every((k) => typeof k === "string" && k.length > 0)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+
+    // The burst key is deterministic: re-reading yields the same key.
+    const again = await r.findRecent(10);
+    expect(again.map((row) => row.key)).toEqual(keys);
+  });
 });
 
 describe("D1ActivityLogRepository pruning", () => {

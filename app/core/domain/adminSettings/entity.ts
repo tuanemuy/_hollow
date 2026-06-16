@@ -361,15 +361,27 @@ export const InstanceSettings = {
     };
   },
 
+  /**
+   * Reset the design tokens map back to empty (inherit built-in defaults).
+   * No-op when the map is already empty — same instance is returned so
+   * callers can detect "nothing changed" by reference equality and avoid
+   * emitting a settings-changed event for a reset that changed nothing
+   * (Issue #595, symmetric with `resetAllPrompts`).
+   */
   resetDesignTokens: (
     settings: InstanceSettings,
     now: Date,
-  ): InstanceSettings => ({
-    ...settings,
-    designTokens: DesignTokens.empty(),
-    version: Version.next(settings.version),
-    updatedAt: now,
-  }),
+  ): InstanceSettings => {
+    if (designTokensEqual(settings.designTokens, DesignTokens.empty())) {
+      return settings;
+    }
+    return {
+      ...settings,
+      designTokens: DesignTokens.empty(),
+      version: Version.next(settings.version),
+      updatedAt: now,
+    };
+  },
 
   setRegistrationOpen: (
     settings: InstanceSettings,

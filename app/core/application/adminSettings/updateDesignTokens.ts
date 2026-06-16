@@ -36,7 +36,7 @@ export async function updateDesignTokens({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.updateDesignTokens(current, tokens, now);
@@ -45,7 +45,7 @@ export async function updateDesignTokens({
       collectEvents([
         AdminSettingsEvents.updated(
           "design_tokens",
-          input.actorUserId,
+          actor.id,
           "デザイントークンを更新",
           now,
         ),

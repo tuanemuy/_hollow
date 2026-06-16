@@ -16,10 +16,18 @@ export const DEFAULT_RECENT_ACTIVITY_LIMIT = 20;
  * the time-of-day. `target` / `detail` are pre-rendered human strings (AC-5).
  */
 export type RecentActivityRowDTO = Readonly<{
+  /** Stable identity for the React list key (AC-5 support). */
+  key: string;
   kind: ActivityKind;
   occurredAt: string;
   target: string;
   detail: string;
+  /**
+   * Projection-recorded severity, kept as a record/audit field on the DTO
+   * contract. **Not consumed for display** — the UI derives tag tone from
+   * `kind` (Issue #595 N-002), so this stays as the value projection records,
+   * not a rendering input (N-101).
+   */
   severity: ActivitySeverity;
 }>;
 
@@ -48,6 +56,7 @@ export async function getRecentActivity({
 
   return {
     rows: rows.map((row) => ({
+      key: row.key,
       kind: row.kind,
       occurredAt: row.occurredAt.toISOString(),
       target: row.target,

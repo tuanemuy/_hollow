@@ -5,6 +5,15 @@ import type {
 } from "./types";
 
 /**
+ * An {@link ActivityLogRow} carrying a stable, deterministic `key` for React
+ * list identity (N-005). Directly-projected rows use their `activity_log.id`;
+ * "大量アップロード" rows — which have no persisted id (they are derived at read
+ * time) — use a deterministic `large_upload:{owner}:{windowStart}` key so the
+ * same underlying data always yields the same key across re-renders.
+ */
+export type RecentActivityRow = ActivityLogRow & Readonly<{ key: string }>;
+
+/**
  * Persistence port for the activity-log read-model (Issue #595).
  *
  * Lives on the {@link WorkerContainer} (ADR-006): the projection handlers
@@ -33,10 +42,12 @@ export interface ActivityLogRepository {
   /**
    * Read the most recent activity rows, occurredAt-descending. Directly
    * projected rows come from `activity_log`; "大量アップロード" rows are derived
-   * from the burst table via a per-owner windowed `COUNT(DISTINCT event_id)`
-   * over the threshold, then merged into the same recent-first ordering.
+   * from the burst table via a per-owner sliding-window
+   * `COUNT(DISTINCT event_id)` over the threshold, then merged into the same
+   * recent-first ordering. Each returned row carries a stable {@link
+   * RecentActivityRow.key} for list identity.
    */
-  findRecent(limit: number): Promise<readonly ActivityLogRow[]>;
+  findRecent(limit: number): Promise<readonly RecentActivityRow[]>;
 
   /**
    * Delete `activity_log` rows whose `occurred_at` predates `cutoff`

@@ -41,7 +41,7 @@ export async function updatePromptTemplate({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       let next: InstanceSettings;
@@ -59,7 +59,7 @@ export async function updatePromptTemplate({
       collectEvents([
         AdminSettingsEvents.updated(
           "prompt_template",
-          input.actorUserId,
+          actor.id,
           isEmpty
             ? `プロンプトをリセット（${purpose}）`
             : `プロンプトを更新（${purpose}）`,

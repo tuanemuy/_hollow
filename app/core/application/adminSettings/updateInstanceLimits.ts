@@ -34,7 +34,7 @@ export async function updateInstanceLimits({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.updateLimits(current, limits, now);
@@ -42,7 +42,7 @@ export async function updateInstanceLimits({
       collectEvents([
         AdminSettingsEvents.updated(
           "instance_limits",
-          input.actorUserId,
+          actor.id,
           "インスタンス制限を更新",
           now,
         ),

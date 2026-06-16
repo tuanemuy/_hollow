@@ -1,9 +1,9 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { getDatabase } from "@/core/adapters/d1/client";
-import { isForbiddenError } from "../../errors";
+import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { createTestContainer } from "../../__tests__/helpers";
+import { isForbiddenError } from "../../errors";
 import { getRecentActivity } from "../getRecentActivity";
 
 /**

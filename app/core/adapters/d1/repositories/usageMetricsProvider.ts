@@ -22,10 +22,11 @@ const HOUR_MS = 3_600_000;
  * separate Issue.
  *
  * `uploadsHourly` is derived directly from `ingestion_jobs.created_at`
- * (UTC ISO8601). There is no dedicated upload-counter table — the 24h /
- * hourly cardinality is small and the existing `idx_ij_status_updated`
- * index keeps the scan bounded (ADR-002). LLM calls have no persistent
- * record source (A-1), so no LLM series is produced.
+ * (UTC ISO8601). There is no dedicated upload-counter table — the
+ * `created_at >= windowStart` range predicate is served by the
+ * `idx_ij_created_at` index (ADR-002), which bounds the scan to the 24h
+ * window rather than scanning the (unpruned, ever-growing) table. LLM calls
+ * have no persistent record source (A-1), so no LLM series is produced.
  *
  * Partial-failure contract: the provider never throws. A failure while
  * computing the series degrades that series to `null` (logged), matching

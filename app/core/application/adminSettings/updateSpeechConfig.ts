@@ -52,7 +52,7 @@ export async function updateSpeechConfig({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
 
@@ -108,7 +108,7 @@ export async function updateSpeechConfig({
       collectEvents([
         AdminSettingsEvents.updated(
           "speech_config",
-          input.actorUserId,
+          actor.id,
           `文字起こし設定を更新（${effectiveProvider}）`,
           now,
         ),

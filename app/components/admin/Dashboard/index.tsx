@@ -14,16 +14,25 @@ import {
   ALERT_INFO,
   ALERT_TITLE_MONO,
   ALERT_WARNING,
+  tagBadge,
+  tagTone,
+  tagToneNeutral,
 } from "@/components/common/styles";
 import type { RecentActivityRowDTO } from "@/core/application/activityLog/getRecentActivity";
-import type {
-  ActivityKind,
-  ActivitySeverity,
-} from "@/core/application/activityLog/types";
+import type { ActivityKind } from "@/core/application/activityLog/types";
 import type { HourlyMetricPointDTO } from "@/core/application/adminSettings/getUsageMetrics";
 import type { AlertDTO } from "@/core/application/dto/common";
 import { requireAdminUser } from "@/lib/server/currentUser";
 import { loadRecentActivity, loadUsageMetrics } from "./action";
+import {
+  type ActivityTagTone,
+  activityTagTone,
+  buildSparkline,
+  CHART_HEIGHT,
+  CHART_WIDTH,
+  hasActivityRows,
+  sumCounts,
+} from "./chart";
 
 function formatNumber(value: number | null): string {
   if (value === null) return "—";
@@ -40,46 +49,6 @@ function formatBytes(value: number | null): string {
   );
   const scaled = value / 1024 ** i;
   return `${scaled.toFixed(scaled >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-// SVG sparkline geometry mirrors the P40 mock (viewBox 600×140).
-const CHART_WIDTH = 600;
-const CHART_HEIGHT = 140;
-// Top/bottom padding so the peak and trough are not clipped at the edges.
-const CHART_PAD_Y = 12;
-
-type Sparkline = Readonly<{ line: string; area: string }>;
-
-/**
- * Build the SVG `path` data for a 24-point hourly series.
- *
- * Points are evenly spaced across the width. The y-axis is scaled to the
- * series max so the curve fills the band; an all-zero series (real data,
- * not a failure) draws a flat line along the baseline — distinct from the
- * "取得失敗" placeholder rendered when the series is `null`.
- */
-function buildSparkline(points: readonly HourlyMetricPointDTO[]): Sparkline {
-  if (points.length === 0) return { line: "", area: "" };
-  const max = Math.max(...points.map((p) => p.count));
-  const usableHeight = CHART_HEIGHT - CHART_PAD_Y * 2;
-  const step = points.length > 1 ? CHART_WIDTH / (points.length - 1) : 0;
-  const coords = points.map((point, index) => {
-    const x = index * step;
-    // max === 0 → every point sits on the baseline (flat line).
-    const ratio = max === 0 ? 0 : point.count / max;
-    const y = CHART_HEIGHT - CHART_PAD_Y - ratio * usableHeight;
-    return { x, y };
-  });
-  const line = coords
-    .map((c, i) => `${i === 0 ? "M" : "L"}${c.x},${c.y}`)
-    .join(" ");
-  const last = coords[coords.length - 1];
-  const area = `${line} L${last?.x ?? CHART_WIDTH},${CHART_HEIGHT} L0,${CHART_HEIGHT} Z`;
-  return { line, area };
-}
-
-function sumCounts(points: readonly HourlyMetricPointDTO[]): number {
-  return points.reduce((acc, point) => acc + point.count, 0);
 }
 
 // 案D semantic modifiers are info/success/warning/error only; `critical`
@@ -110,7 +79,8 @@ function UploadsSparkline({
       role="img"
       aria-label="アップロード数の直近 24 時間の推移"
     >
-      <title>アップロード数の直近 24 時間の推移</title>
+      {/* `role="img"` + `aria-label` already names the chart; a duplicate
+          `<title>` would double-announce on some screen readers (N-004). */}
       <defs>
         <linearGradient id="uploads-spark-fill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
@@ -140,17 +110,18 @@ const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   export_completed: "エクスポート完了",
 };
 
-// 案D semantic tag tones reused from the common alert palette so the table
-// tags match the rest of the admin surface.
-const ACTIVITY_TAG_TONE: Record<ActivitySeverity, string> = {
-  info: "bg-accent-surface text-accent-ink",
-  success: "bg-success-surface text-success",
-  warning: "bg-warning-surface text-warning",
-  error: "bg-error-surface text-error",
+// Tag tone per ActivityKind, matching the P40 mock's `.tag` variants. The tone
+// is derived from the kind (display concern) rather than the row's backend
+// `severity`, so the table colours follow the mock without touching the
+// application-layer severity contract (N-002). `neutral` reuses the shared
+// neutral chip; the rest reuse the common `tagTone` palette.
+const ACTIVITY_TAG_TONE: Record<ActivityTagTone, string> = {
+  info: tagTone.info,
+  success: tagTone.success,
+  warning: tagTone.warning,
+  error: tagTone.error,
+  neutral: tagToneNeutral,
 };
-
-const ACTIVITY_TAG_BASE =
-  "inline-flex items-center px-2 py-[2px] rounded-full text-xs font-medium whitespace-nowrap";
 
 // Responsive table: desktop is a real table; on narrow widths each cell
 // stacks with an in-DOM column label (#545 / #589 ADR-004 — same approach
@@ -187,7 +158,7 @@ function ActivityRow({ row }: { row: RecentActivityRowDTO }) {
       <td className={ACTIVITY_TD}>
         <span className={ACTIVITY_STACK_LABEL}>種類</span>
         <span
-          className={`${ACTIVITY_TAG_BASE} ${ACTIVITY_TAG_TONE[row.severity]}`}
+          className={`${tagBadge} ${ACTIVITY_TAG_TONE[activityTagTone(row.kind)]}`}
         >
           {ACTIVITY_KIND_LABEL[row.kind]}
         </span>
@@ -319,7 +290,10 @@ export async function AdminDashboard() {
           </h2>
           {/* 「期間を変更」導線は遷移先が未実装のため描かない (AC-8 / ADR-004) */}
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* モックはアップロード/LLM の 2 枚構成だが、LLM 系列はデータ源が無く
+            正しく非描画 (AC-2 / 虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
+            空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す (N-001)。 */}
+        <div className="grid grid-cols-1 gap-4">
           <div className="border border-hairline rounded-lg p-5 bg-bg">
             <div className="flex items-baseline justify-between gap-3 mb-3">
               <div className="text-sm text-ink-secondary">アップロード数</div>
@@ -351,7 +325,7 @@ export async function AdminDashboard() {
           {/* 「すべて見る」導線は全件一覧ルートが未実装のため描かない
               (AC-8 / ADR-004)。空状態メッセージと二重表示にもならない。 */}
         </div>
-        {activity.rows.length === 0 ? (
+        {!hasActivityRows(activity.rows.length) ? (
           <div className="border border-hairline rounded-lg p-8 bg-bg text-center text-sm text-ink-secondary">
             アクティビティはまだありません
           </div>
@@ -368,10 +342,7 @@ export async function AdminDashboard() {
               </thead>
               <tbody className="max-sm:block">
                 {activity.rows.map((row) => (
-                  <ActivityRow
-                    key={`${row.kind}-${row.occurredAt}-${row.target}-${row.detail}`}
-                    row={row}
-                  />
+                  <ActivityRow key={row.key} row={row} />
                 ))}
               </tbody>
             </table>

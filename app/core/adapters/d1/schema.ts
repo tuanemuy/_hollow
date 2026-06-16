@@ -536,6 +536,12 @@ export const ingestionJobs = sqliteTable(
     // query drops the leading owner predicate, so a dedicated index on
     // `(updated_at DESC, id DESC)` keeps the all-owners scan bounded.
     index("idx_ij_updated_at").on(desc(table.updatedAt), desc(table.id)),
+    // Dashboard 24h hourly aggregation (#595, D1UsageMetricsProvider). The
+    // `created_at >= windowStart` range predicate cannot use any of the
+    // indices above (all lead with `owner`/`status`, not `created_at`), so
+    // a dedicated index on `created_at` keeps the hourly scan bounded to
+    // the 24h window instead of a full-table scan.
+    index("idx_ij_created_at").on(table.createdAt),
     check("ij_byte_size_positive", sql`${table.byteSize} > 0`),
     check(
       "ij_status_enum",

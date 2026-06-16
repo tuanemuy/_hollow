@@ -91,7 +91,7 @@ export async function updateLLMConfig({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
 
@@ -159,7 +159,7 @@ export async function updateLLMConfig({
       collectEvents([
         AdminSettingsEvents.updated(
           "llm_config",
-          input.actorUserId,
+          actor.id,
           `LLM 設定を更新（${effectiveProvider}）`,
           now,
         ),

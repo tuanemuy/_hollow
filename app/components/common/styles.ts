@@ -256,6 +256,37 @@ export const textLink =
 export const scrollbarHidden =
   "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
+/**
+ * Status/tag badge base — the pill chip used by the admin tables (P46 Jobs
+ * status tags, P40 Dashboard activity tags). Mirrors the mock `.tag`
+ * (`padding: 2px 9px`, `radius-pill`, `gap: 5px`, `text-xs`,
+ * `weight-medium`). The rest-state surface/ink colors come from {@link tagTone}
+ * (or a per-call neutral default), so the base intentionally omits color.
+ *
+ * Hoisted here (single source of truth) so the two admin surfaces render the
+ * same chip shape — previously the Dashboard chip diverged (`px-2` /
+ * `rounded-full`) from the Jobs chip (`px-[9px]` / `rounded-pill`). See
+ * `.issue/595/review/review-001-frontend.md` N-003.
+ */
+export const tagBadge =
+  "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium whitespace-nowrap";
+
+/**
+ * Semantic tone classes for {@link tagBadge}, keyed by the 案D semantic
+ * palette. `info` maps to the neutral accent surface (`--color-info` aliases
+ * `--color-accent`). Consumers that need a truly neutral (无印) chip — e.g. the
+ * mock's variant-less `.tag` — apply {@link tagToneNeutral} instead.
+ */
+export const tagTone = {
+  info: "bg-accent-surface text-accent-ink",
+  success: "bg-success-surface text-success",
+  warning: "bg-warning-surface text-warning",
+  error: "bg-error-surface text-error",
+} as const satisfies Record<string, string>;
+
+/** Neutral (无印) tone for {@link tagBadge} — mock's variant-less `.tag`. */
+export const tagToneNeutral = "bg-surface text-ink-secondary";
+
 /** Field wrapper. */
 export const field = "flex flex-col gap-2 mb-4";
 

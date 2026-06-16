@@ -25,7 +25,7 @@ export async function resetPromptTemplate({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.resetPrompt(current, purpose, now);
@@ -34,7 +34,7 @@ export async function resetPromptTemplate({
       collectEvents([
         AdminSettingsEvents.updated(
           "prompt_template",
-          input.actorUserId,
+          actor.id,
           `プロンプトをリセット（${purpose}）`,
           now,
         ),

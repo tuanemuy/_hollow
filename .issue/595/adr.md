@@ -42,14 +42,14 @@ Proposed
 直近 24h の hourly 時系列をどう供給するか:
 
 1. **専用集計テーブル**（`prompt_preview_counters` 方式の `window_start` バケット upsert）を新設し、書き込み時にインクリメント。
-2. **既存テーブルの集計クエリ**で導出。`ingestion_jobs.created_at`（ISO8601, index `idx_ij_status_updated`）があり、`COALESCE(SUM/COUNT)` + `gte(createdAt, iso)` の集計先例（`sumByteSizeByOwnerSince` 等）が既にある。
+2. **既存テーブルの集計クエリ**で導出。`ingestion_jobs.created_at`（ISO8601）があり、`COALESCE(SUM/COUNT)` + `gte(createdAt, iso)` の集計先例（`sumByteSizeByOwnerSince` 等）が既にある。ただし既存 index（`idx_ij_owner_status` / `idx_ij_status_updated` / `idx_ij_updated_at`）はいずれも `owner`/`status`/`updated_at` 始まりで `created_at` レンジ述語には効かないため、専用 index を足す必要がある（実装時に `idx_ij_created_at` を追加、下記 Decision 参照）。
 
 また port は (a) 既存 `UsageMetricsProvider`（scalar snapshot）を拡張するか、(b) 時系列専用 port を新設するか。
 
 LLM 呼び出しには専用ログテーブルが無く、hourly 時系列の源が存在しない可能性が高い。
 
 ### Decision
-- 時系列は**専用集計テーブルを作らず**、`ingestion_jobs` の hourly クエリで導出する（選択肢 2）。直近 24h・hourly はカーディナリティが小さく、既存 index で十分高速。書き込みパスに集計負荷を持ち込まない。
+- 時系列は**専用集計テーブルを作らず**、`ingestion_jobs` の hourly クエリで導出する（選択肢 2）。直近 24h・hourly は集約後のカーディナリティが小さく、書き込みパスに集計負荷を持ち込まない。ただし `created_at >= windowStart` の範囲述語は既存 index（いずれも `created_at` を先頭に持たない）で絞れず全表スキャンになるため、**`ingestion_jobs(created_at)` に専用 index `idx_ij_created_at` を追加**してスキャンを 24h 窓に bound する（`ingestion_jobs` は刈り込み対象外で恒久増大するため、index 無しでは行数の増大に伴い毎リクエストの集計が全表スキャン化する）。schema・migration（`0019_ingestion_jobs_created_at_index.sql`）に追加する。
 - **hourly bucket の実現方式（S-001 対応）**: `created_at` は UTC ISO8601 文字列なので、**UTC で時バケット化**する。SQL で `substr(created_at, 1, 13)`（"YYYY-MM-DDTHH" 切り出し）を bucket キーに `GROUP BY` し、`COUNT(*)` を取る方式を第一候補とする（`strftime('%Y-%m-%dT%H', created_at)` も等価で可）。drizzle の `sql` テンプレートで記述。既存集計（`sumByteSizeByOwnerSince` 等）には GROUP BY による時バケット化の先例が無いため、実装時にこの方式を 1 つに確定する。欠損バケット（その時間帯に ingestion 0 件）は provider 側で **24 バケットを 0 埋め**して返す（チャート側で「実データ 0」を平坦に描けるように）。partial-failure の try/catch は provider 内に閉じ、失敗時は系列を `null` で返す。
 - port は**既存 `UsageMetricsProvider` を拡張**する（選択肢 a）。同じ provider が scalar と時系列を同一の partial-failure 契約（throw せず `null` degrade）で供給でき、DTO・loader が 1 本化できる。
 - **DI 差し替えの位置（P-003 対応）**: `usageMetricsProvider` は `createRequestContainer`（request 路、admin usecase が呼ぶ）に wire されており、consumer はこれを spread 継承するだけ。差し替えは `createRequestContainer` 内で `new D1UsageMetricsProvider(db, clock)` として行う（D1 ハンドル `db` を注入）。**既存 scalar metric（userCount/storage/uploadsToday/llmCallsToday）の挙動不変条件**: Null → D1 化で scalar が `null` → 実値に変わると「既存挙動不変」（#545 一致）と矛盾するため、`D1UsageMetricsProvider` の **scalar フィールドは引き続き `null` を返す**（時系列フィールドのみ実装）。これにより「既存 4 metric-card は触らない」が成立する。scalar も D1 で埋めるのは別 Issue。

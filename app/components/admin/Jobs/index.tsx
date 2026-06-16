@@ -14,7 +14,12 @@ import {
 import { useMemo, useState, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
-import { pillBtn, pillBtnSmDense } from "@/components/common/styles";
+import {
+  pillBtn,
+  pillBtnSmDense,
+  tagBadge,
+  tagTone,
+} from "@/components/common/styles";
 import type {
   BackfillInternalLinksResultDTO,
   RebuildSearchIndexResultDTO,
@@ -38,15 +43,6 @@ import {
 type IngestionStatus = IngestionJobDTO["status"];
 type ExportStatus = ExportJobDTO["status"];
 type Tone = "info" | "success" | "warning" | "error";
-
-const TAG_BASE =
-  "inline-flex items-center gap-[5px] px-[9px] py-[2px] rounded-pill text-xs font-medium whitespace-nowrap";
-const TAG_TONE: Record<Tone, string> = {
-  info: "bg-accent-surface text-accent-ink",
-  success: "bg-success-surface text-success",
-  warning: "bg-warning-surface text-warning",
-  error: "bg-error-surface text-error",
-};
 
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
@@ -227,7 +223,7 @@ function IngestionRow({
       <td className={TD_CLASS}>
         <span className={STACK_LABEL}>状態</span>
         <span
-          className={`${TAG_BASE} ${TAG_TONE[ingestionStatusTag(job.status)]}`}
+          className={`${tagBadge} ${tagTone[ingestionStatusTag(job.status)]}`}
         >
           {ingestionStatusLabel(job.status)}
         </span>
@@ -322,9 +318,7 @@ function ExportRow({
       </td>
       <td className={TD_CLASS}>
         <span className={STACK_LABEL}>状態</span>
-        <span
-          className={`${TAG_BASE} ${TAG_TONE[exportStatusTag(job.status)]}`}
-        >
+        <span className={`${tagBadge} ${tagTone[exportStatusTag(job.status)]}`}>
           {exportStatusLabel(job.status)}
         </span>
       </td>

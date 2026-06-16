@@ -1,7 +1,9 @@
-import type { ActivityLogRepository } from "@/core/application/activityLog/ports";
+import type {
+  ActivityLogRepository,
+  RecentActivityRow,
+} from "@/core/application/activityLog/ports";
 import type {
   ActivityLogEntry,
-  ActivityLogRow,
   IngestionBurstEntry,
 } from "@/core/application/activityLog/types";
 
@@ -25,11 +27,13 @@ export class FakeActivityLogRepository implements ActivityLogRepository {
     this.bursts.push(entry);
   }
 
-  async findRecent(limit: number): Promise<readonly ActivityLogRow[]> {
+  async findRecent(limit: number): Promise<readonly RecentActivityRow[]> {
     return [...this.entries]
       .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
       .slice(0, limit)
       .map((e) => ({
+        // Directly-projected rows key on their own id, matching the D1 adapter.
+        key: e.id,
         kind: e.kind,
         actorId: e.actorId,
         target: e.target,

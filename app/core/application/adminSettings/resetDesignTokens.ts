@@ -22,7 +22,7 @@ export async function resetDesignTokens({
 
   await container.unitOfWorkProvider.run(
     async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.resetDesignTokens(current, now);
@@ -33,7 +33,7 @@ export async function resetDesignTokens({
         collectEvents([
           AdminSettingsEvents.updated(
             "design_tokens",
-            input.actorUserId,
+            actor.id,
             "デザイントークンをリセット",
             now,
           ),
