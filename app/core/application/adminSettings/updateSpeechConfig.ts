@@ -1,5 +1,6 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import { AdminSettingsErrorCode } from "@/core/domain/adminSettings/errorCode";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import { AdminSettingsService } from "@/core/domain/adminSettings/service";
 import {
   type SpeechProvider,
@@ -50,7 +51,7 @@ export async function updateSpeechConfig({
       : await container.secretBox.encrypt(input.apiKeyPlain);
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
       await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
@@ -104,6 +105,14 @@ export async function updateSpeechConfig({
 
       const next = InstanceSettings.updateSpeech(current, reconciled, now);
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "speech_config",
+          input.actorUserId,
+          `文字起こし設定を更新（${effectiveProvider}）`,
+          now,
+        ),
+      ]);
     },
   );
 

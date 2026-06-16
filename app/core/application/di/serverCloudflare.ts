@@ -11,11 +11,13 @@ import { R2TempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage"
 import { ServiceBindingRelayTrigger } from "@/core/adapters/cloudflare/serviceBindingRelayTrigger";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
+import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import { D1PromptPreviewRateLimiter } from "@/core/adapters/d1/repositories/promptPreviewRateLimiter";
 import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
+import { D1UsageMetricsProvider } from "@/core/adapters/d1/repositories/usageMetricsProvider";
 import { instanceSettings as instanceSettingsTable } from "@/core/adapters/d1/schema";
 import { D1SearchIndex } from "@/core/adapters/d1/searchIndex";
 import { D1UnitOfWorkProvider } from "@/core/adapters/d1/unitOfWork";
@@ -61,7 +63,6 @@ import { SystemClock } from "../ports/clock";
 import { UuidV7Generator } from "../ports/idGenerator";
 import { ConsoleLogger, type Logger } from "../ports/logger";
 import { NoopRelayTrigger, type RelayTrigger } from "../ports/relayTrigger";
-import { NullUsageMetricsProvider } from "../ports/usageMetricsProvider";
 import type { TuningEnv } from "./env";
 import {
   type IndexerTuning,
@@ -737,7 +738,12 @@ export function createRequestContainer(
     }),
     llmConnectionTester: new HttpLLMConnectionTester(),
     speechConnectionTester: new HttpSpeechConnectionTester(),
-    usageMetricsProvider: NullUsageMetricsProvider,
+    usageMetricsProvider: new D1UsageMetricsProvider(
+      db,
+      SystemClock,
+      ConsoleLogger,
+    ),
+    activityLogRepository: new D1ActivityLogRepository(db),
     adminSettingsEnv: {
       apiKey:
         adminLlmApiKey !== undefined && adminLlmApiKey.length > 0
@@ -930,6 +936,9 @@ export async function createConsumerContainer(
     outboxRepository: workerContainer.outboxRepository,
     idempotencyStore: workerContainer.idempotencyStore,
     indexJobRepository: workerContainer.indexJobRepository,
+    // `activityLogRepository` is inherited from the spread request
+    // container (request-safe, same D1 binding) — no separate worker
+    // instance needed here.
   } satisfies ConsumerContainer;
 }
 
@@ -1195,5 +1204,6 @@ export function createWorkerContainer(env: ServerEnv): WorkerContainer {
       UuidV7Generator,
       SystemClock,
     ),
+    activityLogRepository: new D1ActivityLogRepository(db),
   };
 }

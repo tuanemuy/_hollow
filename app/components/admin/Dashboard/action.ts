@@ -8,3 +8,11 @@ export const loadUsageMetrics = cache(
       getUsageMetrics({ container, input: { actorUserId } }),
   ),
 );
+
+export const loadRecentActivity = cache(
+  serverData(
+    () => import("@/core/application/activityLog/getRecentActivity"),
+    ({ container }, { getRecentActivity }, actorUserId: string) =>
+      getRecentActivity({ container, input: { actorUserId } }),
+  ),
+);

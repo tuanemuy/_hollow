@@ -23,6 +23,7 @@ import type { NoteBodyRenderer } from "@/core/domain/note/ports/noteBodyRenderer
 import type { PasswordHasher } from "@/core/domain/publication/ports/passwordHasher";
 import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepository";
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
+import type { ActivityLogRepository } from "../activityLog/ports";
 import type { UnitOfWorkProvider } from "../execution/unitOfWork";
 import type { Clock } from "../ports/clock";
 import type { IdempotencyStore } from "../ports/idempotencyStore";
@@ -247,6 +248,16 @@ export type RequestContainer = SharedDeps &
      */
     usageMetricsProvider: UsageMetricsProvider;
     /**
+     * Activity-log read-model repository (Issue #595). Present on the
+     * request path for the **read** usecase (`getRecentActivity`, admin
+     * dashboard). The projection **writes** run on the worker side via the
+     * same port on {@link WorkerContainer}. The repository is stateless and
+     * request-safe; it is deliberately kept off the `UnitOfWorkContext`
+     * because the activity log is never written transactionally inside a
+     * request-path aggregate UoW (ADR-006).
+     */
+    activityLogRepository: ActivityLogRepository;
+    /**
      * Operator-controlled env values consulted by admin usecases. See
      * {@link AdminSettingsEnv} for field semantics and the env-override
      * contract shared with the consumer-side resolver.
@@ -285,6 +296,14 @@ export type WorkerContainer = SharedDeps &
      * derived projection — no aggregate is mutated transactionally).
      */
     indexJobRepository: IndexJobRepository;
+    /**
+     * Activity-log projection repository (Issue #595). Written by the
+     * activity-log handlers inside the queue consumer outside any UoW (the
+     * activity log is a derived read-model — no aggregate is mutated
+     * transactionally), so it lives here on the worker container and is
+     * deliberately kept off the `UnitOfWorkContext` (ADR-006).
+     */
+    activityLogRepository: ActivityLogRepository;
   }>;
 
 /**

@@ -164,6 +164,13 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
   const uowFindById = vi.fn(async () =>
     opts.findByIdResult === undefined ? null : opts.findByIdResult,
   );
+  // Issue #595: the activity-log fan-out for ingestion.created /
+  // ingestion.failed / export.job.completed / user.created opens a
+  // read-only UoW to resolve owner / file metadata. The stub returns `null`
+  // from those repositories (job/user absent), which the handlers tolerate
+  // (they fall back to the raw id and still write/skip), so the dispatch
+  // routing assertions stay focused on `runIngestionJob` etc.
+  const absentFindById = vi.fn(async () => null);
   const unitOfWorkProvider = {
     run: async <T>(
       fn: (ctx: {
@@ -171,6 +178,9 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
         directoryRepository: object;
         tagRepository: object;
         publicationStateRepository: object;
+        ingestionJobRepository: { findById: typeof absentFindById };
+        exportJobRepository: { findById: typeof absentFindById };
+        userRepository: { findById: typeof absentFindById };
       }) => Promise<T>,
     ): Promise<T> =>
       fn({
@@ -178,6 +188,9 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
         directoryRepository: {},
         tagRepository: {},
         publicationStateRepository: {},
+        ingestionJobRepository: { findById: absentFindById },
+        exportJobRepository: { findById: absentFindById },
+        userRepository: { findById: absentFindById },
       }),
   };
   // Monotonic fake clock: each `now()` advances 1s so the `user.deleted`
@@ -198,6 +211,18 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
       toPlainText: vi.fn(),
     },
     unitOfWorkProvider,
+    // Issue #595: activity-log projection target for the fan-out cases.
+    idGenerator: {
+      next: () => "ffffffff-ffff-7fff-8fff-000000000001",
+      validate: () => true,
+    },
+    activityLogRepository: {
+      insertIfAbsent: vi.fn(async () => {}),
+      recordBurst: vi.fn(async () => {}),
+      findRecent: vi.fn(async () => []),
+      pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
+      pruneBurstOlderThan: vi.fn(async () => ({ deleted: 0 })),
+    },
   } as unknown as ConsumerContainer;
   return { container, uowFindById, clockNow };
 }

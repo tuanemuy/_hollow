@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FakeActivityLogRepository } from "@/core/application/__tests__/fakes/fakeActivityLogRepository";
 import type { WorkerContainer } from "@/core/application/di/types";
 import type { Clock } from "@/core/application/ports/clock";
 import { UserId } from "@/core/domain/identity/valueObject";
@@ -96,6 +97,7 @@ function makeContainer(over: {
     },
     searchIndex: over.searchIndex ?? makeIndex(),
     indexJobRepository: over.indexJobRepository ?? makeRepo(),
+    activityLogRepository: new FakeActivityLogRepository(),
     clock: over.clock ?? fixedClock(T0),
     idGenerator: new FakeIdGenerator(1),
     logger: new FakeLogger(),

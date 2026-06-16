@@ -2055,6 +2055,7 @@ describe("getUsageMetrics", () => {
         storageR2Bytes: 200,
         uploadsToday: 3,
         llmCallsToday: 4,
+        uploadsHourly: null,
         alerts: [{ code: "ok", message: "all green", severity: "info" }],
       }),
     };
@@ -2085,6 +2086,7 @@ describe("getUsageMetrics", () => {
         storageR2Bytes: null,
         uploadsToday: 3,
         llmCallsToday: null,
+        uploadsHourly: null,
         alerts: [
           {
             code: "do_unavailable",
@@ -2128,6 +2130,7 @@ describe("getUsageMetrics", () => {
             storageR2Bytes: null,
             uploadsToday: null,
             llmCallsToday: null,
+            uploadsHourly: null,
             alerts: [],
           };
         },

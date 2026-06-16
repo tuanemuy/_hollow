@@ -1,4 +1,5 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import type { ServiceArgs } from "../types";
 import { assertAdmin } from "./authorization";
 
@@ -23,7 +24,7 @@ export async function toggleRegistrationPolicy({
   const now = container.clock.now();
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
       await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
@@ -34,6 +35,14 @@ export async function toggleRegistrationPolicy({
         now,
       );
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "registration_policy",
+          input.actorUserId,
+          input.open ? "登録を開放" : "登録を停止",
+          now,
+        ),
+      ]);
     },
   );
 

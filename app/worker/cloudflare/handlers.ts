@@ -26,6 +26,7 @@ import {
   type ProcessIndexJobsResult,
   processIndexJobs,
 } from "@/core/application/workers/processIndexJobs";
+import { pruneActivityLog } from "@/core/application/workers/pruneActivityLog";
 import type { DomainEvent } from "@/core/domain/common/event";
 
 export type RelayEnv = ServerEnv &
@@ -80,13 +81,24 @@ export async function runRelayTick(
 /**
  * Quarantined rows (`failed_at IS NOT NULL`) are intentionally
  * preserved for operator inspection.
+ *
+ * The daily tick also sweeps the Issue #595 activity-log read-model tables
+ * (`activity_log` / `ingestion_burst_log`), which the outbox pruner does not
+ * touch (ADR-007). A failure there must not block the outbox prune, so the
+ * activity prune runs after and its outcome is folded into the result only
+ * for the outbox count (the contract callers read).
  */
 export async function runPruneTick(
   env: PrunerEnv,
   override?: Partial<PruneOutboxOptions>,
 ): Promise<{ deleted: number }> {
   const container = createWorkerContainer(env);
-  return pruneOutbox(container, { ...readPruneTuning(env), ...override });
+  const result = await pruneOutbox(container, {
+    ...readPruneTuning(env),
+    ...override,
+  });
+  await pruneActivityLog(container);
+  return result;
 }
 
 /**
