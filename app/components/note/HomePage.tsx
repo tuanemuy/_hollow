@@ -185,7 +185,7 @@ async function HeaderSection({
         <DirectoryBreadcrumb segments={directorySegments} />
       ) : null}
       <ViewSwitcher search={search} savedViews={views} />
-      <div className="flex justify-between items-center flex-wrap gap-x-3 gap-y-2 mb-5">
+      <div className="flex justify-between items-center flex-wrap gap-x-3 gap-y-2 mb-5 max-sm:mb-4">
         <p className="text-md text-ink-secondary">{owned.count} 件のノート</p>
         <NoteListToolbar search={search} hasAnyFilter={hasAnyFilter} />
       </div>

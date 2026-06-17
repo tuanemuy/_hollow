@@ -37,7 +37,7 @@ export function NoteListToolbar({ search, hasAnyFilter }: Props) {
 
   return (
     <>
-      <div className="inline-flex items-center gap-2 flex-wrap">
+      <div className="inline-flex items-center gap-2 max-sm:gap-1 flex-wrap">
         <button
           type="button"
           className={ICON_BTN}

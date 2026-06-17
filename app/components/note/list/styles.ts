@@ -79,9 +79,9 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  * - `filterChipRemove`: the inline `×` button inside an active chip.
  * - `filterChipCaret`: the `▾` affordance on a popover trigger chip.
  */
-export const filterChip = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-sm text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white ${TOUCH_TARGET}`;
+export const filterChip = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white ${TOUCH_TARGET}`;
 
-export const filterChipGhost = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-transparent border border-dashed border-hairline-strong text-sm text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface ${TOUCH_TARGET}`;
+export const filterChipGhost = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-transparent border border-dashed border-hairline-strong text-sm text-ink-secondary whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:bg-surface ${TOUCH_TARGET}`;
 
 export const filterChipRemove =
   "ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white/85 hover:text-white hover:bg-white/[0.18]";
