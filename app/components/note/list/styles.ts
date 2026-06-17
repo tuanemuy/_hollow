@@ -1,7 +1,7 @@
 // Shared utility class strings and visibility-chip helpers for the
 // home / note-list views (ListView, TileView, FilterBar).
 
-import { scrollbarHidden, TOUCH_TARGET } from "@/components/common/styles";
+import { scrollbarHidden } from "@/components/common/styles";
 import type { OwnedNoteFilterItem } from "../loaders";
 
 type Visibility = OwnedNoteFilterItem["visibility"];
@@ -78,10 +78,18 @@ export function visibilitySwatchClass(v: Visibility | "all"): string {
  *   内部リンク参照 when no value is set). Transparent at rest, surface on hover.
  * - `filterChipRemove`: the inline `×` button inside an active chip.
  * - `filterChipCaret`: the `▾` affordance on a popover trigger chip.
+ *
+ * Height is 28px desktop / 32px mobile (`h-7 max-sm:h-8`) per the mocks, and the
+ * 44px touch floor (`TOUCH_TARGET`) is intentionally NOT applied: the mock limits
+ * the floor to pill/icon buttons so bare chips are not inflated above the
+ * desktop look; the chip row is a horizontal scroller with its own spacing
+ * (#749 ADR-001). 32px still meets WCAG 2.5.8.
  */
-export const filterChip = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-surface text-sm text-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white ${TOUCH_TARGET}`;
+export const filterChip =
+  "inline-flex items-center gap-1.5 h-7 max-sm:h-8 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:bg-surface-hover data-[active]:bg-ink data-[active]:text-white";
 
-export const filterChipGhost = `inline-flex items-center gap-1.5 h-7 px-3 rounded-pill bg-transparent border border-dashed border-hairline-strong text-sm text-ink-secondary transition-colors motion-reduce:transition-none hover:bg-surface ${TOUCH_TARGET}`;
+export const filterChipGhost =
+  "inline-flex items-center gap-1.5 h-7 max-sm:h-8 px-3 rounded-pill bg-transparent border border-dashed border-hairline-strong text-sm text-ink-secondary whitespace-nowrap shrink-0 transition-colors motion-reduce:transition-none hover:bg-surface";
 
 export const filterChipRemove =
   "ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-white/85 hover:text-white hover:bg-white/[0.18]";

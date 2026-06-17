@@ -73,7 +73,7 @@ function UploadsSparkline({
   const { line, area } = buildSparkline(points);
   return (
     <svg
-      className="w-full h-[140px] text-ink-secondary"
+      className="w-full h-[140px] max-sm:h-[120px] text-accent"
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
       preserveAspectRatio="none"
       role="img"
@@ -132,11 +132,11 @@ const ACTIVITY_TABLE = "w-full border-collapse text-sm max-sm:block";
 const ACTIVITY_TH =
   "px-4 py-3 text-left align-middle text-ink-secondary font-medium border-b border-hairline";
 const ACTIVITY_ROW =
-  "border-t border-hairline first:border-t-0 max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-4 max-sm:bg-bg";
+  "border-t border-hairline first:border-t-0 max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-3 max-sm:bg-bg";
 const ACTIVITY_TD =
-  "px-4 py-3 text-left align-middle max-sm:flex max-sm:gap-3 max-sm:items-start max-sm:px-0 max-sm:py-1";
+  "px-4 py-3 text-left align-middle max-sm:flex max-sm:gap-3 max-sm:items-baseline max-sm:px-0 max-sm:py-1";
 const ACTIVITY_STACK_LABEL =
-  "hidden max-sm:inline-block max-sm:w-[64px] shrink-0 text-ink-tertiary text-xs uppercase tracking-[0.04em]";
+  "hidden max-sm:inline-block max-sm:w-[72px] shrink-0 text-ink-tertiary text-xs";
 
 /** HH:MM in the viewer's locale time zone, matching the #545 time format. */
 function formatActivityTime(iso: string): string {
@@ -191,11 +191,11 @@ export async function AdminDashboard() {
         (metrics.storageR2Bytes ?? 0);
 
   return (
-    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20">
+    <main className="max-w-[var(--container-max)] mx-auto px-[var(--container-padding)] pt-10 pb-20 max-sm:pt-6 max-sm:pb-16">
       <h1 className="text-3xl font-regular tracking-tightest leading-tight m-0 mb-2">
         ダッシュボード
       </h1>
-      <p className="text-md text-ink-secondary m-0 mb-8">
+      <p className="text-md text-ink-secondary m-0 mb-8 max-sm:mb-6">
         Hollow インスタンス全体の状態
       </p>
 
@@ -218,7 +218,7 @@ export async function AdminDashboard() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 mb-8 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 mb-8 max-sm:mb-6 md:grid-cols-2">
           <div className="flex items-center gap-3 px-5 py-4 rounded-lg border border-hairline bg-bg">
             <span
               className="shrink-0 w-[10px] h-[10px] rounded-full bg-success shadow-[0_0_0_4px_rgba(31,143,58,0.12)]"
@@ -237,7 +237,7 @@ export async function AdminDashboard() {
       )}
 
       <section
-        className="grid grid-cols-1 gap-4 mb-10 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-4 max-sm:gap-3 mb-10 max-sm:mb-8 sm:grid-cols-2 lg:grid-cols-4"
         aria-label="主要メトリクス"
       >
         <div className="border border-hairline rounded-lg p-5 bg-bg">
@@ -283,7 +283,7 @@ export async function AdminDashboard() {
         </div>
       </section>
 
-      <section className="mb-10" aria-label="直近 24 時間">
+      <section className="mb-10 max-sm:mb-8" aria-label="直近 24 時間">
         <div className="flex items-baseline justify-between gap-3 mb-4">
           <h2 className="text-xl font-semibold tracking-tight m-0">
             直近 24 時間
@@ -293,11 +293,13 @@ export async function AdminDashboard() {
         {/* モックはアップロード/LLM の 2 枚構成だが、LLM 系列はデータ源が無く
             正しく非描画 (虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
             空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す。 */}
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4 max-sm:gap-3">
           <div className="border border-hairline rounded-lg p-5 bg-bg">
-            <div className="flex items-baseline justify-between gap-3 mb-3">
-              <div className="text-sm text-ink-secondary">アップロード数</div>
-              <div className="text-lg font-regular tracking-tighter text-ink">
+            <div className="flex items-baseline justify-between gap-3 mb-4">
+              <div className="text-sm font-medium text-ink-secondary">
+                アップロード数
+              </div>
+              <div className="text-lg font-medium tracking-tight text-ink">
                 {metrics.uploadsHourly === null
                   ? "—"
                   : formatNumber(sumCounts(metrics.uploadsHourly))}
@@ -317,7 +319,7 @@ export async function AdminDashboard() {
         </div>
       </section>
 
-      <section className="mb-10" aria-label="最近のアクティビティ">
+      <section className="mb-10 max-sm:mb-8" aria-label="最近のアクティビティ">
         <div className="flex items-baseline justify-between gap-3 mb-4">
           <h2 className="text-xl font-semibold tracking-tight m-0">
             最近のアクティビティ
@@ -350,7 +352,7 @@ export async function AdminDashboard() {
         )}
       </section>
 
-      <section className="mb-10">
+      <section className="mb-10 max-sm:mb-8">
         <div className="flex items-baseline justify-between gap-3 mb-4">
           <h2 className="text-xl font-semibold tracking-tight m-0">
             管理メニュー

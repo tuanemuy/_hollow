@@ -36,11 +36,11 @@ function NoteListRowBody({
           {note.title}
         </div>
         {note.excerpt.length > 0 ? (
-          <div className="mb-[6px] text-sm text-ink-secondary leading-[1.45] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] [-webkit-box-orient:vertical]">
+          <div className="mb-[6px] text-sm text-ink-secondary leading-[1.45] overflow-hidden [display:-webkit-box] [-webkit-line-clamp:1] max-sm:[-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
             {note.excerpt}
           </div>
         ) : null}
-        <div className="flex items-center gap-[10px] flex-wrap text-sm text-ink-tertiary">
+        <div className="flex items-center gap-[10px] max-sm:gap-2 flex-wrap text-sm text-ink-tertiary">
           {note.tagNames.length > 0 ? (
             <>
               <span className="text-accent text-sm">
@@ -52,9 +52,15 @@ function NoteListRowBody({
           <span className={visibilityChipClass(note.visibility)}>
             {visibilityLabel(note.visibility)}
           </span>
+          {/* Mobile mock places the date inline at the end of the meta row;
+              the desktop right-aligned date cell is hidden below sm. */}
+          <span className="hidden max-sm:inline text-hairline-strong">·</span>
+          <span className="hidden max-sm:inline whitespace-nowrap text-xs">
+            {updatedAtDisplay}
+          </span>
         </div>
       </div>
-      <div className="text-sm text-ink-tertiary whitespace-nowrap self-start mt-[3px]">
+      <div className="text-sm text-ink-tertiary whitespace-nowrap self-start mt-[3px] max-sm:hidden">
         {updatedAtDisplay}
       </div>
     </>
@@ -95,7 +101,7 @@ function NoteListRow({
           <button
             type="button"
             onClick={toggle}
-            className="grid grid-cols-[1fr_auto] items-start gap-4 w-full text-left text-inherit cursor-pointer"
+            className="grid grid-cols-[1fr_auto] max-sm:grid-cols-1 items-start gap-4 max-sm:gap-3 w-full text-left text-inherit cursor-pointer"
           >
             <NoteListRowBody note={note} updatedAtDisplay={updatedAtDisplay} />
           </button>
@@ -105,7 +111,7 @@ function NoteListRow({
           to="/notes/$noteId"
           params={{ noteId: note.id }}
           aria-label={note.title}
-          className="grid grid-cols-[1fr_auto] items-start gap-4 px-3 py-5 max-sm:px-2 max-sm:py-4 max-sm:gap-3 text-inherit"
+          className="grid grid-cols-[1fr_auto] max-sm:grid-cols-1 items-start gap-4 px-3 py-5 max-sm:px-2 max-sm:py-4 max-sm:gap-3 text-inherit"
         >
           <NoteListRowBody note={note} updatedAtDisplay={updatedAtDisplay} />
         </Link>
