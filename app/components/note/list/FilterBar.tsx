@@ -1,10 +1,15 @@
 "use client";
 
 import { useRouter } from "@tanstack/react-router";
-import { Plus, X } from "lucide-react";
+import { Plus, SlidersHorizontal, X } from "lucide-react";
 import { useId, useOptimistic, useRef, useState, useTransition } from "react";
+import { Dialog } from "@/components/common/Dialog";
 import { Popover } from "@/components/common/Popover";
-import { popoverSheetPanel, TOUCH_TARGET } from "@/components/common/styles";
+import {
+  dialogTitle,
+  popoverSheetPanel,
+  TOUCH_TARGET,
+} from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
 import type { BreadcrumbSegment } from "../directoryTree";
 import type { NoteListSearch } from "../schema";
@@ -27,6 +32,10 @@ import {
   filterChipRemove,
   filterClearX,
   filterLabel,
+  filterSheetSection,
+  mobileFilterBar,
+  mobileFilterCount,
+  mobileFilterTrigger,
   visibilityLabel,
   visibilitySwatchClass,
 } from "./styles";
@@ -140,12 +149,23 @@ export function FilterBar({
   const [isPending, startTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
+  // Mobile-only aggregated filter sheet. Local `useState` (same shape as
+  // `pickerOpen` / `openPopover`) deliberately NOT synced to props: when `run()`
+  // commits a navigation the fresh props snap `useOptimistic` back to baseline
+  // and re-render FilterBar, but `filterSheetOpen` is not props-derived so it
+  // survives — consecutive in-sheet filter edits keep the sheet open (#754
+  // arch S-005). Do not add a props-sync `useEffect` here (it would close the
+  // sheet on every navigation commit).
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   // Mutually-exclusive popover state: opening one closes the others.
   const [openPopover, setOpenPopover] = useState<
     "tag" | "date" | "visibility" | null
   >(null);
   const fromId = useId();
   const toId = useId();
+  const sheetFromId = useId();
+  const sheetToId = useId();
+  const sheetTitleId = useId();
 
   // Server-confirmed baseline. `useOptimistic` mirrors filter selections
   // into the UI synchronously while the loader round-trip is in flight,
@@ -294,12 +314,19 @@ export function FilterBar({
     new Date(),
   );
 
-  const hasAnyFilter =
-    selected.size > 0 ||
-    hasDateRange ||
-    optimisticVisibility !== undefined ||
-    optimisticDirectoryId !== undefined ||
-    optimisticReferencingNoteId !== undefined;
+  // Single source of truth for both the applied-filter count badge (mobile
+  // trigger, AC-6) and the clear-× gating (`hasAnyFilter`). Counting tags one
+  // each and every other facet as 1-when-set keeps the invariant
+  // `hasAnyFilter ⇔ count > 0`. The directory term uses the SAME predicate as
+  // the rest of the bar (`optimisticDirectoryId !== undefined`, dangling-
+  // independent) so the badge and the clear-× never disagree (#754 AC-6).
+  const activeFilterCount =
+    selected.size +
+    (hasDateRange ? 1 : 0) +
+    (optimisticVisibility !== undefined ? 1 : 0) +
+    (optimisticDirectoryId !== undefined ? 1 : 0) +
+    (optimisticReferencingNoteId !== undefined ? 1 : 0);
+  const hasAnyFilter = activeFilterCount > 0;
 
   const visibleTags = showAllTags ? tags : tags.slice(0, VISIBLE_TAG_LIMIT);
   const hiddenTagCount = tags.length - visibleTags.length;
@@ -311,7 +338,7 @@ export function FilterBar({
 
   return (
     <>
-      <div className={filterBar} aria-busy={isPending}>
+      <div className={filterBar} aria-busy={isPending} data-desktop-filters="">
         {tags.length > 0 ? (
           <div className="inline-flex gap-1.5 flex-wrap max-sm:flex-nowrap max-sm:shrink-0">
             {visibleTags.map((tag) => {
@@ -425,14 +452,200 @@ export function FilterBar({
             />
           </button>
         ) : null}
-
-        <NotePickerDialog
-          open={pickerOpen}
-          onClose={() => setPickerOpen(false)}
-          onSelect={handlePick}
-          isPending={isPending}
-        />
       </div>
+
+      {/* Mobile aggregated filter trigger (`hidden max-sm:flex`). Replaces the
+        horizontal-scroll chip row below `sm` (#754 ADR-001). The trigger opens
+        the filter sheet; the clear-× appears beside it only while the sheet is
+        closed (a global clear is reachable from inside the sheet too). */}
+      <div
+        className={mobileFilterBar}
+        data-mobile-filter=""
+        aria-busy={isPending}
+      >
+        <button
+          type="button"
+          className={mobileFilterTrigger}
+          aria-haspopup="dialog"
+          aria-expanded={filterSheetOpen}
+          onClick={() => setFilterSheetOpen(true)}
+        >
+          <SlidersHorizontal
+            className="size-[14px] shrink-0"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          絞り込み
+          {activeFilterCount > 0 ? (
+            <span className={mobileFilterCount}>{activeFilterCount}</span>
+          ) : null}
+        </button>
+        {hasAnyFilter && !filterSheetOpen ? (
+          <button
+            type="button"
+            className={filterClearX}
+            aria-label="フィルタをすべてクリア"
+            title="フィルタをすべてクリア"
+            onClick={clearAll}
+          >
+            <X
+              className="size-[var(--icon-xs)]"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+          </button>
+        ) : null}
+      </div>
+
+      <Dialog
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        ariaLabelledBy={sheetTitleId}
+        showCloseButton
+        closable
+      >
+        <div data-filter-sheet="">
+          <h2 id={sheetTitleId} className={dialogTitle}>
+            絞り込み
+          </h2>
+
+          {tags.length > 0 ? (
+            <section className={filterSheetSection} aria-label="タグ">
+              <div className={filterLabel}>タグ</div>
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((tag) => {
+                  const active = selected.has(tag.name);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      data-active={active || undefined}
+                      className={filterChip}
+                      aria-pressed={active}
+                      onClick={() => toggleTag(tag.name)}
+                    >
+                      #{tag.name}
+                      <span className="ml-[6px] text-[11px] text-ink-tertiary [[data-active]_&]:text-white/85">
+                        {tag.noteCount}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          <section className={filterSheetSection} aria-label="期間">
+            <div className={filterLabel}>期間</div>
+            <DateRangeFields
+              fromId={sheetFromId}
+              toId={sheetToId}
+              from={optimisticFrom}
+              to={optimisticTo}
+              selectedPreset={selectedPreset}
+              onSelectPreset={selectPreset}
+              onChangeDate={updateDate}
+            />
+            {hasDateRange ? (
+              <button
+                type="button"
+                onClick={clearDateRange}
+                className="self-start text-xs text-ink-secondary underline hover:text-ink"
+              >
+                期間をクリア
+              </button>
+            ) : null}
+          </section>
+
+          <fieldset className={filterSheetSection}>
+            <legend className={`${filterLabel} mb-1`}>公開状態</legend>
+            {VISIBILITY_OPTIONS.map((option) => {
+              const checked =
+                option === "all"
+                  ? optimisticVisibility === undefined
+                  : option === optimisticVisibility;
+              return (
+                <label
+                  key={option}
+                  className="flex items-center gap-2.5 text-sm text-ink"
+                >
+                  <input
+                    type="radio"
+                    name={`${sheetTitleId}-visibility`}
+                    checked={checked}
+                    onChange={() => selectVisibility(option)}
+                    className="accent-ink"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${visibilitySwatchClass(option)}`}
+                  />
+                  {visibilityLabel(option)}
+                </label>
+              );
+            })}
+          </fieldset>
+
+          <section className={filterSheetSection} aria-label="内部リンク参照">
+            <div className={filterLabel}>内部リンク参照</div>
+            {optimisticReferencingNoteId !== undefined ? (
+              <span data-active className={`${filterChip} self-start`}>
+                参照中:{" "}
+                {formatReferencingNoteChipLabel(
+                  optimisticReferencingNoteId,
+                  optimisticReferencingNoteId === referencingNoteId
+                    ? (referencingNoteTitle ?? null)
+                    : null,
+                )}
+                <button
+                  type="button"
+                  aria-label="内部リンク参照フィルタを解除"
+                  onClick={clearReferencingNoteId}
+                  className={filterChipRemove}
+                >
+                  ×
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={`${filterChipGhost} self-start`}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  // Separate flow (#754 ADR-001 代替案 b): close the sheet, then
+                  // open the note picker — never a nested Dialog inside the sheet.
+                  setFilterSheetOpen(false);
+                  setPickerOpen(true);
+                }}
+              >
+                ノートを選択
+                <span className={filterChipCaret} aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+            )}
+          </section>
+
+          {hasAnyFilter ? (
+            // Clearing all does not close the sheet (`clearAll` only navigates),
+            // so the user can keep configuring filters afterwards (arch S-004).
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-xs text-ink-secondary underline hover:text-ink"
+            >
+              すべてのフィルタをクリア
+            </button>
+          ) : null}
+        </div>
+      </Dialog>
+
+      <NotePickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handlePick}
+        isPending={isPending}
+      />
 
       {/* The resolvable directory location renders as a breadcrumb in the
         header (above the heading); only the unresolvable case stays here.
@@ -614,6 +827,82 @@ const SR_ONLY =
 const DATE_INPUT_SM =
   "h-7 px-2 rounded-md border border-hairline bg-surface text-sm text-ink flex-1 min-w-0";
 
+type DateRangeFieldsProps = Readonly<{
+  fromId: string;
+  toId: string;
+  from: string | undefined;
+  to: string | undefined;
+  selectedPreset: DateRangePreset | null;
+  onSelectPreset: (preset: DateRangePreset) => void;
+  onChangeDate: (key: "from" | "to", value: string) => void;
+}>;
+
+// Inner presentation shared by the desktop `DatePopover` and the mobile filter
+// sheet (#754 arch S-002): only the preset grid + range inputs are extracted,
+// the desktop popover's outer DOM (wrapper / clear・close row) is untouched so
+// AC-4 (desktop unchanged) holds.
+function DateRangeFields({
+  fromId,
+  toId,
+  from,
+  to,
+  selectedPreset,
+  onSelectPreset,
+  onChangeDate,
+}: DateRangeFieldsProps) {
+  return (
+    <>
+      {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the preset toggle buttons; <fieldset> carries form-control semantics that are inappropriate here (mirrors DirectoryTree). */}
+      <div role="group" aria-label="プリセット">
+        <div className={`${filterLabel} mb-2`}>プリセット</div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {DATE_RANGE_PRESETS.map((preset) => {
+            const sel = selectedPreset === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                data-active={sel || undefined}
+                aria-pressed={sel}
+                onClick={() => onSelectPreset(preset)}
+                className="text-xs rounded-pill border border-hairline bg-bg px-1 py-1.5 text-ink transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-ink data-[active]:text-white data-[active]:border-ink"
+              >
+                {dateRangePresetLabels[preset]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <div className={`${filterLabel} mb-2`}>範囲指定</div>
+        <div className="flex items-center gap-2">
+          <label htmlFor={fromId} className={SR_ONLY}>
+            開始日
+          </label>
+          <input
+            id={fromId}
+            type="date"
+            value={from ?? ""}
+            onChange={(e) => onChangeDate("from", e.target.value)}
+            className={DATE_INPUT_SM}
+          />
+          <span aria-hidden="true">–</span>
+          <label htmlFor={toId} className={SR_ONLY}>
+            終了日
+          </label>
+          <input
+            id={toId}
+            type="date"
+            value={to ?? ""}
+            onChange={(e) => onChangeDate("to", e.target.value)}
+            className={DATE_INPUT_SM}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 function DatePopover({
   fromId,
   toId,
@@ -670,53 +959,15 @@ function DatePopover({
     >
       {({ close }) => (
         <div className="flex flex-col gap-3 w-full">
-          {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the preset toggle buttons; <fieldset> carries form-control semantics that are inappropriate here (mirrors DirectoryTree). */}
-          <div role="group" aria-label="プリセット">
-            <div className={`${filterLabel} mb-2`}>プリセット</div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {DATE_RANGE_PRESETS.map((preset) => {
-                const sel = selectedPreset === preset;
-                return (
-                  <button
-                    key={preset}
-                    type="button"
-                    data-active={sel || undefined}
-                    aria-pressed={sel}
-                    onClick={() => onSelectPreset(preset)}
-                    className="text-xs rounded-pill border border-hairline bg-bg px-1 py-1.5 text-ink transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-ink data-[active]:text-white data-[active]:border-ink"
-                  >
-                    {dateRangePresetLabels[preset]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <div className={`${filterLabel} mb-2`}>範囲指定</div>
-            <div className="flex items-center gap-2">
-              <label htmlFor={fromId} className={SR_ONLY}>
-                開始日
-              </label>
-              <input
-                id={fromId}
-                type="date"
-                value={from ?? ""}
-                onChange={(e) => onChangeDate("from", e.target.value)}
-                className={DATE_INPUT_SM}
-              />
-              <span aria-hidden="true">–</span>
-              <label htmlFor={toId} className={SR_ONLY}>
-                終了日
-              </label>
-              <input
-                id={toId}
-                type="date"
-                value={to ?? ""}
-                onChange={(e) => onChangeDate("to", e.target.value)}
-                className={DATE_INPUT_SM}
-              />
-            </div>
-          </div>
+          <DateRangeFields
+            fromId={fromId}
+            toId={toId}
+            from={from}
+            to={to}
+            selectedPreset={selectedPreset}
+            onSelectPreset={onSelectPreset}
+            onChangeDate={onChangeDate}
+          />
           <div className="flex items-center justify-between">
             <button
               type="button"

@@ -91,12 +91,24 @@ function renderBar(tags: readonly Tag[], selectedTagNames: readonly string[]) {
   });
 }
 
+// happy-dom does not evaluate media queries, so the `max-sm:hidden` desktop
+// wrapper and the `hidden max-sm:flex` mobile trigger bar BOTH live in the DOM
+// at once. Scope the desktop helpers to the `data-desktop-filters` wrapper so
+// they never pick up the mobile trigger or the in-sheet duplicate controls
+// (#754 Step 6).
+function desktopScope(): HTMLElement {
+  const el = container.querySelector<HTMLElement>("[data-desktop-filters]");
+  if (!el) throw new Error("desktop filter wrapper not found");
+  return el;
+}
+
 function tagButton(name: string): HTMLButtonElement {
   // Scope to `[aria-pressed]` so this never matches the picker's
   // `role="option"` buttons (which also contain `#name`) when the listbox is
-  // open — without it the result silently depends on DOM order.
+  // open — without it the result silently depends on DOM order. Scoped to the
+  // desktop wrapper so the in-sheet tag chips (same `aria-pressed`) are excluded.
   const btns = Array.from(
-    container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"),
+    desktopScope().querySelectorAll<HTMLButtonElement>("button[aria-pressed]"),
   );
   const found = btns.find((b) => (b.textContent ?? "").includes(`#${name}`));
   if (!found) throw new Error(`tag chip "${name}" not found`);
@@ -148,8 +160,11 @@ function renderBarDirectory(
 }
 
 function buttonByText(text: string): HTMLButtonElement {
+  // Scoped to the desktop wrapper: the mobile trigger ("絞り込み") and the
+  // in-sheet controls reuse some of the same labels, so an unscoped walk would
+  // be order-dependent under happy-dom (#754 Step 6).
   const btns = Array.from(
-    container.querySelectorAll<HTMLButtonElement>("button"),
+    desktopScope().querySelectorAll<HTMLButtonElement>("button"),
   );
   const found = btns.find((b) => (b.textContent ?? "").trim().startsWith(text));
   if (!found) throw new Error(`button "${text}" not found`);
@@ -158,7 +173,7 @@ function buttonByText(text: string): HTMLButtonElement {
 
 function radioItems(): HTMLElement[] {
   return Array.from(
-    container.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    desktopScope().querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
   );
 }
 
@@ -803,5 +818,252 @@ describe("FilterBar — directory fallback chip (Issue #743)", () => {
     expect(next.directoryId).toBeUndefined();
     expect(next.from).toBeUndefined();
     expect(next.to).toBeUndefined();
+  });
+});
+
+/**
+ * Issue #754: below `sm` the inline filter row is replaced by an aggregated
+ * "絞り込み" trigger that opens a `Dialog` bottom sheet. happy-dom does not
+ * evaluate media queries, so both UIs coexist in the DOM — these assertions are
+ * scoped to the `data-mobile-filter` / `data-filter-sheet` regions, and the
+ * desktop-invariance checks are scoped to `data-desktop-filters`.
+ */
+describe("FilterBar — mobile aggregated sheet (Issue #754)", () => {
+  const TAGS: readonly Tag[] = [
+    { id: "t1", name: "alpha", noteCount: 3 },
+    { id: "t2", name: "beta", noteCount: 1 },
+  ];
+
+  const desktopWrapper = () =>
+    container.querySelector<HTMLElement>("[data-desktop-filters]");
+  const mobileBar = () =>
+    container.querySelector<HTMLElement>("[data-mobile-filter]");
+  const mobileTrigger = () =>
+    mobileBar()?.querySelector<HTMLButtonElement>(
+      'button[aria-haspopup="dialog"]',
+    ) ?? null;
+  // The Dialog portals into document.body, so the sheet is not inside `container`.
+  const sheet = () =>
+    document.body.querySelector<HTMLElement>(
+      '[role="dialog"][aria-modal="true"]',
+    );
+
+  function openSheet() {
+    act(() => {
+      // A real pointer click focuses the button; happy-dom's `.click()` does
+      // not, so focus it explicitly — the Dialog saves `document.activeElement`
+      // at mount to restore focus on close (AC-5).
+      mobileTrigger()?.focus();
+      mobileTrigger()?.click();
+    });
+  }
+
+  it("keeps the desktop wrapper free of horizontal-scroll utilities (AC-1)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    const cls = desktopWrapper()?.className ?? "";
+    expect(cls).not.toContain("overflow-x-auto");
+    expect(cls).not.toContain("flex-nowrap");
+    // The mobile filters live in their own bar, not the desktop wrapper.
+    expect(cls).toContain("max-sm:hidden");
+  });
+
+  it("renders the desktop popover triggers, tag chips and clear-× inside the desktop wrapper (AC-4 regression guard)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    act(() => {
+      root.render(
+        <FilterBar
+          tags={TAGS}
+          selectedTagNames={["alpha"]}
+          from="2026-01-01"
+          to="2026-01-31"
+          visibility={undefined}
+          directoryId={undefined}
+          referencingNoteId={undefined}
+        />,
+      );
+    });
+    const wrapper = desktopWrapper();
+    expect(wrapper).not.toBeNull();
+    // 3 popover triggers (タグで絞り込み / 期間 / 公開状態) + the inline tag chips.
+    expect(
+      wrapper?.querySelector('button[aria-label="タグで絞り込み"]'),
+    ).not.toBeNull();
+    expect(
+      Array.from(wrapper?.querySelectorAll("button") ?? []).some((b) =>
+        (b.textContent ?? "").startsWith("期間"),
+      ),
+    ).toBe(true);
+    expect(
+      Array.from(wrapper?.querySelectorAll("button") ?? []).some((b) =>
+        (b.textContent ?? "").startsWith("公開状態"),
+      ),
+    ).toBe(true);
+    expect(
+      wrapper?.querySelectorAll("button[aria-pressed]").length,
+    ).toBeGreaterThanOrEqual(2);
+    // The clear-× also lives inside the desktop wrapper (a filter is applied).
+    expect(
+      wrapper?.querySelector('button[aria-label="フィルタをすべてクリア"]'),
+    ).not.toBeNull();
+  });
+
+  it("renders the mobile trigger with the applied-filter count badge (AC-6)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    // 2 tags selected + a date range + a visibility => count 4.
+    act(() => {
+      root.render(
+        <FilterBar
+          tags={TAGS}
+          selectedTagNames={["alpha", "beta"]}
+          from="2026-01-01"
+          to="2026-01-31"
+          visibility="public"
+          directoryId={undefined}
+          referencingNoteId={undefined}
+        />,
+      );
+    });
+    const trigger = mobileTrigger();
+    expect(trigger).not.toBeNull();
+    expect(trigger?.textContent).toContain("絞り込み");
+    expect(trigger?.textContent).toContain("4");
+    // arch S-003: the trigger / badge must NOT carry aria-pressed/aria-checked
+    // (they would pollute the tag-toggle button set the helpers walk).
+    expect(trigger?.getAttribute("aria-pressed")).toBeNull();
+    expect(trigger?.getAttribute("aria-checked")).toBeNull();
+    expect(trigger?.getAttribute("aria-haspopup")).toBe("dialog");
+  });
+
+  it("badge count agrees with the clear-× gating for a non-dangling directory (AC-6 invariant)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    // A resolvable directory selection: badge must be ≥1 AND the clear-× shows.
+    act(() => {
+      root.render(
+        <FilterBar
+          tags={[]}
+          selectedTagNames={[]}
+          from={undefined}
+          to={undefined}
+          visibility={undefined}
+          directoryId="d2"
+          directorySegments={[{ id: "d2", name: "Research" }]}
+          referencingNoteId={undefined}
+        />,
+      );
+    });
+    const trigger = mobileTrigger();
+    expect(trigger?.textContent).toContain("1");
+    // hasAnyFilter true => clear-× renders (here, inside the mobile bar).
+    expect(
+      mobileBar()?.querySelector('button[aria-label="フィルタをすべてクリア"]'),
+    ).not.toBeNull();
+  });
+
+  it("opens an accessible-named sheet with filter controls when the trigger is pressed (AC-2/5)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    expect(sheet()).toBeNull();
+    openSheet();
+    const panel = sheet();
+    expect(panel).not.toBeNull();
+    // Accessible name via aria-labelledby -> visible <h2>絞り込み.
+    const labelledBy = panel?.getAttribute("aria-labelledby");
+    expect(labelledBy).toBeTruthy();
+    expect(panel?.querySelector(`#${labelledBy}`)?.textContent).toContain(
+      "絞り込み",
+    );
+    const sheetBody = panel?.querySelector("[data-filter-sheet]");
+    expect(sheetBody).not.toBeNull();
+    // Tag chips, a date preset grid, the visibility radio group are rendered.
+    expect(sheetBody?.querySelector("button[aria-pressed]")).not.toBeNull();
+    expect(sheetBody?.querySelectorAll('input[type="radio"]').length).toBe(4);
+    // The trigger reflects the open state.
+    expect(mobileTrigger()?.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("navigates via an existing handler when an in-sheet tag chip is toggled (AC-2)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openSheet();
+    const sheetTagChip = Array.from(
+      sheet()?.querySelectorAll<HTMLButtonElement>("button[aria-pressed]") ??
+        [],
+    ).find((b) => (b.textContent ?? "").includes("#alpha"));
+    expect(sheetTagChip).not.toBeUndefined();
+    await act(async () => {
+      sheetTagChip?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    // The sheet stays open across the navigation commit (arch S-005).
+    expect(sheet()).not.toBeNull();
+  });
+
+  it("shows the applied reference chip + 解除 in the sheet and clears via the existing handler (AC-2 代替案 b)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    act(() => {
+      root.render(
+        <FilterBar
+          tags={[]}
+          selectedTagNames={[]}
+          from={undefined}
+          to={undefined}
+          visibility={undefined}
+          directoryId={undefined}
+          referencingNoteId="n1"
+          referencingNoteTitle="My Note"
+        />,
+      );
+    });
+    openSheet();
+    const clearRef = sheet()?.querySelector<HTMLButtonElement>(
+      'button[aria-label="内部リンク参照フィルタを解除"]',
+    );
+    expect(clearRef).not.toBeNull();
+    await act(async () => {
+      clearRef?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const updater = (
+      routerNavigate.mock.calls[0][0] as {
+        search: (prev: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).search;
+    expect(
+      updater({ referencingNoteId: "n1" }).referencingNoteId,
+    ).toBeUndefined();
+  });
+
+  it("closes the sheet when choosing to select a new reference (no nested Dialog, AC-2 代替案 b)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar([], []);
+    openSheet();
+    expect(sheet()).not.toBeNull();
+    const selectBtn = Array.from(
+      sheet()?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+    ).find((b) => (b.textContent ?? "").startsWith("ノートを選択"));
+    expect(selectBtn).not.toBeUndefined();
+    act(() => {
+      selectBtn?.click();
+    });
+    // The sheet closes; the note picker is a separate (mocked) flow, so no
+    // second Dialog is opened on top of the sheet.
+    expect(sheet()).toBeNull();
+  });
+
+  it("closes the sheet and restores focus to the trigger on Escape (AC-5)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar(TAGS, []);
+    openSheet();
+    expect(sheet()).not.toBeNull();
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(sheet()).toBeNull();
+    expect(document.activeElement).toBe(mobileTrigger());
   });
 });
