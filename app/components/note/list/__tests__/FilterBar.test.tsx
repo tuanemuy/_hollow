@@ -1000,6 +1000,57 @@ describe("FilterBar — mobile aggregated sheet (Issue #754)", () => {
     expect(sheet()).not.toBeNull();
   });
 
+  it("navigates via the existing handler when an in-sheet visibility radio is changed (AC-2)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar([], []);
+    openSheet();
+    // The sheet's visibility group is a native radio set in VISIBILITY_OPTIONS
+    // order (all / private / unlisted / public). Index 3 = public, landing a
+    // non-undefined visibility in the search.
+    const radios = Array.from(
+      sheet()?.querySelectorAll<HTMLInputElement>('input[type="radio"]') ?? [],
+    );
+    expect(radios).toHaveLength(4);
+    const publicRadio = radios[3];
+    await act(async () => {
+      publicRadio.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const updater = (
+      routerNavigate.mock.calls[0][0] as {
+        search: (prev: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).search;
+    expect(updater({}).visibility).toBe("public");
+  });
+
+  it("navigates via the existing handler when an in-sheet date preset is selected (AC-2)", async () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBar([], []);
+    openSheet();
+    // The sheet shares DateRangeFields with the desktop popover; its preset grid
+    // exposes aria-pressed buttons. Click "今日" (today) to land a from/to range.
+    const todayPreset = Array.from(
+      sheet()?.querySelectorAll<HTMLButtonElement>("button[aria-pressed]") ??
+        [],
+    ).find((b) => (b.textContent ?? "").includes("今日"));
+    expect(todayPreset).not.toBeUndefined();
+    await act(async () => {
+      todayPreset?.click();
+    });
+    await flush();
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const updater = (
+      routerNavigate.mock.calls[0][0] as {
+        search: (prev: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).search;
+    const next = updater({});
+    expect(next.from).toBeTruthy();
+    expect(next.to).toBeTruthy();
+  });
+
   it("shows the applied reference chip + 解除 in the sheet and clears via the existing handler (AC-2 代替案 b)", async () => {
     routerNavigate.mockResolvedValue(undefined);
     act(() => {

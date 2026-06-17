@@ -131,7 +131,7 @@ export const mobileFilterBar = "hidden max-sm:flex items-center gap-2 mb-5";
  * the tests walk (#754 ADR-001, arch S-003).
  */
 export const mobileFilterTrigger =
-  "inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover";
+  "inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /** Applied-filter count badge shown inside the mobile trigger. */
 export const mobileFilterCount =

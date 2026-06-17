@@ -477,7 +477,14 @@ export function FilterBar({
           />
           絞り込み
           {activeFilterCount > 0 ? (
-            <span className={mobileFilterCount}>{activeFilterCount}</span>
+            <>
+              <span className={mobileFilterCount} aria-hidden="true">
+                {activeFilterCount}
+              </span>
+              <span className={SR_ONLY}>
+                （適用中のフィルタ {activeFilterCount} 件）
+              </span>
+            </>
           ) : null}
         </button>
         {hasAnyFilter && !filterSheetOpen ? (
@@ -505,7 +512,7 @@ export function FilterBar({
         closable
       >
         <div data-filter-sheet="">
-          <h2 id={sheetTitleId} className={dialogTitle}>
+          <h2 id={sheetTitleId} className={`${dialogTitle} pr-10`}>
             絞り込み
           </h2>
 
