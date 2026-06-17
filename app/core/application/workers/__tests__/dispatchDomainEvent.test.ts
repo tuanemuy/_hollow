@@ -16,6 +16,11 @@ import type {
 } from "@/core/domain/publication/valueObject";
 import type { NoteSnapshot } from "@/core/domain/search/entity";
 import type { TagId } from "@/core/domain/tag/valueObject";
+import { handleExportJobCompletedEvent } from "../../activityLog/handleExportJobCompletedEvent";
+import { handleIngestionCreatedEvent } from "../../activityLog/handleIngestionCreatedEvent";
+import { handleIngestionFailedEvent } from "../../activityLog/handleIngestionFailedEvent";
+import { handleInstanceSettingsUpdatedEvent } from "../../activityLog/handleInstanceSettingsUpdatedEvent";
+import { handleUserCreatedEvent as activityHandleUserCreatedEvent } from "../../activityLog/handleUserCreatedEvent";
 import type { ConsumerContainer } from "../../di/types";
 import { NotFoundError } from "../../errors";
 import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../../export/handleUserDeletedEvent";
@@ -85,6 +90,24 @@ vi.mock("../../note/handleLinkTargetResolution", () => ({
 vi.mock("../../note/handleLinkTargetTrashed", () => ({
   handleLinkTargetTrashed: vi.fn(async () => undefined),
 }));
+// Activity-log projection handlers. Mocked so the dispatcher fan-out routing
+// (which case calls which handler) is asserted in isolation from the handlers'
+// own UoW lookups.
+vi.mock("../../activityLog/handleIngestionCreatedEvent", () => ({
+  handleIngestionCreatedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../activityLog/handleIngestionFailedEvent", () => ({
+  handleIngestionFailedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../activityLog/handleUserCreatedEvent", () => ({
+  handleUserCreatedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../activityLog/handleExportJobCompletedEvent", () => ({
+  handleExportJobCompletedEvent: vi.fn(async () => undefined),
+}));
+vi.mock("../../activityLog/handleInstanceSettingsUpdatedEvent", () => ({
+  handleInstanceSettingsUpdatedEvent: vi.fn(async () => undefined),
+}));
 
 const mockedRunIngestionJob = vi.mocked(runIngestionJob);
 const mockedRunExportJob = vi.mocked(runExportJob);
@@ -110,6 +133,21 @@ const mockedPublicationHandleUserDeleted = vi.mocked(
 );
 const mockedExportHandleUserDeleted = vi.mocked(exportHandleUserDeletedEvent);
 const mockedBuildNoteSnapshots = vi.mocked(buildNoteSnapshots);
+const mockedActivityHandleIngestionCreated = vi.mocked(
+  handleIngestionCreatedEvent,
+);
+const mockedActivityHandleIngestionFailed = vi.mocked(
+  handleIngestionFailedEvent,
+);
+const mockedActivityHandleUserCreated = vi.mocked(
+  activityHandleUserCreatedEvent,
+);
+const mockedActivityHandleExportCompleted = vi.mocked(
+  handleExportJobCompletedEvent,
+);
+const mockedActivityHandleInstanceSettingsUpdated = vi.mocked(
+  handleInstanceSettingsUpdatedEvent,
+);
 
 const stubLogger: Logger = {
   info: vi.fn(),
@@ -164,6 +202,13 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
   const uowFindById = vi.fn(async () =>
     opts.findByIdResult === undefined ? null : opts.findByIdResult,
   );
+  // The activity-log fan-out for ingestion.created / ingestion.failed /
+  // export.job.completed / user.created opens a read-only UoW to resolve
+  // owner / file metadata. The stub returns `null`
+  // from those repositories (job/user absent), which the handlers tolerate
+  // (they fall back to the raw id and still write/skip), so the dispatch
+  // routing assertions stay focused on `runIngestionJob` etc.
+  const absentFindById = vi.fn(async () => null);
   const unitOfWorkProvider = {
     run: async <T>(
       fn: (ctx: {
@@ -171,6 +216,9 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
         directoryRepository: object;
         tagRepository: object;
         publicationStateRepository: object;
+        ingestionJobRepository: { findById: typeof absentFindById };
+        exportJobRepository: { findById: typeof absentFindById };
+        userRepository: { findById: typeof absentFindById };
       }) => Promise<T>,
     ): Promise<T> =>
       fn({
@@ -178,6 +226,9 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
         directoryRepository: {},
         tagRepository: {},
         publicationStateRepository: {},
+        ingestionJobRepository: { findById: absentFindById },
+        exportJobRepository: { findById: absentFindById },
+        userRepository: { findById: absentFindById },
       }),
   };
   // Monotonic fake clock: each `now()` advances 1s so the `user.deleted`
@@ -198,6 +249,18 @@ function makeStubContainer(opts: { findByIdResult?: FindByIdResult }): {
       toPlainText: vi.fn(),
     },
     unitOfWorkProvider,
+    // Activity-log projection target for the fan-out cases.
+    idGenerator: {
+      next: () => "ffffffff-ffff-7fff-8fff-000000000001",
+      validate: () => true,
+    },
+    activityLogRepository: {
+      insertIfAbsent: vi.fn(async () => {}),
+      recordBurst: vi.fn(async () => {}),
+      findRecent: vi.fn(async () => []),
+      pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
+      pruneBurstOlderThan: vi.fn(async () => ({ deleted: 0 })),
+    },
   } as unknown as ConsumerContainer;
   return { container, uowFindById, clockNow };
 }
@@ -497,6 +560,59 @@ function userDeletedEvent(): DomainEvent {
   };
 }
 
+// Activity-log projection event fixtures.
+function ingestionFailedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "ingestion.failed",
+    payload: {
+      jobId: INGESTION_JOB_ID as unknown as IngestionJobIdBrand,
+      errorCode: "llm_unavailable",
+      errorReason: "provider timeout",
+    },
+    occurredAt: new Date(0),
+    aggregateId: INGESTION_JOB_ID,
+  };
+}
+
+function userCreatedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "user.created",
+    payload: { userId: OWNER_ID },
+    occurredAt: new Date(0),
+    aggregateId: OWNER_ID,
+  };
+}
+
+function exportCompletedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "export.job.completed",
+    payload: {
+      exportJobId: EXPORT_JOB_ID as unknown as ExportJobId,
+      artifactKey: "exports/owner/artifact.zip",
+      artifactSize: 1024,
+    },
+    occurredAt: new Date(0),
+    aggregateId: EXPORT_JOB_ID,
+  };
+}
+
+function instanceSettingsUpdatedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "instance_settings.updated",
+    payload: {
+      settingKind: "registration_policy",
+      actorId: OWNER_ID,
+      summary: "登録を停止",
+    },
+    occurredAt: new Date(0),
+    aggregateId: "singleton",
+  } as DomainEvent;
+}
+
 beforeEach(() => {
   mockedRunIngestionJob.mockReset();
   mockedRunExportJob.mockReset();
@@ -514,6 +630,17 @@ beforeEach(() => {
   mockedBuildNoteSnapshots.mockReset();
   mockedHandleLinkTargetResolution.mockReset();
   mockedHandleLinkTargetTrashed.mockReset();
+  mockedActivityHandleIngestionCreated.mockReset();
+  mockedActivityHandleIngestionFailed.mockReset();
+  mockedActivityHandleUserCreated.mockReset();
+  mockedActivityHandleExportCompleted.mockReset();
+  mockedActivityHandleInstanceSettingsUpdated.mockReset();
+
+  mockedActivityHandleIngestionCreated.mockResolvedValue(undefined);
+  mockedActivityHandleIngestionFailed.mockResolvedValue(undefined);
+  mockedActivityHandleUserCreated.mockResolvedValue(undefined);
+  mockedActivityHandleExportCompleted.mockResolvedValue(undefined);
+  mockedActivityHandleInstanceSettingsUpdated.mockResolvedValue(undefined);
 
   mockedHandleLinkTargetResolution.mockResolvedValue(undefined);
   mockedHandleLinkTargetTrashed.mockResolvedValue(undefined);
@@ -1176,6 +1303,90 @@ describe("dispatchDomainEvent — skipped regression guards", () => {
     const { container } = makeStubContainer({});
     const outcome = await dispatchDomainEvent(container, mediaUploadedEvent());
     expect(outcome).toEqual({ kind: "skipped" });
+  });
+});
+
+describe("dispatchDomainEvent — activity-log fan-out routing (#595)", () => {
+  it("fans ingestion.created out to BOTH runIngestionJob and the burst recorder (no double registration)", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      ingestionCreatedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    // The case must call runIngestionJob exactly once — registering
+    // ingestion.created as a separate activity-only case would break job
+    // execution (S-001-arch取り違え regression guard).
+    expect(mockedRunIngestionJob).toHaveBeenCalledTimes(1);
+    expect(mockedActivityHandleIngestionCreated).toHaveBeenCalledTimes(1);
+    const callArg = mockedActivityHandleIngestionCreated.mock.calls[0]?.[0];
+    expect(callArg?.input.event.id).toBe(EVENT_ID);
+  });
+
+  it("does NOT record a burst for ingestion.retryRequested / ingestion.regenerated (re-drives only)", async () => {
+    const { container } = makeStubContainer({});
+    await dispatchDomainEvent(container, ingestionRetryRequestedEvent());
+    await dispatchDomainEvent(container, ingestionRegeneratedEvent());
+    expect(mockedActivityHandleIngestionCreated).not.toHaveBeenCalled();
+  });
+
+  it("routes ingestion.failed to the activity job-failed handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      ingestionFailedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedActivityHandleIngestionFailed).toHaveBeenCalledTimes(1);
+    expect(mockedRunIngestionJob).not.toHaveBeenCalled();
+  });
+
+  it("routes user.created to the activity new-user handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(container, userCreatedEvent());
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedActivityHandleUserCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes export.job.completed to the activity export handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      exportCompletedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedActivityHandleExportCompleted).toHaveBeenCalledTimes(1);
+    expect(mockedRunExportJob).not.toHaveBeenCalled();
+  });
+
+  it("routes instance_settings.updated to the activity settings handler and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      instanceSettingsUpdatedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedActivityHandleInstanceSettingsUpdated).toHaveBeenCalledTimes(
+      1,
+    );
+    const callArg =
+      mockedActivityHandleInstanceSettingsUpdated.mock.calls[0]?.[0];
+    expect(callArg?.input.event.payload.settingKind).toBe(
+      "registration_policy",
+    );
+  });
+
+  it("no longer skips the four new activity cases (were default: skipped before #595)", async () => {
+    const { container } = makeStubContainer({});
+    for (const factory of [
+      ingestionFailedEvent,
+      userCreatedEvent,
+      exportCompletedEvent,
+      instanceSettingsUpdatedEvent,
+    ]) {
+      const outcome = await dispatchDomainEvent(container, factory());
+      expect(outcome).toEqual({ kind: "handled" });
+    }
   });
 });
 

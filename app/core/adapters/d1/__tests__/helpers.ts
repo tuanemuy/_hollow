@@ -30,6 +30,7 @@ import { NullUsageMetricsProvider } from "@/core/application/ports/usageMetricsP
 import type { ObjectStorage } from "@/core/domain/media/ports/objectStorage";
 import { type Database, getDatabase } from "../client";
 import { D1PromptResolver } from "../promptResolver";
+import { D1ActivityLogRepository } from "../repositories/activityLogRepository";
 import { D1IdempotencyStore } from "../repositories/idempotencyStore";
 import { D1IndexJobRepository } from "../repositories/indexJobRepository";
 import { D1OutboxRepository } from "../repositories/outboxRepository";
@@ -148,6 +149,7 @@ export function createTestContainer(): TestContainer {
       UuidV7Generator,
       SystemClock,
     ),
+    activityLogRepository: new D1ActivityLogRepository(db),
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
     emailSender: new ConsoleEmailSender(ConsoleLogger),
     setupTokenVerifier: new EnvSetupTokenVerifier(undefined),

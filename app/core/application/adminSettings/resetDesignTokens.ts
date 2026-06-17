@@ -1,4 +1,5 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import type { ServiceArgs } from "../types";
 import { assertAdmin } from "./authorization";
 
@@ -20,12 +21,24 @@ export async function resetDesignTokens({
   const now = container.clock.now();
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.resetDesignTokens(current, now);
       await instanceSettingsRepository.save(next, expectedVersion);
+      // Only emit when the reset actually changed something — a reset of an
+      // already-empty token set is a logical no-op (`next === current`).
+      if (next !== current) {
+        collectEvents([
+          AdminSettingsEvents.updated(
+            "design_tokens",
+            actor.id,
+            "デザイントークンをリセット",
+            now,
+          ),
+        ]);
+      }
     },
   );
 

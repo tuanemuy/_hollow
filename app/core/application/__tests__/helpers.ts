@@ -14,6 +14,7 @@ import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSen
 import { EnvSetupTokenVerifier } from "@/core/adapters/cloudflare/identity/setupTokenVerifier";
 import { type Database, getDatabase } from "@/core/adapters/d1/client";
 import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
+import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
@@ -163,6 +164,7 @@ export function createTestContainer(): TestContainer {
       UuidV7Generator,
       SystemClock,
     ),
+    activityLogRepository: new D1ActivityLogRepository(db),
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
     emailSender: new ConsoleEmailSender(ConsoleLogger),
     setupTokenVerifier: new EnvSetupTokenVerifier(undefined),

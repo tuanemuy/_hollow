@@ -536,6 +536,12 @@ export const ingestionJobs = sqliteTable(
     // query drops the leading owner predicate, so a dedicated index on
     // `(updated_at DESC, id DESC)` keeps the all-owners scan bounded.
     index("idx_ij_updated_at").on(desc(table.updatedAt), desc(table.id)),
+    // Dashboard 24h hourly aggregation (D1UsageMetricsProvider). The
+    // `created_at >= windowStart` range predicate cannot use any of the
+    // indices above (all lead with `owner`/`status`, not `created_at`), so
+    // a dedicated index on `created_at` keeps the hourly scan bounded to
+    // the 24h window instead of a full-table scan.
+    index("idx_ij_created_at").on(table.createdAt),
     check("ij_byte_size_positive", sql`${table.byteSize} > 0`),
     check(
       "ij_status_enum",
@@ -789,6 +795,74 @@ export const instanceSettings = sqliteTable(
       "instance_settings_registration_open_bool",
       sql`${table.registrationOpen} IN (0, 1)`,
     ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Activity log (admin dashboard "最近のアクティビティ" read-model)
+// ---------------------------------------------------------------------------
+//
+// Event-sourced projection built by the queue consumer (ADR-001). Each row
+// is a single activity entry derived 1:1 from a domain event. `event_id`
+// is the unique idempotency key — projection handlers `insertIfAbsent`
+// (`ON CONFLICT(event_id) DO NOTHING`) so at-least-once redelivery never
+// produces a duplicate row (no count aggregation, ADR-005). Rows older than
+// `ACTIVITY_LOG_RETENTION_DAYS` are pruned out-of-band (ADR-007).
+export const activityLog = sqliteTable(
+  "activity_log",
+  {
+    id: text("id").primaryKey(),
+    // Source domain event id — natural idempotency key.
+    eventId: text("event_id").notNull(),
+    // Activity kind discriminator (application-level ActivityKind union).
+    kind: text("kind").notNull(),
+    // Actor user id when the event has one (nullable — system / job-driven
+    // events may have no human actor).
+    actorId: text("actor_id"),
+    // Human-readable "対象" column (e.g. user handle, file name summary,
+    // setting kind). Snapshotted at projection time.
+    target: text("target").notNull().default(""),
+    // Human-readable "詳細" column (e.g. error summary, locale, count).
+    detail: text("detail").notNull().default(""),
+    // Tag variant driving the UI: info / warning / error / success.
+    severity: text("severity").notNull().default("info"),
+    occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uniq_activity_log_event_id").on(table.eventId),
+    // Descending recent-first read path (`findRecent(limit)`).
+    index("idx_activity_log_occurred_at").on(desc(table.occurredAt)),
+    check(
+      "activity_log_severity_enum",
+      sql`${table.severity} IN ('info', 'warning', 'error', 'success')`,
+    ),
+  ],
+);
+
+// Intermediate burst-detection table for "大量アップロード" (ADR-005 方式A).
+// Each `ingestion.created` is inserted 1:1 keyed on `event_id` (no count
+// aggregation — re-delivery is a no-op). The "大量アップロード" activity row
+// is derived at read time by counting distinct `event_id` per owner over a
+// short window. High-frequency table — pruned at 24h retention (ADR-007).
+export const ingestionBurstLog = sqliteTable(
+  "ingestion_burst_log",
+  {
+    id: text("id").primaryKey(),
+    eventId: text("event_id").notNull(),
+    ownerId: text("owner_id").notNull(),
+    // UTC hour bucket ("YYYY-MM-DDTHH") — coarse grouping for the read-time
+    // window aggregation (the precise burst window uses `occurred_at`).
+    hourBucket: text("hour_bucket").notNull(),
+    occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uniq_ingestion_burst_log_event_id").on(table.eventId),
+    index("idx_ingestion_burst_log_owner_occurred").on(
+      table.ownerId,
+      desc(table.occurredAt),
+    ),
+    index("idx_ingestion_burst_log_occurred_at").on(table.occurredAt),
   ],
 );
 

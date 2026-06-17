@@ -1,4 +1,5 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import { InstanceLimits } from "@/core/domain/adminSettings/valueObject";
 import type { ServiceArgs } from "../types";
 import { assertAdmin } from "./authorization";
@@ -32,12 +33,20 @@ export async function updateInstanceLimits({
   const limits = InstanceLimits.create(input.limits);
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.updateLimits(current, limits, now);
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "instance_limits",
+          actor.id,
+          "インスタンス制限を更新",
+          now,
+        ),
+      ]);
     },
   );
 

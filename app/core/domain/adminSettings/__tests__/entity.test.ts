@@ -333,6 +333,13 @@ describe("InstanceSettings transitions advance version and updatedAt", () => {
     expect(reset.version).toBe(current.version + 1);
   });
 
+  it("resetDesignTokens on an already-empty map is a no-op", () => {
+    const current = seed();
+    const same = InstanceSettings.resetDesignTokens(current, at(5));
+    expect(same).toBe(current);
+    expect(same.version).toBe(current.version);
+  });
+
   it("setRegistrationOpen=false preserves closedReason; =true drops it", () => {
     const closed = InstanceSettings.setRegistrationOpen(
       seed(),

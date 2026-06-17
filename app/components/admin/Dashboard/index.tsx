@@ -14,10 +14,25 @@ import {
   ALERT_INFO,
   ALERT_TITLE_MONO,
   ALERT_WARNING,
+  tagBadge,
+  tagTone,
+  tagToneNeutral,
 } from "@/components/common/styles";
+import type { RecentActivityRowDTO } from "@/core/application/activityLog/getRecentActivity";
+import type { ActivityKind } from "@/core/application/activityLog/types";
+import type { HourlyMetricPointDTO } from "@/core/application/adminSettings/getUsageMetrics";
 import type { AlertDTO } from "@/core/application/dto/common";
 import { requireAdminUser } from "@/lib/server/currentUser";
-import { loadUsageMetrics } from "./action";
+import { loadRecentActivity, loadUsageMetrics } from "./action";
+import {
+  type ActivityTagTone,
+  activityTagTone,
+  buildSparkline,
+  CHART_HEIGHT,
+  CHART_WIDTH,
+  hasActivityRows,
+  sumCounts,
+} from "./chart";
 
 function formatNumber(value: number | null): string {
   if (value === null) return "—";
@@ -50,9 +65,124 @@ const ALERT_TONE_ICON: Record<AlertDTO["severity"], LucideIcon> = {
   info: Info,
 };
 
+function UploadsSparkline({
+  points,
+}: {
+  points: readonly HourlyMetricPointDTO[];
+}) {
+  const { line, area } = buildSparkline(points);
+  return (
+    <svg
+      className="w-full h-[140px] text-ink-secondary"
+      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="アップロード数の直近 24 時間の推移"
+    >
+      {/* `role="img"` + `aria-label` already names the chart; a duplicate
+          `<title>` would double-announce on some screen readers. */}
+      <defs>
+        <linearGradient id="uploads-spark-fill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#uploads-spark-fill)" />
+      <path
+        d={line}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Activity table — human labels and tag tones per ActivityKind. Only real,
+// backend-emitted kinds appear (虚偽表示禁止): there is no D1 nightly backup
+// row; "バックアップ"-adjacent activity is the per-owner export completion.
+const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
+  user_created: "新規ユーザー",
+  large_upload: "大量アップロード",
+  job_failed: "ジョブ失敗",
+  settings_changed: "設定変更",
+  export_completed: "エクスポート完了",
+};
+
+// Tag tone per ActivityKind, matching the P40 mock's `.tag` variants. The tone
+// is derived from the kind (display concern) rather than the row's backend
+// `severity`, so the table colours follow the mock without touching the
+// application-layer severity contract. `neutral` reuses the shared
+// neutral chip; the rest reuse the common `tagTone` palette.
+const ACTIVITY_TAG_TONE: Record<ActivityTagTone, string> = {
+  info: tagTone.info,
+  success: tagTone.success,
+  warning: tagTone.warning,
+  error: tagTone.error,
+  neutral: tagToneNeutral,
+};
+
+// Responsive table: desktop is a real table; on narrow widths each cell
+// stacks with an in-DOM column label (#545 / #589 ADR-004 — same approach
+// as the P46 Jobs table).
+const ACTIVITY_TABLE_WRAP =
+  "border border-hairline rounded-lg overflow-hidden max-sm:border-none max-sm:rounded-none";
+const ACTIVITY_TABLE = "w-full border-collapse text-sm max-sm:block";
+const ACTIVITY_TH =
+  "px-4 py-3 text-left align-middle text-ink-secondary font-medium border-b border-hairline";
+const ACTIVITY_ROW =
+  "border-t border-hairline first:border-t-0 max-sm:block max-sm:border max-sm:border-hairline max-sm:rounded-lg max-sm:mb-3 max-sm:p-4 max-sm:bg-bg";
+const ACTIVITY_TD =
+  "px-4 py-3 text-left align-middle max-sm:flex max-sm:gap-3 max-sm:items-start max-sm:px-0 max-sm:py-1";
+const ACTIVITY_STACK_LABEL =
+  "hidden max-sm:inline-block max-sm:w-[64px] shrink-0 text-ink-tertiary text-xs uppercase tracking-[0.04em]";
+
+/** HH:MM in the viewer's locale time zone, matching the #545 time format. */
+function formatActivityTime(iso: string): string {
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+function ActivityRow({ row }: { row: RecentActivityRowDTO }) {
+  return (
+    <tr className={ACTIVITY_ROW}>
+      <td className={ACTIVITY_TD}>
+        <span className={ACTIVITY_STACK_LABEL}>時刻</span>
+        <span className="text-ink-secondary tabular-nums">
+          {formatActivityTime(row.occurredAt)}
+        </span>
+      </td>
+      <td className={ACTIVITY_TD}>
+        <span className={ACTIVITY_STACK_LABEL}>種類</span>
+        <span
+          className={`${tagBadge} ${ACTIVITY_TAG_TONE[activityTagTone(row.kind)]}`}
+        >
+          {ACTIVITY_KIND_LABEL[row.kind]}
+        </span>
+      </td>
+      <td className={ACTIVITY_TD}>
+        <span className={ACTIVITY_STACK_LABEL}>対象</span>
+        <span className="max-sm:break-words">{row.target}</span>
+      </td>
+      <td className={ACTIVITY_TD}>
+        <span className={ACTIVITY_STACK_LABEL}>詳細</span>
+        <span className="text-ink-secondary max-sm:break-words">
+          {row.detail}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
 export async function AdminDashboard() {
   const actor = await requireAdminUser();
-  const metrics = await loadUsageMetrics(actor.id);
+  const [metrics, activity] = await Promise.all([
+    loadUsageMetrics(actor.id),
+    loadRecentActivity(actor.id),
+  ]);
   const totalStorage =
     metrics.storageDurableObjectBytes === null &&
     metrics.storageR2Bytes === null
@@ -151,6 +281,73 @@ export async function AdminDashboard() {
             {metrics.llmCallsToday === null ? "取得失敗" : "回 / 24h"}
           </div>
         </div>
+      </section>
+
+      <section className="mb-10" aria-label="直近 24 時間">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold tracking-tight m-0">
+            直近 24 時間
+          </h2>
+          {/* 「期間を変更」導線は遷移先が未実装のため描かない (ADR-004) */}
+        </div>
+        {/* モックはアップロード/LLM の 2 枚構成だが、LLM 系列はデータ源が無く
+            正しく非描画 (虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
+            空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す。 */}
+        <div className="grid grid-cols-1 gap-4">
+          <div className="border border-hairline rounded-lg p-5 bg-bg">
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <div className="text-sm text-ink-secondary">アップロード数</div>
+              <div className="text-lg font-regular tracking-tighter text-ink">
+                {metrics.uploadsHourly === null
+                  ? "—"
+                  : formatNumber(sumCounts(metrics.uploadsHourly))}
+              </div>
+            </div>
+            {metrics.uploadsHourly === null ? (
+              <div className="h-[140px] flex items-center justify-center text-xs text-ink-tertiary">
+                取得失敗
+              </div>
+            ) : (
+              <UploadsSparkline points={metrics.uploadsHourly} />
+            )}
+            <div className="text-xs text-ink-tertiary mt-2">
+              {metrics.uploadsHourly === null ? "取得失敗" : "件 / 24h（毎時）"}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-10" aria-label="最近のアクティビティ">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold tracking-tight m-0">
+            最近のアクティビティ
+          </h2>
+          {/* 「すべて見る」導線は全件一覧ルートが未実装のため描かない
+              (ADR-004)。空状態メッセージと二重表示にもならない。 */}
+        </div>
+        {!hasActivityRows(activity.rows.length) ? (
+          <div className="border border-hairline rounded-lg p-8 bg-bg text-center text-sm text-ink-secondary">
+            アクティビティはまだありません
+          </div>
+        ) : (
+          <div className={ACTIVITY_TABLE_WRAP}>
+            <table className={ACTIVITY_TABLE}>
+              <thead className="max-sm:hidden">
+                <tr>
+                  <th className={ACTIVITY_TH}>時刻</th>
+                  <th className={ACTIVITY_TH}>種類</th>
+                  <th className={ACTIVITY_TH}>対象</th>
+                  <th className={ACTIVITY_TH}>詳細</th>
+                </tr>
+              </thead>
+              <tbody className="max-sm:block">
+                {activity.rows.map((row) => (
+                  <ActivityRow key={row.key} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="mb-10">

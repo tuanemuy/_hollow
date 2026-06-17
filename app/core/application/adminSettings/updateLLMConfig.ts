@@ -1,5 +1,6 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
 import { AdminSettingsErrorCode } from "@/core/domain/adminSettings/errorCode";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import { AdminSettingsService } from "@/core/domain/adminSettings/service";
 import {
   LLMConfig,
@@ -89,8 +90,8 @@ export async function updateLLMConfig({
       : await container.secretBox.encrypt(input.apiKeyPlain);
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
 
@@ -155,6 +156,14 @@ export async function updateLLMConfig({
 
       const next = InstanceSettings.updateLLM(current, reconciled, now);
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "llm_config",
+          actor.id,
+          `LLM 設定を更新（${effectiveProvider}）`,
+          now,
+        ),
+      ]);
     },
   );
 

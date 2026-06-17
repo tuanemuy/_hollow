@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { FakeActivityLogRepository } from "@/core/application/__tests__/fakes/fakeActivityLogRepository";
 import type { WorkerContainer } from "@/core/application/di/types";
 import type { Clock } from "@/core/application/ports/clock";
 import type { OutboxRepository } from "@/core/application/ports/outboxRepository";
@@ -68,6 +69,8 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
       complete: vi.fn(async () => {}),
       fail: vi.fn(async () => {}),
     },
+    activityLogRepository:
+      overrides.activityLogRepository ?? new FakeActivityLogRepository(),
     clock: overrides.clock ?? { now: () => new Date(0) },
     idGenerator: overrides.idGenerator ?? {
       next: () => "00000000-0000-7000-8000-000000000000",

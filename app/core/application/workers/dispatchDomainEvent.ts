@@ -10,10 +10,19 @@ import type { NotePurgedEvent } from "@/core/domain/note/events";
 import { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSnapshot } from "@/core/domain/search/entity";
 import { TagId } from "@/core/domain/tag/valueObject";
+import { handleExportJobCompletedEvent } from "../activityLog/handleExportJobCompletedEvent";
+import { handleIngestionCreatedEvent } from "../activityLog/handleIngestionCreatedEvent";
+import { handleIngestionFailedEvent } from "../activityLog/handleIngestionFailedEvent";
+import { handleInstanceSettingsUpdatedEvent } from "../activityLog/handleInstanceSettingsUpdatedEvent";
+import { handleUserCreatedEvent as activityHandleUserCreatedEvent } from "../activityLog/handleUserCreatedEvent";
+import { adminSettingsEventDecoders } from "../adminSettings/eventDecoders";
 import type { ConsumerContainer } from "../di/types";
 import { NotFoundError } from "../errors";
+import { exportEventDecoders } from "../export/eventDecoders";
 import { handleUserDeletedEvent as exportHandleUserDeletedEvent } from "../export/handleUserDeletedEvent";
 import { runExportJob } from "../export/runExportJob";
+import { identityEventDecoders } from "../identity/eventDecoders";
+import { ingestionEventDecoders } from "../ingestion/eventDecoders";
 import { runIngestionJob } from "../ingestion/runIngestionJob";
 import { handleNotePurgedEvent as mediaHandleNotePurgedEvent } from "../media/handleNotePurgedEvent";
 import { handleLinkTargetResolution } from "../note/handleLinkTargetResolution";
@@ -84,6 +93,15 @@ export type DispatchOutcome =
  *   fan-out cannot cover; supersedes Issue #159 ADR-003 for directories).
  * - `user.deleted` → fan-out to `publication.handleUserDeletedEvent` then
  *   `export.handleUserDeletedEvent` (Issue #159 ADR-004)
+ * - `ingestion.created` → additionally fan-out to the activity-log burst
+ *   recorder for the "大量アップロード" row (ADR-005), alongside
+ *   `runIngestionJob`. Only `created` feeds the burst (retry / regenerate
+ *   are re-drives). The burst insert is keyed on `event.id`, so a later
+ *   `runIngestionJob` retry + redelivery does not double-count.
+ * - `user.created` / `ingestion.failed` / `export.job.completed` /
+ *   `instance_settings.updated` → activity-log projection handlers. Each
+ *   decodes its payload via the domain decoder before writing one
+ *   `event_id`-keyed row.
  * - Everything else → `skipped` (`share_link.*`, `media.*`,
  *   `ingestion.previewAttached`, ...). `media.uploaded` remains skipped
  *   because its physical event is never emitted (Issue #159 ADR-003 —
@@ -152,6 +170,73 @@ export async function dispatchDomainEvent(
         // `string` jobId (the domain brand is a structural subtype).
         const jobId = IngestionJobIdVO.create(payload.jobId);
         await runIngestionJob({ container, input: { jobId } });
+        // Fan-out — record the new upload in the burst log for the
+        // "大量アップロード" activity row (ADR-005). Only `ingestion.created`
+        // (a genuinely new upload) feeds the burst; retry / regenerate are
+        // re-drives of an existing job. The burst insert is keyed on
+        // `event.id` (`ON CONFLICT DO NOTHING`), so even when `runIngestionJob`
+        // later returns `retry` and the whole dispatch redelivers, the burst
+        // entry is not double-counted (ADR-005 fan-out idempotency).
+        if (event.type === "ingestion.created") {
+          const decoded = ingestionEventDecoders["ingestion.created"](
+            event.payload,
+            event,
+          );
+          await handleIngestionCreatedEvent({
+            container,
+            input: { event: decoded },
+          });
+        }
+        return { kind: "handled" };
+      }
+      case "ingestion.failed": {
+        // Project the failure into the activity log "ジョブ失敗" row.
+        const decoded = ingestionEventDecoders["ingestion.failed"](
+          event.payload,
+          event,
+        );
+        await handleIngestionFailedEvent({
+          container,
+          input: { event: decoded },
+        });
+        return { kind: "handled" };
+      }
+      case "user.created": {
+        // Project the new user into the activity log "新規ユーザー" row.
+        const decoded = identityEventDecoders["user.created"](
+          event.payload,
+          event,
+        );
+        await activityHandleUserCreatedEvent({
+          container,
+          input: { event: decoded },
+        });
+        return { kind: "handled" };
+      }
+      case "export.job.completed": {
+        // Project the per-owner export completion into the activity log
+        // (ADR-003 — this is the only real "バックアップ"-adjacent activity;
+        // no D1 nightly).
+        const decoded = exportEventDecoders["export.job.completed"](
+          event.payload,
+          event,
+        );
+        await handleExportJobCompletedEvent({
+          container,
+          input: { event: decoded },
+        });
+        return { kind: "handled" };
+      }
+      case "instance_settings.updated": {
+        // Project a settings change into the activity log "設定変更" row.
+        const decoded = adminSettingsEventDecoders["instance_settings.updated"](
+          event.payload,
+          event,
+        );
+        await handleInstanceSettingsUpdatedEvent({
+          container,
+          input: { event: decoded },
+        });
         return { kind: "handled" };
       }
       case "export.job.requested":

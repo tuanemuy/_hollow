@@ -23,7 +23,28 @@ export type UsageMetricsSnapshot = Readonly<{
   storageR2Bytes: number | null;
   uploadsToday: number | null;
   llmCallsToday: number | null;
+  /**
+   * Hourly upload counts over the most recent 24 hours, oldest bucket
+   * first. Each bucket is keyed by its UTC hour start. The series is
+   * always 24 entries when present — providers zero-fill hours with no
+   * ingestion so a genuine "0 uploads this hour" renders as a flat line,
+   * distinct from a fetch failure.
+   *
+   * `null` follows the same partial-failure contract as the scalar
+   * fields: the metric source failed and the UI renders a "取得失敗"
+   * placeholder. An empty/zeroed series is NOT `null` — it is real data.
+   */
+  uploadsHourly: ReadonlyArray<UsageMetricsHourlyPoint> | null;
   alerts: ReadonlyArray<UsageMetricsAlert>;
+}>;
+
+/**
+ * One hourly bucket in a 24h time series. `hourStart` is the UTC start
+ * of the bucket; `count` is the number of events recorded in that hour.
+ */
+export type UsageMetricsHourlyPoint = Readonly<{
+  hourStart: Date;
+  count: number;
 }>;
 
 export type UsageMetricsAlert = Readonly<{
@@ -47,6 +68,7 @@ export const NullUsageMetricsProvider: UsageMetricsProvider = {
       storageR2Bytes: null,
       uploadsToday: null,
       llmCallsToday: null,
+      uploadsHourly: null,
       alerts: [],
     };
   },

@@ -1,5 +1,6 @@
 import { BUILTIN_DESIGN_TOKENS } from "@/core/domain/adminSettings/defaults";
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import { DesignTokens } from "@/core/domain/adminSettings/valueObject";
 import type { ServiceArgs } from "../types";
 import { assertAdmin } from "./authorization";
@@ -34,13 +35,21 @@ export async function updateDesignTokens({
   const tokens = DesignTokens.create({ tokens: overrides });
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       const next = InstanceSettings.updateDesignTokens(current, tokens, now);
       if (next === current) return;
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "design_tokens",
+          actor.id,
+          "デザイントークンを更新",
+          now,
+        ),
+      ]);
     },
   );
 

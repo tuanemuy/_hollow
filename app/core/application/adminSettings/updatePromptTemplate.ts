@@ -1,4 +1,5 @@
 import { InstanceSettings } from "@/core/domain/adminSettings/entity";
+import { AdminSettingsEvents } from "@/core/domain/adminSettings/events";
 import {
   PromptPurpose,
   PromptTemplate,
@@ -39,8 +40,8 @@ export async function updatePromptTemplate({
   const isEmpty = input.template.text.length === 0;
 
   await container.unitOfWorkProvider.run(
-    async ({ userRepository, instanceSettingsRepository }) => {
-      await assertAdmin(userRepository, input.actorUserId);
+    async ({ userRepository, instanceSettingsRepository, collectEvents }) => {
+      const actor = await assertAdmin(userRepository, input.actorUserId);
       const { entity: current, expectedVersion } =
         await instanceSettingsRepository.get();
       let next: InstanceSettings;
@@ -55,6 +56,16 @@ export async function updatePromptTemplate({
       }
       if (next === current) return;
       await instanceSettingsRepository.save(next, expectedVersion);
+      collectEvents([
+        AdminSettingsEvents.updated(
+          "prompt_template",
+          actor.id,
+          isEmpty
+            ? `プロンプトをリセット（${purpose}）`
+            : `プロンプトを更新（${purpose}）`,
+          now,
+        ),
+      ]);
     },
   );
 

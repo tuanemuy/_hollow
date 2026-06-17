@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { FakeActivityLogRepository } from "@/core/application/__tests__/fakes/fakeActivityLogRepository";
 import type { WorkerContainer } from "@/core/application/di/types";
 import type { Clock } from "@/core/application/ports/clock";
 import { UserId } from "@/core/domain/identity/valueObject";
@@ -76,6 +77,7 @@ function makeContainer(
       countByDateRanges: vi.fn(async () => []),
     },
     indexJobRepository: over.indexJobRepository ?? makeIndexJobRepository(),
+    activityLogRepository: new FakeActivityLogRepository(),
     clock: over.clock ?? fixedClock(T0),
     idGenerator: over.idGenerator ?? new FakeIdGenerator(1),
     logger: new FakeLogger(),
