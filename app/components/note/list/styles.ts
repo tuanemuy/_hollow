@@ -128,7 +128,7 @@ export const mobileFilterBar = "hidden max-sm:flex items-center gap-2 mb-5";
  * carrying the filter glyph + label + applied-count badge. State is conveyed by
  * `aria-haspopup="dialog"` + `aria-expanded` only — intentionally NOT
  * `aria-pressed`/`aria-checked`, so it never enters the tag-toggle button set
- * the tests walk (#754 ADR-001, arch S-003).
+ * the tests walk (#754 ADR-001).
  */
 export const mobileFilterTrigger =
   "inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";

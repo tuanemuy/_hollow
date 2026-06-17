@@ -153,9 +153,9 @@ export function FilterBar({
   // `pickerOpen` / `openPopover`) deliberately NOT synced to props: when `run()`
   // commits a navigation the fresh props snap `useOptimistic` back to baseline
   // and re-render FilterBar, but `filterSheetOpen` is not props-derived so it
-  // survives — consecutive in-sheet filter edits keep the sheet open (#754
-  // arch S-005). Do not add a props-sync `useEffect` here (it would close the
-  // sheet on every navigation commit).
+  // survives — consecutive in-sheet filter edits keep the sheet open (#754).
+  // Do not add a props-sync `useEffect` here (it would close the sheet on every
+  // navigation commit).
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   // Mutually-exclusive popover state: opening one closes the others.
   const [openPopover, setOpenPopover] = useState<
@@ -635,7 +635,7 @@ export function FilterBar({
 
           {hasAnyFilter ? (
             // Clearing all does not close the sheet (`clearAll` only navigates),
-            // so the user can keep configuring filters afterwards (arch S-004).
+            // so the user can keep configuring filters afterwards.
             <button
               type="button"
               onClick={clearAll}
@@ -845,7 +845,7 @@ type DateRangeFieldsProps = Readonly<{
 }>;
 
 // Inner presentation shared by the desktop `DatePopover` and the mobile filter
-// sheet (#754 arch S-002): only the preset grid + range inputs are extracted,
+// sheet (#754): only the preset grid + range inputs are extracted,
 // the desktop popover's outer DOM (wrapper / clear・close row) is untouched so
 // AC-4 (desktop unchanged) holds.
 function DateRangeFields({

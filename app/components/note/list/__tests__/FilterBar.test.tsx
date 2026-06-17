@@ -95,7 +95,7 @@ function renderBar(tags: readonly Tag[], selectedTagNames: readonly string[]) {
 // wrapper and the `hidden max-sm:flex` mobile trigger bar BOTH live in the DOM
 // at once. Scope the desktop helpers to the `data-desktop-filters` wrapper so
 // they never pick up the mobile trigger or the in-sheet duplicate controls
-// (#754 Step 6).
+// (#754).
 function desktopScope(): HTMLElement {
   const el = container.querySelector<HTMLElement>("[data-desktop-filters]");
   if (!el) throw new Error("desktop filter wrapper not found");
@@ -162,7 +162,7 @@ function renderBarDirectory(
 function buttonByText(text: string): HTMLButtonElement {
   // Scoped to the desktop wrapper: the mobile trigger ("絞り込み") and the
   // in-sheet controls reuse some of the same labels, so an unscoped walk would
-  // be order-dependent under happy-dom (#754 Step 6).
+  // be order-dependent under happy-dom (#754).
   const btns = Array.from(
     desktopScope().querySelectorAll<HTMLButtonElement>("button"),
   );
@@ -928,7 +928,7 @@ describe("FilterBar — mobile aggregated sheet (Issue #754)", () => {
     expect(trigger).not.toBeNull();
     expect(trigger?.textContent).toContain("絞り込み");
     expect(trigger?.textContent).toContain("4");
-    // arch S-003: the trigger / badge must NOT carry aria-pressed/aria-checked
+    // The trigger / badge must NOT carry aria-pressed/aria-checked
     // (they would pollute the tag-toggle button set the helpers walk).
     expect(trigger?.getAttribute("aria-pressed")).toBeNull();
     expect(trigger?.getAttribute("aria-checked")).toBeNull();
@@ -996,7 +996,7 @@ describe("FilterBar — mobile aggregated sheet (Issue #754)", () => {
     });
     await flush();
     expect(routerNavigate).toHaveBeenCalledTimes(1);
-    // The sheet stays open across the navigation commit (arch S-005).
+    // The sheet stays open across the navigation commit.
     expect(sheet()).not.toBeNull();
   });
 
