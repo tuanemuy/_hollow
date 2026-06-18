@@ -17,4 +17,12 @@ export interface IdempotencyStore {
    */
   hasProcessed(id: EventId): Promise<boolean>;
   markProcessed(id: EventId): Promise<{ alreadyProcessed: boolean }>;
+  /**
+   * Time-based GC of processed records. Deletes rows stamped strictly
+   * before `olderThan`. The caller must pass a cutoff that exceeds the
+   * queue's maximum redelivery window so only records that can no longer
+   * gate a redelivery are removed — pruning a younger row would let a
+   * redelivered, already-handled event re-dispatch (Issue #747).
+   */
+  pruneProcessed(olderThan: Date): Promise<{ deleted: number }>;
 }

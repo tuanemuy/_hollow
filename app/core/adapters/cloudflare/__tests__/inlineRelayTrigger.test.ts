@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => {
     hasProcessed: vi.fn<(id: EventId) => Promise<boolean>>(),
     markProcessed:
       vi.fn<(id: EventId) => Promise<{ alreadyProcessed: boolean }>>(),
+    pruneProcessed: vi.fn<(olderThan: Date) => Promise<{ deleted: number }>>(),
     createWorkerContainer: vi.fn<(env: ServerEnv) => unknown>(),
     createConsumerContainer: vi.fn<(env: ServerEnv) => Promise<unknown>>(),
   };
@@ -78,6 +79,7 @@ vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
         idempotencyStore: {
           hasProcessed: mocks.hasProcessed,
           markProcessed: mocks.markProcessed,
+          pruneProcessed: mocks.pruneProcessed,
         },
       };
     },

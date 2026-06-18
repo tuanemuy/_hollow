@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventId } from "@/core/domain/common/event";
+import { processedEvents } from "../schema";
 import { createTestContainer } from "./helpers";
 
 let counter = 0;
@@ -86,5 +87,46 @@ describe("D1IdempotencyStore", () => {
     expect(first.alreadyProcessed).toBe(false);
     expect(second.alreadyProcessed).toBe(true);
     expect(await container.idempotencyStore.hasProcessed(id)).toBe(true);
+  });
+});
+
+describe("D1IdempotencyStore.pruneProcessed (integration)", () => {
+  it("deletes only records stamped strictly before the cutoff", async () => {
+    const container = createTestContainer();
+    const old = nextEventId();
+    const onCutoff = nextEventId();
+    const fresh = nextEventId();
+
+    await container.db.insert(processedEvents).values([
+      { id: old, processedAt: new Date(1_000) },
+      { id: onCutoff, processedAt: new Date(50_000) },
+      { id: fresh, processedAt: new Date(100_000) },
+    ]);
+
+    const result = await container.idempotencyStore.pruneProcessed(
+      new Date(50_000),
+    );
+    // Strictly-before: the row stamped exactly at the cutoff is retained.
+    expect(result.deleted).toBe(1);
+
+    const remaining = await container.db.select().from(processedEvents);
+    const remainingIds = remaining.map((r) => r.id).sort();
+    expect(remainingIds).toEqual([onCutoff, fresh].sort());
+  });
+
+  it("returns deleted=0 when nothing predates the cutoff", async () => {
+    const container = createTestContainer();
+    const id = nextEventId();
+    await container.db
+      .insert(processedEvents)
+      .values({ id, processedAt: new Date(100_000) });
+
+    const result = await container.idempotencyStore.pruneProcessed(
+      new Date(50_000),
+    );
+    expect(result.deleted).toBe(0);
+
+    const remaining = await container.db.select().from(processedEvents);
+    expect(remaining).toHaveLength(1);
   });
 });

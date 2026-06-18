@@ -2,42 +2,44 @@ import { describe, expect, it, vi } from "vitest";
 import { FakeActivityLogRepository } from "@/core/application/__tests__/fakes/fakeActivityLogRepository";
 import type { WorkerContainer } from "@/core/application/di/types";
 import type { Clock } from "@/core/application/ports/clock";
-import type { OutboxRepository } from "@/core/application/ports/outboxRepository";
+import type { IdempotencyStore } from "@/core/application/ports/idempotencyStore";
 import { FakeLogger } from "../../__tests__/fakes";
-import { pruneOutbox } from "../outboxPrune";
+import {
+  DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+  pruneProcessedEvents,
+} from "../pruneProcessedEvents";
 
 /**
- * Unit tests for `pruneOutbox`.
+ * Unit tests for `pruneProcessedEvents`.
  *
- * The worker is just a thin orchestrator around the repository — these tests
- * pin the contract:
+ * The worker is a thin orchestrator around the idempotency store — these
+ * tests pin the contract:
  *
  * - Cutoff = `clock.now() - retentionMs`, computed exactly once.
- * - Repository receives that cutoff as a `Date`.
+ * - `idempotencyStore.pruneProcessed` receives that cutoff as a `Date`.
  * - Result count is forwarded verbatim.
  * - An info log line is emitted with structured metadata.
  *
- * No DB is touched; the `OutboxRepository` is faked through a vitest mock so
- * we can assert exactly which `Date` reaches the adapter.
+ * No DB is touched; the `IdempotencyStore` is faked through a vitest mock
+ * so we can assert exactly which `Date` reaches the adapter.
  */
 
 function makeFixedClock(at: Date): Clock {
   return { now: () => at };
 }
 
-type StubRepoOptions = {
+type StubStoreOptions = {
   deleted: number;
   pruneSpy?: (olderThan: Date) => void;
 };
 
-function makeStubOutboxRepository({
+function makeStubIdempotencyStore({
   deleted,
   pruneSpy,
-}: StubRepoOptions): OutboxRepository {
+}: StubStoreOptions): IdempotencyStore {
   return {
-    save: vi.fn(async () => {}),
-    claimPending: vi.fn(async () => []),
-    finalize: vi.fn(async () => {}),
+    hasProcessed: vi.fn(async () => false),
+    markProcessed: vi.fn(async () => ({ alreadyProcessed: false })),
     pruneProcessed: vi.fn(async (olderThan: Date) => {
       pruneSpy?.(olderThan);
       return { deleted };
@@ -46,17 +48,18 @@ function makeStubOutboxRepository({
 }
 
 function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
-  // The worker reaches for `clock`, `logger`, `outboxRepository`. The
-  // remaining shared deps are stubbed at minimal viable shape since
-  // they aren't observed by `pruneOutbox`.
+  // The worker reaches for `clock`, `logger`, `idempotencyStore`. The
+  // remaining shared deps are stubbed at minimal viable shape since they
+  // aren't observed by `pruneProcessedEvents`.
   const base: WorkerContainer = {
-    outboxRepository:
-      overrides.outboxRepository ?? makeStubOutboxRepository({ deleted: 0 }),
-    idempotencyStore: overrides.idempotencyStore ?? {
-      hasProcessed: vi.fn(async () => false),
-      markProcessed: vi.fn(async () => ({ alreadyProcessed: false })),
+    outboxRepository: overrides.outboxRepository ?? {
+      save: vi.fn(async () => {}),
+      claimPending: vi.fn(async () => []),
+      finalize: vi.fn(async () => {}),
       pruneProcessed: vi.fn(async () => ({ deleted: 0 })),
     },
+    idempotencyStore:
+      overrides.idempotencyStore ?? makeStubIdempotencyStore({ deleted: 0 }),
     searchIndex: overrides.searchIndex ?? {
       upsert: vi.fn(async () => {}),
       delete: vi.fn(async () => {}),
@@ -82,12 +85,12 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
   return base;
 }
 
-describe("pruneOutbox", () => {
-  it("computes the cutoff as clock.now() - retentionMs and forwards it to the repository", async () => {
+describe("pruneProcessedEvents", () => {
+  it("computes the cutoff as clock.now() - retentionMs and forwards it to the store", async () => {
     const now = new Date("2026-04-27T12:00:00Z");
-    const retentionMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const retentionMs = DEFAULT_PROCESSED_EVENTS_RETENTION_MS; // 14 days
     let received: Date | undefined;
-    const outboxRepository = makeStubOutboxRepository({
+    const idempotencyStore = makeStubIdempotencyStore({
       deleted: 3,
       pruneSpy: (olderThan) => {
         received = olderThan;
@@ -95,21 +98,23 @@ describe("pruneOutbox", () => {
     });
     const container = makeContainer({
       clock: makeFixedClock(now),
-      outboxRepository,
+      idempotencyStore,
     });
 
-    const result = await pruneOutbox(container, { retentionMs });
+    const result = await pruneProcessedEvents(container, { retentionMs });
 
     expect(result).toEqual({ deleted: 3 });
     expect(received).toBeInstanceOf(Date);
     expect(received?.getTime()).toBe(now.getTime() - retentionMs);
   });
 
-  it("returns the count from the repository unchanged", async () => {
-    const outboxRepository = makeStubOutboxRepository({ deleted: 42 });
-    const container = makeContainer({ outboxRepository });
+  it("returns the count from the store unchanged", async () => {
+    const idempotencyStore = makeStubIdempotencyStore({ deleted: 42 });
+    const container = makeContainer({ idempotencyStore });
 
-    const { deleted } = await pruneOutbox(container, { retentionMs: 1_000 });
+    const { deleted } = await pruneProcessedEvents(container, {
+      retentionMs: 1_000,
+    });
     expect(deleted).toBe(42);
   });
 
@@ -117,14 +122,14 @@ describe("pruneOutbox", () => {
     const now = new Date("2026-04-27T12:00:00Z");
     const retentionMs = 60 * 1000;
     const logger = new FakeLogger();
-    const outboxRepository = makeStubOutboxRepository({ deleted: 5 });
+    const idempotencyStore = makeStubIdempotencyStore({ deleted: 5 });
     const container = makeContainer({
       clock: makeFixedClock(now),
-      outboxRepository,
+      idempotencyStore,
       logger,
     });
 
-    await pruneOutbox(container, { retentionMs });
+    await pruneProcessedEvents(container, { retentionMs });
 
     const infos = logger.byLevel("info");
     expect(infos).toHaveLength(1);
@@ -141,10 +146,12 @@ describe("pruneOutbox", () => {
     const logger = new FakeLogger();
     const container = makeContainer({
       logger,
-      outboxRepository: makeStubOutboxRepository({ deleted: 0 }),
+      idempotencyStore: makeStubIdempotencyStore({ deleted: 0 }),
     });
 
-    const { deleted } = await pruneOutbox(container, { retentionMs: 1_000 });
+    const { deleted } = await pruneProcessedEvents(container, {
+      retentionMs: 1_000,
+    });
 
     expect(deleted).toBe(0);
     const infos = logger.byLevel("info");
