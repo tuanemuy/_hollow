@@ -2111,6 +2111,65 @@ describe("getUsageMetrics", () => {
     expect(result.alerts[0]?.severity).toBe("warning");
   });
 
+  it("maps a present hourly series from Date to ISO8601 strings, preserving counts (#748 W-002)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    // 24 zero-filled buckets ending at a fixed UTC hour; bucket 0 carries a
+    // real count so the Date→ISO8601 map branch is exercised on a non-null
+    // series rather than the null-degrade path the other tests cover.
+    const baseHour = Date.UTC(2026, 5, 18, 0, 0, 0, 0);
+    const HOUR_MS = 60 * 60 * 1000;
+    const llmCallsHourly = Array.from({ length: 24 }, (_, i) => ({
+      hourStart: new Date(baseHour + i * HOUR_MS),
+      count: i === 0 ? 7 : 0,
+    }));
+    const uploadsHourly = Array.from({ length: 24 }, (_, i) => ({
+      hourStart: new Date(baseHour + i * HOUR_MS),
+      count: i === 23 ? 5 : 0,
+    }));
+    const baseContainer = createTestContainer();
+    const container = {
+      ...baseContainer,
+      usageMetricsProvider: new StubUsageMetricsProvider({
+        userCount: 1,
+        storageDurableObjectBytes: null,
+        storageR2Bytes: null,
+        uploadsToday: 5,
+        llmCallsToday: 7,
+        uploadsHourly,
+        llmCallsHourly,
+        alerts: [],
+      }),
+    };
+    const result = await getUsageMetrics({
+      container,
+      input: { actorUserId: ADMIN_ID },
+    });
+
+    expect(result.llmCallsHourly).not.toBeNull();
+    expect(result.llmCallsHourly).toHaveLength(24);
+    // Date is serialized to an ISO8601 string and the count is carried through.
+    expect(result.llmCallsHourly?.[0]).toEqual({
+      hourStart: "2026-06-18T00:00:00.000Z",
+      count: 7,
+    });
+    expect(result.llmCallsHourly?.[23]?.hourStart).toBe(
+      "2026-06-18T23:00:00.000Z",
+    );
+    expect(typeof result.llmCallsHourly?.[0]?.hourStart).toBe("string");
+
+    // The same map runs over the upload series — confirm it is also mapped.
+    expect(result.uploadsHourly).toHaveLength(24);
+    expect(result.uploadsHourly?.[23]).toEqual({
+      hourStart: "2026-06-18T23:00:00.000Z",
+      count: 5,
+    });
+  });
+
   // Tighten the assertion that `getUsageMetrics` itself enforces admin only.
   it("member is rejected with ForbiddenError before the metrics provider is invoked", async () => {
     await seedUser({

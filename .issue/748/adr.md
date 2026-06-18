@@ -98,12 +98,14 @@ Proposed
 懸念: #595 の「既存 scalar の挙動不変（#545 一致）」原則に抵触するか。
 
 ### Decision
-**scalar `llmCallsToday` のみ `llm_call_log` から実装する（`COUNT(*) WHERE occurred_at >= now-24h`、try/catch で `null` degrade）。** 他の scalar（`userCount` / `storage*` / `uploadsToday`）は引き続き `null` 固定のまま据え置く。
+**scalar `llmCallsToday` のみ `llm_call_log` から実装する（`COUNT(*)`、try/catch で `null` degrade）。** 他の scalar（`userCount` / `storage*` / `uploadsToday`）は引き続き `null` 固定のまま据え置く。
+
+**窓定義の確定（PR #760 review-001 W-001 を受けた実装時確定）**: scalar の下限は exact `now-24h`（sliding window）ではなく、hourly 系列と同一の **hour-aligned 下限 `windowStartIso()`（= `floorToHourUtc(now) - 23h`、現在の部分時 + 過去 23 完全時間）** を使う。これにより `scalar === sum(hourly series)` が境界条件によらず常に成立し、ダッシュボードの「LLM 呼び出し (24h)」カードと時系列グラフの 2 表示が必ず一致する。当初記述の `WHERE occurred_at >= now-24h`（exact sliding）は系列と下限が最大 1 時間ずれて合計不一致を招くため撤回する。
 
 理由: 本 Issue の主目的は「LLM 記録源新設」であり、その記録源があれば「LLM 呼び出し (24h)」カードを『取得失敗』から実数表示へ変えるのは虚偽表示禁止の鉄則にむしろ整合する（データ源ができたのに『取得失敗』を出し続ける方が不正直）。#595 が scalar を据え置いたのは「データ源が無いから」であり、データ源新設に伴い当該 scalar だけ実装するのは #595 の判断と矛盾しない（#595 ADR-002 自身が「scalar も D1 で埋めるのは別 Issue」と明示）。`uploadsToday` 等は本 Issue がデータ源を新設しないので触らない。
 
 ### Consequences
-- 良い点: 「LLM 呼び出し (24h)」カードが実数表示になり、虚偽表示（データ源があるのに取得失敗表示）を避けられる。時系列と scalar が同一テーブル由来で一致。
+- 良い点: 「LLM 呼び出し (24h)」カードが実数表示になり、虚偽表示（データ源があるのに取得失敗表示）を避けられる。時系列と scalar が同一テーブル由来かつ同一の hour-aligned 窓で一致（`scalar === sum(series)` が常に成立）。
 - トレードオフ: #545 で『取得失敗』だったカードの表示が変わる（が、これは正しい変化）。`llmCallsToday` は best-effort 記録由来なので「概算」であり、課金明細とは一致しない可能性がある（ADR-002 のトレードオフを継承）。他 3 scalar との「実装の不揃い」が残る（それらのデータ源は本 Issue 範囲外）。
 
 ---

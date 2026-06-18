@@ -619,6 +619,53 @@ describe("createRequestContainer — env → adapter mapping", () => {
     expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
   });
 
+  // ----- llmProviderName (provider-name truth source, #748 ADR-006 / W-003) --
+  it("loads container.llmProviderName from the resolved provider name (anthropic)", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmProvider: "anthropic",
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(container.llmProviderName).toBe("anthropic");
+  });
+
+  it("loads container.llmProviderName from the actually-built provider, not a hardcoded default (openai)", () => {
+    // ADR-006: the recorded name is the resolved provider name, not the env
+    // raw string nor the "anthropic" default. With `provider="openai"` the
+    // resolved name must be "openai" — a differential that an env-default
+    // regression (always "anthropic") would fail.
+    const container = createRequestContainer(
+      configWith({
+        adminLlmProvider: "openai",
+        adminLlmApiKey: "sk-openai-test",
+        adminLlmModel: "gpt-4o",
+      }),
+    );
+    expect(container.llmProviderName).toBe("openai");
+  });
+
+  it("defaults container.llmProviderName to anthropic when ADMIN_LLM_PROVIDER is unset but credentials are present", () => {
+    const container = createRequestContainer(
+      configWith({
+        adminLlmApiKey: "sk-ant-test",
+        adminLlmModel: "claude-3-5-sonnet-latest",
+      }),
+    );
+    expect(container.llmProvider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(container.llmProviderName).toBe("anthropic");
+  });
+
+  it("keeps a defined container.llmProviderName under Stub fallback (value unused since Stub is never recorded)", () => {
+    // The Stub path is intentionally never recorded (AC-1 caveat), so the
+    // name's value is don't-care; only its presence as a wired field matters.
+    const container = createRequestContainer(configWith());
+    expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
+    expect(container.llmProviderName).toBeDefined();
+  });
+
   // ----- ocrProvider ------------------------------------------------------
   it("wires AnthropicOCRProvider when both adminLlmApiKey and adminLlmModel are present", () => {
     const container = createRequestContainer(

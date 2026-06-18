@@ -29,6 +29,11 @@ export class D1LlmCallLogRecorder implements LlmCallLogRecorder {
         ownerId: entry.ownerId,
         provider: entry.provider,
         occurredAt: entry.occurredAt.toISOString(),
+        // `created_at` is a diagnostic-only physical-write timestamp, never
+        // read by the series/scalar aggregations (#748). Because this is a
+        // synchronous best-effort write taken right after the LLM call,
+        // `occurredAt` already coincides with the record time — so we reuse it
+        // instead of pulling in a dedicated `clock` dependency on the adapter.
         createdAt: entry.occurredAt,
       });
     });

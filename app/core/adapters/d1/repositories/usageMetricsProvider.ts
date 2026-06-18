@@ -19,7 +19,8 @@ const HOUR_MS = 3_600_000;
  * `ingestion_jobs.created_at`) and LLM calls (from `llm_call_log.occurred_at`,
  * #748). Both columns are UTC ISO8601 text, so both series share the same
  * `substr(...,1,13)` hour bucketing. The `llmCallsToday` scalar is also
- * sourced from `llm_call_log` (24h `COUNT(*)`, #748 ADR-004). The remaining
+ * sourced from `llm_call_log` (`COUNT(*)` over the same hour-aligned 24h
+ * window as the series, so `scalar === sum(series)`, #748 ADR-004). The remaining
  * scalar fields (`userCount` / `storage*` / `uploadsToday`) stay `null` so
  * those metric cards keep their "取得失敗" behaviour — populating them from D1
  * is a separate Issue.
@@ -129,21 +130,20 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
   }
 
   /**
-   * `llm_call_log` count over the trailing 24h window (#748 ADR-004). The
-   * window start is the same ISO8601 lower bound the hourly series uses, so
-   * the scalar and the series agree on the window. Best-effort: a query
-   * failure degrades to `null` ("取得失敗"), never throws.
+   * `llm_call_log` count over the 24h display window (#748 ADR-004). The
+   * lower bound is `windowStartIso()` — the same hour-aligned ISO8601 bound
+   * the hourly series uses (current partial hour + previous 23 full hours),
+   * not an exact `now - 24h` sliding window. Sharing the bound guarantees
+   * `scalar === sum(hourly series)`, which the dashboard relies on (#748
+   * ADR-004 Consequences). Best-effort: a query failure degrades to `null`
+   * ("取得失敗"), never throws.
    */
   private async collectLlmCallsToday(): Promise<number | null> {
-    const now = this.clock.now();
-    const windowStartIso = new Date(
-      now.getTime() - HOURS_IN_WINDOW * HOUR_MS,
-    ).toISOString();
     try {
       const rows = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(llmCallLog)
-        .where(gte(llmCallLog.occurredAt, windowStartIso));
+        .where(gte(llmCallLog.occurredAt, this.windowStartIso()));
       return Number(rows[0]?.count ?? 0);
     } catch (error) {
       this.logger?.warn("Failed to collect 24h LLM call count", { error });

@@ -294,7 +294,7 @@ export async function AdminDashboard() {
           </h2>
           {/* 「期間を変更」導線は遷移先が未実装のため描かない (ADR-004) */}
         </div>
-        <div className="grid grid-cols-1 gap-4 max-sm:gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 max-sm:gap-3 lg:grid-cols-2">
           <div className="border border-hairline rounded-lg p-5 bg-bg">
             <div className="flex items-baseline justify-between gap-3 mb-4">
               <div className="text-sm font-medium text-ink-secondary">
@@ -307,7 +307,7 @@ export async function AdminDashboard() {
               </div>
             </div>
             {metrics.uploadsHourly === null ? (
-              <div className="h-[140px] flex items-center justify-center text-xs text-ink-tertiary">
+              <div className="h-[140px] max-sm:h-[120px] flex items-center justify-center text-xs text-ink-tertiary">
                 取得失敗
               </div>
             ) : (
@@ -333,7 +333,7 @@ export async function AdminDashboard() {
               </div>
             </div>
             {metrics.llmCallsHourly === null ? (
-              <div className="h-[140px] flex items-center justify-center text-xs text-ink-tertiary">
+              <div className="h-[140px] max-sm:h-[120px] flex items-center justify-center text-xs text-ink-tertiary">
                 取得失敗
               </div>
             ) : (

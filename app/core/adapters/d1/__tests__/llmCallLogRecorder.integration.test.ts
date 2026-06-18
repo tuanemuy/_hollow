@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { D1LlmCallLogRecorder } from "../repositories/llmCallLogRecorder";
 import * as schema from "../schema";
 import { createTestContainer, type TestContainer } from "./helpers";
@@ -21,6 +21,12 @@ async function countRows(container: TestContainer): Promise<number> {
 }
 
 describe("D1LlmCallLogRecorder (integration)", () => {
+  // Tests share one D1 binding (env.DB); clear the table first so the global
+  // row-count and prune-count assertions don't see rows from other tests (#748).
+  beforeEach(async () => {
+    await createTestContainer().db.delete(schema.llmCallLog);
+  });
+
   it("recordCall inserts one row per call (no conflict handling — ADR-008)", async () => {
     const container = createTestContainer();
     const recorder = new D1LlmCallLogRecorder(container.db);

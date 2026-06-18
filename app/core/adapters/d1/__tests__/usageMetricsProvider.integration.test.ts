@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { Clock } from "@/core/application/ports/clock";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { D1UsageMetricsProvider } from "../repositories/usageMetricsProvider";
@@ -93,6 +93,13 @@ async function seedLlmCall(
 }
 
 describe("D1UsageMetricsProvider (integration)", () => {
+  // Tests share one D1 binding (env.DB), so clear the llm_call_log read-model
+  // before each test — the empty/zero and exact-count assertions below would
+  // otherwise see rows leaked from earlier tests in this file (#748).
+  beforeEach(async () => {
+    await createTestContainer().db.delete(schema.llmCallLog);
+  });
+
   it("returns 24 hourly buckets oldest-first, keyed by UTC hour start", async () => {
     const container = createTestContainer();
     const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
@@ -219,18 +226,26 @@ describe("D1UsageMetricsProvider (integration)", () => {
     expect(series.every((point) => point.count === 0)).toBe(true);
   });
 
-  it("computes llmCallsToday as the trailing-24h COUNT(*) with correct window boundaries", async () => {
+  it("computes llmCallsToday over the hour-aligned 24h window, matching the series sum (#748 ADR-004)", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
-    // Inside the 24h window (now - 24h = 2026-06-09T12:30Z).
+    // The scalar shares the hour-aligned lower bound of the series:
+    // floorToHourUtc(now) - 23h = 2026-06-09T13:00:00.000Z (gte, inclusive).
     await seedLlmCall(container, owner, new Date("2026-06-10T12:10:00.000Z"));
     await seedLlmCall(container, owner, new Date("2026-06-09T13:00:00.000Z"));
-    // Exactly outside the window (just before the boundary).
+    // Just before the hour-aligned boundary — excluded.
     await seedLlmCall(container, owner, new Date("2026-06-09T12:00:00.000Z"));
 
     const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
     const snapshot = await provider.collect();
     expect(snapshot.llmCallsToday).toBe(2);
+
+    // Invariant: scalar equals the sum of the hourly series (same window).
+    const seriesTotal = (snapshot.llmCallsHourly ?? []).reduce(
+      (acc, point) => acc + point.count,
+      0,
+    );
+    expect(snapshot.llmCallsToday).toBe(seriesTotal);
   });
 
   it("reports llmCallsToday = 0 (not null) when there are no calls — 0 is real data", async () => {
