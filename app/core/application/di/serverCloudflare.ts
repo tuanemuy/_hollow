@@ -323,6 +323,7 @@ export type ServerEnv = Readonly<{
   OUTBOX_LEASE_MS?: string;
   OUTBOX_MAX_ATTEMPTS?: string;
   OUTBOX_RETENTION_MS?: string;
+  PROCESSED_EVENTS_RETENTION_MS?: string;
   // Indexer tuning. Parsed by `readIndexerTuning` at the worker entry
   // boundary; missing values fall back to defaults exported from
   // `processIndexJobs.ts`.

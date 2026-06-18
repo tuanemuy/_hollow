@@ -16,6 +16,7 @@ import {
   DEFAULT_MAX_ATTEMPTS,
 } from "@/core/application/workers/eventRelayWorker";
 import { DEFAULT_OUTBOX_RETENTION_MS } from "@/core/application/workers/outboxPrune";
+import { DEFAULT_PROCESSED_EVENTS_RETENTION_MS } from "@/core/application/workers/pruneProcessedEvents";
 import {
   SecretBoxError,
   SecretBoxErrorCode,
@@ -117,27 +118,52 @@ describe("readRelayTuning", () => {
 });
 
 describe("readPruneTuning", () => {
-  it("falls back to the application-layer default when no env var is set", () => {
+  it("falls back to the application-layer defaults when no env var is set", () => {
     const tuning = readPruneTuning(envWith());
-    expect(tuning).toEqual({ retentionMs: DEFAULT_OUTBOX_RETENTION_MS });
+    expect(tuning).toEqual({
+      retentionMs: DEFAULT_OUTBOX_RETENTION_MS,
+      processedEventsRetentionMs: DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+    });
   });
 
-  it("coerces the retention var to a number", () => {
+  it("coerces the retention vars to numbers", () => {
+    const tuning = readPruneTuning(
+      envWith({
+        OUTBOX_RETENTION_MS: "86400000",
+        PROCESSED_EVENTS_RETENTION_MS: "172800000",
+      }),
+    );
+    expect(tuning).toEqual({
+      retentionMs: 86_400_000,
+      processedEventsRetentionMs: 172_800_000,
+    });
+  });
+
+  it("defaults processed-events retention independently of outbox retention", () => {
     const tuning = readPruneTuning(
       envWith({ OUTBOX_RETENTION_MS: "86400000" }),
     );
-    expect(tuning).toEqual({ retentionMs: 86_400_000 });
+    expect(tuning).toEqual({
+      retentionMs: 86_400_000,
+      processedEventsRetentionMs: DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+    });
   });
 
   it("rejects non-positive retention", () => {
     expect(() =>
       readPruneTuning(envWith({ OUTBOX_RETENTION_MS: "0" })),
     ).toThrow();
+    expect(() =>
+      readPruneTuning(envWith({ PROCESSED_EVENTS_RETENTION_MS: "0" })),
+    ).toThrow();
   });
 
   it("rejects non-numeric retention", () => {
     expect(() =>
       readPruneTuning(envWith({ OUTBOX_RETENTION_MS: "forever" })),
+    ).toThrow();
+    expect(() =>
+      readPruneTuning(envWith({ PROCESSED_EVENTS_RETENTION_MS: "forever" })),
     ).toThrow();
   });
 });

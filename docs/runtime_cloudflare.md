@@ -40,7 +40,7 @@ The main app and five sibling Workers ship from a **per-stage `wrangler.<stage>.
 | Relay       | Publish outbox rows — Service Binding kick + safety-net cron                                           | `--env relay`    | `DB`, `EVENTS_QUEUE`                                                                                                                              | `fetch` (Service Binding) + 5-minute Cron Trigger    |
 | Consumer    | Consume the Queue, dispatch into `runIngestionJob` / `runExportJob` / search & publication note handlers, write projections / idempotency  | `--env consumer` | `DB`, `TEMP_FILES` / `OBJECT_STORAGE` (R2), `RELAY` (Service Binding) — dispatch-side secrets `SECRET_BOX_MASTER_KEY`, `ADMIN_LLM_API_KEY`, `ADMIN_SPEECH_API_KEY`, `R2_*` | Queue consumer (`events`)                            |
 | Indexer     | Drain `index_jobs` rows through `consumeIndexJob` (search-document upsert / delete)                    | `--env indexer`  | `DB`                                                                                                                                              | 5-minute Cron Trigger                                |
-| Pruner      | Daily cron that prunes processed outbox rows                                                           | `--env pruner`   | `DB`                                                                                                                                              | Daily Cron Trigger                                   |
+| Pruner      | Daily cron that prunes processed outbox rows, idempotency records (`processed_events`), and activity-log read models | `--env pruner`   | `DB`                                                                                                                                              | Daily Cron Trigger                                   |
 | DLQ         | Surface events that exhausted the consumer's retry budget                                              | `--env dlq`      | `DB`                                                                                                                                              | Queue consumer (`events-dlq`)                        |
 
 Trigger model: the request path kicks the relay through the `RELAY` Service Binding right after a UoW commit, so newly-persisted events publish without waiting on cron. The relay also runs on a 5-minute safety-net cron in case the Service Binding path fails. Inside a tick, `processOutboxEvents` drains up to `maxIterations` consecutive batches so a backlog is flushed in one trigger rather than 1 batch per minute.
@@ -141,7 +141,7 @@ wrangler secret put MY_SECRET --config wrangler.production.toml
 
 For local dev, drop them into `.dev.vars` (copied from `.dev.vars.example`).
 
-The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`.
+The outbox tuning variables (`OUTBOX_BATCH_SIZE`, `OUTBOX_LEASE_MS`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_RETENTION_MS`, `PROCESSED_EVENTS_RETENTION_MS`) live in `[vars]` (not `.dev.vars`) and are parsed by `app/core/application/di/env.ts`. Unset values fall back to the defaults declared in `app/core/application/workers/`. `PROCESSED_EVENTS_RETENTION_MS` (default 14 days) bounds how long idempotency dedup records are kept; it must exceed the queue's max redelivery window (the Cloudflare Queues message-retention ceiling is 14 days) so pruning never resurrects a duplicate dispatch (Issue #747).
 
 The indexer tuning variables (`INDEXER_BATCH_SIZE`, `INDEXER_MAX_BATCHES`) follow the same pattern: declared in `[env.indexer.vars]`, parsed by `readIndexerTuning` (`app/core/application/di/env.ts`), and fall back to the defaults exported from `app/core/application/workers/processIndexJobs.ts` (`DEFAULT_INDEXER_BATCH_SIZE = 50`, `DEFAULT_INDEXER_MAX_BATCHES = 20`).
 
@@ -318,7 +318,7 @@ Three cron triggers ship in `wrangler.<stage>.toml`:
 | ------- | -------------- | -------------------------------------------------------------------- |
 | Relay   | every 5 min    | Safety-net publish loop — kicks in when the Service Binding fails.   |
 | Indexer | every 5 min    | Drains `index_jobs` rows produced by note.* / publication.* dispatch.|
-| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows beyond retention. |
+| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows, idempotency records (`processed_events`), and activity-log read models beyond retention. |
 
 ## Retry budget
 

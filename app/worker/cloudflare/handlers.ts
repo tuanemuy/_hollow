@@ -28,6 +28,7 @@ import {
 } from "@/core/application/workers/processIndexJobs";
 import { pruneActivityLog } from "@/core/application/workers/pruneActivityLog";
 import { pruneLlmCallLog } from "@/core/application/workers/pruneLlmCallLog";
+import { pruneProcessedEvents } from "@/core/application/workers/pruneProcessedEvents";
 import type { DomainEvent } from "@/core/domain/common/event";
 
 export type RelayEnv = ServerEnv &
@@ -83,26 +84,47 @@ export async function runRelayTick(
  * Quarantined rows (`failed_at IS NOT NULL`) are intentionally
  * preserved for operator inspection.
  *
- * The daily tick also sweeps the activity-log read-model tables
- * (`activity_log` / `ingestion_burst_log`) and the `llm_call_log` read-model
- * (#748 ADR-005), which the outbox pruner does not touch (ADR-007). A
- * failure in any of these must not block the outbox prune or the others, so
- * each runs in its own try/catch and its outcome is logged-and-swallowed;
- * the result reflects only the outbox count (the contract callers read).
+ * The daily tick sweeps several independent tables:
+ * - `outbox_events`: processed (non-quarantined) rows past `retentionMs`.
+ * - `processed_events`: idempotency dedup records past
+ *   `processedEventsRetentionMs` — the bound that keeps redelivery
+ *   correct (Issue #747). Its count is part of the returned contract.
+ * - the activity-log read-model tables (`activity_log` /
+ *   `ingestion_burst_log`), which the outbox pruner does not touch
+ *   (ADR-007).
+ * - the `llm_call_log` read-model (#748 ADR-005), likewise untouched by
+ *   the outbox pruner.
+ *
+ * The outbox prune runs first; nothing is committed until it succeeds,
+ * so it may throw. Every prune *after* it (processed-events, activity,
+ * llm-call-log) runs best-effort in its own try/catch: a transient D1
+ * failure there must not unwind the already-committed outbox delete nor
+ * block the other post-outbox prunes, so it is swallowed and logged — the
+ * same per-row tolerance the worker uses elsewhere (CLAUDE.md
+ * "worker → root"). A swallowed processed-events failure surfaces as a
+ * `0` count in the result.
  */
 export async function runPruneTick(
   env: PrunerEnv,
   override?: Partial<PruneOutboxOptions>,
-): Promise<{ deleted: number }> {
+): Promise<{ outboxDeleted: number; processedEventsDeleted: number }> {
   const container = createWorkerContainer(env);
-  const result = await pruneOutbox(container, {
-    ...readPruneTuning(env),
+  const tuning = readPruneTuning(env);
+  const { deleted: outboxDeleted } = await pruneOutbox(container, {
+    retentionMs: tuning.retentionMs,
     ...override,
   });
-  // Activity-log prune must not block the (already-committed) outbox prune.
-  // A transient D1 failure here is swallowed and logged so the tick still
-  // returns the outbox count — the same per-row tolerance the worker uses
-  // elsewhere (CLAUDE.md "worker → root").
+  let processedEventsDeleted = 0;
+  try {
+    ({ deleted: processedEventsDeleted } = await pruneProcessedEvents(
+      container,
+      { retentionMs: tuning.processedEventsRetentionMs },
+    ));
+  } catch (error) {
+    container.logger.error("[prune] processed-events prune failed", {
+      cause: error,
+    });
+  }
   try {
     await pruneActivityLog(container);
   } catch (error) {
@@ -120,7 +142,7 @@ export async function runPruneTick(
       cause: error,
     });
   }
-  return result;
+  return { outboxDeleted, processedEventsDeleted };
 }
 
 /**

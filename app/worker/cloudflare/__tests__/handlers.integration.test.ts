@@ -285,7 +285,7 @@ describe("pruner Worker — runPruneTick", () => {
       .where(eq(outboxEvents.id, event.id));
 
     const result = await runPruneTick(prunerEnv());
-    expect(result.deleted).toBe(1);
+    expect(result.outboxDeleted).toBe(1);
 
     const remaining = await db.select().from(outboxEvents);
     expect(remaining).toHaveLength(0);
@@ -304,10 +304,53 @@ describe("pruner Worker — runPruneTick", () => {
       .where(eq(outboxEvents.id, event.id));
 
     const result = await runPruneTick(prunerEnv());
-    expect(result.deleted).toBe(0);
+    expect(result.outboxDeleted).toBe(0);
 
     const remaining = await db.select().from(outboxEvents);
     expect(remaining).toHaveLength(1);
+  });
+
+  it("prunes processed_events records older than the retention window and retains recent ones", async () => {
+    const db = getDatabase(env.DB);
+    // Default processed-events retention is 14 days; stamp one row well
+    // beyond it and one inside it.
+    const beyond = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recent = new Date(Date.now() - 60 * 1000); // 1 min ago
+    const staleId = EventId.create("0193e7d0-9001-7000-9000-700000000001");
+    const freshId = EventId.create("0193e7d0-9002-7000-9000-700000000002");
+    await db.insert(processedEvents).values([
+      { id: staleId, processedAt: beyond },
+      { id: freshId, processedAt: recent },
+    ]);
+
+    const result = await runPruneTick(prunerEnv());
+    expect(result.processedEventsDeleted).toBe(1);
+
+    const remaining = await db.select().from(processedEvents);
+    expect(remaining.map((r) => r.id)).toEqual([freshId]);
+  });
+
+  it("sweeps outbox and processed_events in the same tick", async () => {
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
+    await seedOutbox([event]);
+
+    const db = getDatabase(env.DB);
+    const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await db
+      .update(outboxEvents)
+      .set({ processedAt: longAgo })
+      .where(eq(outboxEvents.id, event.id));
+    await db.insert(processedEvents).values({
+      id: EventId.create("0193e7d0-9003-7000-9000-700000000003"),
+      processedAt: longAgo,
+    });
+
+    const result = await runPruneTick(prunerEnv());
+    expect(result).toEqual({ outboxDeleted: 1, processedEventsDeleted: 1 });
+
+    expect(await db.select().from(outboxEvents)).toHaveLength(0);
+    expect(await db.select().from(processedEvents)).toHaveLength(0);
   });
 
   // #748 ADR-005 / arch[S-003]: the activity-log prune and the
@@ -345,7 +388,7 @@ describe("pruner Worker — runPruneTick", () => {
     const result = await runPruneTick(prunerEnv());
 
     // Outbox prune (runs first, unaffected) still reports its delete.
-    expect(result.deleted).toBe(1);
+    expect(result.outboxDeleted).toBe(1);
     expect(activitySpy).toHaveBeenCalled();
 
     // The llm_call_log prune ran despite the activity-log failure.
@@ -382,7 +425,7 @@ describe("pruner Worker — runPruneTick", () => {
     const result = await runPruneTick(prunerEnv());
 
     // Outbox prune still reports its delete; tick does not throw.
-    expect(result.deleted).toBe(1);
+    expect(result.outboxDeleted).toBe(1);
     // The llm prune was attempted (and swallowed)...
     expect(llmSpy).toHaveBeenCalled();
     // ...and the activity-log prune still ran to its delete call.
