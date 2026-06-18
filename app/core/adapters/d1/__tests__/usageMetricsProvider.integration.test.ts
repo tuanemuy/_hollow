@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Clock } from "@/core/application/ports/clock";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import { D1UsageMetricsProvider } from "../repositories/usageMetricsProvider";
@@ -93,13 +93,6 @@ async function seedLlmCall(
 }
 
 describe("D1UsageMetricsProvider (integration)", () => {
-  // Tests share one D1 binding (env.DB), so clear the llm_call_log read-model
-  // before each test — the empty/zero and exact-count assertions below would
-  // otherwise see rows leaked from earlier tests in this file (#748).
-  beforeEach(async () => {
-    await createTestContainer().db.delete(schema.llmCallLog);
-  });
-
   it("returns 24 hourly buckets oldest-first, keyed by UTC hour start", async () => {
     const container = createTestContainer();
     const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));

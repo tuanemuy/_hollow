@@ -42,9 +42,14 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
   ) {}
 
   async collect(): Promise<UsageMetricsSnapshot> {
-    const uploadsHourly = await this.collectUploadsHourly();
-    const llmCallsHourly = await this.collectLlmCallsHourly();
-    const llmCallsToday = await this.collectLlmCallsToday();
+    // Read the clock once and thread it through every aggregation. Otherwise
+    // an hour rollover between calls could place the scalar and the hourly
+    // series in different windows, breaking `scalar === sum(series)` (#748
+    // ADR-004).
+    const now = this.clock.now();
+    const uploadsHourly = await this.collectUploadsHourly(now);
+    const llmCallsHourly = await this.collectLlmCallsHourly(now);
+    const llmCallsToday = await this.collectLlmCallsToday(now);
     return {
       userCount: null,
       storageDurableObjectBytes: null,
@@ -57,7 +62,9 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
     };
   }
 
-  private async collectUploadsHourly(): Promise<ReadonlyArray<UsageMetricsHourlyPoint> | null> {
+  private async collectUploadsHourly(
+    now: Date,
+  ): Promise<ReadonlyArray<UsageMetricsHourlyPoint> | null> {
     try {
       const rows = await this.db
         .select({
@@ -65,9 +72,9 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
           count: sql<number>`count(*)`,
         })
         .from(ingestionJobs)
-        .where(gte(ingestionJobs.createdAt, this.windowStartIso()))
+        .where(gte(ingestionJobs.createdAt, this.windowStartIso(now)))
         .groupBy(sql`substr(${ingestionJobs.createdAt}, 1, 13)`);
-      return this.fillBuckets(rows);
+      return this.fillBuckets(rows, now);
     } catch (error) {
       // Partial-failure contract: never throw. Degrade this series to
       // `null` so the UI renders a "取得失敗" placeholder.
@@ -76,7 +83,9 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
     }
   }
 
-  private async collectLlmCallsHourly(): Promise<ReadonlyArray<UsageMetricsHourlyPoint> | null> {
+  private async collectLlmCallsHourly(
+    now: Date,
+  ): Promise<ReadonlyArray<UsageMetricsHourlyPoint> | null> {
     try {
       // `llm_call_log.occurred_at` is UTC ISO8601 text, so the same
       // lexical `substr(...,1,13)` bucketing as the upload series applies —
@@ -87,9 +96,9 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
           count: sql<number>`count(*)`,
         })
         .from(llmCallLog)
-        .where(gte(llmCallLog.occurredAt, this.windowStartIso()))
+        .where(gte(llmCallLog.occurredAt, this.windowStartIso(now)))
         .groupBy(sql`substr(${llmCallLog.occurredAt}, 1, 13)`);
-      return this.fillBuckets(rows);
+      return this.fillBuckets(rows, now);
     } catch (error) {
       this.logger?.warn("Failed to collect hourly LLM call metrics", { error });
       return null;
@@ -97,8 +106,8 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
   }
 
   /** ISO8601 lower bound = start of the oldest of the 24 hour buckets. */
-  private windowStartIso(): string {
-    const currentHourStart = floorToHourUtc(this.clock.now());
+  private windowStartIso(now: Date): string {
+    const currentHourStart = floorToHourUtc(now);
     return new Date(
       currentHourStart.getTime() - (HOURS_IN_WINDOW - 1) * HOUR_MS,
     ).toISOString();
@@ -113,8 +122,9 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
    */
   private fillBuckets(
     rows: ReadonlyArray<{ bucket: string; count: number }>,
+    now: Date,
   ): ReadonlyArray<UsageMetricsHourlyPoint> {
-    const currentHourStart = floorToHourUtc(this.clock.now());
+    const currentHourStart = floorToHourUtc(now);
     const buckets: Date[] = [];
     for (let i = HOURS_IN_WINDOW - 1; i >= 0; i -= 1) {
       buckets.push(new Date(currentHourStart.getTime() - i * HOUR_MS));
@@ -138,12 +148,12 @@ export class D1UsageMetricsProvider implements UsageMetricsProvider {
    * ADR-004 Consequences). Best-effort: a query failure degrades to `null`
    * ("取得失敗"), never throws.
    */
-  private async collectLlmCallsToday(): Promise<number | null> {
+  private async collectLlmCallsToday(now: Date): Promise<number | null> {
     try {
       const rows = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(llmCallLog)
-        .where(gte(llmCallLog.occurredAt, this.windowStartIso()));
+        .where(gte(llmCallLog.occurredAt, this.windowStartIso(now)));
       return Number(rows[0]?.count ?? 0);
     } catch (error) {
       this.logger?.warn("Failed to collect 24h LLM call count", { error });

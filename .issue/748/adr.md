@@ -228,3 +228,37 @@ plan は LLM hourly 系列を `collectUploadsHourly` と「同型」で追加す
 ### Consequences
 - 良い点: 24 本 0 埋め・ウィンドウ計算が 1 箇所になり両系列で必ず一致（`any` を使わず lint 規約遵守）。テストで「両系列の hourStart 列が一致」を簡潔に検証できる。
 - トレードオフ: クエリ本体は 2 メソッドに残る（カラムが異なるため）。これは型安全と引き換えの許容範囲。
+
+---
+
+## ADR-011: `collect()` で clock を1度だけ読み全集計に注入（hour 境界 TOCTOU 回避）
+
+### Status
+Accepted（PR #760 Round 2 レビュー W-001 対応）
+
+### Context
+`D1UsageMetricsProvider.collect()` は hourly 系列・scalar の各集計メソッドがそれぞれ `this.clock.now()` を呼んでいた。ADR-004 で scalar と hourly series は同じ `windowStartIso()` 窓を共有し `scalar === sum(series)` を保証する設計にしたが、各集計が別々に now を読むと、集計の合間に hour 境界をまたいだ場合に窓下限が 1 時間ずれ、不変条件が崩れうる（TOCTOU）。
+
+### Decision
+`collect()` 冒頭で `const now = this.clock.now()` を1度だけ確定し、`collectUploadsHourly(now)` / `collectLlmCallsHourly(now)` / `collectLlmCallsToday(now)` / `windowStartIso(now)` / `fillBuckets(rows, now)` へ引数として注入する。各メソッドは ambient な clock 読み出しをやめる。
+
+### Consequences
+- 良い点: 1回の `collect()` 内で全系列・scalar が同一の now・同一窓を共有し、hour 境界でも `scalar === sum(series)` が構造的に成立する。
+- トレードオフ: メソッドシグネチャに `now: Date` が増えるが、決定論性が上がりテストも fixedClock 1点で全経路を固定できる。
+
+---
+
+## ADR-012: integration テストの `llm_call_log` クリーンを共有 setup の SSOT に集約
+
+### Status
+Accepted（PR #760 Round 2 レビュー W-001 対応）
+
+### Context
+新テーブル `llm_call_log` を共有 D1（`env.DB`）の integration テスト群のクリーン対象（`__tests__/setup.ts` の `CLEAN_STATEMENTS`）に登録し忘れていた。Round 1 では暫定的に provider / recorder の各テストファイルに per-file `beforeEach(delete)` を足して凌いだが、`ingestion_burst_log` 等の先例が SSOT 登録済みなのと非対称で、クリーン責務が二重化し将来 flaky 化のリスクがあった。
+
+### Decision
+`setup.ts` の `CLEAN_STATEMENTS` に `["llm_call_log", "DELETE FROM llm_call_log"]` を追加し、Round 1 で入れた per-file `beforeEach` を撤去する。クリーン責務を共有 setup に一本化する。
+
+### Consequences
+- 良い点: 全 integration テストが毎回 `llm_call_log` をクリーンな状態で開始し、テスト分離が規約どおり SSOT に集約される。integration 全体（64 ファイル / 786 テスト）パス。
+- トレードオフ: なし（先例パターンへの整合）。
