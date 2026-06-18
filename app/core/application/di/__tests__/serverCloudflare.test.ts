@@ -619,7 +619,7 @@ describe("createRequestContainer — env → adapter mapping", () => {
     expect(container.llmProvider).toBeInstanceOf(StubLLMProvider);
   });
 
-  // ----- llmProviderName (provider-name truth source, #748 ADR-006 / W-003) --
+  // ----- llmProviderName (provider-name truth source, #748 ADR-006) -----------
   it("loads container.llmProviderName from the resolved provider name (anthropic)", () => {
     const container = createRequestContainer(
       configWith({

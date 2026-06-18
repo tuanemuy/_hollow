@@ -310,7 +310,7 @@ describe("pruner Worker — runPruneTick", () => {
     expect(remaining).toHaveLength(1);
   });
 
-  // #748 ADR-005 / arch[S-003] (W-001): the activity-log prune and the
+  // #748 ADR-005 / arch[S-003]: the activity-log prune and the
   // llm_call_log prune run in independent try/catch blocks inside
   // `runPruneTick`. A failure in one must not block the other, nor the
   // (already-committed) outbox prune. These tests inject a failure into one

@@ -2111,7 +2111,7 @@ describe("getUsageMetrics", () => {
     expect(result.alerts[0]?.severity).toBe("warning");
   });
 
-  it("maps a present hourly series from Date to ISO8601 strings, preserving counts (#748 W-002)", async () => {
+  it("maps a present hourly series from Date to ISO8601 strings, preserving counts (#748)", async () => {
     await seedUser({
       id: ADMIN_ID,
       username: "alice",
