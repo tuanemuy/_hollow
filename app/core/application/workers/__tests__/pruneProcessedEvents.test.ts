@@ -4,7 +4,10 @@ import type { WorkerContainer } from "@/core/application/di/types";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdempotencyStore } from "@/core/application/ports/idempotencyStore";
 import { FakeLogger } from "../../__tests__/fakes";
-import { pruneProcessedEvents } from "../pruneProcessedEvents";
+import {
+  DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+  pruneProcessedEvents,
+} from "../pruneProcessedEvents";
 
 /**
  * Unit tests for `pruneProcessedEvents`.
@@ -85,7 +88,7 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
 describe("pruneProcessedEvents", () => {
   it("computes the cutoff as clock.now() - retentionMs and forwards it to the store", async () => {
     const now = new Date("2026-04-27T12:00:00Z");
-    const retentionMs = 14 * 24 * 60 * 60 * 1000; // 14 days
+    const retentionMs = DEFAULT_PROCESSED_EVENTS_RETENTION_MS; // 14 days
     let received: Date | undefined;
     const idempotencyStore = makeStubIdempotencyStore({
       deleted: 3,

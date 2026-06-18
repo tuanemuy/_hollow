@@ -46,3 +46,25 @@ Proposed
 - トレードオフ: env var が1つ増える（`wrangler.toml` / docs / `ServerEnv` 型に追記が必要）。既定値が同じなので一見冗長に見えるが、意味の分離を優先する。
 
 ---
+
+## ADR-003: `processed_events.processed_at` に専用 index を張らない
+
+### Status
+Proposed
+
+### Context
+レビュー（adapter 視点）で、刈り込み DELETE が `WHERE processed_at < cutoff` で走るのに `processed_events` には PK（`id`）しか index がなく、毎日の刈り込みがテーブル full scan になる点が指摘された。`processed_events` は高頻度イベント全件を積むため、テーブルが肥大すると初回・日次の scan コストが `outbox_events` より大きくなりうる。選択肢:
+1. `processed_at` に index を張り、刈り込み DELETE を `O(削除件数)` にする。
+2. index を張らず full scan を許容する（手本の `outboxRepository.pruneProcessed` と同方式）。
+
+### Decision
+選択肢2を採用。本PRでは `processed_at` に index を張らない。理由:
+- **手本との一貫性**: 既存の outbox prune（`processedAt < cutoff AND processed_at NOT NULL`）も prune 専用 index を持たず full scan で運用実績がある。`processed_events` だけ別方式にするより、確立されたパターンに揃える。
+- **スコープ**: index 追加はマイグレーション（`spec/database/` 連動）を要し、plan.md で「スキーマ変更・マイグレーションなし」と宣言したスコープを超える。
+- **書き込みパスへの影響**: `markProcessed` の INSERT は最もホットな経路。index を増やすと全 INSERT がその維持コストを負う。刈り込みは日次1回なので、日次 scan を避けるためにホットパスを重くする取引は割に合わない（`processed_at` は単調増加で append-mostly なため維持コスト自体は小さいが、日次 cron は scan を許容できる）。
+
+### Consequences
+- 良い点: スコープが締まり、手本パターンと一貫。ホットな INSERT 経路に追加コストを乗せない。
+- トレードオフ: テーブルが非常に大きくなった場合、日次刈り込みの scan コストが増える。実運用で問題化したら `processed_at` への index 追加 + バッチ分割を別Issueで検討する（outbox prune も同じ改善余地を持つため、両者まとめて対応するのが筋）。本PR時点では投機的最適化を避ける。
+
+---
