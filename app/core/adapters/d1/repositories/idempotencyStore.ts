@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";
 import type { Clock } from "@/core/application/ports/clock";
 import type { IdempotencyStore } from "@/core/application/ports/idempotencyStore";
 import type { EventId } from "@/core/domain/common/event";
@@ -33,6 +33,16 @@ export class D1IdempotencyStore implements IdempotencyStore {
         .onConflictDoNothing({ target: processedEvents.id })
         .returning({ id: processedEvents.id });
       return { alreadyProcessed: rows.length === 0 };
+    });
+  }
+
+  async pruneProcessed(olderThan: Date): Promise<{ deleted: number }> {
+    return mapDbError("Failed to prune processed events", async () => {
+      const rows = await this.db
+        .delete(processedEvents)
+        .where(lt(processedEvents.processedAt, olderThan))
+        .returning({ id: processedEvents.id });
+      return { deleted: rows.length };
     });
   }
 }

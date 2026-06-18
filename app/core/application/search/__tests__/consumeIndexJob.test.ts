@@ -92,6 +92,7 @@ function makeContainer(over: {
     idempotencyStore: {
       hasProcessed: vi.fn(async () => false),
       markProcessed: vi.fn(async () => ({ alreadyProcessed: false })),
+      pruneProcessed: vi.fn(async () => ({ deleted: 0 })),
     },
     searchIndex: over.searchIndex ?? makeIndex(),
     indexJobRepository: over.indexJobRepository ?? makeRepo(),

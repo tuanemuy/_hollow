@@ -198,6 +198,7 @@ no_bundle = false
 [env.pruner.vars]
 APP_URL = "${APP_URL}"
 OUTBOX_RETENTION_MS = "604800000"   # 7 days
+PROCESSED_EVENTS_RETENTION_MS = "1209600000"   # 14 days
 
 [[env.pruner.d1_databases]]
 binding = "DB"

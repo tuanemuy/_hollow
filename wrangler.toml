@@ -252,6 +252,12 @@ APP_URL = "http://localhost:8787"
 # by `readPruneTuning(env)`. Matches `DEFAULT_OUTBOX_RETENTION_MS` in
 # `app/core/application/workers/outboxPrune.ts`.
 OUTBOX_RETENTION_MS = "604800000"   # 7 days
+# Idempotency-record (`processed_events`) retention. Must exceed the
+# queue's max redelivery window so dedup stays correct — 14 days is the
+# Cloudflare Queues message-retention ceiling, so it outlives any
+# `message_retention_period`. Matches `DEFAULT_PROCESSED_EVENTS_RETENTION_MS`
+# in `app/core/application/workers/pruneProcessedEvents.ts` (Issue #747).
+PROCESSED_EVENTS_RETENTION_MS = "1209600000"   # 14 days
 
 [[env.pruner.d1_databases]]
 binding = "DB"
