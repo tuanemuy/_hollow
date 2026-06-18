@@ -1,7 +1,6 @@
 // Shared utility class strings and visibility-chip helpers for the
 // home / note-list views (ListView, TileView, FilterBar).
 
-import { scrollbarHidden } from "@/components/common/styles";
 import type { OwnedNoteFilterItem } from "../loaders";
 
 type Visibility = OwnedNoteFilterItem["visibility"];
@@ -101,11 +100,42 @@ export const filterLabel =
   "text-xs font-medium text-ink-tertiary uppercase tracking-[0.06em]";
 
 /**
- * FilterBar container. Below `sm` the wrapping chip cloud becomes a single
- * horizontally-scrolling row (mock `.filter-bar`: `flex-wrap: nowrap` +
- * `overflow-x: auto`, scrollbar hidden), so the chips never push the page wider
- * than the viewport (overflow=0). At `sm` and up it keeps the original wrapping
- * flex layout. The `min-w-0` lets the row shrink inside the grid main column so
- * the internal scroll is isolated rather than widening the parent.
+ * FilterBar desktop container. At `sm` and up it is the original wrapping flex
+ * chip cloud; below `sm` it is hidden entirely (`max-sm:hidden`) because the
+ * mobile filters move into the aggregated bottom sheet.
+ *
+ * #749 ADR-001 originally specified that this chip row is a horizontal scroller
+ * (`flex-wrap: nowrap` + `overflow-x: auto`, scrollbar hidden) below `sm`.
+ * #754 updates that decision: the horizontal-scroll dependency was a UX problem
+ * (low discoverability / unreachable filters), so on mobile the inline chip row
+ * is replaced by a "絞り込み" trigger that opens a `Dialog` bottom sheet
+ * (#754 ADR-001 / ADR-002). The `min-w-0` lets the row shrink inside the grid
+ * main column on desktop.
  */
-export const filterBar = `flex flex-wrap items-center gap-3 mb-5 min-w-0 max-sm:flex-nowrap max-sm:gap-2 max-sm:overflow-x-auto max-sm:pb-0.5 ${scrollbarHidden}`;
+export const filterBar =
+  "flex flex-wrap items-center gap-3 mb-5 min-w-0 max-sm:hidden";
+
+/**
+ * Mobile-only aggregated filter trigger bar (`hidden max-sm:flex`). Holds the
+ * "絞り込み" button (which opens the filter sheet) and, when filters are
+ * applied, the global clear-× (#754 ADR-001). Hidden at `sm` and up where the
+ * inline `filterBar` chip cloud takes over.
+ */
+export const mobileFilterBar = "hidden max-sm:flex items-center gap-2 mb-5";
+
+/**
+ * The mobile "絞り込み" trigger button. A pill-shaped chip-height control
+ * carrying the filter glyph + label + applied-count badge. State is conveyed by
+ * `aria-haspopup="dialog"` + `aria-expanded` only — intentionally NOT
+ * `aria-pressed`/`aria-checked`, so it never enters the tag-toggle button set
+ * the tests walk (#754 ADR-001).
+ */
+export const mobileFilterTrigger =
+  "inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-surface text-sm text-ink whitespace-nowrap transition-colors motion-reduce:transition-none hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+
+/** Applied-filter count badge shown inside the mobile trigger. */
+export const mobileFilterCount =
+  "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ink text-[11px] font-medium text-white";
+
+/** Section heading inside the mobile filter sheet. */
+export const filterSheetSection = "flex flex-col gap-2.5 mb-6 last:mb-0";
