@@ -1704,4 +1704,142 @@ describe("uploadFile → runIngestionJob (MIME spoof connector)", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(rows[0]?.status).toBe("processing");
   });
+
+  // #748: best-effort LLM-call-log recording — one row per actual LLM API
+  // call. The default container wires the real D1LlmCallLogRecorder + a
+  // succeeding FakeLLMProvider, so successful runs persist rows.
+  describe("llm_call_log recording (#748)", () => {
+    async function countLlmCallLogRows(
+      container: TestContainer,
+      ownerId: string,
+    ): Promise<number> {
+      const rows = await container.db
+        .select()
+        .from(schema.llmCallLog)
+        .where(eq(schema.llmCallLog.ownerId, ownerId));
+      return rows.length;
+    }
+
+    it("records 2 rows for an LLM-structuring kind (structureToHtml + suggestMetadata)", async () => {
+      const baseContainer = getContainer();
+      const container: TestContainer = {
+        ...baseContainer,
+        officeExtractor: new StubOfficeOk(),
+      };
+      await seedInstanceSettings(container);
+      const owner = await seedUser(container);
+      const jobId = await seedPendingJob(container, {
+        ownerId: owner,
+        kind: "office",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        originalFileName: "doc.docx",
+        bodyBytes: utf8("docx-binary"),
+      });
+
+      await runIngestionJob({ container, input: { jobId } });
+
+      expect(await countLlmCallLogRows(container, owner)).toBe(2);
+      const rows = await container.db
+        .select()
+        .from(schema.llmCallLog)
+        .where(eq(schema.llmCallLog.ownerId, owner));
+      // provider name is the resolved name from the test container.
+      expect(rows.every((r) => r.provider === "anthropic")).toBe(true);
+    });
+
+    it("records 1 row for an html kind (suggestMetadata only — no structureToHtml)", async () => {
+      const container = getContainer();
+      await seedInstanceSettings(container);
+      const owner = await seedUser(container);
+      const jobId = await seedPendingJob(container, {
+        ownerId: owner,
+        kind: "html",
+        mimeType: "text/html",
+        originalFileName: "doc.html",
+        bodyBytes: utf8("<p>hello html</p>"),
+      });
+
+      await runIngestionJob({ container, input: { jobId } });
+
+      expect(await countLlmCallLogRows(container, owner)).toBe(1);
+    });
+
+    it("records 0 rows for an empty-transcript audio (early return, no LLM call)", async () => {
+      const baseContainer = getContainer();
+      const container: TestContainer = {
+        ...baseContainer,
+        speechRecognitionProvider: new SilentSpeech(),
+      };
+      await seedInstanceSettings(container);
+      const owner = await seedUser(container);
+      const jobId = await seedPendingJob(container, {
+        ownerId: owner,
+        kind: "audio",
+        mimeType: "audio/webm",
+        originalFileName: "silence.webm",
+        bodyBytes: utf8("webm-bytes"),
+      });
+
+      await runIngestionJob({ container, input: { jobId } });
+
+      expect(await countLlmCallLogRows(container, owner)).toBe(0);
+    });
+
+    it("records 0 rows when the LLM throws (failed call never reaches the record step)", async () => {
+      const baseContainer = getContainer();
+      const container: TestContainer = {
+        ...baseContainer,
+        officeExtractor: new StubOfficeOk(),
+        llmProvider: new ThrowingLLMProvider(),
+      };
+      await seedInstanceSettings(container);
+      const owner = await seedUser(container);
+      const jobId = await seedPendingJob(container, {
+        ownerId: owner,
+        kind: "office",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        originalFileName: "doc.docx",
+        bodyBytes: utf8("docx-binary"),
+      });
+
+      await runIngestionJob({ container, input: { jobId } });
+
+      expect(await countLlmCallLogRows(container, owner)).toBe(0);
+    });
+
+    it("a recordCall failure does not break the job (best-effort): the job still reaches previewing", async () => {
+      const baseContainer = getContainer();
+      const container: TestContainer = {
+        ...baseContainer,
+        officeExtractor: new StubOfficeOk(),
+        llmCallLogRecorder: {
+          recordCall: vi.fn(async () => {
+            throw new Error("record boom");
+          }),
+          pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
+        },
+      };
+      await seedInstanceSettings(container);
+      const owner = await seedUser(container);
+      const jobId = await seedPendingJob(container, {
+        ownerId: owner,
+        kind: "office",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        originalFileName: "doc.docx",
+        bodyBytes: utf8("docx-binary"),
+      });
+
+      await runIngestionJob({ container, input: { jobId } });
+
+      const rows = await container.db
+        .select()
+        .from(schema.ingestionJobs)
+        .where(eq(schema.ingestionJobs.id, jobId));
+      expect(rows[0]?.status).toBe("previewing");
+      expect(rows[0]?.errorCode).toBeNull();
+    });
+  });
 });

@@ -14,6 +14,7 @@ import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
 import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
+import { D1LlmCallLogRecorder } from "@/core/adapters/d1/repositories/llmCallLogRecorder";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import { D1PromptPreviewRateLimiter } from "@/core/adapters/d1/repositories/promptPreviewRateLimiter";
 import { D1SessionService } from "@/core/adapters/d1/repositories/sessionService";
@@ -45,6 +46,7 @@ import {
   isSecretBoxError,
   type SecretBox,
 } from "@/core/domain/adminSettings/ports/secretBox";
+import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
@@ -571,6 +573,14 @@ export function buildPdfExtractor(
  * `StubLLMProvider`. `provider` defaults to `"anthropic"` when
  * `ADMIN_LLM_PROVIDER` is unset, preserving the pre-#122 behaviour.
  *
+ * Returns the constructed provider **and its resolved name** (#748
+ * ADR-006). The name is the truth source for `llm_call_log.provider` — the
+ * raw `ADMIN_LLM_PROVIDER` env value diverges from reality on the Stub
+ * fallback (api key / model missing), so it must not be recorded directly.
+ * On the Stub fallback the name is the (unused) default — Stub calls always
+ * throw before the call site reaches the record step, so the value is never
+ * persisted (#748 ADR-002).
+ *
  * Pure helper extracted from `createRequestContainer` so the wiring
  * can be verified directly in unit tests via `instanceof` without
  * threading container internals through the test harness.
@@ -580,14 +590,20 @@ export function buildLlmProvider(
   adminLlmApiKey: string | undefined,
   adminLlmModel: string | undefined,
   adminLlmBaseURL?: string | null,
-): LLMProvider {
-  if (!adminLlmApiKey || !adminLlmModel) return new StubLLMProvider();
-  return createLLMProvider({
-    provider: provider ?? "anthropic",
-    apiKey: adminLlmApiKey,
-    model: adminLlmModel,
-    ...(adminLlmBaseURL ? { baseURL: adminLlmBaseURL } : {}),
-  });
+): { provider: LLMProvider; providerName: LLMProviderName } {
+  const providerName = (provider ?? "anthropic") as LLMProviderName;
+  if (!adminLlmApiKey || !adminLlmModel) {
+    return { provider: new StubLLMProvider(), providerName };
+  }
+  return {
+    provider: createLLMProvider({
+      provider: providerName,
+      apiKey: adminLlmApiKey,
+      model: adminLlmModel,
+      ...(adminLlmBaseURL ? { baseURL: adminLlmBaseURL } : {}),
+    }),
+    providerName,
+  };
 }
 
 /**
@@ -663,6 +679,7 @@ export function createRequestContainer(
   } = config;
   const relayTrigger =
     relayTriggerOverride ?? buildRelayTrigger(relay, waitUntil, ConsoleLogger);
+  const llm = buildLlmProvider(adminLlmProvider, adminLlmApiKey, adminLlmModel);
   return {
     ...buildSharedDeps(),
     config: appConfig satisfies AppConfig,
@@ -700,11 +717,7 @@ export function createRequestContainer(
     archiveBuilder: new InMemoryZipArchiveBuilder(),
     exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
-    llmProvider: buildLlmProvider(
-      adminLlmProvider,
-      adminLlmApiKey,
-      adminLlmModel,
-    ),
+    llmProvider: llm.provider,
     ocrProvider: buildOcrProvider(
       adminLlmProvider,
       adminLlmApiKey,
@@ -744,6 +757,8 @@ export function createRequestContainer(
       ConsoleLogger,
     ),
     activityLogRepository: new D1ActivityLogRepository(db),
+    llmCallLogRecorder: new D1LlmCallLogRecorder(db),
+    llmProviderName: llm.providerName,
     adminSettingsEnv: {
       apiKey:
         adminLlmApiKey !== undefined && adminLlmApiKey.length > 0
@@ -888,16 +903,28 @@ export async function createConsumerContainer(
   );
   const llmOverrides: Partial<{
     llmProvider: LLMProvider;
+    llmProviderName: LLMProviderName;
     ocrProvider: OCRProvider;
     pdfExtractor: PDFExtractor;
   }> = resolved
     ? {
-        llmProvider: buildLlmProvider(
-          resolved.provider,
-          resolved.apiKey,
-          resolved.model,
-          resolved.baseURL,
-        ),
+        // Override both the provider instance and its recorded name with the
+        // consumer-resolved values (env override > DB, #748 ADR-006). When
+        // `resolved` is `null` the consumer keeps the request-side
+        // `llmProviderName` inherited via the spread below (#748 ADR-006
+        // arch[S-002]).
+        ...(() => {
+          const built = buildLlmProvider(
+            resolved.provider,
+            resolved.apiKey,
+            resolved.model,
+            resolved.baseURL,
+          );
+          return {
+            llmProvider: built.provider,
+            llmProviderName: built.providerName,
+          };
+        })(),
         ocrProvider: buildOcrProvider(
           resolved.provider,
           resolved.apiKey,
@@ -1205,5 +1232,6 @@ export function createWorkerContainer(env: ServerEnv): WorkerContainer {
       SystemClock,
     ),
     activityLogRepository: new D1ActivityLogRepository(db),
+    llmCallLogRecorder: new D1LlmCallLogRecorder(db),
   };
 }

@@ -21,10 +21,17 @@ export type GetUsageMetricsOutput = Readonly<{
   /**
    * Hourly upload counts over the last 24h (oldest first), or `null` on
    * fetch failure. A present series is always 24 zero-filled buckets, so
-   * a real "0 this hour" is distinct from `null` ("取得失敗"). There is no
-   * LLM hourly series — LLM calls have no persistent record source.
+   * a real "0 this hour" is distinct from `null` ("取得失敗").
    */
   uploadsHourly: readonly HourlyMetricPointDTO[] | null;
+  /**
+   * Hourly LLM-call counts over the last 24h (oldest first), sourced from
+   * the `llm_call_log` read-model, or `null` on fetch failure (#748). Same
+   * contract as {@link uploadsHourly}: a present series is always 24
+   * zero-filled buckets, so a real "0 this hour" is distinct from `null`
+   * ("取得失敗"). The figure is best-effort and may under-count.
+   */
+  llmCallsHourly: readonly HourlyMetricPointDTO[] | null;
   alerts: readonly AlertDTO[];
 }>;
 
@@ -54,6 +61,13 @@ export async function getUsageMetrics({
       snapshot.uploadsHourly === null
         ? null
         : snapshot.uploadsHourly.map((point) => ({
+            hourStart: point.hourStart.toISOString(),
+            count: point.count,
+          })),
+    llmCallsHourly:
+      snapshot.llmCallsHourly === null
+        ? null
+        : snapshot.llmCallsHourly.map((point) => ({
             hourStart: point.hourStart.toISOString(),
             count: point.count,
           })),

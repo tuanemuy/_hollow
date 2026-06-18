@@ -1,6 +1,7 @@
 import type { LLMConnectionTester } from "@/core/domain/adminSettings/ports/llmConnectionTester";
 import type { SecretBox } from "@/core/domain/adminSettings/ports/secretBox";
 import type { SpeechConnectionTester } from "@/core/domain/adminSettings/ports/speechConnectionTester";
+import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
 import type { ArchiveBuilder } from "@/core/domain/export/ports/archiveBuilder";
 import type { HtmlRenderer } from "@/core/domain/export/ports/htmlRenderer";
 import type { MarkdownRenderer } from "@/core/domain/export/ports/markdownRenderer";
@@ -25,6 +26,7 @@ import type { IndexJobRepository } from "@/core/domain/search/ports/indexJobRepo
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
 import type { ActivityLogRepository } from "../activityLog/ports";
 import type { UnitOfWorkProvider } from "../execution/unitOfWork";
+import type { LlmCallLogRecorder } from "../llmCallLog/ports";
 import type { Clock } from "../ports/clock";
 import type { IdempotencyStore } from "../ports/idempotencyStore";
 import type { IdGenerator } from "../ports/idGenerator";
@@ -258,6 +260,25 @@ export type RequestContainer = SharedDeps &
      */
     activityLogRepository: ActivityLogRepository;
     /**
+     * LLM-call-log recorder (write/prune). On the request path it backs the
+     * **write** in `previewPrompt` (one row per successful preview LLM call,
+     * #748 ADR-002). The read side (dashboard series / 24h scalar) lives on
+     * `usageMetricsProvider`, not here (#748 ADR-003). Best-effort: the
+     * usecase swallows write failures so a record miss never breaks preview.
+     * Kept off the `UnitOfWorkContext` — preview opens no UoW.
+     */
+    llmCallLogRecorder: LlmCallLogRecorder;
+    /**
+     * Resolved name of the **actually constructed** LLM provider (#748
+     * ADR-006). Recorded on the `llm_call_log` row's `provider` column so
+     * the dashboard reflects the real provider in use rather than the raw
+     * `ADMIN_LLM_PROVIDER` env value (which diverges from reality on the
+     * Stub fallback). Defaults to the request-side `buildLlmProvider`
+     * resolution; the consumer path overrides it from
+     * `resolveConsumerLlmConfig`.
+     */
+    llmProviderName: LLMProviderName;
+    /**
      * Operator-controlled env values consulted by admin usecases. See
      * {@link AdminSettingsEnv} for field semantics and the env-override
      * contract shared with the consumer-side resolver.
@@ -304,6 +325,14 @@ export type WorkerContainer = SharedDeps &
      * deliberately kept off the `UnitOfWorkContext` (ADR-006).
      */
     activityLogRepository: ActivityLogRepository;
+    /**
+     * LLM-call-log recorder. Used by the pruner's daily tick
+     * (`pruneLlmCallLog`) to sweep rows past the retention window (#748
+     * ADR-005). The ingestion **write** path uses the same port via the
+     * {@link ConsumerContainer}, which inherits it from the spread
+     * {@link RequestContainer}.
+     */
+    llmCallLogRecorder: LlmCallLogRecorder;
   }>;
 
 /**

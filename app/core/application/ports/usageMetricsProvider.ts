@@ -35,6 +35,16 @@ export type UsageMetricsSnapshot = Readonly<{
    * placeholder. An empty/zeroed series is NOT `null` — it is real data.
    */
   uploadsHourly: ReadonlyArray<UsageMetricsHourlyPoint> | null;
+  /**
+   * Hourly LLM-call counts over the most recent 24 hours, oldest bucket
+   * first — one row per *actual* LLM API call sourced from `llm_call_log`
+   * (#748). Same shape and contract as {@link uploadsHourly}: always 24
+   * zero-filled buckets when present (a real "0 calls this hour" renders as
+   * a flat line), and `null` only on a metric-source failure (UI renders
+   * "取得失敗"). The figure is an approximation — recording is best-effort,
+   * so a swallowed write under-counts (#748 ADR-002).
+   */
+  llmCallsHourly: ReadonlyArray<UsageMetricsHourlyPoint> | null;
   alerts: ReadonlyArray<UsageMetricsAlert>;
 }>;
 
@@ -69,6 +79,7 @@ export const NullUsageMetricsProvider: UsageMetricsProvider = {
       uploadsToday: null,
       llmCallsToday: null,
       uploadsHourly: null,
+      llmCallsHourly: null,
       alerts: [],
     };
   },

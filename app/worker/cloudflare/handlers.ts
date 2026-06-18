@@ -27,6 +27,7 @@ import {
   processIndexJobs,
 } from "@/core/application/workers/processIndexJobs";
 import { pruneActivityLog } from "@/core/application/workers/pruneActivityLog";
+import { pruneLlmCallLog } from "@/core/application/workers/pruneLlmCallLog";
 import type { DomainEvent } from "@/core/domain/common/event";
 
 export type RelayEnv = ServerEnv &
@@ -83,10 +84,11 @@ export async function runRelayTick(
  * preserved for operator inspection.
  *
  * The daily tick also sweeps the activity-log read-model tables
- * (`activity_log` / `ingestion_burst_log`), which the outbox pruner does not
- * touch (ADR-007). A failure there must not block the outbox prune, so the
- * activity prune runs after and its outcome is folded into the result only
- * for the outbox count (the contract callers read).
+ * (`activity_log` / `ingestion_burst_log`) and the `llm_call_log` read-model
+ * (#748 ADR-005), which the outbox pruner does not touch (ADR-007). A
+ * failure in any of these must not block the outbox prune or the others, so
+ * each runs in its own try/catch and its outcome is logged-and-swallowed;
+ * the result reflects only the outbox count (the contract callers read).
  */
 export async function runPruneTick(
   env: PrunerEnv,
@@ -105,6 +107,16 @@ export async function runPruneTick(
     await pruneActivityLog(container);
   } catch (error) {
     container.logger.error("[prune] activity-log prune failed", {
+      cause: error,
+    });
+  }
+  // Independent try/catch (#748 ADR-005 / arch[S-003]): an `llm_call_log`
+  // prune failure must not block the activity-log prune (already run above)
+  // or the outbox prune, and vice versa.
+  try {
+    await pruneLlmCallLog(container);
+  } catch (error) {
+    container.logger.error("[prune] llm-call-log prune failed", {
       cause: error,
     });
   }

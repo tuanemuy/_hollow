@@ -875,31 +875,38 @@ describe("buildOcrProvider", () => {
 });
 
 describe("buildLlmProvider", () => {
-  it("returns AnthropicLLMProvider when both apiKey and model are truthy", () => {
-    const provider = buildLlmProvider(
+  it("returns AnthropicLLMProvider + resolved name when both apiKey and model are truthy", () => {
+    const { provider, providerName } = buildLlmProvider(
       "anthropic",
       "sk-ant-test",
       "claude-3-5-sonnet",
     );
     expect(provider).toBeInstanceOf(AnthropicLLMProvider);
+    // #748 ADR-006: the recorded name is the resolved provider, not env raw.
+    expect(providerName).toBe("anthropic");
   });
 
   it("defaults provider to 'anthropic' when ADMIN_LLM_PROVIDER is unset", () => {
-    const provider = buildLlmProvider(
+    const { provider, providerName } = buildLlmProvider(
       undefined,
       "sk-ant-test",
       "claude-3-5-sonnet",
     );
     expect(provider).toBeInstanceOf(AnthropicLLMProvider);
+    expect(providerName).toBe("anthropic");
   });
 
   it("returns StubLLMProvider when model is missing", () => {
-    const provider = buildLlmProvider("anthropic", "sk-ant-test", undefined);
+    const { provider } = buildLlmProvider(
+      "anthropic",
+      "sk-ant-test",
+      undefined,
+    );
     expect(provider).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when apiKey is missing", () => {
-    const provider = buildLlmProvider(
+    const { provider } = buildLlmProvider(
       "anthropic",
       undefined,
       "claude-3-5-sonnet",
@@ -908,24 +915,24 @@ describe("buildLlmProvider", () => {
   });
 
   it("returns StubLLMProvider when both are missing", () => {
-    const provider = buildLlmProvider("anthropic", undefined, undefined);
+    const { provider } = buildLlmProvider("anthropic", undefined, undefined);
     expect(provider).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when apiKey is empty string", () => {
     expect(
-      buildLlmProvider("anthropic", "", "claude-3-5-sonnet-latest"),
+      buildLlmProvider("anthropic", "", "claude-3-5-sonnet-latest").provider,
     ).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when model is empty string", () => {
-    expect(buildLlmProvider("anthropic", "sk-ant-test", "")).toBeInstanceOf(
-      StubLLMProvider,
-    );
+    expect(
+      buildLlmProvider("anthropic", "sk-ant-test", "").provider,
+    ).toBeInstanceOf(StubLLMProvider);
   });
 
   it("returns StubLLMProvider when both are empty strings", () => {
-    expect(buildLlmProvider("anthropic", "", "")).toBeInstanceOf(
+    expect(buildLlmProvider("anthropic", "", "").provider).toBeInstanceOf(
       StubLLMProvider,
     );
   });

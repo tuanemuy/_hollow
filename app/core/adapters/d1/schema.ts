@@ -866,6 +866,28 @@ export const ingestionBurstLog = sqliteTable(
   ],
 );
 
+// Append-only LLM-call-log read-model backing the admin dashboard's "LLM
+// 呼び出し" series + 24h scalar (#748 ADR-001). One row per *actual* LLM API
+// call, written synchronously best-effort right after a successful call
+// (#748 ADR-002). `occurred_at` is ISO8601 UTC text so the hourly
+// aggregation reuses the `substr(occurred_at,1,13)` bucket shared with the
+// upload series (#748 ADR-007). No `event_id` / unique index — the
+// synchronous best-effort write has no redelivery window, so no idempotency
+// key is needed (#748 ADR-008). High-frequency table, pruned at 48h
+// retention (#748 ADR-005).
+export const llmCallLog = sqliteTable(
+  "llm_call_log",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    provider: text("provider").notNull(),
+    // UTC ISO8601 instant of the LLM call (lexical-sortable = time-sortable).
+    occurredAt: text("occurred_at").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("idx_llm_call_log_occurred_at").on(table.occurredAt)],
+);
+
 export const userPromptOverrides = sqliteTable("user_prompt_overrides", {
   ownerId: text("owner_id")
     .primaryKey()

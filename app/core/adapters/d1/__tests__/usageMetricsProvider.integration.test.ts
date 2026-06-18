@@ -77,6 +77,21 @@ async function seedJob(
   });
 }
 
+async function seedLlmCall(
+  container: TestContainer,
+  ownerId: UserId,
+  occurredAt: Date,
+): Promise<void> {
+  const id = nextId(0x03);
+  await container.db.insert(schema.llmCallLog).values({
+    id,
+    ownerId,
+    provider: "anthropic",
+    occurredAt: occurredAt.toISOString(),
+    createdAt: occurredAt,
+  });
+}
+
 describe("D1UsageMetricsProvider (integration)", () => {
   it("returns 24 hourly buckets oldest-first, keyed by UTC hour start", async () => {
     const container = createTestContainer();
@@ -145,7 +160,7 @@ describe("D1UsageMetricsProvider (integration)", () => {
     expect(snapshot.uploadsHourly).toBeNull();
   });
 
-  it("keeps scalar fields null so existing metric cards are unchanged (#545)", async () => {
+  it("keeps the other scalar fields null so existing metric cards are unchanged (#545 / #748 AC-7)", async () => {
     const container = createTestContainer();
     const owner = await seedUser(container);
     await seedJob(container, owner, new Date("2026-06-10T10:05:00.000Z"));
@@ -156,9 +171,85 @@ describe("D1UsageMetricsProvider (integration)", () => {
     expect(snapshot.storageDurableObjectBytes).toBeNull();
     expect(snapshot.storageR2Bytes).toBeNull();
     expect(snapshot.uploadsToday).toBeNull();
-    expect(snapshot.llmCallsToday).toBeNull();
     expect(snapshot.alerts).toEqual([]);
     // ...but the hourly series IS populated.
     expect(snapshot.uploadsHourly).not.toBeNull();
+  });
+
+  // ---------- LLM series + scalar (#748) ----------
+
+  it("aggregates llm_call_log into UTC hour buckets sharing boundaries with the upload series", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    // Two LLM calls in the 10:00Z hour, one in the 12:00Z (current) hour.
+    await seedLlmCall(container, owner, new Date("2026-06-10T10:05:00.000Z"));
+    await seedLlmCall(container, owner, new Date("2026-06-10T10:55:00.000Z"));
+    await seedLlmCall(container, owner, new Date("2026-06-10T12:10:00.000Z"));
+    // Outside the 24h window — must not be counted.
+    await seedLlmCall(container, owner, new Date("2026-06-09T11:00:00.000Z"));
+    // An upload in the same 10:00Z bucket to verify bucket-boundary parity.
+    await seedJob(container, owner, new Date("2026-06-10T10:30:00.000Z"));
+
+    const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
+    const snapshot = await provider.collect();
+    const llmSeries = snapshot.llmCallsHourly ?? [];
+    const uploadSeries = snapshot.uploadsHourly ?? [];
+
+    expect(llmSeries).toHaveLength(24);
+    const byHour = new Map(
+      llmSeries.map((point) => [point.hourStart.toISOString(), point.count]),
+    );
+    expect(byHour.get("2026-06-10T10:00:00.000Z")).toBe(2);
+    expect(byHour.get("2026-06-10T12:00:00.000Z")).toBe(1);
+    const total = llmSeries.reduce((acc, point) => acc + point.count, 0);
+    expect(total).toBe(3);
+
+    // Both series share bucket boundaries (same hourStart sequence).
+    expect(llmSeries.map((p) => p.hourStart.toISOString())).toEqual(
+      uploadSeries.map((p) => p.hourStart.toISOString()),
+    );
+  });
+
+  it("zero-fills the llm series when llm_call_log is empty", async () => {
+    const container = createTestContainer();
+    const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
+    const snapshot = await provider.collect();
+    const series = snapshot.llmCallsHourly ?? [];
+    expect(series).toHaveLength(24);
+    expect(series.every((point) => point.count === 0)).toBe(true);
+  });
+
+  it("computes llmCallsToday as the trailing-24h COUNT(*) with correct window boundaries", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container);
+    // Inside the 24h window (now - 24h = 2026-06-09T12:30Z).
+    await seedLlmCall(container, owner, new Date("2026-06-10T12:10:00.000Z"));
+    await seedLlmCall(container, owner, new Date("2026-06-09T13:00:00.000Z"));
+    // Exactly outside the window (just before the boundary).
+    await seedLlmCall(container, owner, new Date("2026-06-09T12:00:00.000Z"));
+
+    const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
+    const snapshot = await provider.collect();
+    expect(snapshot.llmCallsToday).toBe(2);
+  });
+
+  it("reports llmCallsToday = 0 (not null) when there are no calls — 0 is real data", async () => {
+    const container = createTestContainer();
+    const provider = new D1UsageMetricsProvider(container.db, fixedClock(NOW));
+    const snapshot = await provider.collect();
+    expect(snapshot.llmCallsToday).toBe(0);
+  });
+
+  it("degrades the llm series and scalar to null when the query fails", async () => {
+    const container = createTestContainer();
+    const brokenDb = {
+      select() {
+        throw new Error("simulated D1 outage");
+      },
+    } as unknown as typeof container.db;
+    const provider = new D1UsageMetricsProvider(brokenDb, fixedClock(NOW));
+    const snapshot = await provider.collect();
+    expect(snapshot.llmCallsHourly).toBeNull();
+    expect(snapshot.llmCallsToday).toBeNull();
   });
 });

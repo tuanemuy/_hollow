@@ -2056,6 +2056,7 @@ describe("getUsageMetrics", () => {
         uploadsToday: 3,
         llmCallsToday: 4,
         uploadsHourly: null,
+        llmCallsHourly: null,
         alerts: [{ code: "ok", message: "all green", severity: "info" }],
       }),
     };
@@ -2087,6 +2088,7 @@ describe("getUsageMetrics", () => {
         uploadsToday: 3,
         llmCallsToday: null,
         uploadsHourly: null,
+        llmCallsHourly: null,
         alerts: [
           {
             code: "do_unavailable",
@@ -2131,6 +2133,7 @@ describe("getUsageMetrics", () => {
             uploadsToday: null,
             llmCallsToday: null,
             uploadsHourly: null,
+            llmCallsHourly: null,
             alerts: [],
           };
         },

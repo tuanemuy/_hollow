@@ -40,12 +40,14 @@ function makeContainer(opts: {
   resolved?: Partial<Record<IngestionPromptPurpose, string>>;
   llm?: LLMStubs;
   allowed?: boolean;
+  recordCall?: () => Promise<void>;
 }): {
   container: RequestContainer;
   resolveFor: ReturnType<typeof vi.fn>;
   structureToHtml: ReturnType<typeof vi.fn>;
   suggestMetadata: ReturnType<typeof vi.fn>;
   tryConsume: ReturnType<typeof vi.fn>;
+  recordCall: ReturnType<typeof vi.fn>;
 } {
   const resolveFor = vi.fn(
     async (_userId: IdentityUserId, purpose: IngestionPromptPurpose) =>
@@ -83,11 +85,27 @@ function makeContainer(opts: {
   );
   const promptPreviewRateLimiter: PromptPreviewRateLimiter = { tryConsume };
 
+  const recordCall = vi.fn(opts.recordCall ?? (async () => {}));
+
+  let idSeq = 0;
   const container = {
     clock: { now: () => new Date("2026-06-10T00:00:00.000Z") },
     promptResolver,
     llmProvider,
     promptPreviewRateLimiter,
+    llmCallLogRecorder: {
+      recordCall,
+      pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
+    },
+    llmProviderName: "anthropic",
+    idGenerator: {
+      next: () => {
+        idSeq += 1;
+        return `id-${idSeq}`;
+      },
+      validate: () => true,
+    },
+    logger: { debug() {}, info() {}, warn() {}, error() {} },
   } as unknown as RequestContainer;
 
   return {
@@ -96,6 +114,7 @@ function makeContainer(opts: {
     structureToHtml,
     suggestMetadata,
     tryConsume,
+    recordCall,
   };
 }
 
@@ -282,5 +301,89 @@ describe("previewPrompt", () => {
         isBusinessRuleError(e) &&
         e.code === IngestionErrorCode.LLMPreviewUnavailable,
     );
+  });
+
+  // #748: best-effort LLM-call-log recording.
+  it("(h) records one llm_call_log row after a successful structure preview", async () => {
+    const { container, recordCall } = makeContainer({
+      resolved: { structure: "S", title: "T", directory: "D" },
+    });
+
+    await previewPrompt({
+      container,
+      input: { actorUserId: ACTOR, purpose: "structure", sampleText: "raw" },
+    });
+
+    expect(recordCall).toHaveBeenCalledTimes(1);
+    expect(recordCall.mock.calls[0][0]).toMatchObject({
+      ownerId: ACTOR,
+      provider: "anthropic",
+      occurredAt: new Date("2026-06-10T00:00:00.000Z"),
+    });
+  });
+
+  it("(h2) records one llm_call_log row after a successful metadata preview", async () => {
+    const { container, recordCall } = makeContainer({
+      resolved: { metadata: "META" },
+    });
+
+    await previewPrompt({
+      container,
+      input: {
+        actorUserId: ACTOR,
+        purpose: "metadata",
+        sampleText: "<p>x</p>",
+      },
+    });
+
+    expect(recordCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("(i) does not record when the LLM call fails (Stub-style throw → translated, never reaches the record step)", async () => {
+    const { container, recordCall } = makeContainer({
+      llm: {
+        structure: () =>
+          Promise.reject(
+            new BusinessRuleError(
+              IngestionErrorCode.UnsupportedFormat,
+              "llm_not_implemented_in_mvp",
+            ),
+          ),
+      },
+    });
+
+    await expect(
+      previewPrompt({
+        container,
+        input: { actorUserId: ACTOR, purpose: "structure", sampleText: "raw" },
+      }),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        isBusinessRuleError(e) &&
+        e.code === IngestionErrorCode.LLMPreviewUnavailable,
+    );
+    expect(recordCall).not.toHaveBeenCalled();
+  });
+
+  it("(j) a record failure is swallowed and never changes the preview result (best-effort)", async () => {
+    const { container, recordCall } = makeContainer({
+      resolved: { metadata: "META" },
+      llm: { metadata: { tags: ["x"], aliases: ["y"] } },
+      recordCall: async () => {
+        throw new Error("record boom");
+      },
+    });
+
+    const out = await previewPrompt({
+      container,
+      input: {
+        actorUserId: ACTOR,
+        purpose: "metadata",
+        sampleText: "<p>x</p>",
+      },
+    });
+
+    expect(recordCall).toHaveBeenCalledTimes(1);
+    expect(out).toEqual({ kind: "metadata", tags: ["x"], aliases: ["y"] });
   });
 });
