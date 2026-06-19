@@ -65,10 +65,14 @@ const ALERT_TONE_ICON: Record<AlertDTO["severity"], LucideIcon> = {
   info: Info,
 };
 
-function UploadsSparkline({
+function Sparkline({
   points,
+  ariaLabel,
+  gradientId,
 }: {
   points: readonly HourlyMetricPointDTO[];
+  ariaLabel: string;
+  gradientId: string;
 }) {
   const { line, area } = buildSparkline(points);
   return (
@@ -77,17 +81,17 @@ function UploadsSparkline({
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
       preserveAspectRatio="none"
       role="img"
-      aria-label="アップロード数の直近 24 時間の推移"
+      aria-label={ariaLabel}
     >
       {/* `role="img"` + `aria-label` already names the chart; a duplicate
           `<title>` would double-announce on some screen readers. */}
       <defs>
-        <linearGradient id="uploads-spark-fill" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={area} fill="url(#uploads-spark-fill)" />
+      <path d={area} fill={`url(#${gradientId})`} />
       <path
         d={line}
         fill="none"
@@ -290,10 +294,7 @@ export async function AdminDashboard() {
           </h2>
           {/* 「期間を変更」導線は遷移先が未実装のため描かない (ADR-004) */}
         </div>
-        {/* モックはアップロード/LLM の 2 枚構成だが、LLM 系列はデータ源が無く
-            正しく非描画 (虚偽表示禁止)。残る 1 枚を全幅にして sm 以上で
-            空セルが残らないようにする。LLM 記録源が入れば 2 カラムに戻す。 */}
-        <div className="grid grid-cols-1 gap-4 max-sm:gap-3">
+        <div className="grid grid-cols-1 gap-4 max-sm:gap-3 lg:grid-cols-2">
           <div className="border border-hairline rounded-lg p-5 bg-bg">
             <div className="flex items-baseline justify-between gap-3 mb-4">
               <div className="text-sm font-medium text-ink-secondary">
@@ -306,14 +307,46 @@ export async function AdminDashboard() {
               </div>
             </div>
             {metrics.uploadsHourly === null ? (
-              <div className="h-[140px] flex items-center justify-center text-xs text-ink-tertiary">
+              <div className="h-[140px] max-sm:h-[120px] flex items-center justify-center text-xs text-ink-tertiary">
                 取得失敗
               </div>
             ) : (
-              <UploadsSparkline points={metrics.uploadsHourly} />
+              <Sparkline
+                points={metrics.uploadsHourly}
+                ariaLabel="アップロード数の直近 24 時間の推移"
+                gradientId="uploads-spark-fill"
+              />
             )}
             <div className="text-xs text-ink-tertiary mt-2">
               {metrics.uploadsHourly === null ? "取得失敗" : "件 / 24h（毎時）"}
+            </div>
+          </div>
+          <div className="border border-hairline rounded-lg p-5 bg-bg">
+            <div className="flex items-baseline justify-between gap-3 mb-4">
+              <div className="text-sm font-medium text-ink-secondary">
+                LLM 呼び出し数
+              </div>
+              <div className="text-lg font-medium tracking-tight text-ink">
+                {metrics.llmCallsHourly === null
+                  ? "—"
+                  : formatNumber(sumCounts(metrics.llmCallsHourly))}
+              </div>
+            </div>
+            {metrics.llmCallsHourly === null ? (
+              <div className="h-[140px] max-sm:h-[120px] flex items-center justify-center text-xs text-ink-tertiary">
+                取得失敗
+              </div>
+            ) : (
+              <Sparkline
+                points={metrics.llmCallsHourly}
+                ariaLabel="LLM 呼び出し数の直近 24 時間の推移"
+                gradientId="llm-spark-fill"
+              />
+            )}
+            <div className="text-xs text-ink-tertiary mt-2">
+              {metrics.llmCallsHourly === null
+                ? "取得失敗"
+                : "回 / 24h（毎時）"}
             </div>
           </div>
         </div>

@@ -15,6 +15,7 @@ const CLEAN_STATEMENTS: ReadonlyArray<readonly [label: string, sql: string]> = [
   ["processed_events", "DELETE FROM processed_events"],
   ["activity_log", "DELETE FROM activity_log"],
   ["ingestion_burst_log", "DELETE FROM ingestion_burst_log"],
+  ["llm_call_log", "DELETE FROM llm_call_log"],
   ["index_jobs", "DELETE FROM index_jobs"],
   ["instance_settings", "DELETE FROM instance_settings"],
   ["note_internal_links", "DELETE FROM note_internal_links"],

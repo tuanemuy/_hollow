@@ -75,6 +75,10 @@ function makeContainer(overrides: Partial<WorkerContainer>): WorkerContainer {
     },
     activityLogRepository:
       overrides.activityLogRepository ?? new FakeActivityLogRepository(),
+    llmCallLogRecorder: overrides.llmCallLogRecorder ?? {
+      recordCall: vi.fn(async () => {}),
+      pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
+    },
     clock: overrides.clock ?? { now: () => new Date(0) },
     idGenerator: overrides.idGenerator ?? {
       next: () => "00000000-0000-7000-8000-000000000000",

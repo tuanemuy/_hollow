@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   pruneOutbox: vi.fn<() => Promise<{ deleted: number }>>(),
   pruneProcessedEvents: vi.fn<() => Promise<{ deleted: number }>>(),
   pruneActivityLog: vi.fn<() => Promise<void>>(),
+  pruneLlmCallLog: vi.fn<() => Promise<{ deleted: number }>>(),
 }));
 
 vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
@@ -70,6 +71,16 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "@/core/application/workers/pruneLlmCallLog",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/core/application/workers/pruneLlmCallLog")
+    >()),
+    pruneLlmCallLog: mocks.pruneLlmCallLog,
+  }),
+);
+
 const ENV = {
   DB: {},
   APP_URL: "http://localhost:8787",
@@ -80,6 +91,7 @@ beforeEach(() => {
   mocks.pruneOutbox.mockReset().mockResolvedValue({ deleted: 3 });
   mocks.pruneProcessedEvents.mockReset().mockResolvedValue({ deleted: 5 });
   mocks.pruneActivityLog.mockReset().mockResolvedValue(undefined);
+  mocks.pruneLlmCallLog.mockReset().mockResolvedValue({ deleted: 0 });
 });
 
 afterEach(() => {
@@ -128,5 +140,6 @@ describe("runPruneTick", () => {
     // The post-commit prunes never run when the outbox prune throws.
     expect(mocks.pruneProcessedEvents).not.toHaveBeenCalled();
     expect(mocks.pruneActivityLog).not.toHaveBeenCalled();
+    expect(mocks.pruneLlmCallLog).not.toHaveBeenCalled();
   });
 });

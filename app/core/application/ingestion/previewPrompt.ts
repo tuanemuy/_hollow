@@ -102,6 +102,28 @@ export async function previewPrompt({
       ? Promise.resolve(override)
       : container.promptResolver.resolveFor(ownerId, purpose);
 
+  // Record one `llm_call_log` row right after a *successful* LLM call
+  // (#748 ADR-002). Placed after the await resolves so a thrown call (incl.
+  // the Stub, which always throws → translated to `llm_preview_unavailable`
+  // in the catch below) never reaches here: Stub / failed calls are
+  // structurally non-recorded without an explicit Stub check (#748
+  // arch[S-001]). Best-effort: a record failure is logged and swallowed so
+  // it never changes the preview result (#748 AC-5).
+  const recordLlmCall = async (): Promise<void> => {
+    try {
+      await container.llmCallLogRecorder.recordCall({
+        id: container.idGenerator.next(),
+        ownerId: ownerId as string,
+        provider: container.llmProviderName,
+        occurredAt: container.clock.now(),
+      });
+    } catch (cause) {
+      container.logger.warn("ingestion.preview.llmCallLog.record_failed", {
+        cause: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
+  };
+
   try {
     if (input.purpose === "metadata") {
       const prompt = await resolveFor("metadata");
@@ -109,6 +131,7 @@ export async function previewPrompt({
         html: input.sampleText,
         prompt,
       });
+      await recordLlmCall();
       return {
         kind: "metadata",
         tags: result.tags,
@@ -132,6 +155,7 @@ export async function previewPrompt({
       locale: "ja",
       existingDirectories: [],
     });
+    await recordLlmCall();
     return {
       kind: "structure",
       html: result.html,

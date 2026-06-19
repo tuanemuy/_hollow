@@ -1,3 +1,4 @@
+import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
 import type { Directory } from "@/core/domain/directory/entity";
 import type { DirectoryId } from "@/core/domain/directory/valueObject";
 import { isBusinessRuleError } from "@/core/domain/error";
@@ -44,6 +45,10 @@ import {
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
 import { NotFoundError } from "../errors";
+import type { LlmCallLogRecorder } from "../llmCallLog/ports";
+import type { Clock } from "../ports/clock";
+import type { IdGenerator } from "../ports/idGenerator";
+import type { Logger } from "../ports/logger";
 import type { ServiceArgs } from "../types";
 
 export type RunIngestionJobInput = Readonly<{
@@ -137,6 +142,11 @@ export async function runIngestionJob({
       promptOverride: promoted.promptOverride,
       mimeType: promoted.mimeType,
       originalFileName: promoted.originalFileName,
+      recorder: container.llmCallLogRecorder,
+      clock: container.clock,
+      idGenerator: container.idGenerator,
+      providerName: container.llmProviderName,
+      logger: container.logger,
     });
 
     const nowAttach = container.clock.now();
@@ -256,6 +266,20 @@ type PipelineDeps = Readonly<{
   }>;
   mimeType: string;
   originalFileName: string;
+  /**
+   * LLM-call-log recording plumbing (#748). `runPipeline` is a free
+   * function that does not hold the `container`, so the recorder, clock,
+   * id generator, resolved provider name, and logger are threaded in as
+   * deps by `runIngestionJob`. Each successful `deps.llm.*` call records one
+   * row right after the await resolves (best-effort), so Stub / failed
+   * calls — which throw before reaching the record step — are structurally
+   * non-recorded (#748 ADR-002 / arch[S-001]).
+   */
+  recorder: LlmCallLogRecorder;
+  clock: Clock;
+  idGenerator: IdGenerator;
+  providerName: LLMProviderName;
+  logger: Logger;
 }>;
 
 /**
@@ -273,6 +297,28 @@ const INGESTION_SPEECH_FAILURE_NOTE_HTML =
 async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
   const { kind } = deps;
   const text = await extractText(deps);
+
+  // Record one `llm_call_log` row right after a *successful* LLM call
+  // (#748 ADR-002). Called only after the `deps.llm.*` await resolves, so a
+  // thrown call (incl. the Stub, which always throws) never reaches here —
+  // Stub / failed calls are structurally non-recorded without an explicit
+  // Stub check (#748 arch[S-001]). Best-effort: a record failure is logged
+  // and swallowed so it never affects the pipeline result or the job's
+  // success/failure transition (#748 AC-5 / arch[S-003]).
+  const recordLlmCall = async (): Promise<void> => {
+    try {
+      await deps.recorder.recordCall({
+        id: deps.idGenerator.next(),
+        ownerId: deps.ownerId as string,
+        provider: deps.providerName,
+        occurredAt: deps.clock.now(),
+      });
+    } catch (cause) {
+      deps.logger.warn("ingestion.pipeline.llmCallLog.record_failed", {
+        cause: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
+  };
 
   // Audio whose transcript came back empty —
   // either degraded from a `SpeechFailureError` in `extractText` or a
@@ -351,6 +397,7 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
       locale: "ja",
       existingDirectories: deps.existingDirectories.map((d) => d.path),
     });
+    await recordLlmCall();
     const sanitized = deps.sanitizer.sanitize(structured.html, {
       allowMedia: true,
       allowInternalLinks: true,
@@ -371,6 +418,7 @@ async function runPipeline(deps: PipelineDeps): Promise<IngestionPreview> {
     html,
     prompt: metadataPrompt,
   });
+  await recordLlmCall();
 
   const tagNames: TagName[] = [];
   for (const raw of metadata.tags) {

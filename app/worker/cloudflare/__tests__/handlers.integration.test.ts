@@ -9,13 +9,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { R2TempFileStorage } from "@/core/adapters/cloudflare/r2TempFileStorage";
 import { getDatabase } from "@/core/adapters/d1/client";
 import { PendingBatch } from "@/core/adapters/d1/pendingBatch";
+import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
+import { D1LlmCallLogRecorder } from "@/core/adapters/d1/repositories/llmCallLogRecorder";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import {
   directories,
   exportJobs,
   indexJobs,
   ingestionJobs,
+  llmCallLog,
   notes,
   outboxEvents,
   processedEvents,
@@ -187,6 +190,20 @@ async function seedPendingExportJob(params: {
   });
 }
 
+async function seedLlmCallLog(params: {
+  id: string;
+  occurredAt: Date;
+}): Promise<void> {
+  const db = getDatabase(env.DB);
+  await db.insert(llmCallLog).values({
+    id: params.id,
+    ownerId: OWNER_ID,
+    provider: "anthropic",
+    occurredAt: params.occurredAt.toISOString(),
+    createdAt: params.occurredAt,
+  });
+}
+
 async function seedOutbox(events: readonly DomainEvent[]): Promise<void> {
   const db = getDatabase(env.DB);
   const pending = new PendingBatch(db);
@@ -334,6 +351,86 @@ describe("pruner Worker — runPruneTick", () => {
 
     expect(await db.select().from(outboxEvents)).toHaveLength(0);
     expect(await db.select().from(processedEvents)).toHaveLength(0);
+  });
+
+  // #748 ADR-005 / arch[S-003]: the activity-log prune and the
+  // llm_call_log prune run in independent try/catch blocks inside
+  // `runPruneTick`. A failure in one must not block the other, nor the
+  // (already-committed) outbox prune. These tests inject a failure into one
+  // prune and assert the other still completes its delete.
+  it("isolates an activity-log prune failure: llm_call_log prune still runs and outbox count is returned", async () => {
+    // Seed an outbox row well past the retention window so the outbox prune
+    // (which runs first and is unaffected) has something to delete.
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
+    await seedOutbox([event]);
+    const db = getDatabase(env.DB);
+    const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await db
+      .update(outboxEvents)
+      .set({ processedAt: longAgo })
+      .where(eq(outboxEvents.id, event.id));
+
+    // Seed an llm_call_log row older than the 48h retention window so the
+    // llm prune has a row to delete once it is reached.
+    const llmId = "0193e7d0-0fa1-7000-8000-2000000000a1";
+    await seedLlmCallLog({
+      id: llmId,
+      occurredAt: new Date(Date.now() - 72 * 60 * 60 * 1000),
+    });
+
+    // Make the activity-log prune throw. The llm prune lives in a separate
+    // try/catch, so it must still run to completion.
+    const activitySpy = vi
+      .spyOn(D1ActivityLogRepository.prototype, "pruneOlderThan")
+      .mockRejectedValue(new Error("activity prune boom"));
+
+    const result = await runPruneTick(prunerEnv());
+
+    // Outbox prune (runs first, unaffected) still reports its delete.
+    expect(result.outboxDeleted).toBe(1);
+    expect(activitySpy).toHaveBeenCalled();
+
+    // The llm_call_log prune ran despite the activity-log failure.
+    const llmRemaining = await db
+      .select()
+      .from(llmCallLog)
+      .where(eq(llmCallLog.id, llmId));
+    expect(llmRemaining).toHaveLength(0);
+  });
+
+  it("isolates an llm_call_log prune failure: activity-log prune still runs and outbox count is returned", async () => {
+    const noteId = nextNoteId();
+    const event = withId(makeTrashedDraft(noteId));
+    await seedOutbox([event]);
+    const db = getDatabase(env.DB);
+    const longAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    await db
+      .update(outboxEvents)
+      .set({ processedAt: longAgo })
+      .where(eq(outboxEvents.id, event.id));
+
+    // Make the llm_call_log prune throw. The activity-log prune (which runs
+    // before it, in its own try/catch) must still complete; assert that via
+    // a spy on its delete call rather than a row count, since the activity
+    // tables may legitimately be empty here.
+    const activitySpy = vi.spyOn(
+      D1ActivityLogRepository.prototype,
+      "pruneOlderThan",
+    );
+    const llmSpy = vi
+      .spyOn(D1LlmCallLogRecorder.prototype, "pruneOlderThan")
+      .mockRejectedValue(new Error("llm prune boom"));
+
+    const result = await runPruneTick(prunerEnv());
+
+    // Outbox prune still reports its delete; tick does not throw.
+    expect(result.outboxDeleted).toBe(1);
+    // The llm prune was attempted (and swallowed)...
+    expect(llmSpy).toHaveBeenCalled();
+    // ...and the activity-log prune still ran to its delete call.
+    expect(activitySpy).toHaveBeenCalled();
+    expect(activitySpy.mock.results[0]?.type).toBe("return");
   });
 });
 
