@@ -504,8 +504,8 @@ describe("InstanceSettings.reconstruct", () => {
       InstanceSettings.reconstruct({
         ...validRow(),
         speech: {
-          provider: "deepgram",
-          model: "nova-3",
+          provider: "whisper-x",
+          model: "some-model",
           apiKeySource: "env",
           apiKeyCiphertext: null,
         },

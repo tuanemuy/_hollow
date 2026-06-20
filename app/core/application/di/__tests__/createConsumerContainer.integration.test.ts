@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
 import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
 import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
+import { DeepgramSpeechRecognitionProvider } from "@/core/adapters/deepgram/speechRecognitionProvider";
 import { OpenAILLMProvider } from "@/core/adapters/openai/llmProvider";
 import { OpenAISpeechRecognitionProvider } from "@/core/adapters/openai/speechRecognitionProvider";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
@@ -376,6 +377,32 @@ describe("createConsumerContainer — speech resolution (env > DB > Stub)", () =
 
     expect(container.speechRecognitionProvider).toBeInstanceOf(
       OpenAISpeechRecognitionProvider,
+    );
+  });
+
+  it("env override path: ADMIN_SPEECH_PROVIDER=deepgram → the registry wires the real Deepgram speech provider", async () => {
+    // Confirms the provider string flows generically through the registry to
+    // the Deepgram adapter (AC-7 — provider-agnostic config resolution).
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKeySource: "env",
+      speechProvider: "openai",
+      speechModel: "stored-speech-model",
+      speechApiKeySource: "env",
+      speechApiKeyCiphertext: null,
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        ADMIN_SPEECH_API_KEY: "dg-speech-env",
+        ADMIN_SPEECH_MODEL: "nova-3",
+        ADMIN_SPEECH_PROVIDER: "deepgram",
+      }),
+    );
+
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      DeepgramSpeechRecognitionProvider,
     );
   });
 
