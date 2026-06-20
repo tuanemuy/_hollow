@@ -121,6 +121,10 @@ export class DeepgramSpeechRecognitionProvider
       throw new SpeechFailureError("Deepgram api key is empty");
     }
 
+    // No pre-flight size guard (unlike the OpenAI adapter's 25 MiB check):
+    // Deepgram's prerecorded limit is far looser, so oversized payloads are
+    // left to the request timeout rather than a hard cap (ADR-001 / plan.md).
+
     const language = localeToLanguage(input.locale);
     const endpoint = buildListenURL(this.model, language);
 

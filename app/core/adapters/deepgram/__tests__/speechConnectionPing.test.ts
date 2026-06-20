@@ -58,7 +58,7 @@ describe("pingDeepgramSpeech", () => {
   });
 
   describe("failure mapping", () => {
-    it("reports the provider error message on 401", async () => {
+    it("prefixes the reason with the provider err_code on 401 (symmetric with OpenAI's type prefix)", async () => {
       setFetch(
         vi.fn(async () =>
           jsonResponse(401, {
@@ -68,7 +68,22 @@ describe("pingDeepgramSpeech", () => {
         ),
       );
       const result = await pingDeepgramSpeech(BASE_CONFIG);
-      expect(result).toEqual({ ok: false, reason: "bad credentials" });
+      expect(result).toEqual({
+        ok: false,
+        reason: "INVALID_AUTH: bad credentials",
+      });
+    });
+
+    it("omits the err_code prefix when the error body has no err_code", async () => {
+      setFetch(
+        vi.fn(async () =>
+          jsonResponse(429, {
+            message: "rate limited",
+          }),
+        ),
+      );
+      const result = await pingDeepgramSpeech(BASE_CONFIG);
+      expect(result).toEqual({ ok: false, reason: "rate limited" });
     });
 
     it("falls back to the HTTP status when error body is missing", async () => {

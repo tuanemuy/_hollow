@@ -98,11 +98,17 @@ export async function pingDeepgramSpeech(
             : typeof body.reason === "string"
               ? body.reason
               : undefined;
+      const code =
+        typeof body.err_code === "string" ? body.err_code : undefined;
       if (typeof message === "string" && message.length > 0) {
         // Probe-path non-2xx detail uses `maskSecrets` only (no category
-        // normalization), symmetric with the OpenAI speech ping. Masking
-        // still applies, so no key leaks.
-        detail = maskSecrets(message);
+        // normalization), symmetric with the OpenAI speech ping. The
+        // provider's own `err_code` (e.g. `INVALID_AUTH`) is reported as a
+        // verbatim prefix, mirroring OpenAI's `type:` prefix. err_code is a
+        // classification code (not secret-bearing) but still passes through
+        // `maskSecrets` for symmetry. Masking applies, so no key leaks.
+        const masked = maskSecrets(message);
+        detail = code ? `${maskSecrets(code)}: ${masked}` : masked;
       }
     } catch {
       // Body might be plain text or empty; fall through to status-only detail.
