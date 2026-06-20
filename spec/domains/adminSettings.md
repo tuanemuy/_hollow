@@ -69,7 +69,7 @@ Issue #701。`LLMConfig` と対称な、文字起こしプロバイダの独立 
 - `providers`（選択肢）・`apiKeySources` を静的公開（フォームの選択肢用）
 
 ### SpeechProvider（列挙）
-- `'openai' | 'deepgram'` — `["openai", "deepgram"] as const`（Issue #738 で `deepgram` を追加）。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`、`deepgram → 'nova-3'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。さらにプロバイダを registry で差し替え可能（Issue #701 ADR-001 / ADR-002・Issue #738・`spec/adr/013-speech-provider.md`）
+- `'openai' | 'deepgram'` — `["openai", "deepgram"] as const`。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`、`deepgram → 'nova-3'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。さらにプロバイダを registry で差し替え可能（Issue #701 ADR-001 / ADR-002・`spec/adr/013-speech-provider.md`）
 
 ### PromptTemplate
 - フィールド: `text: string`, `expectedVariables: string[]`（例 `['rawText', 'locale']`）
