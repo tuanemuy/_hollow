@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { SystemError, SystemErrorCode } from "@/core/application/errors";
 import { isRehydrationError } from "@/core/domain/error";
 import type { NoteRevisionRepository } from "@/core/domain/note/ports/noteRevisionRepository";
@@ -129,15 +129,11 @@ export class D1NoteRevisionRepository implements NoteRevisionRepository {
 
   countByNoteId(noteId: NoteId): Promise<number> {
     return mapDbError("Failed to count note revisions", async () => {
-      // `count(*)` would be cheaper, but Drizzle's typed builder needs
-      // a column projection. `id` only is a string-column scan with no
-      // row body materialisation, which is fast enough for the
-      // retention check + UI total.
       const rows = await this.db
-        .select({ id: noteRevisions.id })
+        .select({ value: count() })
         .from(noteRevisions)
         .where(eq(noteRevisions.noteId, noteId));
-      return rows.length;
+      return Number(rows[0]?.value ?? 0);
     });
   }
 
