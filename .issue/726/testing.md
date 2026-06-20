@@ -17,6 +17,8 @@
    - 「ユーザー名（URL）」セクションの現在の表示が **@ichiro_y** であること。
 4. サイドバーとフォームが同一人物（山田 一郎）として一致していることを確認。
 5. `spec/design/pages/mobile/P21-settings-profile.html`（mobile）でも 2〜4 を同様に確認。
+6. `spec/design/pages/P24-settings-account-delete.html`（desktop）と mobile 版を開き、
+   「ユーザー名を入力してください」欄の placeholder が **@ichiro_y** であることを確認（サイドバー山田 一郎と一致）。
 
 ## 期待結果
 

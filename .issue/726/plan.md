@@ -16,6 +16,15 @@
 - `spec/design/pages/P21-settings-profile.html`
 - `spec/design/pages/mobile/P21-settings-profile.html`
 
+### 同根の追加修正（意図に沿うスコープ内）
+
+レビュー時の関連スキャンで、同じ設定動線・同じログインユーザー本人の不整合を発見したため同 PR で修正:
+
+- `spec/design/pages/P24-settings-account-delete.html`
+- `spec/design/pages/mobile/P24-settings-account-delete.html`
+
+`confirm-username` の placeholder `@yui_k` → `@ichiro_y`（本人がアカウント削除時に自分のユーザー名を入力する欄）。
+
 ## 変更点（各ファイル共通）
 
 | 箇所 | before | after |
