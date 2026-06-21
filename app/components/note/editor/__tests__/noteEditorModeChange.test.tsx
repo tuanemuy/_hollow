@@ -7,6 +7,7 @@ import {
   serverFnChainStub,
   useServerFnRouter,
 } from "@/components/_test-utils/serverFnMock";
+import { minifyHtml } from "../htmlFormat";
 
 /**
  * Issue #233 review-001 W-T-010: pins the `onModeChange` confirm
@@ -201,10 +202,11 @@ function isWysiwygMounted(): boolean {
 }
 
 function htmlTextareaValue(): string {
-  // The HTML pane binds its `<textarea>` to `state.contentHtml`, so its
-  // value is the most direct observable of the committed content HTML.
-  // Used to assert the original markup (decoration included) survives a
-  // cancelled WYSIWYG switch.
+  // The HTML pane binds its `<textarea>` to the formatted `state.htmlDraft`
+  // (Issue #762), so its value is the pretty-printed view of the committed
+  // content HTML. Callers minify it back to compare against the original
+  // minified markup. Used to assert the original markup (decoration
+  // included) survives a cancelled WYSIWYG switch.
   const textarea = container.querySelector<HTMLTextAreaElement>(
     'textarea[id*=":r"], textarea',
   );
@@ -449,8 +451,14 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     await act(async () => {
       tabByLabel("HTML").click();
     });
-    expect(htmlTextareaValue()).toBe(original);
+    // The HTML tab shows the formatted draft (Issue #762); minifying it
+    // back recovers the original markup unchanged.
+    expect(minifyHtml(htmlTextareaValue())).toBe(original);
     expect(htmlTextareaValue()).toContain("<section>");
+    // Independent anchor (W-005): the raw value is the *formatted* draft,
+    // so it must differ from the minified original — guards against the
+    // textarea silently binding to contentHtml (un-formatted) instead.
+    expect(htmlTextareaValue()).not.toBe(original);
   });
 
   it("switches and acks the in-pane banner when the dialog is confirmed (AC-7)", async () => {
@@ -975,8 +983,13 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
         tabByLabel("HTML").click();
       });
       expect(isWysiwygMounted()).toBe(false);
-      expect(htmlTextareaValue()).toBe(original);
+      // HTML tab shows the formatted draft (Issue #762); minifying it back
+      // recovers the original committed markup unchanged.
+      expect(minifyHtml(htmlTextareaValue())).toBe(original);
       expect(htmlTextareaValue()).toContain("<section>");
+      // Independent anchor (W-005): the raw value is the *formatted* draft,
+      // so it must differ from the minified original.
+      expect(htmlTextareaValue()).not.toBe(original);
     } finally {
       vi.useRealTimers();
     }

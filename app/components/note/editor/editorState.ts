@@ -44,11 +44,43 @@
  *   empty `tags` array is a no-op (Issue #37 ADR-005). This makes it
  *   safe for callers to fan-out detection without worrying that a late
  *   "no unsupported tags" signal could erase an earlier warning.
+ * - `contentHtml` stays the all-mode single source of truth in its
+ *   *minified* form (Issue #762 ADR-003). The HTML tab shows a derived,
+ *   pretty-printed view held in `htmlDraft`: `setMode("html")` folds
+ *   `formatHtml(contentHtml)` into it, `setHtmlDraft` edits it (marking
+ *   the existing `"content"` dirty key), and leaving the HTML tab commits
+ *   `minifyHtml(htmlDraft)` back into `contentHtml` so the saved body is
+ *   minified and the other modes never see formatting whitespace — unless
+ *   the draft is *pristine* (still equals `formatHtml(contentHtml)`), in
+ *   which case `contentHtml` is left byte-for-byte intact so opening and
+ *   closing the tab without editing never dirties it (Issue #762 B-001:
+ *   the persisted form may carry inter-block whitespace that minify would
+ *   strip). `htmlDraft` is only meaningful while `mode === "html"`;
+ *   it starts `""` (the initial mode is never `html`) and may be stale
+ *   otherwise. Both `formatHtml` / `minifyHtml` are pure functions, so
+ *   the reducer stays React-agnostic; it never imports `ultrahtml`
+ *   directly, going through `htmlFormat.ts` instead.
  */
 
 import type { SerializedError } from "@/core/presentation/errorResponse";
+import { formatHtml, minifyHtml } from "./htmlFormat";
 
 export type EditorMode = "html" | "wysiwyg" | "inline";
+
+/**
+ * Whether the HTML-tab draft is still pristine (unedited). While
+ * `mode === "html"` the user's edits land only in `htmlDraft` and
+ * `contentHtml` is never touched, so an unedited draft equals the
+ * formatted view the tab was seeded with on entry. When this holds, save
+ * / mode-exit must leave `contentHtml` untouched rather than re-minify it:
+ * the persisted form (markdown-it derived) may carry inter-block
+ * whitespace that `minifyHtml(formatHtml(...))` would strip, which would
+ * otherwise dirty an untouched note and trigger a spurious autosave
+ * (Issue #762 B-001).
+ */
+function isHtmlDraftPristine(contentHtml: string, htmlDraft: string): boolean {
+  return htmlDraft === formatHtml(contentHtml);
+}
 
 /**
  * Render surface the editor is mounted on. Drives the initial mode
@@ -112,6 +144,10 @@ export type EditorState = Readonly<{
   mode: EditorMode;
   title: string;
   contentHtml: string;
+  // HTML-tab-only derived buffer (Issue #762). Holds the pretty-printed
+  // view of `contentHtml` while `mode === "html"`; only meaningful in
+  // that mode. See the module JSDoc for the format/minify lockstep.
+  htmlDraft: string;
   frontMatter: Record<string, unknown>;
   frontMatterMode: FrontMatterMode;
   frontMatterRawJson: string;
@@ -136,6 +172,7 @@ export type EditorState = Readonly<{
 export type EditorAction =
   | Readonly<{ type: "setTitle"; value: string }>
   | Readonly<{ type: "setContent"; value: string }>
+  | Readonly<{ type: "setHtmlDraft"; value: string }>
   | Readonly<{ type: "setFrontMatterField"; key: string; value: unknown }>
   | Readonly<{
       type: "renameFrontMatterKey";
@@ -206,6 +243,9 @@ export function createInitialEditorState(init: EditorInit): EditorState {
     mode: init.surface === "new" ? "wysiwyg" : "inline",
     title: init.title,
     contentHtml: init.contentHtml,
+    // Seeded lazily: the initial mode is never `html`, so the formatted
+    // buffer is only filled on the first `setMode("html")` (Issue #762).
+    htmlDraft: "",
     frontMatter: init.frontMatter,
     frontMatterMode: "structured",
     frontMatterRawJson: stringifyFrontMatter(init.frontMatter),
@@ -310,6 +350,15 @@ export function editorReducer(
     case "setContent": {
       if (state.contentHtml === action.value) return state;
       return withDirty(state, "content", { contentHtml: action.value });
+    }
+    case "setHtmlDraft": {
+      // HTML-tab edit: update the formatted buffer only. `contentHtml`
+      // stays the minified truth and is reconciled from `htmlDraft` on
+      // save (`snapshotForSubmit`) and on mode exit (`setMode`). Marks
+      // the existing `"content"` dirty key so autosave / the save button
+      // react the same way they do to `setContent` (Issue #762 ADR-003).
+      if (state.htmlDraft === action.value) return state;
+      return withDirty(state, "content", { htmlDraft: action.value });
     }
     case "setFrontMatterField": {
       const nextFm = setFrontMatterFieldValue(
@@ -455,6 +504,34 @@ export function editorReducer(
     }
     case "setMode": {
       if (state.mode === action.mode) return state;
+      // Entering the HTML tab: fold the pretty-printed view of the
+      // minified `contentHtml` into the derived `htmlDraft` buffer
+      // (Issue #762). `contentHtml` itself is untouched.
+      if (action.mode === "html") {
+        return {
+          ...state,
+          mode: action.mode,
+          htmlDraft: formatHtml(state.contentHtml),
+        };
+      }
+      // Leaving the HTML tab: commit `minifyHtml(htmlDraft)` back into
+      // `contentHtml` BEFORE the other modes read it, so any edit made in
+      // the HTML tab is preserved and the body the next mode (and any
+      // decoration-loss detection in the orchestrator) sees is the
+      // minified truth.
+      if (state.mode === "html") {
+        // Pristine (unedited) draft still equals the formatted view of the
+        // current contentHtml — leave contentHtml byte-for-byte intact so a
+        // no-op tab open/close never dirties or rewrites it (the persisted
+        // form may carry inter-block whitespace that minify would strip).
+        if (isHtmlDraftPristine(state.contentHtml, state.htmlDraft)) {
+          return { ...state, mode: action.mode };
+        }
+        return withDirty(state, "content", {
+          mode: action.mode,
+          contentHtml: minifyHtml(state.htmlDraft),
+        });
+      }
       return { ...state, mode: action.mode };
     }
     case "addTag": {
@@ -639,20 +716,44 @@ export type EditorSubmitSnapshot = Readonly<{
  */
 export type EditorSnapshotInput = Pick<
   EditorState,
+  | "mode"
   | "title"
   | "contentHtml"
+  | "htmlDraft"
   | "frontMatter"
   | "tagNames"
   | "tagDraft"
   | "directoryId"
 >;
 
+/**
+ * The body HTML a submit / autosave should send: always minified
+ * (Issue #762). On the HTML tab the in-progress truth is the formatted
+ * `htmlDraft`, so it is minified here; every other mode persists
+ * `contentHtml` (already the minified all-mode truth) verbatim. This is
+ * the single rule both manual save and autosave run through, so they can
+ * never disagree on which form crosses the wire.
+ */
+function snapshotContentHtml(
+  input: Pick<EditorSnapshotInput, "mode" | "contentHtml" | "htmlDraft">,
+): string {
+  if (input.mode === "html") {
+    // Pristine draft → persist the original contentHtml untouched so an
+    // unedited save never strips inter-block whitespace; edited → minify.
+    if (isHtmlDraftPristine(input.contentHtml, input.htmlDraft)) {
+      return input.contentHtml;
+    }
+    return minifyHtml(input.htmlDraft);
+  }
+  return input.contentHtml;
+}
+
 export function snapshotForSubmit(
   input: EditorSnapshotInput,
 ): EditorSubmitSnapshot {
   return {
     title: input.title,
-    contentHtml: input.contentHtml,
+    contentHtml: snapshotContentHtml(input),
     frontMatterJson: JSON.stringify(input.frontMatter),
     tagNames: resolveTagNames(input),
     directoryId: input.directoryId,

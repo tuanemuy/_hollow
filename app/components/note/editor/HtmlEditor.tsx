@@ -11,6 +11,12 @@ import { CodeHighlight } from "../content/CodeHighlight";
  * default styling; the sanitizer runs on the server inside `saveNote` /
  * `createNote` (note: the preview is therefore advisory — the actual
  * persisted HTML is the sanitized form).
+ *
+ * The `value` shown here is the *formatted* `htmlDraft` (Issue #762):
+ * the orchestrator feeds `formatHtml(contentHtml)` in and persists
+ * `minifyHtml(htmlDraft)` on save, so this pane edits the readable view
+ * while the stored body stays minified. The component itself is unaware
+ * of that asymmetry — it is a plain controlled `<textarea>`.
  */
 export type HtmlEditorProps = Readonly<{
   value: string;
