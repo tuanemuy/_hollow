@@ -13,6 +13,7 @@ import {
   joinUrl,
 } from "@/core/presentation/head";
 import { loadPublicNoteMeta } from "@/core/presentation/publicNoteMeta";
+import { ensurePublicResourceExists } from "@/core/presentation/publicStatusBridge";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderInputSchema = z.object({
@@ -23,9 +24,21 @@ const renderPublicNoteById = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(renderInputSchema))
   .handler(async ({ data }) => {
-    const { PublicNoteDetail } = await import(
-      "@/components/public/PublicNoteDetail"
-    );
+    const [{ getContainer }, { getPublicNote }, { PublicNoteDetail }] =
+      await Promise.all([
+        import("@/core/application/di/containerStore"),
+        import("@/core/application/publication/getPublicNote"),
+        import("@/components/public/PublicNoteDetail"),
+      ]);
+    // Resolve existence here so a missing/private note becomes a 404 document
+    // (RSC-internal notFound can't set the status). See publicStatusBridge.
+    await ensurePublicResourceExists(async () => {
+      const container = await getContainer();
+      return getPublicNote({
+        container,
+        input: { kind: "byId", noteId: data.noteId },
+      });
+    });
     return renderServerComponent(
       <PublicNoteDetail args={{ kind: "byId", noteId: data.noteId }} />,
     );
@@ -97,6 +110,9 @@ export const Route = createFileRoute("/notes/public/$noteId")({
     return { meta: metaTags, links, scripts: [article] };
   },
   component: PublicNoteByIdPage,
+  // HTTP 404 (router-fixed) but a `gone` screen on purpose: the document
+  // status can only be 404, while the screen keeps #599's gone wording for
+  // missing/private notes. See publicStatusBridge / .issue/735 ADR-004.
   notFoundComponent: () => <ErrorPage kind="gone" />,
   errorComponent: ({ error }) => (
     <ErrorPage kind="system" message={sanitizeRouteError(error)} />

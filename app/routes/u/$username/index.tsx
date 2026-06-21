@@ -17,6 +17,7 @@ import {
   paginationSchema,
   paginationSearchSchema,
 } from "@/core/presentation/pagination";
+import { ensurePublicResourceExists } from "@/core/presentation/publicStatusBridge";
 import { validateInput } from "@/core/presentation/validator";
 
 // P30 filter/sort/display search params. `tags` AND-filters the
@@ -61,7 +62,23 @@ const renderUserPublicTop = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(renderInputSchema))
   .handler(async ({ data }) => {
-    const { UserPublicTop } = await import("@/components/public/UserPublicTop");
+    const [{ getContainer }, { getPublicProfile }, { UserPublicTop }] =
+      await Promise.all([
+        import("@/core/application/di/containerStore"),
+        import("@/core/application/publication/getPublicProfile"),
+        import("@/components/public/UserPublicTop"),
+      ]);
+    // Resolve the user here so a missing/unavailable profile becomes a 404
+    // document (RSC-internal notFound can't set the status). The listing /
+    // tags returning 0 rows is not a notFound, so profile existence is the
+    // sole 404 source. See publicStatusBridge.
+    await ensurePublicResourceExists(async () => {
+      const container = await getContainer();
+      return getPublicProfile({
+        container,
+        input: { username: data.username },
+      });
+    });
     return renderServerComponent(
       <UserPublicTop
         username={data.username}
