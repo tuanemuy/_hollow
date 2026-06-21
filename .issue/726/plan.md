@@ -1,0 +1,45 @@
+# Issue #726 計画 — P21 プロフィール設定モックの本人アイデンティティ不整合
+
+## 意図
+
+設定プロフィール画面（P21）はログインユーザー自身のプロフィールを編集する画面。
+サイドバー（アプリ共通のログインユーザー＝「山田 一郎」/ yumenaut@gmail.com）と
+プロフィール編集フォーム（「柏木 結衣 / @yui_k / YK」）が別人格になっている不整合を解消する。
+正本＝サイドバー側の「山田 一郎」にフォーム側を揃える。
+
+## スコープ
+
+機能・実装には影響しない **モック HTML の表示文字列のみ** の修正（#644 と同系統）。
+
+対象ファイル（desktop / mobile を同形で修正）:
+
+- `spec/design/pages/P21-settings-profile.html`
+- `spec/design/pages/mobile/P21-settings-profile.html`
+
+### 同根の追加修正（意図に沿うスコープ内）
+
+レビュー時の関連スキャンで、同じ設定動線・同じログインユーザー本人の不整合を発見したため同 PR で修正:
+
+- `spec/design/pages/P24-settings-account-delete.html`
+- `spec/design/pages/mobile/P24-settings-account-delete.html`
+
+`confirm-username` の placeholder `@yui_k` → `@ichiro_y`（本人がアカウント削除時に自分のユーザー名を入力する欄）。
+
+## 変更点（各ファイル共通）
+
+| 箇所 | before | after |
+| --- | --- | --- |
+| `.avatar-large` イニシャル | `YK` | `YI`（山田 一郎 = Yamada Ichiro） |
+| `#display-name` の value | `柏木 結衣` | `山田 一郎` |
+| ユーザー名（URL）現在の表示 | `@yui_k` | `@ichiro_y`（既存 @yui_k = 名前_姓イニシャル パターンに整合） |
+
+## スコープ外（触らない）
+
+- bio（自己紹介）テキスト: 名前依存ではなく、Issue で挙げられていないため現状維持。
+- サイドバー `.sidebar-user`: 既に正本（山田 一郎）なので変更なし。
+- 機能・実装コード: モック磨き込みのため一切変更なし。
+
+## 検証
+
+静的 HTML モックのため、ブラウザで該当ファイルを開きサイドバーとフォームのアイデンティティが
+一致していることを目視確認する。詳細は testing.md。
