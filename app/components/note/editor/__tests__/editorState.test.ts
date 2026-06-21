@@ -872,6 +872,36 @@ describe("HTML tab formatted draft (Issue #762)", () => {
       expect(s3.dirtyKeys.has("content")).toBe(true);
     });
   });
+
+  describe("pristine round-trip on a <pre> note with inter-block \\n (W-002-001)", () => {
+    // A code-block note: markdown-it → sanitiser emits inter-block `\n`
+    // around the `<pre>`. Because `<pre>` is now a block sibling (W-003),
+    // `formatHtml` indents the surrounding `<p>`s while keeping the `<pre>`
+    // subtree verbatim, so `minifyHtml(formatHtml(persisted)) !== persisted`
+    // (the inter-block `\n` collapses). This is precisely the highest-risk
+    // new path where W-003 (pre as block) and B-001 (pristine) intersect:
+    // only the pristine check (`htmlDraft === formatHtml(contentHtml)`)
+    // keeps an unedited open/close from rewriting contentHtml and firing a
+    // spurious autosave. Drop the pristine branch and this test fails.
+    const persistedPre =
+      "<p>before</p>\n<pre><code>x = 1\n</code></pre>\n<p>after</p>";
+    const persistedPreInit = { ...baseInit, contentHtml: persistedPre };
+
+    it("no-op html round-trip leaves contentHtml byte-for-byte intact", () => {
+      const s0 = createInitialEditorState(persistedPreInit);
+      const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+      const s2 = editorReducer(s1, { type: "setMode", mode: "inline" });
+      expect(s2.contentHtml).toBe(persistedPre);
+      expect(s2.dirtyKeys.has("content")).toBe(false);
+    });
+
+    it("snapshotForSubmit returns the original contentHtml while pristine", () => {
+      const s0 = createInitialEditorState(persistedPreInit);
+      const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+      const snap = snapshotForSubmit(s1);
+      expect(snap.contentHtml).toBe(persistedPre);
+    });
+  });
 });
 
 describe("resolveTagNames", () => {

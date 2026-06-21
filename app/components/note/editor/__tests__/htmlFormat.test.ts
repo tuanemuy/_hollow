@@ -33,6 +33,25 @@ describe("formatHtml", () => {
     expect(formatted).toContain("\n");
     expect(minifyHtml(formatted)).toBe(html);
   });
+
+  it("formats a <pre> note that already carries inter-block \\n (W-002-001)", () => {
+    // The real persisted shape for a code-block note: markdown-it →
+    // sanitiser emits inter-block `\n` around the `<pre>` (the renderSync
+    // output is byte-equal to this). The surrounding `<p>`s must stay
+    // formatted while the `<pre>` subtree is verbatim — a no-op regression
+    // (formatter degenerating to identity on the whole container) would be
+    // caught by the explicit expected value here.
+    const persisted =
+      "<p>before</p>\n<pre><code>x = 1\n</code></pre>\n<p>after</p>";
+    const formatted = formatHtml(persisted);
+    expect(formatted).toBe(
+      "<p>before</p>\n<pre><code>x = 1\n</code></pre>\n<p>after</p>",
+    );
+    expect(formatted).toContain("<pre><code>x = 1\n</code></pre>");
+    // `formatHtml` is idempotent on this shape — the invariant the B-001
+    // pristine check (`htmlDraft === formatHtml(contentHtml)`) relies on.
+    expect(formatHtml(formatted)).toBe(formatted);
+  });
 });
 
 describe("minifyHtml", () => {
@@ -72,6 +91,41 @@ describe("roundtrip: minifyHtml(formatHtml(m)) === m", () => {
       expect(minifyHtml(formatHtml(m))).toBe(m);
     });
   }
+});
+
+describe("deep nesting is actually indented, not no-op'd (W-002)", () => {
+  it("indents a 5-level table (thead/tbody/tr/th/td)", () => {
+    // Pin the exact multi-level indentation so the depth calculation is
+    // fixed: if format ever degenerates to a no-op the literal below stops
+    // matching. (roundtrip alone would pass on a no-op formatter.)
+    const m =
+      "<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>d</td></tr></tbody></table>";
+    expect(formatHtml(m)).toBe(
+      [
+        "<table>",
+        "  <thead>",
+        "    <tr>",
+        "      <th>h</th>",
+        "    </tr>",
+        "  </thead>",
+        "  <tbody>",
+        "    <tr>",
+        "      <td>d</td>",
+        "    </tr>",
+        "  </tbody>",
+        "</table>",
+      ].join("\n"),
+    );
+    expect(minifyHtml(formatHtml(m))).toBe(m);
+  });
+
+  it("indents a nested blockquote", () => {
+    const m = "<blockquote><p>a</p><p>b</p></blockquote>";
+    expect(formatHtml(m)).toBe(
+      ["<blockquote>", "  <p>a</p>", "  <p>b</p>", "</blockquote>"].join("\n"),
+    );
+    expect(minifyHtml(formatHtml(m))).toBe(m);
+  });
 });
 
 describe("whitespace-significant elements are not reformatted (AC-4)", () => {
@@ -119,6 +173,20 @@ describe("renderSync-derived contentHtml still formats (W-001/W-002)", () => {
     // The formatter genuinely restructured the input (indented the <li>).
     expect(formatted).not.toBe(persisted);
     expect(formatted).toContain("\n  <li>");
+  });
+});
+
+describe("figure with a void <img> child stays verbatim (intended, W-001)", () => {
+  it("formats a figure+img as a no-op and roundtrips identically", () => {
+    // Intended spec: a void child (img) is context-dependent (inside a `<p>`
+    // it is inline and must keep inter-word spaces), so figure is not
+    // block-promoted and is emitted verbatim — round-trip safety and inline
+    // whitespace preservation are prioritised over maximal pretty-printing
+    // (AC-5). This pins the current no-op so the choice can't silently flip.
+    const fig =
+      '<figure><img src="/media/1" alt=""><figcaption>cap</figcaption></figure>';
+    expect(formatHtml(fig)).toBe(fig);
+    expect(minifyHtml(formatHtml(fig))).toBe(fig);
   });
 });
 
