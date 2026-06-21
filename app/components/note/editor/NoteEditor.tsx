@@ -39,10 +39,11 @@ import {
   type EditLockState,
   type EditorMode,
   editorReducer,
-  resolveTagNames,
+  snapshotForSubmit,
 } from "./editorState";
 import { FrontMatterEditor } from "./FrontMatterEditor";
 import { HtmlEditor } from "./HtmlEditor";
+import { minifyHtml } from "./htmlFormat";
 import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
 import { editorActions, editorTopbar, titleInput } from "./styles";
@@ -198,10 +199,19 @@ export function NoteEditor(props: NoteEditorProps) {
         dispatch({ type: "mediaInsertionAdded", insertion });
         return;
       }
-      // `html` and `inline` share the string-append
-      // path. For `inline`, the `InlineEditor`'s `useEffect([value])`
-      // resync rebuilds the DOM with the newly-appended `<img>` and
-      // re-takes the MutationObserver snapshot.
+      // On the HTML tab the in-progress truth is the formatted `htmlDraft`
+      // (Issue #762): the MediaUploader appended to `htmlDraft` (its prop
+      // below), so the result lands back in `htmlDraft`, not `contentHtml`
+      // — save-time `minifyHtml` normalises the appended block.
+      if (state.mode === "html") {
+        dispatch({ type: "setHtmlDraft", value: nextHtml });
+        dispatch({ type: "mediaInsertionAdded", insertion });
+        return;
+      }
+      // `inline` keeps the string-append path on `contentHtml`. The
+      // `InlineEditor`'s `useEffect([value])` resync rebuilds the DOM with
+      // the newly-appended `<img>` and re-takes the MutationObserver
+      // snapshot.
       dispatch({ type: "setContent", value: nextHtml });
       dispatch({ type: "mediaInsertionAdded", insertion });
     },
@@ -259,8 +269,19 @@ export function NoteEditor(props: NoteEditorProps) {
       // pre-#696 behaviour (AC-6) where the in-pane WYSIWYG banner is the
       // sole decoration-loss warning, so a "HTML tab → raw <section> → WYSIWYG
       // tab" path on a new note must NOT pop this dialog.
+      //
+      // Issue #762: when leaving the HTML tab, `contentHtml` is stale —
+      // the in-progress truth is the formatted `htmlDraft`. Detect against
+      // `minifyHtml(htmlDraft)` so tags typed in the HTML tab are caught.
+      // The `setMode` reducer commits the same `minifyHtml(htmlDraft)` into
+      // `contentHtml` on this transition, so detection source and the body
+      // the WYSIWYG pane mounts with stay in lockstep.
       if (surface === "edit" && nextMode === "wysiwyg") {
-        const lostTags = detectUnsupportedTags(latest.contentHtml);
+        const detectSource =
+          latest.mode === "html"
+            ? minifyHtml(latest.htmlDraft)
+            : latest.contentHtml;
+        const lostTags = detectUnsupportedTags(detectSource);
         if (lostTags.length > 0) {
           setPendingWysiwygSwitch({ lostTags });
           return;
@@ -289,6 +310,11 @@ export function NoteEditor(props: NoteEditorProps) {
     //   3. switch the mode to mount the pane.
     // All three run inside one React event handler and batch into a single
     // render with the final state (tags set, ack=true, mode=wysiwyg).
+    //
+    // Issue #762: when the deferred switch leaves the HTML tab, the final
+    // `setMode("wysiwyg")` below still sees `mode === "html"` and commits
+    // `minifyHtml(htmlDraft)` into `contentHtml`, so the HTML-tab edit is
+    // never dropped on this confirm path.
     dispatch({ type: "wysiwygUnsupportedDetected", tags: pending.lostTags });
     dispatch({ type: "wysiwygUnsupportedAck" });
     dispatch({ type: "setMode", mode: "wysiwyg" });
@@ -311,8 +337,12 @@ export function NoteEditor(props: NoteEditorProps) {
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitError(null);
-    const frontMatterJson = JSON.stringify(state.frontMatter);
-    const tagNames = resolveTagNames(state);
+    // Route the manual save through the same snapshot rule as autosave so
+    // both persist a minified body (the HTML tab minifies `htmlDraft`;
+    // every other mode passes `contentHtml` through) — Issue #762.
+    const snap = snapshotForSubmit(state);
+    const frontMatterJson = snap.frontMatterJson;
+    const tagNames = snap.tagNames;
     // Set outside the transition so the「ディレクトリ作成中...」label paints
     // at high priority before the save round-trip begins.
     if (state.pendingDirectoryName !== null) setCreatingDirectory(true);
@@ -324,7 +354,7 @@ export function NoteEditor(props: NoteEditorProps) {
           const result = await createNote({
             data: {
               title: state.title,
-              contentHtml: state.contentHtml,
+              contentHtml: snap.contentHtml,
               directoryId,
               tagNames,
               frontMatterJson,
@@ -339,7 +369,7 @@ export function NoteEditor(props: NoteEditorProps) {
             data: {
               noteId: props.noteId,
               title: state.title,
-              contentHtml: state.contentHtml,
+              contentHtml: snap.contentHtml,
               tagNames,
               frontMatterJson,
             },
@@ -463,12 +493,12 @@ export function NoteEditor(props: NoteEditorProps) {
       {state.mode === "html" ? (
         <>
           <HtmlEditor
-            value={state.contentHtml}
-            onChange={(v) => dispatch({ type: "setContent", value: v })}
+            value={state.htmlDraft}
+            onChange={(v) => dispatch({ type: "setHtmlDraft", value: v })}
             disabled={isPending}
           />
           <MediaUploader
-            contentHtml={state.contentHtml}
+            contentHtml={state.htmlDraft}
             onInsert={onMediaInsert}
             disabled={isPending}
           />

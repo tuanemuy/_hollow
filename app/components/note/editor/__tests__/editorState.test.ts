@@ -750,6 +750,90 @@ describe("snapshotForSubmit", () => {
   });
 });
 
+describe("HTML tab formatted draft (Issue #762)", () => {
+  // `baseInit` is surface "edit" → starts in `inline` with the minified
+  // `contentHtml = "<p>hi</p>"`.
+  const blockInit = {
+    ...baseInit,
+    contentHtml: "<ul><li>a</li><li>b</li></ul>",
+  };
+
+  it("htmlDraft starts empty and is not seeded until setMode(html)", () => {
+    const s0 = createInitialEditorState(blockInit);
+    expect(s0.htmlDraft).toBe("");
+    expect(s0.mode).toBe("inline");
+  });
+
+  it("setMode(html) folds formatHtml(contentHtml) into htmlDraft", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    expect(s1.mode).toBe("html");
+    expect(s1.htmlDraft).toBe("<ul>\n  <li>a</li>\n  <li>b</li>\n</ul>");
+    // contentHtml stays the minified all-mode truth.
+    expect(s1.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
+    // Entering the tab is a view-only fold — not a dirtying edit.
+    expect(s1.dirtyKeys.has("content")).toBe(false);
+  });
+
+  it("setHtmlDraft updates only htmlDraft and marks content dirty", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    const s2 = editorReducer(s1, {
+      type: "setHtmlDraft",
+      value: "<ul>\n  <li>a</li>\n  <li>b</li>\n  <li>c</li>\n</ul>",
+    });
+    expect(s2.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
+    expect(s2.dirtyKeys.has("content")).toBe(true);
+  });
+
+  it("snapshotForSubmit returns minified htmlDraft while on the HTML tab", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    const s2 = editorReducer(s1, {
+      type: "setHtmlDraft",
+      value: "<ul>\n  <li>a</li>\n  <li>b</li>\n  <li>c</li>\n</ul>",
+    });
+    const snap = snapshotForSubmit(s2);
+    expect(snap.contentHtml).toBe("<ul><li>a</li><li>b</li><li>c</li></ul>");
+  });
+
+  it("snapshotForSubmit uses contentHtml verbatim in non-HTML modes", () => {
+    const s0 = createInitialEditorState(blockInit); // inline
+    const snap = snapshotForSubmit(s0);
+    expect(snap.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
+  });
+
+  it("commits an HTML-tab edit into contentHtml on mode exit (no loss)", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    const s2 = editorReducer(s1, {
+      type: "setHtmlDraft",
+      value: "<ul>\n  <li>a</li>\n  <li>b</li>\n  <li>c</li>\n</ul>",
+    });
+    const s3 = editorReducer(s2, { type: "setMode", mode: "inline" });
+    expect(s3.mode).toBe("inline");
+    // The edit made on the HTML tab survives, minified, in contentHtml.
+    expect(s3.contentHtml).toBe("<ul><li>a</li><li>b</li><li>c</li></ul>");
+  });
+
+  it("round-trips inline → html → inline without an edit, leaving contentHtml intact", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    const s2 = editorReducer(s1, { type: "setMode", mode: "inline" });
+    expect(s2.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
+    // No spurious dirty when nothing was edited.
+    expect(s2.dirtyKeys.has("content")).toBe(false);
+  });
+
+  it("round-trips html ⇄ wysiwyg ⇄ inline without destroying contentHtml", () => {
+    const s0 = createInitialEditorState(blockInit);
+    const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+    const s2 = editorReducer(s1, { type: "setMode", mode: "wysiwyg" });
+    const s3 = editorReducer(s2, { type: "setMode", mode: "inline" });
+    expect(s3.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
+  });
+});
+
 describe("resolveTagNames", () => {
   it("returns the committed list unchanged when the draft is empty", () => {
     const names = ["a", "b"];

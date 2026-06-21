@@ -182,23 +182,39 @@ export function useAutosave({
   const {
     title,
     contentHtml,
+    htmlDraft,
     frontMatter,
     tagNames,
     tagDraft,
     directoryId,
     mode,
   } = state;
+  // `mode` / `htmlDraft` participate in the snapshot because the HTML tab
+  // persists `minifyHtml(htmlDraft)` rather than `contentHtml` (Issue
+  // #762). Without them, an HTML-tab edit (which only touches `htmlDraft`)
+  // would not change `snapshot` and autosave would flush a stale body.
   const snapshot = useMemo(
     () =>
       snapshotForSubmit({
+        mode,
         title,
         contentHtml,
+        htmlDraft,
         frontMatter,
         tagNames,
         tagDraft,
         directoryId,
       }),
-    [title, contentHtml, frontMatter, tagNames, tagDraft, directoryId],
+    [
+      mode,
+      title,
+      contentHtml,
+      htmlDraft,
+      frontMatter,
+      tagNames,
+      tagDraft,
+      directoryId,
+    ],
   );
 
   // Hoist the flush gate to the hook body so the effect's dep list does
