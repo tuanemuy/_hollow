@@ -14,13 +14,33 @@ import {
   ALERT_ICON,
   ALERT_INFO,
   ALERT_TITLE,
+  checkboxRow,
+  field,
+  fieldLabel,
+  fieldTextarea,
+  formError,
+  pillBtn,
+  pillBtnPrimary,
 } from "@/components/common/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
   type SerializedError,
 } from "@/core/presentation/errorResponse";
+import {
+  FORM_FOOTER,
+  FORM_NOTE,
+  SECTION,
+  SECTION_LABEL,
+  SEGMENTED,
+  SEGMENTED_BTN,
+} from "../styles";
 import { enqueueExportFn, startExportFn } from "./action";
+
+const SR_ONLY = "sr-only";
+const PAGE_TITLE_CLASS =
+  "text-3xl font-normal tracking-tightest leading-tight text-ink mb-2.5 [overflow-wrap:anywhere] min-w-0";
+const PAGE_SUBTITLE_CLASS = "text-[15px] text-ink-secondary mb-7 leading-snug";
 
 type Format = "html" | "markdown" | "pdf";
 type Paper = "A4" | "Letter";
@@ -167,75 +187,105 @@ export function ExportForm({ noteId }: Props) {
 
   return (
     <section>
-      <h2>{noteId === null ? "エクスポート（一括）" : "エクスポート"}</h2>
+      <h2 className={PAGE_TITLE_CLASS}>
+        {noteId === null ? "エクスポート（一括）" : "エクスポート"}
+      </h2>
+      <p className={PAGE_SUBTITLE_CLASS}>
+        選択したノートを HTML / Markdown / PDF で書き出します。1
+        件は即時ダウンロード、複数件はバックグラウンドジョブとして実行され、完了後に{" "}
+        <code className="font-mono">エクスポートジョブ一覧</code>{" "}
+        からダウンロードできます。
+      </p>
 
-      <fieldset>
-        <legend>形式</legend>
-        {(["html", "markdown", "pdf"] as const).map((v) => (
-          <label key={v}>
-            <input
-              type="radio"
-              name={formatId}
-              value={v}
-              checked={format === v}
-              onChange={() => setFormat(v)}
-              disabled={isPending}
-            />
-            {v.toUpperCase()}
-          </label>
-        ))}
-      </fieldset>
-
-      <label>
-        <input
-          id={fmId}
-          type="checkbox"
-          checked={includeFrontMatter}
-          onChange={(e) => setIncludeFrontMatter(e.target.checked)}
-          disabled={isPending}
-        />
-        <span>FrontMatter を含める</span>
-      </label>
-      <label>
-        <input
-          id={mediaId}
-          type="checkbox"
-          checked={embedMedia}
-          onChange={(e) => setEmbedMedia(e.target.checked)}
-          disabled={isPending}
-        />
-        <span>メディアを埋め込む</span>
-      </label>
-
-      {format === "pdf" ? (
-        <fieldset>
-          <legend>用紙サイズ</legend>
-          {(["A4", "Letter"] as const).map((p) => (
-            <label key={p}>
+      <fieldset className={SECTION}>
+        <legend className={SECTION_LABEL}>形式</legend>
+        <div className={SEGMENTED}>
+          {(["html", "markdown", "pdf"] as const).map((v) => (
+            <label
+              key={v}
+              className={SEGMENTED_BTN}
+              data-active={format === v || undefined}
+            >
               <input
+                className={SR_ONLY}
                 type="radio"
-                name={paperId}
-                value={p}
-                checked={paper === p}
-                onChange={() => setPaper(p)}
+                name={formatId}
+                value={v}
+                checked={format === v}
+                onChange={() => setFormat(v)}
                 disabled={isPending}
               />
-              {p}
+              {v.toUpperCase()}
             </label>
           ))}
+        </div>
+      </fieldset>
+
+      <div className={SECTION}>
+        <span className={SECTION_LABEL}>オプション</span>
+        <label className={checkboxRow}>
+          <input
+            id={fmId}
+            type="checkbox"
+            checked={includeFrontMatter}
+            onChange={(e) => setIncludeFrontMatter(e.target.checked)}
+            disabled={isPending}
+          />
+          <span>FrontMatter を含める</span>
+        </label>
+        <label className={checkboxRow}>
+          <input
+            id={mediaId}
+            type="checkbox"
+            checked={embedMedia}
+            onChange={(e) => setEmbedMedia(e.target.checked)}
+            disabled={isPending}
+          />
+          <span>メディアを埋め込む</span>
+        </label>
+      </div>
+
+      {format === "pdf" ? (
+        <fieldset className={SECTION}>
+          <legend className={SECTION_LABEL}>用紙サイズ</legend>
+          <div className={`${SEGMENTED} max-w-[280px]`}>
+            {(["A4", "Letter"] as const).map((p) => (
+              <label
+                key={p}
+                className={SEGMENTED_BTN}
+                data-active={paper === p || undefined}
+              >
+                <input
+                  className={SR_ONLY}
+                  type="radio"
+                  name={paperId}
+                  value={p}
+                  checked={paper === p}
+                  onChange={() => setPaper(p)}
+                  disabled={isPending}
+                />
+                {p}
+              </label>
+            ))}
+          </div>
         </fieldset>
       ) : null}
 
       {noteId === null ? (
         <>
-          <label htmlFor={bulkId}>対象ノート ID（改行 / カンマ区切り）</label>
-          <textarea
-            id={bulkId}
-            value={bulkNoteIds}
-            onChange={(e) => setBulkNoteIds(e.target.value)}
-            rows={4}
-            disabled={isPending}
-          />
+          <div className={field}>
+            <label className={fieldLabel} htmlFor={bulkId}>
+              対象ノート ID（改行 / カンマ区切り）
+            </label>
+            <textarea
+              id={bulkId}
+              className={fieldTextarea}
+              value={bulkNoteIds}
+              onChange={(e) => setBulkNoteIds(e.target.value)}
+              rows={4}
+              disabled={isPending}
+            />
+          </div>
           {showAsyncRecommendation ? (
             <div className={`${ALERT} ${ALERT_INFO} mt-4`} role="note">
               <span className={ALERT_ICON}>
@@ -254,21 +304,52 @@ export function ExportForm({ noteId }: Props) {
               </div>
             </div>
           ) : null}
-          <button type="button" onClick={onSubmitBulk} disabled={isPending}>
-            {isPending ? "登録中..." : "一括エクスポートを開始"}
-          </button>
+          <div className={FORM_FOOTER}>
+            {success !== "" ? (
+              <p className={FORM_NOTE} aria-live="polite">
+                {success}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnPrimary}`}
+              data-primary=""
+              onClick={onSubmitBulk}
+              disabled={isPending}
+            >
+              {isPending ? "登録中..." : "一括エクスポートを開始"}
+            </button>
+          </div>
         </>
       ) : (
-        <button type="button" onClick={onSubmitSingle} disabled={isPending}>
-          {isPending ? "処理中..." : "ダウンロード"}
-        </button>
+        <div className={FORM_FOOTER}>
+          {success !== "" ? (
+            <p className={FORM_NOTE} aria-live="polite">
+              {success}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-primary=""
+            onClick={onSubmitSingle}
+            disabled={isPending}
+          >
+            {isPending ? "処理中..." : "ダウンロード"}
+          </button>
+        </div>
       )}
 
       {formatFieldErrors !== undefined ? (
-        <p role="alert">{formatFieldErrors[0]}</p>
+        <p className={formError} role="alert">
+          {formatFieldErrors[0]}
+        </p>
       ) : null}
-      {summary !== "" ? <p role="alert">{summary}</p> : null}
-      {success !== "" ? <p aria-live="polite">{success}</p> : null}
+      {summary !== "" ? (
+        <p className={formError} role="alert">
+          {summary}
+        </p>
+      ) : null}
     </section>
   );
 }

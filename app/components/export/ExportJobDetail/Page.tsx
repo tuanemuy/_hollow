@@ -1,4 +1,6 @@
+import { EMPTY_STATE, PAGE_TITLE } from "@/components/layout/styles";
 import type { ExportJobDTO } from "@/core/application/export/view";
+import { EXPORT_MAIN_FORM } from "../styles";
 import { ExportJobDetailView } from "./index";
 
 /**
@@ -13,9 +15,9 @@ import { ExportJobDetailView } from "./index";
  */
 export function ExportJobNotFound() {
   return (
-    <main>
-      <div role="alert">
-        <h1>ジョブが見つかりません</h1>
+    <main className={EXPORT_MAIN_FORM}>
+      <div className={EMPTY_STATE} role="alert">
+        <h1 className={PAGE_TITLE}>ジョブが見つかりません</h1>
         <p>ジョブが見つからないか、アクセス権限がありません。</p>
       </div>
     </main>
@@ -24,8 +26,8 @@ export function ExportJobNotFound() {
 
 export function ExportJobDetailPage({ job }: { job: ExportJobDTO }) {
   return (
-    <main>
-      <h1>エクスポートジョブ詳細</h1>
+    <main className={EXPORT_MAIN_FORM}>
+      <h1 className={PAGE_TITLE}>エクスポートジョブ詳細</h1>
       <ExportJobDetailView job={job} />
     </main>
   );

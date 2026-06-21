@@ -3,7 +3,17 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useTransition } from "react";
+import { exportStatusTag } from "@/components/common/exportStatus";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
+import {
+  formError,
+  pillBtn,
+  pillBtnDanger,
+  pillBtnPrimary,
+  tagBadge,
+  tagTone,
+  textLink,
+} from "@/components/common/styles";
 import type { ExportJobDTO } from "@/core/application/export/view";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
@@ -12,6 +22,17 @@ import {
 } from "@/core/presentation/errorResponse";
 import { cancelExportFn, downloadExportFn } from "../ExportForm/action";
 import { STATUS_LABEL } from "../ExportJobsList";
+import {
+  FAIL_SUMMARY,
+  JOB_ACTIONS,
+  JOB_META,
+  META_K,
+  META_V,
+  PROGRESS,
+  PROGRESS_BAR,
+  STATUS_DOT,
+  STATUS_DOT_COLOR,
+} from "../styles";
 
 const POLL_INTERVAL_MS = 3000;
 const FAILED_NOTE_IDS_DISPLAY_LIMIT = 50;
@@ -95,47 +116,71 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
   const showProgressBar = job.status === "processing" && job.progress.total > 0;
   const showProcessingPending =
     job.status === "processing" && job.progress.total === 0;
+  const tone = exportStatusTag(job.status);
+  const pct =
+    job.progress.total > 0
+      ? Math.min(
+          100,
+          Math.round((job.progress.processed / job.progress.total) * 100),
+        )
+      : 0;
 
   return (
     <section>
-      <dl>
-        <dt>ステータス</dt>
-        <dd>{STATUS_LABEL[job.status]}</dd>
+      <dl className={JOB_META}>
+        <dt className={META_K}>ステータス</dt>
+        <dd className={META_V}>
+          <span className={`${tagBadge} ${tagTone[tone]}`}>
+            <span
+              className={`${STATUS_DOT} ${STATUS_DOT_COLOR[tone]} ${
+                job.status === "processing" ? "motion-safe:animate-pulse" : ""
+              }`}
+              aria-hidden="true"
+            />
+            {STATUS_LABEL[job.status]}
+          </span>
+        </dd>
 
-        <dt>形式 / スコープ</dt>
-        <dd>
+        <dt className={META_K}>形式 / スコープ</dt>
+        <dd className={`${META_V} font-mono`}>
           {job.format} / {job.scope}
         </dd>
 
-        <dt>進捗</dt>
-        <dd>
+        <dt className={META_K}>進捗</dt>
+        <dd className={META_V}>
           {showProgressBar ? (
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={job.progress.total}
-              aria-valuenow={job.progress.processed}
-            >
-              {job.progress.processed}/{job.progress.total}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono">
+                {job.progress.processed}/{job.progress.total}
+              </span>
+              <div
+                className={PROGRESS}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={job.progress.total}
+                aria-valuenow={job.progress.processed}
+              >
+                <div className={PROGRESS_BAR} style={{ width: `${pct}%` }} />
+              </div>
             </div>
           ) : showProcessingPending ? (
-            <span>処理待ち</span>
+            <span className="text-ink-secondary">処理待ち</span>
           ) : (
-            <span>
+            <span className="font-mono">
               {job.progress.processed}/{job.progress.total}
             </span>
           )}
         </dd>
 
-        <dt>作成日時</dt>
-        <dd>
+        <dt className={META_K}>作成日時</dt>
+        <dd className={META_V}>
           <time dateTime={job.createdAt}>{job.createdAt}</time>
         </dd>
 
         {job.completedAt !== null ? (
           <>
-            <dt>完了日時</dt>
-            <dd>
+            <dt className={META_K}>完了日時</dt>
+            <dd className={META_V}>
               <time dateTime={job.completedAt}>{job.completedAt}</time>
             </dd>
           </>
@@ -143,8 +188,8 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
 
         {job.expiresAt !== null ? (
           <>
-            <dt>有効期限</dt>
-            <dd>
+            <dt className={META_K}>有効期限</dt>
+            <dd className={META_V}>
               <time dateTime={job.expiresAt}>{job.expiresAt}</time>
             </dd>
           </>
@@ -152,23 +197,25 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
 
         {job.artifactSize !== null ? (
           <>
-            <dt>ファイルサイズ</dt>
-            <dd>{formatBytes(job.artifactSize)}</dd>
+            <dt className={META_K}>ファイルサイズ</dt>
+            <dd className={META_V}>{formatBytes(job.artifactSize)}</dd>
           </>
         ) : null}
 
         {job.errorReason !== null ? (
           <>
-            <dt>エラー内容</dt>
-            <dd role="alert">{job.errorReason}</dd>
+            <dt className={META_K}>エラー内容</dt>
+            <dd className={FAIL_SUMMARY} role="alert">
+              {job.errorReason}
+            </dd>
           </>
         ) : null}
 
         {job.failedNoteIds.length > 0 ? (
           <>
-            <dt>失敗したノート</dt>
-            <dd>
-              <ul>
+            <dt className={META_K}>失敗したノート</dt>
+            <dd className={META_V}>
+              <ul className="font-mono text-xs text-ink-tertiary flex flex-col gap-1 [overflow-wrap:anywhere]">
                 {job.failedNoteIds
                   .slice(0, FAILED_NOTE_IDS_DISPLAY_LIMIT)
                   .map((id) => (
@@ -176,7 +223,7 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
                   ))}
               </ul>
               {job.failedNoteIds.length > FAILED_NOTE_IDS_DISPLAY_LIMIT ? (
-                <p>
+                <p className="text-xs text-ink-tertiary mt-1">
                   他 {job.failedNoteIds.length - FAILED_NOTE_IDS_DISPLAY_LIMIT}{" "}
                   件
                 </p>
@@ -186,26 +233,44 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
         ) : null}
       </dl>
 
-      <div>
+      <div className={JOB_ACTIONS}>
         {canDownload ? (
-          <button type="button" onClick={onDownload} disabled={isPending}>
+          <button
+            type="button"
+            className={`${pillBtn} ${pillBtnPrimary}`}
+            data-primary=""
+            onClick={onDownload}
+            disabled={isPending}
+          >
             ダウンロード
           </button>
         ) : null}
-        {isCompleted && isExpiredByClock ? (
-          <p role="status">有効期限切れのため再エクスポートが必要です。</p>
-        ) : null}
         {isActive ? (
-          <button type="button" onClick={onCancel} disabled={isPending}>
+          <button
+            type="button"
+            className={`${pillBtn} ${pillBtnDanger}`}
+            data-danger=""
+            onClick={onCancel}
+            disabled={isPending}
+          >
             キャンセル
           </button>
         ) : null}
+        {isCompleted && isExpiredByClock ? (
+          <p className="text-sm text-ink-secondary" role="status">
+            有効期限切れのため再エクスポートが必要です。
+          </p>
+        ) : null}
       </div>
 
-      {message !== "" ? <p role="alert">{message}</p> : null}
+      {message !== "" ? (
+        <p className={formError} role="alert">
+          {message}
+        </p>
+      ) : null}
 
-      <p>
-        <Link to="/exports" search={{ offset: 0 }}>
+      <p className="mt-6">
+        <Link className={textLink} to="/exports" search={{ offset: 0 }}>
           一覧へ戻る
         </Link>
       </p>

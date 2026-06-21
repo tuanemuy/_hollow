@@ -12,11 +12,13 @@ import {
   Upload,
 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
+import { exportStatusTag } from "@/components/common/exportStatus";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
   pillBtn,
   pillBtnSmDense,
+  type Tone,
   tagBadge,
   tagTone,
 } from "@/components/common/styles";
@@ -42,7 +44,6 @@ import {
 
 type IngestionStatus = IngestionJobDTO["status"];
 type ExportStatus = ExportJobDTO["status"];
-type Tone = "info" | "success" | "warning" | "error";
 
 const FIELD_ERROR_CLASS = "text-xs text-error mt-1";
 
@@ -135,21 +136,6 @@ function ingestionStatusLabel(status: IngestionStatus): string {
       return "失敗";
     case "discarded":
       return "破棄";
-  }
-}
-
-function exportStatusTag(status: ExportStatus): Tone {
-  switch (status) {
-    case "failed":
-      return "error";
-    case "pending":
-    case "processing":
-      return "info";
-    case "completed":
-      return "success";
-    case "cancelled":
-    case "expired":
-      return "warning";
   }
 }
 
