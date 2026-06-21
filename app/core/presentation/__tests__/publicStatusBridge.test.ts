@@ -1,13 +1,15 @@
 import { isNotFound } from "@tanstack/react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "@/core/application/errors";
 import { ensurePublicResourceExists } from "../publicStatusBridge";
 
 describe("ensurePublicResourceExists", () => {
-  it("resolves without throwing when the resource exists", async () => {
-    await expect(
-      ensurePublicResourceExists(async () => ({ id: "exists" })),
-    ).resolves.toBeUndefined();
+  it("runs the existence check and resolves when the resource exists", async () => {
+    // Assert `check` actually runs — dropping the pre-check would silently
+    // regress the 404 behaviour, so the call itself is part of the contract.
+    const check = vi.fn(async () => ({ id: "exists" }));
+    await expect(ensurePublicResourceExists(check)).resolves.toBeUndefined();
+    expect(check).toHaveBeenCalledTimes(1);
   });
 
   it("translates a NotFoundError into a router notFound (→ 404 document)", async () => {

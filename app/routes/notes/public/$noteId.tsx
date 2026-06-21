@@ -110,6 +110,9 @@ export const Route = createFileRoute("/notes/public/$noteId")({
     return { meta: metaTags, links, scripts: [article] };
   },
   component: PublicNoteByIdPage,
+  // HTTP 404 (router-fixed) but a `gone` screen on purpose: the document
+  // status can only be 404, while the screen keeps #599's gone wording for
+  // missing/private notes. See publicStatusBridge / .issue/735 ADR-004.
   notFoundComponent: () => <ErrorPage kind="gone" />,
   errorComponent: ({ error }) => (
     <ErrorPage kind="system" message={sanitizeRouteError(error)} />
