@@ -194,7 +194,7 @@ describe("testLLMConnectionSchema.draftConfig", () => {
 
 describe("SPEECH_PROVIDERS_TRANSPORT", () => {
   it("enumerates the transport-known speech providers (kept in sync with the VO list)", () => {
-    expect([...SPEECH_PROVIDERS_TRANSPORT]).toEqual(["openai"]);
+    expect([...SPEECH_PROVIDERS_TRANSPORT]).toEqual(["openai", "deepgram"]);
   });
 });
 

@@ -31,6 +31,25 @@ const initialState: FormState = { error: null, success: false };
 
 const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
   openai: "OpenAI",
+  deepgram: "Deepgram",
+};
+
+// Canonical default transcription model per provider. Mirrors the
+// default-model mapping INVARIANT in
+// `app/core/domain/adminSettings/valueObject.ts`. Used to reset the model
+// field when the operator switches providers so a stale model (e.g.
+// `gpt-4o-transcribe` carried into Deepgram) does not break the connection
+// test / real transcribe.
+const PROVIDER_DEFAULT_MODEL: Readonly<Record<ProviderId, string>> = {
+  openai: "gpt-4o-transcribe",
+  deepgram: "nova-3",
+};
+
+// API-key input placeholder per provider (OpenAI Bearer `sk-...` vs Deepgram
+// `Token` keys). Same provider-branch pattern as the LLM form.
+const PROVIDER_API_KEY_PLACEHOLDER: Readonly<Record<ProviderId, string>> = {
+  openai: "sk-...",
+  deepgram: "Token ...",
 };
 
 const SECTION_CLASS = "py-8 border-b border-hairline last:border-b-0";
@@ -198,7 +217,8 @@ export function SpeechSettingsForm({
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>文字起こしプロバイダ</h2>
         <p className={SECTION_DESC_CLASS}>
-          対応プロバイダ: OpenAI。 切り替えると API キーの再入力が必要です。
+          対応プロバイダ: OpenAI / Deepgram。 切り替えると API
+          キーの再入力が必要です。
         </p>
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={providerId}>
@@ -218,6 +238,15 @@ export function SpeechSettingsForm({
               const next = event.target.value;
               if (isProviderId(next)) {
                 setProvider(next);
+                // Reset the model to the new provider's canonical default so a
+                // stale model (e.g. `gpt-4o-transcribe` carried into Deepgram)
+                // does not break the connection test / real transcribe. This
+                // is a Speech-form-only behavior (the LLM form has no reset).
+                // Suppress when the model is env-locked so local state does
+                // not diverge from the env-pinned value ([arch P-002]).
+                if (!envOverrides.model) {
+                  setModel(PROVIDER_DEFAULT_MODEL[next]);
+                }
               }
             }}
             disabled={isPending || envOverrides.provider}
@@ -305,7 +334,7 @@ export function SpeechSettingsForm({
               name="apiKey"
               type="password"
               className={`${INPUT_MONO_CLASS} flex-1 min-w-0`}
-              placeholder="sk-..."
+              placeholder={PROVIDER_API_KEY_PLACEHOLDER[provider]}
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
               autoComplete="off"
@@ -383,7 +412,9 @@ export function SpeechSettingsForm({
             data-env-locked={envOverrides.model || undefined}
             aria-describedby={envOverrides.model ? modelLockHintId : undefined}
           />
-          <p className={FIELD_HINT_CLASS}>例: gpt-4o-transcribe</p>
+          <p className={FIELD_HINT_CLASS}>
+            例: {PROVIDER_DEFAULT_MODEL[provider]}
+          </p>
           {envOverrides.model ? (
             <p className={LOCK_HINT_CLASS} id={modelLockHintId}>
               環境変数{" "}

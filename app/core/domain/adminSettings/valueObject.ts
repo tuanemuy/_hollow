@@ -262,10 +262,11 @@ const SPEECH_MODEL_MAX_LENGTH = 120;
 // `defaultSpeech()` / DI bootstrap — keep that mapping in sync when adding a
 // provider:
 //   - `openai` → `gpt-4o-transcribe`
-// Add new providers (e.g. "deepgram") atomically: export a `SpeechAdapter`
-// from `app/core/adapters/<provider>/index.ts`, register it in
+//   - `deepgram` → `nova-3`
+// Add new providers atomically: export a `SpeechAdapter` from
+// `app/core/adapters/<provider>/index.ts`, register it in
 // `speechProviderRegistry`, and extend the default-model mapping above.
-const SPEECH_PROVIDERS = ["openai"] as const;
+const SPEECH_PROVIDERS = ["openai", "deepgram"] as const;
 const SPEECH_API_KEY_SOURCES = ["env", "db"] as const;
 
 export type SpeechProvider = (typeof SPEECH_PROVIDERS)[number];

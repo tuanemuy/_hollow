@@ -175,14 +175,15 @@ export type RequestServerConfig = AppConfig &
     // Optional `ADMIN_SPEECH_API_KEY` env override. When set,
     // speech settings resolution prefers this over any DB-stored ciphertext
     // (`AdminSettingsService.assertSpeechEnvOverride`); also wires the real
-    // OpenAI speech adapter on the request path.
+    // speech adapter (resolved via `ADMIN_SPEECH_PROVIDER`) on the request path.
     adminSpeechApiKey?: string;
     // Optional `ADMIN_SPEECH_MODEL` var. Paired with `adminSpeechApiKey`,
-    // both truthy → DI wires `OpenAISpeechRecognitionProvider`; either
+    // both truthy → DI wires the registry-resolved speech adapter; either
     // missing → DI keeps `StubSpeechRecognitionProvider`.
     adminSpeechModel?: string;
     // Optional `ADMIN_SPEECH_PROVIDER` var. Selects which speech adapter the
-    // factory instantiates. Unset → defaults to `"openai"`.
+    // registry factory instantiates (e.g. `openai` / `deepgram`). Unset →
+    // defaults to `"openai"`.
     adminSpeechProvider?: string;
     // R2 binding for ingestion-temp storage. When present DI wires
     // `R2TempFileStorage`; absent → DI installs an inline unavailable
@@ -270,8 +271,8 @@ export type ServerEnv = Readonly<{
   // override; admin DB-stored ciphertext (or Stub) is used instead.
   ADMIN_SPEECH_API_KEY?: string;
   // Optional transcription model id. Wrangler `[vars]` — paired with
-  // `ADMIN_SPEECH_API_KEY`, both truthy → DI wires the real OpenAI speech
-  // adapter; either missing → DI keeps `StubSpeechRecognitionProvider`.
+  // `ADMIN_SPEECH_API_KEY`, both truthy → DI wires the registry-resolved
+  // speech adapter; either missing → DI keeps `StubSpeechRecognitionProvider`.
   // Public information so it ships via vars.
   ADMIN_SPEECH_MODEL?: string;
   // Optional speech provider id for the speech registry factory. Wrangler

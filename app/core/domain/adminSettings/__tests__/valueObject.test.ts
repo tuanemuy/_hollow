@@ -405,7 +405,10 @@ describe("LLMConfig", () => {
 
 describe("SpeechRecognitionConfig", () => {
   it("exposes the static providers / apiKeySources option lists", () => {
-    expect([...SpeechRecognitionConfig.providers]).toEqual(["openai"]);
+    expect([...SpeechRecognitionConfig.providers]).toEqual([
+      "openai",
+      "deepgram",
+    ]);
     expect([...SpeechRecognitionConfig.apiKeySources]).toEqual(["env", "db"]);
   });
 
@@ -443,11 +446,22 @@ describe("SpeechRecognitionConfig", () => {
     expect(cfg.model).toBe("gpt-4o-transcribe");
   });
 
+  it("accepts the deepgram provider", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "deepgram",
+      model: "nova-3",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.provider).toBe("deepgram");
+    expect(cfg.model).toBe("nova-3");
+  });
+
   it("rejects an unknown provider with InvalidSpeechProvider", () => {
     try {
       SpeechRecognitionConfig.create({
-        provider: "deepgram",
-        model: "nova-3",
+        provider: "whisper-x",
+        model: "some-model",
         apiKeySource: "env",
         apiKeyCiphertext: null,
       });

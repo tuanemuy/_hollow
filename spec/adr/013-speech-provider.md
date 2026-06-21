@@ -49,3 +49,12 @@
 - 文字起こしと LLM 構造化でプロバイダが分かれる（API 統一の単純さは失うが、フォーマット対応の確実性を優先）。
 - Cloudflare Workers 上での multipart `fetch` body 構築は実装前に PoC で確認する（`messagesClient` は Chat Completions の JSON 専用で multipart には流用不可）。
 - 文字起こし失敗時の縮退挙動（空テキストで `previewing` に到達、本文追記して保存可能）は Issue #701 ADR-005 に従う。未設定（Stub フォールバック）時は縮退対象外で従来どおり失敗扱いとする。
+
+## 追記: Deepgram Nova-3 を 2 本目として registry 追加（Issue #738）
+
+第一段（OpenAI 単一固定）の registry 構造（`Record<SpeechProvider, SpeechAdapter>`）に 2 本目のプロバイダ **Deepgram Nova-3** を差分追加した。ドメイン union 1 値・transport list 1 値・registry 1 行・新 adapter ディレクトリ・UI ラベル / 既定モデル分岐の追加だけで、ユースケース / DI / ConnectionTester / DTO / DB スキーマは無変更（すべて provider 非依存の generic dispatch）。
+
+- `SPEECH_PROVIDERS` を `["openai", "deepgram"] as const` に拡張。default-model マッピングは `openai → gpt-4o-transcribe` / `deepgram → nova-3`。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。
+- **Deepgram の API 特性**: prerecorded `POST https://api.deepgram.com/v1/listen?model=nova-3&language=ja&smart_format=true` に **raw audio bytes を直接 body** として送る（OpenAI の multipart/form-data とは異なる）。認証は `Authorization: Token <key>`。レスポンスは `results.channels[0].alternatives[0].transcript` から取り出して `.trim()`、空・欠落は `""`（空発話契約）。`SpeechFailureError` のみ throw する port 契約を厳守。
+- **接続 probe**: Deepgram には OpenAI の `GET /models/{model}` 相当が無いため、認証だけ確認できる軽量エンドポイント `GET https://api.deepgram.com/v1/projects` で **2xx = 疎通 OK** とする（実音声不要・ADR-006 踏襲）。model 存在の事前確認は probe では行わず、誤った model 名は実 transcribe 時の 4xx で判明する。OpenAI との UX 対称性のため空 model は `ok:false` を返す。
+- **Gemini audio / Cloudflare Workers AI 経由は本 Issue 見送り**: Gemini は webm/opus・m4a のネイティブ対応が不確実で実ファイル PoC が必須（録音 UI は webm/opus 標準）。Workers AI 経由（`env.AI` バインディング）は `SpeechAdapterConfig`（現状 `{apiKey, model}`）の拡張と DI 配線を要するため別 Issue とする。第一段は REST 直送のみで OpenAI と対称に組む。詳細は `.issue/738/adr.md`（ADR-001〜003）。

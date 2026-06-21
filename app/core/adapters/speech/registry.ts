@@ -7,6 +7,7 @@ import type { SpeechRecognitionProvider } from "@/core/domain/ingestion/ports/sp
 // from the provider barrel; the barrel imports only the `SpeechAdapter`
 // *type* from here (`import type`). This keeps the value graph acyclic —
 // the same shape as `llm/registry.ts`.
+import { deepgramSpeechAdapter } from "../deepgram";
 import { openaiSpeechAdapter } from "../openai";
 
 /**
@@ -27,7 +28,7 @@ export type SpeechPingResult = { ok: boolean; error?: string };
 /**
  * A single speech provider's contribution to the registry: a factory for the
  * `SpeechRecognitionProvider` port plus a connectivity ping. Each speech
- * provider barrel exports one of these (currently only OpenAI).
+ * provider barrel exports one of these.
  */
 export type SpeechAdapter = Readonly<{
   create: (c: SpeechAdapterConfig) => SpeechRecognitionProvider;
@@ -46,6 +47,7 @@ export type SpeechAdapter = Readonly<{
  */
 export const speechProviderRegistry: Record<SpeechProviderId, SpeechAdapter> = {
   openai: openaiSpeechAdapter,
+  deepgram: deepgramSpeechAdapter,
 };
 
 /**

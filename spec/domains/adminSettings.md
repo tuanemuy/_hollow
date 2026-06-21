@@ -69,7 +69,7 @@ Issue #701。`LLMConfig` と対称な、文字起こしプロバイダの独立 
 - `providers`（選択肢）・`apiKeySources` を静的公開（フォームの選択肢用）
 
 ### SpeechProvider（列挙）
-- `'openai'` — 当面 `["openai"] as const`。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。将来 Deepgram 等を registry で差し替え可能（Issue #701 ADR-001 / ADR-002 / `spec/adr/013-speech-provider.md`）
+- `'openai' | 'deepgram'` — `["openai", "deepgram"] as const`。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`、`deepgram → 'nova-3'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。さらにプロバイダを registry で差し替え可能（Issue #701 ADR-001 / ADR-002・`spec/adr/013-speech-provider.md`）
 
 ### PromptTemplate
 - フィールド: `text: string`, `expectedVariables: string[]`（例 `['rawText', 'locale']`）
@@ -119,7 +119,7 @@ Issue #701。`LLMConfig` と対称な、文字起こしプロバイダの独立 
 
 ### SpeechConnectionTester（ポート）
 - Issue #701。`LLMConnectionTester` と対称。
-- メソッド: `ping(cfg: SpeechRecognitionConfig, apiKey: string): Promise<{ ok: boolean; latencyMs: number; error?: string }>` — 実音声を送らず軽量 probe（`GET /models/{model}` 系）で疎通確認する（ADR-006）
+- メソッド: `ping(cfg: SpeechRecognitionConfig, apiKey: string): Promise<{ ok: boolean; latencyMs: number; error?: string }>` — 実音声を送らず軽量 probe で疎通確認する（ADR-006）。probe エンドポイントは provider ごとに registry の adapter が選ぶ（OpenAI は `GET /models/{model}` で認証 + model 存在を確認、Deepgram は `GET /v1/projects` で認証のみ確認し 2xx = OK・Issue #738）
 
 ## ユースケース（概要）
 
