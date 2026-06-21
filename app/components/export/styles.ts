@@ -5,8 +5,6 @@
  * live here so the three export components share one source. Domain-agnostic
  * primitives (pill buttons, alerts, tag badges, field rows) are reused from
  * `common/styles.ts` / `layout/styles.ts` and intentionally not redefined.
- *
- * Design judgments are recorded in `.issue/509/adr.md`.
  */
 
 import type { Tone } from "@/components/common/styles";
@@ -16,7 +14,7 @@ import type { Tone } from "@/components/common/styles";
  * The two screens use different max-widths (P15 form = 720px, P16 list =
  * 1100px); both are mock-specific design values with no matching container
  * token (`--container-max` is 1280px), so the `max-w-[…px]` arbitraries are
- * allowed here (#509 plan S-003). Padding mirrors the mock's
+ * allowed here. Padding mirrors the mock's
  * `var(--space-8) var(--space-6) var(--space-20)` base with `sm`/`lg`/`xl`
  * step-ups.
  */
@@ -46,13 +44,13 @@ export const SEGMENTED = "bg-surface rounded-md p-0.5 inline-flex w-full";
  * `data-active={selected || undefined}`) so the white card + shadow only show
  * for the chosen value and there is no base/variant override-order contest.
  * The active shadow composes the `--shadow-xs` token with the mock's
- * extra 0.5px ring (#509 ADR-005).
+ * extra 0.5px ring.
  *
  * The keyboard focus ring must read from the inner `sr-only` radio (the real
  * focus target — the `<label>` itself never receives tab focus), so the ring
  * is raised to this label via `has-[:focus-visible]:` rather than the label's
- * own `:focus-visible` (#509 ADR-007). `has-[:focus-visible]:` (not
- * `focus-within:`) keeps the ring off on mouse click.
+ * own `:focus-visible`. `has-[:focus-visible]:` (not `focus-within:`) keeps
+ * the ring off on mouse click.
  */
 export const SEGMENTED_BTN =
   "flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[7px] text-sm font-medium text-ink bg-transparent transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed data-[active]:bg-bg data-[active]:shadow-[var(--shadow-xs),0_0_0_0.5px_rgba(0,0,0,0.04)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent";
@@ -76,8 +74,8 @@ export const JOBS_LIST = "flex flex-col gap-3";
 
 /**
  * One job card (mock `.job-card`). Mobile baseline = bordered card; at `lg`
- * the meta/actions reflow to a horizontal row (#509 ADR-001 — card-list, not a
- * 7-column table).
+ * the meta/actions reflow to a horizontal row (card-list, not a 7-column
+ * table).
  */
 export const JOB_CARD =
   "flex flex-col gap-3 border border-hairline rounded-lg p-4 bg-bg";
@@ -97,8 +95,8 @@ export const STATUS_DOT = "w-2 h-2 rounded-full shrink-0";
 
 /**
  * Tone → dot background color. Derived from {@link exportStatusTag} so the dot
- * and the chip share one mapping (#509 ADR-004). Four families only — the dot
- * never needs a 6-way `data-status` switch.
+ * and the chip share one mapping. Four families only — the dot never needs a
+ * 6-way `data-status` switch.
  */
 export const STATUS_DOT_COLOR: Record<Tone, string> = {
   info: "bg-accent",
@@ -113,8 +111,7 @@ export const PROGRESS =
 
 /**
  * Progress fill (mock `.progress-bar`). Width is data-driven and supplied via
- * inline `style` since Tailwind's JIT only scans static arbitraries
- * (#509 ADR-002).
+ * inline `style` since Tailwind's JIT only scans static arbitraries.
  */
 export const PROGRESS_BAR =
   "h-full bg-accent rounded-pill transition-[width] duration-300 motion-reduce:transition-none";
