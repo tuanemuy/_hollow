@@ -282,6 +282,14 @@ export const tagTone = {
   error: "bg-error-surface text-error",
 } as const satisfies Record<string, string>;
 
+/**
+ * Semantic tone keys for {@link tagBadge}/{@link tagTone}. Single source of
+ * truth shared by status-tag helpers (`exportStatusTag`/`ingestionStatusTag`)
+ * so the admin Jobs board and the export screens map a status to the same
+ * tone vocabulary.
+ */
+export type Tone = keyof typeof tagTone;
+
 /** Neutral (无印) tone for {@link tagBadge} — mock's variant-less `.tag`. */
 export const tagToneNeutral = "bg-surface text-ink-secondary";
 
