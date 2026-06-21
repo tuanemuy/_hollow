@@ -13,6 +13,7 @@ import {
   joinUrl,
 } from "@/core/presentation/head";
 import { loadPublicNoteMeta } from "@/core/presentation/publicNoteMeta";
+import { ensurePublicResourceExists } from "@/core/presentation/publicStatusBridge";
 import { validateInput } from "@/core/presentation/validator";
 
 const renderInputSchema = z.object({
@@ -24,9 +25,21 @@ const renderPublicNote = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .inputValidator(validateInput(renderInputSchema))
   .handler(async ({ data }) => {
-    const { PublicNoteDetail } = await import(
-      "@/components/public/PublicNoteDetail"
-    );
+    const [{ getContainer }, { getPublicNote }, { PublicNoteDetail }] =
+      await Promise.all([
+        import("@/core/application/di/containerStore"),
+        import("@/core/application/publication/getPublicNote"),
+        import("@/components/public/PublicNoteDetail"),
+      ]);
+    // Resolve existence here so a missing/private note becomes a 404 document
+    // (RSC-internal notFound can't set the status). See publicStatusBridge.
+    await ensurePublicResourceExists(async () => {
+      const container = await getContainer();
+      return getPublicNote({
+        container,
+        input: { kind: "bySlug", username: data.username, slug: data.noteSlug },
+      });
+    });
     return renderServerComponent(
       <PublicNoteDetail
         args={{ kind: "bySlug", username: data.username, slug: data.noteSlug }}
