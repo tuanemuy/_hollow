@@ -48,10 +48,14 @@
  *   *minified* form (Issue #762 ADR-003). The HTML tab shows a derived,
  *   pretty-printed view held in `htmlDraft`: `setMode("html")` folds
  *   `formatHtml(contentHtml)` into it, `setHtmlDraft` edits it (marking
- *   the existing `"content"` dirty key), and leaving the HTML tab first
- *   commits `minifyHtml(htmlDraft)` back into `contentHtml` so the saved
- *   body is always minified and the other modes never see formatting
- *   whitespace. `htmlDraft` is only meaningful while `mode === "html"`;
+ *   the existing `"content"` dirty key), and leaving the HTML tab commits
+ *   `minifyHtml(htmlDraft)` back into `contentHtml` so the saved body is
+ *   minified and the other modes never see formatting whitespace — unless
+ *   the draft is *pristine* (still equals `formatHtml(contentHtml)`), in
+ *   which case `contentHtml` is left byte-for-byte intact so opening and
+ *   closing the tab without editing never dirties it (Issue #762 B-001:
+ *   the persisted form may carry inter-block whitespace that minify would
+ *   strip). `htmlDraft` is only meaningful while `mode === "html"`;
  *   it starts `""` (the initial mode is never `html`) and may be stale
  *   otherwise. Both `formatHtml` / `minifyHtml` are pure functions, so
  *   the reducer stays React-agnostic; it never imports `ultrahtml`
@@ -62,6 +66,21 @@ import type { SerializedError } from "@/core/presentation/errorResponse";
 import { formatHtml, minifyHtml } from "./htmlFormat";
 
 export type EditorMode = "html" | "wysiwyg" | "inline";
+
+/**
+ * Whether the HTML-tab draft is still pristine (unedited). While
+ * `mode === "html"` the user's edits land only in `htmlDraft` and
+ * `contentHtml` is never touched, so an unedited draft equals the
+ * formatted view the tab was seeded with on entry. When this holds, save
+ * / mode-exit must leave `contentHtml` untouched rather than re-minify it:
+ * the persisted form (markdown-it derived) may carry inter-block
+ * whitespace that `minifyHtml(formatHtml(...))` would strip, which would
+ * otherwise dirty an untouched note and trigger a spurious autosave
+ * (Issue #762 B-001).
+ */
+function isHtmlDraftPristine(contentHtml: string, htmlDraft: string): boolean {
+  return htmlDraft === formatHtml(contentHtml);
+}
 
 /**
  * Render surface the editor is mounted on. Drives the initial mode
@@ -499,15 +518,18 @@ export function editorReducer(
       // `contentHtml` BEFORE the other modes read it, so any edit made in
       // the HTML tab is preserved and the body the next mode (and any
       // decoration-loss detection in the orchestrator) sees is the
-      // minified truth. No-op when nothing changed so dirty stays clean.
+      // minified truth.
       if (state.mode === "html") {
-        const minified = minifyHtml(state.htmlDraft);
-        if (minified === state.contentHtml) {
+        // Pristine (unedited) draft still equals the formatted view of the
+        // current contentHtml — leave contentHtml byte-for-byte intact so a
+        // no-op tab open/close never dirties or rewrites it (the persisted
+        // form may carry inter-block whitespace that minify would strip).
+        if (isHtmlDraftPristine(state.contentHtml, state.htmlDraft)) {
           return { ...state, mode: action.mode };
         }
         return withDirty(state, "content", {
           mode: action.mode,
-          contentHtml: minified,
+          contentHtml: minifyHtml(state.htmlDraft),
         });
       }
       return { ...state, mode: action.mode };
@@ -715,7 +737,14 @@ export type EditorSnapshotInput = Pick<
 function snapshotContentHtml(
   input: Pick<EditorSnapshotInput, "mode" | "contentHtml" | "htmlDraft">,
 ): string {
-  if (input.mode === "html") return minifyHtml(input.htmlDraft);
+  if (input.mode === "html") {
+    // Pristine draft → persist the original contentHtml untouched so an
+    // unedited save never strips inter-block whitespace; edited → minify.
+    if (isHtmlDraftPristine(input.contentHtml, input.htmlDraft)) {
+      return input.contentHtml;
+    }
+    return minifyHtml(input.htmlDraft);
+  }
   return input.contentHtml;
 }
 

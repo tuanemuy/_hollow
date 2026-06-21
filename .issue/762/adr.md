@@ -88,3 +88,41 @@ HTML タブの整形表示をどう状態管理するかに選択肢がある:
 ### Consequences
 - 良い点: 整形済み HTML が他モードに漏れず、モード往復で本文が破壊されない（AC-7）。「保存は minify・表示は整形」の非対称が状態の形で表現される。reducer は純粋関数利用で純粋性を維持。
 - トレードオフ: `contentHtml` と `htmlDraft` の二重状態を同期させる責務が増える（モード遷移・保存スナップショット・自動保存依存）。同期漏れは本文破壊や自動保存の取りこぼしに直結するため、不変条件をテストで厚く固定する必要がある。手動保存 `onSubmit` も `snapshotForSubmit` 経由に統一し、手動・自動が同一スナップショットルールを通ることを保証する（plan ステップ4 参照）。
+
+---
+
+## ADR-004: HTML タブ離脱・保存の同期は「文字列等価」ではなく「pristine 判定」で行う
+
+### Status
+Accepted（PR #767 review-001 B-001 を反映）
+
+### Context
+当初実装は HTML タブ離脱（`setMode`）と保存（`snapshotContentHtml`）の同期要否を `minifyHtml(htmlDraft) === contentHtml` という文字列等価で判定していた。しかし実運用の `contentHtml` は markdown-it（`markdownConverter.ts`）由来でブロック間に `\n` を含み、サニタイザの `renderSync` はそれを verbatim 保持する。一方 `minifyHtml` はブロック間の whitespace-only TEXT を整形空白として除去するため、無編集でも `minifyHtml(formatHtml(contentHtml)) !== contentHtml` となり、不変条件 `minifyHtml(formatHtml(m)) === m` が markdown 由来 `m` で破れる。結果として「HTML タブを開いて編集せず離れただけで content dirty が立ち autosave が誤発火する」回帰が大多数の既存ノートで発生していた。
+
+`minifyHtml` をブロック間 `\n` について非破壊にする案も検討したが、整形が挿入した空白と元から有意な空白が AST 上区別不能で識別が破綻するため不採用。
+
+### Decision
+同期判定を文字列等価から **pristine 判定**へ変更する。pristine の定義は `htmlDraft === formatHtml(contentHtml)`。html モード中は編集が `htmlDraft` にしか入らず `contentHtml` は不変なので、無編集なら `htmlDraft` は entry 時の `formatHtml(contentHtml)` のままでこの等式が成立する。pristine なら `setMode` 離脱・`snapshotContentHtml` の双方が元の `contentHtml` をバイト等価で保持し（dirty を立てず autosave を誘発しない）、編集があった場合のみ `minifyHtml(htmlDraft)` を採用する。判定は `isHtmlDraftPristine` ヘルパーに括り出し両経路で共有する。
+
+これにより「保存は常に minify」というルールには「未編集の HTML タブは元の `contentHtml`（minify 済みだが inter-block whitespace を持ちうる）を verbatim 保持する」例外を持つ。これは「保存される実体は表示用に肥大化させない」という本来の意図と整合する（元の永続形をそのまま残すだけで、新たな整形空白を保存しない）。
+
+### Consequences
+- 良い点: 無編集の HTML タブ往復が `contentHtml` を書き換えず autosave を誤発火しない（B-001 解消）。編集時は従来どおり minify される。
+- トレードオフ: `minifyHtml(formatHtml(m)) === m` を全 `m` で成立させる強い不変条件は捨て、「未編集なら元を保持」という pristine 判定に責務を移す。markdown 由来の inter-block `\n` を含む実フィクスチャでの回帰テストで固定する。
+
+---
+
+## ADR-005: `<pre>` をコンテナ整形判定上は block 扱いにする
+
+### Status
+Accepted（PR #767 review-001 W-003 を反映）
+
+### Context
+当初 `<pre>` は `WHITESPACE_SIGNIFICANT_TAGS` のみに属し `isBlockElement` では block と認識されなかった。そのため `<pre>` を兄弟に持つコンテナ（root 含む）は `isBlockFormattable` が false となり、周囲の `<p>` まで巻き込んでコンテナ全体が verbatim 化され整形が丸ごと抑止された。コードブロックを含むノートで HTML タブの整形表示（AC-1）が効かない劣化。
+
+### Decision
+block 扱いするホワイトスペース有意要素の集合 `BLOCK_WHITESPACE_SIGNIFICANT = new Set(["pre"])` を定義し、`isBlockElement` が `BLOCK_TAGS || VOID_BLOCK_TAGS || BLOCK_WHITESPACE_SIGNIFICANT` を true とする。`<pre>` は subtree を verbatim 出力する点は不変（`WHITESPACE_SIGNIFICANT_TAGS` のまま）だが、コンテナ判定上は block 兄弟として扱い専用行に出す。`<code>` / `<textarea>` は inline 扱いのままとし、standalone inline code を含むコンテナは語間スペース保持のため verbatim を維持する。
+
+### Consequences
+- 良い点: `<pre>` を含むノートでも周囲のブロックが整形される（AC-1 劣化解消）。`<pre>` subtree の verbatim 性は保たれる。
+- トレードオフ: block 判定の集合が 3 種（`BLOCK_TAGS` / `VOID_BLOCK_TAGS` / `BLOCK_WHITESPACE_SIGNIFICANT`）に分かれるため、サニタイザとの lockstep 更新時にどの集合へ足すかの判断が増える。

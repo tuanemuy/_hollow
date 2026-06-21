@@ -20,6 +20,19 @@ describe("formatHtml", () => {
     const html = "<p>para with <strong>bold</strong> word</p>";
     expect(formatHtml(html)).toBe(html);
   });
+
+  it("formats root-level block siblings that include a <pre> (W-003)", () => {
+    // `<pre>` counts as a block sibling for container formatting, so the
+    // surrounding `<p>`s are still indented/line-broken (not suppressed),
+    // while the <pre> subtree stays verbatim on its own line.
+    const html = "<p>x</p><pre><code>c</code></pre><p>y</p>";
+    const formatted = formatHtml(html);
+    expect(formatted).toBe("<p>x</p>\n<pre><code>c</code></pre>\n<p>y</p>");
+    // Confirm formatting actually fired (no-op degradation guard).
+    expect(formatted).not.toBe(html);
+    expect(formatted).toContain("\n");
+    expect(minifyHtml(formatted)).toBe(html);
+  });
 });
 
 describe("minifyHtml", () => {
@@ -85,6 +98,28 @@ describe("inline inter-element spaces are preserved (AC-5)", () => {
     expect(formatHtml(m)).toBe(m);
     expect(minifyHtml(formatHtml(m))).toBe(m);
   });
+
+  it("keeps inline <code> and its word-gap spaces verbatim (AC-4)", () => {
+    // `<code>` is inline + whitespace-significant: its container stays
+    // verbatim so the inter-word spaces and the code text are untouched.
+    const m = "<p>x <code>y</code> z</p>";
+    expect(formatHtml(m)).toBe(m);
+    expect(minifyHtml(formatHtml(m))).toBe(m);
+  });
+});
+
+describe("renderSync-derived contentHtml still formats (W-001/W-002)", () => {
+  it("indents/line-breaks markdown-derived block siblings", () => {
+    // Mirrors the actual persisted `contentHtml`: markdown-it emits
+    // inter-block `\n` and the sanitiser's `renderSync` preserves it.
+    // Formatting must not degrade to a no-op for this real-world shape.
+    const persisted = "<h2>a</h2>\n<p>b</p>\n<ul>\n<li>x</li>\n</ul>\n";
+    const formatted = formatHtml(persisted);
+    expect(formatted).toBe("<h2>a</h2>\n<p>b</p>\n<ul>\n  <li>x</li>\n</ul>");
+    // The formatter genuinely restructured the input (indented the <li>).
+    expect(formatted).not.toBe(persisted);
+    expect(formatted).toContain("\n  <li>");
+  });
 });
 
 describe("internal-link placeholders are preserved (AC-6)", () => {
@@ -103,6 +138,17 @@ describe("malformed HTML never loses input (AC-8)", () => {
     expect(() => formatHtml(broken)).not.toThrow();
     expect(formatHtml(broken)).toContain("broken");
     expect(formatHtml(broken)).toContain("x");
+  });
+
+  it("returns input verbatim when parse throws (catch fallback)", () => {
+    // A stray close tag makes `ultrahtml.parse` throw; the try/catch
+    // fallback must return the input byte-for-byte so a half-typed
+    // fragment is never lost (AC-8, the real catch path).
+    const broken = "</div>";
+    expect(() => formatHtml(broken)).not.toThrow();
+    expect(() => minifyHtml(broken)).not.toThrow();
+    expect(formatHtml(broken)).toBe(broken);
+    expect(minifyHtml(broken)).toBe(broken);
   });
 });
 

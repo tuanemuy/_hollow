@@ -31,7 +31,11 @@
  *   3. `<pre>` / `<code>` / `<textarea>` are whitespace-significant: their
  *      entire subtree is serialized verbatim, no whitespace added/removed
  *      (AC-4). `<textarea>` is dropped by the server allowlist, but AC-4
- *      lists it, so it is honoured here.
+ *      lists it, so it is honoured here. `<pre>` additionally counts as a
+ *      *block* sibling for container-formatting purposes (it lands on its
+ *      own line) so a `<pre>` next to `<p>`s does not suppress formatting
+ *      of the surrounding container (W-003); `<code>` / `<textarea>` stay
+ *      inline so standalone inline code keeps its container verbatim.
  *   4. The block / inline / whitespace-significant tag sets below are kept
  *      in lockstep with `htmlSanitizer.ts`'s `BLOCK_TAGS` / `INLINE_TAGS`
  *      (manual curation, mirroring `wysiwygUnsupportedTags.ts`).
@@ -92,6 +96,14 @@ const WHITESPACE_SIGNIFICANT_TAGS: ReadonlySet<string> = new Set([
   "textarea",
 ]);
 
+// Whitespace-significant elements that nonetheless sit at block level:
+// their subtree is emitted verbatim, but for container-formatting
+// purposes they count as block siblings so a `<pre>` next to `<p>`s does
+// not suppress formatting of the whole container (W-003). `<code>` /
+// `<textarea>` stay inline so a container holding standalone inline code
+// remains verbatim (preserving inter-word spaces).
+const BLOCK_WHITESPACE_SIGNIFICANT: ReadonlySet<string> = new Set(["pre"]);
+
 const INDENT_UNIT = "  ";
 
 function isWhitespaceOnlyText(node: Node): boolean {
@@ -101,7 +113,9 @@ function isWhitespaceOnlyText(node: Node): boolean {
 function isBlockElement(node: Node): boolean {
   return (
     node.type === ELEMENT_NODE &&
-    (BLOCK_TAGS.has(node.name) || VOID_BLOCK_TAGS.has(node.name))
+    (BLOCK_TAGS.has(node.name) ||
+      VOID_BLOCK_TAGS.has(node.name) ||
+      BLOCK_WHITESPACE_SIGNIFICANT.has(node.name))
   );
 }
 

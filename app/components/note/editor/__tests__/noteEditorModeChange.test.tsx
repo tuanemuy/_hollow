@@ -455,6 +455,10 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     // back recovers the original markup unchanged.
     expect(minifyHtml(htmlTextareaValue())).toBe(original);
     expect(htmlTextareaValue()).toContain("<section>");
+    // Independent anchor (W-005): the raw value is the *formatted* draft,
+    // so it must differ from the minified original — guards against the
+    // textarea silently binding to contentHtml (un-formatted) instead.
+    expect(htmlTextareaValue()).not.toBe(original);
   });
 
   it("switches and acks the in-pane banner when the dialog is confirmed (AC-7)", async () => {
@@ -983,6 +987,9 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       // recovers the original committed markup unchanged.
       expect(minifyHtml(htmlTextareaValue())).toBe(original);
       expect(htmlTextareaValue()).toContain("<section>");
+      // Independent anchor (W-005): the raw value is the *formatted* draft,
+      // so it must differ from the minified original.
+      expect(htmlTextareaValue()).not.toBe(original);
     } finally {
       vi.useRealTimers();
     }

@@ -832,6 +832,46 @@ describe("HTML tab formatted draft (Issue #762)", () => {
     const s3 = editorReducer(s2, { type: "setMode", mode: "inline" });
     expect(s3.contentHtml).toBe("<ul><li>a</li><li>b</li></ul>");
   });
+
+  describe("pristine round-trip on markdown-derived contentHtml (B-001)", () => {
+    // Real-world `contentHtml` comes from markdown-it → sanitiser and
+    // carries inter-block `\n` that the sanitiser's renderSync preserves
+    // but minify would strip. An unedited HTML-tab open/close must NOT
+    // dirty or rewrite it (which would trigger a spurious autosave).
+    const persisted = "<h2>a</h2>\n<p>b</p>\n<ul>\n<li>x</li>\n</ul>\n";
+    const persistedInit = { ...baseInit, contentHtml: persisted };
+
+    it("no-op html round-trip leaves contentHtml byte-for-byte intact", () => {
+      const s0 = createInitialEditorState(persistedInit);
+      const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+      const s2 = editorReducer(s1, { type: "setMode", mode: "inline" });
+      expect(s2.contentHtml).toBe(persisted);
+      expect(s2.dirtyKeys.has("content")).toBe(false);
+    });
+
+    it("snapshotForSubmit returns the original contentHtml while pristine", () => {
+      const s0 = createInitialEditorState(persistedInit);
+      const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+      const snap = snapshotForSubmit(s1);
+      expect(snap.contentHtml).toBe(persisted);
+    });
+
+    it("an edit on the HTML tab is still minified on save", () => {
+      const s0 = createInitialEditorState(persistedInit);
+      const s1 = editorReducer(s0, { type: "setMode", mode: "html" });
+      const s2 = editorReducer(s1, {
+        type: "setHtmlDraft",
+        value: "<h2>a</h2>\n<p>edited</p>\n<ul>\n  <li>x</li>\n</ul>",
+      });
+      const snap = snapshotForSubmit(s2);
+      expect(snap.contentHtml).toBe(
+        "<h2>a</h2><p>edited</p><ul><li>x</li></ul>",
+      );
+      const s3 = editorReducer(s2, { type: "setMode", mode: "inline" });
+      expect(s3.contentHtml).toBe("<h2>a</h2><p>edited</p><ul><li>x</li></ul>");
+      expect(s3.dirtyKeys.has("content")).toBe(true);
+    });
+  });
 });
 
 describe("resolveTagNames", () => {
