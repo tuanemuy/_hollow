@@ -22,6 +22,7 @@ import {
   pillBtn,
   pillBtnPrimary,
 } from "@/components/common/styles";
+import { PAGE_SUBTITLE, PAGE_TITLE } from "@/components/layout/styles";
 import { displayError } from "@/core/presentation/errorDisplay";
 import {
   extractSerializedError,
@@ -38,9 +39,6 @@ import {
 import { enqueueExportFn, startExportFn } from "./action";
 
 const SR_ONLY = "sr-only";
-const PAGE_TITLE_CLASS =
-  "text-3xl font-normal tracking-tightest leading-tight text-ink mb-2.5 [overflow-wrap:anywhere] min-w-0";
-const PAGE_SUBTITLE_CLASS = "text-[15px] text-ink-secondary mb-7 leading-snug";
 
 type Format = "html" | "markdown" | "pdf";
 type Paper = "A4" | "Letter";
@@ -187,10 +185,10 @@ export function ExportForm({ noteId }: Props) {
 
   return (
     <section>
-      <h2 className={PAGE_TITLE_CLASS}>
+      <h2 className={PAGE_TITLE}>
         {noteId === null ? "エクスポート（一括）" : "エクスポート"}
       </h2>
-      <p className={PAGE_SUBTITLE_CLASS}>
+      <p className={`${PAGE_SUBTITLE} leading-snug`}>
         選択したノートを HTML / Markdown / PDF で書き出します。1
         件は即時ダウンロード、複数件はバックグラウンドジョブとして実行され、完了後に{" "}
         <code className="font-mono">エクスポートジョブ一覧</code>{" "}
@@ -305,11 +303,6 @@ export function ExportForm({ noteId }: Props) {
             </div>
           ) : null}
           <div className={FORM_FOOTER}>
-            {success !== "" ? (
-              <p className={FORM_NOTE} aria-live="polite">
-                {success}
-              </p>
-            ) : null}
             <button
               type="button"
               className={`${pillBtn} ${pillBtnPrimary}`}
@@ -323,11 +316,6 @@ export function ExportForm({ noteId }: Props) {
         </>
       ) : (
         <div className={FORM_FOOTER}>
-          {success !== "" ? (
-            <p className={FORM_NOTE} aria-live="polite">
-              {success}
-            </p>
-          ) : null}
           <button
             type="button"
             className={`${pillBtn} ${pillBtnPrimary}`}
@@ -348,6 +336,11 @@ export function ExportForm({ noteId }: Props) {
       {summary !== "" ? (
         <p className={formError} role="alert">
           {summary}
+        </p>
+      ) : null}
+      {success !== "" ? (
+        <p className={FORM_NOTE} aria-live="polite">
+          {success}
         </p>
       ) : null}
     </section>

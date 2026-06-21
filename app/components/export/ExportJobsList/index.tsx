@@ -31,6 +31,7 @@ import {
   JOB_CARD,
   JOB_CARD_HEAD,
   JOB_META,
+  JOB_META_DIVIDER,
   JOBS_LIST,
   META_K,
   META_V,
@@ -148,7 +149,7 @@ function ExportJobRow({ job }: { job: ExportJobDTO }) {
         </p>
       ) : null}
 
-      <div className={JOB_META}>
+      <div className={`${JOB_META} ${JOB_META_DIVIDER}`}>
         <div className="min-w-0">
           <div className={META_K}>作成日時</div>
           <time className={META_V} dateTime={job.createdAt}>

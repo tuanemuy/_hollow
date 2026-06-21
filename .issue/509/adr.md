@@ -130,3 +130,20 @@ ADR-004 は `exportStatusTag(status): Tone` を「`common/styles.ts` 近傍、�
 ### Consequences
 - 良い点: スタイル定数モジュール（`styles.ts`）を DTO 依存から切り離したまま、色マッピングの DRY（ADR-004 の意図）を達成。`Tone` 型だけは `tagTone` の隣に置くのが自然なので styles.ts に残す。
 - トレードオフ: export ドメインの status ヘルパが `common/` に 1 ファイル増える（admin/export 双方が参照する横断ヘルパなので `common/` が妥当）。
+
+---
+
+## ADR-007: segmented control のフォーカスリングは `focus-within:` でなく `has-[:focus-visible]:` で label に引き上げる
+
+### Status
+Accepted（レビュー指摘 B-001 で確定）
+
+### Context
+plan L199 は「フォーカスリングは label 側で `focus-within:` 表現」と方式を確定していたが、初回実装は `<label>` 自身に `focus-visible:` を当てていた。segmented は `<label>` で `sr-only` な `<input type="radio">` を包む構造で、実フォーカスは内側 radio が受け、`<label>` 自身はタブ移動でフォーカスを受けない。よって `<label>` の `:focus-visible` は発火せず、キーボードでセグメントを巡回してもフォーカスリングが出ない（WCAG 2.4.7 Focus Visible 抵触）。plan が指定した `focus-within:` なら内側 radio のフォーカスが親 label に伝播して発火するが、`focus-within:` はマウスクリックでも発火するため不要なリングが出る。
+
+### Decision
+内側 radio のフォーカスを親 label に伝播させる方式とし、`focus-within:` ではなく `has-[:focus-visible]:`（`has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent`）を採用する。`:focus-visible` セマンティクスをそのまま親へ引き上げるため、キーボード巡回時のみリングが出てマウスクリック時には出ない。plan の「内側 radio のフォーカスを親 label に伝播させる」意図は満たしつつ、表現を `focus-within:` から `has-[:focus-visible]:` に差し替える。
+
+### Consequences
+- 良い点: キーボードユーザーに現在位置のフォーカスリングが可視化され WCAG 2.4.7 を満たす。マウスクリックでは不要なリングが出ない。
+- トレードオフ: plan の文言（`focus-within:`）と実装表現が乖離するが、`focus-visible` セマンティクス保持の方が UX 上望ましいため本 ADR で差分を記録する。`:has()` は対象ブラウザで広くサポート済み。

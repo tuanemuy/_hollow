@@ -47,9 +47,15 @@ export const SEGMENTED = "bg-surface rounded-md p-0.5 inline-flex w-full";
  * for the chosen value and there is no base/variant override-order contest.
  * The active shadow composes the `--shadow-xs` token with the mock's
  * extra 0.5px ring (#509 ADR-005).
+ *
+ * The keyboard focus ring must read from the inner `sr-only` radio (the real
+ * focus target — the `<label>` itself never receives tab focus), so the ring
+ * is raised to this label via `has-[:focus-visible]:` rather than the label's
+ * own `:focus-visible` (#509 ADR-007). `has-[:focus-visible]:` (not
+ * `focus-within:`) keeps the ring off on mouse click.
  */
 export const SEGMENTED_BTN =
-  "flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[7px] text-sm font-medium text-ink bg-transparent transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed data-[active]:bg-bg data-[active]:shadow-[var(--shadow-xs),0_0_0_0.5px_rgba(0,0,0,0.04)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
+  "flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-[7px] text-sm font-medium text-ink bg-transparent transition-colors motion-reduce:transition-none disabled:opacity-disabled disabled:cursor-not-allowed data-[active]:bg-bg data-[active]:shadow-[var(--shadow-xs),0_0_0_0.5px_rgba(0,0,0,0.04)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent";
 
 /**
  * Sticky-style action footer (mock `.form-footer`): top hairline, right-aligned
@@ -113,9 +119,20 @@ export const PROGRESS =
 export const PROGRESS_BAR =
   "h-full bg-accent rounded-pill transition-[width] duration-300 motion-reduce:transition-none";
 
-/** Detail meta grid (mock mobile `.job-meta`). 2-column on mobile, definition-list on desktop. */
+/**
+ * Detail meta grid (mock mobile `.job-meta`). 2-column on mobile,
+ * definition-list on desktop. The divider that the mock draws above the meta
+ * (`.job-meta { border-top; padding-top }`) is intentionally NOT baked in here:
+ * it only makes sense in the job-card list, where the meta sits below the card
+ * head/progress. In the detail view this grid is the first child of its
+ * `<section>` (directly under the page title), so a top hairline would float
+ * with nothing above it. The list usage adds {@link JOB_META_DIVIDER}.
+ */
 export const JOB_META =
-  "grid grid-cols-2 gap-3 pt-3 mt-1 border-t border-hairline lg:grid-cols-[auto_1fr] lg:gap-x-6 lg:items-baseline";
+  "grid grid-cols-2 gap-3 lg:grid-cols-[auto_1fr] lg:gap-x-6 lg:items-baseline";
+
+/** Top-divider + paired spacing for the meta grid inside a job-card (mock `.job-meta { border-top }`). */
+export const JOB_META_DIVIDER = "pt-3 mt-1 border-t border-hairline";
 
 /** Meta key (mock `.meta-k`). */
 export const META_K =
