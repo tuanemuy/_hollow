@@ -233,35 +233,37 @@ export function ExportJobDetailView({ job }: { job: ExportJobDTO }) {
         ) : null}
       </dl>
 
-      <div className={JOB_ACTIONS}>
-        {canDownload ? (
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnPrimary}`}
-            data-primary=""
-            onClick={onDownload}
-            disabled={isPending}
-          >
-            ダウンロード
-          </button>
-        ) : null}
-        {isActive ? (
-          <button
-            type="button"
-            className={`${pillBtn} ${pillBtnDanger}`}
-            data-danger=""
-            onClick={onCancel}
-            disabled={isPending}
-          >
-            キャンセル
-          </button>
-        ) : null}
-        {isCompleted && isExpiredByClock ? (
-          <p className="text-sm text-ink-secondary" role="status">
-            有効期限切れのため再エクスポートが必要です。
-          </p>
-        ) : null}
-      </div>
+      {canDownload || isActive || (isCompleted && isExpiredByClock) ? (
+        <div className={JOB_ACTIONS}>
+          {canDownload ? (
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnPrimary}`}
+              data-primary=""
+              onClick={onDownload}
+              disabled={isPending}
+            >
+              ダウンロード
+            </button>
+          ) : null}
+          {isActive ? (
+            <button
+              type="button"
+              className={`${pillBtn} ${pillBtnDanger}`}
+              data-danger=""
+              onClick={onCancel}
+              disabled={isPending}
+            >
+              キャンセル
+            </button>
+          ) : null}
+          {isCompleted && isExpiredByClock ? (
+            <p className="text-sm text-ink-secondary" role="status">
+              有効期限切れのため再エクスポートが必要です。
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {message !== "" ? (
         <p className={formError} role="alert">
