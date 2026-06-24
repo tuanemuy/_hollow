@@ -157,7 +157,7 @@ describe("PublicTopControls markup", () => {
     const html = renderToStaticMarkup(
       <PublicTopControls tagOptions={[]} allTags={[]} />,
     );
-    // Container role + horizontal orientation (#660 N-001/N-002).
+    // Container role + horizontal orientation (#660).
     expect(html).toContain('role="radiogroup"');
     expect(html).toContain('aria-orientation="horizontal"');
     // Three radio buttons, one per display mode.

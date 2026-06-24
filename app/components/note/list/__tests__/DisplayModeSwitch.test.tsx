@@ -305,7 +305,7 @@ describe("DisplayModeSwitch", () => {
     };
     expect(call.replace).toBe(true);
     expect(call.search({})).toEqual({ display: "tile" });
-    // Roving focus follows the move: focus lands on the next radio (#660 W-001).
+    // Roving focus follows the move: focus lands on the next radio (#660).
     expect(document.activeElement).toBe(tabByLabel("タイル"));
   });
 
@@ -371,7 +371,7 @@ describe("DisplayModeSwitch", () => {
         }
       ).search({}),
     ).toEqual({ display: "calendar" });
-    // Roving focus follows End to the last radio (#660 W-001).
+    // Roving focus follows End to the last radio (#660).
     expect(document.activeElement).toBe(tabByLabel("カレンダー"));
 
     pressKey("Home");
@@ -384,7 +384,7 @@ describe("DisplayModeSwitch", () => {
         }
       ).search({}),
     ).toEqual({ display: "list" });
-    // Roving focus follows Home to the first radio (#660 W-001).
+    // Roving focus follows Home to the first radio (#660).
     expect(document.activeElement).toBe(tabByLabel("リスト"));
   });
 
