@@ -83,8 +83,16 @@ function deviceGlyph(kind: SessionDTO["device"]["kind"]) {
   );
 }
 
+const deviceKindLabels = {
+  mobile: "スマートフォン",
+  tablet: "タブレット",
+  desktop: "デスクトップ",
+  unknown: "不明な端末",
+} as const;
+
 /** Device icon for a session row, glyph chosen by parsed device kind. */
 function SessionIcon({ kind }: { kind: SessionDTO["device"]["kind"] }) {
+  const label = deviceKindLabels[kind];
   return (
     <svg
       width="20"
@@ -95,7 +103,8 @@ function SessionIcon({ kind }: { kind: SessionDTO["device"]["kind"] }) {
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden="true"
+      role="img"
+      aria-label={label}
     >
       {deviceGlyph(kind)}
     </svg>

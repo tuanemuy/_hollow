@@ -228,6 +228,44 @@ describe("SecurityForm active sessions list", () => {
     expect(unknown).toBe(desktop);
   });
 
+  it("renders SessionIcon with matching aria-label for each device kind", () => {
+    const kindToLabel = {
+      mobile: "スマートフォン",
+      tablet: "タブレット",
+      desktop: "デスクトップ",
+      unknown: "不明な端末",
+    } as const;
+
+    const getAriaLabelFor = (kind: SessionDTO["device"]["kind"]) => {
+      const c = document.createElement("div");
+      document.body.appendChild(c);
+      const r = createRoot(c);
+      act(() => {
+        r.render(
+          <SecurityForm
+            user={USER}
+            sessions={[
+              session({
+                id: kind,
+                device: { kind, os: null, browser: null, label: null },
+              }),
+            ]}
+          />,
+        );
+      });
+      const svg = c.querySelector("svg");
+      const ariaLabel = svg?.getAttribute("aria-label") ?? "";
+      act(() => r.unmount());
+      c.remove();
+      return ariaLabel;
+    };
+
+    for (const kind of ["mobile", "tablet", "desktop", "unknown"] as const) {
+      const ariaLabel = getAriaLabelFor(kind);
+      expect(ariaLabel).toBe(kindToLabel[kind]);
+    }
+  });
+
   it("shows the last-access time as a relative label", () => {
     // updatedAt far in the past → an absolute-date fallback string appears
     // under the 最終アクセス label (relative formatting is exercised in the

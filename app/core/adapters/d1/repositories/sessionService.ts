@@ -184,8 +184,9 @@ export class D1SessionService implements SessionService {
       const cutoff = new Date(
         now.getTime() - ACTIVITY_THROTTLE_MS,
       ).toISOString();
-      // Idempotent + throttled: a non-matching predicate (unknown token,
-      // or a row updated within the window) simply touches zero rows.
+      // WHERE token + updated_at predicate ensures at most one row matches
+      // (unique index on token guarantees high-cardinality, and cutoff
+      // throttles the window). The row is 0–1, never >1.
       await this.db
         .update(sessions)
         .set({ updatedAt: now.toISOString() })
