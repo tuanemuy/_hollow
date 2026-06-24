@@ -110,14 +110,14 @@ export const CHIP_REMOVE =
 export const TOOLBAR = "flex justify-between items-center my-2 gap-3 flex-wrap";
 export const SEGMENTED = "bg-surface rounded-[9px] p-[2px] inline-flex";
 export const SEGMENTED_BTN =
-  "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs";
+  "px-[14px] py-[6px] rounded-[7px] text-[13px] font-medium text-ink bg-transparent inline-flex items-center gap-[5px] transition-all duration-[180ms] motion-reduce:transition-none data-[active]:bg-white data-[active]:shadow-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 export const SORT_BTN =
   "text-[13px] text-ink-secondary inline-flex items-center gap-1 px-2 py-[6px] rounded-md transition-colors motion-reduce:transition-none hover:bg-surface hover:text-ink";
 // Sort dropdown: right-anchored menu (sm+), full-width bottom sheet (mobile).
 export const SORT_MENU_PANEL =
   "absolute right-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[180px] max-w-[calc(100vw-2rem)] max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
 export const SORT_MENU_ITEM =
-  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium";
+  "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium";
 
 // Tile view — same card system as P31 related.
 export const TILE_GRID =

@@ -2,6 +2,7 @@
 
 import { getRouteApi, useRouter } from "@tanstack/react-router";
 import { Calendar, LayoutGrid, List, type LucideIcon } from "lucide-react";
+import { useRovingTablist } from "../../common/useRovingTablist";
 import { DISPLAY_MODES, type DisplayMode } from "../constants";
 import { writeDisplayPreference } from "./displayPreference";
 import { homeSearchUpdater } from "./homeSearch";
@@ -66,20 +67,34 @@ export function DisplayModeSwitch() {
     });
   };
 
+  const roving = useRovingTablist({
+    count: DISPLAY_MODES.length,
+    selectedIndex: DISPLAY_MODES.indexOf(current),
+    onSelect: (index) => select(DISPLAY_MODES[index]),
+  });
+
   return (
-    <div role="tablist" aria-label="表示形式" className={DISPLAY_SEGMENTED}>
-      {DISPLAY_MODES.map((mode) => {
+    <div
+      ref={roving.containerRef}
+      role="radiogroup"
+      aria-label="表示形式"
+      className={DISPLAY_SEGMENTED}
+      onKeyDown={roving.onKeyDown}
+    >
+      {DISPLAY_MODES.map((mode, index) => {
         const active = mode === current;
         const IconComponent = ICONS[mode];
         return (
+          // biome-ignore lint/a11y/useSemanticElements: <input type="radio"> cannot reproduce the icon-only segmented control; button + role="radio" keeps the styled glyph, Space/Enter activation, and focus-visible while expressing the APG Radio Group (#660).
           <button
             key={mode}
-            role="tab"
+            role="radio"
             type="button"
-            aria-selected={active}
+            aria-checked={active}
             aria-label={LABELS[mode]}
             title={LABELS[mode]}
             data-active={active || undefined}
+            tabIndex={roving.getTabIndex(index)}
             className={DISPLAY_SEGMENTED_BTN}
             onClick={() => select(mode)}
           >

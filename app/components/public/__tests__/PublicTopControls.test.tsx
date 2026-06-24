@@ -144,8 +144,9 @@ describe("PublicTopControls markup", () => {
     const html = renderToStaticMarkup(
       <PublicTopControls tagOptions={[]} allTags={[]} />,
     );
-    // role=tab with aria-selected reflects the active tile mode.
-    expect(html).toContain('aria-selected="true"');
+    // role=radio with aria-checked reflects the active tile mode (#660:
+    // the display segmented is an APG Radio Group, not a tablist).
+    expect(html).toContain('aria-checked="true"');
   });
 
   it("does not merge the master set (allTags) into the chips row", () => {

@@ -428,9 +428,18 @@ export const popoverSheetPanel =
  * items show no hover change. The `data-[danger]:…:bg-error-surface` 2-stack
  * variants sort after the single `focus-visible:`/`hover:` rules and win
  * deterministically (same mechanism as `auth/styles.ts` INPUT / ADR-003).
+ *
+ * Focus uses an accent inset outline (`focus-visible:outline-accent
+ * -outline-offset-2`) on top of `bg-surface` so the keyboard-focused row is
+ * perceivable at ≥3:1 contrast on the white panel (WCAG 2.4.7) — `bg-surface`
+ * alone is ~1.08:1. This unifies the menu/option focus ring with ViewSwitcher's
+ * `OPTION_ITEM` (#660 / ADR-011 horizontal rollout). danger items keep the same
+ * accent ring: the focus indicator stays neutral and the danger semantics are
+ * carried by text(error) + bg(error-surface), not a second outline color
+ * (#660 ADR-003).
  */
 export const menuItem =
-  "flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-ink outline-none hover:not-aria-disabled:bg-surface focus-visible:bg-surface aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:not-aria-disabled:bg-error-surface data-[danger]:focus-visible:bg-error-surface";
+  "flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-ink outline-none hover:not-aria-disabled:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 aria-disabled:opacity-disabled aria-disabled:cursor-not-allowed data-[danger]:text-error data-[danger]:hover:not-aria-disabled:bg-error-surface data-[danger]:focus-visible:bg-error-surface";
 
 /** Separator (`<hr>`) between menu item groups inside `menuPanel`. */
 export const menuSeparator = "my-1 h-0 border-0 border-t border-hairline";
