@@ -100,4 +100,30 @@ describe("toSessionDTO", () => {
     expect(dto.userAgent).toBeNull();
     expect(dto.ipAddress).toBeNull();
   });
+
+  it("projects a parsed device with a composed label from a known UA", () => {
+    const dto = toSessionDTO(
+      sessionRecord({
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      }),
+      null,
+    );
+    expect(dto.device).toEqual({
+      kind: "desktop",
+      os: "Windows",
+      browser: "Chrome",
+      label: "Chrome on Windows",
+    });
+  });
+
+  it("falls back to an all-null device (no fabrication) for a null userAgent", () => {
+    const dto = toSessionDTO(sessionRecord({ userAgent: null }), null);
+    expect(dto.device).toEqual({
+      kind: "unknown",
+      os: null,
+      browser: null,
+      label: null,
+    });
+  });
 });

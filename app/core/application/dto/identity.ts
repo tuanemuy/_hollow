@@ -1,5 +1,7 @@
 import type { User } from "@/core/domain/identity/entity";
 import type { SessionRecord } from "@/core/domain/identity/ports/sessionService";
+import type { DeviceInfo } from "@/core/domain/identity/services/deviceInfo";
+import { parseDeviceInfo } from "@/core/domain/identity/services/deviceInfo";
 import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
 
@@ -63,15 +65,22 @@ export type SessionDTO = Readonly<{
   id: string;
   isCurrent: boolean;
   userAgent: string | null;
+  /**
+   * Parsed OS / browser / device-kind summary of `userAgent`. Projected
+   * here (application layer) so the presentation surface receives settled
+   * values rather than re-parsing. Indeterminate fields are `null` — the
+   * parser never fabricates a device name (#615 ADR-001). The raw
+   * `userAgent` is retained alongside this for fallback / transparency.
+   */
+  device: DeviceInfo;
   ipAddress: string | null;
   createdAt: Instant;
   /**
-   * Currently equal to `createdAt`: the session row's `updatedAt` has no
-   * write path (it is set once at `issue` and `resolve` never touches it),
-   * so this is **not** a meaningful "last active" time. Retained for a
-   * future activity-tracking path but deliberately unused by the UI — the
-   * P22 list labels login time off `createdAt` (see `.issue/572/adr.md`
-   * ADR-002). Do not surface this as "最終アクセス".
+   * Last session-activity time. Advanced (throttled, best-effort) on each
+   * `resolve` via `SessionService.recordActivity` (#615 ADR-003), so this
+   * is now a meaningful "最終アクセス" value the UI may surface. For a
+   * freshly issued session that has not yet been activity-touched this
+   * equals `createdAt` — that is the correct initial state, not a bug.
    */
   updatedAt: Instant;
   expiresAt: Instant;
@@ -137,6 +146,7 @@ export function toSessionDTO(
     isCurrent:
       currentSessionToken !== null && record.token === currentSessionToken,
     userAgent: record.userAgent,
+    device: parseDeviceInfo(record.userAgent),
     ipAddress: record.ipAddress,
     createdAt: toInstant(record.createdAt),
     updatedAt: toInstant(record.updatedAt),
