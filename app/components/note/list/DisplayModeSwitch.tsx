@@ -78,6 +78,7 @@ export function DisplayModeSwitch() {
       ref={roving.containerRef}
       role="radiogroup"
       aria-label="表示形式"
+      aria-orientation="horizontal"
       className={DISPLAY_SEGMENTED}
       onKeyDown={roving.onKeyDown}
     >

@@ -377,6 +377,7 @@ export function PublicTopControls({
           className={SEGMENTED}
           role="radiogroup"
           aria-label="表示形式"
+          aria-orientation="horizontal"
           onKeyDown={displayRoving.onKeyDown}
         >
           {DISPLAY_OPTIONS.map(({ mode, label, icon }, index) => {

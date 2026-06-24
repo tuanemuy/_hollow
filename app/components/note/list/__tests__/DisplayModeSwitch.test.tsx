@@ -305,6 +305,42 @@ describe("DisplayModeSwitch", () => {
     };
     expect(call.replace).toBe(true);
     expect(call.search({})).toEqual({ display: "tile" });
+    // Roving focus follows the move: focus lands on the next radio (#660 W-001).
+    expect(document.activeElement).toBe(tabByLabel("タイル"));
+  });
+
+  it("ArrowDown behaves like ArrowRight: moves to the next mode and navigates", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowDown");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "tile" });
+  });
+
+  it("ArrowUp behaves like ArrowLeft: from list wraps to calendar (last)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowUp");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "calendar" });
   });
 
   it("ArrowLeft from list wraps to calendar (last) and navigates", () => {
@@ -335,6 +371,8 @@ describe("DisplayModeSwitch", () => {
         }
       ).search({}),
     ).toEqual({ display: "calendar" });
+    // Roving focus follows End to the last radio (#660 W-001).
+    expect(document.activeElement).toBe(tabByLabel("カレンダー"));
 
     pressKey("Home");
     // Home from tile selects list (index 0); `homeSearchUpdater` overlays the
@@ -346,6 +384,8 @@ describe("DisplayModeSwitch", () => {
         }
       ).search({}),
     ).toEqual({ display: "list" });
+    // Roving focus follows Home to the first radio (#660 W-001).
+    expect(document.activeElement).toBe(tabByLabel("リスト"));
   });
 
   it("fires a navigate per arrow press for consecutive arrows (replace: true each)", () => {

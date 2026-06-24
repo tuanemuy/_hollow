@@ -149,6 +149,28 @@ describe("PublicTopControls markup", () => {
     expect(html).toContain('aria-checked="true"');
   });
 
+  it("renders the display segmented as an APG Radio Group (#660): radiogroup / radio / roving tabindex, no tablist", () => {
+    // tile is the active mode → its radio is the single tabbable one (tabindex=0),
+    // the other two carry tabindex=-1 (roving tabindex). Asserted on the SSR
+    // markup so the public-side wiring is pinned without a dynamic harness.
+    searchState = { display: "tile" };
+    const html = renderToStaticMarkup(
+      <PublicTopControls tagOptions={[]} allTags={[]} />,
+    );
+    // Container role + horizontal orientation (#660 N-001/N-002).
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('aria-orientation="horizontal"');
+    // Three radio buttons, one per display mode.
+    expect(html.match(/role="radio"/g)).toHaveLength(3);
+    // Roving tabindex: only the active (tile) radio is tabbable.
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+    expect(html.match(/tabindex="-1"/g)).toHaveLength(2);
+    // The APG Tabs markup is fully replaced — no tablist/tab/aria-selected.
+    expect(html).not.toContain('role="tablist"');
+    expect(html).not.toContain('role="tab"');
+    expect(html).not.toContain("aria-selected");
+  });
+
   it("does not merge the master set (allTags) into the chips row", () => {
     // `extra` is only in allTags, never selected → it must NOT surface as a
     // filter-row chip. The chips row is `mergeTagChips(tagOptions, selected)`
