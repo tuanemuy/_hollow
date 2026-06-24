@@ -23,7 +23,8 @@ Issue #597 は「リテラル `saturate(180%) blur(20px)` を `var(--header-blur
 (B) は webkit 側を `blur(24px)` → `saturate(180%) blur(20px)` に変える＝Safari で blur 半径が縮み saturate が加わる視覚変化になり、本Issue の「見た目の回帰が無い（同値置換）」基準に反する。本Issue は SSOT 統一のための同値置換に範囲を限定しており、AuthHeader の webkit/standard 差という別軸の既存挙動の是正はスコープ外とする。
 
 ### Consequences
-- 良い点: 4箇所すべての standard backdrop-filter が SSOT トークン経由になり、将来 `--header-blur` 変更時に standard レンダリングが追従する。見た目の回帰はゼロ。
-- トレードオフ: AuthHeader の webkit 側だけトークンを経由しない状態が残る（受け入れ基準「-webkit- 版含む」は明示的 `-webkit-` リテラルを持つ他3ファイルで満たし、AuthHeader の webkit は `backdrop-blur-xl` が担う既存構造を尊重）。AuthHeader の webkit/standard 挙動差は既存のまま据え置き。是正が必要なら別Issueで扱う。
+- 良い点: standard backdrop-filter は全5箇所が SSOT トークン経由になり、将来 `--header-blur` 変更時に standard レンダリングが追従する。見た目の回帰はゼロ。
+- トレードオフ（既知の負債）: **`--header-blur` を将来変更したとき、AuthHeader の Safari（webkit）描画だけ追従しない。** AuthHeader の webkit 経路は `-webkit-backdrop-filter` リテラルではなく `backdrop-blur-xl`（= `blur(24px)`、saturate なし）が担っており、トークンを経由しないため。結果として AuthHeader は Safari=`blur(24px)` / Chrome=`var(--header-blur)` の挙動差を持ち、5箇所中ここだけ webkit が SSOT に追従しない。受け入れ基準「-webkit- 版含む」は明示的 `-webkit-` リテラルを持つ他4箇所で満たす。
+- 是正方針: この webkit 非追従を解消するには AuthHeader を canonical パターン（standard + `-webkit-` を両方トークン経由、`backdrop-blur-xl` 除去）に揃える必要があるが、それは Safari の blur 半径 24px→20px の視覚変化を伴うため本Issue（同値置換・回帰ゼロ）のスコープ外。別Issue #773 で追跡する。
 
 ---
