@@ -6,10 +6,8 @@ import type { Instant } from "./common";
 import { toInstant, toInstantOrNull } from "./common";
 
 /**
- * Opaque session token. Intentionally **not** branded — see
- * `spec/usecases/index.md` for the rationale: the SessionService adapter
- * may return plain strings, JWTs, or other opaque material verbatim, and
- * brand enforcement would force the adapter to generate brands too.
+ * Opaque session token. Intentionally not branded: the SessionService
+ * adapter may return plain strings, JWTs, or other opaque material verbatim.
  */
 export type SessionToken = string;
 
@@ -26,13 +24,11 @@ export type UserDTO = Readonly<{
   /**
    * Last time the user record was persisted. Projected from `updatedAt`
    * (any mutation advances it) — there is no dedicated `lastSavedAt`
-   * column. Surfaced for the P21 settings "最終保存" timestamp. See
-   * `.issue/571/adr.md` ADR-001.
+   * column. Surfaced for the P21 settings "最終保存" timestamp.
    */
   lastSavedAt: Instant;
   /**
-   * When the username was last changed, or `null` if never. Drives the
-   * P21 "次に変更できる日付" hint (cooldown = `USERNAME_CHANGE_COOLDOWN_MS`).
+   * When the username was last changed, or `null` if never.
    */
   lastUsernameChangedAt: Instant | null;
 }>;
@@ -56,10 +52,10 @@ export function toUserDTO(user: User): UserDTO {
 /**
  * Token-free projection of a session row for the P22 active-sessions list.
  * The port's `SessionRecord` carries the raw token; this DTO drops it so
- * the token never reaches the presentation layer (see `.issue/572/adr.md`
- * ADR-002). `isCurrent` is resolved server-side here — the caller passes
- * the request's session token (or `null` when the cookie is absent) and we
- * compare against `record.token`. The client receives only the boolean.
+ * the token never reaches the presentation layer. `isCurrent` is resolved
+ * server-side here — the caller passes the request's session token (or `null`
+ * when the cookie is absent) and we compare against `record.token`. The
+ * client receives only the boolean.
  */
 export type SessionDTO = Readonly<{
   id: string;
@@ -69,18 +65,18 @@ export type SessionDTO = Readonly<{
    * Parsed OS / browser / device-kind summary of `userAgent`. Projected
    * here (application layer) so the presentation surface receives settled
    * values rather than re-parsing. Indeterminate fields are `null` — the
-   * parser never fabricates a device name (#615 ADR-001). The raw
-   * `userAgent` is retained alongside this for fallback / transparency.
+   * parser never fabricates a device name. The raw `userAgent` is retained
+   * alongside this for fallback / transparency.
    */
   device: DeviceInfo;
   ipAddress: string | null;
   createdAt: Instant;
   /**
    * Last session-activity time. Advanced (throttled, best-effort) on each
-   * `resolve` via `SessionService.recordActivity` (#615 ADR-003), so this
-   * is now a meaningful "最終アクセス" value the UI may surface. For a
-   * freshly issued session that has not yet been activity-touched this
-   * equals `createdAt` — that is the correct initial state, not a bug.
+   * `resolve` via `SessionService.recordActivity`, so this is now a
+   * meaningful "最終アクセス" value the UI may surface. For a freshly issued
+   * session that has not yet been activity-touched this equals `createdAt`
+   * — that is the correct initial state, not a bug.
    */
   updatedAt: Instant;
   expiresAt: Instant;
@@ -94,13 +90,12 @@ export type SessionDTO = Readonly<{
  *
  * The values must stay faithful to the **actual** delete cascade
  * (`deleteAccount` + the `user.deleted` reaction handlers), because the
- * UI must not misrepresent what is destroyed (#543 虚偽表示禁止). The
- * cascade soft-deletes the user, purges credentials, makes every note
- * private (revoking all active share links) and cancels in-progress
- * export jobs. It does **not** physically purge note bodies or media
- * blobs — there is no `user.deleted` reaction for notes/media — so the
- * note/media counts describe data that becomes inaccessible, not data
- * that is immediately erased. See `.issue/573/adr.md` ADR-003.
+ * UI must not misrepresent what is destroyed. The cascade soft-deletes the
+ * user, purges credentials, makes every note private (revoking all active
+ * share links) and cancels in-progress export jobs. It does **not**
+ * physically purge note bodies or media blobs — there is no `user.deleted`
+ * reaction for notes/media — so the note/media counts describe data that
+ * becomes inaccessible, not data that is immediately erased.
  */
 export type AccountDeletionImpactDTO = Readonly<{
   /**

@@ -1146,7 +1146,7 @@ describe("ListUserSessions / RevokeUserSession", () => {
   });
 });
 
-describe("SessionService.recordActivity (#615)", () => {
+describe("SessionService.recordActivity", () => {
   const getContainer = setupTestContainer();
 
   async function readUpdatedAt(

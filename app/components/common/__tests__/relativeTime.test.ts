@@ -12,7 +12,6 @@ describe("formatRelativeTime", () => {
   it("returns たった今 within the just-now window (and at the throttle width)", () => {
     expect(formatRelativeTime(ago(0), NOW)).toBe("たった今");
     expect(formatRelativeTime(ago(4 * MIN), NOW)).toBe("たった今");
-    // 5 min throttle width still reads as たった今 (boundary just under).
     expect(formatRelativeTime(ago(5 * MIN - 1), NOW)).toBe("たった今");
   });
 

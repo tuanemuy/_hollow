@@ -24,8 +24,8 @@ const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * Minimum gap between `recordActivity` writes for a given session. Writes
  * land at most once per window: a row updated more recently than this is
  * left untouched, so write-on-read does not hit D1 on every authenticated
- * request (#615 ADR-003). Kept ≤ the `formatRelativeTime` "たった今"
- * threshold so a just-active session never reads as "N minutes ago".
+ * request. Kept ≤ the `formatRelativeTime` "たった今" threshold so a
+ * just-active session never reads as "N minutes ago".
  */
 const ACTIVITY_THROTTLE_MS = 5 * 60 * 1000;
 
@@ -177,16 +177,9 @@ export class D1SessionService implements SessionService {
   async recordActivity(token: string): Promise<void> {
     await mapDbError("Failed to record session activity", async () => {
       const now = this.clock.now();
-      // `updated_at` is stored as an ISO 8601 string (see `issue`), so the
-      // throttle compares strings — ISO 8601 is lexicographically ordered
-      // by time — rather than relying on SQLite `datetime()` arithmetic,
-      // which would not match the stored representation.
       const cutoff = new Date(
         now.getTime() - ACTIVITY_THROTTLE_MS,
       ).toISOString();
-      // WHERE token + updated_at predicate ensures at most one row matches
-      // (unique index on token guarantees high-cardinality, and cutoff
-      // throttles the window). The row is 0–1, never >1.
       await this.db
         .update(sessions)
         .set({ updatedAt: now.toISOString() })

@@ -52,10 +52,9 @@ type FormState = { error: SerializedError | null; ok: boolean };
 const initial: FormState = { error: null, ok: false };
 
 /**
- * Inner SVG glyph for each parsed device kind (#615 ADR-001). desktop /
- * mobile / tablet each get a distinct shape (mock SVG paths); an
- * indeterminate `unknown` device reuses the generic monitor glyph rather
- * than guessing a form factor.
+ * Inner SVG glyph for each parsed device kind. desktop / mobile / tablet
+ * each get a distinct shape (mock SVG paths); an indeterminate `unknown`
+ * device reuses the generic monitor glyph rather than guessing a form factor.
  */
 function deviceGlyph(kind: SessionDTO["device"]["kind"]) {
   if (kind === "mobile") {
@@ -121,8 +120,8 @@ function formatLoginTime(instant: string): string {
 /**
  * The user-facing title for a session: the parsed device label
  * ("Chrome on macOS") when available, else the raw `userAgent` verbatim,
- * else a neutral fallback. We never fabricate a device name (#615 ADR-001
- * / 虚偽表示禁止) — an indeterminate device shows the UA or 不明な端末.
+ * else a neutral fallback. We never fabricate a device name — an
+ * indeterminate device shows the UA or 不明な端末.
  */
 function sessionTitle(session: SessionDTO): string {
   if (session.device.label !== null) return session.device.label;

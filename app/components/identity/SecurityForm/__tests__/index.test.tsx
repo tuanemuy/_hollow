@@ -267,9 +267,6 @@ describe("SecurityForm active sessions list", () => {
   });
 
   it("shows the last-access time as a relative label", () => {
-    // updatedAt far in the past → an absolute-date fallback string appears
-    // under the 最終アクセス label (relative formatting is exercised in the
-    // relativeTime unit test; here we just prove the label is wired).
     render([session({ id: "la", updatedAt: "2020-01-01T00:00:00.000Z" })]);
     expect(container.textContent).toContain("最終アクセス:");
   });

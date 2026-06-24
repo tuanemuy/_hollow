@@ -6,8 +6,7 @@
  * Buckets: "たった今" (within {@link JUST_NOW_MS}) → "N 分前" → "N 時間前"
  * → "N 日前", and past {@link ABSOLUTE_THRESHOLD_DAYS} it falls back to an
  * absolute `ja-JP` date. The "たった今" window is kept ≥ the session
- * activity throttle (`ACTIVITY_THROTTLE_MS`, #615 ADR-003 / ADR-004) so a
- * just-active session does not read as "N 分前".
+ * activity throttle so a just-active session does not read as "N 分前".
  *
  * `now` is injectable for deterministic tests; it defaults to the current
  * time. Future instants (clock skew) collapse to "たった今".

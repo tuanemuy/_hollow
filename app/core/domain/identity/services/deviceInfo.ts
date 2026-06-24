@@ -4,8 +4,7 @@
  * domain service rather than a value object on an aggregate.
  *
  * Every field that cannot be determined from the UA string is `null`:
- * the project's 虚偽表示禁止 principle (#543 ADR-004 / #572 ADR-002)
- * forbids fabricating an OS / browser name. `label` is only synthesised
+ * fabricating an OS / browser name is forbidden. `label` is only synthesised
  * when both `os` and `browser` are known; otherwise it stays `null` and
  * the presentation layer falls back to the raw UA or a neutral label.
  *

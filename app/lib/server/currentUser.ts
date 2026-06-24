@@ -50,10 +50,10 @@ export function getCurrentSessionToken(): string | null {
  * accidental client-graph inclusion.
  *
  * `recordActivity` advances the session's "最終アクセス" time and is
- * fired after a successful `resolve` (#615 ADR-003). It is best-effort:
- * the write is idempotent and adapter-throttled (safe to run more than
- * once per request — the `cache()` at-most-once is an optimisation, not
- * a correctness premise), and any failure is swallowed with a logged
+ * fired after a successful `resolve`. It is best-effort: the write is
+ * idempotent and adapter-throttled (safe to run more than once per
+ * request — the `cache()` at-most-once is an optimisation, not a
+ * correctness premise), and any failure is swallowed with a logged
  * warning so an incidental D1 write error never fails authentication.
  * It runs *outside* the `unitOfWorkProvider.run` callback: sessions are
  * not part of the `findById` aggregate transaction.
