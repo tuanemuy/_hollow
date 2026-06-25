@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
+import { isNotFoundError } from "@/core/application/errors";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { TagMergeJobErrorCode } from "@/core/domain/tag/mergeJob/errorCode";
 import {
@@ -521,6 +522,27 @@ describe("getTagMergeJob — ownership", () => {
       expect(isBusinessRuleError(error)).toBe(true);
       if (isBusinessRuleError(error)) {
         expect(error.code).toBe(TagMergeJobErrorCode.Unauthorized);
+      }
+    }
+  });
+
+  it("throws NotFound for a jobId that does not exist (pruned/poll race)", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+
+    // No job row is inserted: the `findById` lookup returns null before the
+    // ownership check runs, so the absence — not the actor — is the verdict.
+    // This guards the path a poller hits after a completed job is pruned.
+    try {
+      await getTagMergeJob({
+        container,
+        input: { actorUserId: OWNER_A, jobId: jobRawId(99) },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isNotFoundError(error)).toBe(true);
+      if (isNotFoundError(error)) {
+        expect(error.code).toBe("TAG_MERGE_JOB_NOT_FOUND");
       }
     }
   });

@@ -1,5 +1,10 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { isConflictError } from "@/core/application/errors";
+import {
+  isConflictError,
+  isSystemError,
+  SystemErrorCode,
+} from "@/core/application/errors";
 import type { UserId } from "@/core/domain/identity/valueObject";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import { TagMergeJob } from "@/core/domain/tag/mergeJob/entity";
@@ -148,5 +153,30 @@ describe("D1TagMergeJobRepository integration", () => {
         tagMergeJobRepository.findById("019d8000-0000-7000-8000-0000000000ff"),
     );
     expect(found).toBeNull();
+  });
+
+  it("raises a DataIntegrityError when affected_note_ids_json is malformed", async () => {
+    const container = createTestContainer();
+    const owner = await seedUser(container, OWNER);
+    const id = await insertPendingJob(container, owner);
+
+    // Corrupt the JSON column directly to a valid-JSON-but-non-array value —
+    // a shape `complete()` could never produce, so it must be seeded raw.
+    // On rehydration `parseStringArray` rejects it as a data-integrity
+    // violation rather than silently coercing the persisted row.
+    await container.db
+      .update(schema.tagMergeJobs)
+      .set({ affectedNoteIdsJson: '"not-an-array"' })
+      .where(eq(schema.tagMergeJobs.id, id));
+
+    await expect(
+      container.unitOfWorkProvider.run(({ tagMergeJobRepository }) =>
+        tagMergeJobRepository.findById(id),
+      ),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        isSystemError(error) &&
+        error.code === SystemErrorCode.DataIntegrityError,
+    );
   });
 });
