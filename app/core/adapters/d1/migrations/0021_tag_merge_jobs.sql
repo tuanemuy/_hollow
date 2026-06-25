@@ -35,5 +35,4 @@ CREATE TABLE IF NOT EXISTS `tag_merge_jobs` (
   CONSTRAINT `tag_merge_jobs_status_enum` CHECK(`status` IN ('pending', 'processing', 'completed', 'failed'))
 );
 
-CREATE INDEX IF NOT EXISTS `idx_tag_merge_jobs_owner_status` ON `tag_merge_jobs` (`owner_id`, `status`, `updated_at` DESC);
 CREATE INDEX IF NOT EXISTS `idx_tag_merge_jobs_updated_at` ON `tag_merge_jobs` (`updated_at` DESC, `id` DESC);

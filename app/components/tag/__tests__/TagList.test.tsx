@@ -567,6 +567,89 @@ describe("TagList — async-job merge (#580)", () => {
     expect(document.body.textContent).toContain("#alpha");
     expect(routerInvalidate).not.toHaveBeenCalled();
   });
+
+  it("does not surface a transient poll error after a single blip (W-002)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    // Every poll rejects with a transient (system) kind. The 1.5s re-schedule
+    // does not fire within the test, so only one failure is observed — below
+    // the retry budget, so no error must surface and the job stays "running".
+    pollMock.mockRejectedValue(
+      new AppServerError({ kind: "system", code: null, message: "blip" }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // Still polling (the in-progress banner persists), no error alert yet.
+    expect(document.body.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("システムエラー");
+    // Source tag stays; no completion-driven reflection happened.
+    expect(document.body.textContent).toContain("#alpha");
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a fatal (unauthorized) poll error immediately (W-002)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    pollMock.mockRejectedValue(
+      new AppServerError({ kind: "unauthorized", code: null, message: "no" }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // A fatal kind stops polling at once and surfaces an alert; the source tag
+    // stays and the loader is not invalidated.
+    const alert = document.body.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect((alert?.textContent ?? "").length).toBeGreaterThan(0);
+    expect(document.body.textContent).toContain("#alpha");
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("re-fetches the loader when closed mid-flight (W-001)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    // Job is still processing — polling never reaches completion.
+    pollMock.mockResolvedValue({ job: mergeJobDTO("processing", 1, 4) });
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 4, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // Mid-flight: the in-progress banner is up. routerInvalidate not yet called.
+    expect(document.body.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(routerInvalidate).not.toHaveBeenCalled();
+
+    // Close while running → best-effort loader re-fetch so a finishing job is
+    // reflected even though completion-driven polling stopped.
+    const closeBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "閉じる");
+    await act(async () => {
+      closeBtn?.click();
+    });
+    await flush();
+
+    expect(routerInvalidate).toHaveBeenCalled();
+    // Dialog closed → its target <select> is gone.
+    expect(document.body.getElementsByTagName("select").length).toBe(0);
+  });
 });
 
 describe("TagList — optimistic create", () => {

@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
+import { EventId } from "@/core/domain/common/event";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { TagErrorCode } from "@/core/domain/tag/errorCode";
 import {
@@ -11,6 +13,7 @@ import { createTag } from "../createTag";
 import { deleteTag } from "../deleteTag";
 import { enqueueTagMergeJob } from "../enqueueTagMergeJob";
 import { listTags } from "../listTags";
+import { tagMergeJobEventDecoders } from "../mergeJobEventDecoders";
 import { renameTag } from "../renameTag";
 import { runTagMergeJob } from "../runTagMergeJob";
 
@@ -354,6 +357,46 @@ describe("mergeTags (async job) integration", () => {
     const noteTagsAfter = await container.db.select().from(schema.noteTags);
     expect(noteTagsAfter).toHaveLength(1);
     expect(noteTagsAfter[0]?.tagId).toBe(targetId);
+  });
+
+  it("emits a single tag.merge.requested outbox event whose payload decodes to the new job (AC-1)", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    const sourceId = tagRawId(1);
+    const targetId = tagRawId(2);
+    await seedTag(container, sourceId, OWNER_A, "src");
+    await seedTag(container, targetId, OWNER_A, "tgt");
+
+    const { job } = await enqueueTagMergeJob({
+      container,
+      input: {
+        actorUserId: OWNER_A,
+        sourceTagId: sourceId,
+        targetTagId: targetId,
+      },
+    });
+
+    const events = await container.db
+      .select()
+      .from(schema.outboxEvents)
+      .where(eq(schema.outboxEvents.eventType, "tag.merge.requested"));
+    expect(events).toHaveLength(1);
+    const row = events[0];
+    expect(row?.aggregateId).toBe(job.id);
+    expect((row?.payload as { jobId: string }).jobId).toBe(job.id);
+
+    // The relay decodes the raw row before dispatch (ADR-008). Decode it
+    // with the production decoder to fix the AC-1 receipt chain end-to-end:
+    // the runner input jobId must match the enqueued job.
+    const decoded = tagMergeJobEventDecoders["tag.merge.requested"](
+      row?.payload,
+      {
+        id: EventId.create(row?.id ?? ""),
+        occurredAt: row?.occurredAt ?? new Date(),
+        aggregateId: row?.aggregateId ?? "",
+      },
+    );
+    expect(decoded.payload.jobId).toBe(job.id);
   });
 
   it("throws BusinessRuleError(MergeSameTag) at enqueue when source and target are the same tag", async () => {

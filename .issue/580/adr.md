@@ -132,7 +132,7 @@ Proposed
 **(S-002) Pending/Processing 再入セマンティクスの確定。** エンティティは判別共用体で `startProcessing(total)` は **Pending 専用遷移**、`recordProgress(processed)` は **Processing からの再入で呼べ既存 `progress.total` を保持**する（実コードの export `recordProgress` が `job.progress.total` を再利用する形と同じ）。runner 冒頭で Pending / Processing を**分岐**する:
 
 - **Pending**: `startProcessing(total = 全 source 保持ノート件数)` で total を初回確定。
-- **Processing（再入）**: **total を再 seed しない**（最初に確定した永続 total を保持）。再入時の snapshot は「まだ source を持つ残りノート」なので件数は初回より小さく、ここで total を取り直すと total が縮み processed が 0 へ戻ってバーが**逆行**する。これを避けるため total を保持し、`processed = total − 残件数` から `recordProgress` で**前進のみ**させ単調性を保つ（AC-4「実 processed/total 反映」と整合）。
+- **Processing（再入）**: **total を再 seed しない**（最初に確定した永続 total を保持）。再入時の snapshot は「まだ source を持つ残りノート」なので件数は初回より小さく、ここで total を取り直すと total が縮み processed が 0 へ戻ってバーが**逆行**する。これを避けるため total を保持し、`processed = total − 残件数` から `recordProgress` で**前進のみ**させ単調性を保つ（AC-4「実 processed/total 反映」と整合）。**この「前進のみ」不変条件は runner の算出規律に暗黙依存させず、`recordProgress` 内で `processed` が現在値を下回る入力を `BusinessRuleError(InvalidProgress)` で拒否してドメインへ引き上げる（バー逆行を illegal state として実行時に固定。review-001-domain W-001 反映）。**
 
 **(S-003) 二重ジョブ並走時の source 削除 + complete の冪等耐性。** 本 ADR が重複ガードを置かず固着ジョブを新ジョブで supersede 可能にする以上、その帰結として固着 `processing` ジョブの再開中にユーザーが再 submit すると、同一 source に対し 2 つの runner が並走しうる。ノート書き換えは冪等で安全だが、終盤の `tagRepository.delete(sourceTagId, expectedVersion)`（OCC）と `complete` は、先に完走した側が source 行を消すと後発側で **OCC 競合 / NotFound** になる。これを**失敗ではなく冪等な完了として扱う**（source が既に消えている＝他 run が完了済み → 自ジョブも残件0で `complete` 到達扱い、`fail` にしない）。握り潰さないと後発ジョブが不要に `fail` してダイアログがエラー表示する一方で統合は実際に完了、という矛盾が起き AC-6 の体感を損なう。
 
@@ -196,3 +196,55 @@ plan のレビュー Round 1（arch S-001）で「イベントデコーダ登録
 - 良い点: enqueue → relay デコード → dispatch → `runTagMergeJob` の経路が繋がり、ジョブが実際に処理される。型フェンス（satisfies）＋回帰テストで同種の登録漏れを二重に防止。
 - トレードオフ: なし（確立済みパターンへの整合。当初「1行追加のみ」と見積もった worker 配線が、デコーダ1ファイル + relay registry 2行に増えた程度）。
 - 教訓: 「relay が復号するか否か」はレビューの机上判断ではなく、`eventRelayWorker.decodeEntry` の実コードで確認すべきだった。非同期ジョブ機能は runner 単体テストだけでなく outbox→relay→dispatch の経路を1本通すテスト/検証が要る。
+
+---
+
+## ADR-009: `MergeTagDialog` ポーリングのレジリエンス（離脱反映・transient 許容・give-up 上限）
+
+### Status
+Accepted（review-001-frontend W-001/W-002/W-003 反映）
+
+### Context
+
+`MergeTagDialog` のポーリングは初版で 3 つのエッジケースに弱かった（review-001-frontend）:
+
+- **W-001**: 実行中にダイアログを閉じるとポーリングが止まり、ADR-005 の「完了駆動 `routerInvalidate`」反映点が外れる。ジョブは worker 側で完走しソースタグはサーバで削除されるのに、一覧は次の navigation まで削除済みタグを表示し続ける。
+- **W-002**: `catch` が初回エラーで即 `cancelled=true` + エラー表示。規範 `IngestionQueue` は transient（非 fatal kind）を `failuresRef >= 3` まで許容し、fatal（unauthorized/forbidden）のみ即停止する。単発の瞬断でポーリング永久停止 + 誤った失敗表示 + 再 submit による二重ジョブを誘発しうる。
+- **W-003**: give-up 上限が無く、`processing` 固着（worker 異常・再配信されない）時に 1.5s 間隔で無期限ポーリング。キャンセル UI はスコープ外のため脱出は「閉じる」のみ（= W-001 を誘発）。
+
+### Decision
+
+スコープを広げず（ページ常駐バナーは作らない）、ダイアログ内の最小修正で対処する:
+
+- **W-001**: 実行中（`isRunning`）に閉じる場合のみ `handleClose` が完了駆動の `onMerged`（= 親の `routerInvalidate`）を best-effort で1回呼んでからクローズ。Dialog の `onClose`（overlay/Esc 含む）とクローズボタン双方に配線。
+- **W-002**: ポーリングの transient エラーに `IngestionQueue` 同形のリトライ budget（`MAX_TRANSIENT_FAILURES = 3` 連続）を導入。fatal kind（unauthorized/forbidden）は従来どおり即 surface + 停止。成功で失敗カウントをリセット。
+- **W-003**: give-up 上限 `POLL_GIVE_UP_MS = 120_000`（2 分 ≈ 80 ティック）。超過したら `gaveUp=true` で**非エラー**な打ち切り表示（「統合に時間がかかっています…閉じても問題ありません。完了すると一覧に反映されます。」）にしてポーリングを停止。ジョブ自体は worker 側で継続しうるため `fail` 表示にはしない。
+- **N-002**: 進捗カウントの `font-mono` をモック（`.progress-live` の `tabular-nums`）に合わせ `tabular-nums` へ寄せた。
+
+### Consequences
+
+- 良い点: 離脱時の取りこぼしを減らし、瞬断で誤って失敗表示・二重ジョブを誘発しない。固着ジョブでも無期限ポーリングしない。既存の cleanup / `visibilityState` ガード / 0除算ガード / `useOptimistic` 無改変を維持。
+- **限界（許容）**: W-001 の `handleClose` 反映は「閉じた瞬間」の best-effort であり、**完了が閉じた後に着地するケースは依然取りこぼす**（次の navigation / 別 tag 操作まで削除済みソースタグが残る）。give-up 後にユーザーが閉じれば同じ best-effort 反映が走る。リアルタイム反映が要る将来要件が出れば（ページ常駐の進捗監視など）再評価。
+- give-up 閾値 2 分・transient 3 連続は規範（export 3s 間隔 / `IngestionQueue` の 3 回 budget）に倣った妥当値で、固有の最適化はしていない。
+
+---
+
+## ADR-010: レビューで意図的に維持した2点（並走 note-save OCC / 認可エラーコード）
+
+### Status
+Accepted（Round 1 レビューで仕分け・維持を決定）
+
+### Context
+
+PR Review #001（Application 層）で2件の Warning が挙がったが、いずれも確立パターン整合・低リスクのため**意図的に現状維持**とした。記録を残す。
+
+### Decision
+
+1. **並走二重ジョブの note-save OCC は terminal `failed` のまま（W-001）。** ADR-006/S-003 で「終盤の source 削除 + complete」は冪等寛容（OCC 競合/NotFound を `complete` に握る）にしたが、ノート書き換えバッチ save の OCC 競合（真の並走で同一ノートを2 runner が同時 save）は寛容化せず `fail`（→ redelivery で再開）に倒す。ノート書き換えは冪等（`replaceTags` no-op）なので redelivery で resume すれば最終的に complete に至り、固着しない。save OCC を一律握り潰すと真の異常まで隠すため、source-delete だけ寛容化する非対称は意図的。発生条件は「固着ジョブ再開中にユーザーが再 submit」の低確率経路に限られる。
+
+2. **`getTagMergeJob` の他オーナー拒否は `BusinessRuleError(Unauthorized)` = HTTP 422（W-002）。** plan AC-8 は「NotFound/Forbidden 相当」と緩く書いたが、実装は先行 `getExportJob` と**完全同形**の `assertOwnedBy` → Unauthorized。422 と 404 の差で「jobId が存在するか」の存在オラクルが理論上残るが、jobId は UUIDv7 で**列挙不可能**、進捗・source/target タグ ID 等の**機密データは一切返さない**ため IDOR の本丸は防御済み。確立パターン（export）との一貫性を優先し、本Issueで独自にエラーコードを変えない。
+
+### Consequences
+
+- 良い点: export ジョブ群と認可・失敗セマンティクスが揃い、認知負荷が低い。over-engineering を避ける。
+- トレードオフ: (1) 低確率の並走で後発ジョブが `failed` 表示になりうる（redelivery 前提。ユーザーは再統合で回復可能）。(2) 422/404 の存在オラクルが理論上残るが、列挙不可能・無情報のため実害なし。将来 export 側で認可エラーの方針が変われば両者まとめて再評価する。

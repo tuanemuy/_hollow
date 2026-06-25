@@ -125,13 +125,22 @@ function startProcessing(
 /**
  * Advances `processed` while keeping the existing `total`. Callable on a
  * re-entered `processing` job (crash resume) so the persisted denominator
- * is never re-seeded — the bar only moves forward (ADR-006 S-002).
+ * is never re-seeded. A regressing `processed` (below the current value)
+ * is rejected so the bar can only move forward — this forward-only
+ * invariant is enforced in the domain rather than left to runner
+ * discipline (ADR-006 S-002).
  */
 function recordProgress(
   job: ProcessingTagMergeJob,
   processed: number,
   now: Date,
 ): ProcessingTagMergeJob {
+  if (processed < job.progress.processed) {
+    throw new BusinessRuleError(
+      TagMergeJobErrorCode.InvalidProgress,
+      `processed (${processed}) cannot regress below current progress (${job.progress.processed})`,
+    );
+  }
   const progress = TagMergeProgress.create(processed, job.progress.total);
   return {
     ...job,

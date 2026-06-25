@@ -14,6 +14,11 @@ const MERGE_NOTE_PAGE_SIZE = 500;
 
 export type RunTagMergeJobInput = Readonly<{
   jobId: string;
+  // Test seam: batch size for the snapshot scan and note-processing loop.
+  // Production always uses `MERGE_NOTE_PAGE_SIZE` (500) — the dispatch path
+  // never sets this. Integration tests lower it to exercise the
+  // multi-batch progress path without seeding 500+ notes.
+  pageSize?: number;
 }>;
 
 export type RunTagMergeJobOutput = Readonly<{
@@ -63,8 +68,9 @@ export async function runTagMergeJob({
   input,
 }: ServiceArgs<RunTagMergeJobInput>): Promise<RunTagMergeJobOutput> {
   const jobId = TagMergeJobId.create(input.jobId);
+  const pageSize = input.pageSize ?? MERGE_NOTE_PAGE_SIZE;
 
-  const prepared = await prepareProcessing(container, jobId);
+  const prepared = await prepareProcessing(container, jobId, pageSize);
   if (prepared === null) return { job: null };
   if (prepared.kind === "done") {
     return { job: toTagMergeJobView(prepared.job) };
@@ -79,6 +85,7 @@ export async function runTagMergeJob({
       workIds,
       baseProcessed,
       total,
+      pageSize,
     });
     const completed = await finalize(
       container,
@@ -101,6 +108,7 @@ export async function runTagMergeJob({
 async function prepareProcessing(
   container: Container,
   jobId: TagMergeJobId,
+  pageSize: number,
 ): Promise<Prepared> {
   const now = container.clock.now();
   return container.unitOfWorkProvider.run(
@@ -117,6 +125,7 @@ async function prepareProcessing(
         noteRepository,
         job.ownerId,
         job.sourceTagId,
+        pageSize,
       );
 
       if (TagMergeJob.isPending(job)) {
@@ -164,14 +173,16 @@ async function processBatches(
     workIds: readonly NoteId[];
     baseProcessed: number;
     total: number;
+    pageSize: number;
   },
 ): Promise<readonly NoteId[]> {
-  const { sourceTagId, targetTagId, workIds, baseProcessed, total } = params;
+  const { sourceTagId, targetTagId, workIds, baseProcessed, total, pageSize } =
+    params;
   const affectedIds: NoteId[] = [];
   let inspected = 0;
 
-  for (let i = 0; i < workIds.length; i += MERGE_NOTE_PAGE_SIZE) {
-    const batch = workIds.slice(i, i + MERGE_NOTE_PAGE_SIZE);
+  for (let i = 0; i < workIds.length; i += pageSize) {
+    const batch = workIds.slice(i, i + pageSize);
     const now = container.clock.now();
     const result = await container.unitOfWorkProvider.run(
       async ({ noteRepository, tagMergeJobRepository, collectEvents }) => {
@@ -339,18 +350,19 @@ async function collectSourceNoteIds(
   noteRepository: NoteRepository,
   ownerId: UserId,
   tagId: TagId,
+  pageSize: number,
 ): Promise<readonly NoteId[]> {
   const all: NoteId[] = [];
   let offset = 0;
   while (true) {
     const notes = await noteRepository.findByOwner(ownerId, {
-      limit: MERGE_NOTE_PAGE_SIZE,
+      limit: pageSize,
       offset,
       tagIds: [tagId],
     });
     if (notes.length === 0) break;
     for (const note of notes) all.push(note.id);
-    if (notes.length < MERGE_NOTE_PAGE_SIZE) break;
+    if (notes.length < pageSize) break;
     offset += notes.length;
   }
   return all;

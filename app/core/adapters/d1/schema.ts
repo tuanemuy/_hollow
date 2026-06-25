@@ -677,11 +677,6 @@ export const tagMergeJobs = sqliteTable(
     completedAt: text("completed_at"),
   },
   (table) => [
-    index("idx_tag_merge_jobs_owner_status").on(
-      table.ownerId,
-      table.status,
-      desc(table.updatedAt),
-    ),
     // Retention-pruning sort key for completed/failed jobs.
     index("idx_tag_merge_jobs_updated_at").on(
       desc(table.updatedAt),

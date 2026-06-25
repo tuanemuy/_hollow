@@ -101,7 +101,7 @@
 
 - **スキーマ**（`app/core/adapters/d1/schema.ts`）: `tag_merge_jobs` テーブル追加。
   - 列: `id`(pk), `owner_id`, `source_tag_id`, `target_tag_id`, `status`, `progress_processed`(default 0), `progress_total`(default 0), `affected_note_ids_json`(default "[]"), `error_code`, `error_reason`, `version`(default 0), `created_at`, `updated_at`, `completed_at`。
-  - インデックス: `idx_tag_merge_jobs_owner_status`（owner+status、active ジョブ取得）。完了ジョブのプルーニング用に `idx_tag_merge_jobs_updated_at` を任意で。
+  - インデックス: 完了/失敗ジョブのプルーニング用に `idx_tag_merge_jobs_updated_at`（`updated_at DESC, id DESC`）。owner+status の列挙リーダは持たない設計のため owner_status インデックスは置かない（W-001）。
 - **マイグレーション**: `app/core/adapters/d1/migrations/0021_tag_merge_jobs.sql`（手書き `CREATE TABLE` + インデックス。`pnpm db:apply:local` で適用）。
 - **リポジトリ**: `app/core/adapters/d1/repositories/tagMergeJobRepository.ts`（`exportJobRepository.ts` を規範。`Versioned` + OCC `.addOcc()`、JSON シリアライズ、`TagMergeJob.reconstruct()` でリハイドレート）。
 - **UoW 配線**: `UnitOfWorkContext`（`app/core/application/execution/unitOfWork.ts`）に `tagMergeJobRepository` 追加 → `app/core/adapters/d1/unitOfWork.ts` の D1 実装に注入。

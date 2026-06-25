@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
 import { isBusinessRuleError } from "@/core/domain/error";
@@ -6,6 +7,7 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
+import type { UnitOfWorkProvider } from "../../execution/unitOfWork";
 import { enqueueTagMergeJob } from "../enqueueTagMergeJob";
 import { getTagMergeJob } from "../getTagMergeJob";
 import { runTagMergeJob } from "../runTagMergeJob";
@@ -146,6 +148,204 @@ describe("runTagMergeJob — progress & idempotency", () => {
     const noteTagsAfter = await container.db.select().from(schema.noteTags);
     expect(noteTagsAfter.every((r) => r.tagId === targetId)).toBe(true);
     expect(noteTagsAfter).toHaveLength(3);
+  });
+
+  it("advances progress across multiple batches, persisting intermediate values (AC-2)", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    await seedDirectory(container, dirRawId(1), OWNER_A);
+    const sourceId = tagRawId(1);
+    const targetId = tagRawId(2);
+    await seedTag(container, sourceId, OWNER_A, "src");
+    await seedTag(container, targetId, OWNER_A, "tgt");
+    const NOTE_COUNT = 5;
+    for (let i = 0; i < NOTE_COUNT; i++) {
+      await seedNote(container, {
+        id: noteRawId(i + 1),
+        ownerId: OWNER_A,
+        directoryId: dirRawId(1),
+        tagIds: [sourceId],
+      });
+    }
+
+    const { job } = await enqueueTagMergeJob({
+      container,
+      input: {
+        actorUserId: OWNER_A,
+        sourceTagId: sourceId,
+        targetTagId: targetId,
+      },
+    });
+
+    // Observe the committed `progress_processed` after each UoW boundary by
+    // wrapping the real provider — the D1 UoW underneath still does all the
+    // work, so this is an observation decorator, not an in-memory fake.
+    const committed: number[] = [];
+    const realProvider = container.unitOfWorkProvider;
+    const observing: UnitOfWorkProvider = {
+      async run(fn) {
+        const result = await realProvider.run(fn);
+        const rows = await container.db
+          .select()
+          .from(schema.tagMergeJobs)
+          .where(eq(schema.tagMergeJobs.id, job.id));
+        const row = rows[0];
+        if (row) committed.push(row.progressProcessed);
+        return result;
+      },
+    };
+
+    // pageSize 2 over 5 notes → 3 processing batches that each commit
+    // independently, so progress walks 2 → 4 → 5 instead of jumping to 5.
+    const run = await runTagMergeJob({
+      container: { ...container, unitOfWorkProvider: observing },
+      input: { jobId: job.id, pageSize: 2 },
+    });
+
+    expect(run.job?.status).toBe("completed");
+    expect(run.job?.progress).toEqual({ processed: 5, total: 5 });
+
+    // Intermediate progress rows (0 < processed < total) were persisted —
+    // the determinate bar advanced through the middle, not just to 100%.
+    const intermediates = committed.filter((p) => p > 0 && p < NOTE_COUNT);
+    expect(intermediates).toContain(2);
+    expect(intermediates).toContain(4);
+    // Each batch committed forward only — progress never regressed.
+    for (let i = 1; i < committed.length; i++) {
+      expect(committed[i]).toBeGreaterThanOrEqual(committed[i - 1] ?? 0);
+    }
+    // Final state reaches total across the batch boundary.
+    expect(committed.at(-1)).toBe(NOTE_COUNT);
+
+    const noteTagsAfter = await container.db.select().from(schema.noteTags);
+    expect(noteTagsAfter).toHaveLength(NOTE_COUNT);
+    expect(noteTagsAfter.every((r) => r.tagId === targetId)).toBe(true);
+  });
+
+  it("resumes a crashed processing job across multiple batches, advancing forward only", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    await seedDirectory(container, dirRawId(1), OWNER_A);
+    const sourceId = tagRawId(1);
+    const targetId = tagRawId(2);
+    await seedTag(container, sourceId, OWNER_A, "src");
+    await seedTag(container, targetId, OWNER_A, "tgt");
+    // note1 was merged before the crash (carries target); note2-5 still
+    // carry source. total was fixed at 5, processed at 1 mid-flight.
+    await seedNote(container, {
+      id: noteRawId(1),
+      ownerId: OWNER_A,
+      directoryId: dirRawId(1),
+      tagIds: [targetId],
+    });
+    for (let i = 2; i <= 5; i++) {
+      await seedNote(container, {
+        id: noteRawId(i),
+        ownerId: OWNER_A,
+        directoryId: dirRawId(1),
+        tagIds: [sourceId],
+      });
+    }
+
+    const jobId = jobRawId(1);
+    await container.db.insert(schema.tagMergeJobs).values({
+      id: jobId,
+      ownerId: OWNER_A,
+      sourceTagId: sourceId,
+      targetTagId: targetId,
+      status: "processing",
+      progressProcessed: 1,
+      progressTotal: 5,
+      affectedNoteIdsJson: "[]",
+      errorCode: null,
+      errorReason: null,
+      version: 1,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      completedAt: null,
+    });
+
+    const committed: number[] = [];
+    const realProvider = container.unitOfWorkProvider;
+    const observing: UnitOfWorkProvider = {
+      async run(fn) {
+        const result = await realProvider.run(fn);
+        const rows = await container.db
+          .select()
+          .from(schema.tagMergeJobs)
+          .where(eq(schema.tagMergeJobs.id, jobId));
+        const row = rows[0];
+        if (row) committed.push(row.progressProcessed);
+        return result;
+      },
+    };
+
+    // 4 remaining notes, pageSize 2 → 2 resume batches.
+    const run = await runTagMergeJob({
+      container: { ...container, unitOfWorkProvider: observing },
+      input: { jobId, pageSize: 2 },
+    });
+
+    expect(run.job?.status).toBe("completed");
+    // Total preserved (not re-seeded to remaining 4); processed reaches it.
+    expect(run.job?.progress).toEqual({ processed: 5, total: 5 });
+    // Never dropped below the persisted starting processed of 1.
+    expect(Math.min(...committed)).toBeGreaterThanOrEqual(1);
+    for (let i = 1; i < committed.length; i++) {
+      expect(committed[i]).toBeGreaterThanOrEqual(committed[i - 1] ?? 0);
+    }
+    const noteTagsAfter = await container.db.select().from(schema.noteTags);
+    expect(noteTagsAfter.every((r) => r.tagId === targetId)).toBe(true);
+  });
+
+  it("fails the job when note processing throws (status=failed with errorReason) (AC-6)", async () => {
+    const container = getContainer();
+    await seedUser(container, OWNER_A, "alpha");
+    await seedDirectory(container, dirRawId(1), OWNER_A);
+    const sourceId = tagRawId(1);
+    const targetId = tagRawId(2);
+    // Source tag exists (the note's note_tags row needs it for its FK).
+    // Target tag is intentionally NOT created, so rewriting the note onto
+    // it violates the note_tags → tags(id) foreign key when the batch's UoW
+    // commits — a real, non-conflict/non-notfound failure that the runner's
+    // catch must turn into a `failed` job.
+    await seedTag(container, sourceId, OWNER_A, "src");
+    await seedNote(container, {
+      id: noteRawId(1),
+      ownerId: OWNER_A,
+      directoryId: dirRawId(1),
+      tagIds: [sourceId],
+    });
+
+    const jobId = jobRawId(1);
+    await container.db.insert(schema.tagMergeJobs).values({
+      id: jobId,
+      ownerId: OWNER_A,
+      sourceTagId: sourceId,
+      targetTagId: targetId,
+      status: "pending",
+      progressProcessed: 0,
+      progressTotal: 0,
+      affectedNoteIdsJson: "[]",
+      errorCode: null,
+      errorReason: null,
+      version: 0,
+      createdAt: iso(0),
+      updatedAt: iso(0),
+      completedAt: null,
+    });
+
+    const run = await runTagMergeJob({ container, input: { jobId } });
+
+    expect(run.job?.status).toBe("failed");
+    expect(run.job?.errorReason).toBeTruthy();
+    const rows = await container.db
+      .select()
+      .from(schema.tagMergeJobs)
+      .where(eq(schema.tagMergeJobs.id, jobId));
+    expect(rows[0]?.status).toBe("failed");
+    expect(rows[0]?.errorCode).toBe("tag_merge_run_failed");
+    expect(rows[0]?.errorReason).toBeTruthy();
   });
 
   it("re-running a completed job is a no-op (idempotent)", async () => {

@@ -51,6 +51,29 @@ describe("TagMergeJob lifecycle", () => {
     expect(advanced.progress).toEqual({ processed: 3, total: 5 });
   });
 
+  it("recordProgress allows a stationary processed (equal to current)", () => {
+    const { entity } = TagMergeJob.create(createInput(1), T0);
+    const processing = TagMergeJob.startProcessing(entity, 5, at(1));
+    const advanced = TagMergeJob.recordProgress(processing, 3, at(2));
+    const stationary = TagMergeJob.recordProgress(advanced, 3, at(3));
+    expect(stationary.progress).toEqual({ processed: 3, total: 5 });
+  });
+
+  it("recordProgress rejects a regressing processed (bar must not move backward)", () => {
+    const { entity } = TagMergeJob.create(createInput(1), T0);
+    const processing = TagMergeJob.startProcessing(entity, 5, at(1));
+    const advanced = TagMergeJob.recordProgress(processing, 3, at(2));
+    try {
+      TagMergeJob.recordProgress(advanced, 2, at(3));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(TagMergeJobErrorCode.InvalidProgress);
+      }
+    }
+  });
+
   it("recordProgress rejects processed beyond the persisted total", () => {
     const { entity } = TagMergeJob.create(createInput(1), T0);
     const processing = TagMergeJob.startProcessing(entity, 2, at(1));
