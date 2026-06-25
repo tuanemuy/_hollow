@@ -14,6 +14,7 @@ import { useId, useOptimistic, useRef, useState, useTransition } from "react";
 import { Popover } from "@/components/common/Popover";
 import { TOUCH_TARGET } from "@/components/common/styles";
 import { useRovingMenu } from "@/components/common/useRovingMenu";
+import { useRovingTablist } from "@/components/common/useRovingTablist";
 import {
   DATE_RANGE_PRESETS,
   type DateRangePreset,
@@ -311,6 +312,12 @@ export function PublicTopControls({
     });
   };
 
+  const displayRoving = useRovingTablist({
+    count: DISPLAY_OPTIONS.length,
+    selectedIndex: DISPLAY_OPTIONS.findIndex((o) => o.mode === display),
+    onSelect: (index) => selectDisplayMode(DISPLAY_OPTIONS[index].mode),
+  });
+
   return (
     // display: contents preserves `.user-tools` flex gap; wrapper carries aria-busy.
     <div className="contents" aria-busy={isPending}>
@@ -365,17 +372,26 @@ export function PublicTopControls({
       </div>
 
       <div className={TOOLBAR}>
-        <div className={SEGMENTED} role="tablist" aria-label="表示形式">
-          {DISPLAY_OPTIONS.map(({ mode, label, icon }) => {
+        <div
+          ref={displayRoving.containerRef}
+          className={SEGMENTED}
+          role="radiogroup"
+          aria-label="表示形式"
+          aria-orientation="horizontal"
+          onKeyDown={displayRoving.onKeyDown}
+        >
+          {DISPLAY_OPTIONS.map(({ mode, label, icon }, index) => {
             const active = mode === display;
             const IconComponent = icon;
             return (
+              // biome-ignore lint/a11y/useSemanticElements: <input type="radio"> cannot reproduce the styled segmented control; button + role="radio" keeps the icon+label, Space/Enter activation, and focus-visible while expressing the APG Radio Group (#660).
               <button
                 key={mode}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                role="radio"
+                aria-checked={active}
                 data-active={active || undefined}
+                tabIndex={displayRoving.getTabIndex(index)}
                 className={SEGMENTED_BTN}
                 onClick={() => selectDisplayMode(mode)}
               >
@@ -650,7 +666,7 @@ type TagAddPopoverProps = Readonly<{
 // sits at the row's start), with a max-height so a large母集合 scrolls in place.
 const TAG_ADD_PANEL =
   "absolute left-0 top-full mt-2 z-40 rounded-lg border border-hairline bg-bg shadow-md p-1 w-[220px] max-w-[calc(100vw-2rem)] max-h-[min(60vh,400px)] overflow-y-auto max-sm:fixed max-sm:left-0 max-sm:right-0 max-sm:w-auto max-sm:rounded-b-none max-sm:bottom-0 max-sm:top-auto max-sm:mt-0";
-const TAG_ADD_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface data-[active]:bg-surface data-[active]:font-medium aria-disabled:opacity-40 aria-disabled:cursor-not-allowed [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
+const TAG_ADD_OPTION_ITEM = `flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface focus-visible:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 data-[active]:bg-surface data-[active]:font-medium aria-disabled:opacity-40 aria-disabled:cursor-not-allowed [overflow-wrap:anywhere] ${TOUCH_TARGET}`;
 const TAG_ADD_EMPTY = "px-2.5 py-3 text-xs text-ink-tertiary text-center";
 
 /**

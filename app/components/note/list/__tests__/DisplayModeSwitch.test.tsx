@@ -69,49 +69,64 @@ afterEach(() => {
   container.remove();
 });
 
-// Icon-only (#626 ADR-001) — tabs are identified by `aria-label`.
+// Icon-only (#626 ADR-001) — radios are identified by `aria-label`.
 function tabByLabel(label: string): HTMLButtonElement {
   const buttons = Array.from(
-    container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    container.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
   );
   const found = buttons.find((b) => b.getAttribute("aria-label") === label);
   if (found === undefined) {
     throw new Error(
-      `tab "${label}" not found among [${buttons.map((b) => b.getAttribute("aria-label")).join(", ")}]`,
+      `radio "${label}" not found among [${buttons.map((b) => b.getAttribute("aria-label")).join(", ")}]`,
     );
   }
   return found;
 }
 
+function pressKey(key: string): void {
+  const group = container.querySelector('[role="radiogroup"]');
+  act(() => {
+    group?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
+}
+
 describe("DisplayModeSwitch", () => {
-  it("keeps the icon-only aria contract (#626 ADR-001): tablist / tab / aria-selected / aria-label / title, no visible text", () => {
+  it("keeps the icon-only aria contract (#626 ADR-001 / #660): radiogroup / radio / aria-checked / aria-label / title, no visible text", () => {
     act(() => {
       root.render(<DisplayModeSwitch />);
     });
 
-    const tablist = container.querySelector('[role="tablist"]');
-    expect(tablist).not.toBeNull();
-    expect(tablist?.getAttribute("aria-label")).toBe("表示形式");
+    const group = container.querySelector('[role="radiogroup"]');
+    expect(group).not.toBeNull();
+    expect(group?.getAttribute("aria-label")).toBe("表示形式");
+    // #660: the APG Tabs markup is fully replaced — no tablist/tab/aria-selected.
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+    expect(container.querySelector('[role="tab"]')).toBeNull();
+    expect(container.querySelector("[aria-selected]")).toBeNull();
 
-    const tabs = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    const radios = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
     );
-    expect(tabs.map((t) => t.getAttribute("aria-label"))).toEqual([
+    expect(radios.map((t) => t.getAttribute("aria-label"))).toEqual([
       "リスト",
       "タイル",
       "カレンダー",
     ]);
-    for (const tab of tabs) {
-      expect(tab.getAttribute("title")).toBe(tab.getAttribute("aria-label"));
+    for (const radio of radios) {
+      expect(radio.getAttribute("title")).toBe(
+        radio.getAttribute("aria-label"),
+      );
       // Icon-only: the accessible name comes from aria-label, not text.
-      expect(tab.textContent).toBe("");
-      expect(tab.querySelector("svg")).not.toBeNull();
+      expect(radio.textContent).toBe("");
+      expect(radio.querySelector("svg")).not.toBeNull();
     }
-    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+    expect(radios.map((t) => t.getAttribute("aria-checked"))).toEqual([
       "true",
       "false",
       "false",
     ]);
+    // Roving tabindex: only the checked radio is tabbable (#660 AC-2).
+    expect(radios.map((t) => t.tabIndex)).toEqual([0, -1, -1]);
   });
 
   it("navigates with replace: true and a function search returning the clicked mode", () => {
@@ -222,8 +237,8 @@ describe("DisplayModeSwitch", () => {
       root.render(<DisplayModeSwitch />);
     });
 
-    expect(tabByLabel("カレンダー").getAttribute("aria-selected")).toBe("true");
-    expect(tabByLabel("リスト").getAttribute("aria-selected")).toBe("false");
+    expect(tabByLabel("カレンダー").getAttribute("aria-checked")).toBe("true");
+    expect(tabByLabel("リスト").getAttribute("aria-checked")).toBe("false");
   });
 
   it("forwards the calendar mode through the search function (Issue #215)", () => {
@@ -270,5 +285,159 @@ describe("DisplayModeSwitch", () => {
       q: "world",
       display: "calendar",
     });
+  });
+
+  // #660: APG Radio Group roving — Arrow / Home / End move focus AND select
+  // (navigate replace:true), wrapping at both ends. The select logic is the
+  // same `select` handler the click path uses, so the existing navigate/
+  // localStorage contracts above hold; these pin the keyboard wiring.
+  it("ArrowRight moves selection to the next mode and navigates (replace: true)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowRight");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    const call = navigateMock.mock.calls[0]?.[0] as {
+      replace: boolean;
+      search: (prev: Record<string, unknown>) => Record<string, unknown>;
+    };
+    expect(call.replace).toBe(true);
+    expect(call.search({})).toEqual({ display: "tile" });
+    // Roving focus follows the move: focus lands on the next radio (#660).
+    expect(document.activeElement).toBe(tabByLabel("タイル"));
+  });
+
+  it("ArrowDown behaves like ArrowRight: moves to the next mode and navigates", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowDown");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "tile" });
+  });
+
+  it("ArrowUp behaves like ArrowLeft: from list wraps to calendar (last)", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowUp");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "calendar" });
+  });
+
+  it("ArrowLeft from list wraps to calendar (last) and navigates", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowLeft");
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    const call = navigateMock.mock.calls[0]?.[0] as {
+      search: (prev: Record<string, unknown>) => Record<string, unknown>;
+    };
+    expect(call.search({})).toEqual({ display: "calendar" });
+  });
+
+  it("Home jumps to the first mode and End to the last", () => {
+    currentDisplay = "tile";
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("End");
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "calendar" });
+    // Roving focus follows End to the last radio (#660).
+    expect(document.activeElement).toBe(tabByLabel("カレンダー"));
+
+    pressKey("Home");
+    // Home from tile selects list (index 0); `homeSearchUpdater` overlays the
+    // patch onto prev, so `display: "list"` is carried explicitly.
+    expect(
+      (
+        navigateMock.mock.calls[1]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "list" });
+    // Roving focus follows Home to the first radio (#660).
+    expect(document.activeElement).toBe(tabByLabel("リスト"));
+  });
+
+  it("fires a navigate per arrow press for consecutive arrows (replace: true each)", () => {
+    // The component reads `current` from the (mocked) URL value, which does not
+    // change between presses here, so each ArrowRight steps from `list` → next
+    // index relative to the same baseline. The point of this regression is that
+    // every keypress drives its own navigate (no swallowing / debounce) with
+    // `replace: true`, matching the click path.
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    pressKey("ArrowRight");
+    pressKey("ArrowRight");
+
+    expect(navigateMock).toHaveBeenCalledTimes(2);
+    for (const call of navigateMock.mock.calls) {
+      expect((call[0] as { replace: boolean }).replace).toBe(true);
+    }
+    expect(
+      (
+        navigateMock.mock.calls[0]?.[0] as {
+          search: (p: Record<string, unknown>) => Record<string, unknown>;
+        }
+      ).search({}),
+    ).toEqual({ display: "tile" });
+  });
+
+  it("only the checked radio is tabbable; the rest carry tabIndex -1 (#660 AC-2)", () => {
+    currentDisplay = "calendar";
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    expect(tabByLabel("カレンダー").tabIndex).toBe(0);
+    expect(tabByLabel("リスト").tabIndex).toBe(-1);
+    expect(tabByLabel("タイル").tabIndex).toBe(-1);
+  });
+
+  it("does not preventDefault on unhandled keys, leaving Tab to move focus away", () => {
+    act(() => {
+      root.render(<DisplayModeSwitch />);
+    });
+
+    const group = container.querySelector('[role="radiogroup"]');
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true });
+    act(() => {
+      group?.dispatchEvent(event);
+    });
+
+    // Unhandled keys are passed through: no preventDefault, no navigate.
+    expect(event.defaultPrevented).toBe(false);
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

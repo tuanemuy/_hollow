@@ -144,8 +144,31 @@ describe("PublicTopControls markup", () => {
     const html = renderToStaticMarkup(
       <PublicTopControls tagOptions={[]} allTags={[]} />,
     );
-    // role=tab with aria-selected reflects the active tile mode.
-    expect(html).toContain('aria-selected="true"');
+    // role=radio with aria-checked reflects the active tile mode (#660:
+    // the display segmented is an APG Radio Group, not a tablist).
+    expect(html).toContain('aria-checked="true"');
+  });
+
+  it("renders the display segmented as an APG Radio Group (#660): radiogroup / radio / roving tabindex, no tablist", () => {
+    // tile is the active mode → its radio is the single tabbable one (tabindex=0),
+    // the other two carry tabindex=-1 (roving tabindex). Asserted on the SSR
+    // markup so the public-side wiring is pinned without a dynamic harness.
+    searchState = { display: "tile" };
+    const html = renderToStaticMarkup(
+      <PublicTopControls tagOptions={[]} allTags={[]} />,
+    );
+    // Container role + horizontal orientation (#660).
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('aria-orientation="horizontal"');
+    // Three radio buttons, one per display mode.
+    expect(html.match(/role="radio"/g)).toHaveLength(3);
+    // Roving tabindex: only the active (tile) radio is tabbable.
+    expect(html.match(/tabindex="0"/g)).toHaveLength(1);
+    expect(html.match(/tabindex="-1"/g)).toHaveLength(2);
+    // The APG Tabs markup is fully replaced — no tablist/tab/aria-selected.
+    expect(html).not.toContain('role="tablist"');
+    expect(html).not.toContain('role="tab"');
+    expect(html).not.toContain("aria-selected");
   });
 
   it("does not merge the master set (allTags) into the chips row", () => {
