@@ -9,6 +9,7 @@ import { MediaAssetId } from "@/core/domain/media/valueObject";
 import type { NotePurgedEvent } from "@/core/domain/note/events";
 import { NoteId } from "@/core/domain/note/valueObject";
 import type { NoteSnapshot } from "@/core/domain/search/entity";
+import { TagMergeJobId as TagMergeJobIdVO } from "@/core/domain/tag/mergeJob/valueObject";
 import { TagId } from "@/core/domain/tag/valueObject";
 import { handleExportJobCompletedEvent } from "../activityLog/handleExportJobCompletedEvent";
 import { handleIngestionCreatedEvent } from "../activityLog/handleIngestionCreatedEvent";
@@ -34,6 +35,7 @@ import { buildNoteSnapshots } from "../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../search/handlePublicationChangedEvent";
+import { runTagMergeJob } from "../tag/runTagMergeJob";
 import { handleDirectoryDeletedEvent as viewHandleDirectoryDeletedEvent } from "../view/handleDirectoryDeletedEvent";
 import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../view/handleNotePurgedEvent";
 import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../view/handleTagDeletedEvent";
@@ -64,6 +66,7 @@ export type DispatchOutcome =
  * - `ingestion.created` / `ingestion.retryRequested` /
  *   `ingestion.regenerated` → `runIngestionJob`
  * - `export.job.requested` / `export.job.retryRequested` → `runExportJob`
+ * - `tag.merge.requested` → `runTagMergeJob` (async tag merge, Issue #580)
  * - `note.created` / `note.content_updated` / `note.renamed` /
  *   `note.moved` / `note.restored` / `note.tags_replaced` →
  *   `search.handleNoteSavedEvent` (re-build snapshot from `noteId` first).
@@ -244,6 +247,12 @@ export async function dispatchDomainEvent(
         const payload = event.payload as Readonly<{ exportJobId: string }>;
         const jobId = ExportJobIdVO.create(payload.exportJobId);
         await runExportJob({ container, input: { jobId } });
+        return { kind: "handled" };
+      }
+      case "tag.merge.requested": {
+        const payload = event.payload as Readonly<{ jobId: string }>;
+        const jobId = TagMergeJobIdVO.create(payload.jobId);
+        await runTagMergeJob({ container, input: { jobId } });
         return { kind: "handled" };
       }
       case "note.created":

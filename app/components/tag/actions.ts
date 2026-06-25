@@ -6,6 +6,7 @@ import { requireCurrentUser } from "@/lib/server/currentUser";
 import {
   createTagSchema,
   deleteTagSchema,
+  getTagMergeJobSchema,
   mergeTagsSchema,
   renameTagSchema,
 } from "./schema";
@@ -53,9 +54,9 @@ export const mergeTagsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const user = await requireCurrentUser();
     const { container, module } = await loadServerDeps(
-      () => import("@/core/application/tag/mergeTags"),
+      () => import("@/core/application/tag/enqueueTagMergeJob"),
     );
-    const result = await module.mergeTags({
+    const { job } = await module.enqueueTagMergeJob({
       container,
       input: {
         actorUserId: user.id,
@@ -63,7 +64,29 @@ export const mergeTagsFn = createServerFn({ method: "POST" })
         targetTagId: data.targetTagId,
       },
     });
-    return { affectedCount: result.affectedNoteIds.length };
+    return { jobId: job.id };
+  });
+
+// Progress poller for the `MergeTagDialog` determinate bar. The client
+// polls a `jobId` it received from `mergeTagsFn`; ownership is enforced
+// in the usecase via `assertOwnedBy` so a guessed id cannot read another
+// owner's job (IDOR, AC-8).
+export const getTagMergeJobFn = createServerFn({ method: "GET" })
+  .middleware([errorResponseMiddleware])
+  .inputValidator(validateInput(getTagMergeJobSchema))
+  .handler(async ({ data }) => {
+    const user = await requireCurrentUser();
+    const { container, module } = await loadServerDeps(
+      () => import("@/core/application/tag/getTagMergeJob"),
+    );
+    const { job } = await module.getTagMergeJob({
+      container,
+      input: {
+        actorUserId: user.id,
+        jobId: data.jobId,
+      },
+    });
+    return { job };
   });
 
 export const deleteTagFn = createServerFn({ method: "POST" })

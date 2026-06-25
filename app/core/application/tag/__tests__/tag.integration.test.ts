@@ -9,9 +9,27 @@ import {
 import { isForbiddenError, isNotFoundError } from "../../errors";
 import { createTag } from "../createTag";
 import { deleteTag } from "../deleteTag";
+import { enqueueTagMergeJob } from "../enqueueTagMergeJob";
 import { listTags } from "../listTags";
-import { mergeTags } from "../mergeTags";
 import { renameTag } from "../renameTag";
+import { runTagMergeJob } from "../runTagMergeJob";
+
+/**
+ * Drives a tag merge end-to-end through the async job flow:
+ * enqueue (validate + pending job) → run (note rewrite + source delete +
+ * complete). Returns the final job DTO so callers can assert progress.
+ */
+async function mergeViaJob(
+  container: TestContainer,
+  input: { actorUserId: string; sourceTagId: string; targetTagId: string },
+) {
+  const { job } = await enqueueTagMergeJob({ container, input });
+  const run = await runTagMergeJob({
+    container,
+    input: { jobId: job.id },
+  });
+  return run.job;
+}
 
 const baseTime = new Date("2026-01-01T00:00:00.000Z");
 const iso = (ms: number) => new Date(baseTime.getTime() + ms).toISOString();
@@ -302,10 +320,10 @@ describe("renameTag integration", () => {
   });
 });
 
-describe("mergeTags integration", () => {
+describe("mergeTags (async job) integration", () => {
   const getContainer = setupTestContainer();
 
-  it("merges source into target and removes source", async () => {
+  it("merges source into target and removes source, reaching 100% progress", async () => {
     const container = getContainer();
     await seedUser(container, OWNER_A, "alpha");
     await seedDirectory(container, dirRawId(1), OWNER_A);
@@ -322,16 +340,14 @@ describe("mergeTags integration", () => {
       tagIds: [sourceId],
     });
 
-    const { affectedNoteIds } = await mergeTags({
-      container,
-      input: {
-        actorUserId: OWNER_A,
-        sourceTagId: sourceId,
-        targetTagId: targetId,
-      },
+    const job = await mergeViaJob(container, {
+      actorUserId: OWNER_A,
+      sourceTagId: sourceId,
+      targetTagId: targetId,
     });
 
-    expect(affectedNoteIds).toHaveLength(1);
+    expect(job?.status).toBe("completed");
+    expect(job?.progress).toEqual({ processed: 1, total: 1 });
     const tagsAfter = await container.db.select().from(schema.tags);
     expect(tagsAfter).toHaveLength(1);
     expect(tagsAfter[0]?.id).toBe(targetId);
@@ -340,14 +356,14 @@ describe("mergeTags integration", () => {
     expect(noteTagsAfter[0]?.tagId).toBe(targetId);
   });
 
-  it("throws BusinessRuleError(MergeSameTag) when source and target are the same tag", async () => {
+  it("throws BusinessRuleError(MergeSameTag) at enqueue when source and target are the same tag", async () => {
     const container = getContainer();
     await seedUser(container, OWNER_A, "alpha");
     const sameId = tagRawId(1);
     await seedTag(container, sameId, OWNER_A, "x");
 
     try {
-      await mergeTags({
+      await enqueueTagMergeJob({
         container,
         input: {
           actorUserId: OWNER_A,
@@ -362,9 +378,12 @@ describe("mergeTags integration", () => {
         expect(error.code).toBe(TagErrorCode.MergeSameTag);
       }
     }
+    // No job row is created for an invalid request.
+    const jobs = await container.db.select().from(schema.tagMergeJobs);
+    expect(jobs).toHaveLength(0);
   });
 
-  it("rejects merging when caller is not the owner of both tags (ForbiddenError)", async () => {
+  it("rejects enqueue when caller is not the owner of both tags (ForbiddenError)", async () => {
     const container = getContainer();
     await seedUser(container, OWNER_A, "alpha");
     await seedUser(container, OWNER_B, "beta");
@@ -374,7 +393,7 @@ describe("mergeTags integration", () => {
     await seedTag(container, targetId, OWNER_B, "tgt");
 
     try {
-      await mergeTags({
+      await enqueueTagMergeJob({
         container,
         input: {
           actorUserId: OWNER_A,
@@ -405,28 +424,29 @@ describe("mergeTags integration", () => {
       tagIds: [sourceId, targetId],
     });
 
-    await mergeTags({
-      container,
-      input: {
-        actorUserId: OWNER_A,
-        sourceTagId: sourceId,
-        targetTagId: targetId,
-      },
+    const job = await mergeViaJob(container, {
+      actorUserId: OWNER_A,
+      sourceTagId: sourceId,
+      targetTagId: targetId,
     });
 
+    // The note already carries the target, so the rewrite is a no-op — but
+    // the inspected note still counts toward progress (arch S-003).
+    expect(job?.status).toBe("completed");
+    expect(job?.progress).toEqual({ processed: 1, total: 1 });
     const links = await container.db.select().from(schema.noteTags);
     expect(links).toHaveLength(1);
     expect(links[0]?.tagId).toBe(targetId);
   });
 
-  it("returns NotFoundError when source tag does not exist", async () => {
+  it("throws NotFoundError at enqueue when source tag does not exist", async () => {
     const container = getContainer();
     await seedUser(container, OWNER_A, "alpha");
     const targetId = tagRawId(2);
     await seedTag(container, targetId, OWNER_A, "tgt");
 
     try {
-      await mergeTags({
+      await enqueueTagMergeJob({
         container,
         input: {
           actorUserId: OWNER_A,

@@ -9,7 +9,7 @@ import { routerInvalidate } from "@/components/common/routerInvalidate";
 import type { SerializedError } from "@/core/presentation/errorResponse";
 import { extractSerializedError } from "@/core/presentation/errorResponse";
 import { EMPTY_STATE, EMPTY_STATE_ICON, PAGE_SUBTITLE } from "../layout/styles";
-import { createTagFn, deleteTagFn, mergeTagsFn, renameTagFn } from "./actions";
+import { createTagFn, deleteTagFn, renameTagFn } from "./actions";
 import { CreateTagForm } from "./CreateTagForm";
 import { TAG_COUNT, TAG_LASTUSED, TAG_ROW } from "./styles";
 import { TagActions } from "./TagActions";
@@ -81,7 +81,6 @@ export function TagList({ tags, query, sort, order }: Props) {
   const createTag = useServerFn(createTagFn);
   const renameTag = useServerFn(renameTagFn);
   const removeTag = useServerFn(deleteTagFn);
-  const mergeTags = useServerFn(mergeTagsFn);
 
   // Server-confirmed baseline. `useOptimistic` adds / removes / renames a tag
   // synchronously while the mutation + loader round-trip is in flight, then
@@ -152,20 +151,14 @@ export function TagList({ tags, query, sort, order }: Props) {
     });
   };
 
-  const onMerge = (sourceTagId: string, targetTagId: string) => {
-    setActionErrorId(null);
-    setActionError(null);
+  // Merge is now an async background job (#580, ADR-005): there is no
+  // enqueue-time optimistic removal. The `MergeTagDialog` polls the job and
+  // calls this on completion, so the disappeared source tag is reflected via
+  // the loader re-fetch rather than an optimistic projection. The
+  // `useOptimistic` reducer (create / rename / delete) is left untouched.
+  const onMerged = () => {
     startMutation(async () => {
-      try {
-        // Merge removes the source tag (its notes move to the target), so the
-        // optimistic projection is the same `remove` used by delete (ADR-003).
-        applyOptimistic({ type: "remove", id: sourceTagId });
-        await mergeTags({ data: { sourceTagId, targetTagId } });
-        await routerInvalidate(router);
-      } catch (e) {
-        setActionErrorId(sourceTagId);
-        setActionError(extractSerializedError(e));
-      }
+      await routerInvalidate(router);
     });
   };
 
@@ -238,7 +231,7 @@ export function TagList({ tags, query, sort, order }: Props) {
                   candidates={candidates}
                   onRename={onRename}
                   onDelete={onDelete}
-                  onMerge={onMerge}
+                  onMerged={onMerged}
                   actionError={actionErrorId === tag.id ? actionError : null}
                 />
               </li>

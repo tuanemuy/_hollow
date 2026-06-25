@@ -16,6 +16,10 @@ export const mergeTagsSchema = z.object({
   targetTagId: z.string().min(1),
 });
 
+export const getTagMergeJobSchema = z.object({
+  jobId: z.string().min(1),
+});
+
 export const deleteTagSchema = z.object({
   tagId: z.string().min(1),
 });

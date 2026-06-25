@@ -40,23 +40,52 @@
 
 ---
 
-## MergeTags
+## MergeTags（非同期ジョブ化 / Issue #580）
 
-### 入力DTO
+タグ統合は同期処理から **非同期ジョブ**（`TagMergeJob` アグリゲート + outbox → relay → consumer → runner）へ移行した。リクエストはジョブ受付で即時応答し、ノート書き換えと source 削除は worker 側で実行する。進捗（n/total）はジョブ行に逐次永続化され、P18 `MergeTagDialog` が determinate バーで polling 表示する。
+
+### EnqueueTagMergeJob（受付）
+
+#### 入力DTO
 - `actorUserId: UserId`, `sourceTagId: TagId`, `targetTagId: TagId`
 
-### 出力DTO
-- `affectedNoteIds: NoteId[]`
+#### 出力DTO
+- `job: TagMergeJobDTO`（`id`, `status`, `sourceTagId`, `targetTagId`, `progress: { processed, total }`, `errorReason` 等）
 
-### 処理フロー
-1. Source / Target Tag 取得、所有者一致、source !== target
-2. `TagService.computeMergePlan` で書き換え計画を取得
-3. UoW: 関連ノートを取得し、各 Note の `replaceTags(tagIdsから source を除き target を含めた重複排除セット)` を呼び、save
-4. Source Tag を delete（Target Tag 行は変更しないため version も進めない。表示件数は read-time 集計。`tags.note_count` 列は Issue #372 で撤去済み。spec/domains/tag.md 参照）
-5. Outbox `note.saved` を該当ノート分発火
+#### 処理フロー
+1. Source / Target Tag 取得、所有者一致確認（不一致は `ForbiddenError`、不存在は `NotFoundError`）
+2. `TagService.computeMergePlan` で事前検証（source !== target / owner 一致）。不正なら即エラー応答（ジョブは作らない）
+3. `TagMergeJob.create()` で pending ジョブを作成・`insert`、`collectEvents(tag.merge.requested)`
+   - 重複統合の抑止ガードは置かない（冪等で再実行安全。固着ジョブの回復導線を塞がないため）
+
+### RunTagMergeJob（worker runner）
+
+`tag.merge.requested` を consumer が `dispatchDomainEvent` 経由で受けて実行する。
+
+#### 処理フロー
+1. **ワークセット事前スナップショット**: source タグ保持ノートID集合を read-only で全件読み切り、件数で `startProcessing(total)`（Pending 専用遷移）。offset 加算とミューテーションの交互実行は禁止（データ欠落防止）
+2. 固定 ID リストをバッチ（500件）分割し、各バッチを独立 UoW で `findById`→`replaceTags`→save。進捗は **検査したノート数**（no-op 含む）で `recordProgress`。変更分は `affectedNoteIds` として別カウント
+3. 全 ID 処理後、Source Tag を delete + `tag.deleted` 発火 → `complete(affectedNoteIds)`（Target Tag 行は変更しないため version も進めない。表示件数は read-time 集計。`tags.note_count` 列は Issue #372 で撤去済み）
+4. Outbox `note.saved` / `tag.deleted` を発火
+5. **冪等再開**: クラッシュ中断（`processing` 固着）は再 dispatch で再開可能。再入時は total を再 seed せず残件再スキャンで `processed = total − 残件数` から前進のみ（バー逆行防止）
+6. **二重ジョブ並走耐性**: 先行 run が source を削除済み（OCC 競合 / NotFound）の場合は `fail` ではなく冪等な `complete` として扱う
+
+### GetTagMergeJob（進捗供給クエリ）
+
+#### 入力DTO
+- `actorUserId: UserId`, `jobId: TagMergeJobId`
+
+#### 出力DTO
+- `job: TagMergeJobDTO`
+
+#### 処理フロー
+1. `findById(jobId)` でジョブ取得（不存在は `NotFoundError`）
+2. `TagMergeJob.assertOwnedBy(job, actorUserId)` で所有者検証（IDOR 防止。クライアント state の jobId を直接 polling するため必須）
 
 ### エラーケース
-- `BusinessRuleError('tag_merge_same' | 'tag_owner_mismatch')`
+- Enqueue: `BusinessRuleError('tag_merge_same' | 'tag_owner_mismatch')` / `NotFoundError` / `ForbiddenError`
+- GetTagMergeJob: `NotFoundError('TAG_MERGE_JOB_NOT_FOUND')` / `BusinessRuleError('tag_merge_job_unauthorized')`
+- Run 失敗時はジョブが `failed`（`errorCode` / `errorReason`）になり、ダイアログ内にエラー表示
 
 ---
 
