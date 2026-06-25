@@ -42,4 +42,24 @@ describe("highlightSnippet", () => {
     expect(html).toContain("a plain snippet … no markers");
     expect(html).not.toContain("<mark");
   });
+
+  it("renders consecutive markers as separate mark elements", () => {
+    const html = renderToStaticMarkup(
+      <>{highlightSnippet("<mark>a</mark> <mark>b</mark>")}</>,
+    );
+
+    expect(html.match(/<mark[^>]*>/g)).toHaveLength(2);
+    expect(html).toMatch(/<mark[^>]*>a<\/mark> <mark[^>]*>b<\/mark>/);
+  });
+
+  it("falls back to plain text for an unterminated marker", () => {
+    const html = renderToStaticMarkup(
+      <>{highlightSnippet("ok <mark>dangling tail")}</>,
+    );
+
+    // The opening marker is consumed but, with no closing tag, the remainder
+    // renders as escaped text rather than a stray <mark> element.
+    expect(html).not.toContain("<mark");
+    expect(html).toContain("dangling tail");
+  });
 });
