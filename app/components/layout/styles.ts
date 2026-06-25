@@ -3,7 +3,7 @@
 import { navItem, TOUCH_TARGET_SQUARE } from "../common/styles";
 
 export const APP_HEADER =
-  "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline bg-[var(--header-bg)] px-6 py-[14px] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
+  "sticky top-0 z-50 h-[var(--header-height)] grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline bg-[var(--header-bg)] px-6 py-[14px] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
 
 export const APP_HEADER_LEFT = "flex items-center gap-3";
 export const APP_HEADER_RIGHT = "flex items-center gap-2";

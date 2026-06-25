@@ -20,7 +20,7 @@ import {
 } from "@/components/common/styles";
 
 const HEADER =
-  "sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)]";
+  "sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]";
 const HEADER_NAV = "flex items-center gap-2";
 const HEADER_LINK =
   "text-sm text-ink-secondary px-3 py-2 rounded-md transition-colors motion-reduce:transition-none hover:text-ink hover:bg-surface";

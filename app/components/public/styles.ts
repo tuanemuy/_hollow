@@ -8,7 +8,7 @@ import {
 } from "../common/styles";
 
 export const PUBLIC_HEADER =
-  "sticky top-0 z-50 bg-[var(--header-bg)] py-[14px] px-6 grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline supports-[backdrop-filter]:[backdrop-filter:saturate(180%)_blur(20px)] supports-[backdrop-filter]:[-webkit-backdrop-filter:saturate(180%)_blur(20px)] max-sm:px-4 max-sm:py-3 max-sm:gap-2.5";
+  "sticky top-0 z-50 bg-[var(--header-bg)] py-[14px] px-6 grid grid-cols-[auto_1fr_auto] items-center gap-5 border-b border-hairline supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)] max-sm:px-4 max-sm:py-3 max-sm:gap-2.5";
 
 export const PUBLIC_HEADER_LEFT = "flex items-center gap-3";
 
