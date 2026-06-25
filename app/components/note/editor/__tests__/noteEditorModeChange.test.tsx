@@ -390,7 +390,7 @@ describe("NoteEditor editor-body tabpanel (Issue #776)", () => {
     expect(bodyPanel()?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
   });
 
-  it("arrow key traversal does not change tabpanel aria-labelledby (W-003)", async () => {
+  it("arrow key traversal does not change tabpanel aria-labelledby", async () => {
     await renderEditor();
     const panel = bodyPanel();
     const tablist = container.querySelector('[role="tablist"]');
@@ -454,7 +454,7 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
   });
 
   it("lists every unsupported tag in sorted order and excludes supported tags (AC-2/AC-5)", async () => {
-    // Issue #696 review-001 W-004: the previous AC-5 check only asserted a
+    // Issue #696: the previous AC-5 check only asserted a
     // single `toContain("<section>")`, which would still pass if the dialog
     // wrongly listed only one of several lost tags — or even listed the
     // SUPPORTED `<p>` wrapper. Use a fixture with multiple unsupported tags

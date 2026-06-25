@@ -285,7 +285,7 @@ describe("TagListToolbar — sort controls", () => {
     expect(document.activeElement).toBe(getSortButtons()[3]);
   });
 
-  it("ArrowDown behaves like ArrowRight: moves selection and navigates (W-001)", async () => {
+  it("ArrowDown behaves like ArrowRight: moves selection and navigates", async () => {
     await renderToolbar(undefined, "name");
     await pressSortKey("ArrowDown");
 
@@ -297,7 +297,7 @@ describe("TagListToolbar — sort controls", () => {
     expect(document.activeElement).toBe(getSortButtons()[1]);
   });
 
-  it("ArrowUp from the first sort wraps to the last and navigates (W-001)", async () => {
+  it("ArrowUp from the first sort wraps to the last and navigates", async () => {
     await renderToolbar(undefined, "name");
     await pressSortKey("ArrowUp");
 
@@ -327,7 +327,7 @@ describe("TagListToolbar — sort controls", () => {
     }
   });
 
-  it("consecutive arrow presses navigate for each press (automatic, B-002)", async () => {
+  it("consecutive arrow presses navigate for each press", async () => {
     // RadioGroup automatic activation: every arrow press independently
     // navigates. The component reads `current` from the (mocked) URL value,
     // which does not change between presses here, so each ArrowRight steps

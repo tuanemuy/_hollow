@@ -20,7 +20,7 @@ import type { EditorMode, EditorSurface } from "../editorState";
  * being a body-content mode. The WYSIWYG tab stays (it is #696's, not
  * #697's). Expected inventories below drop FrontMatter accordingly.
  *
- * Scope note (review-001 W-002): this file only pins the *tab inventory*.
+ * Scope: this file only pins the *tab inventory*.
  * The new-surface *switching flow* (that WYSIWYG selection on the new
  * surface never triggers the decoration-loss dialog) is pinned at the
  * orchestrator level in `noteEditorModeChange.test.tsx`
@@ -157,7 +157,7 @@ describe("EditorModeSwitch APG Tabs contract (Issue #776)", () => {
     // (aria-selected) is unchanged and onChange was NOT called.
     expect(document.activeElement).toBe(tabs[1]);
     expect(tabs.map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
-    // aria-selected is explicitly unchanged after arrow (B-003).
+    // aria-selected is explicitly unchanged after arrow.
     expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
@@ -231,7 +231,7 @@ describe("EditorModeSwitch APG Tabs contract (Issue #776)", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("ArrowDown behaves like ArrowRight: moves focus without selecting (W-001)", () => {
+  it("ArrowDown behaves like ArrowRight: moves focus without selecting", () => {
     const onChange = vi.fn();
     renderSwitch("edit", "inline", onChange);
 
@@ -247,7 +247,7 @@ describe("EditorModeSwitch APG Tabs contract (Issue #776)", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("ArrowUp behaves like ArrowLeft: from first wraps to last without selecting (W-001)", () => {
+  it("ArrowUp behaves like ArrowLeft: from first wraps to last without selecting", () => {
     const onChange = vi.fn();
     renderSwitch("edit", "inline", onChange);
 
