@@ -313,8 +313,7 @@ async function failJob(
 
 /**
  * Set-union of a note's tag ids that replaces `source` with `target`,
- * de-duplicating and ensuring `target` is present. Pure — moved verbatim
- * from the former synchronous `mergeTags` usecase.
+ * de-duplicating and ensuring `target` is present. Pure.
  */
 function mergeTagSets(
   current: readonly TagId[],
