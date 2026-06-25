@@ -1,6 +1,30 @@
+"use client";
+
 import { pillBtn, pillBtnPrimary } from "@/components/common/styles";
+import { useRovingTablist } from "@/components/common/useRovingTablist";
 import type { EditorMode, EditorSurface } from "./editorState";
 import { editorModeTabs } from "./styles";
+
+/**
+ * Stable DOM id of the tab activating `mode`. Shared with `NoteEditor` (the
+ * body tabpanel's `aria-labelledby` points back at the active tab) so the
+ * tab ↔ panel association is wired by static naming, not generated ids
+ * (Issue #776 ADR-002).
+ */
+export const editorModeTabId = (mode: EditorMode): string =>
+  `editor-mode-tab-${mode}`;
+
+/**
+ * Stable DOM id of the single editor-body tabpanel. Every tab's
+ * `aria-controls` points at this one id (APG "single panel, swapped content"
+ * variant); the panel always hosts exactly one mounted body editor.
+ */
+export const EDITOR_BODY_PANEL_ID = "editor-body-panel";
+
+// `focus-visible` accent outline (matches `DISPLAY_SEGMENTED_BTN`) — `pillBtn`
+// has none of its own, so the tabs get the #660 segmented parity here (#776).
+const tabFocusVisible =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent";
 
 /**
  * Pure tab control for the editor body-content mode. The set of visible
@@ -51,18 +75,36 @@ export function EditorModeSwitch({
   onChange,
 }: EditorModeSwitchProps) {
   const tabs = surface === "new" ? TABS_NEW : TABS_EDIT;
+  // APG Tabs with manual activation (Issue #776 ADR-002): arrows move focus
+  // only; activation stays the native `<button>` click so `onChange`'s
+  // unsaved / decoration-loss confirm gates never fire on arrow traversal.
+  const roving = useRovingTablist({
+    manualActivation: true,
+    count: tabs.length,
+    selectedIndex: tabs.findIndex((t) => t.mode === mode),
+  });
   return (
-    <div className={editorModeTabs} role="tablist" aria-label="編集モード">
-      {tabs.map((tab) => {
+    <div
+      ref={roving.containerRef}
+      className={editorModeTabs}
+      role="tablist"
+      aria-label="編集モード"
+      aria-orientation="horizontal"
+      onKeyDown={roving.onKeyDown}
+    >
+      {tabs.map((tab, index) => {
         const isActive = mode === tab.mode;
         return (
           <button
             key={tab.mode}
             type="button"
             role="tab"
+            id={editorModeTabId(tab.mode)}
             aria-selected={isActive}
+            aria-controls={EDITOR_BODY_PANEL_ID}
             data-primary={isActive || undefined}
-            className={`${pillBtn} ${pillBtnPrimary}`}
+            tabIndex={roving.getTabIndex(index)}
+            className={`${pillBtn} ${pillBtnPrimary} ${tabFocusVisible}`}
             onClick={() => onChange(tab.mode)}
           >
             {tab.label}

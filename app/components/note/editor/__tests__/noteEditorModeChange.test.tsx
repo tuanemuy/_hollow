@@ -362,6 +362,36 @@ describe("NoteEditor FrontMatter permanent mount (Issue #697)", () => {
 });
 
 /**
+ * Issue #776: the editor body is wrapped in a single `role="tabpanel"` whose
+ * `aria-labelledby` tracks the active EditorModeSwitch tab. These pin the
+ * tab ↔ panel association across a body-mode switch (the idref must always
+ * resolve to a rendered tab).
+ */
+describe("NoteEditor editor-body tabpanel (Issue #776)", () => {
+  function bodyPanel(): HTMLElement | null {
+    return container.querySelector<HTMLElement>('[role="tabpanel"]');
+  }
+
+  it("labels the body tabpanel with the active tab and re-points it on switch", async () => {
+    await renderEditor();
+    const panel = bodyPanel();
+    expect(panel).not.toBeNull();
+    expect(panel?.id).toBe("editor-body-panel");
+    // Default edit mode is inline ("ビジュアル"); the panel points at its tab.
+    const inlineTab = tabByLabel("ビジュアル");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+    expect(inlineTab.getAttribute("aria-controls")).toBe("editor-body-panel");
+
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    // After activating HTML the idref follows to the HTML tab (still rendered).
+    const htmlTab = tabByLabel("HTML");
+    expect(bodyPanel()?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
+  });
+});
+
+/**
  * Issue #696: switching to WYSIWYG on the edit surface warns before
  * dropping decoration. The gate runs against the latest committed
  * `state.contentHtml` and only opens the decoration-loss `ConfirmDialog`

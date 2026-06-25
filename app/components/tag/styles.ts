@@ -90,9 +90,11 @@ export const SEGMENTED = "inline-flex p-0.5 rounded-md bg-surface";
 
 /**
  * Segmented item (mock `.segmented-item`) — active state via `data-active`.
- * The selected item gets the `bg` surface + ink color + subtle shadow.
+ * The selected item gets the `bg` surface + ink color + subtle shadow. The
+ * `focus-visible` accent outline mirrors `DISPLAY_SEGMENTED_BTN` so the sort
+ * axis radiogroup matches the #660 segmented pattern (Issue #776 AC-7).
  */
-export const SEGMENTED_ITEM = `px-3.5 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-data-[active]:text-ink data-[active]:bg-bg data-[active]:text-ink data-[active]:shadow-xs ${TOUCH_TARGET}`;
+export const SEGMENTED_ITEM = `px-3.5 py-1.5 rounded-sm text-sm font-medium text-ink-secondary bg-transparent transition-colors motion-reduce:transition-none hover:not-data-[active]:text-ink data-[active]:bg-bg data-[active]:text-ink data-[active]:shadow-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${TOUCH_TARGET}`;
 
 /** Direction toggle (mock `.tag-sort .icon-btn-sm`) — 32px ghost icon button. */
 export const TAG_SORT_DIR = `inline-flex items-center justify-center w-8 h-8 rounded-full text-ink bg-transparent transition-colors motion-reduce:transition-none hover:bg-surface active:bg-surface-hover ${TOUCH_TARGET_SQUARE}`;

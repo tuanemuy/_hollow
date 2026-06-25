@@ -73,9 +73,17 @@ function getSearchForm(): HTMLFormElement {
 function getSortButtons(): HTMLButtonElement[] {
   return Array.from(
     ctx.container.querySelectorAll<HTMLButtonElement>(
-      'div[role="tablist"] button',
+      'div[role="radiogroup"] button',
     ),
   );
+}
+
+async function pressSortKey(key: string): Promise<void> {
+  const group = ctx.container.querySelector('[role="radiogroup"]');
+  await act(async () => {
+    group?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
+  await flush();
 }
 
 function getOrderToggleButton(): HTMLButtonElement {
@@ -216,7 +224,94 @@ describe("TagListToolbar — sort controls", () => {
     );
     // data-active is set to true when active (React renders boolean attributes)
     expect(noteCountBtn?.getAttribute("data-active")).toBe("true");
-    expect(noteCountBtn?.getAttribute("aria-selected")).toBe("true");
+    expect(noteCountBtn?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  // #776: the sort axis is an APG Radio Group, mirroring the #660 display-mode
+  // segmented control. No tablist/tab/aria-selected may remain.
+  it("exposes the APG Radio Group contract (radiogroup / radio / aria-checked, no tablist)", async () => {
+    await renderToolbar(undefined, "name");
+    const group = ctx.container.querySelector('[role="radiogroup"]');
+    expect(group).not.toBeNull();
+    expect(group?.getAttribute("aria-label")).toBe("並び替え軸");
+    expect(group?.getAttribute("aria-orientation")).toBe("horizontal");
+    // The old (incomplete) Tabs contract is fully gone.
+    expect(ctx.container.querySelector('[role="tablist"]')).toBeNull();
+    expect(ctx.container.querySelector('[role="tab"]')).toBeNull();
+    expect(ctx.container.querySelector("[aria-selected]")).toBeNull();
+
+    const radios = getSortButtons();
+    expect(radios.map((b) => b.getAttribute("role"))).toEqual([
+      "radio",
+      "radio",
+      "radio",
+      "radio",
+    ]);
+    expect(radios.map((b) => b.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+      "false",
+    ]);
+    // Roving tabindex: only the checked radio is tabbable (#660 / #776 AC-2).
+    expect(radios.map((b) => b.tabIndex)).toEqual([0, -1, -1, -1]);
+  });
+
+  // #776: automatic activation — Arrow / Home / End move focus AND select
+  // (navigate), wrapping at both ends. The select logic is the same `run`
+  // the click path uses, so the navigate contract is unchanged.
+  it("ArrowRight moves selection to the next sort and navigates", async () => {
+    await renderToolbar(undefined, "name");
+    await pressSortKey("ArrowRight");
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const call = routerNavigate.mock.calls[0]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "name" }).sort).toBe("noteCount");
+    }
+    // Roving focus follows the move to the next radio.
+    expect(document.activeElement).toBe(getSortButtons()[1]);
+  });
+
+  it("ArrowLeft from the first sort wraps to the last and navigates", async () => {
+    await renderToolbar(undefined, "name");
+    await pressSortKey("ArrowLeft");
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const call = routerNavigate.mock.calls[0]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "name" }).sort).toBe("lastUsedAt");
+    }
+    expect(document.activeElement).toBe(getSortButtons()[3]);
+  });
+
+  it("Home jumps to the first sort and End to the last", async () => {
+    await renderToolbar(undefined, "createdAt");
+
+    await pressSortKey("End");
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    let call = routerNavigate.mock.calls[0]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "createdAt" }).sort).toBe("lastUsedAt");
+    }
+
+    await pressSortKey("Home");
+    expect(routerNavigate).toHaveBeenCalledTimes(2);
+    call = routerNavigate.mock.calls[1]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "createdAt" }).sort).toBe("name");
+    }
+  });
+
+  it("does not preventDefault on unhandled keys, leaving Tab to move focus away", async () => {
+    await renderToolbar(undefined, "name");
+    const group = ctx.container.querySelector('[role="radiogroup"]');
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true });
+    await act(async () => {
+      group?.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(routerNavigate).not.toHaveBeenCalled();
   });
 
   it("navigates to new sort when clicking a sort button", async () => {
@@ -298,7 +393,7 @@ describe("TagListToolbar — sort controls", () => {
     // The optimistic selection is reflected immediately, before the loader
     // round-trip commits.
     expect(noteCountBtn?.getAttribute("data-active")).toBe("true");
-    expect(noteCountBtn?.getAttribute("aria-selected")).toBe("true");
+    expect(noteCountBtn?.getAttribute("aria-checked")).toBe("true");
 
     await act(async () => {
       resolveNav?.();

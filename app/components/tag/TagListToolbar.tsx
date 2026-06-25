@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { Icon } from "@/components/common/Icon";
+import { useRovingTablist } from "@/components/common/useRovingTablist";
 import type { TagListSearch } from "./schema";
 import { TAG_LIST_SORTS } from "./schema";
 import {
@@ -108,6 +109,19 @@ export function TagListToolbar({ query, sort, order }: Props) {
 
   const nextOrder: TagListOrder = optimistic.order === "asc" ? "desc" : "asc";
 
+  // APG Radio Group roving tabindex for the sort axis (Issue #776 ADR-001):
+  // automatic activation, so arrow/Home/End move focus AND select, converging
+  // on the same `run({ type: "setSort" })` the click path uses.
+  const sortRoving = useRovingTablist({
+    count: TAG_LIST_SORTS.length,
+    selectedIndex: TAG_LIST_SORTS.indexOf(optimistic.sort),
+    onSelect: (index) =>
+      run(
+        { type: "setSort", sort: TAG_LIST_SORTS[index] },
+        { sort: TAG_LIST_SORTS[index] },
+      ),
+  });
+
   return (
     <div className={TAG_TOOLBAR} aria-busy={isPending}>
       <search className={TAG_SEARCH}>
@@ -131,14 +145,23 @@ export function TagListToolbar({ query, sort, order }: Props) {
 
       <div className={TAG_SORT}>
         <span className={TAG_SORT_LABEL}>並び替え</span>
-        <div className={SEGMENTED} role="tablist" aria-label="並び替え軸">
-          {TAG_LIST_SORTS.map((s) => (
+        <div
+          ref={sortRoving.containerRef}
+          className={SEGMENTED}
+          role="radiogroup"
+          aria-label="並び替え軸"
+          aria-orientation="horizontal"
+          onKeyDown={sortRoving.onKeyDown}
+        >
+          {TAG_LIST_SORTS.map((s, index) => (
+            // biome-ignore lint/a11y/useSemanticElements: <input type="radio"> cannot reproduce the text segmented control's data-active styling and Space/Enter activation; button + role="radio" expresses the APG Radio Group (#776 ADR-001).
             <button
               key={s}
               type="button"
-              role="tab"
-              aria-selected={s === optimistic.sort}
+              role="radio"
+              aria-checked={s === optimistic.sort}
               data-active={s === optimistic.sort || undefined}
+              tabIndex={sortRoving.getTabIndex(index)}
               className={SEGMENTED_ITEM}
               onClick={() => run({ type: "setSort", sort: s }, { sort: s })}
             >

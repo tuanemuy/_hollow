@@ -33,7 +33,11 @@ import { clearNoteUnsaved, markNoteUnsaved } from "../unsavedFlag";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
 import { EditLockBanner } from "./EditLockBanner";
-import { EditorModeSwitch } from "./EditorModeSwitch";
+import {
+  EDITOR_BODY_PANEL_ID,
+  EditorModeSwitch,
+  editorModeTabId,
+} from "./EditorModeSwitch";
 import {
   createInitialEditorState,
   type EditLockState,
@@ -490,58 +494,71 @@ export function NoteEditor(props: NoteEditorProps) {
         disabled={isPending}
       />
 
-      {state.mode === "html" ? (
-        <>
-          <HtmlEditor
-            value={state.htmlDraft}
-            onChange={(v) => dispatch({ type: "setHtmlDraft", value: v })}
-            disabled={isPending}
-          />
-          <MediaUploader
-            contentHtml={state.htmlDraft}
-            onInsert={onMediaInsert}
-            disabled={isPending}
-          />
-        </>
-      ) : null}
+      {/* Single editor-body tabpanel (Issue #776 ADR-002): the active body
+          mode swaps the panel content while `aria-labelledby` points at the
+          active EditorModeSwitch tab. `state.mode` is always a member of the
+          surface's visible tab set, so the idref never dangles. The wrapper is
+          unstyled so the body editors' own `mb-*` rhythm is unaffected; the
+          panel itself needs no `tabIndex` because it always contains a
+          focusable editor. */}
+      <div
+        role="tabpanel"
+        id={EDITOR_BODY_PANEL_ID}
+        aria-labelledby={editorModeTabId(state.mode)}
+      >
+        {state.mode === "html" ? (
+          <>
+            <HtmlEditor
+              value={state.htmlDraft}
+              onChange={(v) => dispatch({ type: "setHtmlDraft", value: v })}
+              disabled={isPending}
+            />
+            <MediaUploader
+              contentHtml={state.htmlDraft}
+              onInsert={onMediaInsert}
+              disabled={isPending}
+            />
+          </>
+        ) : null}
 
-      {state.mode === "inline" ? (
-        <>
-          <InlineEditor
-            value={state.contentHtml}
-            onChange={(v) => dispatch({ type: "setContent", value: v })}
-            disabled={isPending}
-            onInitFailed={() => dispatch({ type: "setMode", mode: "html" })}
-          />
-          <MediaUploader
-            contentHtml={state.contentHtml}
-            onInsert={onMediaInsert}
-            disabled={isPending}
-          />
-        </>
-      ) : null}
+        {state.mode === "inline" ? (
+          <>
+            <InlineEditor
+              value={state.contentHtml}
+              onChange={(v) => dispatch({ type: "setContent", value: v })}
+              disabled={isPending}
+              onInitFailed={() => dispatch({ type: "setMode", mode: "html" })}
+            />
+            <MediaUploader
+              contentHtml={state.contentHtml}
+              onInsert={onMediaInsert}
+              disabled={isPending}
+            />
+          </>
+        ) : null}
 
-      {state.mode === "wysiwyg" ? (
-        <>
-          <WysiwygEditor
-            value={state.contentHtml}
-            onChange={(v) => dispatch({ type: "setContent", value: v })}
-            disabled={isPending}
-            editorRef={tiptapEditorRef}
-            unsupportedTags={state.wysiwygUnsupportedTags}
-            unsupportedAck={state.wysiwygUnsupportedAck}
-            onUnsupportedTagsDetected={(tags) =>
-              dispatch({ type: "wysiwygUnsupportedDetected", tags })
-            }
-            onAcknowledge={() => dispatch({ type: "wysiwygUnsupportedAck" })}
-          />
-          <MediaUploader
-            contentHtml={state.contentHtml}
-            onInsert={onMediaInsert}
-            disabled={isPending}
-          />
-        </>
-      ) : null}
+        {state.mode === "wysiwyg" ? (
+          <>
+            <WysiwygEditor
+              value={state.contentHtml}
+              onChange={(v) => dispatch({ type: "setContent", value: v })}
+              disabled={isPending}
+              editorRef={tiptapEditorRef}
+              unsupportedTags={state.wysiwygUnsupportedTags}
+              unsupportedAck={state.wysiwygUnsupportedAck}
+              onUnsupportedTagsDetected={(tags) =>
+                dispatch({ type: "wysiwygUnsupportedDetected", tags })
+              }
+              onAcknowledge={() => dispatch({ type: "wysiwygUnsupportedAck" })}
+            />
+            <MediaUploader
+              contentHtml={state.contentHtml}
+              onInsert={onMediaInsert}
+              disabled={isPending}
+            />
+          </>
+        ) : null}
+      </div>
 
       {/* FrontMatter is permanently mounted below the body editor (Issue
           #697) — metadata is edited in parallel with the body regardless of
