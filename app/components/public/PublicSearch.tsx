@@ -5,6 +5,7 @@ import { Icon } from "@/components/common/Icon";
 import type { SearchSort } from "@/core/domain/search/valueObject";
 import { serverData } from "@/core/presentation/serverAction";
 import { formatDate, formatShort } from "./formatNoteDate";
+import { highlightSnippet } from "./highlightSnippet";
 import { avatarInitials, PublicLayout } from "./PublicLayout";
 import { SearchFilterDrawer } from "./SearchFilterDrawer";
 import { SearchSortToggle } from "./SearchSortToggle";
@@ -206,7 +207,9 @@ export async function PublicSearch({
                   <div className={SEARCH_HIT_MAIN}>
                     <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
                     {hit.snippet.length > 0 ? (
-                      <p className={SEARCH_HIT_SNIPPET}>{hit.snippet}</p>
+                      <p className={SEARCH_HIT_SNIPPET}>
+                        {highlightSnippet(hit.snippet)}
+                      </p>
                     ) : null}
                     <div className={SEARCH_HIT_META}>
                       <span className={SEARCH_HIT_AUTHOR}>

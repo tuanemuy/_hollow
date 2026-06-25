@@ -227,6 +227,10 @@ export const SEARCH_HIT_TITLE =
   "text-md font-medium text-ink tracking-tight leading-snug";
 export const SEARCH_HIT_SNIPPET =
   "text-sm text-ink-secondary leading-relaxed overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]";
+// Highlight mark for the FTS5 `<mark>` segments inside a snippet (P32 mock
+// `.result-snippet mark`): accent-tinted background + accent-ink text.
+export const SEARCH_HIT_MARK =
+  "bg-[color-mix(in_oklch,var(--color-accent)_18%,transparent)] text-accent-ink rounded-[2px] px-0.5";
 export const SEARCH_HIT_META =
   "text-sm text-ink-tertiary flex items-center gap-2.5 flex-wrap";
 export const SEARCH_EMPTY = "py-20 px-3 text-center text-ink-secondary";
