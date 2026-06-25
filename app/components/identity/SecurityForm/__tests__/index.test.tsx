@@ -56,6 +56,7 @@ const session = (overrides: Partial<SessionDTO> = {}): SessionDTO => ({
   id: "session-1",
   isCurrent: false,
   userAgent: "Mozilla/5.0",
+  device: { kind: "unknown", os: null, browser: null, label: null },
   ipAddress: "192.0.2.41",
   createdAt: "2026-05-14T09:24:00.000Z",
   updatedAt: "2026-05-14T09:24:00.000Z",
@@ -154,8 +155,119 @@ describe("SecurityForm active sessions list", () => {
     expect(otherServerFn).not.toHaveBeenCalled();
   });
 
-  it("renders the raw userAgent verbatim as the session title", () => {
-    render([session({ id: "ua", userAgent: "CustomAgent/9.9" })]);
+  it("renders the parsed device label as the session title when present", () => {
+    render([
+      session({
+        id: "labelled",
+        userAgent: "Mozilla/5.0 ...",
+        device: {
+          kind: "desktop",
+          os: "macOS",
+          browser: "Safari",
+          label: "Safari on macOS",
+        },
+      }),
+    ]);
+    expect(container.textContent).toContain("Safari on macOS");
+  });
+
+  it("falls back to the raw userAgent when the device has no label", () => {
+    render([
+      session({
+        id: "ua",
+        userAgent: "CustomAgent/9.9",
+        device: { kind: "unknown", os: null, browser: null, label: null },
+      }),
+    ]);
     expect(container.textContent).toContain("CustomAgent/9.9");
+  });
+
+  it("falls back to 不明な端末 when there is no label and no userAgent", () => {
+    render([
+      session({
+        id: "noua",
+        userAgent: null,
+        device: { kind: "unknown", os: null, browser: null, label: null },
+      }),
+    ]);
+    expect(container.textContent).toContain("不明な端末");
+  });
+
+  it("picks a distinct icon glyph per device kind", () => {
+    const glyphFor = (kind: SessionDTO["device"]["kind"]) => {
+      const c = document.createElement("div");
+      document.body.appendChild(c);
+      const r = createRoot(c);
+      act(() => {
+        r.render(
+          <SecurityForm
+            user={USER}
+            sessions={[
+              session({
+                id: kind,
+                device: { kind, os: null, browser: null, label: null },
+              }),
+            ]}
+          />,
+        );
+      });
+      // The only SVG in a single-session render is the session-row icon.
+      const svg = c.querySelector("svg");
+      const markup = svg?.innerHTML ?? "";
+      act(() => r.unmount());
+      c.remove();
+      return markup;
+    };
+    const mobile = glyphFor("mobile");
+    const tablet = glyphFor("tablet");
+    const desktop = glyphFor("desktop");
+    const unknown = glyphFor("unknown");
+    // mobile / tablet / desktop are mutually distinct; unknown reuses the
+    // generic desktop glyph (no form-factor guess).
+    expect(new Set([mobile, tablet, desktop]).size).toBe(3);
+    expect(unknown).toBe(desktop);
+  });
+
+  it("renders SessionIcon with matching aria-label for each device kind", () => {
+    const kindToLabel = {
+      mobile: "スマートフォン",
+      tablet: "タブレット",
+      desktop: "デスクトップ",
+      unknown: "不明な端末",
+    } as const;
+
+    const getAriaLabelFor = (kind: SessionDTO["device"]["kind"]) => {
+      const c = document.createElement("div");
+      document.body.appendChild(c);
+      const r = createRoot(c);
+      act(() => {
+        r.render(
+          <SecurityForm
+            user={USER}
+            sessions={[
+              session({
+                id: kind,
+                device: { kind, os: null, browser: null, label: null },
+              }),
+            ]}
+          />,
+        );
+      });
+      const svg = c.querySelector("svg");
+      const ariaLabel = svg?.getAttribute("aria-label") ?? "";
+      act(() => r.unmount());
+      c.remove();
+      return ariaLabel;
+    };
+
+    for (const kind of ["mobile", "tablet", "desktop", "unknown"] as const) {
+      const ariaLabel = getAriaLabelFor(kind);
+      expect(ariaLabel).toBe(kindToLabel[kind]);
+    }
+  });
+
+  it("shows the last-access time as a relative label", () => {
+    render([session({ id: "la", updatedAt: "2020-01-01T00:00:00.000Z" })]);
+    expect(container.textContent).toContain("最終アクセス:");
   });
 });

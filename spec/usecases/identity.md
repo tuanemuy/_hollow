@@ -197,16 +197,22 @@ P22「アクティブセッション一覧」用の read-only ユースケース
 
 ### 出力DTO
 - `sessions: SessionDTO[]`
-  - `SessionDTO = { id, isCurrent, userAgent, ipAddress, createdAt, updatedAt, expiresAt }`
+  - `SessionDTO = { id, isCurrent, userAgent, device, ipAddress, createdAt, updatedAt, expiresAt }`
   - **token は含めない**。`isCurrent` は server 側で解決済みの bool（`record.token === currentSessionToken`、cookie 欠落時 `currentSessionToken=null` は全行 false）。
+  - `device: DeviceInfo = { kind: 'desktop'|'mobile'|'tablet'|'unknown', os, browser, label }` — `userAgent` から純粋ドメインサービス `parseDeviceInfo`（`domain/identity/services/deviceInfo.ts`）で解析した表示用サマリ。判別不能なフィールドは `null`（OS/ブラウザ名を捏造しない＝虚偽表示禁止 / #615 ADR-001）。`label` は os と browser が両方取れたときだけ「{browser} on {os}」で合成。生 `userAgent` は fallback/透明性のため DTO に残す。
+  - `updatedAt` は「最終アクセス時刻」。`getCurrentUser` の `resolve` 成功経路で `sessionService.recordActivity(token)` により活動ごとに更新される（アダプターで `ACTIVITY_THROTTLE_MS` の WHERE スロットル付き・best-effort・#615 ADR-003）。発行直後で未 touch のセッションは `updatedAt == createdAt`（初期状態として正しい）。
+  - **geo（地名）は出力しない**。IP→地名解決は手元データで完結せず外部依存（geo API or オフライン GeoIP DB）を要するため本機能では未実装＝虚偽回避のため意図的に表示しない。別 Issue として切り出す（#615 ADR-002）。
 
 ### 処理フロー
 1. `UserId.create(userId)`
 2. `sessionService.listForUser(userId)`（期限切れ `expiresAt <= now` を除外、`createdAt` 降順）
-3. 各 `SessionRecord` を `toSessionDTO(record, currentSessionToken)` で射影（token を破棄し `isCurrent` を確定）
+3. 各 `SessionRecord` を `toSessionDTO(record, currentSessionToken)` で射影（token を破棄し、`device` を `parseDeviceInfo(record.userAgent)` で解析し、`isCurrent` を確定）
 
 ### エラーケース
 - なし
+
+### 付随: SessionService.recordActivity
+- `recordActivity(token)`: 解決済みトークンの `updatedAt` を now に進める（最終アクセス時刻トラッキング）。冪等・best-effort。不在/期限切れトークンは no-op。アダプターは `cutoff = now - ACTIVITY_THROTTLE_MS` の ISO 文字列比較（`updated_at < cutoff`）で書き込み頻度をスロットルし、直近更新済みなら 0 行更新。`getCurrentUser` が `resolve` 成功直後（UoW callback の外）に呼び、書き込み失敗は logger.warn で握り潰して認証経路を落とさない（#615 ADR-003）。
 
 ---
 

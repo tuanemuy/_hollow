@@ -1146,6 +1146,80 @@ describe("ListUserSessions / RevokeUserSession", () => {
   });
 });
 
+describe("SessionService.recordActivity", () => {
+  const getContainer = setupTestContainer();
+
+  async function readUpdatedAt(
+    container: TestContainer,
+    token: string,
+  ): Promise<string> {
+    const rows = await container.db
+      .select({ updatedAt: schema.sessions.updatedAt })
+      .from(schema.sessions)
+      .where(eq(schema.sessions.token, token));
+    const value = rows[0]?.updatedAt;
+    if (value === undefined) throw new Error("expected a session row");
+    return value;
+  }
+
+  async function activeSessionToken(seed: string): Promise<string> {
+    const container = getContainer();
+    const { userId } = await signUp({ container, input: baseSignUp(seed) });
+    const verifyToken = await readVerificationToken(
+      container,
+      userId,
+      "email_verification",
+    );
+    const { sessionToken } = await verifyEmail({
+      container,
+      input: { token: verifyToken },
+    });
+    return sessionToken;
+  }
+
+  it("advances updatedAt for a session older than the throttle window", async () => {
+    const container = getContainer();
+    const token = await activeSessionToken("ract01");
+    // Backdate updated_at well beyond the 5-minute throttle window.
+    const backdated = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    await container.db
+      .update(schema.sessions)
+      .set({ updatedAt: backdated })
+      .where(eq(schema.sessions.token, token));
+
+    await container.sessionService.recordActivity(token);
+
+    const after = await readUpdatedAt(container, token);
+    expect(after).not.toBe(backdated);
+    expect(new Date(after).getTime()).toBeGreaterThan(
+      new Date(backdated).getTime(),
+    );
+  });
+
+  it("is a no-op for a session updated within the throttle window", async () => {
+    const container = getContainer();
+    const token = await activeSessionToken("ract02");
+    // Pin updated_at to "now" so it is well within the throttle window.
+    const recent = new Date().toISOString();
+    await container.db
+      .update(schema.sessions)
+      .set({ updatedAt: recent })
+      .where(eq(schema.sessions.token, token));
+
+    await container.sessionService.recordActivity(token);
+
+    const after = await readUpdatedAt(container, token);
+    expect(after).toBe(recent);
+  });
+
+  it("is a no-op for an unknown token", async () => {
+    const container = getContainer();
+    await expect(
+      container.sessionService.recordActivity("no-such-token"),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe("RequestPasswordReset / ResetPassword", () => {
   const getContainer = setupTestContainer();
   beforeEach(async () => {

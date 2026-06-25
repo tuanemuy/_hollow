@@ -51,6 +51,12 @@ export type SessionRecord = Readonly<{
  *   `userId`. Idempotent and owner-scoped: an id that is unknown or owned
  *   by another user is a no-op, never an error. Used for per-row sign-out
  *   where the client only ever holds opaque session ids, never tokens.
+ * - `recordActivity` advances a resolved token's `updatedAt` to "now" so
+ *   the P22 list can show a real "最終アクセス" time. Idempotent and
+ *   best-effort: an unknown / expired token is a no-op, the adapter
+ *   throttles the write (only updating when the row is older than a
+ *   window), and the caller (`getCurrentUser`) is free to swallow failures
+ *   — this is an incidental write that must not affect auth success.
  */
 export interface SessionService {
   issue(userId: UserId, meta: SessionMeta): Promise<IssuedSession>;
@@ -59,4 +65,5 @@ export interface SessionService {
   revokeAllForUser(userId: UserId, except?: string): Promise<number>;
   listForUser(userId: UserId): Promise<readonly SessionRecord[]>;
   revokeByIdForUser(userId: UserId, sessionId: string): Promise<void>;
+  recordActivity(token: string): Promise<void>;
 }

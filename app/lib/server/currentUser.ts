@@ -44,9 +44,19 @@ export function getCurrentSessionToken(): string | null {
  * server components within the same request share a single resolution.
  *
  * The helper goes through `getContainer()` directly because it is a
- * one-line port access (sessionService + userRepository read) that does
- * not need a usecase wrapper. The `server-only` import at the top blocks
+ * read + best-effort activity-touch (sessionService.resolve +
+ * userRepository read, then a throttled `recordActivity`) that does not
+ * need a usecase wrapper. The `server-only` import at the top blocks
  * accidental client-graph inclusion.
+ *
+ * `recordActivity` advances the session's "最終アクセス" time and is
+ * fired after a successful `resolve`. It is best-effort: the write is
+ * idempotent and adapter-throttled (safe to run more than once per
+ * request — the `cache()` at-most-once is an optimisation, not a
+ * correctness premise), and any failure is swallowed with a logged
+ * warning so an incidental D1 write error never fails authentication.
+ * It runs *outside* the `unitOfWorkProvider.run` callback: sessions are
+ * not part of the `findById` aggregate transaction.
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   const token = readSessionToken(getRequestHeaders());
@@ -58,6 +68,11 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
     userRepository.findById(resolved.userId),
   );
   if (found === null) return null;
+  try {
+    await container.sessionService.recordActivity(token);
+  } catch (cause) {
+    container.logger.warn("Failed to record session activity", { cause });
+  }
   return found.entity;
 });
 

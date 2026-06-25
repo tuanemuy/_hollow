@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
+import { formatRelativeTime } from "@/components/common/relativeTime";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import type { SessionDTO, UserDTO } from "@/core/application/dto/identity";
@@ -51,11 +52,46 @@ type FormState = { error: SerializedError | null; ok: boolean };
 const initial: FormState = { error: null, ok: false };
 
 /**
- * Device icon for a session row. The mock picks a phone vs. laptop glyph
- * from a parsed device name; we have no device parser (ADR-002), so a
- * single generic display glyph is used for every row.
+ * Inner SVG glyph for each parsed device kind. desktop / mobile / tablet
+ * each get a distinct shape (mock SVG paths); an indeterminate `unknown`
+ * device reuses the generic monitor glyph rather than guessing a form factor.
  */
-function SessionIcon() {
+function deviceGlyph(kind: SessionDTO["device"]["kind"]) {
+  if (kind === "mobile") {
+    return (
+      <>
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+        <line x1="12" y1="18" x2="12.01" y2="18" />
+      </>
+    );
+  }
+  if (kind === "tablet") {
+    return (
+      <>
+        <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+        <line x1="12" y1="18" x2="12.01" y2="18" />
+      </>
+    );
+  }
+  return (
+    <>
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </>
+  );
+}
+
+const deviceKindLabels = {
+  mobile: "スマートフォン",
+  tablet: "タブレット",
+  desktop: "デスクトップ",
+  unknown: "不明な端末",
+} as const;
+
+/** Device icon for a session row, glyph chosen by parsed device kind. */
+function SessionIcon({ kind }: { kind: SessionDTO["device"]["kind"] }) {
+  const label = deviceKindLabels[kind];
   return (
     <svg
       width="20"
@@ -66,11 +102,10 @@ function SessionIcon() {
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden="true"
+      role="img"
+      aria-label={label}
     >
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
+      {deviceGlyph(kind)}
     </svg>
   );
 }
@@ -83,11 +118,13 @@ function formatLoginTime(instant: string): string {
 }
 
 /**
- * The user-facing title for a session. We have no device parser, so the
- * raw `userAgent` is shown verbatim; an empty / null UA falls back to a
- * neutral label rather than a fabricated device name (ADR-002).
+ * The user-facing title for a session: the parsed device label
+ * ("Chrome on macOS") when available, else the raw `userAgent` verbatim,
+ * else a neutral fallback. We never fabricate a device name — an
+ * indeterminate device shows the UA or 不明な端末.
  */
 function sessionTitle(session: SessionDTO): string {
+  if (session.device.label !== null) return session.device.label;
   const ua = session.userAgent?.trim();
   return ua !== undefined && ua !== "" ? ua : "不明な端末";
 }
@@ -119,14 +156,12 @@ function SessionRow({
     });
   };
 
-  const metaParts = [session.ipAddress].filter(
-    (part): part is string => part !== null && part !== "",
-  );
+  const ip = session.ipAddress?.trim();
 
   return (
     <div className={SESSION_ROW} data-revoking={isPending || undefined}>
       <span className={SESSION_ICON}>
-        <SessionIcon />
+        <SessionIcon kind={session.device.kind} />
       </span>
       <div className={SESSION_MAIN}>
         <div className={SESSION_TITLE}>
@@ -137,9 +172,12 @@ function SessionRow({
             <span className={SESSION_CURRENT}>このセッション</span>
           ) : null}
         </div>
-        {metaParts.length > 0 ? (
-          <div className={SESSION_META}>{metaParts.join(" · ")}</div>
+        {ip !== undefined && ip !== "" ? (
+          <div className={SESSION_META}>{ip}</div>
         ) : null}
+        <div className={SESSION_META}>
+          最終アクセス: {formatRelativeTime(session.updatedAt)}
+        </div>
         <div className={SESSION_META}>
           ログイン日時: {formatLoginTime(session.createdAt)}
         </div>
