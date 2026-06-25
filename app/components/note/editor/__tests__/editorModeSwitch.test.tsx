@@ -143,13 +143,75 @@ describe("EditorModeSwitch APG Tabs contract (Issue #776)", () => {
     const onChange = vi.fn();
     renderSwitch("edit", "inline", onChange);
 
+    // Initial state: inline is selected
+    const tabs = tabEls();
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+
     pressKey("ArrowRight");
 
-    const tabs = tabEls();
     // Focus (and roving tabindex) moved to WYSIWYG, but the selection
     // (aria-selected) is unchanged and onChange was NOT called.
     expect(document.activeElement).toBe(tabs[1]);
     expect(tabs.map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
+    // aria-selected is explicitly unchanged after arrow (B-003).
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("ArrowLeft moves focus to the previous tab (manual)", () => {
+    const onChange = vi.fn();
+    renderSwitch("edit", "wysiwyg", onChange);
+
+    pressKey("ArrowLeft");
+
+    const tabs = tabEls();
+    // Focus moved to inline (index 0, previous from wysiwyg at index 1),
+    // but aria-selected and onChange unchanged.
+    expect(document.activeElement).toBe(tabs[0]);
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("ArrowLeft from the first tab wraps to the last (manual)", () => {
+    const onChange = vi.fn();
+    renderSwitch("edit", "inline", onChange);
+
+    pressKey("ArrowLeft");
+
+    const tabs = tabEls();
+    // Focus wrapped to HTML (index 2, last), aria-selected unchanged.
+    expect(document.activeElement).toBe(tabs[2]);
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("consecutive arrow presses move focus multiple steps without selecting (manual)", () => {
+    const onChange = vi.fn();
+    renderSwitch("edit", "inline", onChange);
+
+    pressKey("ArrowRight");
+    pressKey("ArrowRight");
+
+    const tabs = tabEls();
+    // Focus moved through WYSIWYG (index 1) to HTML (index 2),
+    // but aria-selected and onChange remained unchanged throughout.
+    expect(document.activeElement).toBe(tabs[2]);
     expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
       "true",
       "false",
@@ -166,6 +228,38 @@ describe("EditorModeSwitch APG Tabs contract (Issue #776)", () => {
     expect(document.activeElement).toBe(tabEls()[2]);
     pressKey("Home");
     expect(document.activeElement).toBe(tabEls()[0]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("ArrowDown behaves like ArrowRight: moves focus without selecting (W-001)", () => {
+    const onChange = vi.fn();
+    renderSwitch("edit", "inline", onChange);
+
+    pressKey("ArrowDown");
+
+    const tabs = tabEls();
+    expect(document.activeElement).toBe(tabs[1]); // WYSIWYG
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("ArrowUp behaves like ArrowLeft: from first wraps to last without selecting (W-001)", () => {
+    const onChange = vi.fn();
+    renderSwitch("edit", "inline", onChange);
+
+    pressKey("ArrowUp");
+
+    const tabs = tabEls();
+    expect(document.activeElement).toBe(tabs[2]); // HTML (last, wrapped)
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
     expect(onChange).not.toHaveBeenCalled();
   });
 

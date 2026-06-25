@@ -389,6 +389,39 @@ describe("NoteEditor editor-body tabpanel (Issue #776)", () => {
     const htmlTab = tabByLabel("HTML");
     expect(bodyPanel()?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
   });
+
+  it("arrow key traversal does not change tabpanel aria-labelledby (W-003)", async () => {
+    await renderEditor();
+    const panel = bodyPanel();
+    const tablist = container.querySelector('[role="tablist"]');
+
+    // Initial state: inline is active, panel points at inline tab
+    const inlineTab = tabByLabel("ビジュアル");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Arrow right to WYSIWYG: focus moves but panel still points at inline
+    await act(async () => {
+      tablist?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Arrow right to HTML: focus moves further but panel still at inline
+    await act(async () => {
+      tablist?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Click to activate HTML: panel finally moves
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    const htmlTab = tabByLabel("HTML");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
+  });
 });
 
 /**

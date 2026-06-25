@@ -285,6 +285,30 @@ describe("TagListToolbar — sort controls", () => {
     expect(document.activeElement).toBe(getSortButtons()[3]);
   });
 
+  it("ArrowDown behaves like ArrowRight: moves selection and navigates (W-001)", async () => {
+    await renderToolbar(undefined, "name");
+    await pressSortKey("ArrowDown");
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const call = routerNavigate.mock.calls[0]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "name" }).sort).toBe("noteCount");
+    }
+    expect(document.activeElement).toBe(getSortButtons()[1]);
+  });
+
+  it("ArrowUp from the first sort wraps to the last and navigates (W-001)", async () => {
+    await renderToolbar(undefined, "name");
+    await pressSortKey("ArrowUp");
+
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+    const call = routerNavigate.mock.calls[0]?.[0];
+    if (typeof call?.search === "function") {
+      expect(call.search({ sort: "name" }).sort).toBe("lastUsedAt");
+    }
+    expect(document.activeElement).toBe(getSortButtons()[3]);
+  });
+
   it("Home jumps to the first sort and End to the last", async () => {
     await renderToolbar(undefined, "createdAt");
 
@@ -300,6 +324,31 @@ describe("TagListToolbar — sort controls", () => {
     call = routerNavigate.mock.calls[1]?.[0];
     if (typeof call?.search === "function") {
       expect(call.search({ sort: "createdAt" }).sort).toBe("name");
+    }
+  });
+
+  it("consecutive arrow presses navigate for each press (automatic, B-002)", async () => {
+    // RadioGroup automatic activation: every arrow press independently
+    // navigates. The component reads `current` from the (mocked) URL value,
+    // which does not change between presses here, so each ArrowRight steps
+    // from `name` → next index relative to the same baseline. This pins that
+    // every keypress drives its own navigate (no swallowing / debounce).
+    await renderToolbar(undefined, "name");
+
+    await pressSortKey("ArrowRight");
+    await pressSortKey("ArrowRight");
+
+    expect(routerNavigate).toHaveBeenCalledTimes(2);
+    // First press: name → noteCount
+    const firstCall = routerNavigate.mock.calls[0]?.[0];
+    if (typeof firstCall?.search === "function") {
+      expect(firstCall.search({ sort: "name" }).sort).toBe("noteCount");
+    }
+    // Second press (still from baseline name): name → noteCount (same result,
+    // but independent navigate call confirms no debounce).
+    const secondCall = routerNavigate.mock.calls[1]?.[0];
+    if (typeof secondCall?.search === "function") {
+      expect(secondCall.search({ sort: "name" }).sort).toBe("noteCount");
     }
   });
 
