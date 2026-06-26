@@ -773,7 +773,9 @@
     </form>
 
     <!-- ツールバー — ページ内検索（左）＋ ソート切替（右）。
-         検索は既存ヘッダ `.search` のトークンを共有、ソートは汎用 `.segmented` を再利用。 -->
+         検索は既存ヘッダ `.search` のトークンを共有、ソートは汎用 `.segmented` を再利用。
+         #776 で並び替え軸を APG Radio Group 化（radiogroup / radio / aria-checked、
+         roving tabindex + 矢印キー＝automatic activation で移動＝即選択・両端ラップ）。 -->
     <div class="tag-toolbar">
       <div class="search" role="search">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -782,11 +784,11 @@
 
       <div class="tag-sort">
         <span class="tag-sort-label">並び替え</span>
-        <div class="segmented" role="tablist" aria-label="並び替え軸">
-          <button class="segmented-item active" role="tab" aria-selected="true">名前</button>
-          <button class="segmented-item" role="tab" aria-selected="false">ノート数</button>
-          <button class="segmented-item" role="tab" aria-selected="false">作成日時</button>
-          <button class="segmented-item" role="tab" aria-selected="false">最終使用</button>
+        <div class="segmented" role="radiogroup" aria-label="並び替え軸" aria-orientation="horizontal">
+          <button class="segmented-item active" role="radio" aria-checked="true" tabindex="0">名前</button>
+          <button class="segmented-item" role="radio" aria-checked="false" tabindex="-1">ノート数</button>
+          <button class="segmented-item" role="radio" aria-checked="false" tabindex="-1">作成日時</button>
+          <button class="segmented-item" role="radio" aria-checked="false" tabindex="-1">最終使用</button>
         </div>
         <button class="icon-btn icon-btn-ghost icon-btn-sm" aria-label="昇順 / 降順を切り替え" aria-pressed="false" title="昇順">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>

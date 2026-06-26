@@ -963,11 +963,14 @@
       <div class="editor-topbar">
         <!-- 編集モード切替 (EditorModeSwitch): セグメントではなく pill-btn タブ群
              (data-primary でアクティブ=accent/white、テキストのみ #292 ADR-002)。
-             新規ノートは WYSIWYG / FrontMatter / HTML の 3 タブ。 -->
-        <div class="mode-tabs" role="tablist" aria-label="編集モード">
-          <button class="mode-tab active" role="tab" aria-selected="true">WYSIWYG</button>
-          <button class="mode-tab" role="tab" aria-selected="false">FrontMatter</button>
-          <button class="mode-tab" role="tab" aria-selected="false">HTML</button>
+             #776 で APG Tabs を完成（role=tablist/tab/aria-selected 維持 + 各 tab に
+             id + aria-controls → 実体 tabpanel、roving tabindex は focusedIndex 追従、
+             矢印キーは manual activation でフォーカス移動のみ・活性化は Enter/Space/click）。
+             FrontMatter タブ表記は #697 で削除済み（常時マウントに移行）。実装の可視タブは
+             新規=[WYSIWYG, HTML] / 既存=[ビジュアル, WYSIWYG, HTML]。 -->
+        <div class="mode-tabs" role="tablist" aria-label="編集モード" aria-orientation="horizontal">
+          <button class="mode-tab active" role="tab" id="editor-mode-tab-wysiwyg" aria-controls="editor-body-panel" aria-selected="true" tabindex="0">WYSIWYG</button>
+          <button class="mode-tab" role="tab" id="editor-mode-tab-html" aria-controls="editor-body-panel" aria-selected="false" tabindex="-1">HTML</button>
         </div>
 
         <div class="save-status" aria-live="polite">
@@ -1043,6 +1046,12 @@
         <input class="tag-input" type="text" placeholder="タグを追加…" aria-label="新規タグ">
       </div>
 
+      <!-- 編集モード本体パネル (#776 ADR-002): mode-tabs の各 tab が aria-controls で
+           指す単一 tabpanel。WYSIWYG では書式ツールバー + 本文編集領域を内包する
+           (HTML / ビジュアルモードでは中身がそれぞれの編集 UI に差し替わる)。role=tabpanel
+           はラッパー側に置き、内側 .editor の role=textbox と衝突させない。aria-labelledby は
+           アクティブな tab の id を指す。 -->
+      <div role="tabpanel" id="editor-body-panel" aria-labelledby="editor-mode-tab-wysiwyg">
       <!-- Toolbar -->
       <div class="toolbar" role="toolbar" aria-label="書式設定">
         <button class="tb-btn" aria-label="太字" style="font-weight:700;">B</button>
@@ -1086,6 +1095,7 @@
         <h3>確認ポイント</h3>
         <p>計画書の公開先は <code>Projects / Q2 計画</code> に固定する予定。レビュー後に <strong>限定公開リンク</strong> を発行して関係者に共有する<span class="caret" aria-hidden="true"></span></p>
       </div>
+      </div><!-- /editor-body-panel (#776) -->
 
       <!-- Internal-link suggestion (`[[` completion) — WYSIWYG editing aid。
            本来は本文中で `[[` 入力時にインラインで現れるポップオーバー。静的見本として下に示す。 -->

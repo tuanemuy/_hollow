@@ -362,6 +362,69 @@ describe("NoteEditor FrontMatter permanent mount (Issue #697)", () => {
 });
 
 /**
+ * Issue #776: the editor body is wrapped in a single `role="tabpanel"` whose
+ * `aria-labelledby` tracks the active EditorModeSwitch tab. These pin the
+ * tab ↔ panel association across a body-mode switch (the idref must always
+ * resolve to a rendered tab).
+ */
+describe("NoteEditor editor-body tabpanel (Issue #776)", () => {
+  function bodyPanel(): HTMLElement | null {
+    return container.querySelector<HTMLElement>('[role="tabpanel"]');
+  }
+
+  it("labels the body tabpanel with the active tab and re-points it on switch", async () => {
+    await renderEditor();
+    const panel = bodyPanel();
+    expect(panel).not.toBeNull();
+    expect(panel?.id).toBe("editor-body-panel");
+    // Default edit mode is inline ("ビジュアル"); the panel points at its tab.
+    const inlineTab = tabByLabel("ビジュアル");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+    expect(inlineTab.getAttribute("aria-controls")).toBe("editor-body-panel");
+
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    // After activating HTML the idref follows to the HTML tab (still rendered).
+    const htmlTab = tabByLabel("HTML");
+    expect(bodyPanel()?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
+  });
+
+  it("arrow key traversal does not change tabpanel aria-labelledby", async () => {
+    await renderEditor();
+    const panel = bodyPanel();
+    const tablist = container.querySelector('[role="tablist"]');
+
+    // Initial state: inline is active, panel points at inline tab
+    const inlineTab = tabByLabel("ビジュアル");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Arrow right to WYSIWYG: focus moves but panel still points at inline
+    await act(async () => {
+      tablist?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Arrow right to HTML: focus moves further but panel still at inline
+    await act(async () => {
+      tablist?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(panel?.getAttribute("aria-labelledby")).toBe(inlineTab.id);
+
+    // Click to activate HTML: panel finally moves
+    await act(async () => {
+      tabByLabel("HTML").click();
+    });
+    const htmlTab = tabByLabel("HTML");
+    expect(panel?.getAttribute("aria-labelledby")).toBe(htmlTab.id);
+  });
+});
+
+/**
  * Issue #696: switching to WYSIWYG on the edit surface warns before
  * dropping decoration. The gate runs against the latest committed
  * `state.contentHtml` and only opens the decoration-loss `ConfirmDialog`
@@ -391,7 +454,7 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
   });
 
   it("lists every unsupported tag in sorted order and excludes supported tags (AC-2/AC-5)", async () => {
-    // Issue #696 review-001 W-004: the previous AC-5 check only asserted a
+    // Issue #696: the previous AC-5 check only asserted a
     // single `toContain("<section>")`, which would still pass if the dialog
     // wrongly listed only one of several lost tags — or even listed the
     // SUPPORTED `<p>` wrapper. Use a fixture with multiple unsupported tags
