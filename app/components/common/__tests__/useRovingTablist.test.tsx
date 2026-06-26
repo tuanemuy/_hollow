@@ -189,4 +189,22 @@ describe("useRovingTablist — restoreFocusOnCommit (automatic)", () => {
     commit(0, false);
     expect(document.activeElement).toBe(document.body);
   });
+
+  it("(AC-4 effect guard) does not restore after the opt-in is switched off while the intent flag is already raised", () => {
+    // Raise the keyboard-intent flag while opted in: the arrow commit sets
+    // restorePendingRef, which the `restorePendingRef` guard alone would now
+    // let through. Switching restore OFF leaves the effect's leading
+    // `if (!restoreFocusOnCommit) return;` as the SOLE thing that can stop the
+    // restore — pinning that opt-in early-return in isolation from the flag
+    // guard (which the AC-4 case above cannot, since it never raises the flag).
+    render(0, true);
+    pressArrowRight();
+    expect(document.activeElement).toBe(radios()[1]);
+
+    // Opt out, drop focus to <body>, then commit: only the opt-in early-return
+    // prevents the still-raised flag from hijacking focus back into the group.
+    dropToBody();
+    commit(0, false);
+    expect(document.activeElement).toBe(document.body);
+  });
 });

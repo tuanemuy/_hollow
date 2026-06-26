@@ -15,12 +15,14 @@ import { type RefObject, useEffect, useRef, useState } from "react";
  *
  * Why not reuse `useRovingMenu`: that primitive is menu/listbox-only — it is
  * gated on `open` (popovers), drives focus through a `panelRef`, navigates
- * only vertically (ArrowUp/Down), and carries focus-restore / disabled-item
- * concerns a segmented control never needs. A segmented control is always
- * mounted, horizontal (ArrowLeft/Right primary) and has a fixed element
- * count. Generalizing `useRovingMenu` to cover this would risk the existing
- * menu/listbox call sites (open-reset, focus-restore invariants), so a small
- * dedicated hook is the right scope.
+ * only vertically (ArrowUp/Down), and carries disabled-item concerns a
+ * segmented control never needs. A segmented control is always mounted,
+ * horizontal (ArrowLeft/Right primary) and has a fixed element count. The
+ * focus-restore concern is shared (see below), but the menu's `open`-gated
+ * mechanism does not fit an always-mounted control, so this hook scopes it
+ * differently (keyboard-intent flag). Generalizing `useRovingMenu` to cover
+ * this would risk the existing menu/listbox call sites (open-reset,
+ * focus-restore invariants), so a small dedicated hook is the right scope.
  *
  * Index discipline (same as `useRovingMenu`): the CALLER owns `count` /
  * `selectedIndex` / `onSelect`. The hook's `querySelectorAll('[role="radio"],
