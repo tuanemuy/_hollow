@@ -6,6 +6,7 @@ import { SearchErrorCode } from "./errorCode";
 declare const indexJobIdBrand: unique symbol;
 declare const searchKeywordBrand: unique symbol;
 declare const searchTitleBrand: unique symbol;
+declare const searchHighlightedTitleBrand: unique symbol;
 declare const searchBodyBrand: unique symbol;
 declare const searchDirectoryPathBrand: unique symbol;
 declare const searchSnippetBrand: unique symbol;
@@ -16,6 +17,15 @@ declare const searchLastErrorBrand: unique symbol;
 declare const searchLimitBrand: unique symbol;
 
 const TITLE_MAX_LENGTH = 200;
+// Cap for the `highlight()`-decorated render title. The plain title is
+// ≤200 (`TITLE_MAX_LENGTH`), but FTS5 `highlight()` wraps each matched
+// run in `<mark>…</mark>` (13 chars). The worst case is bounded: trigram
+// matches need ≥3 codepoints with ≥1-codepoint gaps, so a 200-char title
+// holds ≤~50 disjoint marked runs → overhead ≤~650 → total ≤~850. We
+// adopt 1024 (the same value as `SNIPPET_MAX_LENGTH`) as a safe, symmetric
+// cap; the overflow path (`HighlightedTitleTooLong`) is therefore a
+// defence-in-depth valve that is not reachable in practice.
+const HIGHLIGHTED_TITLE_MAX_LENGTH = 1024;
 const BODY_MAX_LENGTH = 1024 * 1024;
 const DIRECTORY_PATH_MAX_LENGTH = 2048;
 const KEYWORD_MIN_LENGTH = 1;
@@ -101,6 +111,35 @@ export const SearchTitle = {
       );
     }
     return raw as SearchTitle;
+  },
+};
+
+/**
+ * Render-time title returned in a `SearchHit`. Mirrors the snippet split
+ * between the stored `SearchBody` and the render-only `SearchSnippet`:
+ * `SearchDocument.title` keeps the stored `SearchTitle` (≤200, a
+ * `NoteTitle` mirror), while the title surfaced on a hit may carry FTS5
+ * `highlight()` markers (`<mark>…</mark>`) and so can exceed 200.
+ *
+ * The cap is `HIGHLIGHTED_TITLE_MAX_LENGTH` (1024) — see its definition
+ * for the overhead derivation. Overflow throws `HighlightedTitleTooLong`,
+ * but that path is unreachable in practice (worst case ≈850 < 1024); the
+ * check is a defence-in-depth valve so a future cap change is re-derivable
+ * without re-reading the adapter.
+ */
+export type SearchHighlightedTitle = string & {
+  readonly [searchHighlightedTitleBrand]: true;
+};
+
+export const SearchHighlightedTitle = {
+  create: (raw: string): SearchHighlightedTitle => {
+    if (raw.length > HIGHLIGHTED_TITLE_MAX_LENGTH) {
+      throw new BusinessRuleError(
+        SearchErrorCode.HighlightedTitleTooLong,
+        `Search highlighted title exceeds maximum length (${HIGHLIGHTED_TITLE_MAX_LENGTH})`,
+      );
+    }
+    return raw as SearchHighlightedTitle;
   },
 };
 
@@ -359,6 +398,12 @@ export type SearchQuery = Readonly<{
   // Result ordering. Defaults to `'relevance'` so existing surfaces are
   // unaffected; only the public search surface (P32) exposes `'newest'`.
   sort: SearchSort;
+  // Whether the index should decorate the hit's `title` / `snippet` with
+  // `<mark>` highlight markers. Defaults to `true` (the existing
+  // always-highlight behaviour). The own-notes surface (P30), whose views
+  // render the strings plainly, opts out with `false` so raw markers never
+  // leak into its UI. Same opt-in idiom as `dateBasis` / `sort`.
+  highlight: boolean;
   limit: SearchLimit;
   cursor: SearchCursor | null;
 }>;
@@ -373,6 +418,7 @@ export const SearchQuery = {
     dateRange: { from: Date; to: Date } | null;
     dateBasis?: DateBasis | undefined;
     sort?: SearchSort | undefined;
+    highlight?: boolean | undefined;
     limit: number;
     cursor: string | null;
   }): SearchQuery => {
@@ -394,6 +440,7 @@ export const SearchQuery = {
         params.dateRange === null ? null : DateRange.create(params.dateRange),
       dateBasis: params.dateBasis ?? "date_for_calendar",
       sort: params.sort ?? "relevance",
+      highlight: params.highlight ?? true,
       limit: SearchLimit.create(params.limit),
       cursor:
         params.cursor === null ? null : SearchCursor.create(params.cursor),
@@ -411,7 +458,7 @@ export type SearchHit = Readonly<{
   noteId: NoteId;
   ownerId: UserId;
   username: Username;
-  title: SearchTitle;
+  title: SearchHighlightedTitle;
   snippet: SearchSnippet;
   tagNames: readonly string[];
   score: SearchScore;

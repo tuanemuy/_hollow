@@ -14,11 +14,11 @@ import {
   type DateBasis,
   type DateRange,
   SearchCursor,
+  SearchHighlightedTitle,
   type SearchQuery,
   SearchScore,
   SearchSnippet,
   type SearchSort,
-  SearchTitle,
   Visibility,
 } from "@/core/domain/search/valueObject";
 import type { Database } from "./client";
@@ -56,8 +56,12 @@ type SearchRow = Readonly<{
  *
  * Reads (`query`) execute against `search_documents_fts MATCH ?` joined
  * back to `search_documents` (for non-FTS filters and full row hydration)
- * and `users` (for the hit's `username`). `bm25()` ranks results and
- * `snippet()` produces the highlighted excerpt.
+ * and `users` (for the hit's `username`). `bm25()` ranks results;
+ * `snippet()` produces the highlighted body excerpt (col 1) and
+ * `highlight()` marks the matched runs in the title (col 0). Both honour
+ * `SearchQuery.highlight`: when it is `false` the markers are dropped
+ * (empty `snippet()` markers, raw `sd.title`) so a surface that renders the
+ * strings plainly (P30 own-notes) never receives raw `<mark>` text.
  *
  * `search_documents_fts` uses `tokenize='trigram'` (migration 0008) so
  * CJK and ASCII free-text queries share one substring-match path — the
@@ -169,6 +173,7 @@ export class D1SearchIndex implements SearchIndex {
               offset,
               joinPublication,
               q.sort,
+              q.highlight,
             )
           : await this.runLikeQuery(
               q.keyword,
@@ -196,6 +201,7 @@ export class D1SearchIndex implements SearchIndex {
     offset: number,
     joinPublication: boolean,
     sort: SearchSort,
+    highlight: boolean,
   ): Promise<SearchRow[]> {
     // FTS contentless table joins back to the host via the implicit
     // `rowid` column (configured `content_rowid='rowid'` in the migration's
@@ -210,13 +216,26 @@ export class D1SearchIndex implements SearchIndex {
       sql` AND `,
     );
 
+    // Title uses `highlight()` (col 0 = title in migration 0008) rather than
+    // `snippet()`: titles are short and shown whole, so we want full-text
+    // marking, not token-budget truncation. The snippet keeps `snippet()`
+    // over the body (col 1). When `highlight` is false the surface renders
+    // the strings plainly, so both are emitted without markers (empty marker
+    // args for the snippet, the raw `sd.title` for the title).
+    const titleSelect = highlight
+      ? sql`highlight(fts.search_documents_fts, 0, '<mark>', '</mark>')`
+      : sql`sd.title`;
+    const snippetSelect = highlight
+      ? sql`snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET})`
+      : sql`snippet(fts.search_documents_fts, 1, '', '', '…', ${SNIPPET_TOKEN_BUDGET})`;
+
     return this.db.all<SearchRow>(sql`
       SELECT
         sd.note_id      AS "noteId",
         sd.owner_id     AS "ownerId",
         u.username      AS "username",
-        sd.title        AS "title",
-        snippet(fts.search_documents_fts, 1, '<mark>', '</mark>', '…', ${SNIPPET_TOKEN_BUDGET}) AS "snippet",
+        ${titleSelect}  AS "title",
+        ${snippetSelect} AS "snippet",
         sd.tag_names_json AS "tagNamesJson",
         sd.visibility   AS "visibility",
         bm25(fts.search_documents_fts) AS "score",
@@ -444,7 +463,7 @@ export class D1SearchIndex implements SearchIndex {
         noteId: NoteId.create(row.noteId),
         ownerId: UserId.create(row.ownerId),
         username: Username.create(row.username),
-        title: SearchTitle.create(row.title),
+        title: SearchHighlightedTitle.create(row.title),
         snippet: SearchSnippet.create(row.snippet),
         tagNames,
         score: SearchScore.create(

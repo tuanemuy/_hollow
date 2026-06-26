@@ -15,11 +15,11 @@ import {
 import { NoteId } from "@/core/domain/note/valueObject";
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
 import {
+  SearchHighlightedTitle,
   type SearchHit,
   type SearchQuery,
   SearchScore,
   SearchSnippet,
-  SearchTitle,
   Visibility,
 } from "@/core/domain/search/valueObject";
 import { isNotFoundError } from "../../errors";
@@ -83,7 +83,7 @@ function makeHit(over: Partial<SearchHit> = {}): SearchHit {
     noteId: noteId(1),
     ownerId: userId(1),
     username: Username.create("alice"),
-    title: SearchTitle.create("hit"),
+    title: SearchHighlightedTitle.create("hit"),
     snippet: SearchSnippet.create("..."),
     tagNames: [],
     score: SearchScore.create(1),
@@ -132,6 +132,22 @@ describe("searchPublicNotes", () => {
     expect(result.hits).toHaveLength(1);
     expect(observed?.visibilityFilter).toEqual(["public"]);
     expect(observed?.ownerIdFilter).toBeNull();
+  });
+
+  it("leaves SearchQuery.highlight at the default true for the public surface", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchPublicNotes({
+      container,
+      input: { viewerUserId: null, keyword: "anything", limit: 5 },
+    });
+
+    expect(observed?.highlight).toBe(true);
   });
 
   it("projects each hit's visibility ('public') into the returned DTO", async () => {

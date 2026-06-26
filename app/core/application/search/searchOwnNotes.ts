@@ -56,6 +56,11 @@ export async function searchOwnNotes({
     // rather than `published_at` — a publication join would silently drop
     // private / unlisted notes that have no public publication (ADR-006).
     dateBasis: "date_for_calendar",
+    // Own-notes views (`ListView` / `TileView` / `CalendarView`) render the
+    // title / snippet as plain text, so opt out of `<mark>` highlighting to
+    // keep raw markers out of the UI (P30 stays plain). The public surfaces
+    // keep the default `true`.
+    highlight: false,
     limit: input.limit,
     cursor: input.cursor ?? null,
   });

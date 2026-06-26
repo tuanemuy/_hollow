@@ -4,6 +4,7 @@ export const SearchErrorCode = {
   InvalidVisibility: "search_invalid_visibility",
   InvalidOp: "search_invalid_op",
   TitleTooLong: "search_title_too_long",
+  HighlightedTitleTooLong: "search_highlighted_title_too_long",
   BodyTooLong: "search_body_too_long",
   DirectoryPathInvalid: "search_directory_path_invalid",
   KeywordEmpty: "search_keyword_empty",

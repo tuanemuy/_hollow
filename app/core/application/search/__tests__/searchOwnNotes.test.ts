@@ -14,11 +14,11 @@ import { SearchErrorCode } from "@/core/domain/search/errorCode";
 import type { SearchIndex } from "@/core/domain/search/ports/searchIndex";
 import { SearchIndexUnavailableError } from "@/core/domain/search/ports/searchIndex";
 import {
+  SearchHighlightedTitle,
   type SearchHit,
   type SearchQuery,
   SearchScore,
   SearchSnippet,
-  SearchTitle,
   Visibility,
 } from "@/core/domain/search/valueObject";
 import { isNotFoundError } from "../../errors";
@@ -108,7 +108,7 @@ function makeHit(over: Partial<SearchHit> = {}): SearchHit {
     noteId: noteId(1),
     ownerId: userId(1),
     username: Username.create("alice"),
-    title: SearchTitle.create("hit"),
+    title: SearchHighlightedTitle.create("hit"),
     snippet: SearchSnippet.create("..."),
     tagNames: [],
     score: SearchScore.create(1),
@@ -164,6 +164,22 @@ describe("searchOwnNotes", () => {
       "public",
       "unlisted",
     ]);
+  });
+
+  it("sets SearchQuery.highlight to false so own-notes views stay plain (AC-5)", async () => {
+    let observed: SearchQuery | undefined;
+    const searchIndex = makeIndex(async (q) => {
+      observed = q;
+      return { hits: [], nextCursor: null };
+    });
+    const container = makeContainer({ searchIndex });
+
+    await searchOwnNotes({
+      container,
+      input: { actorUserId: userId(1), keyword: "hello", limit: 10 },
+    });
+
+    expect(observed?.highlight).toBe(false);
   });
 
   it("returns an empty array and null cursor when the index yields no hits", async () => {

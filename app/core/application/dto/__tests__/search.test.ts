@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { UserId, Username } from "@/core/domain/identity/valueObject";
 import { NoteId } from "@/core/domain/note/valueObject";
 import {
+  SearchHighlightedTitle,
   type SearchHit,
   SearchScore,
   SearchSnippet,
-  SearchTitle,
   Visibility,
 } from "@/core/domain/search/valueObject";
 import { toSearchHitDTO } from "../search";
@@ -14,7 +14,7 @@ const hit: SearchHit = {
   noteId: NoteId.create("00000000-0000-7000-8000-000000000001"),
   ownerId: UserId.create("00000000-0000-7000-9000-000000000001"),
   username: Username.create("alice"),
-  title: SearchTitle.create("hit"),
+  title: SearchHighlightedTitle.create("hit"),
   snippet: SearchSnippet.create("..."),
   tagNames: ["ai"],
   score: SearchScore.create(1),
