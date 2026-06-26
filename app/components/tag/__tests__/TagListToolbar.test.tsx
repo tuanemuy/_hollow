@@ -363,6 +363,50 @@ describe("TagListToolbar — sort controls", () => {
     expect(routerNavigate).not.toHaveBeenCalled();
   });
 
+  // #781: `sort` is in `loaderDeps`, so an arrow selection drives a data-driven
+  // RSC re-render that drops focus to <body>. `restoreFocusOnCommit` restores
+  // focus to the selected radio after that commit, so consecutive arrow presses
+  // keep working. happy-dom cannot reproduce the commit-time drop, so we
+  // simulate it: focus <body> by hand, then re-render with the new `sort` prop.
+  it("restores focus to the selected radio after a data-driven re-render drops it to <body>, so the next arrow press still navigates", async () => {
+    // Keep the navigation pending so the optimistic sort (noteCount) holds
+    // across the simulated re-render — mirroring the real flow where fresh
+    // props (sort=noteCount) arrive before the optimistic baseline reverts.
+    let resolveNav: (() => void) | undefined;
+    routerNavigate.mockImplementation(
+      () =>
+        new Promise<void>((res) => {
+          resolveNav = res;
+        }),
+    );
+
+    await renderToolbar(undefined, "name");
+    await pressSortKey("ArrowRight");
+    // Synchronous arrow focus landed on the next radio (noteCount, index 1).
+    expect(document.activeElement).toBe(getSortButtons()[1]);
+
+    // Simulate the RSC re-render: focus drops to <body>, then fresh props
+    // commit with the new applied sort.
+    await act(async () => {
+      document.body.focus();
+    });
+    await renderToolbar(undefined, "noteCount");
+    await flush();
+
+    // The post-commit restore pass put focus back on the selected radio.
+    expect(document.activeElement).toBe(getSortButtons()[1]);
+
+    // Consecutive operation: a second ArrowRight navigates independently.
+    routerNavigate.mockClear();
+    await pressSortKey("ArrowRight");
+    expect(routerNavigate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveNav?.();
+    });
+    await flush();
+  });
+
   it("navigates to new sort when clicking a sort button", async () => {
     await renderToolbar(undefined, "name");
     const buttons = getSortButtons();

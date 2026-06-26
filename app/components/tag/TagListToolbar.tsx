@@ -120,6 +120,10 @@ export function TagListToolbar({ query, sort, order }: Props) {
         { type: "setSort", sort: TAG_LIST_SORTS[index] },
         { sort: TAG_LIST_SORTS[index] },
       ),
+    // `sort` is in `loaderDeps`, so an arrow selection drives a data-driven RSC
+    // re-render that drops focus to `<body>`; restore it to the selected radio
+    // so consecutive arrow presses keep working (#781).
+    restoreFocusOnCommit: true,
   });
 
   return (
