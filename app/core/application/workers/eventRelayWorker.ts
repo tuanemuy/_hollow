@@ -11,6 +11,7 @@ import type { MediaEvent } from "@/core/domain/media/events";
 import type { NoteEvent } from "@/core/domain/note/events";
 import type { PublicationEvent } from "@/core/domain/publication/events";
 import type { TagEvent } from "@/core/domain/tag/events";
+import type { TagMergeJobEvent } from "@/core/domain/tag/mergeJob/events";
 import type { WorkerContainer } from "../di/types";
 import { directoryEventDecoders } from "../directory/eventDecoders";
 import { exportEventDecoders } from "../export/eventDecoders";
@@ -21,6 +22,7 @@ import { noteEventDecoders } from "../note/eventDecoders";
 import type { OutboxEntry, OutboxFailure } from "../ports/outboxRepository";
 import { publicationEventDecoders } from "../publication/eventDecoders";
 import { tagEventDecoders } from "../tag/eventDecoders";
+import { tagMergeJobEventDecoders } from "../tag/mergeJobEventDecoders";
 
 // Delivery is at-least-once with NO ordering guarantee. Per-row failures
 // bump `attempts` and schedule a backed-off retry; once a row exceeds
@@ -68,6 +70,7 @@ type AllDomainEvents =
   | MediaEvent
   | NoteEvent
   | TagEvent
+  | TagMergeJobEvent
   | DirectoryEvent
   | IngestionEvent
   | ExportEvent;
@@ -90,6 +93,7 @@ export const defaultEventDecoderRegistry = {
   ...mediaEventDecoders,
   ...noteEventDecoders,
   ...tagEventDecoders,
+  ...tagMergeJobEventDecoders,
   ...directoryEventDecoders,
   ...ingestionEventDecoders,
   ...exportEventDecoders,

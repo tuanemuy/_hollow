@@ -30,6 +30,7 @@ import { D1PublicationStateRepository } from "./repositories/publicationStateRep
 import { D1SavedViewRepository } from "./repositories/savedViewRepository";
 import { D1ShareLinkRepository } from "./repositories/shareLinkRepository";
 import { D1TagBlacklistRepository } from "./repositories/tagBlacklistRepository";
+import { D1TagMergeJobRepository } from "./repositories/tagMergeJobRepository";
 import { D1TagRepository } from "./repositories/tagRepository";
 import { D1UserPromptOverrideRepository } from "./repositories/userPromptOverrideRepository";
 import { D1UserRepository } from "./repositories/userRepository";
@@ -89,6 +90,11 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
     const tagBlacklistRepository = new D1TagBlacklistRepository(
       this.db,
       pending,
+    );
+    const tagMergeJobRepository = new D1TagMergeJobRepository(
+      this.db,
+      pending,
+      this.idGenerator,
     );
     const publicationStateRepository = new D1PublicationStateRepository(
       this.db,
@@ -176,6 +182,7 @@ export class D1UnitOfWorkProvider implements UnitOfWorkProvider {
       mediaAssetRepository,
       tagRepository,
       tagBlacklistRepository,
+      tagMergeJobRepository,
       publicationStateRepository,
       shareLinkRepository,
       ingestionJobRepository,

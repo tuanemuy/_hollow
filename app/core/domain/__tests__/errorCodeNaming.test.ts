@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 // Dynamically enumerate every `*ErrorCode` module declared under
-// `app/core/domain/*/errorCode.ts`. Using `import.meta.glob` (Vite/Vitest API)
-// avoids per-domain manual imports that risk drifting when a new domain is added.
-const errorCodeModules = import.meta.glob<Record<string, unknown>>(
-  "../*/errorCode.ts",
-  { eager: true },
-);
+// `app/core/domain/*/errorCode.ts` and one level of nested aggregate
+// (`app/core/domain/*/*/errorCode.ts`, e.g. tag/mergeJob). Using `import.meta.glob`
+// (Vite/Vitest API) avoids per-domain manual imports that risk drifting when a new
+// domain is added.
+const errorCodeModules = {
+  ...import.meta.glob<Record<string, unknown>>("../*/errorCode.ts", {
+    eager: true,
+  }),
+  ...import.meta.glob<Record<string, unknown>>("../*/*/errorCode.ts", {
+    eager: true,
+  }),
+};
 
 const VALUE_REGEX = /^[a-z][a-z0-9_]*$/;
 const KEY_REGEX = /^[A-Z][A-Za-z0-9]*$/;
@@ -60,6 +66,7 @@ const EXPECTED_ERROR_CODE_NAMES = new Set([
   "PublicationErrorCode",
   "SearchErrorCode",
   "TagErrorCode",
+  "TagMergeJobErrorCode",
   "ViewErrorCode",
 ]);
 

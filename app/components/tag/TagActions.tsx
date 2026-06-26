@@ -33,7 +33,7 @@ type Props = {
   candidates: readonly { id: string; name: string }[];
   onRename: (tagId: string, name: string) => void;
   onDelete: (tagId: string) => void;
-  onMerge: (sourceTagId: string, targetTagId: string) => void;
+  onMerged: () => void;
   actionError: SerializedError | null;
 };
 
@@ -44,7 +44,7 @@ export function TagActions({
   candidates,
   onRename,
   onDelete,
-  onMerge,
+  onMerged,
   actionError,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
@@ -221,7 +221,7 @@ export function TagActions({
           candidates={candidates}
           open={isMergeOpen}
           onClose={() => setIsMergeOpen(false)}
-          onMerge={onMerge}
+          onMerged={onMerged}
         />
       ) : null}
       <ConfirmDialog

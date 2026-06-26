@@ -650,6 +650,46 @@ export const exportJobs = sqliteTable(
 );
 
 // ---------------------------------------------------------------------------
+// Tag merge jobs
+// ---------------------------------------------------------------------------
+
+export const tagMergeJobs = sqliteTable(
+  "tag_merge_jobs",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Stored as opaque text (no FK): the source tag row is deleted at
+    // completion, but the completed job must remain pollable, so a
+    // cascading FK on the tag ids would wrongly remove the job row.
+    sourceTagId: text("source_tag_id").notNull(),
+    targetTagId: text("target_tag_id").notNull(),
+    status: text("status").notNull(),
+    progressProcessed: integer("progress_processed").notNull().default(0),
+    progressTotal: integer("progress_total").notNull().default(0),
+    affectedNoteIdsJson: text("affected_note_ids_json").notNull().default("[]"),
+    errorCode: text("error_code"),
+    errorReason: text("error_reason"),
+    version: integer("version").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    // Retention-pruning sort key for completed/failed jobs.
+    index("idx_tag_merge_jobs_updated_at").on(
+      desc(table.updatedAt),
+      desc(table.id),
+    ),
+    check(
+      "tag_merge_jobs_status_enum",
+      sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 

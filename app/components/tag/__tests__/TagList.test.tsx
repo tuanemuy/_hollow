@@ -17,6 +17,7 @@ const renameMock = vi.fn();
 const deleteMock = vi.fn();
 const createMock = vi.fn();
 const mergeMock = vi.fn();
+const pollMock = vi.fn();
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: useServerFnRouter(
@@ -25,6 +26,7 @@ vi.mock("@tanstack/react-start", () => ({
       [deleteMock, deleteMock],
       [createMock, createMock],
       [mergeMock, mergeMock],
+      [pollMock, pollMock],
     ],
     vi.fn(),
   ),
@@ -37,6 +39,7 @@ vi.mock("../actions", () => ({
   deleteTagFn: deleteMock,
   createTagFn: createMock,
   mergeTagsFn: mergeMock,
+  getTagMergeJobFn: pollMock,
 }));
 
 const routerInvalidate = vi.fn().mockResolvedValue(undefined);
@@ -63,6 +66,7 @@ beforeEach(() => {
   deleteMock.mockReset();
   createMock.mockReset();
   mergeMock.mockReset();
+  pollMock.mockReset();
   routerInvalidate.mockClear();
   routerNavigate.mockClear();
   container = document.createElement("div");
@@ -439,49 +443,68 @@ describe("TagList — optimistic delete", () => {
   });
 });
 
-describe("TagList — optimistic merge", () => {
-  it("removes the source tag immediately while the merge is pending", async () => {
-    let resolveMerge: (() => void) | undefined;
-    mergeMock.mockReturnValue(
-      new Promise<void>((res) => {
-        resolveMerge = res;
-      }),
-    );
+type MergeJobStatus = "pending" | "processing" | "completed" | "failed";
+
+function mergeJobDTO(
+  status: MergeJobStatus,
+  processed: number,
+  total: number,
+  errorReason: string | null = null,
+) {
+  return {
+    id: "job-1",
+    ownerId: "o1",
+    status,
+    sourceTagId: "t1",
+    targetTagId: "t2",
+    progress: { processed, total },
+    errorReason,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt:
+      status === "completed" || status === "failed"
+        ? "2026-01-01T00:00:01.000Z"
+        : null,
+  };
+}
+
+async function openMergeAndSubmit() {
+  const mergeBtn = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>("button"),
+  ).find((b) => (b.textContent ?? "").trim().includes("統合"));
+  await act(async () => {
+    mergeBtn?.click();
+  });
+
+  const select = getMergeSelect();
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(select, "t2");
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  const submitBtn = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+  ).find((b) => (b.textContent ?? "").trim() === "統合");
+  await act(async () => {
+    submitBtn?.click();
+  });
+}
+
+describe("TagList — async-job merge (#580)", () => {
+  it("enqueues, polls the job, and on completion invalidates and closes the dialog", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    pollMock.mockResolvedValue({ job: mergeJobDTO("completed", 2, 2) });
 
     await renderList([
       { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
       { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
     ]);
 
-    expect(document.body.textContent).toContain("2 件のタグ");
-
-    // Open the merge dialog for the first row (alpha).
-    const mergeBtn = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((b) => (b.textContent ?? "").trim().includes("統合"));
-    await act(async () => {
-      mergeBtn?.click();
-    });
-
-    // Select the merge target (beta) in the dialog's <select>.
-    const select = getMergeSelect();
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype,
-        "value",
-      )?.set;
-      setter?.call(select, "t2");
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    const submitBtn = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>(
-        'button[type="submit"]',
-      ),
-    ).find((b) => (b.textContent ?? "").trim() === "統合");
-    await act(async () => {
-      submitBtn?.click();
-    });
+    await openMergeAndSubmit();
+    await flush();
     await flush();
 
     expect(mergeMock).toHaveBeenCalledTimes(1);
@@ -489,76 +512,143 @@ describe("TagList — optimistic merge", () => {
     expect(call?.data?.sourceTagId).toBe("t1");
     expect(call?.data?.targetTagId).toBe("t2");
 
-    // Source tag gone optimistically (count too), even though merge is unresolved.
-    expect(document.body.textContent).not.toContain("#alpha");
-    expect(document.body.textContent).toContain("#beta");
-    expect(document.body.textContent).toContain("1 件のタグ");
+    // The job is polled by its id.
+    expect(pollMock).toHaveBeenCalled();
+    expect(pollMock.mock.calls[0]?.[0]?.data?.jobId).toBe("job-1");
 
-    await act(async () => {
-      resolveMerge?.();
-    });
-    await flush();
+    // Completion reflects via loader re-fetch (routerInvalidate), not an
+    // enqueue-time optimistic removal.
+    expect(routerInvalidate).toHaveBeenCalled();
+    // The dialog closed → its target <select> is gone.
+    expect(document.body.getElementsByTagName("select").length).toBe(0);
   });
 
-  it("restores the source row and shows an alert when merge fails", async () => {
-    let rejectMerge: ((e: unknown) => void) | undefined;
-    mergeMock.mockReturnValue(
-      new Promise<void>((_res, rej) => {
-        rejectMerge = rej;
-      }),
-    );
+  it("renders a determinate progress bar from the polled processed/total", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    pollMock.mockResolvedValue({ job: mergeJobDTO("processing", 3, 4) });
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 4, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    const bar = document.body.querySelector('[role="progressbar"]');
+    expect(bar).not.toBeNull();
+    expect(bar?.getAttribute("aria-valuenow")).toBe("3");
+    expect(bar?.getAttribute("aria-valuemax")).toBe("4");
+    expect(document.body.textContent).toContain("3/4");
+
+    // Source tag still present (no optimistic removal) and not yet invalidated.
+    expect(document.body.textContent).toContain("#alpha");
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("shows the failure inside the dialog and keeps the source tag", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    pollMock.mockResolvedValue({
+      job: mergeJobDTO("failed", 0, 0, "統合中にエラーが発生しました"),
+    });
 
     await renderList([
       { id: "t1", name: "alpha", noteCount: 0, lastUsedAt: null },
       { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
     ]);
 
-    const mergeBtn = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((b) => (b.textContent ?? "").trim().includes("統合"));
-    await act(async () => {
-      mergeBtn?.click();
-    });
-
-    const select = getMergeSelect();
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLSelectElement.prototype,
-        "value",
-      )?.set;
-      setter?.call(select, "t2");
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    const submitBtn = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>(
-        'button[type="submit"]',
-      ),
-    ).find((b) => (b.textContent ?? "").trim() === "統合");
-    await act(async () => {
-      submitBtn?.click();
-    });
+    await openMergeAndSubmit();
+    await flush();
     await flush();
 
-    expect(document.body.textContent).not.toContain("#alpha");
-
-    await act(async () => {
-      rejectMerge?.(
-        new AppServerError({
-          kind: "system",
-          code: null,
-          message: "System error",
-        }),
-      );
-    });
-    await flush();
-
-    // Source row snaps back and the failure surfaces in its FORM_ERROR slot.
+    // Error surfaced; source tag stays; no loader invalidation.
+    expect(document.body.textContent).toContain("統合中にエラーが発生しました");
     expect(document.body.textContent).toContain("#alpha");
-    const alerts = Array.from(container.querySelectorAll('[role="alert"]')).map(
-      (el) => el.textContent ?? "",
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("does not surface a transient poll error after a single blip (W-002)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    // Every poll rejects with a transient (system) kind. The 1.5s re-schedule
+    // does not fire within the test, so only one failure is observed — below
+    // the retry budget, so no error must surface and the job stays "running".
+    pollMock.mockRejectedValue(
+      new AppServerError({ kind: "system", code: null, message: "blip" }),
     );
-    expect(alerts.join(" ")).toContain("システムエラーが発生しました");
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // Still polling (the in-progress banner persists), no error alert yet.
+    expect(document.body.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("システムエラー");
+    // Source tag stays; no completion-driven reflection happened.
+    expect(document.body.textContent).toContain("#alpha");
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a fatal (unauthorized) poll error immediately (W-002)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    pollMock.mockRejectedValue(
+      new AppServerError({ kind: "unauthorized", code: null, message: "no" }),
+    );
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 2, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // A fatal kind stops polling at once and surfaces an alert; the source tag
+    // stays and the loader is not invalidated.
+    const alert = document.body.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect((alert?.textContent ?? "").length).toBeGreaterThan(0);
+    expect(document.body.textContent).toContain("#alpha");
+    expect(routerInvalidate).not.toHaveBeenCalled();
+  });
+
+  it("re-fetches the loader when closed mid-flight (W-001)", async () => {
+    mergeMock.mockResolvedValue({ jobId: "job-1" });
+    // Job is still processing — polling never reaches completion.
+    pollMock.mockResolvedValue({ job: mergeJobDTO("processing", 1, 4) });
+
+    await renderList([
+      { id: "t1", name: "alpha", noteCount: 4, lastUsedAt: null },
+      { id: "t2", name: "beta", noteCount: 0, lastUsedAt: null },
+    ]);
+
+    await openMergeAndSubmit();
+    await flush();
+    await flush();
+
+    // Mid-flight: the in-progress banner is up. routerInvalidate not yet called.
+    expect(document.body.querySelector('[role="progressbar"]')).not.toBeNull();
+    expect(routerInvalidate).not.toHaveBeenCalled();
+
+    // Close while running → best-effort loader re-fetch so a finishing job is
+    // reflected even though completion-driven polling stopped.
+    const closeBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => (b.textContent ?? "").trim() === "閉じる");
+    await act(async () => {
+      closeBtn?.click();
+    });
+    await flush();
+
+    expect(routerInvalidate).toHaveBeenCalled();
+    // Dialog closed → its target <select> is gone.
+    expect(document.body.getElementsByTagName("select").length).toBe(0);
   });
 });
 

@@ -9,18 +9,28 @@
 import { TOUCH_TARGET, TOUCH_TARGET_SQUARE } from "../common/styles";
 
 /**
- * Indeterminate progress bar track — 同期処理中の不確定進捗用。
- *
- * Currently unreferenced: the merge dialog dropped its synchronous progress
- * banner when merge became optimistic (#607 ADR-003). Retained for the future
- * async-job merge banner (#563) rather than re-deriving the tokens then.
+ * Progress bar track — shared by the `MergeTagDialog` async-merge banner
+ * (#580). Hosts either the indeterminate fill (受付直後 / total 確定前) or
+ * the determinate fill (実 processed/total).
  */
 export const progressTrack =
   "relative h-1 w-full overflow-hidden rounded-pill bg-surface mt-3";
 
-/** Indeterminate progress bar — animate-pulse でゆるく「動いている」を表現。 */
+/**
+ * Indeterminate progress bar — animate-pulse でゆるく「動いている」を表現。
+ * Used while the job is being accepted and `total` is not yet known.
+ */
 export const progressBarIndeterminate =
   "absolute inset-0 rounded-pill bg-accent/60 motion-safe:animate-pulse";
+
+/**
+ * Determinate progress bar (#580) — width is data-driven (`processed/total`)
+ * and supplied via inline `style` since Tailwind's JIT only scans static
+ * arbitraries. Mirrors the export `PROGRESS_BAR` token (accent fill +
+ * width transition).
+ */
+export const progressBar =
+  "absolute inset-y-0 left-0 rounded-pill bg-accent transition-[width] duration-300 motion-reduce:transition-none";
 
 /**
  * Tag list row — the per-tag `<li>`. Mirrors `layout/styles.ts` DATA_ROW but

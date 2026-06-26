@@ -37,6 +37,7 @@ import { buildNoteSnapshots } from "../../search/buildNoteSnapshot";
 import { handleNoteSavedEvent } from "../../search/handleNoteSavedEvent";
 import { handleNoteTrashedEvent as searchHandleNoteTrashedEvent } from "../../search/handleNoteTrashedEvent";
 import { handlePublicationChangedEvent } from "../../search/handlePublicationChangedEvent";
+import { runTagMergeJob } from "../../tag/runTagMergeJob";
 import { handleDirectoryDeletedEvent as viewHandleDirectoryDeletedEvent } from "../../view/handleDirectoryDeletedEvent";
 import { handleNotePurgedEvent as viewHandleNotePurgedEvent } from "../../view/handleNotePurgedEvent";
 import { handleTagDeletedEvent as viewHandleTagDeletedEvent } from "../../view/handleTagDeletedEvent";
@@ -47,6 +48,9 @@ vi.mock("../../ingestion/runIngestionJob", () => ({
 }));
 vi.mock("../../export/runExportJob", () => ({
   runExportJob: vi.fn(async () => ({ job: null })),
+}));
+vi.mock("../../tag/runTagMergeJob", () => ({
+  runTagMergeJob: vi.fn(async () => ({ job: null })),
 }));
 vi.mock("../../search/handleNoteSavedEvent", () => ({
   handleNoteSavedEvent: vi.fn(async () => undefined),
@@ -111,6 +115,7 @@ vi.mock("../../activityLog/handleInstanceSettingsUpdatedEvent", () => ({
 
 const mockedRunIngestionJob = vi.mocked(runIngestionJob);
 const mockedRunExportJob = vi.mocked(runExportJob);
+const mockedRunTagMergeJob = vi.mocked(runTagMergeJob);
 const mockedHandleNoteSavedEvent = vi.mocked(handleNoteSavedEvent);
 const mockedSearchHandleNoteTrashed = vi.mocked(searchHandleNoteTrashedEvent);
 const mockedHandlePublicationChanged = vi.mocked(handlePublicationChangedEvent);
@@ -339,6 +344,18 @@ function exportRetryRequestedEvent(): DomainEvent {
     payload: { exportJobId: EXPORT_JOB_ID as unknown as ExportJobId },
     occurredAt: new Date(0),
     aggregateId: EXPORT_JOB_ID,
+  };
+}
+
+const TAG_MERGE_JOB_ID = "019d8000-0000-7000-8000-000000000001";
+
+function tagMergeRequestedEvent(): DomainEvent {
+  return {
+    id: EVENT_ID,
+    type: "tag.merge.requested",
+    payload: { jobId: TAG_MERGE_JOB_ID },
+    occurredAt: new Date(0),
+    aggregateId: TAG_MERGE_JOB_ID,
   };
 }
 
@@ -646,6 +663,8 @@ beforeEach(() => {
   mockedHandleLinkTargetTrashed.mockResolvedValue(undefined);
   mockedRunIngestionJob.mockResolvedValue(undefined);
   mockedRunExportJob.mockResolvedValue({ job: null });
+  mockedRunTagMergeJob.mockReset();
+  mockedRunTagMergeJob.mockResolvedValue({ job: null });
   mockedHandleNoteSavedEvent.mockResolvedValue(undefined);
   mockedSearchHandleNoteTrashed.mockResolvedValue(undefined);
   mockedHandlePublicationChanged.mockResolvedValue(undefined);
@@ -707,6 +726,22 @@ describe("dispatchDomainEvent — ingestion / export routing", () => {
       container,
       input: { jobId: EXPORT_JOB_ID as unknown as ExportJobId },
     });
+    expect(mockedRunIngestionJob).not.toHaveBeenCalled();
+  });
+
+  it("routes tag.merge.requested to runTagMergeJob and returns handled", async () => {
+    const { container } = makeStubContainer({});
+    const outcome = await dispatchDomainEvent(
+      container,
+      tagMergeRequestedEvent(),
+    );
+    expect(outcome).toEqual({ kind: "handled" });
+    expect(mockedRunTagMergeJob).toHaveBeenCalledTimes(1);
+    expect(mockedRunTagMergeJob).toHaveBeenCalledWith({
+      container,
+      input: { jobId: TAG_MERGE_JOB_ID },
+    });
+    expect(mockedRunExportJob).not.toHaveBeenCalled();
     expect(mockedRunIngestionJob).not.toHaveBeenCalled();
   });
 
