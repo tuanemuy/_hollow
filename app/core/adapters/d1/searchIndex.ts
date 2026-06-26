@@ -219,9 +219,8 @@ export class D1SearchIndex implements SearchIndex {
     // Title uses `highlight()` (col 0 = title in migration 0008) rather than
     // `snippet()`: titles are short and shown whole, so we want full-text
     // marking, not token-budget truncation. The snippet keeps `snippet()`
-    // over the body (col 1). When `highlight` is false the surface renders
-    // the strings plainly, so both are emitted without markers (empty marker
-    // args for the snippet, the raw `sd.title` for the title).
+    // over the body (col 1). When `highlight` is false both are emitted
+    // without markers so a plain-rendering surface never receives raw text.
     const titleSelect = highlight
       ? sql`highlight(fts.search_documents_fts, 0, '<mark>', '</mark>')`
       : sql`sd.title`;
