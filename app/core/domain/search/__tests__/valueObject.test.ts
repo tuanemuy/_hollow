@@ -114,6 +114,10 @@ describe("SearchHighlightedTitle", () => {
     ).toBe(1024);
   });
 
+  it("accepts an empty string (no-title / no-match renders nothing)", () => {
+    expect(SearchHighlightedTitle.create("") as unknown as string).toBe("");
+  });
+
   it("rejects strings longer than 1024 characters", () => {
     try {
       SearchHighlightedTitle.create("t".repeat(1025));

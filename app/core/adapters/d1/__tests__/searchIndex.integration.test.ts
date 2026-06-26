@@ -811,6 +811,10 @@ describe("D1SearchIndex highlight (#779)", () => {
     expect(result.hits[0]?.title).toBe("デザイン原則");
     expect(result.hits[0]?.title).not.toContain("<mark>");
     expect(result.hits[0]?.snippet).not.toContain("<mark>");
+    // The snippet must still be a non-empty plain excerpt of the body, not
+    // an empty string — guards against a "no markers" regression that also
+    // drops the excerpt text.
+    expect(result.hits[0]?.snippet).toContain("デザイン原則");
   });
 
   it("returns plain strings on the LIKE fallback regardless of highlight (AC-4)", async () => {
@@ -838,6 +842,24 @@ describe("D1SearchIndex highlight (#779)", () => {
     expect(result.hits[0]?.title).toBe("AI roadmap");
     expect(result.hits[0]?.title).not.toContain("<mark>");
     expect(result.hits[0]?.snippet).not.toContain("<mark>");
+    // The LIKE fallback still returns a plain excerpt of the body — assert it
+    // is non-empty and carries the expected fragment so an empty-snippet
+    // regression is caught.
+    expect(result.hits[0]?.snippet).toContain("planning notes");
+
+    // The LIKE path is highlight-agnostic: passing `highlight: false`
+    // explicitly must yield the same plain title / snippet (resolving the
+    // test-name "regardless of highlight" against the default-true case
+    // above).
+    const plain = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", highlight: false }),
+    );
+
+    expect(plain.hits).toHaveLength(1);
+    expect(plain.hits[0]?.title).toBe("AI roadmap");
+    expect(plain.hits[0]?.title).not.toContain("<mark>");
+    expect(plain.hits[0]?.snippet).not.toContain("<mark>");
+    expect(plain.hits[0]?.snippet).toContain("planning notes");
   });
 });
 

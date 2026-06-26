@@ -63,6 +63,10 @@ export async function searchPublicNotes({
     // against the publication aggregate's `published_at`.
     dateBasis: "published_at",
     sort: input.sort ?? "relevance",
+    // Public search surfaces render the title / snippet with `<mark>`
+    // highlighting (P32); declare it explicitly to mirror own-notes'
+    // `highlight: false` rather than leaning on the create-time default.
+    highlight: true,
     limit: input.limit,
     cursor: input.cursor ?? null,
   });
