@@ -109,6 +109,7 @@ describe("pruneTagMergeJobs", () => {
     expect(result).toEqual({ deleted: 2 });
     expect(received).toBeInstanceOf(Date);
     expect(received?.getTime()).toBe(now.getTime() - retentionMs);
+    expect(jobStatePruner.pruneTerminalTagMergeJobs).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the deleted count unchanged", async () => {

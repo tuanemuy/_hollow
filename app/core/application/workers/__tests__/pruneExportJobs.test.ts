@@ -108,6 +108,7 @@ describe("pruneExportJobs", () => {
     expect(result).toEqual({ deleted: 4 });
     expect(received).toBeInstanceOf(Date);
     expect(received?.getTime()).toBe(now.getTime() - retentionMs);
+    expect(jobStatePruner.pruneTerminalExportJobs).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the deleted count unchanged", async () => {

@@ -22,6 +22,7 @@ const OWNER = "01950000-0000-7000-8000-0000000007a3";
 const CUTOFF = new Date("2026-06-20T00:00:00.000Z");
 const OLD = "2026-06-10T00:00:00.000Z"; // before cutoff
 const RECENT = "2026-06-25T00:00:00.000Z"; // after cutoff
+const AT_CUTOFF = "2026-06-20T00:00:00.000Z"; // exactly the cutoff
 
 async function seedOwner(container: TestContainer): Promise<void> {
   await container.db.insert(schema.users).values({
@@ -138,6 +139,17 @@ describe("D1JobStatePruner integration", () => {
       expect(deleted).toBe(0);
       expect(await remainingTagMergeIds(container)).toHaveLength(1);
     });
+
+    it("keeps a terminal row whose updated_at equals the cutoff exactly (lt, not lte)", async () => {
+      const container = createTestContainer();
+      await seedOwner(container);
+      const pruner = new D1JobStatePruner(container.db);
+      const id = await seedTagMergeJob(container, "completed", AT_CUTOFF);
+
+      const { deleted } = await pruner.pruneTerminalTagMergeJobs(CUTOFF);
+      expect(deleted).toBe(0);
+      expect(await remainingTagMergeIds(container)).toEqual([id]);
+    });
   });
 
   describe("pruneTerminalExportJobs", () => {
@@ -174,6 +186,17 @@ describe("D1JobStatePruner integration", () => {
       const pruner = new D1JobStatePruner(container.db);
       const veryOld = "2020-01-01T00:00:00.000Z";
       const id = await seedExportJob(container, "completed", veryOld);
+
+      const { deleted } = await pruner.pruneTerminalExportJobs(CUTOFF);
+      expect(deleted).toBe(0);
+      expect(await remainingExportIds(container)).toEqual([id]);
+    });
+
+    it("keeps a terminal row whose updated_at equals the cutoff exactly (lt, not lte)", async () => {
+      const container = createTestContainer();
+      await seedOwner(container);
+      const pruner = new D1JobStatePruner(container.db);
+      const id = await seedExportJob(container, "failed", AT_CUTOFF);
 
       const { deleted } = await pruner.pruneTerminalExportJobs(CUTOFF);
       expect(deleted).toBe(0);

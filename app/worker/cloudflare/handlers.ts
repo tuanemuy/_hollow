@@ -165,7 +165,11 @@ export async function runPruneTick(
   // the tick.
   try {
     const purgeContainer = createRequestContainer(readRequestServerConfig(env));
-    await purgeExpiredExports({ container: purgeContainer, input: {} });
+    const { expired } = await purgeExpiredExports({
+      container: purgeContainer,
+      input: {},
+    });
+    container.logger.info(`[prune] expired ${expired} export(s)`, { expired });
   } catch (error) {
     container.logger.error("[prune] expired-export purge failed", {
       cause: error,

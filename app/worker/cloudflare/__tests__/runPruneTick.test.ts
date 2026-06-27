@@ -21,6 +21,11 @@ import { runPruneTick } from "../handlers";
 const mocks = vi.hoisted(() => ({
   logger: undefined as unknown as FakeLogger,
   calls: [] as string[],
+  // Distinct retention values so a swap between the export and tag-merge
+  // prune wiring is detectable (the production defaults are both 7 days,
+  // which would otherwise hide a mix-up).
+  exportJobsRetentionMs: 9 * 24 * 60 * 60 * 1000,
+  tagMergeJobsRetentionMs: 11 * 24 * 60 * 60 * 1000,
   pruneOutbox: vi.fn<() => Promise<{ deleted: number }>>(),
   pruneProcessedEvents: vi.fn<() => Promise<{ deleted: number }>>(),
   pruneActivityLog: vi.fn<() => Promise<void>>(),
@@ -46,8 +51,8 @@ vi.mock("@/core/application/di/serverCloudflare", async (importOriginal) => {
     readPruneTuning: () => ({
       retentionMs: 7 * 24 * 60 * 60 * 1000,
       processedEventsRetentionMs: 14 * 24 * 60 * 60 * 1000,
-      exportJobsRetentionMs: 7 * 24 * 60 * 60 * 1000,
-      tagMergeJobsRetentionMs: 7 * 24 * 60 * 60 * 1000,
+      exportJobsRetentionMs: mocks.exportJobsRetentionMs,
+      tagMergeJobsRetentionMs: mocks.tagMergeJobsRetentionMs,
     }),
   };
 });
@@ -211,6 +216,19 @@ describe("runPruneTick", () => {
     expect(purgeIdx).toBeGreaterThanOrEqual(0);
     expect(purgeIdx).toBeLessThan(exportIdx);
     expect(mocks.logger.byLevel("error")).toHaveLength(0);
+  });
+
+  it("wires each table's retention from readPruneTuning into its prune (no swap)", async () => {
+    await runPruneTick(ENV);
+
+    // tuning.exportJobsRetentionMs → export prune; tuning.tagMergeJobsRetentionMs
+    // → tag-merge prune. Distinct mock values catch a transposed wiring.
+    expect(mocks.pruneExportJobs).toHaveBeenCalledWith(expect.anything(), {
+      retentionMs: mocks.exportJobsRetentionMs,
+    });
+    expect(mocks.pruneTagMergeJobs).toHaveBeenCalledWith(expect.anything(), {
+      retentionMs: mocks.tagMergeJobsRetentionMs,
+    });
   });
 
   it("isolates a purge failure: the job-state prunes still run and the tick returns its counts", async () => {
