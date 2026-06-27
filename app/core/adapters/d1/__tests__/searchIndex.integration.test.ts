@@ -140,6 +140,7 @@ function makeQuery(params: {
   dateRange?: { from: Date; to: Date } | null;
   dateBasis?: "published_at" | "date_for_calendar";
   sort?: "relevance" | "newest";
+  highlight?: boolean;
   limit?: number;
   cursor?: string | null;
 }) {
@@ -156,6 +157,7 @@ function makeQuery(params: {
     dateRange: params.dateRange ?? null,
     dateBasis: params.dateBasis,
     sort: params.sort,
+    highlight: params.highlight,
     limit: params.limit ?? 10,
     cursor: params.cursor ?? null,
   });
@@ -735,6 +737,129 @@ describe("D1SearchIndex (trigram tokenizer)", () => {
     expect(result.hits[0]?.noteId).toBe(rebuilt.noteId);
     // Explicit negative: the pre-rebuild doc must be gone from the index.
     expect(result.hits.find((h) => h.noteId === stale.noteId)).toBeUndefined();
+  });
+});
+
+describe("D1SearchIndex highlight (#779)", () => {
+  it("marks the matched run in the title and snippet on the MATCH path (highlight default true)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "デザイン原則",
+        body: "これはデザイン原則のメモです",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "デザイン" }),
+    );
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.title).toContain("<mark>デザイン</mark>");
+    expect(result.hits[0]?.snippet).toContain("<mark>デザイン</mark>");
+  });
+
+  it("leaves the title unmarked when only the body matches (AC-3)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "週次メモ",
+        body: "これはデザイン原則のメモです",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "デザイン" }),
+    );
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.title).toBe("週次メモ");
+    expect(result.hits[0]?.title).not.toContain("<mark>");
+    // The body still carries the highlight.
+    expect(result.hits[0]?.snippet).toContain("<mark>デザイン</mark>");
+  });
+
+  it("returns plain title and snippet when highlight is false (AC-5)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "デザイン原則",
+        body: "これはデザイン原則のメモです",
+      }),
+    );
+
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "デザイン", highlight: false }),
+    );
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.title).toBe("デザイン原則");
+    expect(result.hits[0]?.title).not.toContain("<mark>");
+    expect(result.hits[0]?.snippet).not.toContain("<mark>");
+    // The snippet must still be a non-empty plain excerpt of the body, not
+    // an empty string — guards against a "no markers" regression that also
+    // drops the excerpt text.
+    expect(result.hits[0]?.snippet).toContain("デザイン原則");
+  });
+
+  it("returns plain strings on the LIKE fallback regardless of highlight (AC-4)", async () => {
+    const container = createTestContainer();
+    const ownerId = await seedUser(container);
+    const directoryId = await seedDirectory(container, ownerId);
+
+    await container.searchIndex.upsert(
+      await makeDoc(container, {
+        ownerId,
+        directoryId,
+        title: "AI roadmap",
+        body: "Quarterly AI planning notes",
+      }),
+    );
+
+    // `AI` is a 2-codepoint token → trigram cannot index it → LIKE fallback,
+    // which has no `highlight()` / `snippet()`. Even with highlight on, the
+    // title and snippet stay plain.
+    const result = await container.searchIndex.query(
+      makeQuery({ keyword: "AI" }),
+    );
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.title).toBe("AI roadmap");
+    expect(result.hits[0]?.title).not.toContain("<mark>");
+    expect(result.hits[0]?.snippet).not.toContain("<mark>");
+    // The LIKE fallback still returns a plain excerpt of the body — assert it
+    // is non-empty and carries the expected fragment so an empty-snippet
+    // regression is caught.
+    expect(result.hits[0]?.snippet).toContain("planning notes");
+
+    // The LIKE path is highlight-agnostic: passing `highlight: false`
+    // explicitly must yield the same plain title / snippet (resolving the
+    // test-name "regardless of highlight" against the default-true case
+    // above).
+    const plain = await container.searchIndex.query(
+      makeQuery({ keyword: "AI", highlight: false }),
+    );
+
+    expect(plain.hits).toHaveLength(1);
+    expect(plain.hits[0]?.title).toBe("AI roadmap");
+    expect(plain.hits[0]?.title).not.toContain("<mark>");
+    expect(plain.hits[0]?.snippet).not.toContain("<mark>");
+    expect(plain.hits[0]?.snippet).toContain("planning notes");
   });
 });
 

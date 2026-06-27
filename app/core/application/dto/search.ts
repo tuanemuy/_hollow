@@ -4,6 +4,13 @@ import type { DateRange } from "./common";
 /**
  * `updatedAt` is an ISO 8601 string sourced from the search index
  * (eventually consistent with the Note aggregate).
+ *
+ * `title` and `snippet` are render-oriented strings that may carry FTS5
+ * `<mark>` highlight markers when the query was issued with
+ * `SearchQuery.highlight` (the public-search default). Consumers must
+ * element-ise the markers safely — see `highlightSnippet` — rather than
+ * injecting them as raw HTML. Surfaces that opt out (`highlight: false`,
+ * e.g. own-notes P30) receive plain strings.
  */
 export type SearchHitDTO = Readonly<{
   noteId: string;

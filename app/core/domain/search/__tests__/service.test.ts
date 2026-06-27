@@ -6,10 +6,10 @@ import type { SearchIndex, SearchQueryResult } from "../ports/searchIndex";
 import { SearchIndexUnavailableError } from "../ports/searchIndex";
 import { SearchService } from "../service";
 import {
+  SearchHighlightedTitle,
   SearchQuery,
   SearchScore,
   SearchSnippet,
-  SearchTitle,
   Visibility,
 } from "../valueObject";
 
@@ -102,7 +102,7 @@ describe("SearchService.runQuery", () => {
           noteId: noteId(11),
           ownerId: userId(11),
           username,
-          title: SearchTitle.create("hit"),
+          title: SearchHighlightedTitle.create("hit"),
           snippet: SearchSnippet.create("snip"),
           tagNames: [],
           score: SearchScore.create(1.0),

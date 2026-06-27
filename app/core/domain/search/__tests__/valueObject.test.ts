@@ -10,6 +10,7 @@ import {
   SearchBody,
   SearchCursor,
   SearchDirectoryPath,
+  SearchHighlightedTitle,
   SearchKeyword,
   SearchLimit,
   SearchScore,
@@ -95,6 +96,38 @@ describe("SearchTitle", () => {
 
   it("accepts an empty title (title is not required for index documents)", () => {
     expect(SearchTitle.create("") as unknown as string).toBe("");
+  });
+});
+
+describe("SearchHighlightedTitle", () => {
+  it("accepts a plain title and a marker-decorated title up to 1024 chars", () => {
+    expect(SearchHighlightedTitle.create("hit") as unknown as string).toBe(
+      "hit",
+    );
+    const marked = `<mark>${"t".repeat(1000)}</mark>`;
+    expect(
+      (SearchHighlightedTitle.create(marked) as unknown as string).length,
+    ).toBe(marked.length);
+    expect(
+      (SearchHighlightedTitle.create("t".repeat(1024)) as unknown as string)
+        .length,
+    ).toBe(1024);
+  });
+
+  it("accepts an empty string (no-title / no-match renders nothing)", () => {
+    expect(SearchHighlightedTitle.create("") as unknown as string).toBe("");
+  });
+
+  it("rejects strings longer than 1024 characters", () => {
+    try {
+      SearchHighlightedTitle.create("t".repeat(1025));
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isBusinessRuleError(error)).toBe(true);
+      if (isBusinessRuleError(error)) {
+        expect(error.code).toBe(SearchErrorCode.HighlightedTitleTooLong);
+      }
+    }
   });
 });
 

@@ -4,18 +4,20 @@ const MARK_OPEN = "<mark>";
 const MARK_CLOSE = "</mark>";
 
 /**
- * Renders an FTS5-highlighted search snippet as React nodes.
+ * Renders an FTS5-highlighted search string (snippet or title) as React nodes.
  *
- * The backend `snippet(fts, 1, '<mark>', '</mark>', '…', ...)` call wraps matched
- * terms in fixed `<mark>` / `</mark>` markers. This splits on those markers and
- * renders the inner segments as styled `<mark>` elements, leaving every other
- * segment as a plain text node.
+ * The backend wraps matched terms in fixed `<mark>` / `</mark>` markers via
+ * either `snippet(fts, 1, '<mark>', '</mark>', '…', ...)` (body snippet) or
+ * `highlight(fts, 0, '<mark>', '</mark>')` (title). This splits on those markers
+ * and renders the inner segments as styled `<mark>` elements, leaving every
+ * other segment as a plain text node.
  *
  * WHY no `dangerouslySetInnerHTML`: the `<mark>` markers are the only trusted
- * boundary (emitted by our own `snippet()` call); the surrounding text is
- * user-authored note content. Rendering segments as React text nodes lets React
- * auto-escape that user text, so a literal `<mark>` (or `<script>`) inside the
- * body can at worst cause a cosmetic mis-split — never HTML injection / XSS.
+ * boundary (emitted by our own `snippet()` / `highlight()` call); the
+ * surrounding text is user-authored note content. Rendering segments as React
+ * text nodes lets React auto-escape that user text, so a literal `<mark>` (or
+ * `<script>`) inside the highlighted string can at worst cause a cosmetic
+ * mis-split — never HTML injection / XSS.
  *
  * Returns the original string unchanged when no markers are present (back-compat).
  */

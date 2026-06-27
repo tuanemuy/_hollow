@@ -205,7 +205,9 @@ export async function PublicSearch({
                   className={SEARCH_HIT_ROW}
                 >
                   <div className={SEARCH_HIT_MAIN}>
-                    <div className={SEARCH_HIT_TITLE}>{hit.title}</div>
+                    <div className={SEARCH_HIT_TITLE}>
+                      {highlightSnippet(hit.title)}
+                    </div>
                     {hit.snippet.length > 0 ? (
                       <p className={SEARCH_HIT_SNIPPET}>
                         {highlightSnippet(hit.snippet)}

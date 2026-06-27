@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Locks the P32 hero-sub description「このインスタンス全体の公開ノートから横断
@@ -9,9 +9,32 @@ import { describe, expect, it, vi } from "vitest";
 
 // `serverData` is called once per module (search + facets); return a union
 // payload both consumers can read (`hits`/`nextCursor` for search, `facets`
-// for the facet count).
+// for the facet count). The payload is mutable via `mockState` so individual
+// tests can seed hits.
+const mockState = vi.hoisted(() => ({
+  payload: { hits: [], nextCursor: null, facets: [] } as {
+    hits: unknown[];
+    nextCursor: string | null;
+    facets: unknown[];
+  },
+}));
+
 vi.mock("@/core/presentation/serverAction", () => ({
-  serverData: () => async () => ({ hits: [], nextCursor: null, facets: [] }),
+  serverData: () => async () => mockState.payload,
+}));
+
+// `<Link>` needs a RouterProvider; stub it to a plain element so a rendered
+// result row (hit) can be asserted without standing up the router. A `span`
+// (not an `a`) avoids the `useValidAnchor` lint without affecting the
+// text-content assertions this suite makes.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => <span className={className}>{children}</span>,
 }));
 
 vi.mock("../PublicLayout", () => ({
@@ -28,6 +51,10 @@ vi.mock("../SearchFilterDrawer", () => ({
 }));
 
 const { PublicSearch } = await import("../PublicSearch");
+
+beforeEach(() => {
+  mockState.payload = { hits: [], nextCursor: null, facets: [] };
+});
 
 describe("PublicSearch hero", () => {
   it("renders the hero description under the title", async () => {
@@ -74,5 +101,51 @@ describe("PublicSearch hero", () => {
     expect(html).not.toContain(
       "同じインスタンスの公開ノートを横断検索できます。",
     );
+  });
+});
+
+describe("PublicSearch result title highlight (#779)", () => {
+  it("element-ises the title's <mark> markers and escapes the user text (AC-2)", async () => {
+    mockState.payload = {
+      hits: [
+        {
+          noteId: "00000000-0000-7000-8000-000000000001",
+          ownerId: "00000000-0000-7000-9000-000000000001",
+          username: "alice",
+          // The marker boundaries are trusted (our own `highlight()` call);
+          // the inner / surrounding text is user-authored and must be
+          // React-escaped, so a literal `<script>` cannot inject HTML.
+          title: "安全な<mark><script>alert(1)</script></mark>タイトル",
+          snippet: "本文の抜粋",
+          tagNames: [],
+          score: 1,
+          visibility: "public",
+          updatedAt: "2026-05-14T09:24:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      facets: [],
+    };
+
+    const element = await PublicSearch({
+      keyword: "script",
+      username: null,
+      tags: null,
+      period: null,
+      sort: null,
+      cursor: null,
+      limit: 20,
+    });
+    const html = renderToStaticMarkup(element);
+
+    // The marker became a real <mark> element wrapping the matched run.
+    expect(html).toContain("<mark");
+    expect(html).toContain("</mark>");
+    // The user text inside the markers is escaped, not injected as HTML.
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).not.toContain("<script>alert(1)</script>");
+    // Plain segments around the markers survive.
+    expect(html).toContain("安全な");
+    expect(html).toContain("タイトル");
   });
 });
