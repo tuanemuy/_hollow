@@ -16,14 +16,17 @@
 ## 方針
 
 - ベース規則 `.note-detail-content`（`app/styles/index.css:192-197`）に
-  `overflow-wrap: break-word;` を 1 行追加する。
+  `overflow-wrap: anywhere;` を 1 行追加する。
 - `overflow-wrap` は**継承プロパティ**なので、子孫の `p` / `a` / `li` / `td` 等の本文要素に
   自動で波及する。各要素に個別付与せず、ベース 1 箇所で全本文面をカバーする。
+- `break-word` ではなく `anywhere` を採用する。`break-word` は min-content 固有幅を縮めない
+  ため、`table-layout: auto` の GFM テーブルセル（Issue #693）に長い無空白トークンがあると
+  列が押し広げられテーブルが横にはみ出す（実ブラウザ実測で 458px 残存を確認）。`anywhere` は
+  折り返し位置を min-content にも反映するため、本文段落・リンクに加えテーブルセルも縮んで収まる。
 - `pre`（`329-337`）はブラウザ既定の `white-space: pre` のまま（CSS で上書きしていない）。
   `white-space: pre` は行の折り返し自体が起きないため、継承された `overflow-wrap` は no-op。
   既存の `overflow-x: auto`（横スクロール）挙動はそのまま維持される。
 - `word-break: break-all` は採用しない（通常語を文字単位で割って可読性を損なうため）。
-  `overflow-wrap: break-word` は「単語がはみ出すときだけ折る」ので body テキストに最適。
 
 ### なぜベース 1 行で全共有面に効くか
 

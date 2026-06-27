@@ -13,25 +13,31 @@
 
 ## テストケースと結果
 
+ハーネスには本文段落・リンク・インラインコード・コードブロック（`pre`）・GFM テーブルを配置。
+
 | TC | 観点 | 期待 | 実測 | 判定 |
 |----|------|------|------|------|
-| TC-001 | 長い URL／英字列が本文幅で折り返る | `.note-detail-content` の横はみ出し = 0px | content_horizontal_overflow_px = **0** | PASS |
-| TC-002 | コードブロック `pre` は従来どおり横スクロール | `pre` 内部スクロール > 0 | pre_internal_scroll_px = **511** | PASS |
-| TC-003 | ページ全体に横スクロールが出ない | doc 横はみ出し = 0px | doc_horizontal_overflow_px = **0** | PASS |
+| TC-001 | 長い URL／英字列が本文幅で折り返る | `.note-detail-content` の横はみ出し = 0px | content_overflow = **0** | PASS |
+| TC-002 | コードブロック `pre` は従来どおり横スクロール | `pre` 内部スクロール > 0 | pre_internal_scroll = **511** | PASS |
+| TC-003 | ページ全体に横スクロールが出ない | doc 横はみ出し = 0px | doc_overflow = **0** | PASS |
+| TC-004 | GFM テーブルの長トークンセルもはみ出さない | table 横はみ出し = 0px | table_overflow = **0** | PASS |
 
-### 修正前後の対比（同一ハーネスで `overflow-wrap` を切替え実測）
+### 3 状態の対比（同一ハーネスで `overflow-wrap` を切替え実測）
 
-| 状態 | `.note-detail-content` 横はみ出し | `pre` 内部スクロール |
-|------|----------------------------------|---------------------|
-| 修正前（`overflow-wrap: normal`） | **780px**（バグ再現） | 511px |
-| 修正後（`overflow-wrap: break-word`） | **0px** | 511px |
+| `overflow-wrap` | content 横はみ出し | table 横はみ出し | `pre` 内部スクロール |
+|------|------|------|------|
+| `normal`（修正前） | **780px**（バグ再現） | 0px | 511px |
+| `break-word`（初版） | **458px**（テーブルセルが残存） | 0px | 511px |
+| `anywhere`（採用） | **0px** | 0px | 511px |
 
-`overflow-wrap: break-word` の追加だけで本文のはみ出し 780px → 0px が解消し、
-`pre` の横スクロール（511px）は両状態で不変＝コードブロック挙動に影響なし。
+`break-word` は本文段落は折り返すが、`table-layout: auto` のテーブルセルに長い無空白トークンが
+あると min-content が縮まず列が押し広げられ 458px のはみ出しが残った（PR レビュー W-001）。
+`anywhere` は折り返しを min-content にも反映するため本文・テーブルとも 0px に収まり、
+`pre` の横スクロール（511px）は全状態で不変＝コードブロック挙動に影響なし。
 
 ## 合計
 
-3 件（PASS: 3 / FAIL: 0）。起票した Issue: なし。
+4 件（PASS: 4 / FAIL: 0）。起票した Issue: なし。
 
 ## 備考
 
