@@ -103,6 +103,10 @@ function makeContainer(over: {
       recordCall: vi.fn(async () => {}),
       pruneOlderThan: vi.fn(async () => ({ deleted: 0 })),
     },
+    jobStatePruner: {
+      pruneTerminalExportJobs: vi.fn(async () => ({ deleted: 0 })),
+      pruneTerminalTagMergeJobs: vi.fn(async () => ({ deleted: 0 })),
+    },
     clock: over.clock ?? fixedClock(T0),
     idGenerator: new FakeIdGenerator(1),
     logger: new FakeLogger(),
