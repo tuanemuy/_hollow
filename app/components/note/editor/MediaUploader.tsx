@@ -230,7 +230,7 @@ export function MediaUploader({
       className={DROPZONE}
       data-dragover={isDragOver ? "" : undefined}
       data-disabled={
-        state.kind === "uploading" || disabled === true || undefined
+        state.kind === "uploading" || disabled === true ? "" : undefined
       }
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
