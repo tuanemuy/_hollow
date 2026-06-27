@@ -115,7 +115,7 @@ export function MediaUploader({
   const [state, setState] = useState<UploadState>({ kind: "idle" });
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Cleanup ObjectURL on state change (state.thumbnailUrl cleanup on each transition).
+  // Revoke the preview ObjectURL when leaving the uploading state to avoid a leak.
   useEffect(() => {
     if (state.kind !== "uploading") return;
     if (state.thumbnailUrl === null) return;
@@ -126,10 +126,8 @@ export function MediaUploader({
   }, [state]);
 
   const runUpload = async (file: File) => {
-    // Guard: only accept if not currently uploading.
     if (state.kind === "uploading") return;
 
-    // Validate the file.
     const validation = validateMediaFile(file);
     if (!validation.ok) {
       setState({
@@ -143,7 +141,6 @@ export function MediaUploader({
       return;
     }
 
-    // Create thumbnail URL for preview (image only).
     let thumbnailUrl: string | null = null;
     if (validation.kind === "image") {
       thumbnailUrl = URL.createObjectURL(file);

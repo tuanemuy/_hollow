@@ -48,7 +48,6 @@ beforeEach(() => {
   presignMediaMock.mockClear();
   finalizeMediaMock.mockClear();
 
-  // Mock URL.createObjectURL and URL.revokeObjectURL
   originalCreateObjectURL = URL.createObjectURL;
   originalRevokeObjectURL = URL.revokeObjectURL;
   vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
@@ -62,7 +61,6 @@ afterEach(() => {
   container.remove();
   vi.clearAllMocks();
 
-  // Restore URL methods
   URL.createObjectURL = originalCreateObjectURL;
   URL.revokeObjectURL = originalRevokeObjectURL;
 });
@@ -222,7 +220,6 @@ describe("MediaUploader component", () => {
 
   describe("successful upload flow", () => {
     beforeEach(() => {
-      // Mock XHR for successful upload
       const originalXHRClass = globalThis.XMLHttpRequest;
       originalXhr = originalXHRClass;
 

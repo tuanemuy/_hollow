@@ -35,12 +35,10 @@ export function formatMegabytes(bytes: number): string {
  * @returns validation result with kind (success) or reason (failure)
  */
 export function validateMediaFile(file: File): MediaValidationResult {
-  // Format check: image/* or video/* MIME types.
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
     return { ok: false, reason: "unsupported" };
   }
 
-  // Size check: must not exceed BYTE_SIZE_MAX.
   if (file.size > BYTE_SIZE_MAX) {
     return {
       ok: false,
@@ -49,7 +47,6 @@ export function validateMediaFile(file: File): MediaValidationResult {
     };
   }
 
-  // Both checks pass: derive canonical kind from MIME type.
   const kind = file.type.startsWith("video/") ? "video" : "image";
   return { ok: true, kind };
 }
