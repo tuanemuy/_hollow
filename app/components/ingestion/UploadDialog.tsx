@@ -10,6 +10,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { Skeleton } from "@/components/common/Skeleton";
 import {
+  DROPZONE,
   dialogTitle,
   field,
   fieldControl,
@@ -54,9 +55,6 @@ type Props = {
   open: boolean;
   onClose: () => void;
 };
-
-const DROPZONE =
-  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
 
 /**
  * Pure derivation of the SR status text for the current view. Used inside

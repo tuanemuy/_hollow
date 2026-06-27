@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 const MIME_TYPE_MAX_LENGTH = 255;
-const BYTE_SIZE_MAX = 5 * 1024 * 1024 * 1024; // 5 GiB safety cap
+/** Maximum byte size for media uploads (client and server SSOT). */
+export const BYTE_SIZE_MAX = 5 * 1024 * 1024 * 1024; // 5 GiB safety cap
 
 const mediaKindSchema = z.enum(["image", "video", "avatar"]);
 

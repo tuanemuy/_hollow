@@ -837,6 +837,126 @@
   }
   @keyframes blink { to { visibility: hidden; } }
 
+  /* ===== In-body media upload (#795) ===== */
+  /* editor 本文へ画像/動画を挿入する UI。dropzone は P13 (.dropzone)、
+     preview の進捗は P13 (.progress)、バナーは ALERT プリミティブを踏襲する。
+     狭幅向けにパディングを詰め、タップターゲットは最低 44px を確保する。 */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .alert-body code { font-family: var(--font-mono); font-size: var(--text-xs); }
+  .media-upload {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-hairline);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .media-upload-label {
+    font-size: 12px;
+    color: var(--color-ink-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  /* モック専用: 各状態の見分け用ラベル（実装は排他表示で出ない） */
+  .media-state-label {
+    font-size: 11px;
+    color: var(--color-ink-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: -6px;
+  }
+  /* Dropzone (P13 .dropzone を踏襲。領域全体がクリック可能な label = 大きなタップ床) */
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 2px dashed var(--color-hairline-strong);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-xl);
+    padding: 24px 16px;
+    text-align: center;
+    transition: var(--transition-default);
+    cursor: pointer;
+    color: var(--color-ink-secondary);
+  }
+  .dropzone:hover,
+  .dropzone.dragging,
+  .dropzone[data-dragover] {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+  .dropzone-icon {
+    width: 52px; height: 52px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    margin-bottom: var(--space-3);
+    box-shadow: var(--shadow-xs);
+  }
+  .dropzone-title { font-size: var(--text-base); color: var(--color-ink-secondary); margin-bottom: 8px; }
+  .dropzone-title strong { color: var(--color-ink); font-weight: var(--weight-semibold); }
+  .dropzone-sub { font-size: var(--text-sm); color: var(--color-ink-tertiary); }
+  /* Preview + progress (uploading): サムネ + filename/size + determinate バーを併記 */
+  .media-preview {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-3);
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+  }
+  .media-thumb {
+    width: 48px; height: 48px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: linear-gradient(135deg, #c9d3df 0%, #8e99a8 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .media-thumb.icon { background: var(--color-surface); color: var(--color-accent); }
+  .media-preview-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .media-filename {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .media-filesize { font-size: var(--text-xs); color: var(--color-ink-tertiary); }
+  .progress {
+    height: 4px;
+    background: var(--color-surface);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    width: 100%;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width var(--duration-slow) var(--ease-standard);
+  }
+  .media-progress-text {
+    font-size: var(--text-xs);
+    color: var(--color-ink-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  /* media-upload 内の ALERT は section の gap に従うため個別 margin を消す */
+  .media-upload .alert { margin-bottom: 0; }
+  /* 再試行ボタンは 44px タップ床を確保（pill-btn ではないため個別指定） */
+  .media-upload .alert button { min-height: 44px; }
+
   /* ===== Bottom-fixed save CTA bar (主要アクションを下部固定) ===== */
   .save-bar {
     position: fixed;
@@ -1123,6 +1243,114 @@
         <h3>確認ポイント</h3>
         <p>計画書の公開先は <code>Projects / Q2 計画</code> に固定する予定。レビュー後に <strong>限定公開リンク</strong> を発行して関係者に共有する<span class="caret" aria-hidden="true"></span></p>
       </div>
+
+      <!-- In-body media upload (#795): editor 本文に画像/動画を挿入する UI。
+           実装は idle | uploading | error | done を排他表示するが、モックでは
+           各状態を縦に並記して見比べられるようにする（選択即アップロード方針）。 -->
+      <div class="media-upload">
+        <div class="media-upload-label">メディアを挿入</div>
+
+        <!-- 状態: idle (dropzone) — 領域全体がクリック可能な label + 非表示 input -->
+        <div class="media-state-label">idle</div>
+        <label class="dropzone">
+          <input type="file" accept="image/*,video/*" class="sr-only" aria-label="画像・動画を選択">
+          <span class="dropzone-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </span>
+          <div class="dropzone-title"><strong>画像・動画をドラッグ&ドロップ</strong> またはクリックして選択</div>
+          <div class="dropzone-sub">対応形式: 画像・動画 / 1ファイルずつ</div>
+        </label>
+
+        <!-- 状態: dragging (ドラッグオーバー中の強調) -->
+        <div class="media-state-label">idle — dragging</div>
+        <label class="dropzone dragging" data-dragover="">
+          <input type="file" accept="image/*,video/*" class="sr-only" aria-label="画像・動画を選択" tabindex="-1">
+          <span class="dropzone-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </span>
+          <div class="dropzone-title"><strong>画像・動画をドラッグ&ドロップ</strong> またはクリックして選択</div>
+          <div class="dropzone-sub">対応形式: 画像・動画 / 1ファイルずつ</div>
+        </label>
+
+        <!-- 状態: uploading (画像プレビュー + 進捗を併記) -->
+        <div class="media-state-label">uploading — image</div>
+        <div class="media-preview">
+          <span class="media-thumb" aria-hidden="true"></span>
+          <div class="media-preview-body">
+            <div class="media-filename">diagram.png</div>
+            <div class="media-filesize">1.4 MB</div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62" aria-label="アップロード進捗">
+              <div class="progress-bar" style="width: 62%;"></div>
+            </div>
+            <span class="media-progress-text" aria-live="polite">アップロード中… (62%)</span>
+          </div>
+        </div>
+
+        <!-- 状態: uploading (動画/非画像はアイコンプレビュー) -->
+        <div class="media-state-label">uploading — video</div>
+        <div class="media-preview">
+          <span class="media-thumb icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+          </span>
+          <div class="media-preview-body">
+            <div class="media-filename">clip.mov</div>
+            <div class="media-filesize">18.2 MB</div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-label="アップロード進捗">
+              <div class="progress-bar" style="width: 34%;"></div>
+            </div>
+            <span class="media-progress-text" aria-live="polite">アップロード中… (34%)</span>
+          </div>
+        </div>
+
+        <!-- 状態: error — 非対応形式（検証 NG。uploading に遷移せずバナー表示） -->
+        <div class="media-state-label">idle — rejected (unsupported)</div>
+        <div class="alert alert-error" role="alert">
+          <span class="alert-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          <div class="alert-content">
+            <p class="alert-title">対応していない形式です</p>
+            <p class="alert-body"><code>document.pdf</code> はアップロードできません。画像・動画ファイルのみ追加できます。</p>
+          </div>
+        </div>
+
+        <!-- 状態: warning — サイズ超過（検証 NG） -->
+        <div class="media-state-label">idle — rejected (oversized)</div>
+        <div class="alert alert-warning" role="alert">
+          <span class="alert-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </span>
+          <div class="alert-content">
+            <p class="alert-title">ファイルサイズが大きすぎます</p>
+            <p class="alert-body"><code>movie.mov (6.2 GB)</code> は上限 5 GB を超えています。</p>
+          </div>
+        </div>
+
+        <!-- 状態: error — アップロード失敗 + 再試行 (RetryableError 相当) -->
+        <div class="media-state-label">error — retryable</div>
+        <div class="alert alert-error" role="alert">
+          <span class="alert-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </span>
+          <div class="alert-content">
+            <p class="alert-title">アップロードに失敗しました</p>
+            <p class="alert-body">通信エラーにより <code>diagram.png</code> を追加できませんでした。</p>
+          </div>
+          <button type="button">再試行</button>
+        </div>
+
+        <!-- 状態: done (success) -->
+        <div class="media-state-label">done</div>
+        <div class="alert alert-success" role="status">
+          <span class="alert-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </span>
+          <div class="alert-content">
+            <p class="alert-title">ノートに挿入しました</p>
+            <p class="alert-body"><code>diagram.png</code> を本文に追加しました。</p>
+          </div>
+        </div>
+      </div><!-- /media-upload (#795) -->
 
       <!-- Internal-link suggestion (`[[` completion) — 静的見本 -->
       <div class="link-suggest">

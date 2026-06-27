@@ -16,6 +16,7 @@ import {
   ALERT_ICON,
   ALERT_TITLE,
   ALERT_WARNING,
+  DROPZONE,
 } from "@/components/common/styles";
 import { IngestionService } from "@/core/domain/ingestion/service";
 import { DEFAULT_MAX_INGESTION_BYTES } from "@/core/domain/ingestion/valueObject";
@@ -26,9 +27,6 @@ import {
 import { AudioRecorder } from "./AudioRecorder";
 import { uploadFileFn } from "./actions";
 import { notifyIngestionQueueChanged } from "./queueBadgeBus";
-
-const DROPZONE =
-  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
 
 /**
  * Human-readable enumeration of the supported formats for the unsupported-format
