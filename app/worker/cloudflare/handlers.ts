@@ -5,12 +5,15 @@ import type {
 } from "@cloudflare/workers-types";
 import {
   createConsumerContainer,
+  createRequestContainer,
   createWorkerContainer,
   readIndexerTuning,
   readPruneTuning,
   readRelayTuning,
+  readRequestServerConfig,
   type ServerEnv,
 } from "@/core/application/di/serverCloudflare";
+import { purgeExpiredExports } from "@/core/application/export/purgeExpiredExports";
 import { dispatchDomainEvent } from "@/core/application/workers/dispatchDomainEvent";
 import {
   type EventDispatcher,
@@ -27,8 +30,10 @@ import {
   processIndexJobs,
 } from "@/core/application/workers/processIndexJobs";
 import { pruneActivityLog } from "@/core/application/workers/pruneActivityLog";
+import { pruneExportJobs } from "@/core/application/workers/pruneExportJobs";
 import { pruneLlmCallLog } from "@/core/application/workers/pruneLlmCallLog";
 import { pruneProcessedEvents } from "@/core/application/workers/pruneProcessedEvents";
+import { pruneTagMergeJobs } from "@/core/application/workers/pruneTagMergeJobs";
 import type { DomainEvent } from "@/core/domain/common/event";
 
 export type RelayEnv = ServerEnv &
@@ -94,15 +99,25 @@ export async function runRelayTick(
  *   (ADR-007).
  * - the `llm_call_log` read-model (#748 ADR-005), likewise untouched by
  *   the outbox pruner.
+ * - terminal `export_jobs` / `tag_merge_jobs` rows past their retention
+ *   window (Issue #783).
+ *
+ * It also drives `purgeExpiredExports` (Issue #783 ADR-005): purge runs
+ * *before* the export-jobs prune so the `completed → expired` transition
+ * is advanced first, closing the `completed → expired → prune` chain. A
+ * row newly transitioned to `expired` in this same tick has `updated_at =
+ * now` (≥ the retention cutoff), so it is not pruned this tick but on a
+ * later one once the window elapses — purge is not an immediate delete.
  *
  * The outbox prune runs first; nothing is committed until it succeeds,
- * so it may throw. Every prune *after* it (processed-events, activity,
- * llm-call-log) runs best-effort in its own try/catch: a transient D1
- * failure there must not unwind the already-committed outbox delete nor
- * block the other post-outbox prunes, so it is swallowed and logged — the
- * same per-row tolerance the worker uses elsewhere (CLAUDE.md
- * "worker → root"). A swallowed processed-events failure surfaces as a
- * `0` count in the result.
+ * so it may throw. Every step *after* it (processed-events, activity,
+ * llm-call-log, purge, export-jobs, tag-merge-jobs) runs best-effort in
+ * its own try/catch: a transient D1 failure there must not unwind the
+ * already-committed outbox delete nor block the other post-outbox steps,
+ * so it is swallowed and logged — the same per-row tolerance the worker
+ * uses elsewhere (CLAUDE.md "worker → root"). A swallowed processed-events
+ * failure surfaces as a `0` count in the result; purge and the two
+ * job-state prunes are log-only and do not extend the returned contract.
  */
 export async function runPruneTick(
   env: PrunerEnv,
@@ -139,6 +154,42 @@ export async function runPruneTick(
     await pruneLlmCallLog(container);
   } catch (error) {
     container.logger.error("[prune] llm-call-log prune failed", {
+      cause: error,
+    });
+  }
+  // Advance `completed → expired` before the export-jobs prune so the
+  // GC chain is closed (Issue #783 ADR-005). Built off a separate
+  // `RequestContainer` because purge needs the UoW + objectStorage that
+  // the `WorkerContainer` intentionally omits; best-effort so a missing R2
+  // binding (unavailable objectStorage) or a stuck artifact cannot unwind
+  // the tick.
+  try {
+    const purgeContainer = createRequestContainer(readRequestServerConfig(env));
+    const { expired } = await purgeExpiredExports({
+      container: purgeContainer,
+      input: {},
+    });
+    container.logger.info(`[prune] expired ${expired} export(s)`, { expired });
+  } catch (error) {
+    container.logger.error("[prune] expired-export purge failed", {
+      cause: error,
+    });
+  }
+  try {
+    await pruneExportJobs(container, {
+      retentionMs: tuning.exportJobsRetentionMs,
+    });
+  } catch (error) {
+    container.logger.error("[prune] export-jobs prune failed", {
+      cause: error,
+    });
+  }
+  try {
+    await pruneTagMergeJobs(container, {
+      retentionMs: tuning.tagMergeJobsRetentionMs,
+    });
+  } catch (error) {
+    container.logger.error("[prune] tag-merge-jobs prune failed", {
       cause: error,
     });
   }

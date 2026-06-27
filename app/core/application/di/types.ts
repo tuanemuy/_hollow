@@ -30,6 +30,7 @@ import type { LlmCallLogRecorder } from "../llmCallLog/ports";
 import type { Clock } from "../ports/clock";
 import type { IdempotencyStore } from "../ports/idempotencyStore";
 import type { IdGenerator } from "../ports/idGenerator";
+import type { JobStatePruner } from "../ports/jobStatePruner";
 import type { Logger } from "../ports/logger";
 import type { OutboxRepository } from "../ports/outboxRepository";
 import type { PromptPreviewRateLimiter } from "../ports/promptPreviewRateLimiter";
@@ -333,6 +334,14 @@ export type WorkerContainer = SharedDeps &
      * {@link RequestContainer}.
      */
     llmCallLogRecorder: LlmCallLogRecorder;
+    /**
+     * Terminal job-state row pruner. Used by the pruner's daily tick
+     * (`pruneExportJobs` / `pruneTagMergeJobs`) to GC terminal
+     * `export_jobs` / `tag_merge_jobs` rows past the retention window. A
+     * worker-maintenance port separate from the UoW-bound aggregate
+     * repositories (Issue #783 ADR-001).
+     */
+    jobStatePruner: JobStatePruner;
   }>;
 
 /**
@@ -343,13 +352,21 @@ export type WorkerContainer = SharedDeps &
  * `idempotencyStore`, `indexJobRepository`) used by handler glue and
  * downstream consumers.
  *
- * `Pick<WorkerContainer, ...>` picks only the three worker-exclusive
- * ports rather than spreading the whole `WorkerContainer` so the
- * `searchIndex` port (present on both `RequestContainer` and
- * `WorkerContainer`) is not duplicated / shadowed.
+ * `Pick<WorkerContainer, ...>` picks only the worker-exclusive ports
+ * rather than spreading the whole `WorkerContainer` so the `searchIndex`
+ * port (present on both `RequestContainer` and `WorkerContainer`) is not
+ * duplicated / shadowed.
+ *
+ * `jobStatePruner` is picked even though the consumer never prunes: the
+ * queue dispatch handlers (`searchHandleNoteTrashedEvent`,
+ * `handleNoteSavedEvent`, …) are typed against `WorkerContainer`, so the
+ * consumer container must stay assignable to it (Issue #783 ADR-006).
  */
 export type ConsumerContainer = RequestContainer &
   Pick<
     WorkerContainer,
-    "outboxRepository" | "idempotencyStore" | "indexJobRepository"
+    | "outboxRepository"
+    | "idempotencyStore"
+    | "indexJobRepository"
+    | "jobStatePruner"
   >;

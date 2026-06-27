@@ -33,6 +33,7 @@ import { D1PromptResolver } from "../promptResolver";
 import { D1ActivityLogRepository } from "../repositories/activityLogRepository";
 import { D1IdempotencyStore } from "../repositories/idempotencyStore";
 import { D1IndexJobRepository } from "../repositories/indexJobRepository";
+import { D1JobStatePruner } from "../repositories/jobStatePruner";
 import { D1LlmCallLogRecorder } from "../repositories/llmCallLogRecorder";
 import { D1OutboxRepository } from "../repositories/outboxRepository";
 import { D1PromptPreviewRateLimiter } from "../repositories/promptPreviewRateLimiter";
@@ -152,6 +153,7 @@ export function createTestContainer(): TestContainer {
     ),
     activityLogRepository: new D1ActivityLogRepository(db),
     llmCallLogRecorder: new D1LlmCallLogRecorder(db),
+    jobStatePruner: new D1JobStatePruner(db),
     llmProviderName: "anthropic",
     sessionService: new D1SessionService(db, SystemClock, UuidV7Generator),
     emailSender: new ConsoleEmailSender(ConsoleLogger),

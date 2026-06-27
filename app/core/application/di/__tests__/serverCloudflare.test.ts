@@ -16,7 +16,9 @@ import {
   DEFAULT_MAX_ATTEMPTS,
 } from "@/core/application/workers/eventRelayWorker";
 import { DEFAULT_OUTBOX_RETENTION_MS } from "@/core/application/workers/outboxPrune";
+import { DEFAULT_EXPORT_JOBS_RETENTION_MS } from "@/core/application/workers/pruneExportJobs";
 import { DEFAULT_PROCESSED_EVENTS_RETENTION_MS } from "@/core/application/workers/pruneProcessedEvents";
+import { DEFAULT_TAG_MERGE_JOBS_RETENTION_MS } from "@/core/application/workers/pruneTagMergeJobs";
 import {
   SecretBoxError,
   SecretBoxErrorCode,
@@ -123,6 +125,8 @@ describe("readPruneTuning", () => {
     expect(tuning).toEqual({
       retentionMs: DEFAULT_OUTBOX_RETENTION_MS,
       processedEventsRetentionMs: DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+      exportJobsRetentionMs: DEFAULT_EXPORT_JOBS_RETENTION_MS,
+      tagMergeJobsRetentionMs: DEFAULT_TAG_MERGE_JOBS_RETENTION_MS,
     });
   });
 
@@ -131,11 +135,15 @@ describe("readPruneTuning", () => {
       envWith({
         OUTBOX_RETENTION_MS: "86400000",
         PROCESSED_EVENTS_RETENTION_MS: "172800000",
+        EXPORT_JOBS_RETENTION_MS: "259200000",
+        TAG_MERGE_JOBS_RETENTION_MS: "345600000",
       }),
     );
     expect(tuning).toEqual({
       retentionMs: 86_400_000,
       processedEventsRetentionMs: 172_800_000,
+      exportJobsRetentionMs: 259_200_000,
+      tagMergeJobsRetentionMs: 345_600_000,
     });
   });
 
@@ -146,7 +154,25 @@ describe("readPruneTuning", () => {
     expect(tuning).toEqual({
       retentionMs: 86_400_000,
       processedEventsRetentionMs: DEFAULT_PROCESSED_EVENTS_RETENTION_MS,
+      exportJobsRetentionMs: DEFAULT_EXPORT_JOBS_RETENTION_MS,
+      tagMergeJobsRetentionMs: DEFAULT_TAG_MERGE_JOBS_RETENTION_MS,
     });
+  });
+
+  it("defaults the job-state retentions independently and rejects bad values", () => {
+    const tuning = readPruneTuning(
+      envWith({ EXPORT_JOBS_RETENTION_MS: "999" }),
+    );
+    expect(tuning.exportJobsRetentionMs).toBe(999);
+    expect(tuning.tagMergeJobsRetentionMs).toBe(
+      DEFAULT_TAG_MERGE_JOBS_RETENTION_MS,
+    );
+    expect(() =>
+      readPruneTuning(envWith({ EXPORT_JOBS_RETENTION_MS: "0" })),
+    ).toThrow();
+    expect(() =>
+      readPruneTuning(envWith({ TAG_MERGE_JOBS_RETENTION_MS: "forever" })),
+    ).toThrow();
   });
 
   it("rejects non-positive retention", () => {

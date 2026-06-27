@@ -14,6 +14,7 @@ import { D1PromptResolver } from "@/core/adapters/d1/promptResolver";
 import { D1ActivityLogRepository } from "@/core/adapters/d1/repositories/activityLogRepository";
 import { D1IdempotencyStore } from "@/core/adapters/d1/repositories/idempotencyStore";
 import { D1IndexJobRepository } from "@/core/adapters/d1/repositories/indexJobRepository";
+import { D1JobStatePruner } from "@/core/adapters/d1/repositories/jobStatePruner";
 import { D1LlmCallLogRecorder } from "@/core/adapters/d1/repositories/llmCallLogRecorder";
 import { D1OutboxRepository } from "@/core/adapters/d1/repositories/outboxRepository";
 import { D1PromptPreviewRateLimiter } from "@/core/adapters/d1/repositories/promptPreviewRateLimiter";
@@ -325,6 +326,8 @@ export type ServerEnv = Readonly<{
   OUTBOX_MAX_ATTEMPTS?: string;
   OUTBOX_RETENTION_MS?: string;
   PROCESSED_EVENTS_RETENTION_MS?: string;
+  EXPORT_JOBS_RETENTION_MS?: string;
+  TAG_MERGE_JOBS_RETENTION_MS?: string;
   // Indexer tuning. Parsed by `readIndexerTuning` at the worker entry
   // boundary; missing values fall back to defaults exported from
   // `processIndexJobs.ts`.
@@ -965,6 +968,10 @@ export async function createConsumerContainer(
     outboxRepository: workerContainer.outboxRepository,
     idempotencyStore: workerContainer.idempotencyStore,
     indexJobRepository: workerContainer.indexJobRepository,
+    // Unused by the consumer, but kept so `ConsumerContainer` stays
+    // assignable to the `WorkerContainer` that the dispatch handlers
+    // require (Issue #783 ADR-006).
+    jobStatePruner: workerContainer.jobStatePruner,
     // `activityLogRepository` is inherited from the spread request
     // container (request-safe, same D1 binding) — no separate worker
     // instance needed here.
@@ -1235,5 +1242,6 @@ export function createWorkerContainer(env: ServerEnv): WorkerContainer {
     ),
     activityLogRepository: new D1ActivityLogRepository(db),
     llmCallLogRecorder: new D1LlmCallLogRecorder(db),
+    jobStatePruner: new D1JobStatePruner(db),
   };
 }

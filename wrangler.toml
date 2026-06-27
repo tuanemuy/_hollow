@@ -258,12 +258,39 @@ OUTBOX_RETENTION_MS = "604800000"   # 7 days
 # `message_retention_period`. Matches `DEFAULT_PROCESSED_EVENTS_RETENTION_MS`
 # in `app/core/application/workers/pruneProcessedEvents.ts` (Issue #747).
 PROCESSED_EVENTS_RETENTION_MS = "1209600000"   # 14 days
+# Terminal `export_jobs` row retention (`failed` / `cancelled` / `expired`;
+# `completed` is excluded — its artifact lifecycle is owned by the expired
+# purge). Matches `DEFAULT_EXPORT_JOBS_RETENTION_MS` in
+# `app/core/application/workers/pruneExportJobs.ts` (Issue #783).
+EXPORT_JOBS_RETENTION_MS = "604800000"   # 7 days
+# Terminal `tag_merge_jobs` row retention (`completed` / `failed`). Matches
+# `DEFAULT_TAG_MERGE_JOBS_RETENTION_MS` in
+# `app/core/application/workers/pruneTagMergeJobs.ts` (Issue #783).
+TAG_MERGE_JOBS_RETENTION_MS = "604800000"   # 7 days
+# Object-storage bucket name consulted by `createRequestContainer` when
+# building the purge container (Issue #783 ADR-005). Required for purge to
+# actually delete expired R2 artifacts — see the `OBJECT_STORAGE` binding
+# below.
+R2_OBJECT_BUCKET_NAME = "hollow-local-objects"
 
 [[env.pruner.d1_databases]]
 binding = "DB"
 database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
+
+# The pruner now drives `purgeExpiredExports` (Issue #783 ADR-005), which
+# deletes expired export artifacts from R2. Mirrors the `[env.consumer]`
+# binding (same bucket). The three SigV4 presign secrets
+# (`R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) are
+# injected at deploy time via SOPS, never placed in `[vars]`. If the
+# binding or any presign secret is missing, `createRequestContainer` falls
+# back to an unavailable objectStorage whose `delete` throws
+# `StorageUnavailableError` — purge's per-row catch keeps the tick running
+# but the artifact is left orphaned, so production must supply all of them.
+[[env.pruner.r2_buckets]]
+binding = "OBJECT_STORAGE"
+bucket_name = "hollow-local-objects"
 
 [env.pruner.triggers]
 crons = ["0 3 * * *"] # 03:00 UTC daily

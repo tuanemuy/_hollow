@@ -9,7 +9,9 @@ import {
   DEFAULT_INDEXER_BATCH_SIZE,
   DEFAULT_INDEXER_MAX_BATCHES,
 } from "../workers/processIndexJobs";
+import { DEFAULT_EXPORT_JOBS_RETENTION_MS } from "../workers/pruneExportJobs";
 import { DEFAULT_PROCESSED_EVENTS_RETENTION_MS } from "../workers/pruneProcessedEvents";
+import { DEFAULT_TAG_MERGE_JOBS_RETENTION_MS } from "../workers/pruneTagMergeJobs";
 
 /** Worker-tuning env variables shared by both runtimes. */
 export type TuningEnv = Readonly<{
@@ -18,6 +20,8 @@ export type TuningEnv = Readonly<{
   OUTBOX_MAX_ATTEMPTS?: string | undefined;
   OUTBOX_RETENTION_MS?: string | undefined;
   PROCESSED_EVENTS_RETENTION_MS?: string | undefined;
+  EXPORT_JOBS_RETENTION_MS?: string | undefined;
+  TAG_MERGE_JOBS_RETENTION_MS?: string | undefined;
   INDEXER_BATCH_SIZE?: string | undefined;
   INDEXER_MAX_BATCHES?: string | undefined;
 }>;
@@ -39,6 +43,16 @@ const pruneTuningSchema = z.object({
     .int()
     .positive()
     .default(DEFAULT_PROCESSED_EVENTS_RETENTION_MS),
+  exportJobsRetentionMs: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_EXPORT_JOBS_RETENTION_MS),
+  tagMergeJobsRetentionMs: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_TAG_MERGE_JOBS_RETENTION_MS),
 });
 
 const indexerTuningSchema = z.object({
@@ -70,6 +84,8 @@ export function readPruneTuning(env: TuningEnv): PruneTuning {
   return pruneTuningSchema.parse({
     retentionMs: env.OUTBOX_RETENTION_MS,
     processedEventsRetentionMs: env.PROCESSED_EVENTS_RETENTION_MS,
+    exportJobsRetentionMs: env.EXPORT_JOBS_RETENTION_MS,
+    tagMergeJobsRetentionMs: env.TAG_MERGE_JOBS_RETENTION_MS,
   });
 }
 

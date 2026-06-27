@@ -24,6 +24,7 @@ import {
   processedEvents,
   publicationStates,
   searchDocuments,
+  tagMergeJobs,
   users,
 } from "@/core/adapters/d1/schema";
 import { StubLLMProvider } from "@/core/adapters/stub/llmProvider";
@@ -202,6 +203,54 @@ async function seedLlmCallLog(params: {
     occurredAt: params.occurredAt.toISOString(),
     createdAt: params.occurredAt,
   });
+}
+
+let terminalExportSeq = 0;
+async function seedExportJobRow(params: {
+  status: string;
+  updatedAt: string;
+}): Promise<string> {
+  terminalExportSeq += 1;
+  const db = getDatabase(env.DB);
+  const id = `0193e7d0-${terminalExportSeq.toString(16).padStart(4, "0")}-7000-c000-100000000000`;
+  await db.insert(exportJobs).values({
+    id,
+    ownerId: OWNER_ID,
+    format: "html",
+    scope: "single",
+    optionsJson: "{}",
+    status: params.status,
+    // `completed` carries a live artifact in production; seed one so a
+    // regression that prunes `completed` would visibly orphan it.
+    artifactKey:
+      params.status === "completed" ? `${OWNER_ID}/export/${id}` : null,
+    version: 0,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: params.updatedAt,
+    expiresAt: null,
+  });
+  return id;
+}
+
+let terminalMergeSeq = 0;
+async function seedTagMergeJobRow(params: {
+  status: string;
+  updatedAt: string;
+}): Promise<string> {
+  terminalMergeSeq += 1;
+  const db = getDatabase(env.DB);
+  const id = `0193e7d0-${terminalMergeSeq.toString(16).padStart(4, "0")}-7000-c000-200000000000`;
+  await db.insert(tagMergeJobs).values({
+    id,
+    ownerId: OWNER_ID,
+    sourceTagId: "0193e7d0-0000-7000-c000-300000000001",
+    targetTagId: "0193e7d0-0000-7000-c000-300000000002",
+    status: params.status,
+    version: 0,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: params.updatedAt,
+  });
+  return id;
 }
 
 async function seedOutbox(events: readonly DomainEvent[]): Promise<void> {
@@ -431,6 +480,70 @@ describe("pruner Worker — runPruneTick", () => {
     // ...and the activity-log prune still ran to its delete call.
     expect(activitySpy).toHaveBeenCalled();
     expect(activitySpy.mock.results[0]?.type).toBe("return");
+  });
+
+  // Issue #783: end-to-end proof that `runPruneTick` drives the real
+  // `D1JobStatePruner` against real D1 — the `runPruneTick.test.ts` unit
+  // mocks the prune usecases wholesale, so the container → adapter → DELETE
+  // seam is only covered here. The best-effort try/catch in `runPruneTick`
+  // would otherwise let a wiring regression vanish silently.
+  it("prunes old terminal export_jobs / tag_merge_jobs rows while keeping completed, non-terminal, and recent rows", async () => {
+    await seedOwner(OWNER_ID);
+    const db = getDatabase(env.DB);
+    // Default retention is 7 days; stamp terminal rows well beyond it and
+    // recent rows inside it.
+    const old = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const recent = new Date(Date.now() - 60 * 1000).toISOString();
+
+    const oldFailedExport = await seedExportJobRow({
+      status: "failed",
+      updatedAt: old,
+    });
+    // `completed` is excluded by the predicate however old it is, so its
+    // live artifact is never orphaned (ADR-003).
+    const oldCompletedExport = await seedExportJobRow({
+      status: "completed",
+      updatedAt: old,
+    });
+    const recentFailedExport = await seedExportJobRow({
+      status: "failed",
+      updatedAt: recent,
+    });
+    const oldPendingExport = await seedExportJobRow({
+      status: "pending",
+      updatedAt: old,
+    });
+
+    const oldCompletedMerge = await seedTagMergeJobRow({
+      status: "completed",
+      updatedAt: old,
+    });
+    const recentCompletedMerge = await seedTagMergeJobRow({
+      status: "completed",
+      updatedAt: recent,
+    });
+    const oldProcessingMerge = await seedTagMergeJobRow({
+      status: "processing",
+      updatedAt: old,
+    });
+
+    await runPruneTick(prunerEnv());
+
+    const remainingExports = (
+      await db.select({ id: exportJobs.id }).from(exportJobs)
+    ).map((r) => r.id);
+    expect(remainingExports.sort()).toEqual(
+      [oldCompletedExport, recentFailedExport, oldPendingExport].sort(),
+    );
+    expect(remainingExports).not.toContain(oldFailedExport);
+
+    const remainingMerges = (
+      await db.select({ id: tagMergeJobs.id }).from(tagMergeJobs)
+    ).map((r) => r.id);
+    expect(remainingMerges.sort()).toEqual(
+      [recentCompletedMerge, oldProcessingMerge].sort(),
+    );
+    expect(remainingMerges).not.toContain(oldCompletedMerge);
   });
 });
 
