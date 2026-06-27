@@ -131,7 +131,8 @@ describe("GeminiSpeechRecognitionProvider", () => {
     it("rejects audio whose base64-encoded size exceeds the request ceiling without calling fetch", async () => {
       const mock = vi.fn();
       setFetch(mock);
-      // 15 MiB raw base64-inflates past the 20MB total-request ceiling.
+      // 15 MiB raw base64-inflates (~20.97 MB) past the 18 MiB encoded ceiling,
+      // which itself sits below Gemini's ~20MB total-request limit.
       const oversize = {
         ...INPUT,
         audioBytes: new ArrayBuffer(15 * 1024 * 1024 + 1),
@@ -140,6 +141,22 @@ describe("GeminiSpeechRecognitionProvider", () => {
         SpeechFailureError,
       );
       expect(mock).not.toHaveBeenCalled();
+    });
+
+    it("sends audio whose base64-encoded size sits at the request ceiling to fetch", async () => {
+      const mock = vi.fn(async () =>
+        jsonResponse(200, transcriptResponse("ok")),
+      );
+      setFetch(mock);
+      // 13.5 MiB raw base64-inflates to exactly the 18 MiB encoded ceiling, so
+      // it passes the guard (boundary pin paired with the oversize-reject case
+      // so a future over-eager threshold change is caught on both sides).
+      const justUnder = {
+        ...INPUT,
+        audioBytes: new ArrayBuffer(13.5 * 1024 * 1024),
+      };
+      expect(await makeProvider().transcribe(justUnder)).toBe("ok");
+      expect(mock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -166,7 +183,7 @@ describe("GeminiSpeechRecognitionProvider", () => {
       }
     });
 
-    it("maps HTTP 401 to SpeechFailureError (quota path)", async () => {
+    it("maps HTTP 401 to SpeechFailureError carrying the status (quota path)", async () => {
       setFetch(
         vi.fn(async () =>
           jsonResponse(401, {
@@ -174,12 +191,19 @@ describe("GeminiSpeechRecognitionProvider", () => {
           }),
         ),
       );
-      await expect(makeProvider().transcribe(INPUT)).rejects.toBeInstanceOf(
-        SpeechFailureError,
-      );
+      try {
+        await makeProvider().transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        // Pin the status so a 401 silently folding into a generic fallthrough
+        // (instead of the quota branch) is caught, even though all four
+        // categories collapse to the same SpeechFailureError type.
+        expect((error as Error).message).toContain("HTTP 401");
+      }
     });
 
-    it("maps HTTP 403 to SpeechFailureError (quota path)", async () => {
+    it("maps HTTP 403 to SpeechFailureError carrying the status (quota path)", async () => {
       setFetch(
         vi.fn(async () =>
           jsonResponse(403, {
@@ -187,20 +211,28 @@ describe("GeminiSpeechRecognitionProvider", () => {
           }),
         ),
       );
-      await expect(makeProvider().transcribe(INPUT)).rejects.toBeInstanceOf(
-        SpeechFailureError,
-      );
+      try {
+        await makeProvider().transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        expect((error as Error).message).toContain("HTTP 403");
+      }
     });
 
-    it("maps HTTP 429 to SpeechFailureError (rate limit)", async () => {
+    it("maps HTTP 429 to SpeechFailureError carrying the status (rate limit)", async () => {
       setFetch(
         vi.fn(async () =>
           jsonResponse(429, { error: { status: "RESOURCE_EXHAUSTED" } }),
         ),
       );
-      await expect(makeProvider().transcribe(INPUT)).rejects.toBeInstanceOf(
-        SpeechFailureError,
-      );
+      try {
+        await makeProvider().transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        expect((error as Error).message).toContain("HTTP 429");
+      }
     });
 
     it("maps HTTP 500 to SpeechFailureError carrying the status", async () => {

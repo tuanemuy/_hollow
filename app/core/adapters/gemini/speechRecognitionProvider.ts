@@ -34,13 +34,17 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_TOKENS = 16_384;
 
 // Gemini's `inlineData` ceiling is the *total request size* (~20MB), and the
-// audio is base64-encoded into the JSON body (~33% inflation). Guarding on the
-// raw byte length would let a ~15-20MiB file through that base64-inflates past
-// 20MB and gets rejected by Gemini with a 4xx — which `runIngestionJob` would
-// then swallow into an empty transcript. So the guard is evaluated against the
-// *encoded* size. Oversize is rejected here rather than burning a round-trip
+// audio is base64-encoded into the JSON body (~33% inflation), so the guard is
+// evaluated against the *encoded* audio size. The ceiling is set below 20MB to
+// reserve headroom for the non-audio bytes that also count toward the total
+// request: the JSON envelope (`contents` / `inlineData` keys) and the
+// `systemInstruction` prompt — and to stay under Gemini's decimal ~20,000,000
+// limit rather than 20 MiB (= 20,971,520). Without that headroom a recording
+// that base64-inflates to just under 20 MiB would pass this guard only for
+// Gemini to reject it with a 4xx, which `runIngestionJob` then swallows into an
+// empty transcript. Oversize is rejected here rather than burning a round-trip
 // (symmetric with the OpenAI adapter's 25 MiB pre-flight).
-const MAX_REQUEST_BYTES = 20 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 18 * 1024 * 1024;
 
 const TRANSCRIBE_SYSTEM_PROMPT =
   "You are a speech-to-text engine. Transcribe the audio verbatim in its original spoken language. Do not add speaker labels, timestamps, or commentary. If no speech is present, return an empty string.";
