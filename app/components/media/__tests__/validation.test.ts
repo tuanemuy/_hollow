@@ -33,6 +33,21 @@ describe("validateMediaFile", () => {
       const result = validateMediaFile(file);
       expect(result).toEqual({ ok: false, reason: "unsupported" });
     });
+
+    it("rejects empty MIME type", () => {
+      const file = new File([], "test.jpg", { type: "" });
+      const result = validateMediaFile(file);
+      expect(result).toEqual({ ok: false, reason: "unsupported" });
+    });
+
+    it("rejects unsupported MIME types without sizeLabel", () => {
+      const file = new File([], "test.pdf", { type: "application/pdf" });
+      const result = validateMediaFile(file);
+      expect(result).toEqual({ ok: false, reason: "unsupported" });
+      if (result.ok === false && result.reason === "unsupported") {
+        expect("sizeLabel" in result).toBe(false);
+      }
+    });
   });
 
   describe("size validation", () => {
@@ -77,6 +92,24 @@ describe("validateMediaFile", () => {
         reason: "oversized",
         sizeLabel: "6144.0 MB",
       });
+    });
+
+    it("accepts 0-byte files with valid MIME type", () => {
+      const file = new File([], "empty.jpg", { type: "image/jpeg" });
+      Object.defineProperty(file, "size", { value: 0 });
+      const result = validateMediaFile(file);
+      expect(result).toEqual({ ok: true, kind: "image" });
+    });
+
+    it("returns unsupported when both format and size are invalid", () => {
+      const file = new File([], "test.pdf", { type: "application/pdf" });
+      const tenGiB = 10 * 1024 * 1024 * 1024;
+      Object.defineProperty(file, "size", { value: tenGiB });
+      const result = validateMediaFile(file);
+      expect(result).toEqual({ ok: false, reason: "unsupported" });
+      if (!result.ok) {
+        expect("sizeLabel" in result).toBe(false);
+      }
     });
   });
 

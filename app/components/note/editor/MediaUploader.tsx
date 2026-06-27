@@ -20,7 +20,11 @@ import {
   finalizeMediaUploadFn,
   presignMediaUploadFn,
 } from "@/components/media/actions";
-import { validateMediaFile } from "@/components/media/validation";
+import { BYTE_SIZE_MAX } from "@/components/media/schema";
+import {
+  formatMegabytes,
+  validateMediaFile,
+} from "@/components/media/validation";
 import {
   extractSerializedError,
   type SerializedError,
@@ -55,7 +59,7 @@ type UploadState =
   | {
       kind: "uploading";
       file: File;
-      kind_: "image" | "video";
+      mediaKind: "image" | "video";
       progress: number | null;
       thumbnailUrl: string | null;
     }
@@ -98,10 +102,6 @@ function putWithProgress(
     xhr.ontimeout = () => reject(new Error("Upload timed out"));
     xhr.send(file);
   });
-}
-
-function formatMegabytes(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function MediaUploader({
@@ -152,7 +152,7 @@ export function MediaUploader({
     setState({
       kind: "uploading",
       file,
-      kind_: validation.kind,
+      mediaKind: validation.kind,
       progress: null,
       thumbnailUrl,
     });
@@ -229,9 +229,13 @@ export function MediaUploader({
       htmlFor={inputId}
       className={DROPZONE}
       data-dragover={isDragOver ? "" : undefined}
+      data-disabled={
+        state.kind === "uploading" || disabled === true || undefined
+      }
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      aria-label="メディアを挿入"
     >
       <div className="text-center">
         <p className="text-sm text-ink-secondary mb-3">
@@ -248,7 +252,6 @@ export function MediaUploader({
         accept="image/*,video/*"
         onChange={onPick}
         disabled={disabled === true}
-        aria-label="メディアを挿入"
       />
     </label>
   );
@@ -294,7 +297,7 @@ export function MediaUploader({
                     {state.validationRejection.filename} (
                     {state.validationRejection.sizeLabel})
                   </code>{" "}
-                  は上限 5 GB を超えています。
+                  は上限 {formatMegabytes(BYTE_SIZE_MAX)} を超えています。
                 </>
               )}
             </p>
@@ -332,7 +335,7 @@ export function MediaUploader({
       {state.kind === "uploading" ? (
         <div className="flex gap-3">
           <div className="shrink-0">
-            {state.kind_ === "image" && state.thumbnailUrl ? (
+            {state.mediaKind === "image" && state.thumbnailUrl ? (
               <img
                 src={state.thumbnailUrl}
                 alt=""

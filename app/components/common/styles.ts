@@ -544,9 +544,11 @@ export const checkboxRow =
  * - click: native input triggers file picker
  * - drag: `onDragOver/onDragLeave/onDrop` handlers managed by the consumer
  * - `data-dragover=""`: activates the hover-emphasize variant (`data-[dragover]:…`)
+ * - `data-disabled=""`: suppresses interaction during upload or parent-disabled state
  *
  * Consumers must supply `data-dragover={isDragOver ? "" : undefined}` to toggle
- * the accent border/surface state during a drag.
+ * the accent border/surface state during a drag, and `data-disabled={disabled ? "" : undefined}`
+ * to visually suppress interaction during uploading or when the parent is disabled.
  */
 export const DROPZONE =
-  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface [&_input[type=file]]:hidden";
+  "block border-2 border-dashed border-hairline-strong rounded-xl px-6 py-12 text-center text-ink-secondary bg-surface-elevated transition-all motion-reduce:transition-none cursor-pointer hover:border-accent hover:bg-accent-surface data-[dragover]:border-accent data-[dragover]:bg-accent-surface data-[disabled]:pointer-events-none data-[disabled]:opacity-disabled [&_input[type=file]]:hidden";
