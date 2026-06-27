@@ -10,7 +10,7 @@ type AuthHeaderProps = {
 
 export function AuthHeader({ rightSlot }: AuthHeaderProps) {
   return (
-    <header className="sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)]">
+    <header className="sticky top-0 z-50 h-[var(--header-height)] flex items-center justify-between gap-5 border-b border-hairline bg-[var(--header-bg)] px-[var(--container-padding)] supports-[backdrop-filter]:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:[-webkit-backdrop-filter:var(--header-blur)]">
       <Link to="/" search={HOME_SEARCH} className="text-ink">
         <BrandLockup />
       </Link>
