@@ -194,6 +194,14 @@
     max-width: var(--content-max);
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
+    /*
+     * Wrap spaceless long strings (URLs, hashes) so they can't overflow the
+     * content width and trigger horizontal scroll (Issue #791). `overflow-wrap`
+     * is inherited, so this covers descendant text (p / a / li / td) from one
+     * place. `pre` keeps the browser default `white-space: pre`, which never
+     * soft-wraps, so its `overflow-x: auto` horizontal scroll is preserved.
+     */
+    overflow-wrap: break-word;
   }
 
   .note-detail-content > * + * {
