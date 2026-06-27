@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 /**
  * Roving-tabindex primitive for an always-visible, horizontally-laid-out
@@ -15,12 +15,14 @@ import { type RefObject, useRef, useState } from "react";
  *
  * Why not reuse `useRovingMenu`: that primitive is menu/listbox-only — it is
  * gated on `open` (popovers), drives focus through a `panelRef`, navigates
- * only vertically (ArrowUp/Down), and carries focus-restore / disabled-item
- * concerns a segmented control never needs. A segmented control is always
- * mounted, horizontal (ArrowLeft/Right primary) and has a fixed element
- * count. Generalizing `useRovingMenu` to cover this would risk the existing
- * menu/listbox call sites (open-reset, focus-restore invariants), so a small
- * dedicated hook is the right scope.
+ * only vertically (ArrowUp/Down), and carries disabled-item concerns a
+ * segmented control never needs. A segmented control is always mounted,
+ * horizontal (ArrowLeft/Right primary) and has a fixed element count. The
+ * focus-restore concern is shared (see below), but the menu's `open`-gated
+ * mechanism does not fit an always-mounted control, so this hook scopes it
+ * differently (keyboard-intent flag). Generalizing `useRovingMenu` to cover
+ * this would risk the existing menu/listbox call sites (open-reset,
+ * focus-restore invariants), so a small dedicated hook is the right scope.
  *
  * Index discipline (same as `useRovingMenu`): the CALLER owns `count` /
  * `selectedIndex` / `onSelect`. The hook's `querySelectorAll('[role="radio"],
@@ -50,6 +52,18 @@ import { type RefObject, useRef, useState } from "react";
  * `manualActivation` (Rules of Hooks); the automatic path simply does not read
  * the resulting `focusedIndex`.
  *
+ * Focus restore (automatic only, opt-in via `restoreFocusOnCommit`): same
+ * intent as `useRovingMenu.restoreFocusOnCommit` — a data-driven consumer whose
+ * arrow selection triggers an RSC re-render (e.g. `TagListToolbar`, where `sort`
+ * is in `loaderDeps`) loses the synchronous arrow `focus()` when the loader
+ * round-trip commits and drops focus to `<body>`, killing the next arrow press.
+ * The opt-in restores focus to the selected radio after that commit. Unlike
+ * `useRovingMenu`, a segmented control is always mounted and has no `open` gate
+ * to scope "the user is interacting now", so a keyboard-intent flag
+ * (`restorePendingRef`) scopes the restore instead: it is raised on an arrow /
+ * Home / End commit and cleared once the restore (or a deliberate move
+ * elsewhere) resolves, so an unrelated `<body>` focus is never hijacked.
+ *
  * Index invariant / safety valve: the "exactly one element is `tabIndex=0`"
  * guarantee depends on `focusedIndex ∈ [0, count)`. `count` is the surface's
  * tab-set size, which is invariant for the lifetime of a mount in every
@@ -76,6 +90,13 @@ type UseRovingTablistAutomatic = UseRovingTablistBase &
   Readonly<{
     manualActivation?: false;
     onSelect: (index: number) => void;
+    /**
+     * Opt-in: restore focus to the selected radio after a commit that dropped
+     * focus to `<body>` (the RSC re-render of a data-driven navigation). Off by
+     * default so client-only consumers (no re-render) are unaffected. See hook
+     * JSDoc / `useRovingMenu.restoreFocusOnCommit`.
+     */
+    restoreFocusOnCommit?: boolean;
   }>;
 
 /**
@@ -86,6 +107,13 @@ type UseRovingTablistManual = UseRovingTablistBase &
   Readonly<{
     manualActivation: true;
     onSelect?: (index: number) => void;
+    /**
+     * Declared as `never` so the option exists on both union members (making
+     * the hook's destructure type-safe) while making manual + restore an
+     * illegal, unrepresentable state. Manual (APG Tabs) is client-only with no
+     * RSC re-render, so the symptom never occurs.
+     */
+    restoreFocusOnCommit?: never;
   }>;
 
 export type UseRovingTablistOptions =
@@ -105,11 +133,15 @@ export function useRovingTablist({
   selectedIndex,
   onSelect,
   manualActivation = false,
+  restoreFocusOnCommit = false,
 }: UseRovingTablistOptions): UseRovingTablist {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Always declared (Rules of Hooks); only read on the manual path.
   const [focusedIndex, setFocusedIndex] = useState(selectedIndex);
   const prevSelectedRef = useRef(selectedIndex);
+  // Keyboard-intent flag for the focus-restore pass (automatic + opt-in only):
+  // raised on an arrow/Home/End commit, cleared once the restore resolves.
+  const restorePendingRef = useRef(false);
 
   // Render-time adjustment (manual only): when the selection commits
   // externally, follow it with the focus. Guarded by the ref compare so it
@@ -159,9 +191,39 @@ export function useRovingTablist({
       setFocusedIndex(next);
     } else {
       // Automatic (APG Radio Group): arrow move = immediate selection.
+      if (restoreFocusOnCommit) restorePendingRef.current = true;
       onSelect?.(next);
     }
   };
+
+  // Focus-restore pass (automatic, opt-in via `restoreFocusOnCommit`), run after
+  // EVERY commit (no dep array) so it can fire on the delayed body-drop. The
+  // synchronous arrow `focus()` survives commit-1 (optimistic) and is only
+  // dropped to `<body>` on commit-2 (the RSC re-render of the data-driven
+  // navigation); a dep-keyed effect would fire too early and miss it (same
+  // reasoning as `useRovingMenu`). The keyboard-intent flag scopes this to "an
+  // arrow press is in flight" — a segmented control is always mounted and has
+  // no `open` gate, so without the flag an unrelated `<body>` focus (initial
+  // load, window blur) would be hijacked. Guards: keep the flag while the
+  // synchronous focus is still on the target (commit-1); clear without
+  // restoring if the user moved focus elsewhere (not `<body>`); restore + clear
+  // only when focus actually dropped to `<body>`.
+  useEffect(() => {
+    if (!restoreFocusOnCommit) return;
+    if (!restorePendingRef.current) return;
+    const items = containerRef.current?.querySelectorAll<HTMLElement>(
+      '[role="radio"],[role="tab"]',
+    );
+    if (!items || items.length === 0) return;
+    const clamped = Math.min(Math.max(selectedIndex, 0), items.length - 1);
+    if (document.activeElement === items[clamped]) return;
+    if (document.activeElement !== document.body) {
+      restorePendingRef.current = false;
+      return;
+    }
+    items[clamped]?.focus({ preventScroll: true });
+    restorePendingRef.current = false;
+  });
 
   return { getTabIndex, onKeyDown, containerRef };
 }
