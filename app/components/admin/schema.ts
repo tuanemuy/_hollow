@@ -69,7 +69,11 @@ export const testLLMConnectionSchema = z.object({
 // `LLM_PROVIDERS_TRANSPORT` above — kept separate so this file stays free of
 // `@/core/domain/*` imports. VO construction throws `InvalidSpeechProvider`
 // if the two lists drift. When adding a provider, update both lists.
-export const SPEECH_PROVIDERS_TRANSPORT = ["openai", "deepgram"] as const;
+export const SPEECH_PROVIDERS_TRANSPORT = [
+  "openai",
+  "deepgram",
+  "gemini",
+] as const;
 
 export const updateSpeechConfigSchema = z.object({
   provider: z.enum(SPEECH_PROVIDERS_TRANSPORT),
