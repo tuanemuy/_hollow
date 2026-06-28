@@ -45,6 +45,12 @@ export type MediaUploaderProps = Readonly<{
   contentHtml: string;
   onInsert: (nextHtml: string, insertion: { id: string; url: string }) => void;
   disabled?: boolean;
+  /**
+   * Optional reference to the internal file `<input>`, letting a parent
+   * (e.g. the WYSIWYG toolbar's image button) trigger file selection via
+   * `.click()`. The upload UI itself is unchanged.
+   */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }>;
 
 type UploadState =
@@ -108,6 +114,7 @@ export function MediaUploader({
   contentHtml,
   onInsert,
   disabled,
+  inputRef,
 }: MediaUploaderProps) {
   const inputId = useId();
   const presignMediaUpload = useServerFn(presignMediaUploadFn);
@@ -244,6 +251,7 @@ export function MediaUploader({
         </p>
       </div>
       <input
+        ref={inputRef}
         id={inputId}
         type="file"
         accept="image/*,video/*"

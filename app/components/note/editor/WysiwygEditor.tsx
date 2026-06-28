@@ -19,6 +19,9 @@ import {
   Code,
   Heading2,
   Heading3,
+  // `Image` clashes with the tiptap `@tiptap/extension-image` import above,
+  // so use lucide's `ImageIcon` alias for the toolbar icon.
+  ImageIcon,
   Italic,
   Link2,
   List,
@@ -95,6 +98,11 @@ export type WysiwygEditorProps = Readonly<{
   disabled?: boolean;
   editorRef?: React.RefObject<Editor | null>;
   /**
+   * Toolbar image button → parent `MediaUploader` file picker. When omitted
+   * the image button renders disabled (no wired uploader to trigger).
+   */
+  onRequestImage?: () => void;
+  /**
    * Names of element tags present in `value` that fall outside the
    * TipTap-supported set. Drives the inline warning banner.
    */
@@ -147,6 +155,7 @@ export function WysiwygEditor({
   onChange,
   disabled,
   editorRef,
+  onRequestImage,
   unsupportedTags,
   unsupportedAck,
   onUnsupportedTagsDetected,
@@ -569,6 +578,16 @@ export function WysiwygEditor({
           onClick={onAddLink}
         >
           <Icon icon={Link2} size={20} />
+        </button>
+        <button
+          type="button"
+          aria-label="画像"
+          title="画像"
+          className={EDITOR_TOOLBAR_BTN}
+          disabled={isDisabled || onRequestImage === undefined}
+          onClick={() => onRequestImage?.()}
+        >
+          <Icon icon={ImageIcon} size={20} />
         </button>
       </div>
       <EditorContent
