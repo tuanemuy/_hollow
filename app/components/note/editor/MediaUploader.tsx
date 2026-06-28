@@ -1,14 +1,30 @@
 "use client";
 
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState } from "react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Play } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { Icon } from "@/components/common/Icon";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { RetryableError } from "@/components/common/RetryableError";
-import { field, fieldLabel } from "@/components/common/styles";
+import {
+  ALERT,
+  ALERT_CONTENT,
+  ALERT_ERROR,
+  ALERT_ICON,
+  ALERT_SUCCESS,
+  ALERT_TITLE,
+  ALERT_WARNING,
+  DROPZONE,
+} from "@/components/common/styles";
 import {
   finalizeMediaUploadFn,
   presignMediaUploadFn,
 } from "@/components/media/actions";
+import { BYTE_SIZE_MAX } from "@/components/media/schema";
+import {
+  formatMegabytes,
+  validateMediaFile,
+} from "@/components/media/validation";
 import {
   extractSerializedError,
   type SerializedError,
@@ -21,9 +37,9 @@ import { insertMediaIntoHtml } from "./mediaInsert";
  * (ADR-009) so the orphan purger and `MediaService.reconcileRefs` keep
  * the asset alive once saved.
  *
- * Uploads run independently per file. The PUT phase reports real byte
- * progress (determinate bar); presign/finalize have no progress source,
- * so the bar stays indeterminate until the first progress event.
+ * Implements a selection-to-upload state machine (idle → uploading → done/error),
+ * with validation-rejection feedback in the idle state (no independent confirmation
+ * step). The PUT phase reports real byte progress (determinate bar).
  */
 export type MediaUploaderProps = Readonly<{
   contentHtml: string;
@@ -32,14 +48,31 @@ export type MediaUploaderProps = Readonly<{
 }>;
 
 type UploadState =
-  | { kind: "idle" }
-  | { kind: "uploading"; progress: number | null }
-  | { kind: "error"; error: SerializedError; lastFile: File | null };
-
-function kindForMime(mimeType: string): "image" | "video" {
-  if (mimeType.startsWith("video/")) return "video";
-  return "image";
-}
+  | {
+      kind: "idle";
+      validationRejection?: {
+        reason: "unsupported" | "oversized";
+        sizeLabel: string | undefined;
+        filename: string;
+      };
+    }
+  | {
+      kind: "uploading";
+      file: File;
+      mediaKind: "image" | "video";
+      progress: number | null;
+      thumbnailUrl: string | null;
+    }
+  | {
+      kind: "error";
+      error: SerializedError;
+      lastFile: File | null;
+      lastKind: "image" | "video" | null;
+    }
+  | {
+      kind: "done";
+      filename: string;
+    };
 
 // fetch does not expose upload progress events, so the presigned PUT —
 // the only phase with a real byte ratio — goes through XHR.
@@ -80,19 +113,60 @@ export function MediaUploader({
   const presignMediaUpload = useServerFn(presignMediaUploadFn);
   const finalizeMediaUpload = useServerFn(finalizeMediaUploadFn);
   const [state, setState] = useState<UploadState>({ kind: "idle" });
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Revoke the preview ObjectURL when leaving the uploading state to avoid a leak.
+  useEffect(() => {
+    if (state.kind !== "uploading") return;
+    if (state.thumbnailUrl === null) return;
+    const url = state.thumbnailUrl;
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [state]);
 
   const runUpload = async (file: File) => {
-    setState({ kind: "uploading", progress: null });
+    if (state.kind === "uploading") return;
+
+    const validation = validateMediaFile(file);
+    if (!validation.ok) {
+      setState({
+        kind: "idle",
+        validationRejection: {
+          reason: validation.reason,
+          sizeLabel: validation.sizeLabel,
+          filename: file.name,
+        },
+      });
+      return;
+    }
+
+    let thumbnailUrl: string | null = null;
+    if (validation.kind === "image") {
+      thumbnailUrl = URL.createObjectURL(file);
+    }
+
+    setState({
+      kind: "uploading",
+      file,
+      mediaKind: validation.kind,
+      progress: null,
+      thumbnailUrl,
+    });
+
     try {
       const presigned = await presignMediaUpload({
         data: {
-          kind: kindForMime(file.type),
+          kind: validation.kind,
           mimeType: file.type,
           byteSize: file.size,
         },
       });
       await putWithProgress(presigned.uploadUrl, file, (percent) => {
-        setState({ kind: "uploading", progress: percent });
+        setState((prev) => {
+          if (prev.kind !== "uploading") return prev;
+          return { ...prev, progress: percent };
+        });
       });
       const finalized = await finalizeMediaUpload({
         data: { mediaId: presigned.mediaId },
@@ -101,14 +175,35 @@ export function MediaUploader({
         id: finalized.mediaId,
       });
       onInsert(nextHtml, { id: finalized.mediaId, url: finalized.url });
-      setState({ kind: "idle" });
+      setState({ kind: "done", filename: file.name });
     } catch (e) {
       setState({
         kind: "error",
         error: extractSerializedError(e),
         lastFile: file,
+        lastKind: validation.kind,
       });
     }
+  };
+
+  const onDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    if (state.kind === "uploading") return;
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const onDragLeave = () => {
+    if (state.kind === "uploading") return;
+    setIsDragOver(false);
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    if (state.kind === "uploading") return;
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file === undefined) return;
+    void runUpload(file);
   };
 
   const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,42 +218,157 @@ export function MediaUploader({
     void runUpload(state.lastFile);
   };
 
+  // The dropzone stays available in every non-uploading state (idle, after a
+  // validation rejection, after an error, after a successful insert) so media
+  // can be added repeatedly — mirroring the original always-present input.
+  const dropzone = (
+    <label
+      htmlFor={inputId}
+      className={DROPZONE}
+      data-dragover={isDragOver ? "" : undefined}
+      data-disabled={
+        state.kind === "uploading" || disabled === true ? "" : undefined
+      }
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      aria-label="メディアを挿入"
+    >
+      <div className="text-center">
+        <p className="text-sm text-ink-secondary mb-3">
+          <strong className="text-ink">画像・動画をドラッグ&ドロップ</strong>{" "}
+          またはクリックして選択
+        </p>
+        <p className="text-xs text-ink-tertiary">
+          対応形式: 画像・動画 / 1ファイルずつ
+        </p>
+      </div>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*,video/*"
+        onChange={onPick}
+        disabled={disabled === true}
+      />
+    </label>
+  );
+
   return (
     <div className="mt-4">
-      <div className={field}>
-        <label htmlFor={inputId} className={fieldLabel}>
-          メディアを追加
-        </label>
-        <input
-          id={inputId}
-          type="file"
-          accept="image/*,video/*"
-          onChange={onPick}
-          disabled={disabled === true || state.kind === "uploading"}
-          className="text-sm text-ink"
-        />
-      </div>
-      {state.kind === "uploading" ? (
-        <div className="mt-2">
-          <p className="text-xs text-ink-tertiary">
-            <span aria-live="polite">アップロード中…</span>
-            {state.progress !== null ? (
-              <span aria-hidden="true">（{state.progress}%）</span>
-            ) : null}
-          </p>
-          {state.progress !== null ? (
-            <ProgressBar value={state.progress} decorative className="mt-1" />
-          ) : (
-            <ProgressBar decorative className="mt-1" />
-          )}
+      {state.kind === "idle" && state.validationRejection ? (
+        <div
+          className={`${ALERT} ${
+            state.validationRejection.reason === "unsupported"
+              ? ALERT_ERROR
+              : ALERT_WARNING
+          } mb-4`}
+          role="alert"
+        >
+          <span className={ALERT_ICON}>
+            <Icon
+              icon={
+                state.validationRejection.reason === "unsupported"
+                  ? AlertCircle
+                  : AlertTriangle
+              }
+              size={20}
+            />
+          </span>
+          <div className={ALERT_CONTENT}>
+            <p className={ALERT_TITLE}>
+              {state.validationRejection.reason === "unsupported"
+                ? "対応していない形式です"
+                : "ファイルサイズが大きすぎます"}
+            </p>
+            <p className="text-sm text-ink-secondary">
+              {state.validationRejection.reason === "unsupported" ? (
+                <>
+                  <code className="font-mono text-xs">
+                    {state.validationRejection.filename}
+                  </code>{" "}
+                  はアップロードできません。画像・動画ファイルのみ追加できます。
+                </>
+              ) : (
+                <>
+                  <code className="font-mono text-xs">
+                    {state.validationRejection.filename} (
+                    {state.validationRejection.sizeLabel})
+                  </code>{" "}
+                  は上限 {formatMegabytes(BYTE_SIZE_MAX)} を超えています。
+                </>
+              )}
+            </p>
+          </div>
         </div>
       ) : null}
+
       {state.kind === "error" ? (
         <RetryableError
+          className="mb-4"
           error={state.error}
           onRetry={state.lastFile !== null ? onRetry : undefined}
         />
       ) : null}
+
+      {state.kind === "done" ? (
+        <div
+          className={`${ALERT} ${ALERT_SUCCESS} mb-4`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className={ALERT_ICON}>
+            <Icon icon={CheckCircle2} size={20} />
+          </span>
+          <div className={ALERT_CONTENT}>
+            <p className={ALERT_TITLE}>ノートに挿入しました</p>
+            <p className="text-sm text-ink-secondary">
+              <code className="font-mono text-xs">{state.filename}</code>{" "}
+              を本文に追加しました。
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {state.kind === "uploading" ? (
+        <div className="flex gap-3">
+          <div className="shrink-0">
+            {state.mediaKind === "image" && state.thumbnailUrl ? (
+              <img
+                src={state.thumbnailUrl}
+                alt=""
+                className="w-12 h-12 rounded-md object-cover bg-surface"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-md bg-surface flex items-center justify-center text-ink-tertiary">
+                <Icon icon={Play} size={20} />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-ink truncate">
+              {state.file.name}
+            </div>
+            <div className="text-xs text-ink-tertiary">
+              {formatMegabytes(state.file.size)}
+            </div>
+            <div className="mt-2">
+              <ProgressBar
+                {...(state.progress !== null ? { value: state.progress } : {})}
+                decorative
+                ariaLabel="アップロード進捗"
+              />
+            </div>
+            <div className="mt-1 text-xs text-ink-tertiary">
+              <span aria-live="polite">アップロード中…</span>
+              {state.progress !== null ? (
+                <span aria-hidden="true"> ({state.progress}%)</span>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : (
+        dropzone
+      )}
     </div>
   );
 }
