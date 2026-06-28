@@ -8,7 +8,7 @@
 
 ## 目的
 
-WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリックで本文下の `MediaUploader` のファイル選択（hidden ではなく現状の可視 `<input type="file">`）をトリガーして、既存のアップロード→挿入フローに乗せる。コンポーネント間連携を `MediaUploader` の props 契約 `{contentHtml, onInsert, disabled}` を壊さずに設計する。
+WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリックで本文下の `MediaUploader` のファイル選択（現状の dropzone label 内に置かれた `<input type="file">`）をトリガーして、既存のアップロード→挿入フローに乗せる。コンポーネント間連携を `MediaUploader` の props 契約 `{contentHtml, onInsert, disabled}` を壊さずに設計する。
 
 ## 受け入れ基準
 
@@ -19,7 +19,7 @@ WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリック
 | AC-3 | ファイルを選択すると既存の presign→PUT→finalize→`setImage` 挿入フローがそのまま走り、WYSIWYG ではカーソル位置に画像が挿入される（`onMediaInsert` の wysiwyg 分岐は無改修） | Issue本文（スコープ外＝フロー不変） | なし（`onMediaInsert`/`mediaInsert.ts` を一切触らない＝無改修であることが本質。既存テスト緑で担保） |
 | AC-4 | `MediaUploader` の props 契約 `{contentHtml, onInsert, disabled}` は変更されない（追加するのは契約と直交する任意の `inputRef` のみ） | Issue本文「props 契約を壊さない」 | 1 |
 | AC-5 | HTML / inline モードは挙動不変（ツールバー自体が無いため画像ボタンも無く、各モードの可視 `MediaUploader` が従来どおり直接の入口） | Issue本文「モード別に整理」 | 2,3 |
-| AC-6 | エディタ未準備（`editor === null`）/ `disabled` 時は画像ボタンが disabled。アップロード中はボタン経由でも何も起きない（入力が `disabled` のため `.click()` が no-op） | 既存 disabled 規約 | 3（ボタン disabled 判定）/ アップロード中 no-op は既存 `MediaUploader` の disabled 挙動に依存し step 1 は ref 接続のみ＝無改修 |
+| AC-6 | エディタ未準備（`editor === null`）/ `disabled` 時は画像ボタンが disabled。アップロード中はボタン経由でも何も起きない（uploading 中は dropzone（file input を含む）がアンマウントされ進捗 UI に差し替わるため `mediaInputRef.current` が null になり `.click()` が no-op。加えて `runUpload` 先頭の uploading ガードが二重起動を防ぐ） | 既存 disabled 規約 | 3（ボタン disabled 判定）/ アップロード中 no-op は既存 `MediaUploader` の uploading 時アンマウント挙動に依存し step 1 は ref 接続のみ＝無改修 |
 | AC-7 | 画像ボタンはトグルではなく単発アクションのため `aria-pressed` / `data-primary` を持たない（リンク以外の状態を持たない操作ボタン） | 既存ツールバー a11y パターン | 3 |
 | AC-8 | コンポーネント間連携は既存 `editorRef` と同型の ref-as-prop（`React.RefObject<HTMLInputElement \| null>`）で実装し、コードベースに無い `useImperativeHandle` / `forwardRef` を新規導入しない（`UploadDialog` / `IngestionPreviewForm` の file input ref プロップ受けと同型） | Issue本文「連携方法の設計」 / ADR-001 | 1,2 |
 
@@ -27,7 +27,7 @@ WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリック
 
 ### 含まれないもの
 - メディアアップロードのフロー自体（presign→PUT→finalize、`insertMediaIntoHtml`、`onMediaInsert` の挿入ロジック）の変更。本Issueは「ツールバー → 既存 MediaUploader への配線」のみ。
-- `MediaUploader` の UI 刷新（dropzone / preview / `done` 状態 / `DROPZONE` 共有定数）。これらは #795 / PR #797 の範囲で、本リポジトリには未導入。現状コード（可視 `<input>`、状態機械 `idle | uploading | error`）を正とする。可視入力を hidden 化することもしない。
+- `MediaUploader` の UI 刷新（dropzone / preview / `done` 状態 / `DROPZONE` 共有定数）。これらは #795 / PR #797 で既にマージ済みで本リポジトリに導入されている。現状コード（`DROPZONE` を使った dropzone label 内の `<input>`、状態機械 `idle | uploading | error | done`、uploading 中は dropzone をアンマウントして進捗 UI に差し替え）を正とし、本Issueでは触らない。
 - HTML / inline ツールバーへの画像ボタン追加。これらのモードにはツールバーが存在しない。
 
 ## 調査結果
@@ -35,10 +35,10 @@ WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリック
 - 関連ファイル:
   - `app/components/note/editor/WysiwygEditor.tsx` — TipTap ベースの WYSIWYG ペイン。`role="toolbar" aria-label="書式"` の書式ツールバーを内包。現状ボタンは Bold/Italic/Strike/H2/H3/UL/OL/Quote/Code（`buttons` 配列）+ Link（個別レンダー）。**画像ボタンは無い**。ツールバーボタン共通スタイル定数 `EDITOR_TOOLBAR_BTN` がこのファイル内にある。`onAddLink` が「ツールバー上の単発アクション」ハンドラの先行例。`editorRef?: React.RefObject<Editor|null>` を「ref をプロップとして渡し子が `.current` を設定する」形で親へ公開済み（＝本Issueの連携で踏襲すべき既存パターン）。
   - `app/components/note/editor/NoteEditor.tsx` — オーケストレーター。3モード（html/inline/wysiwyg）それぞれの本文編集 UI 直下に `MediaUploader` をマウント。`tiptapEditorRef = useRef<Editor|null>` を保持し WYSIWYG ペインへ渡す。`onMediaInsert` がモード別に挿入先を振り分け、wysiwyg では `tiptapEditorRef.current.chain().focus().setImage(...)`。
-  - `app/components/note/editor/MediaUploader.tsx` — props `{contentHtml, onInsert, disabled}`。可視の `<input id={inputId} type="file" accept="image/*,video/*">` を直接描画。状態機械は `idle | uploading | error`。入力は `disabled || state.kind === "uploading"` で無効化。
+  - `app/components/note/editor/MediaUploader.tsx` — props `{contentHtml, onInsert, disabled}`。`DROPZONE` 定数を使った `<label className={DROPZONE} htmlFor={inputId}>` の dropzone（ドラッグ&ドロップ＋クリック選択）内に `<input id={inputId} type="file" accept="image/*,video/*" disabled={disabled === true}>` を描画。状態機械は `idle | uploading | error | done`。input は `disabled` prop のときだけ無効化され、**uploading では disabled にならない**。代わりに uploading 中は dropzone（input を含む）がアンマウントされ進捗 UI に差し替わる（`state.kind === "uploading" ? 進捗 UI : dropzone`）。`runUpload` 先頭に `if (state.kind === "uploading") return;` の二重起動ガードがある。
   - `app/components/note/editor/mediaInsert.ts` — `insertMediaIntoHtml`（HTML 文字列末尾に `<p><img src="/media/<id>">` を追記）。無改修。
   - `app/components/common/Icon.tsx` — lucide ラッパー。`size` は 16/20/24、`strokeWidth=1.5`。ボタンの唯一の可視子要素のときは `label` を省略し `aria-label` を親 `<button>` に置く規約（既存ツールバーボタンと同じ）。
-  - `app/components/common/styles.ts` — `TOUCH_TARGET_SQUARE`（モバイル 44px 角）、`field`/`fieldLabel`。`DROPZONE` は**未導入**。
+  - `app/components/common/styles.ts` — `TOUCH_TARGET_SQUARE`（モバイル 44px 角）、`field`/`fieldLabel`。`DROPZONE` は **#795/#797 で導入済み**で `MediaUploader` の dropzone label が使用している。
   - `spec/design/pages/P12-editor.html`（~1072-1074）— ツールバー末尾、リンクボタンの直後に「画像」ボタン（rect+circle+polyline の画像アイコン）。本Issueはこのモック順を踏襲。
   - 既存テスト harness: `__tests__/wysiwygEditorOnChange.test.tsx` 等は `// @vitest-environment happy-dom` + `react-dom/client` の `createRoot` + `requestAnimationFrame` 2回フラッシュで TipTap の遅延マウント（`immediatelyRender:false`）を待つ。`MediaUploader` 専用テストは現状無し。
 - あるべきアーキテクチャ（CLAUDE.md / styling 規約）:
@@ -73,7 +73,7 @@ WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリック
 モード別の整理:
 - **wysiwyg**: ツールバーあり → 画像ボタン設置・`MediaUploader` の picker へ配線。挿入は既存 `onMediaInsert` の wysiwyg 分岐（`setImage` でカーソル位置）。
 - **html / inline**: ツールバー自体が無い → 画像ボタンも置かない。各モードの可視 `MediaUploader` が従来どおり直接の入口（無改修）。
-- 結論: **画像ボタンは WYSIWYG ツールバーにのみ置く**（ツールバーが WYSIWYG 専用のため）。`mediaInputRef` は wysiwyg マウント時のみ接続され、画像ボタンがクリック可能なときは必ず対応する入力が存在する（モード切替でアンマウントされると React が `current` を null に戻すため stale ポインタにならない）。
+- 結論: **画像ボタンは WYSIWYG ツールバーにのみ置く**（ツールバーが WYSIWYG 専用のため）。`mediaInputRef` は wysiwyg マウント時に接続され、モード切替でアンマウントされると React が `current` を null に戻すため stale ポインタにならない。同様に uploading 中は dropzone（input）がアンマウントされ `current` が null になるので、その間は画像ボタンの `.click()` が安全に no-op になる（後述の二重起動防止）。
 
 ## 実装ステップ
 
@@ -123,15 +123,15 @@ WYSIWYG 書式ツールバーに「画像」ボタンを追加し、クリック
 ## 設計判断
 
 - ADR-001: コンポーネント間連携方式に (A) 親が file input ref を保持 → ツールバーボタンが `.click()` を採用（B: imperative handle / C: dropzone scroll+focus との比較）。
-- ADR-002: トリガー挙動を「ファイル選択ダイアログを開く」に決定（scroll+focus dropzone との比較。現状 UI に dropzone が無いため）。
+- ADR-002: トリガー挙動を「ファイル選択ダイアログを開く」に決定（dropzone へ scroll+focus する方式との比較。dropzone は現状あるが、画像ボタンからは最短でファイル選択へ到達させる）。
 詳細は `adr.md`。
 
 ## リスクと注意点
 
 - `lucide-react` の `Image` は tiptap の Image 拡張 import と名前衝突する。必ずエイリアス名 `ImageIcon`（lucide が公式に export 済みを確認）を使う。
 - `MediaUploader` の `inputRef` を3モード全てに渡すと、非アクティブモードのアンマウント済みインスタンスとの間で ref が競合し得る。WYSIWYG インスタンスにのみ渡し、画像ボタンも WYSIWYG にのみ置くことで「クリック可能時は必ず対応 input が存在」を保証する。
-- アップロード中の二重起動: 入力は `disabled || uploading` で無効化されるため、disabled な input への `.click()` は no-op。ツールバーボタン側で uploading 状態を別途追う必要はない（追うと契約が増える）。ボタンの disabled はエディタ準備状態のみで判定。
-- 既知の許容事項（バグではない）: 上記の結果、アップロード中は画像ボタンが「見た目 enabled だがクリックしても no-op」になる短時間ウィンドウが生じる。`MediaUploader` の uploading 状態をボタンへ伝播させない（契約を増やさない）ための意図的なトレードオフであり、本文下のアップローダー UI に進捗/エラーが表示されるため致命的ではない。後続のレビュー/QA が「バグではない」と判断できるよう明文化しておく（ADR-002 と整合）。
+- アップロード中の二重起動: uploading 中は dropzone（file input を含む）がアンマウントされ進捗 UI に差し替わるため、`mediaInputRef.current` が null になり画像ボタンの `.click()` は no-op。さらに `runUpload` 先頭の `if (state.kind === "uploading") return;` ガードが二重起動を防ぐ。ツールバーボタン側で uploading 状態を別途追う必要はない（追うと契約が増える）。ボタンの disabled はエディタ準備状態のみで判定。
+- 既知の許容事項（バグではない）: 上記の結果、アップロード中は画像ボタンが「見た目 enabled だがクリックしても no-op」になる短時間ウィンドウが生じる（uploading 中は対応する file input がマウントされておらず、ref が null のため click が空振りする）。`MediaUploader` の uploading 状態をボタンへ伝播させない（契約を増やさない）ための意図的なトレードオフであり、本文下のアップローダー UI に進捗/エラーが表示されるため致命的ではない。後続のレビュー/QA が「バグではない」と判断できるよう明文化しておく（ADR-002 と整合）。
 - `{contentHtml, onInsert, disabled}` 契約厳守: 追加プロップ `inputRef` はこの3つと直交する任意項目に留め、既存呼び出し（html/inline）は無改修で通ること。
 
 ## テスト方針

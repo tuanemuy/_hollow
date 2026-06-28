@@ -90,4 +90,33 @@ describe("WysiwygEditor image toolbar button", () => {
     expect(button).not.toBeNull();
     expect(button?.disabled).toBe(true);
   });
+
+  it("disables the image button when disabled is true even with a handler (AC-6)", async () => {
+    // `disabled` flows into `isDisabled` (`disabled === true || !isReady`),
+    // and the image button is `disabled={isDisabled || onRequestImage ===
+    // undefined}`. With a handler wired but `disabled={true}`, the button must
+    // still be disabled — pins the disabled-prop branch independently of the
+    // omitted-handler branch above.
+    const onRequestImage = vi.fn();
+    await act(async () => {
+      root.render(
+        <WysiwygEditor
+          value="<p>hello</p>"
+          onChange={vi.fn()}
+          disabled={true}
+          onRequestImage={onRequestImage}
+        />,
+      );
+    });
+    await flushTipTapMount();
+
+    const button = findImageButton();
+    expect(button).not.toBeNull();
+    expect(button?.disabled).toBe(true);
+    // A disabled button must not invoke the handler on click.
+    await act(async () => {
+      button?.click();
+    });
+    expect(onRequestImage).not.toHaveBeenCalled();
+  });
 });
