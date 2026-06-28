@@ -1,3 +1,4 @@
+import { formatMegabytes } from "@/components/common/byteSize";
 import { BYTE_SIZE_MAX } from "./schema";
 
 /**
@@ -19,10 +20,6 @@ export type MediaValidationResult =
       reason: "unsupported" | "oversized";
       sizeLabel?: string;
     };
-
-export function formatMegabytes(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 /**
  * Client-side validation for a single media file: format (image/video) and

@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Mic, MicOff, RotateCcw, Square, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatMegabytes } from "@/components/common/byteSize";
 import { Icon } from "@/components/common/Icon";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import {
@@ -449,7 +450,7 @@ function RecordingView({
           {formatDuration(seconds)}
         </span>
         <span className="text-xs text-ink-tertiary">
-          {(bytes / (1024 * 1024)).toFixed(1)} MB
+          {formatMegabytes(bytes)}
         </span>
       </div>
       {nearLimit ? (
