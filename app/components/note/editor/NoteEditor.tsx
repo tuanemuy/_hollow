@@ -97,6 +97,9 @@ export type NoteEditorProps =
 
 type SharedProps = Readonly<{
   tree: readonly FlatDirectory[];
+  // All existing tag names, used to drive the tag-input autocomplete.
+  // Optional (defaults to `[]`) so other callers stay source-compatible.
+  tagSuggestions?: readonly string[];
 }>;
 
 export function NoteEditor(props: NoteEditorProps) {
@@ -491,6 +494,7 @@ export function NoteEditor(props: NoteEditorProps) {
         onAddTag={(value) => dispatch({ type: "addTag", value })}
         onRemoveTag={(name) => dispatch({ type: "removeTag", name })}
         onSetDraft={(value) => dispatch({ type: "setTagDraft", value })}
+        suggestions={props.tagSuggestions ?? []}
         disabled={isPending}
       />
 
