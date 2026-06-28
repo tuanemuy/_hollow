@@ -138,8 +138,8 @@ describe("UploadDialog fire-and-forget state machine", () => {
     expect(document.body.textContent).toContain(
       "1 件中 1 件をキューに追加しました",
     );
-    // The /upload loader behind the modal is refreshed and the header badge
-    // is notified — for single uploads too (Issue #538).
+    // The /upload loader behind the modal is refreshed and the sidebar upload
+    // nav item count is notified — for single uploads too (Issue #538).
     expect(invalidateMock).toHaveBeenCalledTimes(1);
     expect(notifyMock).toHaveBeenCalledTimes(1);
     // Queue guidance: a link to /upload plus the editing hint.

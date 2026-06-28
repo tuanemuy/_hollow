@@ -3,12 +3,12 @@ import type { IngestionStatus } from "@/core/domain/ingestion/valueObject";
 import type { ServiceArgs } from "../types";
 
 /**
- * Statuses the header queue badge counts as "active" (work in flight or
- * awaiting the user's preview action). `failed` is intentionally excluded:
- * failed jobs do await an owner decision (retry / discard), but counting
- * them would keep the badge permanently lit by unattended failures —
- * the badge signals "work in progress", not "inbox". Revisit here if
- * failed jobs should ever be surfaced on the badge.
+ * Statuses the sidebar upload nav item count treats as "active" (work in
+ * flight or awaiting the user's preview action). `failed` is intentionally
+ * excluded: failed jobs do await an owner decision (retry / discard), but
+ * counting them would keep the count permanently lit by unattended failures —
+ * the count signals "work in progress", not "inbox". Revisit here if failed
+ * jobs should ever be surfaced on the count.
  */
 const ACTIVE_INGESTION_STATUSES: readonly IngestionStatus[] = [
   "pending",

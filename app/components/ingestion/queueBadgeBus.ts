@@ -1,12 +1,11 @@
 /**
- * Minimal module-scoped pub-sub for the header queue badge.
+ * Minimal module-scoped pub-sub for the sidebar upload nav item count.
  *
- * The AppShell loader is `staleTime: Infinity`, so a server-rendered badge
- * would never refresh after leaf navigations or mutations. Instead the badge
- * is a client component that re-fetches its count on mount, on visibility
- * restore, and whenever an ingestion mutation succeeds — the mutation call
- * sites announce via `notifyIngestionQueueChanged()`. See
- * `.issue/538/adr.md` ADR-002.
+ * The AppShell loader is `staleTime: Infinity`, so a server-rendered count
+ * would never refresh after leaf navigations or mutations. Instead the count
+ * is a client component that re-fetches on mount, on visibility restore, and
+ * whenever an ingestion mutation succeeds — the mutation call sites announce
+ * via `notifyIngestionQueueChanged()`. See `.issue/538/adr.md` ADR-002.
  */
 
 type Listener = () => void;

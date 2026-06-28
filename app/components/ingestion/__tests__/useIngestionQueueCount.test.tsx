@@ -26,18 +26,15 @@ vi.mock("../actions", () => ({
 
 // The real bus is used so the notify → refetch wiring is exercised end to
 // end; `resetIngestionQueueBusForTest` prevents subscriber residue.
-const { IngestionQueueBadge, uploadButtonLabel, useIngestionQueueCount } =
-  await import("../IngestionQueueBadge");
+const { useIngestionQueueCount } = await import("../useIngestionQueueCount");
 const { notifyIngestionQueueChanged, resetIngestionQueueBusForTest } =
   await import("../queueBadgeBus");
 
-function BadgeHarness() {
+// Thin harness: exposes the hook's count via a data attribute so the tests
+// assert the hook's data contract without coupling to any view component.
+function CountHarness() {
   const count = useIngestionQueueCount();
-  return (
-    <button type="button" aria-label={uploadButtonLabel(count)} data-harness="">
-      <IngestionQueueBadge count={count} />
-    </button>
-  );
+  return <span data-count={count} />;
 }
 
 let container: HTMLDivElement;
@@ -67,7 +64,8 @@ async function flush() {
   }
 }
 
-const chip = () => document.body.querySelector("[data-queue-badge]");
+const count = () =>
+  document.body.querySelector("[data-count]")?.getAttribute("data-count");
 
 function setVisibility(state: "visible" | "hidden") {
   Object.defineProperty(document, "visibilityState", {
@@ -83,31 +81,15 @@ async function dispatchVisibility(state: "visible" | "hidden") {
   });
 }
 
-describe("IngestionQueueBadge", () => {
-  it("shows the chip and a count-aware label when the count is positive", async () => {
+describe("useIngestionQueueCount", () => {
+  it("exposes the fetched count", async () => {
     getCountMock.mockResolvedValue({ count: 3 });
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
 
-    expect(chip()?.textContent).toBe("3");
-    expect(
-      document.body.querySelector("[data-harness]")?.getAttribute("aria-label"),
-    ).toBe("アップロード（未処理 3 件）");
-  });
-
-  it("hides the chip at 0 and keeps the plain label", async () => {
-    getCountMock.mockResolvedValue({ count: 0 });
-    act(() => {
-      root.render(<BadgeHarness />);
-    });
-    await flush();
-
-    expect(chip()).toBeNull();
-    expect(
-      document.body.querySelector("[data-harness]")?.getAttribute("aria-label"),
-    ).toBe("アップロード");
+    expect(count()).toBe("3");
   });
 
   it("re-fetches and updates on notifyIngestionQueueChanged", async () => {
@@ -115,10 +97,10 @@ describe("IngestionQueueBadge", () => {
       .mockResolvedValueOnce({ count: 1 })
       .mockResolvedValueOnce({ count: 4 });
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
-    expect(chip()?.textContent).toBe("1");
+    expect(count()).toBe("1");
 
     await act(async () => {
       notifyIngestionQueueChanged();
@@ -126,7 +108,7 @@ describe("IngestionQueueBadge", () => {
     await flush();
 
     expect(getCountMock).toHaveBeenCalledTimes(2);
-    expect(chip()?.textContent).toBe("4");
+    expect(count()).toBe("4");
   });
 
   // ADR-002: visibility restore is the only background catch-up path in
@@ -136,22 +118,22 @@ describe("IngestionQueueBadge", () => {
       .mockResolvedValueOnce({ count: 2 })
       .mockResolvedValueOnce({ count: 5 });
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
-    expect(chip()?.textContent).toBe("2");
+    expect(count()).toBe("2");
 
     await dispatchVisibility("visible");
     await flush();
 
     expect(getCountMock).toHaveBeenCalledTimes(2);
-    expect(chip()?.textContent).toBe("5");
+    expect(count()).toBe("5");
   });
 
   it("does not re-fetch on visibilitychange while hidden", async () => {
     getCountMock.mockResolvedValue({ count: 2 });
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
     expect(getCountMock).toHaveBeenCalledTimes(1);
@@ -165,7 +147,7 @@ describe("IngestionQueueBadge", () => {
   it("does not re-fetch on visibilitychange or notify after unmount", async () => {
     getCountMock.mockResolvedValue({ count: 2 });
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
     expect(getCountMock).toHaveBeenCalledTimes(1);
@@ -185,27 +167,27 @@ describe("IngestionQueueBadge", () => {
     expect(getCountMock).toHaveBeenCalledTimes(1);
   });
 
-  it("silently hides the chip when the fetch fails", async () => {
+  it("stays at 0 when the initial fetch fails", async () => {
     getCountMock.mockRejectedValue(new Error("boom"));
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
-    expect(chip()).toBeNull();
+    expect(count()).toBe("0");
   });
 
   // Spec pin: a refresh failure after a prior success holds the previous
-  // count rather than flashing the badge to 0 — a transient error must not
-  // wipe an already-correct count. Only first-mount failures stay hidden.
+  // count rather than flashing to 0 — a transient error must not wipe an
+  // already-correct count. Only first-mount failures stay at 0.
   it("holds the previous count when a refresh fails after a prior success", async () => {
     getCountMock
       .mockResolvedValueOnce({ count: 3 })
       .mockRejectedValueOnce(new Error("boom"));
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
-    expect(chip()?.textContent).toBe("3");
+    expect(count()).toBe("3");
 
     await act(async () => {
       notifyIngestionQueueChanged();
@@ -213,7 +195,7 @@ describe("IngestionQueueBadge", () => {
     await flush();
 
     expect(getCountMock).toHaveBeenCalledTimes(2);
-    expect(chip()?.textContent).toBe("3");
+    expect(count()).toBe("3");
   });
 
   // Generation guard (seq/mySeq): when an earlier request resolves *after* a
@@ -242,10 +224,10 @@ describe("IngestionQueueBadge", () => {
       .mockReturnValueOnce(newReq.promise);
 
     act(() => {
-      root.render(<BadgeHarness />);
+      root.render(<CountHarness />);
     });
     await flush();
-    expect(chip()).toBeNull();
+    expect(count()).toBe("0");
 
     // Fire two notifies back to back — two in-flight requests, newer wins seq.
     await act(async () => {
@@ -258,22 +240,13 @@ describe("IngestionQueueBadge", () => {
       newReq.resolve(4);
     });
     await flush();
-    expect(chip()?.textContent).toBe("4");
+    expect(count()).toBe("4");
 
     // Older request resolves later — must be discarded, count stays 4.
     await act(async () => {
       oldReq.resolve(1);
     });
     await flush();
-    expect(chip()?.textContent).toBe("4");
-  });
-
-  it("caps the visible count at 99+", async () => {
-    getCountMock.mockResolvedValue({ count: 120 });
-    act(() => {
-      root.render(<BadgeHarness />);
-    });
-    await flush();
-    expect(chip()?.textContent).toBe("99+");
+    expect(count()).toBe("4");
   });
 });

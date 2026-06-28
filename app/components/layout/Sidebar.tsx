@@ -11,21 +11,18 @@ import {
 import type { UserDTO } from "@/core/application/dto/identity";
 import { loadDirectoryTree } from "./action";
 import {
+  ACTIVE_NAV_PROPS,
   NAV_COUNT,
   NAV_ITEM,
   SIDEBAR_SECTION,
   SIDEBAR_SECTION_TITLE,
   SIDEBAR_USER,
 } from "./styles";
+import { UploadNavItem } from "./UploadNavItem";
 import { UserMenu } from "./UserMenu";
 
 type Props = {
   user: UserDTO;
-};
-
-const ACTIVE_NAV_PROPS = {
-  "data-active": "",
-  "aria-current": "page" as const,
 };
 
 // Cap the personal saved-view list shown inline in the sidebar; the rest are
@@ -120,13 +117,7 @@ export function Sidebar({ user }: Props) {
             </Link>
           </li>
           <li>
-            <Link
-              to="/upload"
-              className={NAV_ITEM}
-              activeProps={ACTIVE_NAV_PROPS}
-            >
-              <span>アップロード</span>
-            </Link>
+            <UploadNavItem />
           </li>
         </ul>
       </div>

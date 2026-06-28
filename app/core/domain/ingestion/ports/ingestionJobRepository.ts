@@ -51,7 +51,7 @@ export type IngestionJobListOpts = Readonly<{
  * read-only listings that ingestion usecases need:
  *
  * - `findByOwner` for the per-user job dashboard.
- * - `countByOwner` for the header queue badge.
+ * - `countByOwner` for the sidebar upload nav item count.
  * - `findStuck` for the recovery worker that ages-out processing-stuck
  *   jobs into `failed` so the operator can decide whether to retry.
  *
@@ -68,7 +68,8 @@ export interface IngestionJobRepository
 
   /**
    * Read-only count of jobs owned by `ownerId` whose `status` is in
-   * `statuses`. Used by the header queue badge (`countActiveIngestionJobs`)
+   * `statuses`. Used by the sidebar upload nav item count
+   * (`countActiveIngestionJobs`)
    * so the caller never has to materialise the rows just to count them.
    *
    * Not a write-intent surface: callers that intend to mutate must still
