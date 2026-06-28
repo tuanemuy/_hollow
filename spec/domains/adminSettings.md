@@ -69,7 +69,8 @@ Issue #701。`LLMConfig` と対称な、文字起こしプロバイダの独立 
 - `providers`（選択肢）・`apiKeySources` を静的公開（フォームの選択肢用）
 
 ### SpeechProvider（列挙）
-- `'openai' | 'deepgram'` — `["openai", "deepgram"] as const`。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`、`deepgram → 'nova-3'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。さらにプロバイダを registry で差し替え可能（Issue #701 ADR-001 / ADR-002・`spec/adr/013-speech-provider.md`）
+- `'openai' | 'deepgram' | 'gemini'` — `["openai", "deepgram", "gemini"] as const`。`app/core/adapters/speech/registry.ts` の `speechProviderRegistry`（`Record<SpeechProvider, SpeechAdapter>` でコンパイル時網羅）と対応する。provider ごとの `model` 既定値の対応（`openai → 'gpt-4o-transcribe'`、`deepgram → 'nova-3'`、`gemini → 'gemini-2.5-flash'`）も VO 側の INVARIANT として明記する（provider 追加時にモデル既定も増える齟齬を防ぐ）。既定プロバイダは `openai` 据え置き（`defaultSpeech()` 不変）。さらにプロバイダを registry で差し替え可能（Issue #701 ADR-001 / ADR-002・#738 Deepgram・#766 Gemini・`spec/adr/013-speech-provider.md`）。
+- **Gemini は registry に実装・登録済み**（`generateContent` + `inlineData` base64 投入、probe は `pingGemini` 流用）。ただし**録音 UI 既定の webm/opus（および m4a）を Gemini が受理するかは staging で検証中・未確定**（AC-1。Gemini の `inlineData` ドキュメントが webm/opus を明示列挙していないため）。受理 NG の場合は #766 で revert しうる。詳細は `spec/adr/013-speech-provider.md` の #766 追記節・`.issue/766/adr.md`。
 
 ### PromptTemplate
 - フィールド: `text: string`, `expectedVariables: string[]`（例 `['rawText', 'locale']`）
@@ -119,7 +120,7 @@ Issue #701。`LLMConfig` と対称な、文字起こしプロバイダの独立 
 
 ### SpeechConnectionTester（ポート）
 - Issue #701。`LLMConnectionTester` と対称。
-- メソッド: `ping(cfg: SpeechRecognitionConfig, apiKey: string): Promise<{ ok: boolean; latencyMs: number; error?: string }>` — 実音声を送らず軽量 probe で疎通確認する（ADR-006）。probe エンドポイントは provider ごとに registry の adapter が選ぶ（OpenAI は `GET /models/{model}` で認証 + model 存在を確認、Deepgram は `GET /v1/projects` で認証のみ確認し 2xx = OK・Issue #738）
+- メソッド: `ping(cfg: SpeechRecognitionConfig, apiKey: string): Promise<{ ok: boolean; latencyMs: number; error?: string }>` — 実音声を送らず軽量 probe で疎通確認する（ADR-006）。probe エンドポイントは provider ごとに registry の adapter が選ぶ（OpenAI は `GET /models/{model}` で認証 + model 存在を確認、Deepgram は `GET /v1/projects` で認証のみ確認し 2xx = OK・Issue #738、Gemini は `pingGemini`（最小 `generateContent`）を流用し認証 + model 存在を確認・Issue #766）。Gemini の probe は実音声を送らないテキスト ping のため、**録音 UI 既定の webm/opus 受理可否は probe では保証されず staging 検証中**（前掲）
 
 ## ユースケース（概要）
 

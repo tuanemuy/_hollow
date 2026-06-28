@@ -31,7 +31,7 @@ Proposed（Status 遷移: PoC で raw-body fetch + webm/opus 2xx を確認でき
 ## ADR-002: Gemini audio は本 Issue では見送る
 
 ### Status
-Proposed
+Superseded by #766（#766 で Gemini audio を `generateContent` + `inlineData` base64 投入として実装し、`speechProviderRegistry` に登録済み。本 ADR が要求した「webm/opus・m4a 受理の実ファイル検証を前提に別 Issue」は #766 が消化した）。ただし**録音 UI 既定の webm/opus 受理可否は staging で検証中・未確定**（#766 AC-1 / `.issue/766/adr.md` ADR-003）。staging で受理 NG が確定した場合は #766 の実装が revert され、本 ADR-002 は Accepted（先送り妥当）へ差し戻される。
 
 ### Context
 #701 調査メモ・ADR-013 の推奨順は OpenAI > Deepgram > Gemini audio > Google Cloud STT v2。Gemini は既存 LLM が Gemini 系のとき API 統一の魅力があるが、ブラウザ録音の中心フォーマット **webm/opus・m4a のネイティブ対応が不確実**で、採用には実ファイル PoC が必須（#701 残課題）。録音 UI は webm/opus を標準出力するため、受理不能だと録音経路で詰まる。

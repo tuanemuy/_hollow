@@ -258,15 +258,19 @@ const SPEECH_MODEL_MAX_LENGTH = 120;
 // INVARIANT: every value here must have a matching entry in
 // `speechProviderRegistry` (`app/core/adapters/speech/registry.ts`). Its
 // `Record<SpeechProvider, SpeechAdapter>` annotation enforces this at
-// compile time. Each provider also has a canonical default `model` used by
-// `defaultSpeech()` / DI bootstrap — keep that mapping in sync when adding a
-// provider:
+// compile time. Each provider also has a canonical default `model`. Only the
+// `openai` default is consumed here, by `defaultSpeech()` (entity.ts); the DI
+// bootstrap reads `ADMIN_SPEECH_MODEL` / DB rows directly and does not consult
+// this mapping. The per-provider defaults below are mirrored by the UI's
+// `PROVIDER_DEFAULT_MODEL` (SpeechSettingsForm), which auto-fills the model on
+// provider switch — keep the two in sync when adding a provider:
 //   - `openai` → `gpt-4o-transcribe`
 //   - `deepgram` → `nova-3`
+//   - `gemini` → `gemini-2.5-flash`
 // Add new providers atomically: export a `SpeechAdapter` from
 // `app/core/adapters/<provider>/index.ts`, register it in
 // `speechProviderRegistry`, and extend the default-model mapping above.
-const SPEECH_PROVIDERS = ["openai", "deepgram"] as const;
+const SPEECH_PROVIDERS = ["openai", "deepgram", "gemini"] as const;
 const SPEECH_API_KEY_SOURCES = ["env", "db"] as const;
 
 export type SpeechProvider = (typeof SPEECH_PROVIDERS)[number];

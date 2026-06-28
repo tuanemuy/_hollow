@@ -408,6 +408,7 @@ describe("SpeechRecognitionConfig", () => {
     expect([...SpeechRecognitionConfig.providers]).toEqual([
       "openai",
       "deepgram",
+      "gemini",
     ]);
     expect([...SpeechRecognitionConfig.apiKeySources]).toEqual(["env", "db"]);
   });

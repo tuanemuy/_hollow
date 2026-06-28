@@ -32,6 +32,7 @@ const initialState: FormState = { error: null, success: false };
 const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
   openai: "OpenAI",
   deepgram: "Deepgram",
+  gemini: "Gemini",
 };
 
 // Canonical default transcription model per provider. Mirrors the
@@ -43,6 +44,7 @@ const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
 const PROVIDER_DEFAULT_MODEL: Readonly<Record<ProviderId, string>> = {
   openai: "gpt-4o-transcribe",
   deepgram: "nova-3",
+  gemini: "gemini-2.5-flash",
 };
 
 // API-key input placeholder per provider (OpenAI Bearer `sk-...` vs Deepgram
@@ -50,6 +52,7 @@ const PROVIDER_DEFAULT_MODEL: Readonly<Record<ProviderId, string>> = {
 const PROVIDER_API_KEY_PLACEHOLDER: Readonly<Record<ProviderId, string>> = {
   openai: "sk-...",
   deepgram: "Token ...",
+  gemini: "AIza...",
 };
 
 const SECTION_CLASS = "py-8 border-b border-hairline last:border-b-0";
@@ -217,7 +220,7 @@ export function SpeechSettingsForm({
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>文字起こしプロバイダ</h2>
         <p className={SECTION_DESC_CLASS}>
-          対応プロバイダ: OpenAI / Deepgram。 切り替えると API
+          対応プロバイダ: OpenAI / Deepgram / Gemini。 切り替えると API
           キーの再入力が必要です。
         </p>
         <div className={FIELD_CLASS}>
