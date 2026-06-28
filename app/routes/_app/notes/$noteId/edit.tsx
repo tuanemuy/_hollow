@@ -59,6 +59,7 @@ const renderNoteEditor = createServerFn({ method: "GET" })
         initialDirectoryId={note.directoryId}
         {...(initialEditLock !== undefined ? { initialEditLock } : {})}
         tree={tree.flat}
+        tagSuggestions={tags.tags.map((t) => t.name)}
       />,
     );
   });

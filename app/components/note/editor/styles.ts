@@ -79,10 +79,21 @@ export const dirRowPillInput =
   "h-[30px] w-full rounded-pill border border-transparent bg-surface px-3 text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none placeholder:text-ink-tertiary focus:border-accent focus:bg-bg disabled:cursor-not-allowed disabled:opacity-disabled";
 
 /**
- * P12 tags row (mock `.tags-row`): flex-wrap chip rail with the trailing
- * borderless input on the same line, `mb-5` to match the mock's bottom gap.
+ * P12 tags row (mock `.tags-row`): the chips + trailing input now live in a
+ * single bordered container so they read as one field. `relative` anchors
+ * the absolutely-positioned suggestion panel (ADR-004); `focus-within`
+ * lights the accent border + focus ring (`--shadow-focus`) when the input
+ * is focused (the input itself cancels its own global ring — see
+ * `tagInputControl`). Bottom gap lives on the wrapping field, not here.
  */
-export const tagsRow = "mb-5 flex flex-wrap items-center gap-1.5";
+export const tagsRow =
+  "relative flex flex-wrap items-center gap-1.5 rounded-lg border border-hairline bg-bg px-2 py-1.5 transition-colors motion-reduce:transition-none focus-within:border-accent focus-within:shadow-focus";
+
+/**
+ * Wrapper around the tags row + inline error, carrying the mock's bottom
+ * gap (`mb-5`) so the error sits inside the field's rhythm.
+ */
+export const tagsField = "mb-5";
 
 /**
  * P12 tag chip (mock `.tag-chip`): 26px pill on the surface background with
@@ -101,10 +112,43 @@ export const tagChipRemove =
 /**
  * P12 trailing tag input (mock `.tag-input`): borderless, transparent, grows
  * to fill the row remainder while keeping a 140px minimum so it never
- * collapses behind the chips.
+ * collapses behind the chips. The focus ring is owned by the container's
+ * `focus-within` (see `tagsRow`), so the input cancels its own global
+ * `:focus-visible` box ring (`focus-visible:shadow-none`) to avoid a
+ * double ring — `outline-none` alone does not clear the box-shadow. Focus
+ * is still hinted by the accent caret (`caret-accent`).
  */
 export const tagInputControl =
-  "min-w-[140px] flex-1 border-0 bg-transparent px-1.5 py-1 text-[13px] text-ink outline-none placeholder:text-ink-tertiary disabled:cursor-not-allowed disabled:opacity-disabled";
+  "min-w-[140px] flex-1 border-0 bg-transparent px-1.5 py-1 text-[13px] text-ink caret-accent outline-none placeholder:text-ink-tertiary focus-visible:shadow-none disabled:cursor-not-allowed disabled:opacity-disabled";
+
+/**
+ * P12 tag suggestion panel: absolutely-positioned listbox anchored under
+ * the tags row (ADR-004, mirrors `dirDropdownPanel`). Spans the field width
+ * so candidates line up with the input; `max-sm` keeps it edge-to-edge.
+ */
+export const tagSuggestPanel =
+  "absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-lg border border-hairline bg-bg p-2 shadow-md";
+
+/**
+ * P12 tag suggestion option (existing tag): `data-active` reflects the
+ * `aria-activedescendant` highlight (mirrors `dirTreeItem`).
+ */
+export const tagSuggestOption =
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-ink outline-none transition-colors motion-reduce:transition-none hover:bg-surface data-[active]:bg-surface";
+
+/**
+ * P12 "create new tag" indicator row: accent-coloured, non-interactive
+ * display only (not a `role="option"`; the new tag is committed via Enter
+ * on the unselected draft). Leading `＋`/`#` glyph marks it as a creation.
+ */
+export const tagSuggestOptionNew =
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-accent";
+
+/**
+ * P12 inline tag validation message (AC-6): error-coloured note shown under
+ * the field while a non-empty draft is invalid.
+ */
+export const tagInputError = "mt-1.5 px-0.5 text-[12px] text-error";
 
 /**
  * P12 directory trigger pill (mock `.dir-pill`): 30px surface pill carrying
