@@ -147,6 +147,10 @@ export function NoteEditor(props: NoteEditorProps) {
     lostTags: readonly string[];
   } | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
+  // Shared with the WYSIWYG `MediaUploader` so the toolbar's image button can
+  // open its file picker (`.click()`). Wired to the WYSIWYG instance only.
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const onRequestImage = useCallback(() => mediaInputRef.current?.click(), []);
 
   // `onModeChange` needs to read post-blur `dirtyKeys` / `autosave` to decide whether
   // to confirm. React batches the `dispatch` triggered by
@@ -544,6 +548,7 @@ export function NoteEditor(props: NoteEditorProps) {
               onChange={(v) => dispatch({ type: "setContent", value: v })}
               disabled={isPending}
               editorRef={tiptapEditorRef}
+              onRequestImage={onRequestImage}
               unsupportedTags={state.wysiwygUnsupportedTags}
               unsupportedAck={state.wysiwygUnsupportedAck}
               onUnsupportedTagsDetected={(tags) =>
@@ -555,6 +560,7 @@ export function NoteEditor(props: NoteEditorProps) {
               contentHtml={state.contentHtml}
               onInsert={onMediaInsert}
               disabled={isPending}
+              inputRef={mediaInputRef}
             />
           </>
         ) : null}
