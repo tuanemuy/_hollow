@@ -194,6 +194,17 @@
     max-width: var(--content-max);
     font-size: var(--text-base);
     line-height: var(--leading-relaxed);
+    /*
+     * Wrap spaceless long strings (URLs, hashes) so they can't overflow the
+     * content width and trigger horizontal scroll (Issue #791). `overflow-wrap`
+     * is inherited, so this covers descendant text (p / a / li / td) from one
+     * place. `anywhere` (not `break-word`) so the break also shrinks min-content
+     * intrinsic width — `break-word` leaves it unchanged, which lets a long
+     * token in an auto-layout GFM table cell widen the column and overflow.
+     * `pre` keeps the browser default `white-space: pre`, which never
+     * soft-wraps, so its `overflow-x: auto` horizontal scroll is preserved.
+     */
+    overflow-wrap: anywhere;
   }
 
   .note-detail-content > * + * {
