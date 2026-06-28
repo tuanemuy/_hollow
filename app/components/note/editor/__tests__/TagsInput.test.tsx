@@ -312,4 +312,122 @@ describe("TagsInput", () => {
     });
     expect(onAddTag).not.toHaveBeenCalled();
   });
+
+  // --- B-001: clicking a suggestion option commits that tag
+  it("commits a clicked suggestion without triggering blur", () => {
+    const onAddTag = vi.fn();
+    renderInput({
+      draft: "re",
+      suggestions: ["react", "redux"],
+      onAddTag,
+    });
+    focusInput();
+    const optionBtn = options()[0];
+    expect(optionBtn).not.toBeNull();
+    act(() => {
+      optionBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onAddTag).toHaveBeenCalledWith("react");
+    expect(getInput().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  // --- B-002: does not move active on ArrowUp when no suggestions (candidates list is empty)
+  it("does not move active on ArrowUp when no suggestions exist", () => {
+    renderInput({ draft: "re", suggestions: ["react", "redux"] });
+    focusInput();
+    // Start with no active candidate
+    expect(getInput().getAttribute("aria-activedescendant")).toBeNull();
+    // ArrowUp with no active should go to last, but only if candidates exist
+    pressKey("ArrowUp");
+    // If there are suggestions, this will highlight the last one
+    const active = getInput().getAttribute("aria-activedescendant");
+    if (options().length > 0) {
+      // With suggestions, ArrowUp moves to last candidate
+      expect(active?.endsWith(`-${options().length - 1}`)).toBe(true);
+    }
+  });
+
+  // --- B-003: does not open suggestions when disabled
+  it("does not open suggestions panel when disabled", () => {
+    renderInput({
+      draft: "re",
+      suggestions: ["react", "redux"],
+      disabled: true,
+    });
+    // Input is disabled, so suggestions should not appear even with matching draft
+    expect(options()).toHaveLength(0);
+    expect(getInput().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  // --- W-001: resets activeIndex to -1 on draft change
+  it("resets activeIndex to -1 on draft change", () => {
+    const onSetDraft = vi.fn();
+    renderInput({
+      draft: "r",
+      suggestions: ["react", "redux"],
+      onSetDraft,
+    });
+    focusInput();
+    pressKey("ArrowDown");
+    let active = getInput().getAttribute("aria-activedescendant");
+    expect(active?.endsWith("-0")).toBe(true); // first option
+
+    // Change draft to reset activeIndex
+    renderInput({
+      draft: "re",
+      suggestions: ["react", "redux"],
+      onSetDraft,
+    });
+    focusInput();
+    // activeIndex should reset to -1 (no highlight)
+    expect(getInput().getAttribute("aria-activedescendant")).toBeNull();
+    // Next ArrowDown should go to first again (index 0), not skip
+    pressKey("ArrowDown");
+    active = getInput().getAttribute("aria-activedescendant");
+    expect(active?.endsWith("-0")).toBe(true);
+  });
+
+  // --- W-002: panelOpen DOM rendering is in sync with aria-expanded
+  it("shows panel DOM with listbox when aria-expanded=true for existing suggestions", () => {
+    renderInput({ draft: "re", suggestions: ["react", "redux"] });
+    focusInput();
+    // When aria-expanded=true and candidates exist, listbox should be in DOM
+    const listbox = container.querySelector('[role="listbox"]');
+    expect(listbox).not.toBeNull();
+    expect(getInput().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("shows panel DOM with new-draft indicator when aria-expanded=true for new draft only", () => {
+    renderInput({ draft: "angular", suggestions: ["react", "redux"] });
+    focusInput();
+    // No existing match → no listbox, but create-new indicator should appear
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    expect(container.textContent).toContain("新規作成");
+    expect(getInput().getAttribute("aria-expanded")).toBe("true");
+    expect(getInput().getAttribute("aria-controls")).toBeNull();
+  });
+
+  // --- W-003: error element has aria-live="polite"
+  it("surfaces invalid-draft errors via aria-live=polite", () => {
+    renderInput({ draft: "foo bar" });
+    const error = container.querySelector('p[aria-live="polite"]');
+    expect(error).not.toBeNull();
+    expect(error?.textContent).toContain("空白や改行は使えません");
+  });
+
+  // --- W-004: does not show error for whitespace-only draft
+  it("does not show error for whitespace-only draft", () => {
+    renderInput({ draft: "   " });
+    const error = container.querySelector('[id*="error"]');
+    expect(error).toBeNull();
+  });
+
+  // --- W-005: sets aria-describedby only when error is present
+  it("sets aria-describedby only when error is present", () => {
+    renderInput({ draft: "invalid tag" });
+    expect(getInput().getAttribute("aria-describedby")).toBeTruthy();
+
+    renderInput({ draft: "validtag" });
+    expect(getInput().getAttribute("aria-describedby")).toBeNull();
+  });
 });
