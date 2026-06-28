@@ -3,7 +3,7 @@
 ## ADR-001: ヘッダーバッジは完全移設（重複表示しない）
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 未処理アップロード件数の表示場所として、(a) ヘッダーCTAに残しつつサイドバーにも追加（両表示）、(b) ヘッダーから完全に外しサイドバーのみ（移設）の二択がある。Issue の意図は「件数表示を一箇所に集約」。
@@ -21,7 +21,7 @@ Proposed
 ## ADR-002: 可視件数は `NAV_COUNT` インライン、アクセシブル名は `aria-label`
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 ヘッダーでは件数を絶対配置チップ（`BADGE_CHIP`、`aria-hidden`）で描き、アクセシブル名は `aria-label`（`uploadButtonLabel`）に件数を載せていた（`aria-label` が子孫テキストを上書きするため）。移設先のサイドバーでは、(a) ヘッダーの絶対配置チップをそのまま流用、(b) サイドバー既存の `NAV_COUNT`（ライブラリ note 件数と同じ右寄せインライン count、モック `.nav-item .count` 規約）を使う、の二択。あわせて「件数をちょうど一度だけアナウンス」を満たす必要がある。
@@ -40,7 +40,7 @@ Proposed
 ## ADR-003: クライアント境界は専用 `UploadNavItem`、Sidebar はサーバーのまま
 
 ### Status
-Proposed
+Accepted
 
 ### Context
 ライブ件数の表示にはクライアントコンポーネント（フック・visibility/notify 購読）が必要。一方 `Sidebar` はサーバーコンポーネントで、ディレクトリツリー・保存ビュー・他ナビ項目をサーバーで取得・描画している。`Sidebar` 全体をクライアント化するとこれらのサーバーレンダリングが退行する。配置場所も layout/ingestion のどちらに置くか論点がある。

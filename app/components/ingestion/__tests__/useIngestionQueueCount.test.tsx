@@ -26,7 +26,9 @@ vi.mock("../actions", () => ({
 
 // The real bus is used so the notify → refetch wiring is exercised end to
 // end; `resetIngestionQueueBusForTest` prevents subscriber residue.
-const { useIngestionQueueCount } = await import("../useIngestionQueueCount");
+const { useIngestionQueueCount, uploadQueueLabel } = await import(
+  "../useIngestionQueueCount"
+);
 const { notifyIngestionQueueChanged, resetIngestionQueueBusForTest } =
   await import("../queueBadgeBus");
 
@@ -248,5 +250,17 @@ describe("useIngestionQueueCount", () => {
     });
     await flush();
     expect(count()).toBe("4");
+  });
+});
+
+// Exercise the real `uploadQueueLabel` (AC-4 の単一の真実点): mock 側で文言を
+// 複製する UploadNavItem.test.tsx では実関数が走らないため、ここで実物を固定する。
+describe("uploadQueueLabel", () => {
+  it("includes the unprocessed count when positive", () => {
+    expect(uploadQueueLabel(3)).toBe("アップロード（未処理 3 件）");
+  });
+
+  it("omits the count when zero", () => {
+    expect(uploadQueueLabel(0)).toBe("アップロード");
   });
 });

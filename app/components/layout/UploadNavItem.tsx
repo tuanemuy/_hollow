@@ -25,6 +25,8 @@ export function UploadNavItem() {
     >
       <span>アップロード</span>
       {count > 0 ? (
+        // 可視は省略表示の `99+` に丸めるが、`aria-label`（`uploadQueueLabel`）は
+        // 実数を読み上げる。SR には正確な未処理件数を伝えたいので分岐は意図的。
         <span className={NAV_COUNT}>{count > 99 ? "99+" : count}</span>
       ) : null}
     </Link>
