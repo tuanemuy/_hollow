@@ -187,7 +187,7 @@ describe("MediaUploader component", () => {
         "ファイルサイズが大きすぎます",
       );
       // Cap label uses the shared formatMegabytes(BYTE_SIZE_MAX = 5 GiB);
-      // locks the "X.X MB" rendering after the import-source swap.
+      // locks the "X.X MB" rendering.
       expect(alert?.textContent ?? "").toContain("5120.0 MB");
     });
 

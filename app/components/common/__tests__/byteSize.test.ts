@@ -4,8 +4,8 @@ import { formatMegabytes } from "../byteSize";
 const MIB = 1024 * 1024;
 
 // Expected values lock the current `${(bytes / (1024*1024)).toFixed(1)} MB`
-// output verbatim (incl. IEEE754 toFixed rounding), not hand-computed math.
-// This guards "display does not change" after the de-duplication.
+// output verbatim (incl. IEEE754 toFixed rounding), not hand-computed math,
+// to guard that the displayed label does not change.
 describe("formatMegabytes", () => {
   it("formats zero as a fixed one-decimal MB label", () => {
     expect(formatMegabytes(0)).toBe("0.0 MB");
