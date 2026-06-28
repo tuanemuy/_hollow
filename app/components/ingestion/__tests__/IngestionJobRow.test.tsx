@@ -68,6 +68,17 @@ vi.mock("@tanstack/react-router", () => ({
   }) => <a {...(rest as Record<string, unknown>)}>{children}</a>,
 }));
 
+const existingDirPreview: NonNullable<IngestionJobWire["preview"]> = {
+  title: "Suggested Title",
+  contentHtml: "<p>body</p>",
+  suggestedDirectoryId: "dir-1",
+  suggestedDirectoryName: null,
+  frontMatterJson: "{}",
+  suggestedTagNames: [],
+  internalLinkRefs: [],
+  mediaRefs: [],
+};
+
 const previewingJobExistingDir: IngestionJobWire = {
   id: "job-1",
   ownerId: "owner-1",
@@ -76,16 +87,7 @@ const previewingJobExistingDir: IngestionJobWire = {
   byteSize: 1024,
   kind: "markdown",
   status: "previewing",
-  preview: {
-    title: "Suggested Title",
-    contentHtml: "<p>body</p>",
-    suggestedDirectoryId: "dir-1",
-    suggestedDirectoryName: null,
-    frontMatterJson: "{}",
-    suggestedTagNames: [],
-    internalLinkRefs: [],
-    mediaRefs: [],
-  },
+  preview: existingDirPreview,
   errorCode: null,
   regenerationCount: 0,
   savedAsNoteId: null,
@@ -96,7 +98,7 @@ const previewingJobExistingDir: IngestionJobWire = {
 const previewingJobNewDir: IngestionJobWire = {
   ...previewingJobExistingDir,
   preview: {
-    ...previewingJobExistingDir.preview!,
+    ...existingDirPreview,
     suggestedDirectoryId: null,
     suggestedDirectoryName: "ideas",
   },

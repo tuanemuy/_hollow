@@ -60,6 +60,11 @@ function findHost(): HTMLElement {
   return host;
 }
 
+function requireNode<T extends Node>(node: T | null | undefined): T {
+  if (node == null) throw new Error("expected node to be present");
+  return node;
+}
+
 describe("InlineEditor structural preservation", () => {
   it("keeps <table> structure and only marks <td> contentEditable", async () => {
     await act(async () => {
@@ -108,8 +113,9 @@ describe("InlineEditor structural preservation", () => {
     expect(host.querySelectorAll("td")).toHaveLength(2);
     const tr = host.querySelector("tr");
     expect(tr).not.toBeNull();
+    const firstCell = requireNode(tr?.firstChild);
     await act(async () => {
-      tr?.removeChild(tr.firstChild!);
+      tr?.removeChild(firstCell);
     });
     await flushMutations();
     expect(host.querySelectorAll("td")).toHaveLength(2);
@@ -153,7 +159,7 @@ describe("InlineEditor structural preservation", () => {
     // Place caret inside the <p>.
     const sel = document.getSelection();
     const range = document.createRange();
-    range.selectNodeContents(p!);
+    range.selectNodeContents(requireNode(p));
     range.collapse(false);
     sel?.removeAllRanges();
     sel?.addRange(range);
@@ -419,13 +425,13 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = host.querySelector("code");
-    const textNode = code?.firstChild;
-    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    const textNode = requireNode(code?.firstChild);
+    expect(textNode.nodeType).toBe(Node.TEXT_NODE);
     // Seed caret between "a" and "b" so we can pin the insertion point.
     const sel = document.getSelection();
     const range = document.createRange();
-    range.setStart(textNode!, 1);
-    range.setEnd(textNode!, 1);
+    range.setStart(textNode, 1);
+    range.setEnd(textNode, 1);
     sel?.removeAllRanges();
     sel?.addRange(range);
 
@@ -453,13 +459,13 @@ describe("InlineEditor structural preservation", () => {
     const host = findHost();
     const pre = host.querySelector("pre");
     expect(pre?.getAttribute("contenteditable")).toBe("true");
-    const textNode = pre?.firstChild;
-    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    const textNode = requireNode(pre?.firstChild);
+    expect(textNode.nodeType).toBe(Node.TEXT_NODE);
     // Seed caret between "a" and "b" so we can pin the insertion point.
     const sel = document.getSelection();
     const range = document.createRange();
-    range.setStart(textNode!, 1);
-    range.setEnd(textNode!, 1);
+    range.setStart(textNode, 1);
+    range.setEnd(textNode, 1);
     sel?.removeAllRanges();
     sel?.addRange(range);
 
@@ -589,11 +595,11 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = host.querySelector("code");
-    const textNode = code?.firstChild;
+    const textNode = requireNode(code?.firstChild);
     const sel = document.getSelection();
     const range = document.createRange();
-    range.setStart(textNode!, 3);
-    range.setEnd(textNode!, 3);
+    range.setStart(textNode, 3);
+    range.setEnd(textNode, 3);
     sel?.removeAllRanges();
     sel?.addRange(range);
 
@@ -623,12 +629,12 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = host.querySelector("code");
-    const textNode = code?.firstChild;
+    const textNode = requireNode(code?.firstChild);
     const sel = document.getSelection();
     const range = document.createRange();
     // Caret somewhere on the line (after the leading spaces).
-    range.setStart(textNode!, 6);
-    range.setEnd(textNode!, 6);
+    range.setStart(textNode, 6);
+    range.setEnd(textNode, 6);
     sel?.removeAllRanges();
     sel?.addRange(range);
 
@@ -660,11 +666,11 @@ describe("InlineEditor structural preservation", () => {
     });
     const host = findHost();
     const code = host.querySelector("code");
-    const textNode = code?.firstChild;
+    const textNode = requireNode(code?.firstChild);
     const sel = document.getSelection();
     const range = document.createRange();
-    range.setStart(textNode!, 0);
-    range.setEnd(textNode!, 0);
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 0);
     sel?.removeAllRanges();
     sel?.addRange(range);
 
@@ -829,12 +835,12 @@ describe("InlineEditor structural preservation", () => {
     const host = findHost();
     const pre = host.querySelector("pre");
     const code = host.querySelector("code");
-    const textNode = code?.firstChild;
+    const textNode = requireNode(code?.firstChild);
     pre?.focus();
     const sel = document.getSelection();
     const range = document.createRange();
-    range.setStart(textNode!, 1);
-    range.setEnd(textNode!, 1);
+    range.setStart(textNode, 1);
+    range.setEnd(textNode, 1);
     sel?.removeAllRanges();
     sel?.addRange(range);
     const blurSpy = vi.spyOn(pre as HTMLElement, "blur");

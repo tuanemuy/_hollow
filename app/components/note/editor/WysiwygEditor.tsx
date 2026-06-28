@@ -316,7 +316,6 @@ export function WysiwygEditor({
     // Initialise once — `searchSuggestionsRef` keeps the latest server-fn
     // reachable without making `extensions` reference-unstable. See the
     // header comment for the editor-recreation rationale.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: see comment
   }, []);
 
   const editor = useEditor({

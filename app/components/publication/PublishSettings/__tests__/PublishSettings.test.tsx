@@ -285,7 +285,7 @@ describe("ShareLinkRow copy success live region (N-005)", () => {
 
   afterEach(() => {
     if (originalClipboard === undefined) {
-      // biome-ignore lint/performance/noDelete: restore the absent-descriptor state happy-dom started with.
+      // Restore the absent-descriptor state happy-dom started with.
       delete (globalThis.navigator as { clipboard?: unknown }).clipboard;
     } else {
       Object.defineProperty(
