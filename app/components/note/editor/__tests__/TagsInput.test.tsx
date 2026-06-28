@@ -24,9 +24,8 @@ import { TagsInput } from "../TagsInput";
  *    typed new tag, IME-guarded arrows, Escape close, invalid-draft
  *    suppression, new-vs-existing display split, and ARIA wiring.
  *
- * The container moved from `ul/li` to `div` (chips are `span`s, the input
- * is a direct child) for the bordered single-field layout — chip assertions
- * key off the labelled remove buttons rather than `li` count.
+ * Chip assertions key off the labelled remove buttons rather than DOM
+ * element count.
  */
 
 (
@@ -313,7 +312,6 @@ describe("TagsInput", () => {
     expect(onAddTag).not.toHaveBeenCalled();
   });
 
-  // --- B-001: clicking a suggestion option commits that tag
   it("commits a clicked suggestion without triggering blur", () => {
     const onAddTag = vi.fn();
     renderInput({
@@ -331,7 +329,6 @@ describe("TagsInput", () => {
     expect(getInput().getAttribute("aria-expanded")).toBe("false");
   });
 
-  // --- W-002: data-active is removed when option is deselected
   it("removes data-active and aria-selected when activeIndex is reset after click", () => {
     const onAddTag = vi.fn();
     renderInput({
@@ -354,7 +351,6 @@ describe("TagsInput", () => {
     expect(container.querySelector("[data-active]")).toBeNull();
   });
 
-  // --- B-002: does not move active on ArrowUp when no suggestions (candidates list is empty)
   it("does not move active on ArrowUp when no suggestions exist", () => {
     renderInput({ draft: "re", suggestions: ["react", "redux"] });
     focusInput();
@@ -370,7 +366,6 @@ describe("TagsInput", () => {
     }
   });
 
-  // --- B-003: does not open suggestions when disabled
   it("does not open suggestions panel when disabled", () => {
     renderInput({
       draft: "re",
@@ -382,7 +377,6 @@ describe("TagsInput", () => {
     expect(getInput().getAttribute("aria-expanded")).toBe("false");
   });
 
-  // --- W-001: resets activeIndex to -1 on draft change
   it("resets activeIndex to -1 on draft change", () => {
     const onSetDraft = vi.fn();
     renderInput({
@@ -410,7 +404,6 @@ describe("TagsInput", () => {
     expect(active?.endsWith("-0")).toBe(true);
   });
 
-  // --- W-001: aria-controls points to the correct listbox id
   it("aria-controls points to the correct listbox id", () => {
     renderInput({ draft: "re", suggestions: ["react", "redux"] });
     focusInput();
@@ -420,7 +413,6 @@ describe("TagsInput", () => {
     expect(ariaControls).toBe(listbox?.id);
   });
 
-  // --- W-002: panelOpen DOM rendering is in sync with aria-expanded
   it("shows panel DOM with listbox when aria-expanded=true for existing suggestions", () => {
     renderInput({ draft: "re", suggestions: ["react", "redux"] });
     focusInput();
@@ -440,7 +432,6 @@ describe("TagsInput", () => {
     expect(getInput().getAttribute("aria-controls")).toBeNull();
   });
 
-  // --- W-003: error element has aria-live="polite"
   it("surfaces invalid-draft errors via aria-live=polite", () => {
     renderInput({ draft: "foo bar" });
     const error = container.querySelector('p[aria-live="polite"]');
@@ -448,14 +439,12 @@ describe("TagsInput", () => {
     expect(error?.textContent).toContain("空白や改行は使えません");
   });
 
-  // --- W-004: does not show error for whitespace-only draft
   it("does not show error for whitespace-only draft", () => {
     renderInput({ draft: "   " });
     const error = container.querySelector('[id*="error"]');
     expect(error).toBeNull();
   });
 
-  // --- W-005: sets aria-describedby only when error is present
   it("sets aria-describedby only when error is present", () => {
     renderInput({ draft: "invalid tag" });
     expect(getInput().getAttribute("aria-describedby")).toBeTruthy();

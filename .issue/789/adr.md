@@ -106,3 +106,7 @@ Accepted（実装時に確定）
 - トレードオフ: `matchKey` が `TagName` の正規化（NFKC + `#`除去）の比較サブセットを再記述する形になる（`TagName` に `normalize` 単独 API が無く、`create` は throw するため）。将来 `TagName` の正規化規則が変わったら `matchKey` も追従が要る（JSDoc に明記済み）。
 
 ---
+
+## フォローアップ Issue
+
+- **ADR-004（候補パネルの手書き絶対配置）で見送った viewport クランプ / 外側クリッククローズ** → #803 として起票（PR #802 レビュー R2 Frontend W-001 由来）。優先度低。
