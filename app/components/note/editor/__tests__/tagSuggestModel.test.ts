@@ -34,6 +34,12 @@ describe("filterTagSuggestions", () => {
     const many = Array.from({ length: 20 }, (_, i) => `tag${i}`);
     expect(filterTagSuggestions(many, [], "tag", 3)).toHaveLength(3);
   });
+
+  it("partial-matches names with query in the middle (substring match)", () => {
+    expect(
+      filterTagSuggestions(["JavaScript", "TypeScript"], [], "Script"),
+    ).toEqual(["JavaScript", "TypeScript"]);
+  });
 });
 
 describe("classifyDraft", () => {
@@ -55,6 +61,12 @@ describe("classifyDraft", () => {
 
   it("classifies a fresh name as new", () => {
     expect(classifyDraft(all, [], "angular")).toBe("new");
+  });
+
+  it("classifies with normalised committed (strip leading # and case-fold)", () => {
+    expect(classifyDraft(all, ["#React"], "react")).toBe("dup");
+    expect(classifyDraft(all, ["#React"], "REACT")).toBe("dup");
+    expect(classifyDraft(all, ["React"], "#react")).toBe("dup");
   });
 });
 
@@ -122,5 +134,12 @@ describe("nextSuggestIndex", () => {
 
   it("returns -1 for an empty list", () => {
     expect(nextSuggestIndex(-1, "down", 0)).toBe(-1);
+  });
+
+  it("navigates correctly with a single candidate (count=1)", () => {
+    expect(nextSuggestIndex(-1, "down", 1)).toBe(0);
+    expect(nextSuggestIndex(-1, "up", 1)).toBe(0);
+    expect(nextSuggestIndex(0, "down", 1)).toBe(0);
+    expect(nextSuggestIndex(0, "up", 1)).toBe(0);
   });
 });
