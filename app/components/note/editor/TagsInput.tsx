@@ -89,6 +89,9 @@ export function TagsInput({
   const isNewDraft = classification === "new" && validationError === null;
 
   const hasSuggestions = candidates.length > 0;
+  // aria-expanded reflects panelOpen (visible state), not just `open`. On Escape
+  // or blur, `open` becomes false and aria-expanded immediately becomes false too,
+  // ensuring consistency even when only the "create new" row is visible.
   const panelOpen = open && (hasSuggestions || isNewDraft);
 
   // Re-anchor to "no active" whenever the draft changes; combined with
@@ -124,6 +127,7 @@ export function TagsInput({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       if (event.nativeEvent.isComposing) return;
       if (!hasSuggestions) {
@@ -258,6 +262,10 @@ export function TagsInput({
               </div>
             ) : null}
             {isNewDraft ? (
+              // Non-interactive indicator only. The new tag is committed via the
+              // `activeIndex===-1` Enter path (L158), not by selecting this row,
+              // so we avoid a duplicate affordance by keeping it outside the
+              // option navigation and hiding from screen readers.
               <div className={tagSuggestOptionNew} aria-hidden="true">
                 ＋「{draft.trim()}」を新規作成
               </div>

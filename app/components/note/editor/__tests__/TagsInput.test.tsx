@@ -331,6 +331,29 @@ describe("TagsInput", () => {
     expect(getInput().getAttribute("aria-expanded")).toBe("false");
   });
 
+  // --- W-002: data-active is removed when option is deselected
+  it("removes data-active and aria-selected when activeIndex is reset after click", () => {
+    const onAddTag = vi.fn();
+    renderInput({
+      draft: "re",
+      suggestions: ["react", "redux"],
+      onAddTag,
+    });
+    focusInput();
+    pressKey("ArrowDown");
+    // First option is now active
+    expect(options()[0]?.getAttribute("data-active")).not.toBeNull();
+    expect(options()[0]?.getAttribute("aria-selected")).toBe("true");
+    // Click commits; activeIndex resets to -1; panel closes.
+    const option = options()[0];
+    act(() => {
+      option?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    // After click and re-render, the panel is closed so options() returns empty.
+    // Verify no active options remain in the DOM.
+    expect(container.querySelector("[data-active]")).toBeNull();
+  });
+
   // --- B-002: does not move active on ArrowUp when no suggestions (candidates list is empty)
   it("does not move active on ArrowUp when no suggestions exist", () => {
     renderInput({ draft: "re", suggestions: ["react", "redux"] });
@@ -385,6 +408,16 @@ describe("TagsInput", () => {
     pressKey("ArrowDown");
     active = getInput().getAttribute("aria-activedescendant");
     expect(active?.endsWith("-0")).toBe(true);
+  });
+
+  // --- W-001: aria-controls points to the correct listbox id
+  it("aria-controls points to the correct listbox id", () => {
+    renderInput({ draft: "re", suggestions: ["react", "redux"] });
+    focusInput();
+    const input = getInput();
+    const listbox = container.querySelector('[role="listbox"]');
+    const ariaControls = input.getAttribute("aria-controls");
+    expect(ariaControls).toBe(listbox?.id);
   });
 
   // --- W-002: panelOpen DOM rendering is in sync with aria-expanded

@@ -62,10 +62,9 @@ function committedKeySet(committed: readonly string[]): Set<string> {
  * already committed, capped at `limit`. Comparison runs through the
  * canonical key on both sides so normalisation variants collapse.
  *
- * Contract: an empty / whitespace-only draft returns `[]` — focusing the
- * input (without typing) must not dump every tag, and the empty-prefix
- * would otherwise match everything. Suggestions appear only once the user
- * starts typing.
+ * Contract: an empty / whitespace-only draft returns `[]` — the empty string
+ * is a prefix/substring of every tag, so an unfocused input would dump the
+ * entire list (AC-6 noise); suggestions appear only on active typing (L76).
  */
 export function filterTagSuggestions(
   allNames: readonly string[],
