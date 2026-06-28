@@ -106,12 +106,6 @@ type Props = {
   }>;
 };
 
-// `useActionState` state is reset-proof (no programmatic setter), so form
-// errors are kept in dedicated `useState` that the close-time effect can null
-// out (see ADR-005). The reducer state is unused — it only drives the pending
-// flag (third tuple element).
-type FormState = void;
-
 export function PublishSettings({
   open,
   onClose,
@@ -165,8 +159,13 @@ export function PublishSettings({
     setHasUnsaved(readNoteUnsaved(noteId));
   }, [open, data.visibility, noteId]);
 
+  // `useActionState` state is reset-proof (no programmatic setter), so form
+  // errors are kept in dedicated `useState` that the close-time effect can null
+  // out (see ADR-005). The reducer state is intentionally `void` — it only
+  // drives the pending flag (third tuple element); `undefined` would widen the
+  // action's `Promise<void>` return incompatibly.
   const [, visibilityAction, visibilityPending] = useActionState<
-    FormState,
+    void,
     FormData
   >(async (_prev, formData) => {
     const next = String(formData.get("nextVisibility") ?? "") as Visibility;
@@ -184,7 +183,7 @@ export function PublishSettings({
     }
   }, undefined);
 
-  const [, issueAction, issuePending] = useActionState<FormState, FormData>(
+  const [, issueAction, issuePending] = useActionState<void, FormData>(
     async (_prev, formData) => {
       const passwordRaw = String(formData.get("password") ?? "");
       const password = passwordRaw.length === 0 ? null : passwordRaw;

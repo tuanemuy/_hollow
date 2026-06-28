@@ -60,6 +60,17 @@ vi.mock("@tanstack/react-router", () => {
 
 const { IngestionPreviewForm } = await import("../IngestionPreviewForm");
 
+const samplePreview: NonNullable<IngestionJobWire["preview"]> = {
+  title: "Suggested Title",
+  contentHtml: "<p>body</p>",
+  suggestedDirectoryId: "dir-1",
+  suggestedDirectoryName: null,
+  frontMatterJson: JSON.stringify({ status: "draft" }),
+  suggestedTagNames: ["alpha", "beta"],
+  internalLinkRefs: [],
+  mediaRefs: [],
+};
+
 const sampleJob: IngestionJobWire = {
   id: "job-1",
   ownerId: "owner-1",
@@ -68,16 +79,7 @@ const sampleJob: IngestionJobWire = {
   byteSize: 1024,
   kind: "markdown",
   status: "previewing",
-  preview: {
-    title: "Suggested Title",
-    contentHtml: "<p>body</p>",
-    suggestedDirectoryId: "dir-1",
-    suggestedDirectoryName: null,
-    frontMatterJson: JSON.stringify({ status: "draft" }),
-    suggestedTagNames: ["alpha", "beta"],
-    internalLinkRefs: [],
-    mediaRefs: [],
-  },
+  preview: samplePreview,
   errorCode: null,
   regenerationCount: 0,
   savedAsNoteId: null,
@@ -88,7 +90,7 @@ const sampleJob: IngestionJobWire = {
 const pendingDirJob: IngestionJobWire = {
   ...sampleJob,
   preview: {
-    ...sampleJob.preview!,
+    ...samplePreview,
     suggestedDirectoryId: null,
     suggestedDirectoryName: "ideas",
   },
@@ -97,7 +99,7 @@ const pendingDirJob: IngestionJobWire = {
 const emptyFrontMatterJob: IngestionJobWire = {
   ...sampleJob,
   preview: {
-    ...sampleJob.preview!,
+    ...samplePreview,
     frontMatterJson: "{}",
   },
 };

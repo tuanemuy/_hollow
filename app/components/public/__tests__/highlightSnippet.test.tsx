@@ -8,9 +8,7 @@ import { highlightSnippet } from "../highlightSnippet";
  */
 describe("highlightSnippet", () => {
   it("renders <mark> markers as styled mark elements (AC-1)", () => {
-    const html = renderToStaticMarkup(
-      <>{highlightSnippet("<mark>foo</mark>bar")}</>,
-    );
+    const html = renderToStaticMarkup(highlightSnippet("<mark>foo</mark>bar"));
 
     expect(html).toMatch(/<mark[^>]*class="[^"]+"[^>]*>foo<\/mark>/);
     expect(html).toContain("bar");
@@ -18,11 +16,9 @@ describe("highlightSnippet", () => {
 
   it("escapes user text outside markers (AC-2)", () => {
     const html = renderToStaticMarkup(
-      <>
-        {highlightSnippet(
-          "before<mark>hit</mark> <script>alert(1)</script><b>x</b>",
-        )}
-      </>,
+      highlightSnippet(
+        "before<mark>hit</mark> <script>alert(1)</script><b>x</b>",
+      ),
     );
 
     // The matched term stays a real <mark> element...
@@ -36,7 +32,7 @@ describe("highlightSnippet", () => {
 
   it("renders plain snippets without markers unchanged (AC-3)", () => {
     const html = renderToStaticMarkup(
-      <>{highlightSnippet("a plain snippet … no markers")}</>,
+      highlightSnippet("a plain snippet … no markers"),
     );
 
     expect(html).toContain("a plain snippet … no markers");
@@ -45,7 +41,7 @@ describe("highlightSnippet", () => {
 
   it("renders consecutive markers as separate mark elements", () => {
     const html = renderToStaticMarkup(
-      <>{highlightSnippet("<mark>a</mark> <mark>b</mark>")}</>,
+      highlightSnippet("<mark>a</mark> <mark>b</mark>"),
     );
 
     expect(html.match(/<mark[^>]*>/g)).toHaveLength(2);
@@ -54,7 +50,7 @@ describe("highlightSnippet", () => {
 
   it("falls back to plain text for an unterminated marker", () => {
     const html = renderToStaticMarkup(
-      <>{highlightSnippet("ok <mark>dangling tail")}</>,
+      highlightSnippet("ok <mark>dangling tail"),
     );
 
     // The opening marker is consumed but, with no closing tag, the remainder

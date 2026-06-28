@@ -112,8 +112,7 @@ export function useRestoreFieldFocusOnCommit<
     if (
       !composingRef.current &&
       hadFocusRef.current &&
-      el !== null &&
-      el.isConnected &&
+      el?.isConnected &&
       document.activeElement === document.body
     ) {
       el.focus({ preventScroll: true });

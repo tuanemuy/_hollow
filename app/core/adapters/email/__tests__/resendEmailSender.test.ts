@@ -304,9 +304,8 @@ describe("ResendEmailSender error mapping", () => {
     // before embedding it in the user-visible message.
     const mock = vi.fn(async () => {
       // Simulated stack that accidentally echoes a Bearer credential
-      // (e.g. an undici layer dumping the request headers).
-      // biome-ignore lint/style/useThrowOnlyError: simulating an
-      // unexpected non-Error throw
+      // (e.g. an undici layer dumping the request headers); intentionally a
+      // non-Error throw to exercise the unexpected-throw branch.
       throw "stack trace -- authorization: Bearer re_secret_should_be_masked";
     });
     const sender = new ResendEmailSender({

@@ -21,7 +21,7 @@ const shareLinkIdRaw = (n: number) =>
   `00000000-0000-7000-9000-${n.toString(16).padStart(12, "0")}`;
 
 describe("shareLinkUrlFromToken", () => {
-  it("composes `${appUrl}/share/<token>` and strips a trailing slash from appUrl", () => {
+  it("composes `<appUrl>/share/<token>` and strips a trailing slash from appUrl", () => {
     expect(shareLinkUrlFromToken("https://example.com", "abc")).toBe(
       "https://example.com/share/abc",
     );
@@ -32,7 +32,7 @@ describe("shareLinkUrlFromToken", () => {
 });
 
 describe("shareLinkUrlFromId", () => {
-  it("composes `${appUrl}/share/by-id/<id>` and strips a trailing slash", () => {
+  it("composes `<appUrl>/share/by-id/<id>` and strips a trailing slash", () => {
     expect(shareLinkUrlFromId("https://example.com", "abc")).toBe(
       "https://example.com/share/by-id/abc",
     );

@@ -53,7 +53,7 @@ describe("pingAnthropic", () => {
     });
   });
 
-  it("returns { ok: false, error } with `${type}: ${message}` on a 401 with a parsable error body", async () => {
+  it("returns { ok: false, error } with `<type>: <message>` on a 401 with a parsable error body", async () => {
     setFetch(
       vi.fn(async () =>
         jsonResponse(401, {
