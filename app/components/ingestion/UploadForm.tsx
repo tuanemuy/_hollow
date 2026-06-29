@@ -4,6 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 import { useId, useRef, useState, useTransition } from "react";
+import { formatMegabytes } from "@/components/common/byteSize";
 import { Icon } from "@/components/common/Icon";
 import { RetryableError } from "@/components/common/RetryableError";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
@@ -44,10 +45,6 @@ export type FileValidationResult = {
   /** Files that passed both checks, in input order. */
   readonly accepted: readonly File[];
 };
-
-function formatMegabytes(bytes: number): string {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 /**
  * Client-side UX guard mirroring the server's two-tier check: rejects
