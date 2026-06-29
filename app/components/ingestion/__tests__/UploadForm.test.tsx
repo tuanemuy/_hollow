@@ -201,7 +201,8 @@ describe("UploadForm client validation", () => {
   });
 
   // Issue #538: the /upload page's own upload path is independent of the
-  // modal, so it must announce the queue change itself for the header badge.
+  // modal, so it must announce the queue change itself for the sidebar upload
+  // nav item count.
   it("notifies the queue badge bus after a successful upload", async () => {
     uploadMock.mockResolvedValue({ jobId: "j1" });
     act(() => {

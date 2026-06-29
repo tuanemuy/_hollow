@@ -160,7 +160,7 @@ export const getEffectiveIngestionPromptsFn = createServerFn({ method: "GET" })
   });
 
 // Read-only GET, no transport input (same input-less GET pattern as
-// `getEffectiveIngestionPromptsFn`). Feeds the header queue badge.
+// `getEffectiveIngestionPromptsFn`). Feeds the sidebar upload nav item count.
 export const getIngestionQueueCountFn = createServerFn({ method: "GET" })
   .middleware([errorResponseMiddleware])
   .handler(async (): Promise<{ count: number }> => {

@@ -2,11 +2,6 @@
 
 import { Link, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import {
-  IngestionQueueBadge,
-  uploadButtonLabel,
-  useIngestionQueueCount,
-} from "./IngestionQueueBadge";
 
 type Props = {
   className?: string;
@@ -22,25 +17,22 @@ export function UploadButton({ className, children }: Props) {
   // (`data-active`) so the entry stays visually anchored.
   const hash = useLocation({ select: (l) => l.hash });
   const active = hash === UPLOAD_HASH;
-  // `aria-label` overrides descendant text, so the unprocessed-job count
-  // must live in the label itself (the visible chip is aria-hidden) —
-  // otherwise SR users would never hear it. See `IngestionQueueBadge`.
-  const queueCount = useIngestionQueueCount();
 
   return (
     <Link
       to="."
       hash={UPLOAD_HASH}
-      className={`${className ?? ""} relative`}
+      className={className ?? ""}
       // Upload is the primary header action — statically-on so the
       // `data-[primary]:` accent-fill variants in `pillBtnPrimary` apply.
       data-primary=""
       data-active={active || undefined}
       aria-current={active ? "page" : undefined}
-      aria-label={uploadButtonLabel(queueCount)}
+      // The unprocessed-job count now lives on the sidebar upload nav item
+      // (#790); this CTA is a static "start upload" button.
+      aria-label="アップロード"
     >
       {children}
-      <IngestionQueueBadge count={queueCount} />
     </Link>
   );
 }

@@ -28,7 +28,7 @@ type Props = Readonly<{
  *   row's progress display track the job (no in-dialog waiting state —
  *   the fire-and-forget model);
  * - every success path announces `notifyIngestionQueueChanged()` so the
- *   header badge refreshes. The form itself already runs
+ *   sidebar upload nav item count refreshes. The form itself already runs
  *   `routerInvalidate` on discard / regenerate, so the dialog does not
  *   invalidate again.
  *

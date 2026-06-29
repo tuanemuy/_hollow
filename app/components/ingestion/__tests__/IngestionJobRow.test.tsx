@@ -194,7 +194,7 @@ describe("IngestionJobRow", () => {
   });
 
   // Issue #538: successful mutations announce the queue change so the
-  // header badge refreshes.
+  // sidebar upload nav item count refreshes.
   it("notifies the queue badge bus after a successful commit", async () => {
     commitMock.mockResolvedValue({ noteId: "note-1" });
     await renderRow(previewingJobExistingDir);

@@ -3,35 +3,16 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  serverFnChainStub,
-  useServerFnRouter,
-} from "@/components/_test-utils/serverFnMock";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const getCountMock = vi.fn();
-
-vi.mock("@tanstack/react-start", () => ({
-  useServerFn: useServerFnRouter([[getCountMock, getCountMock]], vi.fn()),
-  createMiddleware: () => serverFnChainStub(),
-  createServerFn: () => serverFnChainStub(),
-}));
-
-vi.mock("../actions", () => ({
-  getIngestionQueueCountFn: getCountMock,
-}));
-
-vi.mock("../queueBadgeBus", () => ({
-  notifyIngestionQueueChanged: vi.fn(),
-  subscribeIngestionQueueChanged: () => () => {},
-}));
+let locationHash = "";
 
 vi.mock("@tanstack/react-router", () => ({
   useLocation: ({ select }: { select: (l: { hash: string }) => string }) =>
-    select({ hash: "" }),
+    select({ hash: locationHash }),
   Link: ({
     children,
     ...rest
@@ -47,7 +28,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  getCountMock.mockReset();
+  locationHash = "";
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -60,39 +41,39 @@ afterEach(() => {
   container.remove();
 });
 
-async function renderButton() {
+function renderButton() {
   act(() => {
     root.render(<UploadButton>アップロード</UploadButton>);
   });
-  for (let i = 0; i < 10; i++) {
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
 }
 
 const anchor = () => container.querySelector("a");
-const chip = () => container.querySelector("[data-queue-badge]");
 
-// ADR-005-1: `aria-label` overrides descendant text, so the unprocessed-job
-// count must live in the CTA's own label. These tests pin the real
-// UploadButton wiring (hook → aria-label → badge child), not a harness copy.
+// #790: the unprocessed-job count moved to the sidebar upload nav item, so the
+// header CTA is a static "start upload" button — no count badge, static label.
 describe("UploadButton", () => {
-  it("carries the count in its aria-label and renders the chip when count > 0", async () => {
-    getCountMock.mockResolvedValue({ count: 3 });
-    await renderButton();
-
-    expect(anchor()?.getAttribute("aria-label")).toBe(
-      "アップロード（未処理 3 件）",
-    );
-    expect(chip()?.textContent).toBe("3");
-  });
-
-  it("falls back to the plain label and hides the chip at 0", async () => {
-    getCountMock.mockResolvedValue({ count: 0 });
-    await renderButton();
+  it("uses a static aria-label and renders no count chip", () => {
+    renderButton();
 
     expect(anchor()?.getAttribute("aria-label")).toBe("アップロード");
-    expect(chip()).toBeNull();
+    expect(container.querySelector("[data-queue-badge]")).toBeNull();
+  });
+
+  it("is not active when the hash is not #upload", () => {
+    locationHash = "";
+    renderButton();
+
+    expect(anchor()?.getAttribute("data-active")).toBeNull();
+    expect(anchor()?.getAttribute("aria-current")).toBeNull();
+  });
+
+  it("surfaces active state via data-active / aria-current when hash is #upload", () => {
+    locationHash = "upload";
+    renderButton();
+
+    // `data-active={active || undefined}` renders the boolean as "true"; the
+    // Tailwind `data-[active]:` variant tests for presence, not value.
+    expect(anchor()?.getAttribute("data-active")).toBe("true");
+    expect(anchor()?.getAttribute("aria-current")).toBe("page");
   });
 });

@@ -117,6 +117,15 @@ export const NAV_ITEM = `${navItem} relative hover:bg-surface aria-[current=page
 // `margin-left: auto; font-size: 12px; color: var(--color-ink-tertiary)`).
 export const NAV_COUNT = "ml-auto text-xs text-ink-tertiary";
 
+// Active-state props shared by the sidebar nav `<Link>`s and `UploadNavItem`:
+// surface the active route to both screen readers (`aria-current="page"`) and
+// styling (`data-active`). Hoisted here so `Sidebar` (server) and
+// `UploadNavItem` (client) reference one definition.
+export const ACTIVE_NAV_PROPS = {
+  "data-active": "",
+  "aria-current": "page" as const,
+};
+
 export const APP_MAIN =
   "px-6 pt-8 pb-20 max-w-[var(--container-max)] mx-auto w-full min-w-0";
 

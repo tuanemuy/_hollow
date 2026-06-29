@@ -181,8 +181,8 @@ export function UploadForm() {
           formData.append("file", file);
           await upload({ data: formData });
         }
-        // Enqueue is confirmed — announce first so the header queue badge
-        // refreshes, and reset the input, before the (best-effort) router
+        // Enqueue is confirmed — announce first so the sidebar upload nav
+        // item count refreshes, and reset the input, before the (best-effort) router
         // invalidate. A failed invalidate must not mask a successful upload.
         notifyIngestionQueueChanged();
         if (fileInputRef.current !== null) {

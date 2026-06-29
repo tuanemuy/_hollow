@@ -51,8 +51,6 @@ export function Header() {
             icon-only circle below `sm` (label hidden), so the mobile header
             carries search + both CTAs without a bottom CTA bar. The user menu
             lives in the sidebar foot. */}
-        {/* The accessible name (incl. the unprocessed-job count) is owned by
-            UploadButton itself — see IngestionQueueBadge. */}
         <UploadButton
           className={`${pillBtn} ${pillBtnPrimary} ${HEADER_CTA_COLLAPSE}`}
         >
