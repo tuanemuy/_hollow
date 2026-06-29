@@ -27,6 +27,15 @@ type IconProps = {
  *   `pointer-events-none`, `block`, `mx-auto`, `mb-*` etc.). Do not pass
  *   `w-*` / `h-*` here — the `size` prop is the single source of truth for
  *   dimensions.
+ * - CARVE-OUT (responsive shrink only): a `max-sm:size-[var(--icon-*)]`
+ *   override class is permitted to shrink the glyph at the sub-`sm` breakpoint.
+ *   Here the `size` prop stays the desktop dimension — the SSOT that lucide
+ *   forwards to the SVG `width`/`height` *attributes* — and the `max-sm:`
+ *   class (a class-derived `width`/`height`, which always beats the
+ *   specificity-0 presentation attribute) overrides it only below `sm`. This
+ *   is the lone exception to the `w-*` / `h-*` ban; keep `size` set (do not
+ *   drop it) and do not combine with bare `w-*` / `h-*`, or the desktop SSOT
+ *   breaks.
  *
  * NOTE: when an icon is the sole visible child of a `<button>`, omit `label`
  * and place `aria-label` on the parent `<button>` instead. Providing both
