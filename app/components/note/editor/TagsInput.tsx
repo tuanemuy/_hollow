@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { computeShiftY } from "@/components/common/usePopover";
 import {
   tagChip,
   tagChipRemove,
@@ -74,11 +82,17 @@ export function TagsInput({
 }: TagsInputProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [shiftY, setShiftY] = useState(0);
 
   const listboxId = useId();
   const optionIdBase = useId();
   const errorId = useId();
   const optionRefs = useRef<(HTMLElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // Mirrors the applied `shiftY` for the layout effect to read without making it
+  // a dependency (ADR-005) — see the clamp effect below.
+  const shiftYRef = useRef(0);
 
   const candidates = useMemo(
     () => filterTagSuggestions(suggestions, tagNames, draft),
@@ -115,6 +129,58 @@ export function TagsInput({
       el.scrollIntoView({ block: "nearest" });
     }
   }, [open, activeIndex]);
+
+  // Vertical viewport clamp (shift): nudge the panel up before paint when its
+  // bottom overflows the viewport. Re-measures while open as the candidate
+  // count / new-draft row changes the panel height (AC-3), so the measured rect
+  // already carries the previously-applied transform. `computeShiftY` requires a
+  // natural (unshifted) rect, so we subtract the applied shift (read from
+  // `shiftYRef`, never re-measuring the same height) to restore it before
+  // clamping (ADR-004 compensation; ADR-005 ref wiring — keeping `shiftY` out of
+  // the deps runs this once per height change and avoids the transform-feedback
+  // loop that happy-dom would otherwise trigger).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: candidates.length / isNewDraft are not read in the body; they are intentional re-measure triggers (both change the panel height).
+  useLayoutEffect(() => {
+    if (!panelOpen) {
+      shiftYRef.current = 0;
+      setShiftY(0);
+      return;
+    }
+    const el = panelRef.current;
+    if (el === null) return;
+    const applied = shiftYRef.current;
+    const rect = el.getBoundingClientRect();
+    const next = computeShiftY(
+      { top: rect.top - applied, bottom: rect.bottom - applied },
+      window.innerHeight,
+    );
+    shiftYRef.current = next;
+    setShiftY(next);
+  }, [panelOpen, candidates.length, isNewDraft]);
+
+  // Explicit outside-click close (ADR-003): subscribe only while the panel is
+  // open. Closing here calls the state setters directly (stable identities) so
+  // the listener is keyed on `panelOpen` alone and is not re-attached on every
+  // draft keystroke.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onDocMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        containerRef.current !== null &&
+        containerRef.current.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+      setActiveIndex(-1);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+    };
+  }, [panelOpen]);
 
   const activeOptionId =
     open && hasSuggestions && activeIndex >= 0
@@ -178,7 +244,12 @@ export function TagsInput({
   return (
     <div className={tagsField}>
       {/* biome-ignore lint/a11y/useSemanticElements: role="group" labels the tags field (chips + combobox); <fieldset> carries form-control semantics inappropriate here (mirrors FilterBar). */}
-      <div className={tagsRow} role="group" aria-label="タグ">
+      <div
+        ref={containerRef}
+        className={tagsRow}
+        role="group"
+        aria-label="タグ"
+      >
         {tagNames.map((name) => (
           <span key={name} className={tagChip}>
             #{name}
@@ -229,7 +300,13 @@ export function TagsInput({
         />
 
         {panelOpen ? (
-          <div className={tagSuggestPanel}>
+          <div
+            ref={panelRef}
+            className={tagSuggestPanel}
+            style={
+              shiftY ? { transform: `translateY(${shiftY}px)` } : undefined
+            }
+          >
             {hasSuggestions ? (
               <div id={listboxId} role="listbox" aria-label="タグ候補">
                 {candidates.map((name, index) => {

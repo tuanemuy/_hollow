@@ -452,4 +452,134 @@ describe("TagsInput", () => {
     renderInput({ draft: "validtag" });
     expect(getInput().getAttribute("aria-describedby")).toBeNull();
   });
+
+  // --- Outside-click close & viewport clamp (Issue #803) -------------------
+
+  it("closes the panel on an outside mousedown", () => {
+    renderInput({ draft: "re", suggestions: ["react", "redux"] });
+    focusInput();
+    expect(getInput().getAttribute("aria-expanded")).toBe("true");
+    act(() => {
+      document.body.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true }),
+      );
+    });
+    expect(getInput().getAttribute("aria-expanded")).toBe("false");
+    expect(options()).toHaveLength(0);
+  });
+
+  it("keeps the panel open on a mousedown inside the container", () => {
+    renderInput({ draft: "re", suggestions: ["react", "redux"] });
+    focusInput();
+    expect(getInput().getAttribute("aria-expanded")).toBe("true");
+    act(() => {
+      getInput().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(getInput().getAttribute("aria-expanded")).toBe("true");
+    expect(options().length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Vertical viewport clamp wiring (Issue #803). happy-dom has no layout, so
+ * `getBoundingClientRect` is stubbed. Unlike `usePopover` (measures once on
+ * open), this panel re-measures while open as the candidate count changes its
+ * height, so the stub must reflect the currently-applied `transform` — a fixed
+ * rect would both diverge under the natural-restore compensation and fail to
+ * detect the P-001 double-counting bug (ADR-004).
+ */
+describe("TagsInput vertical clamp", () => {
+  const NATURAL_TOP = 500;
+  // bottom = 500 + 180 + 40 * optionCount → 760 for 2 options, 720 for 1.
+  const naturalBottom = (optionCount: number) =>
+    NATURAL_TOP + 180 + 40 * optionCount;
+
+  function panel(): HTMLElement | null {
+    return container.querySelector('[role="listbox"]')?.parentElement ?? null;
+  }
+
+  // A transform-reflecting rect stub: returns the panel's natural rect (height
+  // keyed on the rendered option count) shifted by whatever `translateY` is
+  // currently applied, mirroring how a real browser reports a transformed box.
+  function stubRect() {
+    return vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: Element) {
+        const optionCount =
+          this instanceof HTMLElement
+            ? this.querySelectorAll('[role="option"]').length
+            : 0;
+        const transform =
+          this instanceof HTMLElement ? this.style.transform : "";
+        const match = /translateY\((-?\d+(?:\.\d+)?)px\)/.exec(transform);
+        const offsetY = match ? Number.parseFloat(match[1]) : 0;
+        const top = NATURAL_TOP + offsetY;
+        const bottom = naturalBottom(optionCount) + offsetY;
+        return {
+          top,
+          bottom,
+          left: 100,
+          right: 380,
+          width: 280,
+          height: bottom - top,
+          x: 100,
+          y: top,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+  }
+
+  function withViewportHeight(height: number, fn: () => void) {
+    const original = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", {
+      value: height,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      fn();
+    } finally {
+      Object.defineProperty(window, "innerHeight", {
+        value: original,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
+
+  it("shifts the panel up via translateY when its bottom overflows the viewport", () => {
+    const stub = stubRect();
+    try {
+      // 2 options → natural bottom 760; viewport 633 (margin 8) → shiftY -135.
+      withViewportHeight(633, () => {
+        renderInput({ draft: "re", suggestions: ["react", "redux"] });
+        focusInput();
+      });
+      expect(panel()?.style.transform).toBe("translateY(-135px)");
+    } finally {
+      stub.mockRestore();
+    }
+  });
+
+  it("re-clamps on the natural rect when the candidate count shrinks (P-001)", () => {
+    const stub = stubRect();
+    try {
+      withViewportHeight(633, () => {
+        // 2 options → shiftY -135 (natural bottom 760).
+        renderInput({ draft: "re", suggestions: ["react", "redux"] });
+        focusInput();
+        expect(panel()?.style.transform).toBe("translateY(-135px)");
+
+        // Shrink to 1 option ("rea" matches only "react"). Natural bottom drops
+        // to 720 → correct shiftY is -95. Without restoring the natural rect the
+        // re-measured (already-shifted) box reads in-range and resets to 0.
+        renderInput({ draft: "rea", suggestions: ["react", "redux"] });
+        focusInput();
+      });
+      expect(options()).toHaveLength(1);
+      expect(panel()?.style.transform).toBe("translateY(-95px)");
+    } finally {
+      stub.mockRestore();
+    }
+  });
 });
