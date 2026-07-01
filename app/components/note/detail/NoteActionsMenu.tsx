@@ -50,7 +50,11 @@ export function NoteActionsMenu({
           data-open={open || undefined}
           className={MENU_TRIGGER}
         >
-          <Icon icon={MoreHorizontal} size={20} />
+          <Icon
+            icon={MoreHorizontal}
+            size={20}
+            className="max-sm:size-[var(--icon-md)]"
+          />
         </button>
       )}
     >

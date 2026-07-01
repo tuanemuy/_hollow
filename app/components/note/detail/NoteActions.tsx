@@ -86,11 +86,11 @@ const VISIBILITY_DOT =
 // from the rail because its inline dropdown would otherwise be clipped by the
 // rail's overflow box (`overflow-x:auto` forces `overflow-y:auto`).
 const MENU =
-  "inline-flex flex-wrap gap-2 my-4 mb-6 items-center max-sm:flex max-sm:flex-nowrap max-sm:min-w-0";
+  "inline-flex flex-wrap gap-2 my-4 mb-6 items-center max-sm:flex max-sm:flex-nowrap max-sm:min-w-0 max-sm:my-3 max-sm:mb-4 max-sm:gap-1";
 
 // Mobile-only horizontal scroll rail wrapping the leading pills. On desktop it
 // dissolves into the wrapping cloud (`contents`) so the pills wrap as before.
-const MENU_RAIL = `contents flex-wrap gap-2 items-center max-sm:flex max-sm:flex-1 max-sm:min-w-0 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+const MENU_RAIL = `contents flex-wrap gap-2 items-center max-sm:flex max-sm:flex-1 max-sm:min-w-0 max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 // Circular icon-only buttons for the frequently-used actions kept visible in
 // the toolbar (#459). The labeled 公開設定 pill is intentionally the lone
@@ -196,7 +196,11 @@ export function NoteActions({
             title="編集"
             className={ICON_BTN_PRIMARY}
           >
-            <Icon icon={Pencil} size={20} />
+            <Icon
+              icon={Pencil}
+              size={20}
+              className="max-sm:size-[var(--icon-md)]"
+            />
           </Link>
           <button
             type="button"
@@ -221,7 +225,11 @@ export function NoteActions({
             onClick={() => setOpen("move")}
             disabled={isPending}
           >
-            <Icon icon={FolderInput} size={20} />
+            <Icon
+              icon={FolderInput}
+              size={20}
+              className="max-sm:size-[var(--icon-md)]"
+            />
           </button>
           <UrlCopyButton url={copyUrl} />
           <Link
@@ -232,7 +240,11 @@ export function NoteActions({
             title="エクスポート"
             className={ICON_BTN}
           >
-            <Icon icon={Download} size={20} />
+            <Icon
+              icon={Download}
+              size={20}
+              className="max-sm:size-[var(--icon-md)]"
+            />
           </Link>
         </div>
         {/* Kept outside the rail so the inline dropdown is not clipped by the

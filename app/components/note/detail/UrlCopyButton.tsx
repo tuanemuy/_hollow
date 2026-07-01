@@ -68,7 +68,11 @@ export function UrlCopyButton({
         onClick={onCopy}
         aria-describedby={statusId}
       >
-        <Icon icon={state.kind === "copied" ? Check : Link2} size={20} />
+        <Icon
+          icon={state.kind === "copied" ? Check : Link2}
+          size={20}
+          className="max-sm:size-[var(--icon-md)]"
+        />
       </button>
       <span id={statusId} className="sr-only" role="status" aria-live="polite">
         {state.kind === "copied"
