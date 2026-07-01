@@ -610,6 +610,38 @@ describe("Popover (dialog mode) — initial focus (Issue #506)", () => {
     expect(p?.contains(document.activeElement)).toBe(false);
   });
 
+  it("re-arms initial focus on close→reopen (rising-edge reset, W-001)", () => {
+    // Complements the AC-9 smoke below: unlike a plain re-render (effect deps
+    // unchanged → effect never re-runs), driving `open` false→true actually
+    // re-runs the initial-focus effect, so this is the one deterministic unit
+    // check of the `prevOpenRef.current = open` reset. Delete that reset line
+    // (leaving prevOpenRef pinned true after the first open) and this test
+    // fails: the reopen no longer registers as a rising edge.
+    render({ initialFocus: true });
+    act(() => {
+      trigger().click();
+    });
+    expect(document.activeElement).toBe(firstFocusable());
+    // User moves focus onward within the open panel.
+    const closeBtn = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "閉じる") as HTMLButtonElement;
+    act(() => {
+      closeBtn.focus();
+    });
+    expect(document.activeElement).toBe(closeBtn);
+    // Close, then reopen: the second open must re-arm and land focus back on
+    // the first focusable.
+    act(() => {
+      trigger().click();
+    });
+    expect(panel()).toBeNull();
+    act(() => {
+      trigger().click();
+    });
+    expect(document.activeElement).toBe(firstFocusable());
+  });
+
   it("does not steal focus back to the first focusable on a re-render while open (AC-9 smoke)", () => {
     render({ initialFocus: true, initialOpen: true });
     expect(document.activeElement).toBe(firstFocusable());

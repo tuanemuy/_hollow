@@ -186,8 +186,11 @@ export function usePopover({
   // re-render, popover not closed), and the effect can be re-evaluated there;
   // without this edge guard it would yank focus back to the first focusable and
   // steal the user's place. Initial `false` (matching `useRovingMenu`) so a
-  // dialog mounted already-open still counts as a rising edge. See #467
-  // `useRovingMenu`'s `prevOpenRef` for the same pattern.
+  // dialog mounted already-open still counts as a rising edge — meaning a
+  // future dialog consumer that mounts with `open=true` would move focus
+  // without a user gesture, which needs WCAG 3.2.1 (On Focus) consideration.
+  // No current consumer does (all start closed), so there is no live impact.
+  // See #467 `useRovingMenu`'s `prevOpenRef` for the same pattern.
   const prevOpenRef = useRef(false);
 
   const setPanelRef = useCallback((node: HTMLDivElement | null) => {
