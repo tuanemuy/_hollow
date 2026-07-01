@@ -203,3 +203,30 @@ plan.md（リスク節・ステップ 3）と ADR-006 は「`AiOptions`（`@clou
 - トレードオフ: `Promise.race` はタイマー発火後も下層 `run()` をキャンセルしないため、バック側の Workers AI 実行は継続し課金され得る（provider の JSDoc に明記）。`signal` を渡せば実キャンセルの可能性はあるが、上記の決定性・テスト容易性・runtime 不確実性を優先した。staging で実 binding が使える段階で `signal` の honor 可否が確認できれば、`Promise.race` を保ったまま `signal: AbortSignal.timeout(timeoutMs)` を**追加**する余地は残る（本 Issue では見送り）。
 
 ---
+
+---
+
+## ADR-008: `env.AI` binding はローカル `wrangler.toml` には宣言せず、staging/production の infra テンプレートにのみ宣言する（ブラウザ検証で発見）
+
+### Status
+Accepted（Phase 2 ブラウザ検証で `pnpm dev` の boot 不能を実測して確定。当初 plan ステップ 12 は「ローカル `wrangler.toml` の web worker と `[env.consumer]` にも `[ai]` を追加」としていたが、実測に基づき修正）
+
+### Context
+plan は `[ai] binding = "AI"` をローカル `wrangler.toml` にも足し「ローカル dev の AI binding は実アカウント認証依存」とコメントで注記する方針だった。実装後にローカルで `pnpm dev`（`vite dev --config vite.config.cloudflare.ts`、`@cloudflare/vite-plugin` 経由の miniflare）を起動したところ、次のエラーで**起動そのものが失敗**した:
+
+```
+Failed to start the remote proxy session ...
+You must be logged in to use wrangler dev in remote mode. Try logging in, or run wrangler dev --local.
+```
+
+Workers AI はローカルモック（miniflare のローカルエミュレーション）を持たないため、`[ai]` を宣言すると dev サーバは AI binding のために remote-proxy セッションを張ろうとし、`wrangler login` 未認証の環境では boot 前に落ちる。これは `deepgram-workers-ai` を選んだときだけでなく、**すべての開発者の `pnpm dev` を無条件に壊す**（speech に無関係な開発も含む）。ローカルの `wrangler.toml` はコミット対象で全開発者が共有するため、影響は全員に及ぶ。
+
+### Decision
+ローカル `wrangler.toml`（web worker / `[env.consumer]` 双方）からは `[ai]` binding を**宣言しない**。代わりに、なぜ省くのか・ローカルで有効化するには `wrangler login` して手動で `[ai]` を足す旨をコメントで残す。binding は staging/production を生成する `infra/templates/wrangler.{staging,production}.toml.tmpl`（web worker + `[env.consumer]`）にのみ宣言する。
+
+- ローカルでは binding 不在が既定。DI（`buildSpeechRecognitionProvider` / `resolveConsumerSpeechConfig`）は binding 未注入時に **Stub speech provider にフォールバック**するため、`deepgram-workers-ai` を選んでもローカルでは graceful に degrade する（ブラウザ検証 TC-4 で「AI binding is not configured」による ping 失敗＝ゲート通過を確認済み）。
+- 実文字起こし・webm/opus 受理・E2E は元々 staging 依存（ADR-006）なので、ローカルに binding を置く実利は無く、破壊的副作用（boot 不能）だけが残る。
+
+### Consequences
+- 良い点: 全開発者の `pnpm dev` が無認証で従来どおり起動する。keyless provider のローカル UI 検証（選択・保存・接続テストのゲート通過）は binding 不在でも成立する。設計意図（ローカルは Stub、実疎通は staging）とも一致。
+- トレードオフ: ローカルで Workers AI の実疎通を試したい開発者は `wrangler login` のうえ手動で `[ai]` を足す必要がある（コメントに手順を明記）。ローカル config と staging/production テンプレートとで binding 宣言の有無が非対称になる（コメントで理由を明示して吸収）。

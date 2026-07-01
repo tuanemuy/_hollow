@@ -106,15 +106,19 @@ bucket_name = "hollow-local-objects"
 binding = "RELAY"
 service = "hollow-local-relay"
 
-# Cloudflare Workers AI binding (Issue #788). Required by the keyless
-# `deepgram-workers-ai` speech provider — authentication is handled by
-# Cloudflare, so no API key var is needed. LOCAL DEV NOTE: `wrangler dev` has
-# no AI mock; the binding proxies to the real Workers AI endpoint and needs
-# real Cloudflare account authentication, so keyless transcription only works
-# locally when authenticated against a real account. Absent binding → DI falls
-# back to the Stub speech provider.
-[ai]
-binding = "AI"
+# Cloudflare Workers AI binding (`env.AI`) — used by the keyless
+# `deepgram-workers-ai` speech provider (Issue #788). INTENTIONALLY OMITTED from
+# this LOCAL config: Workers AI has no local mock, so declaring `[ai]` forces the
+# vite/wrangler dev server into remote-proxy mode, which fails to boot unless the
+# machine is `wrangler login`-authenticated — it would break `pnpm dev` for every
+# developer, not just the speech path. Locally the binding is absent by design, so
+# DI falls back to the Stub speech provider (see `buildSpeechRecognitionProvider`).
+# The binding IS declared for staging/production in
+# `infra/templates/wrangler.{staging,production}.toml.tmpl`, where real
+# transcription runs. To exercise Workers AI locally, `wrangler login` and add:
+#   [ai]
+#   binding = "AI"
+# (and the same under `[env.consumer]`), then restart the dev server.
 
 
 # === Relay (Service Binding fetch + safety-net cron) ====================
@@ -200,13 +204,10 @@ bucket_name = "hollow-local-objects"
 binding = "RELAY"
 service = "hollow-local-relay"
 
-# Cloudflare Workers AI binding (Issue #788). Audio transcription runs in the
-# consumer, so the keyless `deepgram-workers-ai` provider needs the binding
-# HERE for the E2E path. Same local-dev caveat as the top-level `[ai]` block:
-# no local mock; proxies to real Workers AI with real account auth. Absent →
-# keyless provider degrades to the Stub.
-[env.consumer.ai]
-binding = "AI"
+# Workers AI binding for the consumer (where audio transcription runs) is
+# INTENTIONALLY OMITTED locally for the same reason as the top-level `[ai]`
+# block above — it would force remote-proxy mode and break `pnpm dev` without
+# `wrangler login`. Declared for staging/production in the infra templates.
 
 [[env.consumer.queues.consumers]]
 queue = "hollow-local-events"
