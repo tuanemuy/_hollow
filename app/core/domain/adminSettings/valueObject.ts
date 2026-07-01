@@ -315,6 +315,12 @@ export const SpeechRecognitionConfig = {
    */
   requiresApiKey: (provider: string): boolean =>
     !(KEYLESS_SPEECH_PROVIDERS as readonly string[]).includes(provider),
+  // NOTE (keyless providers): `create` does NOT structurally forbid a keyless
+  // provider (see `KEYLESS_SPEECH_PROVIDERS`) from carrying `apiKeySource:'db'`
+  // + a ciphertext — that normalization to `apiKeySource:'env'`/null is the
+  // usecase layer's responsibility (`updateSpeechConfig`), kept out of the VO
+  // for symmetry with `LLMConfig` (ADR-004). All write paths currently go
+  // through that usecase, so the illegal combination is unreachable in practice.
   create: (params: {
     provider: string;
     model: string;
