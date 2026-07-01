@@ -613,10 +613,13 @@ describe("Popover (dialog mode) — initial focus (Issue #506)", () => {
   it("re-arms initial focus on close→reopen (rising-edge reset, W-001)", () => {
     // Complements the AC-9 smoke below: unlike a plain re-render (effect deps
     // unchanged → effect never re-runs), driving `open` false→true actually
-    // re-runs the initial-focus effect, so this is the one deterministic unit
-    // check of the `prevOpenRef.current = open` reset. Delete that reset line
-    // (leaving prevOpenRef pinned true after the first open) and this test
-    // fails: the reopen no longer registers as a rising edge.
+    // re-runs the initial-focus effect. This guards the rising-edge reset
+    // against a "fire once, never re-arm" regression — pinning `prevOpenRef`
+    // true after the first open (`if (open) prevOpenRef.current = true`) stops
+    // the reopen from reading as a rising edge and this test fails. Note it
+    // does NOT catch deleting the reset line outright: `prevOpenRef` then stays
+    // at its initial false, so every open still reads as a rising edge and
+    // focus lands — happy-dom's stable deps prevent isolating that path.
     render({ initialFocus: true });
     act(() => {
       trigger().click();
