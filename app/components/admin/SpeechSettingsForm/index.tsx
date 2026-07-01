@@ -33,7 +33,16 @@ const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
   openai: "OpenAI",
   deepgram: "Deepgram",
   gemini: "Gemini",
+  "deepgram-workers-ai": "Deepgram (Workers AI)",
 };
+
+// Keyless providers (Issue #788): authentication is handled by Cloudflare via
+// the `env.AI` binding, so the API-key field is hidden and its "required on
+// provider change" gate is suppressed. Mirrors the domain SSOT
+// `KEYLESS_SPEECH_PROVIDERS`; the server enforces the real gates.
+const KEYLESS_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
+  "deepgram-workers-ai",
+]);
 
 // Canonical default transcription model per provider. Mirrors the
 // default-model mapping INVARIANT in
@@ -45,6 +54,7 @@ const PROVIDER_DEFAULT_MODEL: Readonly<Record<ProviderId, string>> = {
   openai: "gpt-4o-transcribe",
   deepgram: "nova-3",
   gemini: "gemini-2.5-flash",
+  "deepgram-workers-ai": "@cf/deepgram/nova-3",
 };
 
 // API-key input placeholder per provider (OpenAI Bearer `sk-...` vs Deepgram
@@ -53,6 +63,8 @@ const PROVIDER_API_KEY_PLACEHOLDER: Readonly<Record<ProviderId, string>> = {
   openai: "sk-...",
   deepgram: "Token ...",
   gemini: "AIza...",
+  // Keyless — the API-key field is hidden for this provider.
+  "deepgram-workers-ai": "",
 };
 
 const SECTION_CLASS = "py-8 border-b border-hairline last:border-b-0";
@@ -126,7 +138,12 @@ export function SpeechSettingsForm({
   // option, and `providerChanged` would falsely demand an api key.
   const providerChanged =
     !envOverrides.provider && provider !== persistedProvider;
-  const apiKeyRequired = providerChanged && !envOverrides.apiKey;
+  // Keyless providers (Issue #788) authenticate via the Cloudflare `env.AI`
+  // binding, so no API key is required — the field is hidden and the
+  // provider-change key requirement is suppressed. The server enforces the
+  // authoritative keyless gates; this is UX only.
+  const keyless = KEYLESS_PROVIDERS.has(provider);
+  const apiKeyRequired = providerChanged && !envOverrides.apiKey && !keyless;
 
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
@@ -220,8 +237,10 @@ export function SpeechSettingsForm({
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>文字起こしプロバイダ</h2>
         <p className={SECTION_DESC_CLASS}>
-          対応プロバイダ: OpenAI / Deepgram / Gemini。 切り替えると API
-          キーの再入力が必要です。
+          対応プロバイダ: OpenAI / Deepgram / Gemini / Deepgram (Workers AI)。
+          切り替えると API キーの再入力が必要です。Workers AI 版は Cloudflare
+          アカウント認証で動作し API キーは不要です（モデルは{" "}
+          <code className={CODE_INLINE_CLASS}>@cf/deepgram/nova-3</code>）。
         </p>
         <div className={FIELD_CLASS}>
           <label className={FIELD_LABEL_CLASS} htmlFor={providerId}>
@@ -275,7 +294,7 @@ export function SpeechSettingsForm({
             </p>
           ) : null}
         </div>
-        {providerChanged ? (
+        {providerChanged && !keyless ? (
           <div
             className={`${BANNER_BASE} bg-warning-surface text-warning`}
             role="alert"
@@ -295,11 +314,24 @@ export function SpeechSettingsForm({
       <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>API キー</h2>
         <p className={SECTION_DESC_CLASS}>
-          環境変数{" "}
-          <code className={CODE_INLINE_CLASS}>ADMIN_SPEECH_API_KEY</code>{" "}
-          が優先されます。未設定の場合は DB に暗号化保管された値が使用されます。
+          {keyless ? (
+            <>
+              このプロバイダは Cloudflare Workers AI 経由で動作し、API
+              キーは不要です（認証は Cloudflare
+              アカウント側で管理されます）。接続テストで{" "}
+              <code className={CODE_INLINE_CLASS}>env.AI</code>{" "}
+              バインディングの有無を確認できます。
+            </>
+          ) : (
+            <>
+              環境変数{" "}
+              <code className={CODE_INLINE_CLASS}>ADMIN_SPEECH_API_KEY</code>{" "}
+              が優先されます。未設定の場合は DB
+              に暗号化保管された値が使用されます。
+            </>
+          )}
         </p>
-        {!providerChanged ? (
+        {!providerChanged && !keyless ? (
           // Hide the persisted-state announcement while the provider-change
           // alert above is live — otherwise screen readers announce two
           // competing aria-live regions on the same render and the
@@ -332,23 +364,32 @@ export function SpeechSettingsForm({
             ) : null}
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              id={apiKeyId}
-              name="apiKey"
-              type="password"
-              className={`${INPUT_MONO_CLASS} flex-1 min-w-0`}
-              placeholder={PROVIDER_API_KEY_PLACEHOLDER[provider]}
-              value={apiKeyDraft}
-              onChange={(event) => setApiKeyDraft(event.target.value)}
-              autoComplete="off"
-              disabled={isPending || envOverrides.apiKey}
-              data-env-locked={envOverrides.apiKey || undefined}
-              required={apiKeyRequired || undefined}
-              aria-invalid={apiKeyServerError !== null || undefined}
-              aria-describedby={
-                envOverrides.apiKey ? apiKeyLockHintId : undefined
-              }
-            />
+            {keyless ? (
+              <span
+                className={`${INPUT_CLASS} flex-1 min-w-0 inline-flex items-center text-ink-tertiary`}
+                data-keyless=""
+              >
+                不要（Cloudflare が管理）
+              </span>
+            ) : (
+              <input
+                id={apiKeyId}
+                name="apiKey"
+                type="password"
+                className={`${INPUT_MONO_CLASS} flex-1 min-w-0`}
+                placeholder={PROVIDER_API_KEY_PLACEHOLDER[provider]}
+                value={apiKeyDraft}
+                onChange={(event) => setApiKeyDraft(event.target.value)}
+                autoComplete="off"
+                disabled={isPending || envOverrides.apiKey}
+                data-env-locked={envOverrides.apiKey || undefined}
+                required={apiKeyRequired || undefined}
+                aria-invalid={apiKeyServerError !== null || undefined}
+                aria-describedby={
+                  envOverrides.apiKey ? apiKeyLockHintId : undefined
+                }
+              />
+            )}
             <button
               type="button"
               className={pillBtn}
@@ -362,11 +403,13 @@ export function SpeechSettingsForm({
             className={FIELD_HINT_CLASS}
             id={envOverrides.apiKey ? apiKeyLockHintId : undefined}
           >
-            {envOverrides.apiKey
-              ? "環境変数 ADMIN_SPEECH_API_KEY で固定されているため変更できません。"
-              : apiKeyRequired
-                ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
-                : "未入力で保存すると現在のキーが維持されます。"}
+            {keyless
+              ? "Workers AI 版は API キー不要です。認証は Cloudflare が管理します。"
+              : envOverrides.apiKey
+                ? "環境変数 ADMIN_SPEECH_API_KEY で固定されているため変更できません。"
+                : apiKeyRequired
+                  ? "プロバイダを変更したため、新しい API キーの入力が必要です。"
+                  : "未入力で保存すると現在のキーが維持されます。"}
           </p>
           {apiKeyServerError !== null ? (
             <p className={FIELD_ERROR_CLASS}>{apiKeyServerError}</p>

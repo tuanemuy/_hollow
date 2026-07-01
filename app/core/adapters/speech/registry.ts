@@ -1,3 +1,4 @@
+import type { Ai } from "@cloudflare/workers-types";
 import type {
   SpeechProvider as SpeechProviderId,
   SpeechRecognitionConfig,
@@ -7,7 +8,10 @@ import type { SpeechRecognitionProvider } from "@/core/domain/ingestion/ports/sp
 // from the provider barrel; the barrel imports only the `SpeechAdapter`
 // *type* from here (`import type`). This keeps the value graph acyclic —
 // the same shape as `llm/registry.ts`.
-import { deepgramSpeechAdapter } from "../deepgram";
+import {
+  deepgramSpeechAdapter,
+  deepgramWorkersAiSpeechAdapter,
+} from "../deepgram";
 import { geminiSpeechAdapter } from "../gemini";
 import { openaiSpeechAdapter } from "../openai";
 
@@ -15,11 +19,24 @@ import { openaiSpeechAdapter } from "../openai";
  * Normalized configuration handed to a speech adapter factory. Speech has no
  * `baseURL` axis (OpenAI's transcription endpoint is fixed), so the config is
  * just the api key + model.
+ *
+ * Kept as pure data (Issue #788 / ADR-002): the Cloudflare `env.AI` binding is
+ * NOT threaded through here — it is a cross-cutting DI dependency and travels
+ * via {@link SpeechAdapterDeps} instead.
  */
 export type SpeechAdapterConfig = Readonly<{
   apiKey: string;
   model: string;
 }>;
+
+/**
+ * Injected, non-data dependencies for a speech adapter factory / probe
+ * (Issue #788 / ADR-002). The Cloudflare `env.AI` binding is a cross-cutting
+ * concern, so it is passed separately from the pure {@link SpeechAdapterConfig}
+ * rather than mixed into it. REST adapters (openai / deepgram / gemini) ignore
+ * `deps` entirely; only `deepgramWorkersAiSpeechAdapter` reads `deps.ai`.
+ */
+export type SpeechAdapterDeps = Readonly<{ ai?: Ai }>;
 
 /**
  * Unified ping outcome. The `error` field is present only on failure.
@@ -32,11 +49,15 @@ export type SpeechPingResult = { ok: boolean; error?: string };
  * provider barrel exports one of these.
  */
 export type SpeechAdapter = Readonly<{
-  create: (c: SpeechAdapterConfig) => SpeechRecognitionProvider;
+  create: (
+    c: SpeechAdapterConfig,
+    deps?: SpeechAdapterDeps,
+  ) => SpeechRecognitionProvider;
   ping: (
     cfg: SpeechRecognitionConfig,
     apiKey: string,
     timeoutMs: number,
+    deps?: SpeechAdapterDeps,
   ) => Promise<SpeechPingResult>;
 }>;
 
@@ -50,6 +71,7 @@ export const speechProviderRegistry: Record<SpeechProviderId, SpeechAdapter> = {
   openai: openaiSpeechAdapter,
   deepgram: deepgramSpeechAdapter,
   gemini: geminiSpeechAdapter,
+  "deepgram-workers-ai": deepgramWorkersAiSpeechAdapter,
 };
 
 /**

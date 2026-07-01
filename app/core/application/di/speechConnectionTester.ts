@@ -1,10 +1,11 @@
+import type { Ai } from "@cloudflare/workers-types";
 import { lookupSpeechAdapter } from "@/core/adapters/speech/registry";
 import { maskSecrets } from "@/core/application/llm/sanitizeErrorReason";
 import type {
   SpeechConnectionPingResult,
   SpeechConnectionTester,
 } from "@/core/domain/adminSettings/ports/speechConnectionTester";
-import type { SpeechRecognitionConfig } from "@/core/domain/adminSettings/valueObject";
+import { SpeechRecognitionConfig } from "@/core/domain/adminSettings/valueObject";
 
 /**
  * Application-layer HTTP-based `SpeechConnectionTester`. Looks the
@@ -21,7 +22,13 @@ import type { SpeechRecognitionConfig } from "@/core/domain/adminSettings/valueO
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 export class HttpSpeechConnectionTester implements SpeechConnectionTester {
-  constructor(private readonly timeoutMs: number = DEFAULT_TIMEOUT_MS) {
+  constructor(
+    private readonly timeoutMs: number = DEFAULT_TIMEOUT_MS,
+    // Cloudflare Workers AI binding (Issue #788 / ADR-005). Threaded to the
+    // keyless `deepgram-workers-ai` adapter's `ping` (which confirms binding
+    // presence). REST adapters ignore it.
+    private readonly ai?: Ai,
+  ) {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new Error(
         `HttpSpeechConnectionTester timeoutMs must be a positive finite number; got ${timeoutMs}`,
@@ -34,7 +41,11 @@ export class HttpSpeechConnectionTester implements SpeechConnectionTester {
     apiKey: string,
   ): Promise<SpeechConnectionPingResult> {
     const trimmedKey = apiKey.trim();
-    if (trimmedKey.length === 0) {
+    // Keyless providers (Issue #788) have no api key — skip the empty-key
+    // short-circuit so the binding-presence probe (ADR-005) still runs. REST
+    // providers keep the strict empty-key guard.
+    const keyless = !SpeechRecognitionConfig.requiresApiKey(cfg.provider);
+    if (!keyless && trimmedKey.length === 0) {
       return { ok: false, latencyMs: 0, error: "API key is empty" };
     }
     const start = Date.now();
@@ -49,7 +60,12 @@ export class HttpSpeechConnectionTester implements SpeechConnectionTester {
         error: `Unsupported speech provider: ${String(cfg.provider)}`,
       };
     } else {
-      outcome = await adapter.ping(cfg, trimmedKey, this.timeoutMs);
+      outcome = await adapter.ping(
+        cfg,
+        trimmedKey,
+        this.timeoutMs,
+        this.ai !== undefined ? { ai: this.ai } : undefined,
+      );
     }
     const latencyMs = Date.now() - start;
     if (outcome.ok) {

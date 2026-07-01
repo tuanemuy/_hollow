@@ -95,6 +95,16 @@ export const AdminSettingsService = {
     cfg: SpeechRecognitionConfig,
     env: Readonly<{ apiKey: string | null }>,
   ): SpeechRecognitionConfig => {
+    // Keyless carve-out (Issue #788 / ADR-004): Workers-AI-style providers
+    // resolve authentication through the Cloudflare `env.AI` binding, so the
+    // "apiKeySource === 'env' requires an env-provided key" invariant below
+    // does not apply — an absent `env.apiKey` is expected. Returned unchanged
+    // so the caller's `apiKeySource:'env'` / null-ciphertext normalization is
+    // not undone. Uses the domain SSOT predicate to stay in lockstep with the
+    // usecase / DI / tester gates.
+    if (!SpeechRecognitionConfig.requiresApiKey(cfg.provider)) {
+      return cfg;
+    }
     if (env.apiKey === null || env.apiKey.length === 0) {
       if (cfg.apiKeySource === "env") {
         throw new BusinessRuleError(

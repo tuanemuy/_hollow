@@ -106,6 +106,16 @@ bucket_name = "hollow-local-objects"
 binding = "RELAY"
 service = "hollow-local-relay"
 
+# Cloudflare Workers AI binding (Issue #788). Required by the keyless
+# `deepgram-workers-ai` speech provider — authentication is handled by
+# Cloudflare, so no API key var is needed. LOCAL DEV NOTE: `wrangler dev` has
+# no AI mock; the binding proxies to the real Workers AI endpoint and needs
+# real Cloudflare account authentication, so keyless transcription only works
+# locally when authenticated against a real account. Absent binding → DI falls
+# back to the Stub speech provider.
+[ai]
+binding = "AI"
+
 
 # === Relay (Service Binding fetch + safety-net cron) ====================
 [env.relay]
@@ -189,6 +199,14 @@ bucket_name = "hollow-local-objects"
 [[env.consumer.services]]
 binding = "RELAY"
 service = "hollow-local-relay"
+
+# Cloudflare Workers AI binding (Issue #788). Audio transcription runs in the
+# consumer, so the keyless `deepgram-workers-ai` provider needs the binding
+# HERE for the E2E path. Same local-dev caveat as the top-level `[ai]` block:
+# no local mock; proxies to real Workers AI with real account auth. Absent →
+# keyless provider degrades to the Stub.
+[env.consumer.ai]
+binding = "AI"
 
 [[env.consumer.queues.consumers]]
 queue = "hollow-local-events"

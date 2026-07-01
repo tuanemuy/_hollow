@@ -71,6 +71,13 @@ bucket_name = "${R2_OBJECTS_BUCKET}"
 binding = "RELAY"
 service = "${WORKER_RELAY}"
 
+# Cloudflare Workers AI binding (Issue #788). Required by the keyless
+# `deepgram-workers-ai` speech provider — authentication is handled by
+# Cloudflare, so no API key secret is needed. Absent binding → DI falls back
+# to the Stub speech provider.
+[ai]
+binding = "AI"
+
 
 # === Relay (Service Binding fetch + safety-net cron) ====================
 [env.relay]
@@ -145,6 +152,12 @@ bucket_name = "${R2_OBJECTS_BUCKET}"
 [[env.consumer.services]]
 binding = "RELAY"
 service = "${WORKER_RELAY}"
+
+# Audio transcription runs in the consumer, so the keyless
+# `deepgram-workers-ai` speech provider needs the Workers AI binding HERE for
+# the E2E path (Issue #788). Absent → keyless provider degrades to the Stub.
+[env.consumer.ai]
+binding = "AI"
 
 [[env.consumer.queues.consumers]]
 queue = "${EVENTS_QUEUE}"

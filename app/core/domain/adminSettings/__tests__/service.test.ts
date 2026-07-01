@@ -242,4 +242,36 @@ describe("AdminSettingsService.assertSpeechEnvOverride", () => {
     });
     expect(next).toBe(cfg);
   });
+
+  // Issue #788: keyless providers resolve auth via the Cloudflare `env.AI`
+  // binding, so the "env source requires an env key" invariant is carved out.
+  // Without this carve-out the usecase's `apiKeySource:'env'` normalization
+  // would trip this gate and fail a keyless save (round-2 [P-001]).
+  it("does NOT throw for a keyless provider with source 'env' and a missing env.apiKey", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "deepgram-workers-ai",
+      model: "@cf/deepgram/nova-3",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    const next = AdminSettingsService.assertSpeechEnvOverride(cfg, {
+      apiKey: null,
+    });
+    expect(next).toBe(cfg);
+    expect(next.apiKeySource).toBe("env");
+    expect(next.apiKeyCiphertext).toBeNull();
+  });
+
+  it("returns a keyless provider config verbatim even when an env.apiKey happens to be set", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "deepgram-workers-ai",
+      model: "@cf/deepgram/nova-3",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    const next = AdminSettingsService.assertSpeechEnvOverride(cfg, {
+      apiKey: "stray-key",
+    });
+    expect(next).toBe(cfg);
+  });
 });

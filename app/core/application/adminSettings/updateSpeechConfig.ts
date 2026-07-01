@@ -34,6 +34,13 @@ export type UpdateSpeechConfigOutput = Record<string, never>;
 /**
  * Persists a new `SpeechRecognitionConfig` after admin authorization.
  * Symmetric with {@link updateLLMConfig} (no `baseURL` axis).
+ *
+ * Keyless providers (Issue #788, e.g. `deepgram-workers-ai`): authentication is
+ * resolved by the Cloudflare `env.AI` binding, so no API key is stored. For
+ * these the `providerChanged`-requires-apiKey guard is waived and the draft is
+ * normalized to `apiKeySource: 'env'` / `apiKeyCiphertext: null`. Any operator
+ * apiKey submitted for a keyless provider is silently dropped (encrypted then
+ * discarded) — it is never persisted.
  */
 export async function updateSpeechConfig({
   container,
@@ -62,10 +69,16 @@ export async function updateSpeechConfig({
       const effectiveModel =
         env.model !== null ? current.speech.model : input.model;
 
+      // Keyless providers (Issue #788) carry no api key — the binding-based
+      // gates below / downstream are waived via the domain SSOT predicate.
+      const keyless =
+        !SpeechRecognitionConfig.requiresApiKey(effectiveProvider);
+
       // `providerChanged` flips to false when env locks the provider.
       const providerChanged =
         env.provider === null && input.provider !== current.speech.provider;
-      if (providerChanged && apiKeyCiphertext === null) {
+      // Keyless providers are exempt: there is no ciphertext to re-enter.
+      if (providerChanged && apiKeyCiphertext === null && !keyless) {
         throw new BusinessRuleError(
           AdminSettingsErrorCode.SpeechProviderChangedRequiresApiKey,
           "Changing the speech provider requires re-entering the api key " +
@@ -73,8 +86,18 @@ export async function updateSpeechConfig({
         );
       }
 
-      const draft: SpeechRecognitionConfig =
-        apiKeyCiphertext !== null
+      const draft: SpeechRecognitionConfig = keyless
+        ? // Normalize keyless to env-source / null ciphertext so a prior
+          // provider's ciphertext is not carried onto the keyless row, and so
+          // `assertSpeechEnvOverride`'s keyless carve-out returns it verbatim.
+          // Any operator-supplied apiKey is dropped here (never persisted).
+          SpeechRecognitionConfig.create({
+            provider: effectiveProvider,
+            model: effectiveModel,
+            apiKeySource: "env",
+            apiKeyCiphertext: null,
+          })
+        : apiKeyCiphertext !== null
           ? SpeechRecognitionConfig.create({
               provider: effectiveProvider,
               model: effectiveModel,

@@ -267,11 +267,28 @@ const SPEECH_MODEL_MAX_LENGTH = 120;
 //   - `openai` → `gpt-4o-transcribe`
 //   - `deepgram` → `nova-3`
 //   - `gemini` → `gemini-2.5-flash`
+//   - `deepgram-workers-ai` → `@cf/deepgram/nova-3` (Issue #788)
 // Add new providers atomically: export a `SpeechAdapter` from
 // `app/core/adapters/<provider>/index.ts`, register it in
 // `speechProviderRegistry`, and extend the default-model mapping above.
-const SPEECH_PROVIDERS = ["openai", "deepgram", "gemini"] as const;
+const SPEECH_PROVIDERS = [
+  "openai",
+  "deepgram",
+  "gemini",
+  "deepgram-workers-ai",
+] as const;
 const SPEECH_API_KEY_SOURCES = ["env", "db"] as const;
+
+// Keyless providers (Issue #788): routes whose authentication is handled by
+// Cloudflare (the `env.AI` binding) rather than an operator-supplied API key.
+// This is the domain SSOT for "does this provider require an api key?" — the
+// domain service `AdminSettingsService.assertSpeechEnvOverride`, the
+// application usecases (`updateSpeechConfig` / `testSpeechConnection`), the DI
+// gates (`buildSpeechRecognitionProvider` / `resolveConsumerSpeechConfig`) and
+// the `HttpSpeechConnectionTester` all branch on this same predicate so they
+// cannot drift (ADR-004). `SecretBox` encryption is non-applicable to keyless
+// providers because there is no key to store.
+const KEYLESS_SPEECH_PROVIDERS = ["deepgram-workers-ai"] as const;
 
 export type SpeechProvider = (typeof SPEECH_PROVIDERS)[number];
 export type SpeechApiKeySource = (typeof SPEECH_API_KEY_SOURCES)[number];
@@ -288,6 +305,16 @@ export type SpeechRecognitionConfig = Readonly<{
 export const SpeechRecognitionConfig = {
   providers: SPEECH_PROVIDERS,
   apiKeySources: SPEECH_API_KEY_SOURCES,
+  keylessProviders: KEYLESS_SPEECH_PROVIDERS,
+  /**
+   * Domain SSOT: whether the given speech provider requires an
+   * operator-supplied API key. Keyless providers (Issue #788,
+   * {@link KEYLESS_SPEECH_PROVIDERS}) resolve authentication through the
+   * Cloudflare `env.AI` binding instead. Accepts a raw string so binding /
+   * DI code can call it without first constructing a {@link SpeechProvider}.
+   */
+  requiresApiKey: (provider: string): boolean =>
+    !(KEYLESS_SPEECH_PROVIDERS as readonly string[]).includes(provider),
   create: (params: {
     provider: string;
     model: string;

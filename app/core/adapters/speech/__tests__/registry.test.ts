@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { deepgramSpeechAdapter } from "../../deepgram";
+import {
+  deepgramSpeechAdapter,
+  deepgramWorkersAiSpeechAdapter,
+} from "../../deepgram";
 import { geminiSpeechAdapter } from "../../gemini";
 import { openaiSpeechAdapter } from "../../openai";
 // Import the REAL registry (no `vi.mock`) so this test verifies that the
@@ -21,6 +24,12 @@ describe("speechProviderRegistry", () => {
   it("registers the Gemini adapter", () => {
     expect(speechProviderRegistry.gemini).toBe(geminiSpeechAdapter);
   });
+
+  it("registers the Deepgram Workers AI adapter (Issue #788)", () => {
+    expect(speechProviderRegistry["deepgram-workers-ai"]).toBe(
+      deepgramWorkersAiSpeechAdapter,
+    );
+  });
 });
 
 describe("lookupSpeechAdapter", () => {
@@ -36,6 +45,12 @@ describe("lookupSpeechAdapter", () => {
 
   it("resolves the Gemini adapter by its provider string", () => {
     expect(lookupSpeechAdapter("gemini")).toBe(geminiSpeechAdapter);
+  });
+
+  it("resolves the Deepgram Workers AI adapter by its provider string", () => {
+    expect(lookupSpeechAdapter("deepgram-workers-ai")).toBe(
+      deepgramWorkersAiSpeechAdapter,
+    );
   });
 
   it("returns undefined for an unregistered provider string", () => {

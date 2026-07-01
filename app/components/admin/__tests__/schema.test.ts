@@ -198,6 +198,7 @@ describe("SPEECH_PROVIDERS_TRANSPORT", () => {
       "openai",
       "deepgram",
       "gemini",
+      "deepgram-workers-ai",
     ]);
   });
 });

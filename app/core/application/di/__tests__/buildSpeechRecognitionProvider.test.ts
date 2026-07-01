@@ -1,8 +1,13 @@
+import type { Ai } from "@cloudflare/workers-types";
 import { describe, expect, it } from "vitest";
 import { DeepgramSpeechRecognitionProvider } from "@/core/adapters/deepgram/speechRecognitionProvider";
+import { DeepgramWorkersAiSpeechRecognitionProvider } from "@/core/adapters/deepgram/workersAiSpeechRecognitionProvider";
 import { OpenAISpeechRecognitionProvider } from "@/core/adapters/openai/speechRecognitionProvider";
 import { StubSpeechRecognitionProvider } from "@/core/adapters/stub/speechRecognitionProvider";
 import { buildSpeechRecognitionProvider } from "../serverCloudflare";
+
+// The builder only stashes the binding; a bare object stand-in is enough.
+const FAKE_AI = {} as unknown as Ai;
 
 describe("buildSpeechRecognitionProvider", () => {
   it("returns the OpenAI provider when both api key and model are present", () => {
@@ -57,5 +62,51 @@ describe("buildSpeechRecognitionProvider", () => {
       "some-model",
     );
     expect(provider).toBeInstanceOf(StubSpeechRecognitionProvider);
+  });
+
+  describe("keyless deepgram-workers-ai (Issue #788)", () => {
+    it("returns the Workers AI provider with a binding + model and NO api key", () => {
+      const provider = buildSpeechRecognitionProvider(
+        "deepgram-workers-ai",
+        undefined, // no api key — keyless
+        "@cf/deepgram/nova-3",
+        FAKE_AI,
+      );
+      expect(provider).toBeInstanceOf(
+        DeepgramWorkersAiSpeechRecognitionProvider,
+      );
+    });
+
+    it("falls back to the Stub when the AI binding is not injected (even with model present)", () => {
+      const provider = buildSpeechRecognitionProvider(
+        "deepgram-workers-ai",
+        undefined,
+        "@cf/deepgram/nova-3",
+        undefined, // no binding
+      );
+      expect(provider).toBeInstanceOf(StubSpeechRecognitionProvider);
+    });
+
+    it("falls back to the Stub when the model is missing (binding present)", () => {
+      const provider = buildSpeechRecognitionProvider(
+        "deepgram-workers-ai",
+        undefined,
+        undefined,
+        FAKE_AI,
+      );
+      expect(provider).toBeInstanceOf(StubSpeechRecognitionProvider);
+    });
+
+    it("ignores a stray api key and still wires the keyless provider", () => {
+      const provider = buildSpeechRecognitionProvider(
+        "deepgram-workers-ai",
+        "sk-should-be-ignored",
+        "@cf/deepgram/nova-3",
+        FAKE_AI,
+      );
+      expect(provider).toBeInstanceOf(
+        DeepgramWorkersAiSpeechRecognitionProvider,
+      );
+    });
   });
 });

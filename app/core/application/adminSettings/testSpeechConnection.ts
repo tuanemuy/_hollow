@@ -77,7 +77,12 @@ export async function testSpeechConnection({
     );
   }
 
-  if (resolvedKey === null || resolvedKey.trim().length === 0) {
+  // Keyless providers (Issue #788, e.g. `deepgram-workers-ai`) have no api key
+  // — authentication is the Cloudflare `env.AI` binding. Skip the no-key early
+  // return and dispatch to the tester with an empty key so the binding-presence
+  // probe (ADR-005) still runs. REST providers keep the strict key requirement.
+  const keyless = !SpeechRecognitionConfig.requiresApiKey(cfg.provider);
+  if (!keyless && (resolvedKey === null || resolvedKey.trim().length === 0)) {
     return {
       ok: false,
       latencyMs: 0,
@@ -85,7 +90,10 @@ export async function testSpeechConnection({
     };
   }
 
-  const result = await container.speechConnectionTester.ping(cfg, resolvedKey);
+  const result = await container.speechConnectionTester.ping(
+    cfg,
+    resolvedKey ?? "",
+  );
   return {
     ok: result.ok,
     latencyMs: result.latencyMs,

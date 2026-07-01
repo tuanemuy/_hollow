@@ -1061,6 +1061,93 @@ describe("updateSpeechConfig", () => {
     }
     expect(isBusinessRuleError(caught)).toBe(true);
   });
+
+  // Issue #788: switching the default `openai` → keyless `deepgram-workers-ai`
+  // must save WITHOUT an api key (no `SpeechProviderChangedRequiresApiKey`, no
+  // `SpeechEnvOverrideMissingKey`) and normalize to env-source / null ciphertext.
+  it("saves a keyless provider switch with no api key and normalizes to env-source / null ciphertext", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "deepgram-workers-ai",
+        model: "@cf/deepgram/nova-3",
+        apiKeyPlain: null,
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.speechProvider).toBe("deepgram-workers-ai");
+    expect(rows[0]?.speechModel).toBe("@cf/deepgram/nova-3");
+    expect(rows[0]?.speechApiKeySource).toBe("env");
+    expect(rows[0]?.speechApiKeyCiphertext).toBeNull();
+  });
+
+  it("does not carry a previous provider's ciphertext onto a keyless row", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    // Seed a db-sourced openai key first.
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "openai",
+        model: "gpt-4o-transcribe",
+        apiKeyPlain: "sk-openai-original",
+      },
+    });
+    // Switch to the keyless provider with no key.
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "deepgram-workers-ai",
+        model: "@cf/deepgram/nova-3",
+        apiKeyPlain: null,
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.speechApiKeySource).toBe("env");
+    expect(rows[0]?.speechApiKeyCiphertext).toBeNull();
+  });
+
+  it("silently drops a stray api key submitted for a keyless provider (never persisted)", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const container = createTestContainer();
+    await updateSpeechConfig({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        provider: "deepgram-workers-ai",
+        model: "@cf/deepgram/nova-3",
+        // Operator mistakenly typed a key; UI hides the field, but the server
+        // must drop it regardless.
+        apiKeyPlain: "sk-should-not-be-saved",
+      },
+    });
+
+    const rows = await container.db.select().from(schema.instanceSettings);
+    expect(rows[0]?.speechApiKeySource).toBe("env");
+    expect(rows[0]?.speechApiKeyCiphertext).toBeNull();
+  });
 });
 
 // ---------- TestSpeechConnection ----------
@@ -1209,6 +1296,43 @@ describe("testSpeechConnection", () => {
       "No api key available for the configured speech provider",
     );
     expect(stub.calls).toHaveLength(0);
+  });
+
+  // Issue #788: keyless providers have no api key, so the no-key early return
+  // must be skipped and the tester dispatched (with an empty key).
+  it("dispatches to the tester for a keyless provider even with no api key available", async () => {
+    await seedUser({
+      id: ADMIN_ID,
+      username: "alice",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    const baseContainer = createTestContainer();
+    const stub = new StubSpeechConnectionTester({ ok: true, latencyMs: 3 });
+    const container = {
+      ...baseContainer,
+      adminSpeechEnv: { apiKey: null, provider: null, model: null },
+      speechConnectionTester: stub,
+    };
+
+    const result = await testSpeechConnection({
+      container,
+      input: {
+        actorUserId: ADMIN_ID,
+        useDraft: true,
+        draftConfig: {
+          provider: "deepgram-workers-ai",
+          model: "@cf/deepgram/nova-3",
+          apiKeySource: "env",
+          apiKeyCiphertext: null,
+        },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0]?.cfg.provider).toBe("deepgram-workers-ai");
+    // Empty key forwarded to the probe (binding-presence check, ADR-005).
+    expect(stub.calls[0]?.apiKey).toBe("");
   });
 
   it("decrypts the persisted db api key and pings when env apiKey is unset", async () => {
