@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { csrfMiddleware } from "@/core/presentation/csrfMiddleware";
 import { AppServerError } from "@/core/presentation/errorResponse";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
 import { loadServerDeps } from "@/core/presentation/serverAction";
@@ -22,7 +23,7 @@ import {
 export type { IngestionJobWire, IngestionPreviewWire };
 
 export const uploadFileFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator((formData: unknown): FormData => {
     if (!(formData instanceof FormData)) {
       throw new Error("Expected multipart/form-data payload");
@@ -96,7 +97,7 @@ export function readPromptOverride(
 }
 
 export const commitIngestionPreviewFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(commitIngestionPreviewSchema))
   .handler(async ({ data }) => {
     const user = await requireCurrentUser();
@@ -223,7 +224,7 @@ export const getIngestionJobsFn = createServerFn({ method: "GET" })
   });
 
 export const discardIngestionPreviewFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(discardIngestionPreviewSchema))
   .handler(async ({ data }) => {
     const user = await requireCurrentUser();
@@ -241,7 +242,7 @@ export const discardIngestionPreviewFn = createServerFn({ method: "POST" })
   });
 
 export const regenerateIngestionPreviewFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(regenerateIngestionPreviewSchema))
   .handler(async ({ data }) => {
     const user = await requireCurrentUser();
@@ -259,7 +260,7 @@ export const regenerateIngestionPreviewFn = createServerFn({ method: "POST" })
   });
 
 export const ownerRetryIngestionJobFn = createServerFn({ method: "POST" })
-  .middleware([errorResponseMiddleware])
+  .middleware([errorResponseMiddleware, csrfMiddleware])
   .inputValidator(validateInput(ownerRetryIngestionJobSchema))
   .handler(async ({ data }) => {
     const user = await requireCurrentUser();
