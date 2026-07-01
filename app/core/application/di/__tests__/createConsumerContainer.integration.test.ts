@@ -525,6 +525,54 @@ describe("createConsumerContainer — speech resolution (env > DB > Stub)", () =
     );
   });
 
+  // The staging/production consumer template has NO `ADMIN_SPEECH_PROVIDER`
+  // var, so in real deployments the keyless provider is resolved from the
+  // stored `speech_provider` DB row (the /admin/speech save), not from an env
+  // override. This pins that real prod path end-to-end.
+  it("keyless from DB row: no env override, provider=deepgram-workers-ai in the DB + AI binding → wires the Workers AI provider", async () => {
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKeySource: "env",
+      speechProvider: "deepgram-workers-ai",
+      speechModel: "@cf/deepgram/nova-3",
+      speechApiKeySource: "env",
+      // No stored ciphertext — keyless needs no api key.
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+        AI: FAKE_AI,
+        // No ADMIN_SPEECH_PROVIDER / ADMIN_SPEECH_MODEL / ADMIN_SPEECH_API_KEY.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      DeepgramWorkersAiSpeechRecognitionProvider,
+    );
+  });
+
+  it("keyless from DB row Stub fallback: provider=deepgram-workers-ai in the DB but no AI binding → Stub", async () => {
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKeySource: "env",
+      speechProvider: "deepgram-workers-ai",
+      speechModel: "@cf/deepgram/nova-3",
+      speechApiKeySource: "env",
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+        // No AI binding.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      StubSpeechRecognitionProvider,
+    );
+  });
+
   // Calling `resolveConsumerSpeechConfig` directly exposes which values were
   // resolved (`instanceof` only proves "real vs Stub", not the env>db
   // priority on each axis). This pins the resolution decision at the seam.

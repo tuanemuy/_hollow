@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SpeechRecognitionConfig } from "@/core/domain/adminSettings/valueObject";
 import {
   LLM_PROVIDERS_TRANSPORT,
   SPEECH_PROVIDERS_TRANSPORT,
@@ -200,6 +201,17 @@ describe("SPEECH_PROVIDERS_TRANSPORT", () => {
       "gemini",
       "deepgram-workers-ai",
     ]);
+  });
+
+  // Directly compares both source constants instead of two independent
+  // hardcoded arrays. `schema.ts` comments the transport list as "duplicated
+  // from SPEECH_PROVIDERS", so the two must be set-equal — adding a provider
+  // to one source and forgetting the other is caught here rather than slipping
+  // through as a UI/transport that silently rejects the new provider.
+  it("is set-equal to the domain SpeechRecognitionConfig.providers (dual-list drift guard)", () => {
+    expect([...SPEECH_PROVIDERS_TRANSPORT].sort()).toEqual(
+      [...SpeechRecognitionConfig.providers].sort(),
+    );
   });
 });
 

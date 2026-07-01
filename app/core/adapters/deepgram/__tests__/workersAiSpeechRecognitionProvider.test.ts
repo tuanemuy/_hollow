@@ -30,10 +30,14 @@ const INPUT = {
 } as const;
 
 function makeProvider(
-  overrides: Partial<{ ai: Ai | undefined; timeoutMs: number }> = {},
+  overrides: Partial<{
+    ai: Ai | undefined;
+    timeoutMs: number;
+    model: string;
+  }> = {},
 ): DeepgramWorkersAiSpeechRecognitionProvider {
   return new DeepgramWorkersAiSpeechRecognitionProvider({
-    model: "@cf/deepgram/nova-3",
+    model: overrides.model ?? "@cf/deepgram/nova-3",
     ...(overrides.ai !== undefined ? { ai: overrides.ai } : {}),
     ...(overrides.timeoutMs !== undefined
       ? { timeoutMs: overrides.timeoutMs }
@@ -62,6 +66,15 @@ describe("DeepgramWorkersAiSpeechRecognitionProvider", () => {
       expect(inputs.smart_format).toBe(true);
       // locale `ja-JP` → primary subtag `ja`.
       expect(inputs.language).toBe("ja");
+    });
+
+    it("ignores config.model and always runs the typed `@cf/deepgram/nova-3` literal", async () => {
+      // The typed `ai.run` overload requires the literal model key, so the
+      // adapter deliberately discards `config.model` (see WORKERS_AI_DEEPGRAM_MODEL).
+      const ai = fakeAi(async () => transcriptOutput("ok"));
+      await makeProvider({ ai, model: "whisper-x" }).transcribe(INPUT);
+      const runMock = ai.run as unknown as ReturnType<typeof vi.fn>;
+      expect(runMock.mock.calls[0][0]).toBe("@cf/deepgram/nova-3");
     });
 
     it("omits the language hint for an empty locale", async () => {
@@ -113,13 +126,18 @@ describe("DeepgramWorkersAiSpeechRecognitionProvider", () => {
       );
     });
 
-    it("maps a run() rejection to SpeechFailureError", async () => {
+    it("maps a run() rejection to SpeechFailureError and preserves the original error as `cause`", async () => {
+      const originalError = new Error("workers-ai exploded");
       const ai = fakeAi(async () => {
-        throw new Error("workers-ai exploded");
+        throw originalError;
       });
-      await expect(
-        makeProvider({ ai }).transcribe(INPUT),
-      ).rejects.toBeInstanceOf(SpeechFailureError);
+      try {
+        await makeProvider({ ai }).transcribe(INPUT);
+        expect.fail("should have thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(SpeechFailureError);
+        expect((error as SpeechFailureError).cause).toBe(originalError);
+      }
     });
 
     it("maps a timeout to a timeout-worded SpeechFailureError (Promise.race timer)", async () => {

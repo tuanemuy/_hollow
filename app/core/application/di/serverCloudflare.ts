@@ -630,11 +630,16 @@ export function buildLlmProvider(
 
 /**
  * Application/DI wrapper over the domain SSOT predicate
- * {@link SpeechRecognitionConfig.requiresApiKey} (Issue #788 / ADR-004). Keeps
- * binding-oriented DI code from touching the domain VO directly and gives the
- * keyless gates a single, self-documenting call site.
+ * {@link SpeechRecognitionConfig.requiresApiKey} (Issue #788 / ADR-004). This is
+ * a pure re-expression of that predicate in the negative — "does this provider
+ * authenticate without an api key?" — and carries no transport/binding
+ * knowledge of its own. It exists only so binding-oriented DI code has a
+ * single, keyless-named call site instead of touching the domain VO directly;
+ * `SpeechRecognitionConfig.requiresApiKey` (and `KEYLESS_SPEECH_PROVIDERS`)
+ * remains the SSOT. The name is deliberately generic (not `workers-ai`-specific)
+ * so future keyless providers (ADR-003) stay covered without a rename.
  */
-export function isWorkersAiSpeechProvider(provider: string): boolean {
+export function isKeylessSpeechProvider(provider: string): boolean {
   return !SpeechRecognitionConfig.requiresApiKey(provider);
 }
 
@@ -660,7 +665,7 @@ export function buildSpeechRecognitionProvider(
   ai?: Ai,
 ): SpeechRecognitionProvider {
   const resolvedProvider = provider ?? "openai";
-  if (isWorkersAiSpeechProvider(resolvedProvider)) {
+  if (isKeylessSpeechProvider(resolvedProvider)) {
     // Keyless: binding + model drive the wiring; apiKey is ignored.
     if (ai === undefined || !adminSpeechModel) {
       return new StubSpeechRecognitionProvider();
@@ -1251,7 +1256,7 @@ export async function resolveConsumerSpeechConfig(
   // requirement. Consumer wiring passes `env.AI` into
   // `buildSpeechRecognitionProvider` — a missing binding is what falls back to
   // the Stub for keyless providers, not a missing key.
-  const keyless = isWorkersAiSpeechProvider(provider ?? "");
+  const keyless = isKeylessSpeechProvider(provider ?? "");
   if (provider === null || model === null || (!keyless && apiKey === null)) {
     return null;
   }

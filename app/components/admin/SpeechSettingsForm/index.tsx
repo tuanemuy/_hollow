@@ -40,7 +40,7 @@ const PROVIDER_LABEL: Readonly<Record<ProviderId, string>> = {
 // the `env.AI` binding, so the API-key field is hidden and its "required on
 // provider change" gate is suppressed. Mirrors the domain SSOT
 // `KEYLESS_SPEECH_PROVIDERS`; the server enforces the real gates.
-const KEYLESS_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
+export const KEYLESS_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
   "deepgram-workers-ai",
 ]);
 
@@ -350,8 +350,15 @@ export function SpeechSettingsForm({
           </div>
         ) : null}
         <div className={FIELD_CLASS}>
-          <label className={FIELD_LABEL_CLASS} htmlFor={apiKeyId}>
-            新しい API キー
+          <label
+            className={FIELD_LABEL_CLASS}
+            // Keyless providers render a non-interactive `<span>` in place of
+            // the `id={apiKeyId}` input, so associating the label with that id
+            // would leave a dangling `htmlFor` (axe: "label with no control").
+            // Drop the association and use neutral wording when keyless.
+            htmlFor={keyless ? undefined : apiKeyId}
+          >
+            {keyless ? "API キー" : "新しい API キー"}
             {apiKeyRequired ? (
               <span className={REQUIRED_BADGE_CLASS} aria-hidden="true">
                 必須
