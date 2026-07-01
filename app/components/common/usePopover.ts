@@ -32,6 +32,14 @@ import {
  * rather than reverting the guard. It deliberately knows nothing about roving
  * tabindex; that lives in the second-layer `useRovingMenu`.
  *
+ * Initial focus (`moveInitialFocus`, opt-in) is the symmetric counterpart of
+ * the focus restoration above: on the closed→open rising edge it moves focus
+ * to the first focusable element inside the panel (Issue #506, dialog mode
+ * only). It is off by default and menu/listbox popovers must not enable it —
+ * their initial focus is owned by the second-layer roving tabindex
+ * (`useRovingMenu`). Consumers that manage panel focus themselves
+ * (DirectoryTreeSelect) also leave it off.
+ *
  * Open/close state is owned by the caller (`open` / `onOpenChange`) so a host
  * can keep multiple popovers mutually exclusive (FilterBar) or own the toggle
  * inline (`<Menu>`).
@@ -102,6 +110,17 @@ export function computeShiftY(
 
 export type PopupRole = "dialog" | "menu" | "listbox";
 
+// Mirror of `Dialog.tsx`'s non-filtered `FOCUSABLE_SELECTOR`, used to pick the
+// initial-focus target inside a dialog-mode panel on open (Issue #506). Unlike
+// Dialog's `INITIAL_FOCUS_SELECTOR` (a `:not([data-dialog-close])` filtered
+// variant that skips the close button), no exclusion is needed here: the first
+// focusable in a DatePopover is a meaningful preset button, so the non-filtered
+// form is the right shape. Kept as a local duplicate rather than shared —
+// Dialog needs the filtered variant, this needs the unfiltered one, so sharing
+// would force a branch at the call site (ADR-001 tradeoff).
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+
 export type PopoverTriggerProps = Readonly<{
   ref: Ref<HTMLButtonElement>;
   "aria-haspopup": PopupRole;
@@ -120,6 +139,13 @@ export type UsePopoverOptions = Readonly<{
    * Defaults to false; the `absolute right-0` actions menus do not need it.
    */
   clampToViewport?: boolean;
+  /**
+   * When true, focus moves to the first focusable element inside the panel on
+   * each closed→open transition (dialog mode, Issue #506). Defaults to false.
+   * Callers gate this to `haspopup === "dialog"`; menu/listbox popovers rely on
+   * `useRovingMenu` for initial focus and must leave it off.
+   */
+  moveInitialFocus?: boolean;
 }>;
 
 export type UsePopover = Readonly<{
@@ -146,6 +172,7 @@ export function usePopover({
   onOpenChange,
   haspopup,
   clampToViewport = false,
+  moveInitialFocus = false,
 }: UsePopoverOptions): UsePopover {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -153,6 +180,15 @@ export function usePopover({
   const panelId = useId();
   const [shiftX, setShiftX] = useState(0);
   const [shiftY, setShiftY] = useState(0);
+  // Tracks the last seen `open` so the initial-focus effect below fires only on
+  // a real closed→open transition — not on re-renders that keep the panel open.
+  // A DatePopover stays open across preset selection → URL navigation (RSC
+  // re-render, popover not closed), and the effect can be re-evaluated there;
+  // without this edge guard it would yank focus back to the first focusable and
+  // steal the user's place. Initial `false` (matching `useRovingMenu`) so a
+  // dialog mounted already-open still counts as a rising edge. See #467
+  // `useRovingMenu`'s `prevOpenRef` for the same pattern.
+  const prevOpenRef = useRef(false);
 
   const setPanelRef = useCallback((node: HTMLDivElement | null) => {
     panelRef.current = node;
@@ -189,6 +225,19 @@ export function usePopover({
     shiftX !== 0 || shiftY !== 0
       ? { transform: `translate(${shiftX}px, ${shiftY}px)` }
       : undefined;
+
+  // Initial focus (dialog mode, opt-in). Fires only on the closed→open rising
+  // edge; on later commits while open (`prevOpenRef` already true) it no-ops so
+  // it never pulls focus back from wherever the user moved it. Runs in a
+  // useEffect (post-paint) so it does not race the `clampToViewport`
+  // useLayoutEffect. `.focus()` works in happy-dom (unlike layout); only the
+  // first focusable is taken — no-op when the panel has none.
+  useEffect(() => {
+    const rising = open && !prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!moveInitialFocus || !rising) return;
+    panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
+  }, [open, moveInitialFocus]);
 
   useEffect(() => {
     if (!open) return;

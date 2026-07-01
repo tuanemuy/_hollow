@@ -1,11 +1,20 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * P30 filter chips / display segmented / sort wiring. The URL
  * updaters are pure functions (tested directly); the SSR markup assertions
- * cover the chip set, active state and remove (×) affordance.
+ * cover the chip set, active state and remove (×) affordance. The dynamic
+ * (happy-dom) block at the end locks the Issue #506 DatePopover initial focus.
  */
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 let searchState: {
   display?: "list" | "tile" | "calendar";
@@ -212,5 +221,57 @@ describe("PublicTopControls — +タグ cap suppression (ADR-004)", () => {
 
   it("does not suppress a selected option below the cap", () => {
     expect(isTagAddSuppressed(7, true)).toBe(false);
+  });
+});
+
+/**
+ * Issue #506: opening the public DatePopover moves focus to its first preset
+ * button (the same opt-in dialog initial focus as the auth FilterBar). Uses a
+ * dynamic happy-dom mount since the behaviour is effect-driven, not SSR markup.
+ */
+describe("PublicTopControls — DatePopover initial focus (Issue #506)", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    searchState = {};
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  function dateTrigger(): HTMLButtonElement {
+    const btns = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    const found = btns.find((b) => (b.textContent ?? "").includes("期間"));
+    if (!found) throw new Error("期間 trigger not found");
+    return found;
+  }
+
+  it("moves focus to the first preset button when the popover opens (AC-4)", () => {
+    act(() => {
+      root.render(<PublicTopControls tagOptions={[]} allTags={[]} />);
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    act(() => {
+      dateTrigger().click();
+    });
+    const panel = container.querySelector<HTMLElement>('[role="dialog"]');
+    expect(panel).not.toBeNull();
+    const firstFocusable = panel?.querySelector<HTMLElement>(
+      "a[href], button, input, select, textarea, [tabindex]",
+    );
+    // The leading focusable is a preset toggle (`[aria-pressed]`), not a date
+    // input, so opening never triggers a native date picker / soft keyboard.
+    expect(firstFocusable?.hasAttribute("aria-pressed")).toBe(true);
+    expect(document.activeElement).toBe(firstFocusable);
   });
 });

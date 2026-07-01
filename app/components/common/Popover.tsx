@@ -35,6 +35,14 @@ export type PopoverProps = Readonly<{
   /** Opt-in horizontal and vertical viewport clamp (FilterBar). */
   clampToViewport?: boolean | undefined;
   /**
+   * Opt-in: on open, move focus to the first focusable element inside the panel
+   * (Issue #506). Meaningful in dialog mode only — it is code-gated to
+   * `haspopup === "dialog"`, so passing it to menu/listbox is a structural
+   * no-op (their initial focus is owned by `useRovingMenu`'s roving tabindex).
+   * Off by default; the two DatePopovers opt in.
+   */
+  initialFocus?: boolean | undefined;
+  /**
    * Key handler for the `role="menu"` / `role="listbox"` panel
    * (roving-tabindex arrow keys). Not used by the dialog branch.
    */
@@ -60,6 +68,7 @@ export function Popover({
   label,
   panelClassName,
   clampToViewport = false,
+  initialFocus,
   onMenuKeyDown,
   panelRef,
   multiselectable,
@@ -71,6 +80,9 @@ export function Popover({
     onOpenChange,
     haspopup,
     clampToViewport,
+    // Code-gate to dialog mode so menu/listbox can never double up with the
+    // roving-tabindex initial focus (illegal state made unrepresentable).
+    moveInitialFocus: haspopup === "dialog" ? Boolean(initialFocus) : false,
   });
 
   const assignPanelRef = (node: HTMLDivElement | null) => {
