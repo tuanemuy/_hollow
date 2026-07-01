@@ -246,7 +246,7 @@ describe("AdminSettingsService.assertSpeechEnvOverride", () => {
   // Issue #788: keyless providers resolve auth via the Cloudflare `env.AI`
   // binding, so the "env source requires an env key" invariant is carved out.
   // Without this carve-out the usecase's `apiKeySource:'env'` normalization
-  // would trip this gate and fail a keyless save (round-2 [P-001]).
+  // would trip this gate and fail a keyless save.
   it("does NOT throw for a keyless provider with source 'env' and a missing env.apiKey", () => {
     const cfg = SpeechRecognitionConfig.create({
       provider: "deepgram-workers-ai",

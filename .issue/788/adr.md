@@ -91,7 +91,7 @@ Issue の受け入れ基準は provider 非依存（「選んだプロバイダ�
 ### Consequences
 - 良い点: 実在し型付き契約のある Deepgram に集中でき、Issue 前提の誤り（gpt-4o-transcribe が WAI 非対応）に足を取られない。E2E の確実性が上がる。
 - トレードオフ: Issue タイトルが挙げる OpenAI ルートは本 Issue では入らない（別 Issue に明記して引き継ぐ）。
-- 引き継ぎ: OpenAI を Cloudflare 側で呼びたい場合は AI Gateway プロキシ Issue を別途起票。Whisper で妥協するなら `openai-whisper-workers-ai` provider として同じ generic 配線に乗せられる。
+- 引き継ぎ: OpenAI を Cloudflare 側で呼びたい場合は AI Gateway プロキシ Issue を別途起票 → **#814 として起票済み**（案1: AI Gateway 経由 gpt-4o-transcribe / 案2: Whisper 妥協 を ADR で決着させる）。Whisper で妥協するなら `openai-whisper-workers-ai` provider として同じ generic 配線に乗せられる。
 
 ---
 
