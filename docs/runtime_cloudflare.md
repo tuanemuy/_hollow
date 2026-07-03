@@ -109,18 +109,18 @@ Cloudflare Queues and D1 databases are not auto-created by `wrangler deploy` —
 
 ```bash
 # staging
-wrangler d1 create tanstack-start-template-d1-staging
-wrangler queues create tanstack-start-template-events-staging
-wrangler queues create tanstack-start-template-events-dlq-staging
-wrangler r2 bucket create tanstack-start-template-temp-files-staging
-wrangler r2 bucket create tanstack-start-template-objects-staging
+wrangler d1 create hollow-staging-d1
+wrangler queues create hollow-staging-events
+wrangler queues create hollow-staging-events-dlq
+wrangler r2 bucket create hollow-staging-temp-files
+wrangler r2 bucket create hollow-staging-objects
 
 # production
-wrangler d1 create tanstack-start-template-d1-production
-wrangler queues create tanstack-start-template-events-production
-wrangler queues create tanstack-start-template-events-dlq-production
-wrangler r2 bucket create tanstack-start-template-temp-files-production
-wrangler r2 bucket create tanstack-start-template-objects-production
+wrangler d1 create hollow-production-d1
+wrangler queues create hollow-production-events
+wrangler queues create hollow-production-events-dlq
+wrangler r2 bucket create hollow-production-temp-files
+wrangler r2 bucket create hollow-production-objects
 ```
 
 When `infra/` (Pulumi) is used, `pnpm infra:up:<stage>` provisions the D1 database, both queues, both R2 buckets, **and a placeholder AAAA record (`100::`, proxied) at the route hostname** in one step — these `wrangler create` commands are the manual fallback. The placeholder AAAA is required for Cloudflare's proxied edge to engage the Worker route declared in `wrangler.<stage>.toml`; do **not** delete it manually. If the AAAA placeholder is accidentally deleted, run `pnpm infra:up:<stage>` to recreate it. The Worker Route itself is **not** a Pulumi resource — wrangler creates and updates it during `wrangler deploy` from the per-stage `routes = [...]` block.
