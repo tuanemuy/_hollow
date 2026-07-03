@@ -376,6 +376,24 @@ describe("FilterBar — DatePopover (Issue #467)", () => {
     expect(datePanel()).toBeNull();
   });
 
+  it("moves focus to the first preset button when the popover opens (Issue #506 AC-3)", () => {
+    routerNavigate.mockResolvedValue(undefined);
+    renderBarWith();
+    act(() => {
+      buttonByText("期間").click();
+    });
+    const panel = datePanel();
+    expect(panel).not.toBeNull();
+    // The first focusable inside the dialog is the leading preset button (a
+    // `[aria-pressed]` toggle), not a date input — so opening never pops a
+    // native date picker or the soft keyboard.
+    const firstFocusable = panel?.querySelector<HTMLElement>(
+      "a[href], button, input, select, textarea, [tabindex]",
+    );
+    expect(firstFocusable?.hasAttribute("aria-pressed")).toBe(true);
+    expect(document.activeElement).toBe(firstFocusable);
+  });
+
   it("closes via the 閉じる button", () => {
     routerNavigate.mockResolvedValue(undefined);
     renderBarWith();

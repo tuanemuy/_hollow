@@ -87,9 +87,14 @@ afterEach(() => {
 type HarnessProps = {
   clampToViewport?: boolean;
   initialOpen?: boolean;
+  initialFocus?: boolean;
 };
 
-function Harness({ clampToViewport, initialOpen = false }: HarnessProps) {
+function Harness({
+  clampToViewport,
+  initialOpen = false,
+  initialFocus,
+}: HarnessProps) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <Popover
@@ -99,6 +104,7 @@ function Harness({ clampToViewport, initialOpen = false }: HarnessProps) {
       label="テストダイアログ"
       panelClassName="absolute left-0 top-full"
       clampToViewport={clampToViewport}
+      initialFocus={initialFocus}
       trigger={(props) => (
         <button {...props} type="button" aria-label="開く">
           開く
@@ -107,6 +113,12 @@ function Harness({ clampToViewport, initialOpen = false }: HarnessProps) {
     >
       {({ close }) => (
         <div>
+          {/* A meaningful first focusable (mirrors the DatePopover's leading
+              preset button) so the initial-focus target is the FIRST control,
+              not merely any control. */}
+          <button type="button" aria-label="先頭">
+            先頭
+          </button>
           <span>本文</span>
           <button type="button" onClick={close}>
             閉じる
@@ -520,5 +532,133 @@ describe("Popover (dialog mode)", () => {
         writable: true,
       });
     }
+  });
+});
+
+/**
+ * Issue #506: dialog-mode initial focus (opt-in). On the closed→open rising
+ * edge the panel's first focusable receives focus; menu/listbox stay untouched
+ * (roving owns their focus), and the opt-out default is a strict no-op.
+ */
+describe("Popover (dialog mode) — initial focus (Issue #506)", () => {
+  function firstFocusable(): HTMLElement | null {
+    return container.querySelector<HTMLElement>('button[aria-label="先頭"]');
+  }
+
+  it("moves focus to the first focusable in the panel on open (AC-1)", () => {
+    render({ initialFocus: true });
+    act(() => {
+      trigger().click();
+    });
+    expect(document.activeElement).toBe(firstFocusable());
+    // Moving focus into the panel must NOT trip the container's onFocusOut and
+    // dismiss the panel (relatedTarget stays inside the container).
+    expect(panel()).not.toBeNull();
+  });
+
+  it("does not move focus into the panel when initialFocus is omitted (AC-2)", () => {
+    render();
+    act(() => {
+      trigger().click();
+    });
+    expect(panel()).not.toBeNull();
+    // Backward-compatible: focus must not land inside the panel. Asserted via
+    // containment (not `activeElement === trigger`, which happy-dom's `.click()`
+    // does not set) so the regression guard is stable.
+    expect(panel()?.contains(document.activeElement)).toBe(false);
+  });
+
+  it.each([
+    "menu",
+    "listbox",
+  ] as const)("does not move initial focus into a %s panel even when initialFocus is passed (AC-7)", (haspopup) => {
+    function RoleHarness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <Popover
+          open={open}
+          onOpenChange={setOpen}
+          haspopup={haspopup}
+          initialFocus
+          label="テストパネル"
+          panelClassName="absolute left-0 top-full"
+          trigger={(props) => (
+            <button {...props} type="button" aria-label="開く">
+              開く
+            </button>
+          )}
+        >
+          <button type="button" aria-label="項目">
+            項目
+          </button>
+        </Popover>
+      );
+    }
+    act(() => {
+      root.render(<RoleHarness />);
+    });
+    const t = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="開く"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      t.click();
+    });
+    const p = container.querySelector<HTMLElement>(`[role="${haspopup}"]`);
+    expect(p).not.toBeNull();
+    // The `haspopup === "dialog"` code-gate makes moveInitialFocus false here,
+    // so focus never enters the panel (roving would, but there is none wired).
+    expect(p?.contains(document.activeElement)).toBe(false);
+  });
+
+  it("re-arms initial focus on close→reopen (rising-edge reset, W-001)", () => {
+    // Complements the AC-9 smoke below: unlike a plain re-render (effect deps
+    // unchanged → effect never re-runs), driving `open` false→true actually
+    // re-runs the initial-focus effect. This guards the rising-edge reset
+    // against a "fire once, never re-arm" regression — pinning `prevOpenRef`
+    // true after the first open (`if (open) prevOpenRef.current = true`) stops
+    // the reopen from reading as a rising edge and this test fails. Note it
+    // does NOT catch deleting the reset line outright: `prevOpenRef` then stays
+    // at its initial false, so every open still reads as a rising edge and
+    // focus lands — happy-dom's stable deps prevent isolating that path.
+    render({ initialFocus: true });
+    act(() => {
+      trigger().click();
+    });
+    expect(document.activeElement).toBe(firstFocusable());
+    // User moves focus onward within the open panel.
+    const closeBtn = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "閉じる") as HTMLButtonElement;
+    act(() => {
+      closeBtn.focus();
+    });
+    expect(document.activeElement).toBe(closeBtn);
+    // Close, then reopen: the second open must re-arm and land focus back on
+    // the first focusable.
+    act(() => {
+      trigger().click();
+    });
+    expect(panel()).toBeNull();
+    act(() => {
+      trigger().click();
+    });
+    expect(document.activeElement).toBe(firstFocusable());
+  });
+
+  it("does not steal focus back to the first focusable on a re-render while open (AC-9 smoke)", () => {
+    render({ initialFocus: true, initialOpen: true });
+    expect(document.activeElement).toBe(firstFocusable());
+    // Simulate the user moving focus onward within the open panel.
+    const closeBtn = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((b) => b.textContent === "閉じる") as HTMLButtonElement;
+    act(() => {
+      closeBtn.focus();
+    });
+    expect(document.activeElement).toBe(closeBtn);
+    // Re-render with the panel still open (state persists across root.render):
+    // the initial-focus effect must not re-fire and yank focus back.
+    render({ initialFocus: true, initialOpen: true });
+    expect(document.activeElement).toBe(closeBtn);
   });
 });

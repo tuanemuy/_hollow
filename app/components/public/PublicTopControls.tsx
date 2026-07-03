@@ -461,6 +461,7 @@ function DatePopover({
       label="期間フィルタ"
       panelClassName={DATE_POPOVER_PANEL}
       clampToViewport
+      initialFocus
       trigger={(triggerProps) =>
         applied ? (
           <span data-active className={CHIP}>
