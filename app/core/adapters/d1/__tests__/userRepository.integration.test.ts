@@ -264,3 +264,126 @@ describe("D1UserRepository.searchPublicByUsernamePrefix (integration, #568)", ()
     expect(zero).toEqual([]);
   });
 });
+
+/**
+ * Integration tests for `D1UserRepository.listAll` — the admin-console
+ * listing query behind `/admin/users`. Locks in that varied stored rows
+ * (every derived status, admin role, populated profile fields) round-trip
+ * through `toUser` rehydration without throwing (#471): a rehydration
+ * failure here is what surfaced the page as the admin shell's errorComponent.
+ */
+const AVATAR_ID = "0193e7f5-aaaa-7000-8000-0000000000ff";
+
+// Full-control seed for the admin listing. Unlike the module-level
+// `seedUser`, this drives role + profile fields so `toUser` rehydration and
+// `deriveStatus` mapping are exercised across the states the admin table shows.
+async function seedListUser(
+  container: TestContainer,
+  username: string,
+  opts: {
+    role?: "member" | "admin";
+    banned?: 0 | 1;
+    deleted?: boolean;
+    emailVerified?: 0 | 1;
+    bio?: string | null;
+    avatarMediaId?: string | null;
+    lastUsernameChangedAt?: string | null;
+  } = {},
+): Promise<UserId> {
+  const id = nextId(0x04);
+  await container.db.insert(schema.users).values({
+    id,
+    name: `Display ${username}`,
+    email: `${id}@example.com`,
+    emailVerified: opts.emailVerified ?? 1,
+    image: null,
+    createdAt: TZ,
+    updatedAt: TZ,
+    username,
+    displayUsername: null,
+    role: opts.role ?? "member",
+    banned: opts.banned ?? 0,
+    banReason: null,
+    banExpires: null,
+    bio: opts.bio ?? null,
+    avatarMediaId: opts.avatarMediaId ?? null,
+    lastUsernameChangedAt: opts.lastUsernameChangedAt ?? null,
+    deletedAt: opts.deleted ? TZ : null,
+  });
+  return id as UserId;
+}
+
+describe("D1UserRepository.listAll (integration, #471)", () => {
+  it("returns every admin-console user across all derived statuses, ordered by id, without rehydration failure", async () => {
+    const container = createTestContainer();
+    // One row per derived status (deriveStatus priority: deleted > suspended
+    // > pending > active) plus an admin with populated profile fields — the
+    // combination whose data path renders the `/admin/users` table (#471).
+    const active = await seedListUser(container, "active-user");
+    const pending = await seedListUser(container, "pending-user", {
+      emailVerified: 0,
+    });
+    const suspended = await seedListUser(container, "suspended-user", {
+      banned: 1,
+    });
+    const deleted = await seedListUser(container, "deleted-user", {
+      deleted: true,
+    });
+    const admin = await seedListUser(container, "admin-user", {
+      role: "admin",
+      bio: "runs the place",
+      avatarMediaId: AVATAR_ID,
+      lastUsernameChangedAt: TZ,
+    });
+
+    const users = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) => userRepository.listAll({ limit: 100 }),
+    );
+
+    // Ids are monotonic in creation order (nextId) and listAll orders by id asc.
+    expect(users.map((u) => u.id)).toEqual([
+      active,
+      pending,
+      suspended,
+      deleted,
+      admin,
+    ]);
+    expect(users.map((u) => u.status)).toEqual([
+      "active",
+      "pending",
+      "suspended",
+      "deleted",
+      "active",
+    ]);
+
+    const adminEntity = users.find((u) => u.id === admin);
+    expect(adminEntity?.role).toBe("admin");
+    expect(adminEntity?.bio).toBe("runs the place");
+    expect(adminEntity?.avatarMediaId).toBe(AVATAR_ID);
+    expect(adminEntity?.lastUsernameChangedAt).toEqual(new Date(TZ));
+
+    const memberWithNoProfile = users.find((u) => u.id === active);
+    expect(memberWithNoProfile?.bio).toBeNull();
+    expect(memberWithNoProfile?.avatarMediaId).toBeNull();
+    expect(memberWithNoProfile?.lastUsernameChangedAt).toBeNull();
+  });
+
+  it("pages by cursor and truncates to the limit", async () => {
+    const container = createTestContainer();
+    const first = await seedListUser(container, "page-a");
+    const second = await seedListUser(container, "page-b");
+    const third = await seedListUser(container, "page-c");
+
+    const firstPage = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) => userRepository.listAll({ limit: 2 }),
+    );
+    expect(firstPage.map((u) => u.id)).toEqual([first, second]);
+
+    // Cursor is exclusive (id > cursor), so the next page starts after `second`.
+    const secondPage = await container.unitOfWorkProvider.run(
+      async ({ userRepository }) =>
+        userRepository.listAll({ limit: 2, cursor: second }),
+    );
+    expect(secondPage.map((u) => u.id)).toEqual([third]);
+  });
+});
