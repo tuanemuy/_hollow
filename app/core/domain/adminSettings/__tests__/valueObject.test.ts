@@ -409,8 +409,45 @@ describe("SpeechRecognitionConfig", () => {
       "openai",
       "deepgram",
       "gemini",
+      "deepgram-workers-ai",
     ]);
     expect([...SpeechRecognitionConfig.apiKeySources]).toEqual(["env", "db"]);
+  });
+
+  it("requiresApiKey is true for REST providers and false for keyless (Issue #788)", () => {
+    expect(SpeechRecognitionConfig.requiresApiKey("openai")).toBe(true);
+    expect(SpeechRecognitionConfig.requiresApiKey("deepgram")).toBe(true);
+    expect(SpeechRecognitionConfig.requiresApiKey("gemini")).toBe(true);
+    expect(SpeechRecognitionConfig.requiresApiKey("deepgram-workers-ai")).toBe(
+      false,
+    );
+    expect([...SpeechRecognitionConfig.keylessProviders]).toEqual([
+      "deepgram-workers-ai",
+    ]);
+  });
+
+  // Directly ties the `requiresApiKey` predicate to the `keylessProviders`
+  // set for every provider, rather than asserting hardcoded per-provider
+  // booleans. If the two drift (a provider added to one but not the other),
+  // this fails without needing an updated literal list.
+  it("requiresApiKey is the exact complement of keylessProviders across all providers", () => {
+    const keyless = new Set<string>(SpeechRecognitionConfig.keylessProviders);
+    for (const provider of SpeechRecognitionConfig.providers) {
+      expect(SpeechRecognitionConfig.requiresApiKey(provider)).toBe(
+        !keyless.has(provider),
+      );
+    }
+  });
+
+  it("accepts the deepgram-workers-ai provider (Issue #788)", () => {
+    const cfg = SpeechRecognitionConfig.create({
+      provider: "deepgram-workers-ai",
+      model: "@cf/deepgram/nova-3",
+      apiKeySource: "env",
+      apiKeyCiphertext: null,
+    });
+    expect(cfg.provider).toBe("deepgram-workers-ai");
+    expect(cfg.model).toBe("@cf/deepgram/nova-3");
   });
 
   it("creates an env-sourced config with apiKeyCiphertext = null", () => {

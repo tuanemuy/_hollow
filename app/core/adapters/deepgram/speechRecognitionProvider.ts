@@ -7,6 +7,7 @@ import {
   type SpeechRecognitionProvider,
   type SpeechTranscribeInput,
 } from "@/core/domain/ingestion/ports/speechRecognitionProvider";
+import { extractDeepgramTranscript, localeToLanguage } from "./transcript";
 
 /**
  * Configuration for {@link DeepgramSpeechRecognitionProvider}. Symmetric with
@@ -61,17 +62,6 @@ function isAbortError(error: unknown): boolean {
   }
   if (error instanceof Error && error.name === "AbortError") return true;
   return false;
-}
-
-/**
- * Maps the port `locale` (e.g. `ja` / `ja-JP`) onto the language hint
- * Deepgram's `language` query parameter accepts. Best-effort: takes the first
- * subtag and lower-cases it. An empty locale yields no hint. Symmetric with
- * the OpenAI speech adapter's `localeToLanguage`.
- */
-function localeToLanguage(locale: string): string {
-  const primary = locale.split(/[-_]/)[0]?.trim().toLowerCase() ?? "";
-  return primary;
 }
 
 /**
@@ -202,12 +192,7 @@ export class DeepgramSpeechRecognitionProvider
         cause,
       );
     }
-    const transcript =
-      body.results?.channels?.[0]?.alternatives?.[0]?.transcript;
-    if (typeof transcript !== "string") {
-      // No usable transcript field — treat as no detected speech.
-      return "";
-    }
-    return transcript.trim();
+    // Missing / whitespace-only transcript → "" (no detected speech).
+    return extractDeepgramTranscript(body);
   }
 }

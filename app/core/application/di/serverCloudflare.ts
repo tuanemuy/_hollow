@@ -1,4 +1,9 @@
-import type { D1Database, Fetcher, R2Bucket } from "@cloudflare/workers-types";
+import type {
+  Ai,
+  D1Database,
+  Fetcher,
+  R2Bucket,
+} from "@cloudflare/workers-types";
 import { eq } from "drizzle-orm";
 import { content } from "@/config";
 import { ConsoleEmailSender } from "@/core/adapters/cloudflare/identity/emailSender";
@@ -48,6 +53,7 @@ import {
   type SecretBox,
 } from "@/core/domain/adminSettings/ports/secretBox";
 import type { LLMProvider as LLMProviderName } from "@/core/domain/adminSettings/valueObject";
+import { SpeechRecognitionConfig } from "@/core/domain/adminSettings/valueObject";
 import type { ExportLimits } from "@/core/domain/export/valueObject";
 import type { LLMProvider } from "@/core/domain/ingestion/ports/llmProvider";
 import type { OCRProvider } from "@/core/domain/ingestion/ports/ocrProvider";
@@ -183,9 +189,14 @@ export type RequestServerConfig = AppConfig &
     // missing → DI keeps `StubSpeechRecognitionProvider`.
     adminSpeechModel?: string;
     // Optional `ADMIN_SPEECH_PROVIDER` var. Selects which speech adapter the
-    // registry factory instantiates (e.g. `openai` / `deepgram`). Unset →
-    // defaults to `"openai"`.
+    // registry factory instantiates (e.g. `openai` / `deepgram` /
+    // `deepgram-workers-ai`). Unset → defaults to `"openai"`.
     adminSpeechProvider?: string;
+    // Optional Cloudflare Workers AI binding (`env.AI`, Issue #788). Threaded
+    // to the keyless `deepgram-workers-ai` speech adapter as a `deps.ai`
+    // injection (ADR-002). Absent → the keyless adapter falls back to the
+    // Stub (request path) and the connection test reports `ok: false`.
+    aiBinding?: Ai;
     // R2 binding for ingestion-temp storage. When present DI wires
     // `R2TempFileStorage`; absent → DI installs an inline unavailable
     // adapter that rejects every call with
@@ -279,6 +290,11 @@ export type ServerEnv = Readonly<{
   // Optional speech provider id for the speech registry factory. Wrangler
   // `[vars]` — unset → defaults to `"openai"`. Public information.
   ADMIN_SPEECH_PROVIDER?: string;
+  // Optional Cloudflare Workers AI binding (Issue #788). Bound via
+  // `[ai] binding = "AI"` on the web + consumer workers. Required by the
+  // keyless `deepgram-workers-ai` speech provider; absent → that provider
+  // degrades to the Stub. Not a secret (the binding carries no credential).
+  AI?: Ai;
   // R2 binding for ingestion-temp storage. Optional so the DI fallback
   // (inline unavailable adapter that rejects with
   // `TempFileStorageUnavailableError`) covers worker entries that do not
@@ -408,6 +424,7 @@ export function readRequestServerConfig(
     ...(env.ADMIN_SPEECH_PROVIDER
       ? { adminSpeechProvider: env.ADMIN_SPEECH_PROVIDER }
       : {}),
+    ...(env.AI ? { aiBinding: env.AI } : {}),
     ...(env.TEMP_FILES ? { tempFilesBucket: env.TEMP_FILES } : {}),
     ...(r2PresignReady
       ? {
@@ -612,25 +629,60 @@ export function buildLlmProvider(
 }
 
 /**
- * Build the {@link SpeechRecognitionProvider}. Delegates to
- * the speech registry factory when both `ADMIN_SPEECH_API_KEY` (secret) and
- * `ADMIN_SPEECH_MODEL` (var) are present; either missing → fall back to
- * `StubSpeechRecognitionProvider`. `provider` defaults to `"openai"` when
- * `ADMIN_SPEECH_PROVIDER` is unset.
+ * Application/DI wrapper over the domain SSOT predicate
+ * {@link SpeechRecognitionConfig.requiresApiKey} (Issue #788 / ADR-004). This is
+ * a pure re-expression of that predicate in the negative — "does this provider
+ * authenticate without an api key?" — and carries no transport/binding
+ * knowledge of its own. It exists only so binding-oriented DI code has a
+ * single, keyless-named call site instead of touching the domain VO directly;
+ * `SpeechRecognitionConfig.requiresApiKey` (and `KEYLESS_SPEECH_PROVIDERS`)
+ * remains the SSOT. The name is deliberately generic (not `workers-ai`-specific)
+ * so future keyless providers (ADR-003) stay covered without a rename.
+ */
+export function isKeylessSpeechProvider(provider: string): boolean {
+  return !SpeechRecognitionConfig.requiresApiKey(provider);
+}
+
+/**
+ * Build the {@link SpeechRecognitionProvider}. Two gate shapes (Issue #788 /
+ * ADR-004):
+ * - REST providers (openai / deepgram / gemini): wired when both
+ *   `ADMIN_SPEECH_API_KEY` (secret) and `ADMIN_SPEECH_MODEL` (var) are present;
+ *   either missing → `StubSpeechRecognitionProvider`.
+ * - Keyless providers (`deepgram-workers-ai`): authentication is the Cloudflare
+ *   `env.AI` binding, so the gate is "`ai` binding injected AND model present"
+ *   — the api key is irrelevant. Binding absent → Stub.
  *
- * An unregistered provider string (operator typo) falls back to the Stub so
- * the container still builds — the queued audio job then fails with the
- * Stub's `unsupported_format` rather than crashing container construction.
+ * `provider` defaults to `"openai"` when `ADMIN_SPEECH_PROVIDER` is unset. An
+ * unregistered provider string (operator typo) falls back to the Stub so the
+ * container still builds — the queued audio job then fails with the Stub's
+ * `unsupported_format` rather than crashing container construction.
  */
 export function buildSpeechRecognitionProvider(
   provider: string | undefined,
   adminSpeechApiKey: string | undefined,
   adminSpeechModel: string | undefined,
+  ai?: Ai,
 ): SpeechRecognitionProvider {
+  const resolvedProvider = provider ?? "openai";
+  if (isKeylessSpeechProvider(resolvedProvider)) {
+    // Keyless: binding + model drive the wiring; apiKey is ignored.
+    if (ai === undefined || !adminSpeechModel) {
+      return new StubSpeechRecognitionProvider();
+    }
+    const adapter = lookupSpeechAdapter(resolvedProvider);
+    if (adapter === undefined) {
+      return new StubSpeechRecognitionProvider();
+    }
+    return adapter.create(
+      { apiKey: adminSpeechApiKey ?? "", model: adminSpeechModel },
+      { ai },
+    );
+  }
   if (!adminSpeechApiKey || !adminSpeechModel) {
     return new StubSpeechRecognitionProvider();
   }
-  const adapter = lookupSpeechAdapter(provider ?? "openai");
+  const adapter = lookupSpeechAdapter(resolvedProvider);
   if (adapter === undefined) {
     return new StubSpeechRecognitionProvider();
   }
@@ -676,6 +728,7 @@ export function createRequestContainer(
     adminSpeechApiKey,
     adminSpeechModel,
     adminSpeechProvider,
+    aiBinding,
     tempFilesBucket,
     objectStorageBucket,
     r2PresignConfig,
@@ -732,6 +785,7 @@ export function createRequestContainer(
       adminSpeechProvider,
       adminSpeechApiKey,
       adminSpeechModel,
+      aiBinding,
     ),
     officeExtractor: new StubOfficeExtractor(),
     pdfExtractor: buildPdfExtractor(
@@ -755,7 +809,10 @@ export function createRequestContainer(
       SECRET_BOX_MASTER_KEY_PREVIOUS: secretBoxMasterKeyPrevious,
     }),
     llmConnectionTester: new HttpLLMConnectionTester(),
-    speechConnectionTester: new HttpSpeechConnectionTester(),
+    speechConnectionTester: new HttpSpeechConnectionTester(
+      undefined,
+      aiBinding,
+    ),
     usageMetricsProvider: new D1UsageMetricsProvider(
       db,
       SystemClock,
@@ -958,6 +1015,10 @@ export async function createConsumerContainer(
           resolvedSpeech.provider,
           resolvedSpeech.apiKey,
           resolvedSpeech.model,
+          // audio transcription runs in the consumer, so the keyless
+          // `deepgram-workers-ai` route needs the raw `env.AI` binding here
+          // (Issue #788). Missing → keyless provider degrades to the Stub.
+          env.AI,
         ),
       }
     : {};
@@ -1189,11 +1250,18 @@ export async function resolveConsumerSpeechConfig(
     }
   }
 
-  if (provider === null || model === null || apiKey === null) {
+  // Keyless providers (Issue #788, e.g. `deepgram-workers-ai`) resolve
+  // authentication via the `env.AI` binding, so a null apiKey is expected and
+  // must NOT collapse them to the Stub. REST providers keep the apiKey
+  // requirement. Consumer wiring passes `env.AI` into
+  // `buildSpeechRecognitionProvider` — a missing binding is what falls back to
+  // the Stub for keyless providers, not a missing key.
+  const keyless = isKeylessSpeechProvider(provider ?? "");
+  if (provider === null || model === null || (!keyless && apiKey === null)) {
     return null;
   }
 
-  return { provider, model, apiKey };
+  return { provider, model, apiKey: apiKey ?? "" };
 }
 
 type InstanceSettingsSpeechRow = Readonly<{

@@ -1,9 +1,11 @@
 import { env } from "cloudflare:test";
+import type { Ai } from "@cloudflare/workers-types";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AnthropicLLMProvider } from "@/core/adapters/anthropic/llmProvider";
 import { AnthropicOCRProvider } from "@/core/adapters/anthropic/ocrProvider";
 import { AnthropicPDFExtractor } from "@/core/adapters/anthropic/pdfExtractor";
 import { DeepgramSpeechRecognitionProvider } from "@/core/adapters/deepgram/speechRecognitionProvider";
+import { DeepgramWorkersAiSpeechRecognitionProvider } from "@/core/adapters/deepgram/workersAiSpeechRecognitionProvider";
 import { OpenAILLMProvider } from "@/core/adapters/openai/llmProvider";
 import { OpenAISpeechRecognitionProvider } from "@/core/adapters/openai/speechRecognitionProvider";
 import { WebCryptoSecretBox } from "@/core/adapters/security/secretBox";
@@ -21,6 +23,10 @@ import {
 // Stable test-only AES-256 key (base64 of 32 zero bytes). Matches the
 // shared test-harness key used elsewhere in the codebase.
 const TEST_SECRET_BOX_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+// Fake `env.AI` binding for keyless-provider wiring (Issue #788). The DI layer
+// only stashes the binding, so a bare object stand-in suffices.
+const FAKE_AI = {} as unknown as Ai;
 
 /**
  * Integration coverage for ADR-007: env override > DB resolution > Stub
@@ -489,6 +495,84 @@ describe("createConsumerContainer — speech resolution (env > DB > Stub)", () =
     );
   });
 
+  // Issue #788: keyless provider is wired from the `env.AI` binding + model,
+  // with NO api key. The consumer path is where audio transcription runs, so
+  // this binding wiring is the E2E linchpin.
+  it("keyless path: ADMIN_SPEECH_PROVIDER=deepgram-workers-ai + AI binding + no api key → wires the Workers AI provider", async () => {
+    const container = await createConsumerContainer(
+      baseEnv({
+        ADMIN_SPEECH_PROVIDER: "deepgram-workers-ai",
+        ADMIN_SPEECH_MODEL: "@cf/deepgram/nova-3",
+        AI: FAKE_AI,
+        // No ADMIN_SPEECH_API_KEY — keyless.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      DeepgramWorkersAiSpeechRecognitionProvider,
+    );
+  });
+
+  it("keyless Stub fallback: keyless provider selected but the AI binding is absent → Stub", async () => {
+    const container = await createConsumerContainer(
+      baseEnv({
+        ADMIN_SPEECH_PROVIDER: "deepgram-workers-ai",
+        ADMIN_SPEECH_MODEL: "@cf/deepgram/nova-3",
+        // No AI binding.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      StubSpeechRecognitionProvider,
+    );
+  });
+
+  // The staging/production consumer template has NO `ADMIN_SPEECH_PROVIDER`
+  // var, so in real deployments the keyless provider is resolved from the
+  // stored `speech_provider` DB row (the /admin/speech save), not from an env
+  // override. This pins that real prod path end-to-end.
+  it("keyless from DB row: no env override, provider=deepgram-workers-ai in the DB + AI binding → wires the Workers AI provider", async () => {
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKeySource: "env",
+      speechProvider: "deepgram-workers-ai",
+      speechModel: "@cf/deepgram/nova-3",
+      speechApiKeySource: "env",
+      // No stored ciphertext — keyless needs no api key.
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+        AI: FAKE_AI,
+        // No ADMIN_SPEECH_PROVIDER / ADMIN_SPEECH_MODEL / ADMIN_SPEECH_API_KEY.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      DeepgramWorkersAiSpeechRecognitionProvider,
+    );
+  });
+
+  it("keyless from DB row Stub fallback: provider=deepgram-workers-ai in the DB but no AI binding → Stub", async () => {
+    await seedInstanceSettings({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      apiKeySource: "env",
+      speechProvider: "deepgram-workers-ai",
+      speechModel: "@cf/deepgram/nova-3",
+      speechApiKeySource: "env",
+    });
+
+    const container = await createConsumerContainer(
+      baseEnv({
+        SECRET_BOX_MASTER_KEY: TEST_SECRET_BOX_KEY,
+        // No AI binding.
+      }),
+    );
+    expect(container.speechRecognitionProvider).toBeInstanceOf(
+      StubSpeechRecognitionProvider,
+    );
+  });
+
   // Calling `resolveConsumerSpeechConfig` directly exposes which values were
   // resolved (`instanceof` only proves "real vs Stub", not the env>db
   // priority on each axis). This pins the resolution decision at the seam.
@@ -576,6 +660,24 @@ describe("createConsumerContainer — speech resolution (env > DB > Stub)", () =
 
       expect(resolved).not.toBeNull();
       expect(resolved?.model).toBe("stored-speech-model");
+    });
+
+    it("keyless (Issue #788): resolves with apiKey='' when the provider is keyless and no api key exists", async () => {
+      const resolved = await resolveConsumerSpeechConfig(
+        baseEnv({
+          ADMIN_SPEECH_PROVIDER: "deepgram-workers-ai",
+          ADMIN_SPEECH_MODEL: "@cf/deepgram/nova-3",
+          // No ADMIN_SPEECH_API_KEY and no DB ciphertext — keyless is allowed.
+        }),
+        new WebCryptoSecretBox(TEST_SECRET_BOX_KEY),
+        null,
+      );
+
+      expect(resolved).not.toBeNull();
+      expect(resolved?.provider).toBe("deepgram-workers-ai");
+      expect(resolved?.model).toBe("@cf/deepgram/nova-3");
+      // Keyless resolution normalizes the (absent) key to "".
+      expect(resolved?.apiKey).toBe("");
     });
 
     it("returns null (Stub fallback) when no env apiKey and the DB ciphertext is absent", async () => {

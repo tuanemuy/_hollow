@@ -73,6 +73,7 @@ export const SPEECH_PROVIDERS_TRANSPORT = [
   "openai",
   "deepgram",
   "gemini",
+  "deepgram-workers-ai",
 ] as const;
 
 export const updateSpeechConfigSchema = z.object({
