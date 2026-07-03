@@ -722,12 +722,6 @@
     gap: var(--space-3);
     margin-bottom: var(--space-4);
   }
-  .fm-panel-title {
-    font-size: 12px;
-    color: var(--color-ink-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
   .fm-row {
     display: flex;
     flex-wrap: wrap;
@@ -1386,10 +1380,10 @@
            直下に常設。実装 FrontMatterEditor.tsx の構造モード（生編集トグル + キー/値行 +
            キー追加行）を静的に写す。デフォルトは structured モード。 -->
       <section class="fm-panel" aria-label="メタデータ">
+        <!-- 実装 FrontMatterEditor.tsx は可視見出しを持たず aria-label のみでランドマーク化。
+             ヘッダー行は生編集トグル + reject エラーの aria-live 領域（正常時は空）。 -->
         <div class="fm-panel-head">
-          <span class="fm-panel-title">メタデータ</span>
           <button type="button" class="pill-btn" aria-pressed="false">生編集（JSON）</button>
-          <!-- reject エラーの aria-live 領域（正常時は空）。実装は role=alert を内包 -->
           <div aria-live="polite" aria-atomic="true"></div>
         </div>
 
