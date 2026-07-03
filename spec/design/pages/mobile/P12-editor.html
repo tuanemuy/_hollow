@@ -774,6 +774,55 @@
   }
   .link-suggest-item.active .meta { color: var(--color-accent-ink); opacity: 0.7; }
 
+  /* メタデータ (FrontMatter) 常設パネル (#697): タブ排他をやめ本文下に常設。
+     実装 FrontMatterEditor.tsx の構造モードを写す。mobile は 1 カラムにスタック。 */
+  .fm-panel {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-elevated);
+  }
+  .fm-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .fm-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .fm-row .pill-btn { align-self: flex-start; }
+  .fm-input {
+    width: 100%;
+    height: 40px;
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font-size: 16px;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .fm-input:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .fm-input.mono { font-family: var(--font-mono); font-size: 14px; }
+  .fm-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .fm-add .fm-input { flex: 1 1 140px; }
+
   /* Editor content area (WYSIWYG) — 編集面を390pxで広く取る */
   .editor {
     min-height: 52vh;
@@ -1108,10 +1157,10 @@
 
       <div class="editor-topbar">
         <!-- 編集モード切替 (EditorModeSwitch): pill-btn タブ群。
-             mobile: 横スクロールで隔離（ページ overflow を出さない）。 -->
+             mobile: 横スクロールで隔離（ページ overflow を出さない）。
+             FrontMatter は #697 でタブ廃止 → 本文下の常設パネル (.fm-panel) に移行。 -->
         <div class="mode-tabs" role="tablist" aria-label="編集モード">
           <button class="mode-tab active" role="tab" aria-selected="true">WYSIWYG</button>
-          <button class="mode-tab" role="tab" aria-selected="false">FrontMatter</button>
           <button class="mode-tab" role="tab" aria-selected="false">HTML</button>
         </div>
 
@@ -1351,6 +1400,65 @@
           </div>
         </div>
       </div><!-- /media-upload (#795) -->
+
+      <!-- メタデータ (FrontMatter) 常設パネル (#697): タブ排他をやめ本文直下に常設。
+           実装 FrontMatterEditor.tsx の構造モード（生編集トグル + キー/値行 +
+           キー追加行）を静的に写す。デフォルトは structured モード。 -->
+      <section class="fm-panel" aria-label="メタデータ">
+        <!-- 実装 FrontMatterEditor.tsx は可視見出しを持たず aria-label のみでランドマーク化 -->
+        <div class="fm-panel-head">
+          <button type="button" class="pill-btn" aria-pressed="false">生編集（JSON）</button>
+          <div aria-live="polite" aria-atomic="true"></div>
+        </div>
+
+        <datalist id="fmSuggestedKeys">
+          <option value="date"></option>
+          <option value="description"></option>
+          <option value="title"></option>
+          <option value="slug"></option>
+        </datalist>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="date" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="2026-04-01" aria-label="date の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="date を削除">削除</button>
+        </div>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="description" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="Q2 のプロダクトレビューに向けた計画メモ" aria-label="description の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="description を削除">削除</button>
+        </div>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="slug" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="q2-plan" aria-label="slug の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="slug を削除">削除</button>
+        </div>
+
+        <div class="fm-add">
+          <input class="fm-input mono" type="text" list="fmSuggestedKeys" placeholder="新しいキー名" aria-label="追加するキー名">
+          <button type="button" class="pill-btn">キーを追加</button>
+        </div>
+      </section>
 
       <!-- Internal-link suggestion (`[[` completion) — 静的見本 -->
       <div class="link-suggest">

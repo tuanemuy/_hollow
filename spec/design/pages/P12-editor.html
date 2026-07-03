@@ -648,7 +648,8 @@
   .tb-heading svg { color: var(--color-ink-tertiary); }
 
   /* Internal-link suggestion popover (WYSIWYG editing aid: `[[` completion).
-     FrontMatter は別タブ排他のため、WYSIWYG ビューには FrontMatter パネルを置かない。 */
+     メタデータ (FrontMatter) は #697 でモード排他タブを廃止し、本文エディタ下の
+     常設パネル (.fm-panel) に移行済み（本文モードに依存せず常時編集できる）。 */
   .link-suggest {
     margin-top: var(--space-4);
   }
@@ -704,6 +705,56 @@
     color: var(--color-ink-tertiary);
   }
   .link-suggest-item.active .meta { color: var(--color-accent-ink); opacity: 0.7; }
+
+  /* メタデータ (FrontMatter) 常設パネル (#697): 本文エディタ下に常設され、
+     モード排他タブではなく本文と並行して編集する。実装 FrontMatterEditor.tsx の
+     構造モード（トグル + キー/値行 + キー追加行）の静的スナップショット。 */
+  .fm-panel {
+    margin-top: var(--space-4);
+    padding: var(--space-5);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-elevated);
+  }
+  .fm-panel-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  .fm-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .fm-key { flex: 1 1 160px; min-width: 160px; }
+  .fm-value { flex: 2 1 200px; min-width: 200px; }
+  .fm-input {
+    width: 100%;
+    height: 32px;
+    border: 1px solid var(--color-hairline);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    padding: 0 12px;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    transition: var(--transition-bg);
+  }
+  .fm-input:focus { border-color: var(--color-accent); box-shadow: var(--shadow-focus); }
+  .fm-input.mono { font-family: var(--font-mono); }
+  .fm-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-hairline);
+  }
+  .fm-add .fm-input { flex: 1 1 160px; min-width: 160px; }
 
   /* Editor content area (WYSIWYG) */
   .editor {
@@ -943,6 +994,9 @@
     .title-input { font-size: 28px; }
     .editor-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
     .dir-dropdown { left: 0; right: 0; width: auto; }
+    /* FrontMatter 行は 1 カラムにスタック（実装 frontMatterRow の max-sm:flex-col に対応） */
+    .fm-row { flex-direction: column; align-items: stretch; }
+    .fm-key, .fm-value { min-width: 0; }
   }
 </style>
 </head>
@@ -1321,6 +1375,66 @@
         </div>
       </div><!-- /media-upload (#795) -->
       </div><!-- /editor-body-panel (#776) -->
+
+      <!-- メタデータ (FrontMatter) 常設パネル (#697): タブ排他をやめ、本文エディタの
+           直下に常設。実装 FrontMatterEditor.tsx の構造モード（生編集トグル + キー/値行 +
+           キー追加行）を静的に写す。デフォルトは structured モード。 -->
+      <section class="fm-panel" aria-label="メタデータ">
+        <!-- 実装 FrontMatterEditor.tsx は可視見出しを持たず aria-label のみでランドマーク化。
+             ヘッダー行は生編集トグル + reject エラーの aria-live 領域（正常時は空）。 -->
+        <div class="fm-panel-head">
+          <button type="button" class="pill-btn" aria-pressed="false">生編集（JSON）</button>
+          <div aria-live="polite" aria-atomic="true"></div>
+        </div>
+
+        <datalist id="fmSuggestedKeys">
+          <option value="date"></option>
+          <option value="description"></option>
+          <option value="title"></option>
+          <option value="slug"></option>
+        </datalist>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="date" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="2026-04-01" aria-label="date の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="date を削除">削除</button>
+        </div>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="description" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="Q2 のプロダクトレビューに向けた計画メモ" aria-label="description の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="description を削除">削除</button>
+        </div>
+
+        <div class="fm-row">
+          <div class="fm-key">
+            <label class="sr-only">キー</label>
+            <input class="fm-input mono" type="text" value="slug" list="fmSuggestedKeys" aria-label="FrontMatter キー">
+          </div>
+          <div class="fm-value">
+            <label class="sr-only">値</label>
+            <input class="fm-input" type="text" value="q2-plan" aria-label="slug の値">
+          </div>
+          <button type="button" class="pill-btn" aria-label="slug を削除">削除</button>
+        </div>
+
+        <div class="fm-add">
+          <input class="fm-input mono" type="text" list="fmSuggestedKeys" placeholder="新しいキー名" aria-label="追加するキー名">
+          <button type="button" class="pill-btn">キーを追加</button>
+        </div>
+      </section>
 
       <!-- Internal-link suggestion (`[[` completion) — WYSIWYG editing aid。
            本来は本文中で `[[` 入力時にインラインで現れるポップオーバー。静的見本として下に示す。 -->

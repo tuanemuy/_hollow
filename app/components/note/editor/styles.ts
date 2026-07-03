@@ -54,7 +54,7 @@ export const editorModeTabs = `inline-flex flex-wrap gap-1 min-w-0 max-sm:flex m
 export const editorToolbar = `sticky top-[calc(var(--header-height)+var(--space-2))] z-20 mb-4 inline-flex flex-wrap items-center gap-[2px] self-start rounded-pill border border-hairline bg-bg p-1 shadow-xs min-w-0 max-sm:self-stretch max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 /**
- * P12 FrontMatter key/value row (mock structured `.meta-field` rows). At `sm`
+ * P12 FrontMatter key/value row (mock structured `.fm-row` rows). At `sm`
  * and up the key input, value input and delete button sit on one wrapping
  * line; below `sm` they stack into a single column (`flex-col`) so the
  * 1-column mobile layout matches the mock and the inputs get full width.
