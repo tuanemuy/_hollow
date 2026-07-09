@@ -1,3 +1,4 @@
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import type { UserDTO } from "@/core/application/dto/identity";
 import { isNotFoundError } from "@/core/application/errors";
 import { CodeHighlight } from "../content/CodeHighlight";
@@ -62,7 +63,13 @@ export async function NoteRevisionDetail({
         </h1>
         <p className="text-xs text-ink-secondary tabular-nums">
           <time dateTime={revision.createdAt}>
-            {new Date(revision.createdAt).toLocaleString()}
+            {formatJstDateTime(revision.createdAt, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </time>
           に保存
         </p>

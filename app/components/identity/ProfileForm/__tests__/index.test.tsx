@@ -287,6 +287,7 @@ describe("ProfileForm timestamp / cooldown hints (W-T-002)", () => {
     // assertion is locale-independent yet proves `lastSavedAt` is the source
     // (createdAt holds a different instant).
     const expected = new Date(USER.lastSavedAt).toLocaleString("ja-JP", {
+      timeZone: "Asia/Tokyo",
       year: "numeric",
       month: "short",
       day: "numeric",

@@ -4,6 +4,7 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { Icon } from "@/components/common/Icon";
 import {
   ALERT,
@@ -142,12 +143,12 @@ const ACTIVITY_TD =
 const ACTIVITY_STACK_LABEL =
   "hidden max-sm:inline-block max-sm:w-[72px] shrink-0 text-ink-tertiary text-xs";
 
-/** HH:MM in the viewer's locale time zone, matching the #545 time format. */
+/** HH:MM in JST, matching the #545 time format. */
 function formatActivityTime(iso: string): string {
-  return new Intl.DateTimeFormat("ja-JP", {
+  return formatJstDateTime(iso, {
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(iso));
+  });
 }
 
 function ActivityRow({ row }: { row: RecentActivityRowDTO }) {

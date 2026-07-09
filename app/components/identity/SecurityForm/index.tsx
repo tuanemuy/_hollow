@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useId, useState, useTransition } from "react";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { formatRelativeTime } from "@/components/common/relativeTime";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -111,7 +112,7 @@ function SessionIcon({ kind }: { kind: SessionDTO["device"]["kind"] }) {
 }
 
 function formatLoginTime(instant: string): string {
-  return new Date(instant).toLocaleString("ja-JP", {
+  return formatJstDateTime(instant, {
     dateStyle: "medium",
     timeStyle: "short",
   });

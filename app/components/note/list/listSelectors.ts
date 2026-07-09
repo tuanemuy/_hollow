@@ -7,6 +7,7 @@
  * components import the functions but never the other way round.
  */
 
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import type { SavedViewDTO, ViewQueryDTO } from "@/core/application/dto/view";
 import type { DisplayMode } from "../constants";
 import type { NoteListSearch } from "../schema";
@@ -18,9 +19,7 @@ export type NoteId = string;
  * note-list views. Falls back to the raw string for unparsable input.
  */
 export function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("ja-JP", {
+  return formatJstDateTime(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",

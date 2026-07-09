@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { formatJstDateTime } from "@/components/common/dateFormat";
 import { routerInvalidate } from "@/components/common/routerInvalidate";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import {
@@ -81,9 +82,7 @@ function initials(name: string): string {
 }
 
 function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ja-JP", {
+  return formatJstDateTime(iso, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -93,7 +92,7 @@ function formatTimestamp(iso: string): string {
 }
 
 function formatDay(d: Date): string {
-  return d.toLocaleDateString("ja-JP", {
+  return formatJstDateTime(d.toISOString(), {
     year: "numeric",
     month: "short",
     day: "numeric",
