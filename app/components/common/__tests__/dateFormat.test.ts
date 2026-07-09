@@ -32,6 +32,21 @@ describe("formatJstDateTime", () => {
     ).toBe("2026年1月2日 01:00");
   });
 
+  // Safety net for the spread order `{ ...options, timeZone: "Asia/Tokyo" }`
+  // (ADR-002): even if a caller mistakenly passes its own `timeZone`, the
+  // trailing JST pin must win. America/New_York would render the UTC-side
+  // 2026年1月1日, so seeing the JST-side 2026年1月2日 proves JST overrides it.
+  it("overrides a caller-supplied timeZone with JST (spread-order safety net / ADR-002)", () => {
+    expect(
+      formatJstDateTime(BOUNDARY, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "America/New_York",
+      }),
+    ).toBe("2026年1月2日");
+  });
+
   it("returns the raw string for unparsable input", () => {
     expect(formatJstDateTime("not-a-date", { year: "numeric" })).toBe(
       "not-a-date",
