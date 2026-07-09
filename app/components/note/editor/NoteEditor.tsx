@@ -3,6 +3,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import type { Editor } from "@tiptap/react";
+import { ChevronDown, Folder } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -13,6 +14,7 @@ import {
   useTransition,
 } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Icon } from "@/components/common/Icon";
 import { formError, pillBtn, pillBtnPrimary } from "@/components/common/styles";
 import { createDirectoryFn } from "@/components/directory/actions";
 import {
@@ -32,6 +34,7 @@ import type { FlatDirectory } from "../loaders";
 import { clearNoteUnsaved, markNoteUnsaved } from "../unsavedFlag";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { DirectoryPicker } from "./DirectoryPicker";
+import { resolveDirectoryLabel } from "./directoryTreeModel";
 import { EditLockBanner } from "./EditLockBanner";
 import {
   EDITOR_BODY_PANEL_ID,
@@ -50,7 +53,15 @@ import { HtmlEditor } from "./HtmlEditor";
 import { minifyHtml } from "./htmlFormat";
 import { InlineEditor } from "./InlineEditor";
 import { MediaUploader } from "./MediaUploader";
-import { editorActions, editorTopbar, titleInput } from "./styles";
+import {
+  editorActions,
+  editorTopbar,
+  metaBody,
+  metaDisclosure,
+  metaSummary,
+  metaSummaryPreview,
+  titleInput,
+} from "./styles";
 import { TagsInput } from "./TagsInput";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
@@ -135,6 +146,11 @@ export function NoteEditor(props: NoteEditorProps) {
   });
 
   const [isPending, startTransition] = useTransition();
+  // Mobile meta (directory + tags) disclosure open state. Initially folded on
+  // mobile; the `sm:block` on `metaBody` keeps it always-expanded on desktop
+  // regardless of this flag. View-only UI state → orchestrator `useState`
+  // (same rationale as `pendingWysiwygSwitch` below), not the reducer.
+  const [metaOpen, setMetaOpen] = useState(false);
   // Surfaces the inline directory-creation step that runs at save time when a
   // pending (not-yet-created) directory name is set. Reset in a `finally` so it
   // clears on both success and failure.
@@ -406,12 +422,25 @@ export function NoteEditor(props: NoteEditorProps) {
     });
   };
 
+  // Folded meta preview (mobile): directory path (shared derivation with the
+  // picker trigger — arch S-007) joined with the committed tags.
+  const directoryPreview = resolveDirectoryLabel(
+    props.tree,
+    state.directoryId,
+    state.pendingDirectoryName,
+    "未設定",
+  );
+  const metaPreview =
+    state.tagNames.length > 0
+      ? `${directoryPreview} · ${state.tagNames.map((t) => `#${t}`).join(" ")}`
+      : directoryPreview;
+
   return (
     // No form `gap` on purpose: each row carries the mock's own
     // `margin-bottom` (`mb-*`) so values smaller than a uniform gap
     // (e.g. the directory row's 12px) stay reproducible.
     <form
-      className="flex flex-col max-sm:pb-[env(safe-area-inset-bottom)]"
+      className="flex flex-col max-sm:pb-[calc(96px+env(safe-area-inset-bottom))]"
       onSubmit={onSubmit}
     >
       <EditLockBanner lock={state.editLock} />
@@ -477,30 +506,63 @@ export function NoteEditor(props: NoteEditorProps) {
         />
       </div>
 
-      <DirectoryPicker
-        tree={props.tree}
-        directoryId={state.directoryId}
-        pendingDirectoryName={state.pendingDirectoryName}
-        onSelectExisting={(id) =>
-          dispatch({ type: "setDirectory", directoryId: id })
-        }
-        onSetPendingName={(name) =>
-          dispatch({ type: "setPendingDirectoryName", value: name })
-        }
-        disabled={isPending}
-        allowExistingActions
-        variant="row"
-      />
+      {/* Meta disclosure (Issue #818): below `sm` the directory row + tags
+          fold behind a summary toggle to reclaim vertical space; at `sm` and
+          up `metaBody`'s `sm:block` keeps them always-inline (desktop
+          unchanged). `data-open` sits on `metaBody` — the element consuming
+          the `data-[open]:` variant — not this container (ADR-004). */}
+      <div className={metaDisclosure}>
+        <button
+          type="button"
+          className={metaSummary}
+          aria-expanded={metaOpen}
+          aria-controls="editor-meta-body"
+          onClick={() => setMetaOpen((v) => !v)}
+        >
+          <Icon
+            icon={Folder}
+            size={16}
+            className="shrink-0 text-ink-tertiary"
+          />
+          <span className={metaSummaryPreview}>{metaPreview}</span>
+          <span
+            data-open={metaOpen || undefined}
+            className="shrink-0 text-ink-tertiary transition-transform motion-reduce:transition-none data-[open]:rotate-180"
+          >
+            <Icon icon={ChevronDown} size={16} />
+          </span>
+        </button>
+        <div
+          id="editor-meta-body"
+          className={metaBody}
+          data-open={metaOpen || undefined}
+        >
+          <DirectoryPicker
+            tree={props.tree}
+            directoryId={state.directoryId}
+            pendingDirectoryName={state.pendingDirectoryName}
+            onSelectExisting={(id) =>
+              dispatch({ type: "setDirectory", directoryId: id })
+            }
+            onSetPendingName={(name) =>
+              dispatch({ type: "setPendingDirectoryName", value: name })
+            }
+            disabled={isPending}
+            allowExistingActions
+            variant="row"
+          />
 
-      <TagsInput
-        tagNames={state.tagNames}
-        draft={state.tagDraft}
-        onAddTag={(value) => dispatch({ type: "addTag", value })}
-        onRemoveTag={(name) => dispatch({ type: "removeTag", name })}
-        onSetDraft={(value) => dispatch({ type: "setTagDraft", value })}
-        suggestions={props.tagSuggestions ?? []}
-        disabled={isPending}
-      />
+          <TagsInput
+            tagNames={state.tagNames}
+            draft={state.tagDraft}
+            onAddTag={(value) => dispatch({ type: "addTag", value })}
+            onRemoveTag={(name) => dispatch({ type: "removeTag", name })}
+            onSetDraft={(value) => dispatch({ type: "setTagDraft", value })}
+            suggestions={props.tagSuggestions ?? []}
+            disabled={isPending}
+          />
+        </div>
+      </div>
 
       {/* Single editor-body tabpanel (Issue #776 ADR-002): the active body
           mode swaps the panel content while `aria-labelledby` points at the

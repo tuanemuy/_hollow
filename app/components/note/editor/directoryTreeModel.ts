@@ -168,3 +168,24 @@ export function nextActiveIndex(
   if (direction === "down") return (clamped + 1) % count;
   return (clamped - 1 + count) % count;
 }
+
+/**
+ * Human-readable directory label for the picker trigger and the editor's
+ * mobile meta preview. Pending name wins (`新規: …`), else the selected
+ * directory's full path, else `emptyLabel`. Extracted so the trigger
+ * (`DirectoryTreeSelect`) and the preview (`NoteEditor`) derive the path in
+ * one place — the two callers differ only in `emptyLabel` (arch S-007).
+ */
+export function resolveDirectoryLabel(
+  tree: readonly FlatDirectory[],
+  directoryId: string | null,
+  pendingDirectoryName: string | null,
+  emptyLabel: string,
+): string {
+  if (pendingDirectoryName !== null) return `新規: ${pendingDirectoryName}`;
+  if (directoryId !== null) {
+    const found = tree.find((d) => d.id === directoryId);
+    if (found !== undefined) return found.path;
+  }
+  return emptyLabel;
+}

@@ -1007,6 +1007,9 @@
   .media-upload .alert button { min-height: 44px; }
 
   /* ===== Bottom-fixed save CTA bar (主要アクションを下部固定) ===== */
+  /* 実装（Issue #818）はここから意図的に差分あり: save-status は複製せず
+     （二重 aria-live 回避で AutosaveIndicator は topbar 単一保持）、その帰結として
+     保存/キャンセルは等幅化する（[&>button]:flex-1）。.issue/818/plan.md 参照。 */
   .save-bar {
     position: fixed;
     left: 0; right: 0; bottom: 0;

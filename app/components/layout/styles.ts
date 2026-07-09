@@ -126,8 +126,11 @@ export const ACTIVE_NAV_PROPS = {
   "aria-current": "page" as const,
 };
 
+// `max-sm:px-4` (Issue #818 ADR-002): mobile horizontal padding drops from
+// 24px to the mock's 16px across all `/_app` pages, easing narrow-viewport
+// horizontal pressure. Desktop (`sm` and up) keeps `px-6`.
 export const APP_MAIN =
-  "px-6 pt-8 pb-20 max-w-[var(--container-max)] mx-auto w-full min-w-0";
+  "px-6 max-sm:px-4 pt-8 pb-20 max-w-[var(--container-max)] mx-auto w-full min-w-0";
 
 // Shared icon class for empty-state eyecatches (paired with `EMPTY_STATE`).
 // `block` makes `mx-auto` work for the inline-by-default SVG.
