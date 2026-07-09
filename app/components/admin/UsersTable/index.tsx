@@ -91,7 +91,10 @@ function statusLabel(status: UserDTO["status"]): string {
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
+  // Pin the zone so SSR (Workers defaults Intl to UTC) and the client render
+  // the same string — otherwise the timezone gap triggers a hydration mismatch (#817).
   return date.toLocaleDateString("ja-JP", {
+    timeZone: "Asia/Tokyo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
