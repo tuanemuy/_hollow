@@ -3,11 +3,8 @@ import { formatJstDateTime } from "../dateFormat";
 
 // A boundary instant: 2026-01-01T16:00:00Z is already 2026-01-02 01:00 in JST.
 // Because the helper pins `timeZone: "Asia/Tokyo"`, every assertion below is
-// runner-TZ-independent — TZ=UTC and TZ=Asia/Tokyo produce the same output
-// (this satisfies the Issue's "identical under TZ=UTC / Asia/Tokyo" proposal).
-// (a)/(b) assert the JST-side values; under a non-JST runner they would fail
-// if the pin were dropped, but the runner-independent guard against removing
-// or reordering the pin is (c) below.
+// runner-TZ-independent — TZ=UTC and TZ=Asia/Tokyo produce identical output
+// (the Issue's "identical under TZ=UTC / Asia/Tokyo" requirement).
 const BOUNDARY = "2026-01-01T16:00:00Z";
 
 describe("formatJstDateTime", () => {
