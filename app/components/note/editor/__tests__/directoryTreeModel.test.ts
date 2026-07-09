@@ -3,6 +3,7 @@ import type { FlatDirectory } from "../../loaders";
 import {
   clampActiveIndex,
   nextActiveIndex,
+  resolveDirectoryLabel,
   searchMatchSet,
   visibleDirectoryOptions,
 } from "../directoryTreeModel";
@@ -171,5 +172,45 @@ describe("nextActiveIndex", () => {
 
   it("returns 0 for an empty list", () => {
     expect(nextActiveIndex(0, "down", 0)).toBe(0);
+  });
+});
+
+describe("resolveDirectoryLabel", () => {
+  it("returns emptyLabel when nothing is selected and no pending name", () => {
+    expect(resolveDirectoryLabel(tree, null, null, "未設定")).toBe("未設定");
+    // The two callers differ only in emptyLabel (arch S-007).
+    expect(resolveDirectoryLabel(tree, null, null, "ディレクトリを選択")).toBe(
+      "ディレクトリを選択",
+    );
+  });
+
+  it("shows the pending name with a `新規:` prefix for a new directory", () => {
+    expect(resolveDirectoryLabel(tree, null, "アイデア", "未設定")).toBe(
+      "新規: アイデア",
+    );
+  });
+
+  it("resolves a selected top-level directory to its full path", () => {
+    expect(resolveDirectoryLabel(tree, "projects", null, "未設定")).toBe(
+      "/Projects",
+    );
+  });
+
+  it("resolves a nested directory to its full path", () => {
+    expect(resolveDirectoryLabel(tree, "hollow", null, "未設定")).toBe(
+      "/Projects/Hollow",
+    );
+  });
+
+  it("prefers the pending name over a selected directory id", () => {
+    expect(resolveDirectoryLabel(tree, "projects", "アイデア", "未設定")).toBe(
+      "新規: アイデア",
+    );
+  });
+
+  it("falls back to emptyLabel for an unknown directory id", () => {
+    expect(resolveDirectoryLabel(tree, "missing", null, "未設定")).toBe(
+      "未設定",
+    );
   });
 });
