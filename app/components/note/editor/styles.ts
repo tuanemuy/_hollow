@@ -71,7 +71,7 @@ export const frontMatterRow =
  * tabs.
  *
  * Below `sm` it detaches into the mock's bottom-fixed save CTA bar
- * (`.save-bar` L1010-1029) so the primary actions stay reachable while the
+ * (`.save-bar`) so the primary actions stay reachable while the
  * body scrolls (single DOM, no double render — ADR-003). The backdrop uses
  * the always-on `--header-bg` base + `supports-[backdrop-filter]:` blur
  * (ADR-005), mirrors `BulkActionBar` / `APP_HEADER`, and carries the
@@ -84,7 +84,7 @@ export const editorActions =
   "ml-auto inline-flex items-center gap-2 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-40 max-sm:ml-0 max-sm:gap-3 max-sm:rounded-t-lg max-sm:border-t max-sm:border-hairline max-sm:bg-[var(--header-bg)] max-sm:px-4 max-sm:py-3 max-sm:pb-[calc(var(--space-3)+env(safe-area-inset-bottom))] supports-[backdrop-filter]:max-sm:[backdrop-filter:var(--header-blur)] supports-[backdrop-filter]:max-sm:[-webkit-backdrop-filter:var(--header-blur)] max-sm:[&>button]:flex-1";
 
 /**
- * P12 meta disclosure (mock `.meta-disclosure` L506-512): below `sm` the
+ * P12 meta disclosure (mock `.meta-disclosure`): below `sm` the
  * directory row + tags collapse into a bordered surface sheet; the summary
  * button toggles the body. At `sm` and up this is a bare wrapper (no frame)
  * so the fields keep their current always-inline desktop layout.
@@ -99,20 +99,20 @@ export const metaDisclosure =
   "max-sm:mb-4 max-sm:overflow-hidden max-sm:rounded-lg max-sm:border max-sm:border-hairline max-sm:bg-surface-elevated";
 
 /**
- * P12 meta disclosure summary (mock `.meta-summary` L513-524): mobile-only
+ * P12 meta disclosure summary (mock `.meta-summary`): mobile-only
  * toggle row (`sm:hidden`) with a leading folder icon, the preview text and
  * a caret. `TOUCH_TARGET` floors it to the 44px tap target.
  */
 export const metaSummary = `flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] text-ink-secondary sm:hidden ${TOUCH_TARGET}`;
 
 /**
- * P12 meta preview text (mock `.meta-preview` L526-533): the single-line
+ * P12 meta preview text (mock `.meta-preview`): the single-line
  * directory-path + tags summary shown in the folded state; truncates.
  */
 export const metaSummaryPreview = "min-w-0 flex-1 truncate text-ink";
 
 /**
- * P12 meta disclosure body (mock `.meta-body` L540-545): holds the directory
+ * P12 meta disclosure body (mock `.meta-body`): holds the directory
  * row + tags. Below `sm` it is hidden until open (`data-[open]:max-sm:block`)
  * with a top divider + inner padding; at `sm` and up it is always `block` so
  * the desktop always-inline layout is unchanged.
@@ -157,7 +157,7 @@ export const tagChip =
   "inline-flex h-[26px] items-center gap-1.5 rounded-pill bg-surface px-2.5 text-[12.5px] text-accent-ink transition-colors motion-reduce:transition-none hover:bg-surface-hover";
 
 /**
- * P12 tag chip remove button (mock `.tag-chip .x` L642-648): muted `×` that
+ * P12 tag chip remove button (mock `.tag-chip .x`): muted `×` that
  * the chip's `aria-label` describes per-tag. The `inline-flex … w-4 h-4`
  * box unifies the hit-area DIMENSIONS with the other chip removers
  * (`filterChipRemove`), but the box is intentionally NOT imported from there:
