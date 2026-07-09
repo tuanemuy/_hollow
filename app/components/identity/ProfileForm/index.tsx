@@ -128,12 +128,12 @@ export function ProfileForm({
   const displayNameRef = useRef<HTMLInputElement>(null);
   const bioRef = useRef<HTMLTextAreaElement>(null);
 
-  // The "最終保存" / "次に変更できる日付" hints format instants in the viewer's
-  // local timezone (and compare against the current time). On the server (UTC)
-  // those render differently than on the client (local tz), so emitting them
-  // during SSR causes a hydration mismatch. Render them only after mount —
-  // server and first client render agree (both omit), then the localized value
-  // appears. See `.issue/571/adr.md` ADR-007.
+  // The "次に変更できる日付" hint derives from the current time (`new Date()`
+  // in the cooldown calc below), which differs between the SSR and client
+  // render, so it must appear only after mount — server and first client
+  // render agree (both omit), then the value appears. ("最終保存" shares the
+  // gate.) Date formatting itself is SSR-safe now that it goes through the
+  // JST-pinned `formatJstDateTime` (#821). See `.issue/571/adr.md` ADR-007.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
