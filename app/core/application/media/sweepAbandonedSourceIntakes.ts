@@ -37,13 +37,19 @@ const DEFAULT_BATCH_SIZE = 100;
  *
  * The fresh re-check closes only the listing → per-row-UoW transition.
  * The deferred-batch UoW gives no isolation between that re-read and the
- * write flush (read-your-write is unsupported by design), so a commit
- * that attached the row in that residual window would be overwritten by
- * the sweep's orphan. This is safe today because no code path attaches a
- * pending source past the grace window: attach happens only inside the
- * commit request that created the row (seconds, vs. a 24h grace). Any
- * future path that attaches an aged pending source (e.g. intake
- * resume / restore) must revisit this sweep's concurrency story.
+ * write flush (read-your-write is unsupported by design), so an attach
+ * that commits inside that residual window is overwritten by the sweep's
+ * orphan. Such an attach is reachable: the commit flow attaches only
+ * within the request that created the row (seconds, vs. a 24h grace),
+ * but `MediaService.reconcileRefs` rejects only orphan / deleting — a
+ * note save whose body references an aged pending source id (owner-
+ * visible via `listMediaByOwner`) attaches it regardless of age. Worst
+ * case, the orphan overwrite purges a live note's source blob 24h
+ * later. Accepted as residual risk: it takes a deliberate embed of an
+ * abandoned intake id landing inside the millisecond-scale re-read →
+ * flush window of the once-daily tick. Structural closure (rejecting
+ * pending sources in `reconcileRefs`) is deferred to a separate issue —
+ * see `.issue/468/adr.md`.
  */
 export async function sweepAbandonedSourceIntakes(
   container: RequestContainer,

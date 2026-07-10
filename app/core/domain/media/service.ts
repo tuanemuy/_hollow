@@ -1,6 +1,6 @@
 import { BusinessRuleError } from "@/core/domain/error";
 import type { UserId } from "@/core/domain/identity/valueObject";
-import { MediaAsset } from "./entity";
+import { MediaAsset, type PendingMedia } from "./entity";
 import { MediaErrorCode } from "./errorCode";
 import type { MediaAssetRepository } from "./ports/mediaAssetRepository";
 import type { ObjectStorage } from "./ports/objectStorage";
@@ -95,7 +95,7 @@ async function listAbandonedSourceIntakes(
   graceSec: number,
   repo: MediaAssetRepository,
   limit = 100,
-): Promise<readonly MediaAsset[]> {
+): Promise<readonly PendingMedia[]> {
   const cutoff = new Date(now.getTime() - graceSec * 1000);
   return repo.findAbandonedSourceIntakes(cutoff, limit);
 }

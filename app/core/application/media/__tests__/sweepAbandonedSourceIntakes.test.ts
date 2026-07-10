@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RequestContainer } from "@/core/application/di/types";
 import type { EventDraft } from "@/core/domain/common/event";
 import type { UserId } from "@/core/domain/identity/valueObject";
-import { MediaAsset } from "@/core/domain/media/entity";
+import { MediaAsset, type PendingMedia } from "@/core/domain/media/entity";
 import type { MediaAssetRepository } from "@/core/domain/media/ports/mediaAssetRepository";
 import type { MediaAssetId } from "@/core/domain/media/valueObject";
 import { FakeLogger } from "../../__tests__/fakes";
@@ -58,13 +58,18 @@ class MutableFakeRepo {
   async findAbandonedSourceIntakes(
     before: Date,
     limit: number,
-  ): Promise<readonly MediaAsset[]> {
+  ): Promise<readonly PendingMedia[]> {
+    // Port contract: ordered oldest-first (updatedAt, then id), matching
+    // the D1 implementation, so limit-crossing tests see the same rows.
     const rows = Array.from(this.store.values())
+      .filter(MediaAsset.isPending)
       .filter(
-        (a) =>
-          a.status === "pending" &&
-          a.kind === "source" &&
-          a.updatedAt.getTime() < before.getTime(),
+        (a) => a.kind === "source" && a.updatedAt.getTime() < before.getTime(),
+      )
+      .sort(
+        (a, b) =>
+          a.updatedAt.getTime() - b.updatedAt.getTime() ||
+          a.id.localeCompare(b.id),
       )
       .slice(0, limit);
     this.afterList?.();

@@ -69,7 +69,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - メソッド:
   - `reconcileRefs(noteBeforeIds: MediaAssetId[], noteAfterIds: MediaAssetId[], now: Instant, repo: MediaAssetRepository): Promise<void>` — 差分計算して inc/dec
   - `listPurgeCandidates(now: Instant, ageSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — orphan に加え、前回 purge が中断した `deleting` 行も返す（再試行対象）
-  - `listAbandonedSourceIntakes(now: Instant, graceSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — commit 不成立で放棄された `pending(kind='source')` を返す（猶予 = ドメインルール、Issue #468）。source の pending は commit リクエスト内で attach されるため、猶予超過 = 放棄と断定できる（他 kind の pending は対象外 — ADR-004）
+  - `listAbandonedSourceIntakes(now: Instant, graceSec: number, repo: MediaAssetRepository): Promise<PendingMedia[]>` — commit 不成立で放棄された `pending(kind='source')` を返す（猶予 = ドメインルール、Issue #468）。source の pending は commit リクエスト内で attach されるため、猶予超過 = 放棄と断定できる（他 kind の pending は対象外 — ADR-004）
   - `purge(asset: MediaAsset, storage: ObjectStorage, repo: MediaAssetRepository): Promise<void>` — R2 削除 + DB 物理削除
   - `assertViewableBy(args: { asset: MediaAsset; viewerOwnerId: UserId | null; relatedNoteVisibility: Visibility | null }): void` — `viewerOwnerId === asset.ownerId` なら常に可。`viewerOwnerId === null` のとき、`relatedNoteVisibility === 'public'` または limited リンク経由（呼び出し側で別途トークン検証済み）でなければ `BusinessRuleError('media_not_viewable')`
 
@@ -80,7 +80,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - `findByIds(ids: MediaAssetId[]): Promise<MediaAsset[]>`
 - `findByOwner(ownerId: UserId, opts: ListOpts): Promise<MediaAsset[]>`
 - `findPurgeableOlderThan(before: Instant, limit: number): Promise<MediaAsset[]>` — `status IN ('orphan','deleting') AND updatedAt < before`
-- `findAbandonedSourceIntakes(before: Instant, limit: number): Promise<MediaAsset[]>` — `status = 'pending' AND kind = 'source' AND updatedAt < before`（Issue #468。source 以外の pending は正当に attach 待ちの可能性があるため対象外）
+- `findAbandonedSourceIntakes(before: Instant, limit: number): Promise<PendingMedia[]>` — `status = 'pending' AND kind = 'source' AND updatedAt < before`（Issue #468。source 以外の pending は正当に attach 待ちの可能性があるため対象外。契約上 pending しか返らないことを戻り型で表明する）
 - `save(asset: MediaAsset): Promise<void>`
 - `delete(id: MediaAssetId): Promise<void>`
 

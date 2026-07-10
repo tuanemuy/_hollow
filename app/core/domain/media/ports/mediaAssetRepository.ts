@@ -1,5 +1,5 @@
 import type { UserId } from "@/core/domain/identity/valueObject";
-import type { MediaAsset } from "../entity";
+import type { MediaAsset, PendingMedia } from "../entity";
 import type { MediaAssetId } from "../valueObject";
 
 /** Listing options for owner-scoped queries. */
@@ -65,7 +65,7 @@ export interface MediaAssetRepository {
   findAbandonedSourceIntakes(
     before: Date,
     limit: number,
-  ): Promise<readonly MediaAsset[]>;
+  ): Promise<readonly PendingMedia[]>;
   save(asset: MediaAsset): Promise<void>;
   delete(id: MediaAssetId): Promise<void>;
 }

@@ -142,13 +142,16 @@ fresh `findById` ガードと同様、「候補列挙後の状態変化」「特
 ## 決定: pruner 回収の運用強化（スループット・堅牢性）は別Issueに切り出す
 
 ### コンテキスト
-Round 1 レビュー（Infrastructure [W-001] / [W-002]）で 2 点の運用リスクが指摘された:
+Round 1 レビュー（Infrastructure [W-001] / [W-002]）で 2 点、Round 2 レビュー（UseCase [W-001]）で 1 点の運用リスクが指摘された:
 
 1. `purgeOrphans` の呼び出しが日次 tick 1 回 × `batchSize` 100 のみで、回収スループットが 100 行/日で頭打ちになる。orphan の大量発生（ノート一括削除等）が続くとバックログが単調増加する。
 2. 候補ウィンドウ内に malformed な `media_assets` 行が 1 件あると、候補列挙の再水和（list 全体の `toMediaAsset` map）が丸ごと throw し、sweep / purge の当該ステップが以後の全 tick で空振りし続ける。
+3. sweep の fresh 再読 → batch flush の残余窓（deferred-batch UoW は read-your-write 非対応）に `reconcileRefs` 経由の attach が重なると、attached 行が sweep の orphan で上書きされ、生きたノートの source blob が 24h 後に purge されうる。`reconcileRefs` は orphan / deleting のみを拒否し pending は kind・経過時間を問わず attach でき、放棄 intake の id は `listMediaByOwner` で owner に露出しているため、経路自体は実在する。
 
 ### 決定内容
-いずれも本PR（#834）では修正せず、別Issue（起票予定）で対応する。
+いずれも本PR（#834）では修正せず、別Issue（起票予定）で対応する。3 の構造的封鎖（`reconcileRefs` の added パスで pending の `kind='source'` を orphan / deleting 同様に `IllegalTransition` で拒否する）も同様に別Issueとし、本PRでは sweep の JSDoc を実態（残余窓の存在と許容根拠）に合わせて正確化するに留める。
 
 ### 理由
-どちらも本PRが新設した機構ではなく既存の `purgeOrphans` / 候補列挙実装の特性であり、現行でも行が失われることはない（oldest-first + 再試行で回収は最終的に進む。malformed 行はアプリ生成 id が常に UUIDv7 のため通常運用では生じない）。修正には drain ループの上限設計や行単位再水和のエラー処理方針という独立した設計判断を伴うため、#468 のスコープ（source のストレージ衛生の確立）とは分けて扱う方がレビュー・検証の単位が明確になる。
+1 / 2 はどちらも本PRが新設した機構ではなく既存の `purgeOrphans` / 候補列挙実装の特性であり、現行でも行が失われることはない（oldest-first + 再試行で回収は最終的に進む。malformed 行はアプリ生成 id が常に UUIDv7 のため通常運用では生じない）。修正には drain ループの上限設計や行単位再水和のエラー処理方針という独立した設計判断を伴うため、#468 のスコープ（source のストレージ衛生の確立）とは分けて扱う方がレビュー・検証の単位が明確になる。
+
+3 の実害には「日次 tick のミリ秒級の残余窓」×「猶予超過（>24h）の放棄 intake id を故意にノート本文へ埋め込む reconcile 操作」の一致が必要で、発生確率は無視できる（最悪ケースでも失われるのは当該 source blob 1 件で、行・ノートは残る）。一方の封鎖はドメイン遷移規則の変更（pending source を mediaRefs から attach する正当ユースケースが将来も存在しないことの確認込み）という独立した設計判断を伴うため、同じく別Issueに切り出す。

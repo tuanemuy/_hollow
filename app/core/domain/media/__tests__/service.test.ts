@@ -84,13 +84,18 @@ class InMemoryRepo implements MediaAssetRepository {
   async findAbandonedSourceIntakes(
     before: Date,
     limit: number,
-  ): Promise<readonly MediaAsset[]> {
+  ): Promise<readonly PendingMedia[]> {
+    // Port contract: ordered oldest-first (updatedAt, then id), matching
+    // the D1 implementation, so limit-crossing tests see the same rows.
     return Array.from(this.store.values())
+      .filter(MediaAsset.isPending)
       .filter(
-        (a) =>
-          a.status === "pending" &&
-          a.kind === "source" &&
-          a.updatedAt.getTime() < before.getTime(),
+        (a) => a.kind === "source" && a.updatedAt.getTime() < before.getTime(),
+      )
+      .sort(
+        (a, b) =>
+          a.updatedAt.getTime() - b.updatedAt.getTime() ||
+          a.id.localeCompare(b.id),
       )
       .slice(0, limit);
   }

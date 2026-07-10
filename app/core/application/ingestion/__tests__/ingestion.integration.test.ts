@@ -828,6 +828,16 @@ describe("commitIngestionPreview", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(jobRows[0]?.status).toBe("previewing");
 
+    // Stage (a) collects no events and the rolled-back main UoW discards
+    // its buffered ones, so the failed commit must not leak media.* rows
+    // (e.g. media.created) into the outbox.
+    const outboxAfterRollback = await base.db
+      .select()
+      .from(schema.outboxEvents);
+    expect(
+      outboxAfterRollback.filter((e) => e.eventType.startsWith("media.")),
+    ).toHaveLength(0);
+
     // The temp blob is preserved too — temp delete runs only after a
     // successful UoW — so the same job can be re-committed.
     const tempStorage = base.tempFileStorage as unknown as {
@@ -835,8 +845,35 @@ describe("commitIngestionPreview", () => {
     };
     expect(tempStorage.has(tempKey)).toBe(true);
 
+    // Re-committing the same job with a valid input completes on a fresh
+    // pending row + blob; the abandoned row stays pending and does not
+    // interfere with the retry.
+    const abandonedId = mediaRows[0]?.id as string;
+    const recommitTime = new Date(commitTime.getTime() + 30_000);
+    const { noteId } = await commitIngestionPreview({
+      container: withClock(recommitTime),
+      input: { actorUserId: owner, jobId: jobId, modifications: {} },
+    });
+    const noteRows = await base.db
+      .select()
+      .from(schema.notes)
+      .where(eq(schema.notes.id, noteId));
+    expect(noteRows).toHaveLength(1);
+    const newSourceId = noteRows[0]?.sourceFileId as string;
+    expect(newSourceId).not.toBeNull();
+    expect(newSourceId).not.toBe(abandonedId);
+    const afterRecommit = await base.db.select().from(schema.mediaAssets);
+    expect(afterRecommit).toHaveLength(2);
+    expect(afterRecommit.find((r) => r.id === newSourceId)?.status).toBe(
+      "attached",
+    );
+    expect(afterRecommit.find((r) => r.id === abandonedId)?.status).toBe(
+      "pending",
+    );
+
     // Sweep (grace 0, clock advanced past the row's updatedAt) orphans
-    // the abandoned intake.
+    // only the abandoned intake; the re-committed source is attached and
+    // out of scope.
     const sweepTime = new Date(commitTime.getTime() + 60_000);
     const sweepResult = await sweepAbandonedSourceIntakes(
       withClock(sweepTime),
@@ -844,7 +881,10 @@ describe("commitIngestionPreview", () => {
     );
     expect(sweepResult).toEqual({ swept: 1, failed: 0 });
     const afterSweep = await base.db.select().from(schema.mediaAssets);
-    expect(afterSweep[0]?.status).toBe("orphan");
+    expect(afterSweep.find((r) => r.id === abandonedId)?.status).toBe("orphan");
+    expect(afterSweep.find((r) => r.id === newSourceId)?.status).toBe(
+      "attached",
+    );
 
     // A single purge call finalises markDeleting → purge in the same
     // iteration; advance the clock again so the re-stamped orphan
@@ -855,8 +895,15 @@ describe("commitIngestionPreview", () => {
     });
     expect(purgeResult).toEqual({ purged: 1, failed: 0 });
 
-    expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+    // Only the abandoned intake was reclaimed; the live note's source
+    // row and blob survive.
+    const afterPurge = await base.db.select().from(schema.mediaAssets);
+    expect(afterPurge).toHaveLength(1);
+    expect(afterPurge[0]?.id).toBe(newSourceId);
     await expect(base.objectStorage.stat(storageKey)).rejects.toThrow();
+    await expect(
+      base.objectStorage.stat(afterPurge[0]?.storageKey as string),
+    ).resolves.toBeDefined();
   });
 
   // Issue #468 (ADR-002): metadata-first means stage (a) commits the
@@ -925,6 +972,15 @@ describe("commitIngestionPreview", () => {
       .where(eq(schema.ingestionJobs.id, jobId));
     expect(jobRows[0]?.status).toBe("previewing");
 
+    // Stage (a) collects no events (its small UoW commits independently,
+    // so a buffered media.created would survive the failed commit), and
+    // the main UoW was never reached — the outbox must stay free of
+    // media.* rows.
+    const outboxAfterFailure = await base.db.select().from(schema.outboxEvents);
+    expect(
+      outboxAfterFailure.filter((e) => e.eventType.startsWith("media.")),
+    ).toHaveLength(0);
+
     // The stranded row rides the standard reclaim chain: sweep orphans
     // it, purge deletes it (the `delete` idempotency contract covers the
     // missing blob).
@@ -941,6 +997,119 @@ describe("commitIngestionPreview", () => {
     });
     expect(purgeResult).toEqual({ purged: 1, failed: 0 });
     expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+  });
+
+  // Issue #468: the main UoW re-reads the stage (a) row and guards it
+  // with `findById → isPending` — both fail-loud arms (row vanished, row
+  // no longer pending) must surface SystemError(DataIntegrityError) and
+  // roll the whole main UoW back rather than silently dropping the
+  // source binding. The usecase runs three UoWs in order: (1) job
+  // projection read, (2) stage (a) pending-row insert, (3) main UoW —
+  // mutating the row just before the third run drives the guard on the
+  // real path.
+  it("fails loud with SystemError(DataIntegrityError) when the stage (a) row vanishes before the main UoW (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    const tempKey = `${owner}/ingestion/integrity-1`;
+    await base.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    let uowRuns = 0;
+    const container: TestContainer = {
+      ...base,
+      unitOfWorkProvider: {
+        run: async (fn) => {
+          uowRuns += 1;
+          if (uowRuns === 3) {
+            await base.db.delete(schema.mediaAssets);
+          }
+          return base.unitOfWorkProvider.run(fn);
+        },
+      },
+    };
+
+    try {
+      await commitIngestionPreview({
+        container,
+        input: { actorUserId: owner, jobId: jobId, modifications: {} },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isSystemError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(SystemErrorCode.DataIntegrityError);
+    }
+
+    // The main UoW rolled back whole: no note, job untouched.
+    expect(await base.db.select().from(schema.notes)).toHaveLength(0);
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("previewing");
+  });
+
+  it("fails loud with SystemError(DataIntegrityError) when the stage (a) row is no longer pending at the main UoW (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    const tempKey = `${owner}/ingestion/integrity-2`;
+    await base.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    let uowRuns = 0;
+    const container: TestContainer = {
+      ...base,
+      unitOfWorkProvider: {
+        run: async (fn) => {
+          uowRuns += 1;
+          if (uowRuns === 3) {
+            await base.db
+              .update(schema.mediaAssets)
+              .set({ status: "attached", refCount: 1 });
+          }
+          return base.unitOfWorkProvider.run(fn);
+        },
+      },
+    };
+
+    try {
+      await commitIngestionPreview({
+        container,
+        input: { actorUserId: owner, jobId: jobId, modifications: {} },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      if (!isSystemError(error)) {
+        throw error;
+      }
+      expect(error.code).toBe(SystemErrorCode.DataIntegrityError);
+    }
+
+    expect(await base.db.select().from(schema.notes)).toHaveLength(0);
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("previewing");
   });
 
   // Issue #127: the ingestion commit path runs the same
