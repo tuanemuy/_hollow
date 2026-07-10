@@ -419,16 +419,28 @@ export function WysiwygEditor({
     });
   };
 
+  // Closing `LinkDialog` unmounts it, and Dialog's focus-restore cleanup then
+  // returns focus to the trigger button (the toolbar "リンク" button) — which
+  // would clobber the `editor.chain().focus()` above and pull the caret out of
+  // the body, breaking continued typing right after insert/remove (#825 W-001).
+  // Re-focus the editor after that restoration runs (rAF fires post-unmount).
+  const refocusEditorAfterDialog = () => {
+    if (editor === null) return;
+    requestAnimationFrame(() => editor.commands.focus());
+  };
+
   const onLinkSubmit = (url: string) => {
     if (editor === null) return;
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     setLinkDialog(null);
+    refocusEditorAfterDialog();
   };
 
   const onLinkRemove = () => {
     if (editor === null) return;
     editor.chain().focus().extendMarkRange("link").unsetLink().run();
     setLinkDialog(null);
+    refocusEditorAfterDialog();
   };
 
   /**
@@ -663,9 +675,14 @@ export function WysiwygEditor({
               >
                 <span className="flex-1">{btn.ariaLabel}</span>
                 {/* Applied state is read when the menu opens (AC-3): MenuItem
-                    has no `aria-pressed`, so a trailing check conveys it. */}
+                    has no `aria-pressed`, so a trailing check conveys it. The
+                    `Check` icon is `aria-hidden`, so an `sr-only` label carries
+                    the same state to screen readers (#825 a11y W-001). */}
                 {btn.isActive?.() ? (
-                  <Icon icon={Check} className="text-accent" />
+                  <>
+                    <span className="sr-only">（適用中）</span>
+                    <Icon icon={Check} className="text-accent" />
+                  </>
                 ) : null}
               </MenuItem>
             ))}

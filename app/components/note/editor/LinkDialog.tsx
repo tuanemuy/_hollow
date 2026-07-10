@@ -46,6 +46,7 @@ export function LinkDialog({
   onClose,
 }: LinkDialogProps) {
   const titleId = useId();
+  const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(initialHref);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +80,13 @@ export function LinkDialog({
         </h2>
         <input
           ref={inputRef}
-          type="url"
+          // Not `type="url"`: the browser's native constraint validation would
+          // reject relative / fragment / query URLs (`/foo`, `#sec`, `?q=x`)
+          // that `isAllowedLinkUri` explicitly allows, blocking submit before
+          // our own guard runs (#825 B-001). `inputMode="url"` keeps the mobile
+          // URL soft keyboard; scheme validation lives solely in `submit`.
+          type="text"
+          inputMode="url"
           value={url}
           onChange={(e) => {
             setUrl(e.target.value);
@@ -88,10 +95,11 @@ export function LinkDialog({
           placeholder="https://example.com"
           aria-label="リンク URL"
           aria-invalid={error !== null || undefined}
+          aria-describedby={error !== null ? errorId : undefined}
           className={fieldControl}
         />
         {error !== null ? (
-          <p role="alert" className={formError}>
+          <p id={errorId} role="alert" className={formError}>
             {error}
           </p>
         ) : null}

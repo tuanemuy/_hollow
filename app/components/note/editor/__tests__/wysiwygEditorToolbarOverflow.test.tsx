@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import type { Editor } from "@tiptap/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,10 +42,16 @@ async function flushTipTapMount(): Promise<void> {
 async function mount(
   value = "<p>hello</p>",
   onChange: (html: string) => void = vi.fn(),
+  editorRef?: React.RefObject<Editor | null>,
 ): Promise<void> {
   await act(async () => {
     root.render(
-      <WysiwygEditor value={value} onChange={onChange} disabled={false} />,
+      <WysiwygEditor
+        value={value}
+        onChange={onChange}
+        disabled={false}
+        {...(editorRef !== undefined ? { editorRef } : {})}
+      />,
     );
   });
   await flushTipTapMount();
@@ -129,5 +136,27 @@ describe("WysiwygEditor toolbar overflow menu (Issue #825)", () => {
     expect(openMenu()).toBeNull();
     expect(onChange).toHaveBeenCalled();
     expect(onChange.mock.calls.at(-1)?.[0]).toContain("<h2");
+  });
+
+  it("shows the applied-state marker on active items when the menu opens (AC-3 / T-W-004)", async () => {
+    // Cursor inside an <h2>, so 見出し 2 is active on open. The marker is an
+    // sr-only「（適用中）」label beside the visual Check (#825 a11y W-001), so
+    // assert on that accessible text rather than the aria-hidden icon.
+    const editorRef: React.RefObject<Editor | null> = { current: null };
+    await mount("<h2>title</h2>", vi.fn(), editorRef);
+    await act(async () => {
+      editorRef.current?.commands.setTextSelection(2);
+    });
+    await act(async () => {
+      overflowTrigger()?.click();
+    });
+    const items = Array.from(
+      openMenu()?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ??
+        [],
+    );
+    const active = items.find((b) => b.textContent?.includes("見出し 2"));
+    const inactive = items.find((b) => b.textContent?.includes("取り消し線"));
+    expect(active?.textContent).toContain("（適用中）");
+    expect(inactive?.textContent ?? "").not.toContain("（適用中）");
   });
 });
