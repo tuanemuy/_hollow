@@ -7,7 +7,7 @@ import {
   EditorTitleProvider,
   useEditorTitle,
 } from "@/components/layout/EditorTitleContext";
-import { useEditorTitleSync } from "../useEditorTitleSync";
+import { useEditorTitleSync } from "@/components/note/editor/useEditorTitleSync";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

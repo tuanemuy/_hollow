@@ -54,6 +54,8 @@ function render(title: string | null) {
 const doc = () => container.querySelector('[aria-hidden="true"]');
 const searchWrapper = () =>
   container.querySelector('[data-testid="search"]')?.parentElement ?? null;
+// The central grid item: search form → `data-doc` wrapper → HeaderCenter root.
+const centerRoot = () => searchWrapper()?.parentElement ?? null;
 
 describe("HeaderCenter", () => {
   it("shows only the search box when no title is set", () => {
@@ -79,5 +81,32 @@ describe("HeaderCenter", () => {
     render("   ");
     expect(doc()).toBeNull();
     expect(searchWrapper()?.getAttribute("data-doc")).toBeNull();
+  });
+
+  it("carries the load-bearing truncation/mobile-hiding classes (AC-2/AC-4/AC-7)", () => {
+    render("Q2 計画 — プロダクトレビューに向けて");
+    // Root (central grid item) frees its min-width so the `minmax(auto,1fr)`
+    // track cannot grow to the nowrap title's min-content (ADR-004 / AC-2).
+    // happy-dom does not lay out, so we assert the class directly as a cheap
+    // guard against accidental removal.
+    expect(centerRoot()?.className).toContain("min-w-0");
+    // The decorative label hides on desktop (AC-4) and ellipsizes long titles
+    // (AC-2/AC-7).
+    const labelClass = doc()?.getAttribute("class") ?? "";
+    expect(labelClass).toContain("sm:hidden");
+    expect(labelClass).toContain("truncate");
+  });
+
+  it("reactively restores search when the title returns to null (AC-6)", () => {
+    render("X");
+    expect(doc()).not.toBeNull();
+    expect(searchWrapper()?.hasAttribute("data-doc")).toBe(true);
+
+    // Same mount, title reset to null: the label unmounts, `data-doc` drops,
+    // and the search box is shown again — the reactive return path.
+    render(null);
+    expect(doc()).toBeNull();
+    expect(searchWrapper()?.getAttribute("data-doc")).toBeNull();
+    expect(container.querySelector('[data-testid="search"]')).not.toBeNull();
   });
 });
