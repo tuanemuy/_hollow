@@ -156,7 +156,6 @@ export function createTestContainer(): TestContainer {
     markdownRenderer: new HtmlToMarkdownRenderer(),
     pdfRenderer: new StubPdfRenderer(),
     archiveBuilder: new InMemoryZipArchiveBuilder(),
-    exportDesignTokens: Object.freeze({}),
     exportLimits: { maxConcurrentJobs: 3, maxJobsPerDay: 50 },
     outboxRepository: new D1OutboxRepository(db, UuidV7Generator, SystemClock),
     idempotencyStore: new D1IdempotencyStore(db, SystemClock),

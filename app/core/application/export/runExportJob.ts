@@ -9,6 +9,7 @@ import type { ExportJobId as ExportJobIdBrand } from "@/core/domain/export/value
 import { isStorageUnavailableError } from "@/core/domain/media/ports/objectStorage";
 import type { NoteId } from "@/core/domain/note/valueObject";
 import type { ServiceArgs } from "../types";
+import { resolveExportDesignTokens } from "./designTokens";
 import { type ExportJobDTO, toExportJobView } from "./view";
 
 export type RunExportJobInput = Readonly<{
@@ -138,14 +139,24 @@ async function assembleAndComplete(
   jobId: ExportJobIdBrand,
   resolvedNoteIds: readonly NoteId[],
 ): Promise<ExportJob | null> {
-  const jobSnapshot = await container.unitOfWorkProvider.run(
-    async ({ exportJobRepository }) => {
+  const snapshot = await container.unitOfWorkProvider.run(
+    async ({ exportJobRepository, instanceSettingsRepository }) => {
       const found = await exportJobRepository.findById(jobId);
       if (found === null) return null;
-      return found.entity;
+      // Only html/pdf artifacts inject `:root` design tokens; markdown-only
+      // jobs skip the instance-settings read (avoids a needless query).
+      const needsDesignTokens =
+        found.entity.format === "html" || found.entity.format === "pdf";
+      const designTokens = needsDesignTokens
+        ? resolveExportDesignTokens(
+            (await instanceSettingsRepository.get()).entity,
+          )
+        : {};
+      return { job: found.entity, designTokens };
     },
   );
-  if (jobSnapshot === null) return null;
+  if (snapshot === null) return null;
+  const jobSnapshot = snapshot.job;
   if (!ExportJob.isProcessing(jobSnapshot)) return null;
 
   // Substitute the freshly-resolved note ids for the rendering path so
@@ -159,7 +170,7 @@ async function assembleAndComplete(
     targetNoteIds: resolvedNoteIds,
   };
 
-  const deps = buildAssemblyDeps(container, renderJob);
+  const deps = buildAssemblyDeps(container, renderJob, snapshot.designTokens);
   const { key, size } = await ExportService.assembleArtifact(renderJob, deps);
 
   return container.unitOfWorkProvider.run(
@@ -184,6 +195,7 @@ async function assembleAndComplete(
 function buildAssemblyDeps(
   container: ServiceArgs<RunExportJobInput>["container"],
   job: ExportJob,
+  designTokens: Readonly<Record<string, string>>,
 ): ExportAssemblyDeps {
   return {
     // The service reads notes / media through these ports; each access
@@ -275,7 +287,7 @@ function buildAssemblyDeps(
     markdownRenderer: container.markdownRenderer,
     htmlRenderer: container.htmlRenderer,
     archiveBuilder: container.archiveBuilder,
-    designTokens: container.exportDesignTokens,
+    designTokens,
     artifactKey: () => artifactKeyFor(job),
     artifactContentType: artifactContentType(job.scope, job.format),
   };

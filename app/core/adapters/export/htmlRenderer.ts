@@ -56,9 +56,13 @@ export class TemplateHtmlRenderer implements HtmlRenderer {
 function renderTokenStyle(tokens: Readonly<Record<string, string>>): string {
   const entries = Object.entries(tokens);
   if (entries.length === 0) return "";
+  // Keys already carry the `--` prefix by the `DesignTokens` VO contract
+  // (`DESIGN_TOKEN_KEY_REGEX = /^--[a-z0-9-]+$/`), so we emit them verbatim
+  // rather than re-prefixing. `escapeCssIdent` stays as defense-in-depth for
+  // any stray character that slipped past the VO.
   const declarations = entries
     .map(
-      ([key, value]) => `  --${escapeCssIdent(key)}: ${escapeCssValue(value)};`,
+      ([key, value]) => `  ${escapeCssIdent(key)}: ${escapeCssValue(value)};`,
     )
     .join("\n");
   return `<style>\n:root {\n${declarations}\n}\n</style>`;

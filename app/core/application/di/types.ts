@@ -158,13 +158,6 @@ export type RequestContainer = SharedDeps &
     pdfRenderer: PDFRenderer;
     archiveBuilder: ArchiveBuilder;
     /**
-     * Design tokens injected into the exported HTML wrapper so the
-     * artifact renders without the live site's CSS pipeline. Sourced from
-     * the runtime configuration at container construction time; the
-     * export usecases do not re-read them per request.
-     */
-    exportDesignTokens: Readonly<Record<string, string>>;
-    /**
      * Per-user export quota envelope consulted by `EnqueueExportJob` via
      * `ExportService.enforceQuota`. Read from configuration at container
      * construction time so request-path usecases stay deterministic.

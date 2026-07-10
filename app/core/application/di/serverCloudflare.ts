@@ -773,7 +773,6 @@ export function createRequestContainer(
     markdownRenderer: new HtmlToMarkdownRenderer(),
     pdfRenderer: new StubPdfRenderer(),
     archiveBuilder: new InMemoryZipArchiveBuilder(),
-    exportDesignTokens: DEFAULT_EXPORT_DESIGN_TOKENS,
     exportLimits: DEFAULT_EXPORT_LIMITS,
     llmProvider: llm.provider,
     ocrProvider: buildOcrProvider(
@@ -857,14 +856,12 @@ export function createRequestContainer(
 }
 
 /**
- * Default export pipeline configuration. Tokens stay empty by default;
- * deployments override via a custom container builder. Quota limits cap
- * concurrent and per-day bulk exports per user — `ExportService.enforceQuota`
- * treats both as upper bounds against the supplied usage counter.
+ * Default export quota envelope. Quota limits cap concurrent and per-day bulk
+ * exports per user — `ExportService.enforceQuota` treats both as upper bounds
+ * against the supplied usage counter. Design tokens are no longer configured
+ * here: export usecases resolve them per invocation from the instance settings
+ * (Issue #401 ADR-001).
  */
-const DEFAULT_EXPORT_DESIGN_TOKENS: Readonly<Record<string, string>> =
-  Object.freeze({});
-
 const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
   maxConcurrentJobs: 3,
   maxJobsPerDay: 50,
