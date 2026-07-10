@@ -31,7 +31,7 @@
 ## 発見（非ブロッカー・Issue 819 スコープ外）
 
 - **`/notes` で RootDocument が二重描画される既存挙動**: 進捗バーが 2 個描画されるが、これは head の `<meta charset>`/`<meta viewport>` も同じく 2 個になる既存挙動に**完全連動**（バー数＝charset数＝viewport数、詳細/編集ルートでは 1 個）。charset/viewport は Issue 819 で未変更のため、この二重描画は本 Issue 以前から存在する RootDocument レンダリング挙動。進捗バーは装飾（aria-hidden・pointer-events-none・完全重複）のため影響ゼロ。詳細は `results/analysis.md`。
-  - → コード変更不要。既存の RootDocument 二重描画は Issue 819 と独立した既存の軽微な smell として Phase 4 で起票要否を判断。
+  - → コード変更不要。既存の RootDocument 二重描画は Issue 819 と独立した既存の軽微な smell として **Issue #827** に起票済み。
 
 ## 環境メモ
 

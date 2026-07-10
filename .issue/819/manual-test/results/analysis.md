@@ -33,7 +33,7 @@
 
 - **Issue 819 のコード変更は不要。** バーの重複は装飾上・機能上の影響がなく、RootDocument の意図的配置（error/notFound カバー）を崩してまで dedupe する価値はない。既存の重複メタと同じ扱い。
 - **本 Issue で新たなバグを持ち込んではいない**ことを計測で確認済み（バー数＝既存メタ数）。
-- 既存の RootDocument 二重描画（`/notes` の重複 charset/viewport）は Issue 819 とは独立した既存の軽微な correctness smell。Phase 4 で既存 Issue の有無を確認し、独立していれば低優先度で起票を検討する（本 Issue にはぶら下げない）。
+- 既存の RootDocument 二重描画（`/notes` の重複 charset/viewport）は Issue 819 とは独立した既存の軽微な correctness smell。**Issue #827 として起票済み**（低優先度・#819 由来ではないことを計測で確認）。本 Issue にはぶら下げない。
 
 ### 補足: 自動検証できなかった項目
 
