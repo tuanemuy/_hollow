@@ -87,25 +87,25 @@ export const Route = createRootRoute({
     const linksWithoutCanonical = links.filter((l) => l.rel !== "canonical");
     return { meta, links: [...baseLinks, ...linksWithoutCanonical] };
   },
+  // `shellComponent` wraps the whole match tree (component / error / notFound
+  // boundaries alike) exactly once, so the `<html>/<head>/<body>` shell is
+  // structurally guaranteed to be single. `notFoundComponent` renders inside
+  // the root component's `<Outlet/>` (globalNotFound), so wrapping the shell in
+  // each of `component`/`errorComponent`/`notFoundComponent` nested it twice on
+  // notFound routes (e.g. `/notes`), duplicating `<meta charset>`/viewport.
+  // Centralizing the shell here also keeps error/notFound screens covered by
+  // the shell — now with a stronger guarantee, since it sits outside the error
+  // boundary (Issue #827, ADR-001).
+  shellComponent: RootDocument,
   component: RootComponent,
   errorComponent: ({ error }) => (
-    <RootDocument>
-      <ErrorPage kind="system" message={sanitizeRouteError(error)} />
-    </RootDocument>
+    <ErrorPage kind="system" message={sanitizeRouteError(error)} />
   ),
-  notFoundComponent: () => (
-    <RootDocument>
-      <ErrorPage kind="notFound" />
-    </RootDocument>
-  ),
+  notFoundComponent: () => <ErrorPage kind="notFound" />,
 });
 
 function RootComponent() {
-  return (
-    <RootDocument>
-      <Outlet />
-    </RootDocument>
-  );
+  return <Outlet />;
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
@@ -115,10 +115,9 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {/* Global route-transition indicator (Issue #819). Placed in
-            `RootDocument` (not `RootComponent`) so it also covers the root
-            error/notFound screens' re-navigations; decorative + `opacity-0`
-            when idle, so it is inert on those screens. */}
+        {/* Global route-transition indicator (Issue #819). Lives in the shell
+            so it also covers the root error/notFound screens' re-navigations;
+            decorative + `opacity-0` when idle, so it is inert on those screens. */}
         <RouteProgressBar />
         {children}
         {import.meta.env.DEV ? <TanStackRouterDevtools /> : null}
