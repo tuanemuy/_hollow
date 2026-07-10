@@ -65,6 +65,7 @@ import {
 import { TagsInput } from "./TagsInput";
 import { useAutosave } from "./useAutosave";
 import { useEditLock } from "./useEditLock";
+import { useEditorTitleSync } from "./useEditorTitleSync";
 import { WysiwygEditor } from "./WysiwygEditor";
 import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
@@ -214,6 +215,10 @@ export function NoteEditor(props: NoteEditorProps) {
     extendLock,
     releaseLock,
   });
+
+  // Surface the in-progress title in the shared header as the mobile P12
+  // orientation label (Issue #824).
+  useEditorTitleSync(state.title);
 
   const onMediaInsert = useCallback(
     (nextHtml: string, insertion: { id: string; url: string }) => {

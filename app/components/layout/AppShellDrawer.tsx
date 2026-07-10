@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { EditorTitleProvider } from "./EditorTitleContext";
 import {
   APP_LAYOUT_WITH_SIDEBAR,
   APP_MAIN,
@@ -184,29 +185,36 @@ export function AppShellDrawer({
 
   return (
     <DrawerCtx.Provider value={value}>
-      {header}
-      <button
-        type="button"
-        aria-label="メニューを閉じる"
-        tabIndex={open ? 0 : -1}
-        data-open={open || undefined}
-        onClick={close}
-        className={SIDEBAR_BACKDROP}
-      />
-      <div className={APP_LAYOUT_WITH_SIDEBAR}>
-        <aside
-          ref={asideRef}
-          className={APP_SIDEBAR}
+      {/* The header + main subtree is passed to `EditorTitleProvider` as its
+          `children` prop (not inlined) so the provider's per-keystroke
+          `setTitle` re-render does not re-reconcile the whole `/_app` tree —
+          the "children as prop" bailout keeps churn off every page (Issue
+          #824 ADR-006). */}
+      <EditorTitleProvider>
+        {header}
+        <button
+          type="button"
+          aria-label="メニューを閉じる"
+          tabIndex={open ? 0 : -1}
           data-open={open || undefined}
-          aria-label="サイドバー"
-          tabIndex={-1}
-          {...(isMobile ? { role: "dialog", "aria-modal": open } : {})}
-          {...(inert ? { inert: true } : {})}
-        >
-          {inSettings && settingsSidebar ? settingsSidebar : sidebar}
-        </aside>
-        <main className={APP_MAIN}>{children}</main>
-      </div>
+          onClick={close}
+          className={SIDEBAR_BACKDROP}
+        />
+        <div className={APP_LAYOUT_WITH_SIDEBAR}>
+          <aside
+            ref={asideRef}
+            className={APP_SIDEBAR}
+            data-open={open || undefined}
+            aria-label="サイドバー"
+            tabIndex={-1}
+            {...(isMobile ? { role: "dialog", "aria-modal": open } : {})}
+            {...(inert ? { inert: true } : {})}
+          >
+            {inSettings && settingsSidebar ? settingsSidebar : sidebar}
+          </aside>
+          <main className={APP_MAIN}>{children}</main>
+        </div>
+      </EditorTitleProvider>
     </DrawerCtx.Provider>
   );
 }
