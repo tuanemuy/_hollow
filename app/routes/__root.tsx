@@ -7,6 +7,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
+import { RouteProgressBar } from "@/components/layout/RouteProgressBar";
 import { ErrorPage } from "@/components/public/ErrorPage";
 import { sanitizeRouteError } from "@/core/presentation/errorDisplay";
 import { errorResponseMiddleware } from "@/core/presentation/errorResponseMiddleware";
@@ -114,6 +115,11 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {/* Global route-transition indicator (Issue #819). Placed in
+            `RootDocument` (not `RootComponent`) so it also covers the root
+            error/notFound screens' re-navigations; decorative + `opacity-0`
+            when idle, so it is inert on those screens. */}
+        <RouteProgressBar />
         {children}
         {import.meta.env.DEV ? <TanStackRouterDevtools /> : null}
         <Scripts />
