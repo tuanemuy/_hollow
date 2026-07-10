@@ -143,6 +143,10 @@ async function assembleAndComplete(
     async ({ exportJobRepository, instanceSettingsRepository }) => {
       const found = await exportJobRepository.findById(jobId);
       if (found === null) return null;
+      // Resolve design tokens only once the job is confirmed `processing`
+      // (the assembly path). A non-processing job is discarded, so reading
+      // instance settings for it would be a wasted query.
+      if (!ExportJob.isProcessing(found.entity)) return null;
       // Only html/pdf artifacts inject `:root` design tokens; markdown-only
       // jobs skip the instance-settings read (avoids a needless query).
       const needsDesignTokens =
@@ -157,7 +161,6 @@ async function assembleAndComplete(
   );
   if (snapshot === null) return null;
   const jobSnapshot = snapshot.job;
-  if (!ExportJob.isProcessing(jobSnapshot)) return null;
 
   // Substitute the freshly-resolved note ids for the rendering path so
   // view-scope jobs see the live result set. The persisted aggregate's

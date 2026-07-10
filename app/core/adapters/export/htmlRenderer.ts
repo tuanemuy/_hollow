@@ -73,9 +73,15 @@ function escapeCssIdent(raw: string): string {
 }
 
 function escapeCssValue(raw: string): string {
-  // Strip CSS comment terminators / newlines so injected token values
-  // cannot break out of the declaration block.
-  return raw.replace(/\*\//g, "").replace(/[\r\n]+/g, " ");
+  // The primary guard is the `DesignTokens` VO / `BUILTIN_DESIGN_TOKENS`,
+  // which forbid `[\n\r;{}]` in values — so `;`, `{`, `}`, and newlines
+  // cannot reach a declaration here. This stays as a second-layer safeguard
+  // that neutralises CSS comment markers (`/*`, `*/`) and newlines should a
+  // value ever bypass the VO.
+  return raw
+    .replace(/\/\*/g, "")
+    .replace(/\*\//g, "")
+    .replace(/[\r\n]+/g, " ");
 }
 
 function renderFrontMatterComment(fm: FrontMatter): string {

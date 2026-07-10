@@ -35,6 +35,12 @@ describe("TemplateHtmlRenderer.wrapForExport — design token style block", () =
     expect(html).toContain("--color-accent: red  } body { color: blue;");
   });
 
+  it("neutralises CSS comment openers (/*) in values", async () => {
+    const html = await wrap({ "--color-accent": "red /* comment" });
+    expect(html).not.toContain("/*");
+    expect(html).toContain("--color-accent: red  comment;");
+  });
+
   it("strips newlines from values so they cannot break out of the block", async () => {
     const html = await wrap({ "--color-accent": "red\n} body { color: blue" });
     expect(html).toContain("--color-accent: red } body { color: blue;");
