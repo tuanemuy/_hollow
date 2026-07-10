@@ -2,6 +2,15 @@
 
 R2 に保存されるメディアアセット（画像・動画・アバター）のメタデータと孤児クリーンアップを扱う。
 
+## 保持ポリシー（source, Issue #468 ADR-001）
+
+`MediaAsset(kind='source')` 全件に時間ベースの TTL は設けない。保持は Note のライフサイクルに連動する:
+
+- 参照元 Note が存在する限り無期限保持（#452 の閲覧/DL 要件を運用都合で破壊しない）。trash 中も復元可能なため保持。
+- 参照が外れた時点で orphan 化 → 標準 purge 機構が回収。契機は (a) overwrite commit での差し替え、(b) note purge、(c) commit 不成立で放棄された intake（`SweepAbandonedSourceIntakes` が猶予 24h 後に orphan 化）。
+- 猶予: intake 放棄 → orphan が 24h、orphan → purge が 24h（二重の猶予）。
+- 再検討トリガー: ストレージコストが顕在化した場合は opt-in の admin instance setting（TTL）を別 Issue で設計する。判断材料は `MediaAssetRepository.aggregateByOwner` で観測可能。
+
 ## ユビキタス言語
 
 | English | 日本語 | 定義 |
@@ -60,6 +69,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - メソッド:
   - `reconcileRefs(noteBeforeIds: MediaAssetId[], noteAfterIds: MediaAssetId[], now: Instant, repo: MediaAssetRepository): Promise<void>` — 差分計算して inc/dec
   - `listPurgeCandidates(now: Instant, ageSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — orphan に加え、前回 purge が中断した `deleting` 行も返す（再試行対象）
+  - `listAbandonedSourceIntakes(now: Instant, graceSec: number, repo: MediaAssetRepository): Promise<MediaAsset[]>` — commit 不成立で放棄された `pending(kind='source')` を返す（猶予 = ドメインルール、Issue #468）。source の pending は commit リクエスト内で attach されるため、猶予超過 = 放棄と断定できる（他 kind の pending は対象外 — ADR-004）
   - `purge(asset: MediaAsset, storage: ObjectStorage, repo: MediaAssetRepository): Promise<void>` — R2 削除 + DB 物理削除
   - `assertViewableBy(args: { asset: MediaAsset; viewerOwnerId: UserId | null; relatedNoteVisibility: Visibility | null }): void` — `viewerOwnerId === asset.ownerId` なら常に可。`viewerOwnerId === null` のとき、`relatedNoteVisibility === 'public'` または limited リンク経由（呼び出し側で別途トークン検証済み）でなければ `BusinessRuleError('media_not_viewable')`
 
@@ -70,6 +80,7 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - `findByIds(ids: MediaAssetId[]): Promise<MediaAsset[]>`
 - `findByOwner(ownerId: UserId, opts: ListOpts): Promise<MediaAsset[]>`
 - `findPurgeableOlderThan(before: Instant, limit: number): Promise<MediaAsset[]>` — `status IN ('orphan','deleting') AND updatedAt < before`
+- `findAbandonedSourceIntakes(before: Instant, limit: number): Promise<MediaAsset[]>` — `status = 'pending' AND kind = 'source' AND updatedAt < before`（Issue #468。source 以外の pending は正当に attach 待ちの可能性があるため対象外）
 - `save(asset: MediaAsset): Promise<void>`
 - `delete(id: MediaAssetId): Promise<void>`
 
@@ -77,10 +88,10 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - メソッド:
   - `put(key: string, bytes: ArrayBuffer, contentType: string): Promise<void>`
   - `get(key: string): Promise<ArrayBuffer>`
-  - `delete(key: string): Promise<void>`
+  - `delete(key: string): Promise<void>` — missing key は成功として扱う（冪等）。#468 の回収チェーンは blob なし `pending` 行を定常的に purge に流すため、この冪等性はポート契約
   - `presignDownload(key: string, ttlSec: number): Promise<URL>`
   - `presignUpload(key: string, contentType: string, ttlSec: number): Promise<URL>`
-- エラーケース: `StorageNotFoundError` / `StorageUnavailableError`
+- エラーケース: `StorageNotFoundError`（get / stat のみ）/ `StorageUnavailableError`
 
 ## ユースケース（概要）
 
@@ -89,3 +100,4 @@ R2 に保存されるメディアアセット（画像・動画・アバター�
 - DetachMediaFromNote
 - ListMediaByOwner
 - PurgeOrphans（バッチ）
+- SweepAbandonedSourceIntakes（バッチ、Issue #468）

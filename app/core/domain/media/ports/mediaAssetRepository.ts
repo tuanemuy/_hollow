@@ -53,6 +53,19 @@ export interface MediaAssetRepository {
     before: Date,
     limit: number,
   ): Promise<readonly MediaAsset[]>;
+  /**
+   * Abandoned source intakes: `pending` rows with `kind = 'source'`
+   * whose `updatedAt` predates `before`, ordered oldest-first. These are
+   * rows created by the commit flow's metadata-first stage (a) that were
+   * never attached — the commit's main UoW rolled back or the `put`
+   * failed — so the sweep can reclaim them. Only `kind = 'source'` is in
+   * scope: pending rows of other kinds may legitimately be awaiting
+   * attach from an open editor draft (#468 ADR-004).
+   */
+  findAbandonedSourceIntakes(
+    before: Date,
+    limit: number,
+  ): Promise<readonly MediaAsset[]>;
   save(asset: MediaAsset): Promise<void>;
   delete(id: MediaAssetId): Promise<void>;
 }

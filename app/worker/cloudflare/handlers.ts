@@ -14,6 +14,8 @@ import {
   type ServerEnv,
 } from "@/core/application/di/serverCloudflare";
 import { purgeExpiredExports } from "@/core/application/export/purgeExpiredExports";
+import { purgeOrphans } from "@/core/application/media/purgeOrphans";
+import { sweepAbandonedSourceIntakes } from "@/core/application/media/sweepAbandonedSourceIntakes";
 import { dispatchDomainEvent } from "@/core/application/workers/dispatchDomainEvent";
 import {
   type EventDispatcher,
@@ -109,6 +111,15 @@ export async function runRelayTick(
  * now` (≥ the retention cutoff), so it is not pruned this tick but on a
  * later one once the window elapses — purge is not an immediate delete.
  *
+ * The media hygiene pair (Issue #468) runs at the end of the tick:
+ * `sweepAbandonedSourceIntakes` orphans `pending(kind='source')` rows
+ * abandoned by a failed / rolled-back ingestion commit, then
+ * `purgeOrphans` reclaims orphaned media (R2 delete + DB delete). Sweep
+ * runs before purge so the chain advances one stage per tick; a freshly
+ * orphaned row is purged on a later tick once the orphan grace window
+ * lapses. Both use a purge `RequestContainer` (UoW + objectStorage) and
+ * run best-effort like the export purge.
+ *
  * The outbox prune runs first; nothing is committed until it succeeds,
  * so it may throw. Every step *after* it (processed-events, activity,
  * llm-call-log, purge, export-jobs, tag-merge-jobs) runs best-effort in
@@ -190,6 +201,33 @@ export async function runPruneTick(
     });
   } catch (error) {
     container.logger.error("[prune] tag-merge-jobs prune failed", {
+      cause: error,
+    });
+  }
+  // Media storage hygiene (Issue #468): orphan abandoned source intakes,
+  // then reclaim orphaned media through the standard purge. Same
+  // best-effort RequestContainer pattern as the export purge above.
+  try {
+    const mediaContainer = createRequestContainer(readRequestServerConfig(env));
+    const { swept, failed } = await sweepAbandonedSourceIntakes(mediaContainer);
+    container.logger.info(
+      `[prune] swept ${swept} abandoned source intake(s) (${failed} failed)`,
+      { swept, failed },
+    );
+  } catch (error) {
+    container.logger.error("[prune] abandoned-source-intake sweep failed", {
+      cause: error,
+    });
+  }
+  try {
+    const mediaContainer = createRequestContainer(readRequestServerConfig(env));
+    const { purged, failed } = await purgeOrphans(mediaContainer);
+    container.logger.info(
+      `[prune] purged ${purged} orphaned media asset(s) (${failed} failed)`,
+      { purged, failed },
+    );
+  } catch (error) {
+    container.logger.error("[prune] media orphan purge failed", {
       cause: error,
     });
   }

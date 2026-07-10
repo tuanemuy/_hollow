@@ -173,6 +173,31 @@ export class D1MediaAssetRepository implements MediaAssetRepository {
     });
   }
 
+  findAbandonedSourceIntakes(
+    before: Date,
+    limit: number,
+  ): Promise<readonly MediaAsset[]> {
+    return mapDbError("Failed to find abandoned source intakes", async () => {
+      const cutoff = before.toISOString();
+      // Served by `idx_media_status_updated (status, updated_at)`; the
+      // extra `kind` filter is a residual predicate on a tiny candidate
+      // set, so no dedicated index is needed (#468).
+      const rows = await this.db
+        .select()
+        .from(mediaAssets)
+        .where(
+          and(
+            eq(mediaAssets.status, "pending"),
+            eq(mediaAssets.kind, "source"),
+            lt(mediaAssets.updatedAt, cutoff),
+          ),
+        )
+        .orderBy(asc(mediaAssets.updatedAt), asc(mediaAssets.id))
+        .limit(limit);
+      return rows.map((row) => this.toMediaAsset(row));
+    });
+  }
+
   // Upsert because the port collapses insert / update into a single
   // `save` operation (no OCC token to discriminate them). `ON CONFLICT
   // DO UPDATE` is safe here precisely *because* there is no version to

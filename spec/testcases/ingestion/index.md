@@ -44,6 +44,7 @@
 | modifications.directoryNameToCreate | Commit | 新ディレクトリ作成 |
 | overwriteNoteId 指定 | Commit | 既存ノートを SaveNote ロジックで更新 |
 | 不正な状態（pending） | Commit | `BusinessRuleError('invalid_status_for_commit')` |
+| main UoW ロールバック（例: 実在しない directoryId） | Commit | `pending(kind='source')` 行と source blob が残存し、SweepAbandonedSourceIntakes → PurgeOrphans の回収経路で自動回収される（Issue #468） |
 
 ## DiscardIngestionPreview
 

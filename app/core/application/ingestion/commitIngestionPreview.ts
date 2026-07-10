@@ -30,7 +30,12 @@ import {
 } from "@/core/domain/note/valueObject";
 import { TagName } from "@/core/domain/tag/valueObject";
 import type { FrontMatterDTO, InternalLinkRefDTO } from "../dto/note";
-import { ForbiddenError, NotFoundError } from "../errors";
+import {
+  ForbiddenError,
+  NotFoundError,
+  SystemError,
+  SystemErrorCode,
+} from "../errors";
 import { buildStorageKey, safeStoragePut } from "../media/uploadMedia";
 import type { ServiceArgs } from "../types";
 
@@ -94,16 +99,22 @@ export async function commitIngestionPreview({
     }
   }
 
-  // Stage (a) — persist the source file BEFORE the UoW (Issue #452 plan
-  // step 7). R2 has no two-phase commit, so the canonical ordering is
-  // "put bytes first, then persist metadata" (matches `uploadMedia`).
-  // The job is read here only as a projection to source the bytes /
-  // mime / size / file name; the in-UoW read below still captures the
-  // OCC `expectedVersion`. When `put` succeeds but the DB later rolls
-  // back, the R2 blob is orphaned with no `MediaAsset` row to drive its
-  // reclaim — an accepted edge for the (rare) commit DB failure, same as
-  // `uploadMedia`'s pending-row orphan tolerance.
-  const sourcePersist = await prepareSourcePersist({ container, input, actor });
+  // Stage (a) — persist the source file BEFORE the main UoW (Issue #452
+  // plan step 7), metadata-first (Issue #468 ADR-002): a `pending`
+  // MediaAsset row is committed in its own small UoW before the R2
+  // `put`, so the blob has a DB row from birth. Whether the `put` fails,
+  // the main UoW below rolls back, or the worker crashes in between, the
+  // leftover `pending(kind='source')` row is reclaimed by the
+  // `sweepAbandonedSourceIntakes` → `purgeOrphans` chain. The job is
+  // read here only as a projection to source the bytes / mime / size /
+  // file name; the in-UoW read below still captures the OCC
+  // `expectedVersion`.
+  const sourcePersist = await prepareSourcePersist({
+    container,
+    input,
+    actor,
+    now,
+  });
 
   const result = await container.unitOfWorkProvider.run(
     async ({
@@ -234,25 +245,25 @@ export async function commitIngestionPreview({
         },
       );
 
-      // Stage (b) — persist the source MediaAsset (pending → attached,
-      // refCount=1) and bind it to the note via `sourceFileId`. On an
-      // overwrite that replaces an existing source, the old asset is
+      // Stage (b) — attach the source MediaAsset persisted by stage (a)
+      // (pending → attached, refCount=1) and bind it to the note via
+      // `sourceFileId`. The row was inserted by this same request, so a
+      // missing or non-pending row is a data-integrity fault, not a user
+      // error — fail loud rather than silently dropping the binding. On
+      // an overwrite that replaces an existing source, the old asset is
       // detached with `decrementRef` (→ orphan) so the standard purge
       // worker reclaims its blob (Issue #452 ADR-005).
       let sourceFileId: MediaAssetId | null = null;
       if (sourcePersist !== null) {
-        const { entity: pending } = MediaAsset.create(
-          {
-            id: sourcePersist.mediaId,
-            ownerId: actor,
-            kind: "source",
-            mimeType: sourcePersist.mimeType,
-            byteSize: sourcePersist.byteSize,
-            storageKey: sourcePersist.storageKey,
-            originalFileName: sourcePersist.originalFileName,
-          },
-          now,
+        const pending = await mediaAssetRepository.findById(
+          sourcePersist.mediaId as MediaAssetId,
         );
+        if (pending === null || !MediaAsset.isPending(pending)) {
+          throw new SystemError(
+            SystemErrorCode.DataIntegrityError,
+            `Source media asset ${sourcePersist.mediaId} is missing or not pending at commit`,
+          );
+        }
         const attached = MediaAsset.markAttached(pending, now);
         await mediaAssetRepository.save(attached.entity);
         collectEvents(attached.eventDrafts);
@@ -356,24 +367,29 @@ export async function commitIngestionPreview({
   return { noteId: result.noteId };
 }
 
+// The main UoW re-reads the persisted row by id (metadata-first, #468),
+// so the handoff carries only the minted id.
 type SourcePersist = Readonly<{
   mediaId: string;
-  storageKey: string;
-  mimeType: string;
-  byteSize: number;
-  originalFileName: string;
 }>;
 
 /**
- * Stage (a) of the source-file persistence flow (Issue #452 plan step 7).
+ * Stage (a) of the source-file persistence flow (Issue #452 plan step 7,
+ * metadata-first per Issue #468 ADR-002).
  *
  * Reads the ingestion job as a projection (the OCC read happens inside the
  * UoW below), and — when the job still has a staged temp file — mints the
- * source `MediaAsset` id, fetches the bytes from temp storage, and copies
- * them to permanent object storage under `{ownerId}/source/{mediaId}`.
+ * source `MediaAsset` id, fetches the bytes from temp storage, commits a
+ * `pending` MediaAsset row in its own small UoW, and only then copies the
+ * bytes to permanent object storage under `{ownerId}/source/{mediaId}`.
+ * The row-before-bytes ordering guarantees every source blob has a DB row
+ * from birth: any failure past the row insert (put failure, main-UoW
+ * rollback, crash) leaves a `pending(kind='source')` row that the
+ * abandoned-intake sweep orphans and the purge worker reclaims.
  * Returns `null` when there is no temp file to persist (e.g. a re-driven
  * job whose temp key was already reclaimed), in which case the note keeps
- * no bound source file.
+ * no bound source file. The temp-missing check runs before the row insert
+ * so a skipped persist leaves no stray row behind.
  *
  * The instance upload limit is intentionally NOT re-checked here: the file
  * was already accepted at ingestion-upload time and commit is a
@@ -383,10 +399,12 @@ async function prepareSourcePersist({
   container,
   input,
   actor,
+  now,
 }: {
   container: ServiceArgs<CommitIngestionPreviewInput>["container"];
   input: CommitIngestionPreviewInput;
   actor: UserId;
+  now: Date;
 }): Promise<SourcePersist | null> {
   const job = await container.unitOfWorkProvider.run(
     ({ ingestionJobRepository }) =>
@@ -418,17 +436,34 @@ async function prepareSourcePersist({
     }
     throw cause;
   }
+
+  // Metadata-first (#468 ADR-002): commit the `pending` row before the
+  // `put`. No `collectEvents` — like `uploadMedia` /
+  // `uploadMediaPresigned`, a transient intake does not wake consumers;
+  // the downstream attach / orphan / purge events drive the lifecycle.
+  await container.unitOfWorkProvider.run(async ({ mediaAssetRepository }) => {
+    const { entity: asset } = MediaAsset.create(
+      {
+        id: mediaId,
+        ownerId: actor,
+        kind: "source",
+        mimeType: job.entity.mimeType,
+        byteSize: job.entity.byteSize,
+        storageKey,
+        originalFileName: job.entity.originalFileName,
+      },
+      now,
+    );
+    await mediaAssetRepository.save(asset);
+  });
+
+  // On failure the pending row above stays behind; the abandoned-intake
+  // sweep reclaims it after the grace window (#468).
   await safeStoragePut(() =>
     container.objectStorage.put(storageKey, bytes, job.entity.mimeType),
   );
 
-  return {
-    mediaId,
-    storageKey,
-    mimeType: job.entity.mimeType,
-    byteSize: job.entity.byteSize,
-    originalFileName: job.entity.originalFileName,
-  };
+  return { mediaId };
 }
 
 /**

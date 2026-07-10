@@ -101,7 +101,7 @@ Note 保存後に呼ばれ、参照差分をメディア側に反映する。
 ## PurgeOrphans（バッチ）
 
 ### 入力DTO
-- なし（Cron 起動）
+- なし（Cron 起動 — pruner tick（日次 03:00 UTC）から `SweepAbandonedSourceIntakes` の後に best-effort で実行される。Issue #468）
 
 ### 処理フロー
 1. `MediaService.listPurgeCandidates(now, 24h, repo, batch=100)`（内部で `findPurgeableOlderThan` を呼び、`status IN ('orphan','deleting') AND updatedAt < now-24h` を取得）
@@ -110,6 +110,25 @@ Note 保存後に呼ばれ、参照差分をメディア側に反映する。
 
 ### エラーケース
 - 個別失敗は `deleting` のまま failed に計上。`markDeleting` が `updatedAt` を再スタンプするため、猶予期間経過後の次の sweep で再試行される（再試行回数の上限なし）
+
+---
+
+## SweepAbandonedSourceIntakes（バッチ、Issue #468）
+
+### 概要
+commit の metadata-first ステージで作られたまま attach されなかった `pending(kind='source')` 行（main UoW ロールバック / put 失敗 / クラッシュの残骸）を orphan 化し、回収を標準 purge 機構に一本化する。
+
+### 入力DTO
+- なし（Cron 起動 — pruner tick（日次 03:00 UTC）から PurgeOrphans の前に best-effort で実行される）
+- オプション: `graceSec`（default 24h）/ `batchSize`（default 100）
+
+### 処理フロー
+1. `MediaService.listAbandonedSourceIntakes(now, 24h, repo, batch=100)`（内部で `findAbandonedSourceIntakes` を呼び、`status='pending' AND kind='source' AND updatedAt < now-24h` を取得）
+2. 各々について UoW: fresh `findById` → まだ `pending` かつ `kind='source'` なら `decrementRef`（`pending → orphan`、`media.orphaned` を collect）→ save。遷移済み / 消失済みの行はスキップ
+3. orphan 化で `updatedAt` が再スタンプされるため、blob の実削除はさらに orphan 猶予（24h）経過後の PurgeOrphans が行う（誤回収への二重の猶予）
+
+### エラーケース
+- 個別失敗はログ + failed 計上でバッチ続行（per-row tolerance）。行は `pending` のまま残り、次回 sweep で再試行される
 
 ---
 

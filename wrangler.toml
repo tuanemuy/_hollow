@@ -298,8 +298,9 @@ database_name = "hollow-local-d1"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "app/core/adapters/d1/migrations"
 
-# The pruner now drives `purgeExpiredExports` (Issue #783 ADR-005), which
-# deletes expired export artifacts from R2. Mirrors the `[env.consumer]`
+# The pruner drives `purgeExpiredExports` (Issue #783 ADR-005) and the
+# media hygiene pair `sweepAbandonedSourceIntakes` → `purgeOrphans`
+# (Issue #468), which delete R2 objects. Mirrors the `[env.consumer]`
 # binding (same bucket). The three SigV4 presign secrets
 # (`R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY`) are
 # injected at deploy time via SOPS, never placed in `[vars]`. If the

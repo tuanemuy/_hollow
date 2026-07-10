@@ -267,6 +267,9 @@ function buildAssemblyDeps(
       async findPurgeableOlderThan() {
         return [];
       },
+      async findAbandonedSourceIntakes() {
+        return [];
+      },
       async save() {},
       async delete() {},
     },

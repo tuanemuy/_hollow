@@ -100,9 +100,9 @@
 2. modifications.directoryNameToCreate があれば CreateDirectory ロジックで作成
 3. modifications.overwriteNoteId があれば、対象 Note の SaveNote ロジックを使う（ContentHtml を Preview の物に置換）
 4. なければ `IngestionService.commitToNote` を呼んで新規 Note 作成
-5. （Issue #452）`tempStorageKey !== null` のとき、元ファイルを永続保存する3段フロー:
-   - (a) UoW 前: `idGenerator.next()` で mediaId 確定 → `tempFileStorage.get(tempKey)` → `objectStorage.put('{ownerId}/source/{mediaId}', bytes, job.mimeType)`（R2、トランザクション外）
-   - (b) UoW 内: `MediaAsset.create(kind='source')`（pending）→ `markAttached`（attached/refCount=1）→ save。Note の `sourceFileId` に設定。overwrite で旧 `sourceFileId` があればその `MediaAsset` を `decrementRef` で orphan 化（標準 purge worker が回収）。上限の再検証はしない（ingestion アップロード時に検証済み）
+5. （Issue #452 / #468）`tempStorageKey !== null` のとき、元ファイルを永続保存する3段フロー（metadata-first）:
+   - (a) main UoW 前: `idGenerator.next()` で mediaId 確定 → `tempFileStorage.get(tempKey)`（temp 欠損なら source 永続化をスキップ）→ **独立の小 UoW で `MediaAsset.create(kind='source')`（pending）を save**（イベント collect なし）→ `objectStorage.put('{ownerId}/source/{mediaId}', bytes, job.mimeType)`。行が blob より先に必ず存在するため、put 失敗・main UoW ロールバック・クラッシュのいずれでも残るのは `pending(kind='source')` 行 + blob であり、SweepAbandonedSourceIntakes → PurgeOrphans が自動回収する（Issue #468 ADR-002）
+   - (b) main UoW 内: `findById(mediaId)` → `isPending` ガード（null / 非 pending は `SystemError(DataIntegrityError)`）→ `markAttached`（attached/refCount=1）→ save。Note の `sourceFileId` に設定。overwrite で旧 `sourceFileId` があればその `MediaAsset` を `decrementRef` で orphan 化（標準 purge worker が回収）。上限の再検証はしない（ingestion アップロード時に検証済み）
    - (c) UoW 後: 既存の `tempFileStorage.delete`
 6. UoW 内で `job.commit(noteId, now)` → save、`TempFileStorage.delete`
 7. Outbox `note.saved` 発火

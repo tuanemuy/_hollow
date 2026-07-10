@@ -318,7 +318,28 @@ Three cron triggers ship in `wrangler.<stage>.toml`:
 | ------- | -------------- | -------------------------------------------------------------------- |
 | Relay   | every 5 min    | Safety-net publish loop — kicks in when the Service Binding fails.   |
 | Indexer | every 5 min    | Drains `index_jobs` rows produced by note.* / publication.* dispatch.|
-| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows, idempotency records (`processed_events`), and activity-log read models beyond retention. |
+| Pruner  | daily          | Deletes processed (and not-quarantined) outbox rows, idempotency records (`processed_events`), and activity-log read models beyond retention. Also drives the R2 hygiene steps: `purgeExpiredExports` (#783) and the media pair `sweepAbandonedSourceIntakes` → `purgeOrphans` (#468). |
+
+### Media storage hygiene (Issue #468)
+
+The daily pruner tick ends with two best-effort media steps built on a purge `RequestContainer` (UoW + `OBJECT_STORAGE` binding + R2 presign secrets — all three presign secrets and the binding must be present or the container falls back to an unavailable objectStorage and the R2 deletes fail):
+
+1. `sweepAbandonedSourceIntakes` — orphans `pending(kind='source')` rows older than 24h. These are leftovers of ingestion commits whose main UoW rolled back (or whose R2 `put` failed) after the metadata-first stage persisted the row.
+2. `purgeOrphans` — transitions orphans older than 24h to `deleting` and finalises the purge (R2 delete + DB delete). This reclaims all orphaned media, not just sources.
+
+End-to-end reclaim latency for an abandoned intake is therefore up to ~2 days (24h sweep grace + 24h orphan grace, advanced one stage per daily tick).
+
+#### One-time manual reconcile for pre-#468 leaked blobs
+
+Deploys **before** the metadata-first commit flow could leak a source blob with no `media_assets` row (put succeeded, DB commit failed). Those blobs predate the invariant "every blob has a row from birth" and are invisible to the sweep. If reclaiming them ever matters (occurrence is expected to be near-zero — only commit DB failures between #452 and #468), reconcile once by hand:
+
+1. List source keys in the objects bucket. There is no bucket-wide `source/` prefix (keys are `{ownerId}/source/{mediaId}`), so list everything and filter:
+   `wrangler r2 object list <objects-bucket> | grep '/source/'` (or the S3 API `ListObjectsV2` against the R2 endpoint).
+2. Compare against DB rows: `SELECT storage_key FROM media_assets WHERE kind = 'source'` (via `wrangler d1 execute`).
+3. Delete keys present in the bucket but absent from `media_assets`:
+   `wrangler r2 object delete <objects-bucket> <key>`.
+
+This is a one-off operational task, not a recurring mechanism — everything created after #468 rides the sweep → purge chain automatically (`.issue/468/adr.md` ADR-002).
 
 ## Retry budget
 

@@ -82,13 +82,34 @@ async function listPurgeCandidates(
 }
 
 /**
+ * Returns abandoned source intakes: `pending` rows of `kind='source'`
+ * whose `updatedAt` is strictly older than `now - graceSec`. Symmetric
+ * with `listPurgeCandidates` — the grace window is a domain rule owned
+ * here; the adapter only implements the status/kind filter. A source
+ * pending is attached within its own commit request, so any that
+ * outlives the grace window was abandoned by a rolled-back or failed
+ * commit (#468 ADR-002 / ADR-004).
+ */
+async function listAbandonedSourceIntakes(
+  now: Date,
+  graceSec: number,
+  repo: MediaAssetRepository,
+  limit = 100,
+): Promise<readonly MediaAsset[]> {
+  const cutoff = new Date(now.getTime() - graceSec * 1000);
+  return repo.findAbandonedSourceIntakes(cutoff, limit);
+}
+
+/**
  * Storage delete + DB delete. Caller is expected to have transitioned
  * the asset to `deleting` already; this service finalises the purge.
- * Storage errors (incl. `StorageNotFoundError`) are NOT swallowed —
- * they propagate so the orchestrator (`purgeOrphans`) can log + count
- * the failure and leave the row in `deleting` for a later sweep to
- * retry. The storage delete runs first so a failed R2 delete never
- * orphans the row's bytes behind a missing DB record.
+ * Storage errors are NOT swallowed — they propagate so the orchestrator
+ * (`purgeOrphans`) can log + count the failure and leave the row in
+ * `deleting` for a later sweep to retry. Note the `ObjectStorage.delete`
+ * contract: a missing key is success, never `StorageNotFoundError`, so
+ * a row without a backing blob (e.g. a commit whose `put` failed, #468)
+ * still purges to completion. The storage delete runs first so a failed
+ * R2 delete never orphans the row's bytes behind a missing DB record.
  */
 async function purge(
   asset: MediaAsset,
@@ -139,6 +160,7 @@ function assertViewableBy(args: {
 export const MediaService = {
   reconcileRefs,
   listPurgeCandidates,
+  listAbandonedSourceIntakes,
   purge,
   assertViewableBy,
 };

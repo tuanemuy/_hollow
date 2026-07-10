@@ -81,6 +81,20 @@ class InMemoryRepo implements MediaAssetRepository {
       .slice(0, limit);
   }
 
+  async findAbandonedSourceIntakes(
+    before: Date,
+    limit: number,
+  ): Promise<readonly MediaAsset[]> {
+    return Array.from(this.store.values())
+      .filter(
+        (a) =>
+          a.status === "pending" &&
+          a.kind === "source" &&
+          a.updatedAt.getTime() < before.getTime(),
+      )
+      .slice(0, limit);
+  }
+
   async save(asset: MediaAsset): Promise<void> {
     this.store.set(asset.id, asset);
   }
@@ -151,6 +165,27 @@ const seedPending = (
       storageKey: `${userId(owner)}/image/${rawId(n)}`,
     },
     T0,
+  );
+  repo.put(entity);
+  return entity;
+};
+
+const seedPendingSource = (
+  repo: InMemoryRepo,
+  n: number,
+  at: Date = T0,
+  owner = 1,
+): PendingMedia => {
+  const { entity } = MediaAsset.create(
+    {
+      id: rawId(n),
+      ownerId: userId(owner),
+      kind: "source",
+      mimeType: "application/pdf",
+      byteSize: 1,
+      storageKey: `${userId(owner)}/source/${rawId(n)}`,
+    },
+    at,
   );
   repo.put(entity);
   return entity;
@@ -282,6 +317,56 @@ describe("MediaService.listPurgeCandidates", () => {
       repo.put(entity);
     }
     const result = await MediaService.listPurgeCandidates(
+      at(10_000),
+      1,
+      repo,
+      2,
+    );
+    expect(result.length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("MediaService.listAbandonedSourceIntakes", () => {
+  it("returns pending sources whose updatedAt is strictly older than now - graceSec", async () => {
+    const repo = new InMemoryRepo();
+    seedPendingSource(repo, 1, at(1_000));
+
+    // graceSec = 1s → cutoff = now - 1s. updatedAt = 1_000ms = 1s.
+    // Strict `<` so updatedAt == cutoff is excluded.
+    const tooYoung = await MediaService.listAbandonedSourceIntakes(
+      at(2_000),
+      1,
+      repo,
+    );
+    expect(tooYoung).toHaveLength(0);
+
+    const oldEnough = await MediaService.listAbandonedSourceIntakes(
+      at(3_000),
+      1,
+      repo,
+    );
+    expect(oldEnough).toHaveLength(1);
+    expect(oldEnough[0]?.id).toBe(idOf(1));
+  });
+
+  it("does not return pending assets of other kinds", async () => {
+    const repo = new InMemoryRepo();
+    seedPending(repo, 1); // kind: image, updatedAt = T0
+
+    const result = await MediaService.listAbandonedSourceIntakes(
+      at(10_000),
+      1,
+      repo,
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  it("respects the limit", async () => {
+    const repo = new InMemoryRepo();
+    for (let i = 1; i <= 3; i += 1) {
+      seedPendingSource(repo, i, T0);
+    }
+    const result = await MediaService.listAbandonedSourceIntakes(
       at(10_000),
       1,
       repo,

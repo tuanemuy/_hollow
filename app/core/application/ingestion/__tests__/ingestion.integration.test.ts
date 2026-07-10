@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import * as schema from "@/core/adapters/d1/schema";
-import { isForbiddenError } from "@/core/application/errors";
+import { isForbiddenError, isNotFoundError } from "@/core/application/errors";
 import { DirectoryErrorCode } from "@/core/domain/directory/errorCode";
 import { isBusinessRuleError } from "@/core/domain/error";
 import { IngestionErrorCode } from "@/core/domain/ingestion/errorCode";
@@ -10,6 +10,8 @@ import {
   setupTestContainer,
   type TestContainer,
 } from "../../__tests__/helpers";
+import { purgeOrphans } from "../../media/purgeOrphans";
+import { sweepAbandonedSourceIntakes } from "../../media/sweepAbandonedSourceIntakes";
 import { bulkUpload } from "../bulkUpload";
 import { commitIngestionPreview } from "../commitIngestionPreview";
 import { discardIngestionPreview } from "../discardIngestionPreview";
@@ -725,6 +727,91 @@ describe("commitIngestionPreview", () => {
       has(key: string): boolean;
     };
     expect(tempStorage.has(tempKey)).toBe(false);
+  });
+
+  // Issue #468 (AC-2): when the source blob is persisted but the main
+  // UoW rolls back, the metadata-first `pending(kind='source')` row and
+  // the blob both survive the failed commit and ride the
+  // sweep → purgeOrphans chain to full reclaim — no manual intervention.
+  it("reclaims the source blob after a commit rollback via sweep → purge (Issue #468)", async () => {
+    const base = getContainer();
+    await seedInstanceSettings(base);
+    const owner = await seedUser(base);
+    await seedDirectory(base, owner);
+    const tempKey = `${owner}/ingestion/rollback-1`;
+    await base.tempFileStorage.put(tempKey, new ArrayBuffer(4));
+    const jobId = await seedIngestionJob(base, {
+      ownerId: owner,
+      status: "previewing",
+      tempStorageKey: tempKey,
+      mimeType: "application/pdf",
+      originalFileName: "report.pdf",
+      byteSize: 4,
+    });
+
+    // Pin the clock so the strict `<` cutoff of the sweep / purge
+    // candidate queries can be crossed deterministically (same pattern
+    // as purgeOrphans.integration.test.ts).
+    const commitTime = new Date("2026-06-01T00:00:00.000Z");
+    const withClock = (at: Date): TestContainer => ({
+      ...base,
+      clock: { now: () => at },
+    });
+
+    // A non-existent target directory makes the main UoW throw
+    // NotFoundError AFTER stage (a) persisted the pending row + blob.
+    try {
+      await commitIngestionPreview({
+        container: withClock(commitTime),
+        input: {
+          actorUserId: owner,
+          jobId: jobId,
+          modifications: { directoryId: nextDirId() },
+        },
+      });
+      expect.fail("should have thrown");
+    } catch (error) {
+      expect(isNotFoundError(error)).toBe(true);
+    }
+
+    // The rollback left the pending/source row and its blob behind.
+    const mediaRows = await base.db.select().from(schema.mediaAssets);
+    expect(mediaRows).toHaveLength(1);
+    expect(mediaRows[0]?.kind).toBe("source");
+    expect(mediaRows[0]?.status).toBe("pending");
+    const storageKey = mediaRows[0]?.storageKey as string;
+    const meta = await base.objectStorage.stat(storageKey);
+    expect(meta.byteSize).toBe(4);
+
+    // The job itself was untouched by the rollback.
+    const jobRows = await base.db
+      .select()
+      .from(schema.ingestionJobs)
+      .where(eq(schema.ingestionJobs.id, jobId));
+    expect(jobRows[0]?.status).toBe("previewing");
+
+    // Sweep (grace 0, clock advanced past the row's updatedAt) orphans
+    // the abandoned intake.
+    const sweepTime = new Date(commitTime.getTime() + 60_000);
+    const sweepResult = await sweepAbandonedSourceIntakes(
+      withClock(sweepTime),
+      { graceSec: 0 },
+    );
+    expect(sweepResult).toEqual({ swept: 1, failed: 0 });
+    const afterSweep = await base.db.select().from(schema.mediaAssets);
+    expect(afterSweep[0]?.status).toBe("orphan");
+
+    // A single purge call finalises markDeleting → purge in the same
+    // iteration; advance the clock again so the re-stamped orphan
+    // updatedAt clears the strict `<` cutoff.
+    const purgeTime = new Date(sweepTime.getTime() + 60_000);
+    const purgeResult = await purgeOrphans(withClock(purgeTime), {
+      orphanAgeSec: 0,
+    });
+    expect(purgeResult).toEqual({ purged: 1, failed: 0 });
+
+    expect(await base.db.select().from(schema.mediaAssets)).toHaveLength(0);
+    await expect(base.objectStorage.stat(storageKey)).rejects.toThrow();
   });
 
   // Issue #127: the ingestion commit path runs the same

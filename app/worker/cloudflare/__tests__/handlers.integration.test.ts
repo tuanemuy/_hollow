@@ -19,6 +19,7 @@ import {
   indexJobs,
   ingestionJobs,
   llmCallLog,
+  mediaAssets,
   notes,
   outboxEvents,
   processedEvents,
@@ -544,6 +545,73 @@ describe("pruner Worker — runPruneTick", () => {
       [recentCompletedMerge, oldProcessingMerge].sort(),
     );
     expect(remainingMerges).not.toContain(oldCompletedMerge);
+  });
+
+  // Issue #468: real-DB proof of the tick-driven reclaim chain. The
+  // `runPruneTick.test.ts` unit suite mocks `sweepAbandonedSourceIntakes`
+  // / `purgeOrphans` wholesale, so the container → adapter seam (D1
+  // candidate query + R2 delete through the purge RequestContainer) is
+  // only covered here. Two ticks are needed because sweep and purge each
+  // have their own 24h grace window: tick 1 orphans the abandoned
+  // intake, and after backdating the orphan's re-stamped `updatedAt`,
+  // tick 2 purges the blob and the row.
+  it("reclaims an abandoned source intake across ticks: sweep orphans it, purge deletes blob + row (Issue #468)", async () => {
+    const ownerId = nextOwnerId();
+    await seedOwner(ownerId);
+    const db = getDatabase(env.DB);
+    // Must satisfy the UUIDv7 validator (4th group starts with `89ab`)
+    // or the D1 repo's rehydration rejects the row.
+    const mediaId = "0193e7d0-0000-7000-a000-400000000001";
+    const storageKey = `${ownerId}/source/${mediaId}`;
+    const old = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    await db.insert(mediaAssets).values({
+      id: mediaId,
+      ownerId,
+      kind: "source",
+      mimeType: "application/pdf",
+      byteSize: 4,
+      backend: "r2",
+      storageKey,
+      originalFileName: "doc.pdf",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 0,
+      status: "pending",
+      createdAt: old,
+      updatedAt: old,
+    });
+    if (!env.OBJECT_STORAGE) {
+      throw new Error(
+        "OBJECT_STORAGE binding missing — check vitest.config.integration.ts",
+      );
+    }
+    await env.OBJECT_STORAGE.put(storageKey, new Uint8Array([1, 2, 3, 4]));
+
+    // Tick 1: the sweep orphans the abandoned intake (grace lapsed).
+    await runPruneTick(prunerEnv());
+    const afterSweep = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, mediaId));
+    expect(afterSweep).toHaveLength(1);
+    expect(afterSweep[0]?.status).toBe("orphan");
+
+    // Orphaning re-stamped `updatedAt = now`; backdate it so the purge
+    // grace window has lapsed for tick 2.
+    await db
+      .update(mediaAssets)
+      .set({ updatedAt: old })
+      .where(eq(mediaAssets.id, mediaId));
+
+    // Tick 2: purgeOrphans reclaims blob + row.
+    await runPruneTick(prunerEnv());
+    const afterPurge = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, mediaId));
+    expect(afterPurge).toHaveLength(0);
+    expect(await env.OBJECT_STORAGE.get(storageKey)).toBeNull();
   });
 });
 
