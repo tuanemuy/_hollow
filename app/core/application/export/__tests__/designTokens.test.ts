@@ -24,7 +24,6 @@ describe("resolveExportDesignTokens", () => {
     );
     const resolved = resolveExportDesignTokens(settings);
     expect(resolved["--color-accent"]).toBe("#ff0000");
-    // Untouched defaults remain present.
     expect(resolved["--radius-md"]).toBe(BUILTIN_DESIGN_TOKENS["--radius-md"]);
   });
 });

@@ -858,9 +858,7 @@ export function createRequestContainer(
 /**
  * Default export quota envelope. Quota limits cap concurrent and per-day bulk
  * exports per user — `ExportService.enforceQuota` treats both as upper bounds
- * against the supplied usage counter. Design tokens are no longer configured
- * here: export usecases resolve them per invocation from the instance settings
- * (Issue #401 ADR-001).
+ * against the supplied usage counter.
  */
 const DEFAULT_EXPORT_LIMITS: ExportLimits = Object.freeze({
   maxConcurrentJobs: 3,

@@ -31,7 +31,6 @@ describe("TemplateHtmlRenderer.wrapForExport — design token style block", () =
       "--color-accent": "red */ } body { color: blue",
     });
     expect(html).not.toContain("*/");
-    // The declaration stays on a single line inside the `:root` block.
     expect(html).toContain("--color-accent: red  } body { color: blue;");
   });
 
