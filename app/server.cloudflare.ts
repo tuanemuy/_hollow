@@ -4,14 +4,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ExecutionContext } from "@cloudflare/workers-types";
 import { default as defaultEntry } from "@tanstack/react-start/server-entry";
-import {
-  buildDevObjectStorageResponse,
-  resolveDevObjectStorageGate,
-} from "@/core/adapters/cloudflare/devObjectStorageHandler";
-import {
-  InlineRelayTrigger,
-  resolveInlineRelayGate,
-} from "@/core/adapters/cloudflare/inlineRelayTrigger";
 import { installContainerStore } from "@/core/application/di/containerStore";
 import {
   createRequestContainer,
@@ -20,7 +12,7 @@ import {
   type ServerEnv,
 } from "@/core/application/di/serverCloudflare";
 import type { RequestContainer } from "@/core/application/di/types";
-import { ConsoleLogger } from "@/core/application/ports/logger";
+import type { RelayTrigger } from "@/core/application/ports/relayTrigger";
 import { buildSitemapResponse } from "@/core/presentation/sitemapHandler";
 
 // SSR and RSC are separate module graphs in the same isolate; pin the
@@ -43,78 +35,77 @@ installContainerStore({ getStore: () => storage.getStore() });
 
 export type AppEnv = ServerEnv;
 
-export default {
-  async fetch(
+/**
+ * Dev-only injection points for {@link createFetchHandler}. The prod
+ * default export passes none of these, so its module graph never reaches
+ * the dev-only adapters; the dev entry (`server.cloudflare.dev.ts`) is
+ * the sole caller that supplies them.
+ */
+export type FetchHandlerHooks = {
+  // Called inside per-request config construction. Returning a
+  // `RelayTrigger` sets `relayTriggerOverride`; `undefined` keeps the
+  // default Service Binding wiring. The dev entry returns an
+  // `InlineRelayTrigger` when `resolveInlineRelayGate` is satisfied.
+  relayTrigger?: (params: {
+    env: AppEnv;
+    ctx: ExecutionContext;
+  }) => RelayTrigger | undefined;
+
+  // Called inside `storage.run`, before the sitemap branch. Returning a
+  // `Response` terminates early; `undefined` falls through. The dev
+  // entry wires the R2 proxy (`buildDevObjectStorageResponse`) here.
+  preRoute?: (params: {
+    request: Request;
+    env: AppEnv;
+    url: URL;
+    baseConfig: RequestServerConfig;
+  }) => Promise<Response | undefined> | Response | undefined;
+};
+
+export function createFetchHandler(hooks?: FetchHandlerHooks): {
+  fetch(
     request: Request,
     env: AppEnv,
     ctx: ExecutionContext,
-  ): Promise<Response> {
-    // `vite build` inlines `import.meta.env.MODE` to `"production"`,
-    // making the `&&` left-hand side a constant `false`, so the entire
-    // `InlineRelayTrigger` branch — including the import above — is
-    // dead-code-eliminated from staging / production bundles
-    // (Issue #66 / ADR-003, Issue #663). DCE constraints: the constant
-    // condition must stay on the left of the short-circuit `&&` (Rollup
-    // does not fold constants across call boundaries), and `import.meta`
-    // must be referenced inline (Vite's define replacement does not
-    // apply through an intermediate variable). `pnpm start` runs a Vite
-    // build artifact: `pnpm build:local` inlines `MODE` to
-    // `"development"` and the runtime gate falls back to the local-only
-    // `DEV_INLINE_RELAY` var; plain `pnpm build` removes the path. The
-    // optional chaining is a defence for non-Vite execution (e.g. tests).
-    const baseConfig = readRequestServerConfig(env, ctx);
-    const inlineRelay =
-      (import.meta as { env?: { MODE?: string } }).env?.MODE !== "production" &&
-      resolveInlineRelayGate({
-        viteDev: (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true,
-        flag: env.DEV_INLINE_RELAY,
-      });
-    const config: RequestServerConfig = inlineRelay
-      ? {
-          ...baseConfig,
-          relayTriggerOverride: new InlineRelayTrigger(
-            env,
-            (promise) => ctx.waitUntil(promise),
-            ConsoleLogger,
-          ),
-        }
-      : baseConfig;
-    const container = createRequestContainer(config);
-    return storage.run(container, async () => {
-      // `/sitemap.xml` is intercepted here because the TanStack Start
-      // server-fn pipeline serialises responses through the RSC RPC
-      // layer and cannot emit a raw XML body. See ADR-010 in
-      // `.issue/205/adr.md` for the rationale.
-      const url = new URL(request.url);
-      // LOCAL DEV ONLY: same-origin terminator for presigned
-      // R2 URLs. `R2_DEV_OBJECT_PROXY` is set solely in the local
-      // `wrangler.toml [vars]`, so staging / production never enter this
-      // branch. Missing binding / presign config → 404 rather than crash.
-      const { objectStorageBucket, r2PresignConfig } = baseConfig;
-      const devProxyGate = resolveDevObjectStorageGate({
-        flag: env.R2_DEV_OBJECT_PROXY,
-        pathname: url.pathname,
-        hasBucket: objectStorageBucket !== undefined,
-        hasPresignConfig: r2PresignConfig !== undefined,
-      });
-      if (devProxyGate === "not_found") {
-        return new Response("Not Found", { status: 404 });
-      }
-      if (devProxyGate === "handle" && objectStorageBucket && r2PresignConfig) {
-        return buildDevObjectStorageResponse({
+  ): Promise<Response>;
+} {
+  return {
+    async fetch(
+      request: Request,
+      env: AppEnv,
+      ctx: ExecutionContext,
+    ): Promise<Response> {
+      const baseConfig = readRequestServerConfig(env, ctx);
+      const override = hooks?.relayTrigger?.({ env, ctx });
+      const config: RequestServerConfig = override
+        ? { ...baseConfig, relayTriggerOverride: override }
+        : baseConfig;
+      const container = createRequestContainer(config);
+      return storage.run(container, async () => {
+        const url = new URL(request.url);
+        const early = await hooks?.preRoute?.({
           request,
-          bucket: objectStorageBucket,
-          bucketName: r2PresignConfig.bucketName,
-          presignConfig: r2PresignConfig,
+          env,
+          url,
+          baseConfig,
         });
-      }
-      if (
-        (request.method === "GET" || request.method === "HEAD") &&
-        url.pathname === "/sitemap.xml"
-      ) {
-        return buildSitemapResponse(container);
-      }
-      return defaultEntry.fetch(request);
-    });
-  },
-};
+        if (early) {
+          return early;
+        }
+        // `/sitemap.xml` is intercepted here because the TanStack Start
+        // server-fn pipeline serialises responses through the RSC RPC
+        // layer and cannot emit a raw XML body. See ADR-010 in
+        // `.issue/205/adr.md` for the rationale.
+        if (
+          (request.method === "GET" || request.method === "HEAD") &&
+          url.pathname === "/sitemap.xml"
+        ) {
+          return buildSitemapResponse(container);
+        }
+        return defaultEntry.fetch(request);
+      });
+    },
+  };
+}
+
+export default createFetchHandler();
