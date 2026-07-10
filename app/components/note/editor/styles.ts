@@ -42,16 +42,42 @@ export const editorTopbar =
 export const editorModeTabs = `inline-flex flex-wrap gap-1 min-w-0 max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-0.5 max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 /**
- * P12 WYSIWYG format toolbar (mock `.toolbar`): a sticky pill that follows
- * the scroll just below the app header (`top: header-height + space-2`,
- * `z-20`), shrink-to-fit (`inline-flex` + `self-start`) with wrapping
- * allowed when the buttons exceed the column width. Below `sm` it becomes a
- * full-width horizontally-scrolling rail (`self-stretch` + `flex-nowrap` +
- * `overflow-x-auto`, scrollbar hidden) so the icon buttons never push page
- * width — `overflow` on the sticky element itself does not break stickiness.
- * `[&>*]:shrink-0` keeps each button at its intrinsic square.
+ * P12 WYSIWYG toolbar OUTER wrapper (Issue #825, mock `.toolbar` outer row):
+ * the sticky row that follows the scroll just below the app header
+ * (`top: header-height + space-2`, `z-20`) and carries `role="toolbar"`. Holds
+ * the scrollable button rail (`editorToolbarRail`) plus the mobile-only
+ * overflow (`⋯`) `<Menu>` as siblings.
+ *
+ * The sticky follow / `z-20` / `mb-4` live HERE, not on the rail (Issue #825
+ * ADR-001): the overflow `<Menu>` renders its panel as an inline `absolute`
+ * element (not a Portal), so it must sit OUTSIDE the rail — the rail is
+ * `overflow-x-auto`, which CSS promotes to a two-axis clip container that would
+ * otherwise clip the panel. Keeping the sticky on this non-clipping wrapper
+ * preserves the documented header-following behaviour while the rail is demoted
+ * to a plain (non-sticky) inner scroller.
+ *
+ * Desktop: shrink-to-fit + left-aligned (`self-start`), never grows — so the
+ * pill stays 1px-identical to the pre-#825 layout (AC-2). Below `sm` it is
+ * full-width (`max-sm:self-stretch`) so `⋯` pins to the row end.
  */
-export const editorToolbar = `sticky top-[calc(var(--header-height)+var(--space-2))] z-20 mb-4 inline-flex flex-wrap items-center gap-[2px] self-start rounded-pill border border-hairline bg-bg p-1 shadow-xs min-w-0 max-sm:self-stretch max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
+export const editorToolbarWrap =
+  "sticky top-[calc(var(--header-height)+var(--space-2))] z-20 mb-4 flex items-center gap-[2px] self-start max-sm:self-stretch";
+
+/**
+ * P12 WYSIWYG toolbar RAIL (Issue #825, mock `.toolbar` pill): the pill holding
+ * the format buttons. Desktop: shrink-to-fit (`inline-flex` + default flex
+ * `0 1 auto`), left-aligned, wrapping allowed — 1px-identical to the pre-#825
+ * `.toolbar`. Below `sm` it becomes a full-width (`max-sm:flex-1 min-w-0`)
+ * horizontally-scrolling rail (`flex-nowrap` + `overflow-x-auto`, scrollbar
+ * hidden) so the primary buttons never push page width and `⋯` (a sibling in
+ * `editorToolbarWrap`) stays pinned to the row end. `[&>*]:shrink-0` keeps each
+ * button at its intrinsic square.
+ *
+ * `flex-1` is deliberately `max-sm:`-scoped: an unscoped `flex-1` would make the
+ * pill grow to full width inside the desktop wrapper and break AC-2's "desktop
+ * shrink-to-fit left-aligned pill, 1px unchanged" guarantee.
+ */
+export const editorToolbarRail = `inline-flex flex-wrap items-center gap-[2px] rounded-pill border border-hairline bg-bg p-1 shadow-xs min-w-0 max-sm:flex-1 max-sm:flex max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[&>*]:shrink-0 ${scrollbarHidden}`;
 
 /**
  * P12 FrontMatter key/value row (mock structured `.fm-row` rows). At `sm`

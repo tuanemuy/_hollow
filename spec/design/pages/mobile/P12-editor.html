@@ -658,7 +658,9 @@
   }
   .tag-input::placeholder { color: var(--color-ink-tertiary); }
 
-  /* Toolbar — mobile: 横スクロールで隔離（ページ overflow を出さない） */
+  /* Toolbar — mobile (Issue #825): 主要ボタン + ⋯ オーバーフローメニュー。
+     低頻度書式（取り消し線 / 見出し / 引用 / コード）を ⋯ メニューへ畳むことで
+     主要 6 個 + ⋯ が 390px に収まり、横スクロールが不要になる。 */
   .toolbar {
     position: sticky;
     top: calc(var(--header-height) + var(--space-1));
@@ -672,11 +674,7 @@
     border-radius: var(--radius-pill);
     margin-bottom: var(--space-4);
     box-shadow: var(--shadow-xs);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  .toolbar::-webkit-scrollbar { display: none; }
   .tb-btn {
     width: 34px; height: 34px;
     flex-shrink: 0;
@@ -691,28 +689,37 @@
   }
   .tb-btn:hover { background: var(--color-surface); }
   .tb-btn.active { background: var(--color-surface); color: var(--color-ink); }
-  .tb-sep {
-    width: 1px; height: 18px;
-    background: var(--color-hairline);
-    margin: 0 4px;
+  /* Overflow (⋯) trigger — 行末に固定し、低頻度書式のドロップダウンを開く。 */
+  .tb-overflow {
+    position: relative;
+    margin-left: auto;
     flex-shrink: 0;
   }
-  .tb-heading {
-    height: 34px;
-    padding: 0 10px;
-    border-radius: var(--radius-pill);
-    font-size: 13px;
-    font-weight: var(--weight-medium);
-    color: var(--color-ink);
-    display: inline-flex;
+  .tb-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 40;
+    min-width: 200px;
+    padding: 4px 0;
+    background: var(--color-bg);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+  .tb-menu-item {
+    display: flex;
     align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    white-space: nowrap;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--color-ink);
     transition: var(--transition-bg);
   }
-  .tb-heading:hover { background: var(--color-surface); }
-  .tb-heading svg { color: var(--color-ink-tertiary); }
+  .tb-menu-item:hover { background: var(--color-surface); }
+  .tb-menu-item .check { margin-left: auto; color: var(--color-accent); }
 
   /* Internal-link suggestion popover (`[[` completion) */
   .link-suggest {
@@ -1252,19 +1259,18 @@
         </div>
       </div>
 
-      <!-- Toolbar (横スクロールで隔離) -->
+      <!-- Toolbar (Issue #825): 主要ボタン + ⋯ オーバーフローメニュー。
+           主要 = 太字 / 斜体 / 箇条書き / 番号付きリスト / リンク / 画像。
+           低頻度書式（取り消し線 / 見出し 2 / 見出し 3 / 引用 / コード）は ⋯ メニューへ。
+           ⋯ メニューは横スクロールレール（overflow クリップ）の外側に置くこと。 -->
       <div class="toolbar" role="toolbar" aria-label="書式設定">
         <button class="tb-btn" aria-label="太字" style="font-weight:700;">B</button>
         <button class="tb-btn" aria-label="斜体" style="font-style:italic;">I</button>
-        <button class="tb-btn" aria-label="下線" style="text-decoration:underline;">U</button>
-        <div class="tb-sep"></div>
-        <button class="tb-heading" aria-label="見出し">
-          見出し
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <button class="tb-btn" aria-label="箇条書き">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" aria-label="コード">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <button class="tb-btn" aria-label="番号付きリスト">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
         </button>
         <button class="tb-btn" aria-label="リンク">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
@@ -1272,6 +1278,19 @@
         <button class="tb-btn" aria-label="画像">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
+        <!-- Overflow (⋯): 低頻度書式のメニュー。開いた状態を例示。 -->
+        <div class="tb-overflow">
+          <button class="tb-btn active" aria-label="その他の書式" aria-haspopup="menu" aria-expanded="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+          </button>
+          <div class="tb-menu" role="menu" aria-label="その他の書式">
+            <button class="tb-menu-item" role="menuitem">取り消し線</button>
+            <button class="tb-menu-item" role="menuitem">見出し 2</button>
+            <button class="tb-menu-item" role="menuitem">見出し 3</button>
+            <button class="tb-menu-item" role="menuitem">引用</button>
+            <button class="tb-menu-item" role="menuitem">インラインコード</button>
+          </div>
+        </div>
       </div>
 
       <!-- WYSIWYG content area -->
