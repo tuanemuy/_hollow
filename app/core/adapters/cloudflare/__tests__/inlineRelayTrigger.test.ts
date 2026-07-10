@@ -131,8 +131,10 @@ afterEach(() => {
 
 describe("resolveInlineRelayGate", () => {
   // "Disabled in production builds" is not covered here on purpose: that
-  // guarantee lives in the entry point's DCE gate and is verified by the
-  // post-build grep (docs/runtime_cloudflare.md), not by this function.
+  // guarantee is structural — the prod entry (app/server.cloudflare.ts)
+  // never imports this module, so it is unreachable in production
+  // regardless of these flags (Issue #675). This function only decides the
+  // dev-side ON/OFF (Vite dev OR the local-only DEV_INLINE_RELAY var).
   it.each<{ viteDev: boolean; flag: string | undefined; expected: boolean }>([
     { viteDev: true, flag: undefined, expected: true },
     { viteDev: true, flag: "false", expected: true },

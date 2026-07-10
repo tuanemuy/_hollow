@@ -78,3 +78,4 @@
 
 ## 未実施（構造・起動検証で代替済み）
 - inline relay の outbox 実ドレイン（AC-3/AC-7 の完全 E2E）と R2 proxy 経由アップロード往復（AC-4 の完全 E2E）は、認証済み管理者による実操作＋背景ジョブ観測が必要な深い E2E。inline relay / dev proxy のロジックは**移設のみ（ロジック不変）**で単体テスト pass、かつ両 hook の配線は起動時のエンドポイント差異（dev proxy の plain-text 404）で発火を確認済みのため、構造・起動・配線レベルの検証で代替した。
+- **AC-7 の `DEV_INLINE_RELAY` OFF トグル**（フラグ無効時に inline relay が発火しないこと）は、ゲート判定 `resolveInlineRelayGate({ viteDev, flag })` が純関数で `inlineRelayTrigger.test.ts` により ON/OFF 両方向を単体テスト済み（`viteDev=false && flag!=="true"` → `false`）。本 PR はこのゲートを**逐語移設**しただけでロジック不変のため、フラグ OFF 時の非発火はテストで担保済み。加えて prod エントリでは `InlineRelayTrigger` が構造的に到達不能（TC-1）で、二重に保証される。フラグを実際に false にしてサーバー起動し「ドレインしないこと」を観測する手順は、背景非発火の観測性が低くテスト担保と重複するため未実施。
