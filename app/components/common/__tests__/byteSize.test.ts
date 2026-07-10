@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMegabytes } from "../byteSize";
+import { formatBytes, formatMegabytes } from "../byteSize";
 
 const MIB = 1024 * 1024;
 
@@ -24,5 +24,48 @@ describe("formatMegabytes", () => {
   it("rounds to one decimal at the boundary", () => {
     expect(formatMegabytes(1.5 * MIB)).toBe("1.5 MB");
     expect(formatMegabytes(1.25 * MIB)).toBe("1.3 MB");
+  });
+});
+
+// Expected values lock the current variable-unit output verbatim (incl. the
+// U+2014 EM DASH for null and the `scaled >= 100 || i === 0 ? 0 : 1` decimal
+// rule), not hand-computed math, so the admin storage/limits and
+// account-deletion impact labels do not change under the shared helper.
+describe("formatBytes", () => {
+  it("renders missing totals as an em dash and zero as bytes", () => {
+    expect(formatBytes(null)).toBe("—");
+    expect(formatBytes(0)).toBe("0 B");
+  });
+
+  it("renders the byte range with no decimal (i === 0)", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(1023)).toBe("1023 B");
+  });
+
+  it("switches unit at each 1024-based boundary with one decimal", () => {
+    expect(formatBytes(1024)).toBe("1.0 KB");
+    expect(formatBytes(1024 ** 2)).toBe("1.0 MB");
+    expect(formatBytes(1024 ** 3)).toBe("1.0 GB");
+    expect(formatBytes(1024 ** 4)).toBe("1.0 TB");
+  });
+
+  it("drops the decimal once the scaled value reaches 100", () => {
+    expect(formatBytes(100 * 1024)).toBe("100 KB");
+    expect(formatBytes(100 * 1024 ** 2)).toBe("100 MB");
+  });
+
+  it("clamps magnitudes past TB to TB", () => {
+    expect(formatBytes(1024 ** 5)).toBe("1024 TB");
+  });
+
+  it("rounds to one decimal within a unit", () => {
+    expect(formatBytes(1536)).toBe("1.5 KB");
+  });
+
+  it("locks representative in-app thresholds", () => {
+    // admin limits: a per-day upload cap around tens of MB
+    expect(formatBytes(50 * 1024 * 1024)).toBe("50.0 MB");
+    // account-deletion impact: an aggregated media total in the GB range
+    expect(formatBytes(2 * 1024 ** 3)).toBe("2.0 GB");
   });
 });
