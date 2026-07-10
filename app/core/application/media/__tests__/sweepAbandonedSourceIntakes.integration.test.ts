@@ -109,10 +109,14 @@ describe("sweepAbandonedSourceIntakes (integration)", () => {
     expect(events.map((e) => e.eventType)).toEqual(["media.orphaned"]);
   });
 
-  it("skips a pending source still inside the grace window", async () => {
+  it("skips a pending source still inside the grace window (24h − 1min pins the default grace boundary)", async () => {
     const base = getContainer();
     const ownerId = await seedUser(base);
-    const recentAt = new Date(SWEEP_TIME.getTime() - 60 * 60 * 1000); // 1h ago
+    // Just inside the documented default (24h): paired with the swept
+    // case at 24h + 1min, this pins DEFAULT_GRACE_SEC at its boundary —
+    // an accidentally shrunken default (e.g. a typo'd 2h) fails here
+    // instead of passing silently.
+    const recentAt = new Date(SWEEP_TIME.getTime() - (DAY_MS - 60_000));
     await seedPending(base, { ownerId, updatedAt: recentAt });
     const container = withFixedClock(base, SWEEP_TIME);
 

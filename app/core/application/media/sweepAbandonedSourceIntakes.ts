@@ -32,8 +32,9 @@ const DEFAULT_BATCH_SIZE = 100;
  * after the orphan grace window lapses too — a deliberate double grace
  * against misclassification. Per-row failures are isolated (logged +
  * counted) so one bad row does not stop the batch; a row that changed
- * state between candidate listing and its UoW is re-checked fresh and
- * skipped.
+ * state — or was re-stamped back inside the grace window (re-stamping
+ * `updatedAt` defers reclaim, see `PendingMedia`) — between candidate
+ * listing and its UoW is re-checked fresh and skipped.
  *
  * The fresh re-check closes only the listing → per-row-UoW transition.
  * The deferred-batch UoW gives no isolation between that re-read and the
@@ -58,6 +59,9 @@ export async function sweepAbandonedSourceIntakes(
   const graceSec = options.graceSec ?? DEFAULT_GRACE_SEC;
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const now = container.clock.now();
+  // Same cutoff `MediaService.listAbandonedSourceIntakes` derives; kept
+  // here so the per-row fresh guard can re-apply the grace rule.
+  const cutoff = new Date(now.getTime() - graceSec * 1000);
   const { logger } = container;
 
   const candidates = await container.unitOfWorkProvider.run(
@@ -82,6 +86,10 @@ export async function sweepAbandonedSourceIntakes(
           if (!MediaAsset.isPending(fresh) || fresh.kind !== "source") {
             return false;
           }
+          // A re-stamped `updatedAt` defers reclaim (see `PendingMedia`),
+          // so the grace rule must hold for the fresh read too — not just
+          // at candidate listing.
+          if (fresh.updatedAt.getTime() >= cutoff.getTime()) return false;
           const { entity, eventDrafts } = MediaAsset.decrementRef(fresh, now);
           await mediaAssetRepository.save(entity);
           collectEvents(eventDrafts);

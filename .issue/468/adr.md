@@ -156,6 +156,8 @@ Round 1 レビュー（Infrastructure [W-001] / [W-002]）で 2 点、Round 2 �
 ### 決定内容
 いずれも本PR（#834）では修正せず、別Issue（起票予定）で対応する。3 の構造的封鎖（`reconcileRefs` の added パスで pending の `kind='source'` を orphan / deleting 同様に `IllegalTransition` で拒否する）も同様に別Issueとし、本PRでは sweep の JSDoc を実態（残余窓の存在と許容根拠）に合わせて正確化するに留める。
 
+Round 5 レビュー（Infrastructure [W-001]）で指摘された再発防止ガード — テンプレート↔ローカル `wrangler.toml` の binding パリティテスト（各 `[env.*]` の `r2_buckets` binding / 重要 vars が両テンプレートにも存在することを TOML パースで assert する。placeholderGuard と同様の「純関数 + unit test」構成、置き場所は `infra/scripts/__tests__/`）— も本テーマに束ねて同 Issue の検討項目に含める。#783 で実証されたドリフト（pruner の `OBJECT_STORAGE` binding 欠落）と同クラスの misconfig を構造的に防ぐもので、本PRの回収チェーン自体には影響しない。
+
 構造的封鎖の別Issueでは、封鎖対象経路を `reconcileRefs` に加えて `updateProfile`（kind 未検査の attach）と `finalizeUpload`（kind 無差別の `updatedAt` 再スタンプ）まで含める。`reconcileRefs` 内の列挙的なガードでは後者 2 本を塞げないため、封鎖点はユースケース側の列挙ではなくドメイン遷移規則側の単一ガード（例: `MediaAsset.incrementRef` / `markAttached` が放棄回収対象の pending source の attach を拒否する）に置くことを検討する。
 
 ### 理由

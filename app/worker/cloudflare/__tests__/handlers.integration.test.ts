@@ -581,6 +581,29 @@ describe("pruner Worker — runPruneTick", () => {
       createdAt: old,
       updatedAt: old,
     });
+    // AC-4 on the production path: the tick must invoke the sweep with
+    // its default 24h grace. Seed a second pending source still inside
+    // that window (1h old) — a mis-wired tick (e.g. `graceSec: 0`)
+    // would orphan it alongside the abandoned intake.
+    const freshMediaId = "0193e7d0-0000-7000-a000-400000000002";
+    const recent = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    await db.insert(mediaAssets).values({
+      id: freshMediaId,
+      ownerId,
+      kind: "source",
+      mimeType: "application/pdf",
+      byteSize: 4,
+      backend: "r2",
+      storageKey: `${ownerId}/source/${freshMediaId}`,
+      originalFileName: "doc.pdf",
+      width: null,
+      height: null,
+      durationMs: null,
+      refCount: 0,
+      status: "pending",
+      createdAt: recent,
+      updatedAt: recent,
+    });
     if (!env.OBJECT_STORAGE) {
       throw new Error(
         "OBJECT_STORAGE binding missing — check vitest.config.integration.ts",
@@ -596,6 +619,11 @@ describe("pruner Worker — runPruneTick", () => {
       .where(eq(mediaAssets.id, mediaId));
     expect(afterSweep).toHaveLength(1);
     expect(afterSweep[0]?.status).toBe("orphan");
+    const freshAfterSweep = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, freshMediaId));
+    expect(freshAfterSweep[0]?.status).toBe("pending");
 
     // Orphaning re-stamped `updatedAt = now`; backdate it so the purge
     // grace window has lapsed for tick 2.
@@ -612,6 +640,13 @@ describe("pruner Worker — runPruneTick", () => {
       .where(eq(mediaAssets.id, mediaId));
     expect(afterPurge).toHaveLength(0);
     expect(await env.OBJECT_STORAGE.get(storageKey)).toBeNull();
+
+    // The in-grace pending source survived both ticks untouched.
+    const freshAfterPurge = await db
+      .select()
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, freshMediaId));
+    expect(freshAfterPurge[0]?.status).toBe("pending");
   });
 });
 

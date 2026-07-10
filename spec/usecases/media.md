@@ -124,7 +124,7 @@ commit の metadata-first ステージで作られたまま attach されなか�
 
 ### 処理フロー
 1. `MediaService.listAbandonedSourceIntakes(now, 24h, repo, batch=100)`（内部で `findAbandonedSourceIntakes` を呼び、`status='pending' AND kind='source' AND updatedAt < now-24h` を取得）
-2. 各々について UoW: fresh `findById` → まだ `pending` かつ `kind='source'` なら `decrementRef`（`pending → orphan`、`media.orphaned` を collect）→ save。遷移済み / 消失済みの行はスキップ
+2. 各々について UoW: fresh `findById` → まだ `pending` かつ `kind='source'` かつ `updatedAt < now-24h` のまま（cutoff 再検査）なら `decrementRef`（`pending → orphan`、`media.orphaned` を collect）→ save。遷移済み / 消失済み / `updatedAt` 再スタンプ済み（= 回収先送り）の行はスキップ
 3. orphan 化で `updatedAt` が再スタンプされるため、blob の実削除はさらに orphan 猶予（24h）経過後の PurgeOrphans が行う（誤回収への二重の猶予）
 
 ### エラーケース

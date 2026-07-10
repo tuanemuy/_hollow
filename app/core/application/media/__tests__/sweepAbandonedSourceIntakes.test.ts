@@ -10,9 +10,9 @@ import { sweepAbandonedSourceIntakes } from "../sweepAbandonedSourceIntakes";
 
 // Unit coverage for the per-row defences that the integration suite
 // cannot reach: an orphaned row never re-enters the candidate query, so
-// the fresh `findById` guard (a row transitioning between candidate
-// listing and its own UoW) and per-row failure isolation are driven here
-// with a mutable fake repository instead.
+// the fresh `findById` guard (a row transitioning or re-stamped between
+// candidate listing and its own UoW) and per-row failure isolation are
+// driven here with a mutable fake repository instead.
 
 const NOW = new Date("2026-06-01T00:00:00.000Z");
 const OLD = new Date(NOW.getTime() - 48 * 60 * 60 * 1000);
@@ -134,6 +134,30 @@ describe("sweepAbandonedSourceIntakes (unit)", () => {
     expect(result).toEqual({ swept: 0, failed: 0 });
     const after = repo.store.get(candidate.id);
     expect(after?.status).toBe("attached");
+    expect(events).toHaveLength(0);
+  });
+
+  it("skips a candidate re-stamped back inside the grace window between listing and its per-row UoW (cutoff re-check)", async () => {
+    const repo = new MutableFakeRepo();
+    const candidate = pendingSource(1);
+    repo.put(candidate);
+    // Simulate a finalizeUpload-style re-stamp: the row stays
+    // pending/source but its `updatedAt` lands back inside the grace
+    // window — re-stamping defers reclaim (see `PendingMedia`), so the
+    // fresh guard must skip it even though the state did not change.
+    repo.afterList = () => {
+      repo.put({ ...candidate, updatedAt: NOW });
+    };
+    const { container, events } = makeContainer(repo);
+
+    const result = await sweepAbandonedSourceIntakes(container, {
+      graceSec: 60 * 60, // cutoff = NOW - 1h; the re-stamp lands inside it
+    });
+
+    expect(result).toEqual({ swept: 0, failed: 0 });
+    const after = repo.store.get(candidate.id);
+    expect(after?.status).toBe("pending");
+    expect(after?.updatedAt.getTime()).toBe(NOW.getTime());
     expect(events).toHaveLength(0);
   });
 
