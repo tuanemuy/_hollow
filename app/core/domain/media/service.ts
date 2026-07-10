@@ -81,14 +81,36 @@ async function listPurgeCandidates(
   return repo.findPurgeableOlderThan(cutoff, limit);
 }
 
+function abandonedSourceIntakeCutoff(now: Date, graceSec: number): Date {
+  return new Date(now.getTime() - graceSec * 1000);
+}
+
 /**
- * Returns abandoned source intakes: `pending` rows of `kind='source'`
- * whose `updatedAt` is strictly older than `now - graceSec`. Symmetric
- * with `listPurgeCandidates` — the grace window is a domain rule owned
- * here; the adapter only implements the status/kind filter. A source
- * pending is attached within its own commit request, so any that
- * outlives the grace window was abandoned by a rolled-back or failed
- * commit (#468 ADR-002 / ADR-004).
+ * Single source of the abandoned-source-intake rule (#468 ADR-002 /
+ * ADR-004): `pending` ∧ `kind='source'` ∧ `updatedAt` strictly older
+ * than `now - graceSec`. A source pending is attached within its own
+ * commit request, so any that outlives the grace window was abandoned
+ * by a rolled-back or failed commit. `listAbandonedSourceIntakes`
+ * expresses the same rule as a bulk query; the sweep worker's per-row
+ * fresh guard re-applies it here.
+ */
+function isAbandonedSourceIntake(
+  asset: MediaAsset,
+  now: Date,
+  graceSec: number,
+): asset is PendingMedia {
+  return (
+    MediaAsset.isPending(asset) &&
+    asset.kind === "source" &&
+    asset.updatedAt.getTime() <
+      abandonedSourceIntakeCutoff(now, graceSec).getTime()
+  );
+}
+
+/**
+ * Returns abandoned source intakes per `isAbandonedSourceIntake`.
+ * Symmetric with `listPurgeCandidates` — the grace window is a domain
+ * rule owned here; the adapter only implements the status/kind filter.
  */
 async function listAbandonedSourceIntakes(
   now: Date,
@@ -96,8 +118,10 @@ async function listAbandonedSourceIntakes(
   repo: MediaAssetRepository,
   limit = 100,
 ): Promise<readonly PendingMedia[]> {
-  const cutoff = new Date(now.getTime() - graceSec * 1000);
-  return repo.findAbandonedSourceIntakes(cutoff, limit);
+  return repo.findAbandonedSourceIntakes(
+    abandonedSourceIntakeCutoff(now, graceSec),
+    limit,
+  );
 }
 
 /**
@@ -160,6 +184,7 @@ function assertViewableBy(args: {
 export const MediaService = {
   reconcileRefs,
   listPurgeCandidates,
+  isAbandonedSourceIntake,
   listAbandonedSourceIntakes,
   purge,
   assertViewableBy,

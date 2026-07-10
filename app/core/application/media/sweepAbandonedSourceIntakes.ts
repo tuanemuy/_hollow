@@ -59,9 +59,6 @@ export async function sweepAbandonedSourceIntakes(
   const graceSec = options.graceSec ?? DEFAULT_GRACE_SEC;
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const now = container.clock.now();
-  // Same cutoff `MediaService.listAbandonedSourceIntakes` derives; kept
-  // here so the per-row fresh guard can re-apply the grace rule.
-  const cutoff = new Date(now.getTime() - graceSec * 1000);
   const { logger } = container;
 
   const candidates = await container.unitOfWorkProvider.run(
@@ -83,13 +80,12 @@ export async function sweepAbandonedSourceIntakes(
         async ({ mediaAssetRepository, collectEvents }) => {
           const fresh = await mediaAssetRepository.findById(candidate.id);
           if (fresh === null) return false;
-          if (!MediaAsset.isPending(fresh) || fresh.kind !== "source") {
+          // A re-stamped `updatedAt` defers reclaim (see `PendingMedia`),
+          // so the abandonment rule must hold for the fresh read too —
+          // not just at candidate listing.
+          if (!MediaService.isAbandonedSourceIntake(fresh, now, graceSec)) {
             return false;
           }
-          // A re-stamped `updatedAt` defers reclaim (see `PendingMedia`),
-          // so the grace rule must hold for the fresh read too — not just
-          // at candidate listing.
-          if (fresh.updatedAt.getTime() >= cutoff.getTime()) return false;
           const { entity, eventDrafts } = MediaAsset.decrementRef(fresh, now);
           await mediaAssetRepository.save(entity);
           collectEvents(eventDrafts);

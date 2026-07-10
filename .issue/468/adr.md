@@ -79,7 +79,7 @@ Proposed
 
 ### Consequences
 - 良い点: `purgeOrphans` が spec どおり Cron 起動になる（既存乖離の解消）。#783 の export purge の本番動作も同時に直る。デプロイ面積が増えない。
-- トレードオフ: pruner tick のステップ数がさらに増える（確立済みパターンの反復なので複雑度の増加は限定的）。回収レイテンシは最悪 約2日（sweep 猶予 24h + orphan 猶予 24h）だが、衛生バッチとして問題ない。
+- トレードオフ: pruner tick のステップ数がさらに増える（確立済みパターンの反復なので複雑度の増加は限定的）。回収レイテンシは最悪 約2〜4日（sweep 猶予 24h + orphan 猶予 24h が日次 tick に量子化され、strict `<` 判定のため tick 直後の放棄は 2 tick 後に orphan 化、purge はさらに翌 tick — ms ジッター次第でもう 1 tick 滑る）だが、衛生バッチとして問題ない。
 
 ---
 

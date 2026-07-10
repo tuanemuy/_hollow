@@ -327,7 +327,7 @@ The daily pruner tick ends with two best-effort media steps built on a purge `Re
 1. `sweepAbandonedSourceIntakes` — orphans `pending(kind='source')` rows older than 24h. These are leftovers of ingestion commits whose main UoW rolled back (or whose R2 `put` failed) after the metadata-first stage persisted the row.
 2. `purgeOrphans` — transitions orphans older than 24h to `deleting` and finalises the purge (R2 delete + DB delete). This reclaims all orphaned media, not just sources.
 
-End-to-end reclaim latency for an abandoned intake is therefore up to ~2 days (24h sweep grace + 24h orphan grace, advanced one stage per daily tick).
+End-to-end reclaim latency for an abandoned intake is therefore ~2–4 days: each 24h grace is quantized to the daily tick, and the strict `<` cutoff means an intake abandoned just after a tick is still in grace at the next one (orphaned ≈48h after abandonment); the orphan re-stamp then needs one more tick — occasionally two, if millisecond jitter leaves it a hair inside the purge grace — before the purge step (which runs after the sweep in the same tick) deletes it.
 
 #### One-time manual reconcile for pre-#468 leaked blobs
 
