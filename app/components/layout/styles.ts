@@ -172,3 +172,29 @@ export const DATA_ROW =
   "grid grid-cols-[1fr_auto] gap-4 px-3 py-4 border-t border-hairline items-center last-of-type:border-b";
 
 export const ROW_ACTIONS = "inline-flex gap-2";
+
+// Global route-transition progress bar (Issue #819). A 2px accent bar pinned
+// to the very top, above the header (`z-50`), mobile drawer (`z-[100]`) and
+// its scrim (`z-[90]`) — hence `z-[110]`. `fixed` so it never affects layout;
+// `pointer-events-none` so it never intercepts clicks. Decorative only: the
+// bar is `aria-hidden` (see `RouteProgressBar`) and load announcements are
+// owned by each page's skeleton `aria-live`, avoiding a second per-navigation
+// utterance.
+//
+// Visibility is `data-loading`-driven. Appearance is **instant**
+// (`data-[loading]:opacity-100` + `data-[loading]:transition-none`, so AC-1's
+// "visible within 200ms" always holds); only disappearance fades (base
+// `transition-opacity duration-[var(--duration-fast)]`) so a fast cache-hit
+// navigation does not flash a hard on/off. Under `prefers-reduced-motion:
+// reduce` the transition is dropped entirely (instant show + instant hide).
+export const ROUTE_PROGRESS_BAR =
+  "group pointer-events-none fixed inset-x-0 top-0 z-[110] h-0.5 opacity-0 transition-opacity duration-[var(--duration-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none data-[loading]:opacity-100 data-[loading]:transition-none";
+
+// Inner fill of the route progress bar. The indeterminate "in progress" motion
+// is a `motion-safe:` pulse (static under reduced motion), mirroring the
+// indeterminate treatment of `common/ProgressBar`. Gated behind the parent's
+// `data-loading` (via `group`) so the keyframes only run while a navigation is
+// in flight — an `opacity-0` bar still ticks its animation, so an ungated pulse
+// would spin idly on every route and could surface mid-fade when the bar shows.
+export const ROUTE_PROGRESS_BAR_FILL =
+  "h-full w-full bg-accent group-data-[loading]:motion-safe:animate-pulse";
