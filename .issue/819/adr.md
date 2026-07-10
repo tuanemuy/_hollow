@@ -80,3 +80,25 @@ Proposed
 - **進捗バーの2要素構成**: `RouteProgressBar` は外側コンテナ（fixed/z-index/opacity での表示制御）＋内側フィル（`bg-accent` + `motion-safe:animate-pulse`）の2要素に分けた。indeterminate の pulse は `animate-pulse`（opacity を 1↔0.5 でアニメ）であり、これを表示/非表示の opacity トランジションと同一要素に載せると両者の opacity 制御が衝突する。関心を分離し、外側が「見える/消える」を、内側が「進行中の動き」を担う。ADR-002 の可視化・アニメ方針はそのまま満たす。
 - **duration トークンの参照**: フェードは既存コード同様 `duration-[var(--duration-fast)] ease-[var(--ease-standard)]`（admin フォーム群・public drawer と同じ書式）で `--duration-fast: 120ms` を参照。
 - **`NoteEditorLoader` の notFound 分岐**: `NoteDetailContent` と同じく `try/catch` + `isNotFoundError` でインライン JSX を返す。`initialEditLock` の導出は現行 server fn のロジック（`as const`）をそのまま移設し、`NoteEditor` の props 契約・lazy 初期化は不変。
+
+---
+
+## ADR-004: 編集モードへ `tagSuggestions` を追加する（R3 review RSC W-001 への判断）
+
+### Status
+Accepted
+
+### Context
+plan / ADR-001 は編集ルートの Suspense 化を「呼び出し場所の移設のみ・`NoteEditor` の props 契約は不変」と枠づけていた。しかし `NoteEditorLoader` は移設に加えて `tagSuggestions={tags.tags.map((t) => t.name)}` を新たに `NoteEditor`（edit モード）へ渡している。main の旧 `edit.tsx` server fn は 9 props のみで `tagSuggestions` を渡しておらず、編集モードのタグ入力候補は「ゼロ→全候補」に変わる。R3 の RSC レビュー W-001 が「plan の『props 契約不変』記述と食い違う未文書のスコープ外挙動変更」として検出した（benign かつ望ましい方向）。
+
+### Decision
+`tagSuggestions` は**撤去せず、意図的な追加として明記して残す**。理由:
+- 新規作成モード（`new.tsx`）は既に `tagSuggestions` を渡しており、編集モードだけ候補が出ないのは UX の非対称。編集でも候補を出すのが正しい挙動。
+- タグ辞書（`loadAllTags`）は `initialTagNames` 解決のため本 loader で既に取得済み。同じデータの再利用でありコスト増はない。
+- 撤去すると編集モードのタグ入力から候補補完が失われ、体験が退行する。
+
+plan の「props 契約不変」は厳密には「不変＋候補 prop 1 個の追加」であり、本 ADR がその差分を正規化する。
+
+### Consequences
+- 良い点: 編集モードのタグ入力が create モードと一貫し、候補補完が効く。
+- トレードオフ: plan の「逐語移設」という枠づけからは 1 prop はみ出す（本 ADR とコードコメントで明示して吸収）。`NoteEditor` の `tagSuggestions?: readonly string[]` は元々オプショナル契約なので型・実行とも安全。

@@ -77,6 +77,9 @@ export async function NoteEditorLoader({
       initialDirectoryId={note.directoryId}
       {...(initialEditLock !== undefined ? { initialEditLock } : {})}
       tree={tree.flat}
+      // Intentional parity with create mode (`new.tsx`): feed the already-loaded
+      // tag dictionary as autocomplete suggestions so the editor's tag input also
+      // offers suggestions in edit mode. See `.issue/819/adr.md` ADR-004.
       tagSuggestions={tags.tags.map((t) => t.name)}
     />
   );
