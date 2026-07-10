@@ -16,6 +16,7 @@ import type {
 } from "@tiptap/suggestion";
 import {
   Bold,
+  Check,
   Code,
   Heading2,
   Heading3,
@@ -27,11 +28,13 @@ import {
   List,
   ListOrdered,
   type LucideIcon,
+  MoreHorizontal,
   Quote,
   Strikethrough,
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/common/Icon";
+import { Menu, MenuItem } from "@/components/common/Menu";
 import {
   pillBtn,
   pillBtnPrimary,
@@ -42,7 +45,9 @@ import type { InternalLinkSuggestion } from "@/core/application/note/searchInter
 import { InternalLinkSuggestPopup } from "./InternalLinkSuggestPopup";
 import { buildInternalLinkMention } from "./internalLinkExtension";
 import { nextSuggestionIndex } from "./internalLinkSuggest";
-import { editorToolbar } from "./styles";
+import { LinkDialog } from "./LinkDialog";
+import { isAllowedLinkUri } from "./linkUri";
+import { editorToolbarRail, editorToolbarWrap } from "./styles";
 import { detectUnsupportedTags } from "./wysiwygUnsupportedTags";
 
 /**
@@ -136,19 +141,12 @@ export type WysiwygEditorProps = Readonly<{
  */
 const EDITOR_TOOLBAR_BTN = `inline-flex items-center justify-center h-9 w-9 rounded-pill bg-surface text-ink transition-colors motion-reduce:transition-none hover:not-disabled:bg-surface-hover active:not-disabled:bg-surface-hover disabled:opacity-disabled disabled:cursor-not-allowed ${TOUCH_TARGET_SQUARE} data-[primary]:bg-accent data-[primary]:text-white data-[primary]:hover:not-disabled:bg-accent-hover data-[primary]:active:not-disabled:bg-accent-pressed`;
 
-const ALLOWED_LINK_SCHEMES = new Set(["http", "https", "mailto"]);
-
-function isAllowedLinkUri(url: string): boolean {
-  if (url.startsWith("/") || url.startsWith("#") || url.startsWith("?")) {
-    return true;
-  }
-  try {
-    const parsed = new URL(url);
-    return ALLOWED_LINK_SCHEMES.has(parsed.protocol.replace(/:$/, ""));
-  } catch {
-    return false;
-  }
-}
+/**
+ * Mobile-only overflow (`⋯`) trigger — the same circular chrome as
+ * `EDITOR_TOOLBAR_BTN` plus a `data-open` lit state so the button reads as
+ * pressed while its menu is open (Issue #825).
+ */
+const EDITOR_TOOLBAR_OVERFLOW_TRIGGER = `${EDITOR_TOOLBAR_BTN} data-[open]:bg-surface-hover`;
 
 export function WysiwygEditor({
   value,
@@ -169,6 +167,18 @@ export function WysiwygEditor({
   const lastEmittedHtmlRef = useRef<string>(value);
 
   const [, forceRender] = useState(0);
+
+  // Mobile overflow (`⋯`) menu open state — desktop never renders it
+  // (`sm:hidden` wrapper), so it stays `false` there (Issue #825).
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  // Pending link insert / edit. Non-null while the `LinkDialog` is open; holds
+  // the seed href + whether the selection already carries a link so the dialog
+  // can offer 解除. Replaces the native `window.prompt` / `window.alert`
+  // (Issue #825).
+  const [linkDialog, setLinkDialog] = useState<{
+    initialHref: string;
+    hasLink: boolean;
+  } | null>(null);
 
   // The `[[` internal-link suggest plugin is wired through the Mention
   // extension's Suggestion host. Two cross-cutting concerns are handled
@@ -398,35 +408,62 @@ export function WysiwygEditor({
   const isReady = editor !== null;
   const isDisabled = disabled === true || !isReady;
 
-  const onAddLink = () => {
+  const openLinkDialog = () => {
     if (editor === null) return;
     const previousHref = editor.getAttributes("link").href as
       | string
       | undefined;
-    const url = window.prompt("リンク URL", previousHref ?? "https://");
-    if (url === null) return;
-    if (url.length === 0) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-    if (!isAllowedLinkUri(url)) {
-      window.alert(
-        "対応していない URL スキームです (http / https / mailto / 相対 URL のみ)",
-      );
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    setLinkDialog({
+      initialHref: previousHref ?? "",
+      hasLink: editor.isActive("link"),
+    });
   };
 
-  type FormatButton = Readonly<{
+  // Closing `LinkDialog` unmounts it, and Dialog's focus-restore cleanup then
+  // returns focus to the trigger button (the toolbar "リンク" button) — which
+  // would clobber the `editor.chain().focus()` above and pull the caret out of
+  // the body, breaking continued typing right after insert/remove (#825 W-001).
+  // Re-focus the editor after that restoration runs (rAF fires post-unmount).
+  const refocusEditorAfterDialog = () => {
+    if (editor === null) return;
+    requestAnimationFrame(() => editor.commands.focus());
+  };
+
+  const onLinkSubmit = (url: string) => {
+    if (editor === null) return;
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    setLinkDialog(null);
+    refocusEditorAfterDialog();
+  };
+
+  const onLinkRemove = () => {
+    if (editor === null) return;
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkDialog(null);
+    refocusEditorAfterDialog();
+  };
+
+  /**
+   * Single source of truth for the toolbar (Issue #825): every button —
+   * including Link / Image — lives in this one array, in the pre-#825 DOM
+   * order (Bold/Italic/Strike/H2/H3/UL/OL/Quote/Code/Link/Image). `group`
+   * only drives *visibility*, never order: `overflow` buttons are hidden on
+   * mobile (`max-sm:hidden` on the rail) and surfaced through the `⋯` menu,
+   * while `primary` buttons stay on the rail everywhere. Desktop renders every
+   * button inline in this exact order (AC-2). `isActive` is omitted for plain
+   * action buttons (Image) so they carry no `aria-pressed` / `data-primary`.
+   */
+  type ToolbarButton = Readonly<{
     label: string;
     ariaLabel: string;
     icon: LucideIcon;
-    isActive: () => boolean;
+    group: "primary" | "overflow";
+    isActive?: () => boolean;
     onClick: () => void;
+    extraDisabled?: boolean;
   }>;
 
-  const buttons: readonly FormatButton[] =
+  const buttons: readonly ToolbarButton[] =
     editor === null
       ? []
       : [
@@ -434,6 +471,7 @@ export function WysiwygEditor({
             label: "Bold",
             ariaLabel: "太字",
             icon: Bold,
+            group: "primary",
             isActive: () => editor.isActive("bold"),
             onClick: () => editor.chain().focus().toggleBold().run(),
           },
@@ -441,6 +479,7 @@ export function WysiwygEditor({
             label: "Italic",
             ariaLabel: "斜体",
             icon: Italic,
+            group: "primary",
             isActive: () => editor.isActive("italic"),
             onClick: () => editor.chain().focus().toggleItalic().run(),
           },
@@ -448,6 +487,7 @@ export function WysiwygEditor({
             label: "Strike",
             ariaLabel: "取り消し線",
             icon: Strikethrough,
+            group: "overflow",
             isActive: () => editor.isActive("strike"),
             onClick: () => editor.chain().focus().toggleStrike().run(),
           },
@@ -455,6 +495,7 @@ export function WysiwygEditor({
             label: "H2",
             ariaLabel: "見出し 2",
             icon: Heading2,
+            group: "overflow",
             isActive: () => editor.isActive("heading", { level: 2 }),
             onClick: () =>
               editor.chain().focus().toggleHeading({ level: 2 }).run(),
@@ -463,6 +504,7 @@ export function WysiwygEditor({
             label: "H3",
             ariaLabel: "見出し 3",
             icon: Heading3,
+            group: "overflow",
             isActive: () => editor.isActive("heading", { level: 3 }),
             onClick: () =>
               editor.chain().focus().toggleHeading({ level: 3 }).run(),
@@ -471,6 +513,7 @@ export function WysiwygEditor({
             label: "UL",
             ariaLabel: "箇条書き",
             icon: List,
+            group: "primary",
             isActive: () => editor.isActive("bulletList"),
             onClick: () => editor.chain().focus().toggleBulletList().run(),
           },
@@ -478,6 +521,7 @@ export function WysiwygEditor({
             label: "OL",
             ariaLabel: "番号付きリスト",
             icon: ListOrdered,
+            group: "primary",
             isActive: () => editor.isActive("orderedList"),
             onClick: () => editor.chain().focus().toggleOrderedList().run(),
           },
@@ -485,6 +529,7 @@ export function WysiwygEditor({
             label: "Quote",
             ariaLabel: "引用",
             icon: Quote,
+            group: "overflow",
             isActive: () => editor.isActive("blockquote"),
             onClick: () => editor.chain().focus().toggleBlockquote().run(),
           },
@@ -492,10 +537,29 @@ export function WysiwygEditor({
             label: "Code",
             ariaLabel: "インラインコード",
             icon: Code,
+            group: "overflow",
             isActive: () => editor.isActive("code"),
             onClick: () => editor.chain().focus().toggleCode().run(),
           },
+          {
+            label: "Link",
+            ariaLabel: "リンク",
+            icon: Link2,
+            group: "primary",
+            isActive: () => editor.isActive("link"),
+            onClick: openLinkDialog,
+          },
+          {
+            label: "Image",
+            ariaLabel: "画像",
+            icon: ImageIcon,
+            group: "primary",
+            onClick: () => onRequestImage?.(),
+            extraDisabled: onRequestImage === undefined,
+          },
         ];
+
+  const overflowButtons = buttons.filter((b) => b.group === "overflow");
 
   const lostTags = unsupportedTags ?? [];
   const hasUnsupported = lostTags.length > 0;
@@ -508,8 +572,6 @@ export function WysiwygEditor({
         <code>{`<${t}>`}</code>
       </Fragment>
     ));
-
-  const linkActive = editor?.isActive("link") === true;
 
   return (
     <div className="flex flex-col">
@@ -547,52 +609,99 @@ export function WysiwygEditor({
           )}
         </div>
       ) : null}
-      <div className={editorToolbar} role="toolbar" aria-label="書式">
-        {buttons.map((btn) => {
-          const active = btn.isActive();
-          return (
-            <button
-              key={btn.label}
-              type="button"
-              aria-label={btn.ariaLabel}
-              title={btn.ariaLabel}
-              aria-pressed={active}
-              data-primary={active || undefined}
-              className={EDITOR_TOOLBAR_BTN}
-              disabled={isDisabled}
-              onClick={btn.onClick}
-            >
-              <Icon icon={btn.icon} size={20} />
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          aria-label="リンク"
-          title="リンク"
-          aria-pressed={linkActive}
-          data-primary={linkActive || undefined}
-          className={EDITOR_TOOLBAR_BTN}
-          disabled={isDisabled}
-          onClick={onAddLink}
-        >
-          <Icon icon={Link2} size={20} />
-        </button>
-        <button
-          type="button"
-          aria-label="画像"
-          title="画像"
-          className={EDITOR_TOOLBAR_BTN}
-          disabled={isDisabled || onRequestImage === undefined}
-          onClick={() => onRequestImage?.()}
-        >
-          <Icon icon={ImageIcon} size={20} />
-        </button>
+      {/* Issue #825: outer sticky wrapper (role="toolbar") holds the scrollable
+          rail + the mobile-only `⋯` overflow menu as siblings. The `<Menu>`
+          panel is an inline `absolute` element (not a Portal), so it must sit
+          OUTSIDE the `overflow-x-auto` rail (a two-axis clip container) to
+          avoid being clipped on mobile (ADR-001). */}
+      <div className={editorToolbarWrap} role="toolbar" aria-label="書式">
+        <div className={editorToolbarRail}>
+          {buttons.map((btn) => {
+            const isToggle = btn.isActive !== undefined;
+            const active = btn.isActive?.() ?? false;
+            return (
+              <button
+                key={btn.label}
+                type="button"
+                aria-label={btn.ariaLabel}
+                title={btn.ariaLabel}
+                aria-pressed={isToggle ? active : undefined}
+                data-primary={isToggle ? active || undefined : undefined}
+                // overflow buttons stay in the rail's DOM in the original
+                // order (desktop unchanged), hidden only below `sm` where the
+                // `⋯` menu surfaces them (AC-1 / AC-2).
+                className={
+                  btn.group === "overflow"
+                    ? `${EDITOR_TOOLBAR_BTN} max-sm:hidden`
+                    : EDITOR_TOOLBAR_BTN
+                }
+                disabled={isDisabled || btn.extraDisabled === true}
+                onClick={btn.onClick}
+              >
+                <Icon icon={btn.icon} size={20} />
+              </button>
+            );
+          })}
+        </div>
+        {/* `sm:hidden` wraps the whole `<Menu>` so desktop drops the `relative`
+            wrapper from the DOM entirely — no empty `gap-[2px]` cell widens the
+            desktop pill (AC-2 / ADR-001). */}
+        <div className="sm:hidden">
+          <Menu
+            open={overflowOpen}
+            onOpenChange={setOverflowOpen}
+            ariaLabel="その他の書式"
+            panelClassName="absolute right-0 mt-1 z-40 min-w-[200px]"
+            trigger={(triggerProps) => (
+              <button
+                {...triggerProps}
+                type="button"
+                aria-label="その他の書式"
+                title="その他の書式"
+                data-open={overflowOpen || undefined}
+                className={EDITOR_TOOLBAR_OVERFLOW_TRIGGER}
+                disabled={isDisabled}
+              >
+                <Icon icon={MoreHorizontal} size={20} />
+              </button>
+            )}
+          >
+            {overflowButtons.map((btn) => (
+              <MenuItem
+                key={btn.label}
+                onSelect={btn.onClick}
+                disabled={isDisabled}
+                icon={btn.icon}
+              >
+                <span className="flex-1">{btn.ariaLabel}</span>
+                {/* Applied state is read when the menu opens (AC-3): MenuItem
+                    has no `aria-pressed`, so a trailing check conveys it. The
+                    `Check` icon is `aria-hidden`, so an `sr-only` label carries
+                    the same state to screen readers (#825 a11y W-001). */}
+                {btn.isActive?.() ? (
+                  <>
+                    <span className="sr-only">（適用中）</span>
+                    <Icon icon={Check} className="text-accent" />
+                  </>
+                ) : null}
+              </MenuItem>
+            ))}
+          </Menu>
+        </div>
       </div>
       <EditorContent
         editor={editor}
         className="min-h-[52vh] sm:min-h-[480px] bg-bg p-4 text-base leading-relaxed transition-[border-color,box-shadow] duration-[150ms] motion-reduce:transition-none [&_.ProseMirror]:min-h-[calc(52vh-2rem)] sm:[&_.ProseMirror]:min-h-[440px] [&_.ProseMirror]:[overflow-wrap:anywhere] [&_.ProseMirror]:break-words [&_.ProseMirror]:outline-none [&_.ProseMirror]:focus-visible:shadow-none [&_.ProseMirror]:caret-accent [&_.ProseMirror]:selection:bg-accent-surface [&_.ProseMirror>:first-child]:mt-0 [&_.ProseMirror>:last-child]:mb-0 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mt-6 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-2 [&_blockquote]:border-hairline-strong [&_blockquote]:pl-4 [&_blockquote]:text-ink-secondary [&_code]:rounded-xs [&_code]:bg-surface [&_code]:px-[6px] [&_code]:py-[2px] [&_code]:font-mono [&_code]:text-sm [&_pre]:rounded-md [&_pre]:bg-surface [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:font-mono [&_pre]:text-sm [&_a]:text-accent [&_a]:underline [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
       />
+      {linkDialog !== null ? (
+        <LinkDialog
+          initialHref={linkDialog.initialHref}
+          hasLink={linkDialog.hasLink}
+          onSubmit={onLinkSubmit}
+          onRemove={onLinkRemove}
+          onClose={() => setLinkDialog(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -98,18 +98,11 @@ const { detectUnsupportedTags } = await import("../wysiwygUnsupportedTags");
 
 let container: HTMLDivElement;
 let root: Root;
-let confirmMock: ReturnType<typeof vi.fn>;
-let originalConfirm: ((message?: string) => boolean) | undefined;
 
 beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  confirmMock = vi.fn().mockReturnValue(true);
-  originalConfirm = (window as unknown as { confirm?: typeof window.confirm })
-    .confirm;
-  (window as unknown as { confirm: (m?: string) => boolean }).confirm =
-    confirmMock as unknown as (m?: string) => boolean;
 });
 
 afterEach(() => {
@@ -117,9 +110,6 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
-  (
-    window as unknown as { confirm: typeof window.confirm | undefined }
-  ).confirm = originalConfirm as typeof window.confirm;
   vi.clearAllMocks();
 });
 
@@ -161,6 +151,24 @@ async function renderNewEditor(): Promise<void> {
 
 function alertDialog(): HTMLElement | null {
   return document.body.querySelector<HTMLElement>('[role="alertdialog"]');
+}
+
+// The unsaved-changes and decoration-loss dialogs are both `alertdialog`s, but
+// only one is ever open at a time (the other renders null while closed). These
+// discriminate the currently-open dialog by its copy (Issue #825).
+function unsavedDialog(): HTMLElement | null {
+  const d = alertDialog();
+  return d !== null && (d.textContent ?? "").includes("未保存の変更")
+    ? d
+    : null;
+}
+
+function decorationDialog(): HTMLElement | null {
+  const d = alertDialog();
+  return d !== null &&
+    (d.textContent ?? "").includes("WYSIWYG モードでは保持されません")
+    ? d
+    : null;
 }
 
 function dialogButtonByLabel(label: string): HTMLButtonElement {
@@ -214,15 +222,15 @@ function htmlTextareaValue(): string {
 }
 
 describe("NoteEditor.onModeChange confirm conditions", () => {
-  it("does not confirm when state is clean (no dirty, autosave idle)", async () => {
+  it("does not open the unsaved dialog when state is clean (no dirty, autosave idle)", async () => {
     await renderEditor();
     await act(async () => {
       tabByLabel("HTML").click();
     });
-    expect(confirmMock).not.toHaveBeenCalled();
+    expect(unsavedDialog()).toBeNull();
   });
 
-  it("confirms when contentHtml is dirty before switching modes", async () => {
+  it("opens the unsaved dialog when contentHtml is dirty before switching modes", async () => {
     await renderEditor();
     // Make the editor dirty via the title field — the cheapest path
     // that does not depend on the InlineEditor MutationObserver async
@@ -244,10 +252,10 @@ describe("NoteEditor.onModeChange confirm conditions", () => {
     await act(async () => {
       tabByLabel("HTML").click();
     });
-    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(unsavedDialog()).not.toBeNull();
   });
 
-  it("confirms when autosave entered an error state via the dirty path", async () => {
+  it("opens the unsaved dialog when autosave entered an error state via the dirty path", async () => {
     await renderEditor();
     // Stage a saveDraft rejection so the autosave path lands in
     // `error`. The dirtyKeys branch and the autosave.error branch are
@@ -272,7 +280,7 @@ describe("NoteEditor.onModeChange confirm conditions", () => {
     await act(async () => {
       tabByLabel("HTML").click();
     });
-    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(unsavedDialog()).not.toBeNull();
   });
 });
 
@@ -347,13 +355,15 @@ describe("NoteEditor FrontMatter permanent mount (Issue #697)", () => {
     // The new key is rendered as a committed KeyRow in the structured tree.
     expect(hasFrontMatterKeyRow("author")).toBe(true);
 
-    // Switching the body mode now triggers the unsaved-confirm (dirty via
-    // the FrontMatter edit). Accept it.
-    confirmMock.mockReturnValue(true);
+    // Switching the body mode now triggers the unsaved-confirm dialog (dirty
+    // via the FrontMatter edit). Accept it.
     await act(async () => {
       tabByLabel("HTML").click();
     });
-    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(unsavedDialog()).not.toBeNull();
+    await act(async () => {
+      dialogButtonByLabel("切り替える").click();
+    });
     // The FrontMatter editor is still mounted and the key it held survives
     // the body-mode switch (state is not reset).
     expect(frontMatterKeyInput()).not.toBeNull();
@@ -449,8 +459,9 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
     expect(dialog?.textContent ?? "").toContain(
       "次の要素は WYSIWYG モードでは保持されません",
     );
-    // No unsaved changes, so the unsaved `window.confirm` did not fire.
-    expect(confirmMock).not.toHaveBeenCalled();
+    // No unsaved changes, so the unsaved dialog never opened — only the
+    // decoration dialog is present.
+    expect(unsavedDialog()).toBeNull();
   });
 
   it("lists every unsupported tag in sorted order and excludes supported tags (AC-2/AC-5)", async () => {
@@ -557,7 +568,7 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
 
   it("runs unsaved-confirm before the decoration dialog without double-prompting the loss (AC-7)", async () => {
     await renderEditor("<section><p>x</p></section>");
-    // Make the editor dirty so the unsaved `window.confirm` fires first.
+    // Make the editor dirty so the unsaved dialog opens first.
     const titleInput =
       container.querySelector<HTMLInputElement>("#note-editor-title");
     await act(async () => {
@@ -570,14 +581,23 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
         titleInput.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    confirmMock.mockReturnValue(true);
     await act(async () => {
       tabByLabel("WYSIWYG").click();
     });
-    // Order: window.confirm (unsaved) once, THEN the decoration dialog.
-    expect(confirmMock).toHaveBeenCalledTimes(1);
-    expect(alertDialog()).not.toBeNull();
-    // The decoration concern is surfaced exactly once (single dialog).
+    // Order: the unsaved dialog opens first and ALONE — the decoration dialog
+    // stays deferred behind it (exactly one dialog present).
+    expect(unsavedDialog()).not.toBeNull();
+    expect(decorationDialog()).toBeNull();
+    expect(document.body.querySelectorAll('[role="alertdialog"]').length).toBe(
+      1,
+    );
+    // Accepting the unsaved dialog surfaces the decoration dialog — the loss is
+    // still surfaced exactly once (no double prompt).
+    await act(async () => {
+      dialogButtonByLabel("切り替える").click();
+    });
+    expect(unsavedDialog()).toBeNull();
+    expect(decorationDialog()).not.toBeNull();
     expect(document.body.querySelectorAll('[role="alertdialog"]').length).toBe(
       1,
     );
@@ -597,12 +617,14 @@ describe("NoteEditor.onModeChange WYSIWYG decoration-loss gate (Issue #696)", ()
         titleInput.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    confirmMock.mockReturnValue(false);
     await act(async () => {
       tabByLabel("WYSIWYG").click();
     });
-    // Cancelling the unsaved confirm aborts before the decoration gate.
-    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(unsavedDialog()).not.toBeNull();
+    // Cancelling the unsaved dialog aborts before the decoration gate.
+    await act(async () => {
+      dialogButtonByLabel("キャンセル").click();
+    });
     expect(alertDialog()).toBeNull();
     expect(isWysiwygMounted()).toBe(false);
   });
@@ -653,9 +675,9 @@ describe("NoteEditor new surface switching is unchanged (Issue #696 AC-6)", () =
     });
     expect(alertDialog()).toBeNull();
     expect(isWysiwygMounted()).toBe(true);
-    // New-note mode never autosaves, so the unsaved confirm path is not
+    // No edits were made across the round-trip, so the unsaved dialog is not
     // involved either.
-    expect(confirmMock).not.toHaveBeenCalled();
+    expect(unsavedDialog()).toBeNull();
   });
 
   it("does NOT open the decoration dialog when HTML carries unsupported tags (AC-6)", async () => {
@@ -687,6 +709,13 @@ describe("NoteEditor new surface switching is unchanged (Issue #696 AC-6)", () =
     await act(async () => {
       tabByLabel("WYSIWYG").click();
     });
+    // Typing into the HTML textarea marked the note dirty, so the unsaved
+    // dialog opens first — a separate, pre-#696 concern, not the decoration
+    // gate. Accept it to proceed.
+    expect(unsavedDialog()).not.toBeNull();
+    await act(async () => {
+      dialogButtonByLabel("切り替える").click();
+    });
     await act(async () => {
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
@@ -694,9 +723,7 @@ describe("NoteEditor new surface switching is unchanged (Issue #696 AC-6)", () =
     });
     // No pre-switch *decoration* dialog on the new surface — the switch goes
     // straight to the WYSIWYG pane (where the in-pane banner takes over the
-    // warning). The unsaved-change `window.confirm` is a separate, pre-#696
-    // concern (typing into the textarea marks content dirty) and is not part
-    // of this AC-6 assertion.
+    // warning).
     expect(alertDialog()).toBeNull();
     expect(isWysiwygMounted()).toBe(true);
   });
@@ -779,17 +806,19 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       const signal = call?.signal;
       expect(signal?.aborted).toBe(false);
 
-      confirmMock.mockReturnValue(true);
       await act(async () => {
         tabByLabel("HTML").click();
       });
-      // Mode-switch dispatched `autosaveDiscarded` which abort()'d the
-      // controller. Allow any pending microtasks (rejected promise +
-      // `.finally`) to flush.
+      // The unsaved dialog opens; picking "切り替える" dispatches
+      // `autosaveDiscarded` which abort()'d the controller.
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
+      });
+      // Allow any pending microtasks (rejected promise + `.finally`) to flush.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
       });
-      expect(confirmMock).toHaveBeenCalledTimes(1);
       expect(signal?.aborted).toBe(true);
       // AutosaveIndicator should be back in idle. In edit mode the idle
       // state renders nothing (autosave is armed-but-clean), so the prior
@@ -849,11 +878,13 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       const signal = call?.signal;
       expect(signal?.aborted).toBe(false);
 
-      confirmMock.mockReturnValue(false);
       await act(async () => {
         tabByLabel("HTML").click();
       });
-      expect(confirmMock).toHaveBeenCalledTimes(1);
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("キャンセル").click();
+      });
       // Cancel must not abort the live fetch.
       expect(signal?.aborted).toBe(false);
       // Indicator is still showing the saving copy because we never
@@ -888,9 +919,13 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       saveDraftMock.mockReset();
       saveDraftMock.mockResolvedValue(undefined);
 
-      confirmMock.mockReturnValue(true);
       await act(async () => {
         tabByLabel("HTML").click();
+      });
+      // Error state counts as dirty → the unsaved dialog opens; discard it.
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
       });
       // Allow the post-discard effect's debounce + flush to settle so
       // the indicator transitions through `saving → saved` rather than
@@ -898,7 +933,6 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2000);
       });
-      expect(confirmMock).toHaveBeenCalledTimes(1);
       expect(container.textContent ?? "").not.toContain("自動保存に失敗");
     } finally {
       vi.useRealTimers();
@@ -935,9 +969,12 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       });
       expect(saveDraftMock).toHaveBeenCalledTimes(1);
 
-      confirmMock.mockReturnValue(true);
       await act(async () => {
         tabByLabel("HTML").click();
+      });
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
       });
       // Flush microtasks for the abort listener + finally bookkeeping.
       await act(async () => {
@@ -1001,21 +1038,23 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       )?.data?.contentHtml;
       expect(inFlightHtml).toBe(original);
 
-      // Dirty + unsupported tags: unsaved `window.confirm` fires first, then
-      // the decoration dialog gates the switch (AC-7 order). `abortInFlight`
-      // runs once the unsaved confirm is accepted, before the gate opens.
-      confirmMock.mockReturnValue(true);
+      // Dirty + unsupported tags: the unsaved dialog opens first, then the
+      // decoration dialog gates the switch (AC-7 order). `abortInFlight` runs
+      // once the unsaved dialog is accepted, before the gate opens.
       await act(async () => {
         tabByLabel("WYSIWYG").click();
+      });
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
       });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
       });
-      expect(confirmMock).toHaveBeenCalledTimes(1);
       // The in-flight saveDraft was aborted by the discard, even though the
-      // mode has not switched yet (still gated behind the dialog).
+      // mode has not switched yet (still gated behind the decoration dialog).
       expect(signal?.aborted).toBe(true);
-      expect(alertDialog()).not.toBeNull();
+      expect(decorationDialog()).not.toBeNull();
       expect(isWysiwygMounted()).toBe(false);
 
       // The captured in-flight payload was assembled from `state.contentHtml`
@@ -1044,6 +1083,12 @@ describe("NoteEditor.onModeChange in-flight autosave cancel (Issue #286)", () =>
       // including its `<section>` wrapper, must be intact.
       await act(async () => {
         tabByLabel("HTML").click();
+      });
+      // The discard preserved dirtyKeys (Issue #286), so this switch is dirty
+      // and reopens the unsaved dialog; accept it to land on the HTML tab.
+      expect(unsavedDialog()).not.toBeNull();
+      await act(async () => {
+        dialogButtonByLabel("切り替える").click();
       });
       expect(isWysiwygMounted()).toBe(false);
       // HTML tab shows the formatted draft (Issue #762); minifying it back

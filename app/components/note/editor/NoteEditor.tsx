@@ -166,6 +166,14 @@ export function NoteEditor(props: NoteEditorProps) {
   const [pendingWysiwygSwitch, setPendingWysiwygSwitch] = useState<{
     lostTags: readonly string[];
   } | null>(null);
+  // Holds a deferred body-mode switch while the unsaved-changes confirmation
+  // dialog is open (Issue #825) — the custom-UI replacement for the former
+  // `window.confirm`. Same "view-only deferred transition" role as
+  // `pendingWysiwygSwitch`, so it lives in orchestrator `useState`, not the
+  // reducer. The actual `setMode` runs on confirm (via `proceedModeSwitch`).
+  const [pendingUnsavedSwitch, setPendingUnsavedSwitch] = useState<{
+    nextMode: EditorMode;
+  } | null>(null);
   const tiptapEditorRef = useRef<Editor | null>(null);
   // Shared with the WYSIWYG `MediaUploader` so the toolbar's image button can
   // open its file picker (`.click()`). Wired to the WYSIWYG instance only.
@@ -252,40 +260,14 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const surface: "new" | "edit" = props.mode === "new" ? "new" : "edit";
 
-  const onModeChange = useCallback(
+  // Tail of the mode switch, shared by the not-dirty path and the
+  // unsaved-confirm `onConfirm` path (Issue #825). Runs the decoration-loss
+  // gate then dispatches `setMode`. Reads the freshest snapshot from
+  // `stateRef` so it is correct whether called synchronously (not-dirty) or
+  // deferred (after the async unsaved-confirm dialog).
+  const proceedModeSwitch = useCallback(
     (nextMode: EditorMode) => {
-      // Force a blur on the currently focused field (title / tag draft /
-      // FrontMatter KeyRow buffer) first so its pending commit (e.g. a
-      // key-rename that commits on blur) is flushed before the dirty
-      // re-evaluation, instead of being read stale. The blur is purely for
-      // dirty freshness, not unmount safety — FrontMatter is permanently
-      // mounted (Issue #697). The order is fixed as: blur → re-evaluate
-      // dirty → confirm → dispatch, so any dirty flag that blur introduces
-      // (e.g. a committed rename) is visible to the confirm step. The
-      // latest `dirtyKeys` / `autosave` is read from `stateRef` rather than
-      // the closure to capture any dispatch that blur produced.
-      //
-      // When the user picks "discard", call
-      // `abortInFlight()` BEFORE `setMode` dispatches. The abort cancels
-      // the in-flight `saveDraft` fetch via AbortController and resets
-      // the autosave UI to `idle`. Doing it before `setMode` keeps the
-      // abort and the post-`setMode` effect re-evaluation (which may
-      // install a new controller on modes where `canFlush` flips) from
-      // racing on the same `controllerRef` slot.
-      const active = document.activeElement;
-      if (active instanceof HTMLElement) active.blur();
       const latest = stateRef.current;
-      const isDirty =
-        latest.dirtyKeys.size > 0 ||
-        latest.autosave.kind === "saving" ||
-        latest.autosave.kind === "error";
-      if (isDirty) {
-        const ok = window.confirm(
-          "未保存の変更があります。保存せずに切り替えますか？",
-        );
-        if (!ok) return;
-        abortInFlight();
-      }
       // Decoration-loss gate (Issue #696): switching to WYSIWYG flattens
       // any tag TipTap cannot round-trip. Detect against the latest
       // committed `contentHtml` (the InlineEditor `onChange` debounce may
@@ -293,14 +275,15 @@ export function NoteEditor(props: NoteEditorProps) {
       // ordinary text edits, so this is an accepted approximation — see
       // ADR-002). If anything would be lost, defer the switch and open the
       // ConfirmDialog instead of dispatching `setMode` now. The order is
-      // fixed: unsaved-confirm (window.confirm) → decoration-warning
+      // fixed: unsaved-confirm (ConfirmDialog) → decoration-warning
       // (ConfirmDialog), and confirming the latter also acks the in-pane
       // banner so the user is never asked twice about the same loss.
       //
       // Scoped to `surface === "edit"` only: the new-note surface keeps its
       // pre-#696 behaviour (AC-6) where the in-pane WYSIWYG banner is the
       // sole decoration-loss warning, so a "HTML tab → raw <section> → WYSIWYG
-      // tab" path on a new note must NOT pop this dialog.
+      // tab" path on a new note must NOT pop this dialog. Keep this scope
+      // inside the extracted helper — dropping it re-breaks AC-6 (#825).
       //
       // Issue #762: when leaving the HTML tab, `contentHtml` is stale —
       // the in-progress truth is the formatted `htmlDraft`. Detect against
@@ -321,8 +304,57 @@ export function NoteEditor(props: NoteEditorProps) {
       }
       dispatch({ type: "setMode", mode: nextMode });
     },
-    [abortInFlight, surface],
+    [surface],
   );
+
+  const onModeChange = useCallback(
+    (nextMode: EditorMode) => {
+      // Force a blur on the currently focused field (title / tag draft /
+      // FrontMatter KeyRow buffer) first so its pending commit (e.g. a
+      // key-rename that commits on blur) is flushed before the dirty
+      // re-evaluation, instead of being read stale. The blur is purely for
+      // dirty freshness, not unmount safety — FrontMatter is permanently
+      // mounted (Issue #697). The order is fixed as: blur → re-evaluate
+      // dirty → confirm → dispatch, so any dirty flag that blur introduces
+      // (e.g. a committed rename) is visible to the confirm step. The
+      // latest `dirtyKeys` / `autosave` is read from `stateRef` rather than
+      // the closure to capture any dispatch that blur produced.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
+      const latest = stateRef.current;
+      const isDirty =
+        latest.dirtyKeys.size > 0 ||
+        latest.autosave.kind === "saving" ||
+        latest.autosave.kind === "error";
+      if (isDirty) {
+        // Defer the switch and open the unsaved-changes ConfirmDialog
+        // (Issue #825 — replaces the synchronous `window.confirm`). The
+        // discard/abort + decoration gate + `setMode` all run in the dialog's
+        // `onConfirm` via `proceedModeSwitch`.
+        setPendingUnsavedSwitch({ nextMode });
+        return;
+      }
+      proceedModeSwitch(nextMode);
+    },
+    [proceedModeSwitch],
+  );
+
+  const confirmUnsavedSwitch = useCallback(() => {
+    const pending = pendingUnsavedSwitch;
+    if (pending === null) return;
+    // When the user picks "discard", call `abortInFlight()` BEFORE `setMode`
+    // dispatches. The abort cancels the in-flight `saveDraft` fetch via
+    // AbortController and resets the autosave UI to `idle`. Doing it before
+    // `setMode` keeps the abort and the post-`setMode` effect re-evaluation
+    // (which may install a new controller on modes where `canFlush` flips)
+    // from racing on the same `controllerRef` slot.
+    abortInFlight();
+    setPendingUnsavedSwitch(null);
+    // `proceedModeSwitch` may open the decoration-loss dialog. Clearing the
+    // unsaved dialog above and this call batch into one render, so the two
+    // dialogs are never open simultaneously (AC-5).
+    proceedModeSwitch(pending.nextMode);
+  }, [pendingUnsavedSwitch, abortInFlight, proceedModeSwitch]);
 
   const confirmWysiwygSwitch = useCallback(() => {
     const pending = pendingWysiwygSwitch;
@@ -664,6 +696,17 @@ export function NoteEditor(props: NoteEditorProps) {
           {displayError(submitError)}
         </p>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingUnsavedSwitch !== null}
+        title="未保存の変更があります"
+        description={
+          <p>保存されていない変更があります。保存せずに切り替えますか？</p>
+        }
+        confirmLabel="切り替える"
+        onConfirm={confirmUnsavedSwitch}
+        onClose={() => setPendingUnsavedSwitch(null)}
+      />
 
       <ConfirmDialog
         open={pendingWysiwygSwitch !== null}
